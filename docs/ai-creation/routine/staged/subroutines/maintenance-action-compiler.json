@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850070",
+  "publicId": "maint-action-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850071",
+      "publicId": "maint-action-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Compiles comprehensive maintenance action plans",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are a home maintenance documentation expert. Compile all maintenance planning into comprehensive guides and actionable checklists.\n\nBudget Plan:\n{{input.costProjections}}\n\nReminder Schedule:\n{{input.notificationPlan}}\n\nMaintenance Steps:\n{{input.maintenanceSteps}}\n\nCreate comprehensive maintenance documentation:\n\n1. **Action Guide**:\n   Immediate actions (This month):\n   - Safety-critical tasks\n   - Quick wins under $50\n   - DIY weekend projects\n   \n   Quarterly plan:\n   - Scheduled maintenance by month\n   - Budget allocation per quarter\n   - Contractor scheduling windows\n   \n   Annual roadmap:\n   - Major maintenance milestones\n   - Replacement planning\n   - Budget reserves needed\n\n2. **Maintenance Checklists**:\n   By system type:\n   - HVAC maintenance checklist\n   - Plumbing inspection points\n   - Electrical safety checks\n   - Appliance care routines\n   - Exterior maintenance tasks\n   \n   Include for each:\n   - Step-by-step instructions\n   - Tools needed\n   - Safety precautions\n   - When to call professionals\n   - Cost-saving tips\n\n3. **Quick Reference Materials**:\n   - Emergency shut-off locations\n   - Contractor contact list\n   - Model/serial number registry\n   - Warranty information summary\n   - Seasonal preparation guides\n   - Troubleshooting common issues\n\nProvide output as JSON with:\n- actionGuide: Prioritized implementation plan\n- maintenanceChecklists: Detailed task checklists by system\n- quickReference: Essential information compilation",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "costProjections",
+                "id": "cost_projections_input",
+                "label": "Budget Plan",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Financial planning data"
+                }
+              },
+              {
+                "fieldName": "notificationPlan",
+                "id": "notification_plan_input",
+                "label": "Reminder Schedule",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Notification system plan"
+                }
+              },
+              {
+                "fieldName": "maintenanceSteps",
+                "id": "maintenance_steps_input",
+                "label": "Task Instructions",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "How-to information for tasks"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "actionGuide",
+                "id": "action_guide_output",
+                "label": "Implementation Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "maintenanceChecklists",
+                "id": "maintenance_checklists_output",
+                "label": "Task Checklists",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "quickReference",
+                "id": "quick_reference_output",
+                "label": "Reference Guide",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850072",
+          "language": "en",
+          "name": "Maintenance Action Compiler",
+          "description": "Compiles comprehensive maintenance guides, detailed checklists, and quick reference materials for effective home upkeep.",
+          "instructions": "Provide budget projections, reminder schedules, and maintenance instructions. The routine will create actionable guides and reference materials."
+        }
+      ]
+    }
+  ]
+}

@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Available Time",
                 "description": "Identifies open time slots in calendar",
-                "subroutineId": "TODO: Need time analysis subroutine",
+                "subroutineId": "7829564732190850247",
                 "inputMap": {
                   "calendarData": "existingSchedule",
                   "workingHours": "availabilityWindow",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Prioritize Tasks",
                 "description": "Orders tasks by importance and urgency",
-                "subroutineId": "TODO: Need task prioritization subroutine",
+                "subroutineId": "7829564732190850250",
                 "inputMap": {
                   "taskList": "pendingTasks",
                   "deadlines": "dueDates",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Estimate Task Durations",
                 "description": "Calculates time needed for each task",
-                "subroutineId": "TODO: Need duration estimation subroutine",
+                "subroutineId": "7829564732190850253",
                 "inputMap": {
                   "orderedTaskList": "prioritizedTasks",
                   "historicalData": "pastDurations",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Optimize Time Allocation",
                 "description": "Assigns tasks to optimal time slots",
-                "subroutineId": "TODO: Need allocation optimization subroutine",
+                "subroutineId": "7829564732190850256",
                 "inputMap": {
                   "openTimeBlocks": "availableSlots",
                   "timeEstimates": "taskDurations",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Add Breaks & Transitions",
                 "description": "Inserts rest periods and transition time",
-                "subroutineId": "TODO: Need break scheduling subroutine",
+                "subroutineId": "7829564732190850259",
                 "inputMap": {
                   "timeAllocations": "optimalSchedule",
                   "breakPreferences": "restRequirements",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Calendar Format",
                 "description": "Creates calendar-ready schedule with details",
-                "subroutineId": "TODO: Need calendar formatting subroutine",
+                "subroutineId": "7829564732190850262",
                 "inputMap": {
                   "completeTimeBlocks": "finalSchedule",
                   "taskDetails": "workDescriptions",

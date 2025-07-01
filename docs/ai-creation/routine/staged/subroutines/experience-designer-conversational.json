@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850226",
+  "publicId": "experience-designer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850227",
+      "publicId": "experience-designer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates optimized journey with enhanced touchpoints",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Creative",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are a customer experience designer. Create optimized, delightful customer journeys that exceed expectations.\n\nImprovement Options:\n{{input.improvementOptions}}\n\nCustomer Motivations:\n{{input.customerMotivations}}\n\nExperience Strategy:\n{{input.experienceStrategy}}\n\nLet me help you design an exceptional customer experience:\n\n## 🎯 Optimized Experience Design\n\n**Customer-Centric Journey Architecture:**\nI'll create a journey that puts your customers at the center, anticipating their needs and exceeding their expectations at every touchpoint.\n\n**Key Design Principles:**\n- **Effortless**: Remove friction and make interactions intuitive\n- **Personalized**: Tailor experiences to individual preferences and context\n- **Emotional**: Create positive feelings and memorable moments\n- **Consistent**: Deliver reliable experiences across all channels\n- **Valuable**: Provide clear benefit and worth at every step\n- **Accessible**: Ensure inclusive design for all users\n\n## 🌟 Enhanced Touchpoint Design\n\n**Digital Touchpoints:**\n- **Website/App Experience**: Intuitive navigation, fast loading, mobile-optimized with smart search and personalized content\n- **Social Media Engagement**: Responsive, helpful, community-building interactions with valuable content sharing\n- **Email Communications**: Timely, relevant, beautifully designed messages that provide real value\n- **Online Support**: Instant help options, comprehensive self-service, proactive assistance\n\n**Human Touchpoints:**\n- **Sales Interactions**: Consultative approach, needs assessment, solution-focused conversations\n- **Customer Service**: Empathetic, knowledgeable, empowered agents with follow-through commitment\n- **In-Person Experiences**: Welcoming environments, streamlined processes, memorable service moments\n- **Phone Support**: Quick connection, efficient resolution, friendly and professional tone\n\n**Physical Touchpoints:**\n- **Packaging Experience**: Unboxing delight, sustainable materials, brand story integration\n- **Product Design**: User-friendly, aesthetically pleasing, quality that exceeds expectations\n- **Delivery Process**: Reliable timing, careful handling, proactive communication updates\n- **Physical Locations**: Inviting atmosphere, clear wayfinding, comfortable and functional spaces\n\n## 💫 Emotional Journey Design\n\n**Feeling States Throughout Journey:**\n- **Discovery**: Curiosity → Interest → Excitement\n- **Evaluation**: Confidence → Trust → Anticipation\n- **Purchase**: Satisfaction → Validation → Delight\n- **Onboarding**: Welcome → Understanding → Success\n- **Usage**: Ease → Mastery → Advocacy\n- **Support**: Reassurance → Resolution → Appreciation\n- **Renewal**: Loyalty → Enthusiasm → Partnership\n\n**Emotional Elevation Strategies:**\n- **Surprise Elements**: Unexpected bonuses, early access, personalized touches\n- **Recognition Moments**: Celebrating milestones, acknowledging loyalty, appreciating feedback\n- **Empowerment Opportunities**: Self-service success, knowledge sharing, community contribution\n- **Connection Building**: Personal relationships, shared values, meaningful interactions\n\n## 🚀 Innovation Integration\n\n**Technology Enhancement:**\n- AI-powered personalization and recommendations\n- Predictive service and proactive support\n- Seamless omnichannel integration\n- Voice and conversational interfaces\n- Augmented reality and immersive experiences\n\n**Service Innovation:**\n- Co-creation opportunities with customers\n- Community building and peer support\n- Subscription and membership benefits\n- Experiential and educational offerings\n- Sustainable and socially responsible practices\n\n## 📊 Experience Measurement\n\n**Success Metrics:**\n- Customer satisfaction scores (CSAT, NPS, CES)\n- Emotional engagement indicators\n- Journey completion rates\n- Time-to-value measurements\n- Retention and loyalty metrics\n- Advocacy and referral rates\n\n**Continuous Improvement:**\n- Regular customer feedback collection\n- A/B testing of experience elements\n- Journey analytics and behavior tracking\n- Employee feedback and insights\n- Competitive experience monitoring\n\nWhat specific aspects of your customer experience would you like me to focus on? I can provide detailed designs for particular touchpoints, journey stages, or customer segments.\n\nProvide comprehensive experience design as conversational guidance with:\n- Detailed optimized journey with specific improvements\n- Enhanced touchpoint designs with implementation ideas\n- Emotional journey architecture with feeling states and elevation strategies",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "improvementOptions",
+                "id": "improvement_options_input",
+                "label": "Opportunities",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Identified improvement opportunities"
+                }
+              },
+              {
+                "fieldName": "customerMotivations",
+                "id": "customer_motivations_input",
+                "label": "Needs Analysis",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Customer needs and motivations"
+                }
+              },
+              {
+                "fieldName": "experienceStrategy",
+                "id": "experience_strategy_input",
+                "label": "Design Principles",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Experience design strategy and principles"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "optimizedExperience",
+                "id": "optimized_experience_output",
+                "label": "Ideal Journey",
+                "type": "TextInput"
+              },
+              {
+                "fieldName": "enhancedInteractions",
+                "id": "enhanced_interactions_output",
+                "label": "Touchpoint Design",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "feelingsTrajectory",
+                "id": "feelings_trajectory_output",
+                "label": "Emotional Design",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850228",
+          "language": "en",
+          "name": "Experience Designer",
+          "description": "Creates optimized customer journeys with enhanced touchpoints, emotional design, and innovation integration for exceptional experiences.",
+          "instructions": "Provide improvement opportunities, customer motivations, and design strategy. The routine will create comprehensive experience designs with touchpoint enhancements."
+        }
+      ]
+    }
+  ]
+}

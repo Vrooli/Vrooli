@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349355",
+  "publicId": "zip-ar-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349356",
+      "publicId": "zip-arch-mgr-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of ZIP archive manager for comprehensive archive management and compression optimization strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Efficiency-focused",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a ZIP archive management expert providing comprehensive archive handling strategies, compression optimization, and file management solutions.\n\nArchive Context: {{input.archiveContext}}\nFile Characteristics: {{input.fileCharacteristics}}\nOperational Requirements: {{input.operationalRequirements}}\nPerformance Goals: {{input.performanceGoals}}\n\nDesign comprehensive ZIP archive management strategy:\n\n1. **Archive Creation and Structure**:\n   - Directory structure optimization\n   - File organization strategies\n   - Metadata preservation\n   - Path handling and normalization\n   - Archive format selection\n\n2. **Compression Optimization**:\n   - Compression level tuning\n   - Algorithm selection strategies\n   - File type specific compression\n   - Size vs speed trade-offs\n   - Selective compression policies\n\n3. **Archive Operations Management**:\n   - Incremental archive updates\n   - Partial extraction techniques\n   - Archive merging and splitting\n   - Batch processing optimization\n   - Concurrent operation handling\n\n4. **Performance and Memory Optimization**:\n   - Streaming compression/decompression\n   - Memory usage minimization\n   - Large file handling\n   - Progress tracking\n   - Resource management\n\n5. **Security and Integrity**:\n   - Password protection strategies\n   - Encryption implementation\n   - Integrity verification\n   - Checksum validation\n   - Secure deletion procedures\n\n6. **Error Handling and Recovery**:\n   - Corruption detection and repair\n   - Partial archive recovery\n   - Resume interrupted operations\n   - Backup and redundancy\n   - Graceful failure handling\n\n7. **Integration and Automation**:\n   - API design and implementation\n   - Automation workflow integration\n   - Monitoring and logging\n   - Event-driven processing\n   - Cross-platform compatibility\n\nProvide comprehensive ZIP archive management plan with creation optimization, compression strategies, operation management, and integration frameworks for efficient archive handling.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "archiveContext",
+                "id": "archive_context_input",
+                "label": "Archive Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Use case type, archive purposes, storage goals, distribution needs, backup requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your archive management context"
+                }
+              },
+              {
+                "fieldName": "fileCharacteristics",
+                "id": "file_characteristics_input",
+                "label": "File Characteristics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "File types, sizes, quantities, structures, update frequencies, compression ratios",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What files need archive management?"
+                }
+              },
+              {
+                "fieldName": "operationalRequirements",
+                "id": "operational_requirements_input",
+                "label": "Operational Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Access patterns, extraction needs, security requirements, automation level, integration points",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What operational requirements exist?"
+                }
+              },
+              {
+                "fieldName": "performanceGoals",
+                "id": "performance_goals_input",
+                "label": "Performance Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Maximum Compression", "value": "compression" },
+                    { "label": "Fastest Processing", "value": "speed" },
+                    { "label": "Memory Efficiency", "value": "memory" },
+                    { "label": "Storage Optimization", "value": "storage" },
+                    { "label": "Network Transfer", "value": "network" },
+                    { "label": "Balanced Performance", "value": "balanced" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Primary performance objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "zipArchiveManagementPlan",
+                "id": "zip_archive_management_plan",
+                "label": "ZIP Archive Management Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349357",
+          "language": "en-US",
+          "name": "ZIP Archive Manager",
+          "description": "Provides comprehensive ZIP archive management with creation optimization, compression strategies, and integration frameworks for efficient archive handling.",
+          "instructions": "Describe your archive context, file characteristics, and performance goals. The manager will design a comprehensive archive management strategy."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,138 @@
+{
+  "id": "7892456378912348019",
+  "publicId": "convert-opt-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912348020",
+      "publicId": "conversion-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of conversion optimizer for improving conversion rates and user journeys",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 900,
+            "temperature": 0.4,
+            "prompt": "You are a conversion optimization expert improving user journeys and conversion rates across digital experiences.\n\nCurrent Performance: {{input.currentPerformance}}\nConversion Goals: {{input.conversionGoals}}\nUser Journey Data: {{input.userJourneyData}}\nOptimization Scope: {{input.optimizationScope}}\n\nOptimize conversion performance:\n\n1. **Conversion Funnel Analysis**:\n   - Current funnel performance mapping\n   - Drop-off point identification\n   - Conversion rate by stage\n   - User behavior pattern analysis\n   - Bottleneck prioritization\n\n2. **User Experience Optimization**:\n   - Landing page effectiveness\n   - Navigation flow improvements\n   - Form optimization strategies\n   - Page load speed enhancement\n   - Mobile experience optimization\n\n3. **Psychological Triggers**:\n   - Trust signal implementation\n   - Social proof integration\n   - Urgency and scarcity tactics\n   - Value proposition clarity\n   - Risk reduction strategies\n\n4. **A/B Testing Strategy**:\n   - Hypothesis development\n   - Test prioritization matrix\n   - Sample size calculations\n   - Statistical significance planning\n   - Testing roadmap creation\n\n5. **Content & Messaging**:\n   - Headline optimization\n   - Call-to-action improvement\n   - Benefit communication\n   - Objection handling\n   - Personalization opportunities\n\n6. **Technical Optimization**:\n   - Checkout process streamlining\n   - Payment option expansion\n   - Error prevention and handling\n   - Progressive disclosure\n   - Exit-intent interventions\n\n7. **Performance Measurement**:\n   - KPI tracking setup\n   - Attribution modeling\n   - Cohort analysis planning\n   - ROI calculation framework\n   - Continuous improvement process\n\nProvide data-driven optimization strategies with clear implementation priorities and expected impact estimates.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "currentPerformance",
+                "id": "current_performance_input",
+                "label": "Current Performance",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Current conversion rates, traffic numbers, drop-off points, key metrics",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What are your current conversion metrics?"
+                }
+              },
+              {
+                "fieldName": "conversionGoals",
+                "id": "conversion_goals_input",
+                "label": "Conversion Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Sales/Purchase", "value": "sales" },
+                    { "label": "Lead Generation", "value": "leads" },
+                    { "label": "Email Signups", "value": "email" },
+                    { "label": "App Downloads", "value": "downloads" },
+                    { "label": "Content Engagement", "value": "engagement" },
+                    { "label": "Account Registration", "value": "registration" },
+                    { "label": "Multiple Goals", "value": "multiple" }
+                  ],
+                  "defaultValue": "sales",
+                  "helperText": "Primary conversion objective"
+                }
+              },
+              {
+                "fieldName": "userJourneyData",
+                "id": "user_journey_data_input",
+                "label": "User Journey Insights",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "User behavior patterns, common paths, pain points, feedback",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What do you know about user behavior?"
+                }
+              },
+              {
+                "fieldName": "optimizationScope",
+                "id": "optimization_scope_input",
+                "label": "Optimization Scope",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Landing Page", "value": "landing" },
+                    { "label": "Full Website", "value": "website" },
+                    { "label": "Checkout Process", "value": "checkout" },
+                    { "label": "Email Campaign", "value": "email" },
+                    { "label": "Mobile App", "value": "mobile" },
+                    { "label": "End-to-End Journey", "value": "journey" }
+                  ],
+                  "defaultValue": "website",
+                  "helperText": "Scope of optimization effort"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "optimizationPlan",
+                "id": "optimization_plan",
+                "label": "Conversion Optimization Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 12
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912348021",
+          "language": "en-US",
+          "name": "Conversion Optimizer",
+          "description": "Improves conversion rates through user journey analysis, A/B testing strategies, and data-driven optimization recommendations.",
+          "instructions": "Provide current performance data and conversion goals. The optimizer will analyze your funnel and provide specific improvement strategies."
+        }
+      ]
+    }
+  ]
+}

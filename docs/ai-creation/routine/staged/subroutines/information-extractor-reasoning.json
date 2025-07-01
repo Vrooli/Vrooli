@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850334",
+  "publicId": "information-extractor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850335",
+      "publicId": "information-extractor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Identifies and extracts relevant data points and insights",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are an information extraction specialist. Systematically identify and extract relevant data points, insights, and evidence from research materials.\n\nResearch Materials:\n{{input.researchMaterials}}\n\nRelevance Filters:\n{{input.relevanceFilters}}\n\nAnalysis Approaches:\n{{input.analysisApproaches}}\n\nPerform comprehensive information extraction:\n\n1. **Key Finding Extraction**:\n   Identify critical information relevant to research objectives:\n   - **Primary Claims**: Main arguments, conclusions, or findings from each source\n   - **Supporting Evidence**: Data, statistics, case studies, or examples that back claims\n   - **Methodological Insights**: Research approaches, sample sizes, or experimental designs\n   - **Contextual Information**: Background factors, limitations, or scope conditions\n   - **Novel Contributions**: New ideas, frameworks, or perspectives introduced\n   - **Contradictory Information**: Findings that challenge or oppose other sources\n\n2. **Data Point Classification**:\n   Organize extracted information systematically:\n   - **Quantitative Data**: Numbers, percentages, measurements, and statistical findings\n   - **Qualitative Insights**: Themes, patterns, observations, and interpretive findings\n   - **Expert Opinions**: Professional judgments, recommendations, or predictions\n   - **Case Examples**: Specific instances, stories, or illustrative scenarios\n   - **Theoretical Frameworks**: Models, concepts, or explanatory structures\n   - **Practical Applications**: Implementation strategies, tools, or best practices\n\n3. **Concept Mapping and Connections**:\n   Identify relationships between ideas across sources:\n   - **Thematic Clusters**: Groups of related concepts or topics\n   - **Causal Relationships**: Cause-and-effect connections identified in the literature\n   - **Comparative Elements**: Similarities and differences between approaches or findings\n   - **Temporal Patterns**: How ideas or findings have evolved over time\n   - **Contextual Dependencies**: How findings vary based on situation or conditions\n   - **Knowledge Gaps**: Areas where information is missing or contradictory\n\n4. **Evidence Chain Development**:\n   Build supporting evidence networks:\n   - **Source Credibility**: Authority, expertise, and reliability of information sources\n   - **Evidence Quality**: Strength, validity, and reliability of supporting data\n   - **Convergent Evidence**: Multiple sources supporting the same conclusions\n   - **Conflicting Evidence**: Contradictions that need to be resolved or explained\n   - **Evidence Gaps**: Areas where more evidence is needed\n   - **Chain of Reasoning**: How evidence connects to support broader conclusions\n\n5. **Information Synthesis Preparation**:\n   Organize extracted information for integration:\n   - **Hierarchical Organization**: Main themes with supporting subtopics and details\n   - **Cross-Reference Matrix**: How information from different sources relates\n   - **Priority Ranking**: Most important or reliable information identified\n   - **Synthesis Opportunities**: Where information can be combined for deeper insights\n   - **Integration Challenges**: Conflicting or incompatible information to address\n   - **Future Research Directions**: Questions or areas needing further investigation\n\n6. **Quality and Relevance Assessment**:\n   Evaluate extracted information systematically:\n   - **Relevance Scoring**: How well each piece of information addresses research questions\n   - **Reliability Assessment**: Trustworthiness and credibility of information sources\n   - **Completeness Evaluation**: Whether sufficient information has been extracted\n   - **Bias Detection**: Potential skews or limitations in the information\n   - **Currency Check**: How current and up-to-date the information is\n   - **Applicability Assessment**: How well findings transfer to the research context\n\nProvide output as JSON with:\n- keyFindings: Structured extraction of primary insights and data points\n- ideaConnections: Concept mapping and relationship identification\n- supportingData: Evidence chains and supporting information networks",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "researchMaterials",
+                "id": "research_materials_input",
+                "label": "Source Collection",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Research sources and materials to analyze"
+                }
+              },
+              {
+                "fieldName": "relevanceFilters",
+                "id": "relevance_filters_input",
+                "label": "Inclusion Criteria",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Criteria for determining relevance and importance"
+                }
+              },
+              {
+                "fieldName": "analysisApproaches",
+                "id": "analysis_approaches_input",
+                "label": "Extraction Methods",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Specific approaches for information extraction"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "keyFindings",
+                "id": "key_findings_output",
+                "label": "Extracted Data",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "ideaConnections",
+                "id": "idea_connections_output",
+                "label": "Concept Mapping",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "supportingData",
+                "id": "supporting_data_output",
+                "label": "Evidence Chain",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850336",
+          "language": "en",
+          "name": "Information Extractor",
+          "description": "Identifies and extracts relevant data points and insights through systematic analysis, concept mapping, and evidence chain development.",
+          "instructions": "Provide research materials, relevance filters, and extraction methods. The routine will systematically extract key findings, map concept connections, and build supporting evidence chains."
+        }
+      ]
+    }
+  ]
+}

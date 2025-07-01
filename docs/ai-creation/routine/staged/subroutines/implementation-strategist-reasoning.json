@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850394",
+  "publicId": "implementation-strategist-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850395",
+      "publicId": "implementation-strategist-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Develops execution strategy and scaling approach",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "You are an implementation planning specialist. Develop comprehensive execution strategy and scaling approach to transform validated solutions into operational reality.\n\nValidated Solutions:\n{{input.provenConcepts}}\n\nImplementation Capacity:\n{{input.resourceAvailability}}\n\nExpansion Objectives:\n{{input.scalingGoals}}\n\nDevelop comprehensive implementation strategy:\n\n1. **Execution Strategy Development**:\n   Create detailed roadmap for solution deployment:\n   - **Phase Planning**: Breaking implementation into manageable, sequential stages\n   - **Resource Allocation**: Matching available assets to implementation requirements\n   - **Timeline Development**: Realistic scheduling that accounts for dependencies and constraints\n   - **Stakeholder Engagement**: Building support and involvement from key decision-makers\n   - **Change Management**: Helping organization adapt to new solutions and processes\n   - **Risk Mitigation**: Addressing potential obstacles and developing contingency plans\n\n2. **Organizational Integration Planning**:\n   Ensure solutions fit smoothly into existing systems:\n   - **Process Integration**: How solutions will work with current workflows and procedures\n   - **Technology Compatibility**: Ensuring new solutions work with existing systems and tools\n   - **Skill Development**: Training and capability building required for successful adoption\n   - **Cultural Alignment**: Adapting solutions to fit organizational values and behaviors\n   - **Policy Adaptation**: Updating rules and guidelines to support new solutions\n   - **Communication Strategy**: Keeping stakeholders informed and engaged throughout implementation\n\n3. **Scaling Framework Design**:\n   Plan for expanding successful solutions beyond initial implementation:\n   - **Scaling Model**: How solutions will be replicated or expanded to reach more users\n   - **Resource Scaling**: How to secure additional resources needed for expansion\n   - **Quality Maintenance**: Ensuring solution effectiveness is preserved during scaling\n   - **Adaptation Planning**: How solutions might need to change for different contexts or scales\n   - **Network Effects**: Leveraging connections and relationships to accelerate scaling\n   - **Platform Development**: Creating infrastructure that enables multiple related solutions\n\n4. **Performance Measurement System**:\n   Track implementation success and identify improvement opportunities:\n   - **Success Metrics**: Key performance indicators that demonstrate solution value\n   - **Monitoring Systems**: How to track progress and performance continuously\n   - **Feedback Loops**: Gathering input from users and stakeholders for ongoing improvement\n   - **Learning Integration**: Converting implementation experience into organizational knowledge\n   - **Adaptation Triggers**: Indicators that signal need for strategy adjustment\n   - **Celebration Planning**: Recognizing milestones and successes to maintain momentum\n\n5. **Risk Management and Contingency Planning**:\n   Prepare for challenges and unexpected obstacles:\n   - **Risk Assessment**: Identifying potential implementation challenges and their likelihood\n   - **Mitigation Strategies**: Proactive approaches to prevent or minimize risks\n   - **Contingency Plans**: Alternative approaches if primary implementation strategies fail\n   - **Recovery Procedures**: How to respond when implementation encounters serious problems\n   - **Learning from Failure**: Converting setbacks into valuable experience and knowledge\n   - **Resilience Building**: Creating implementation approaches that can adapt to changing conditions\n\n6. **Sustainability and Long-term Success**:\n   Ensure solutions create lasting value beyond initial implementation:\n   - **Self-Sustaining Mechanisms**: How solutions can maintain themselves without constant intervention\n   - **Continuous Improvement**: Building in capacity for ongoing solution enhancement\n   - **Knowledge Preservation**: Capturing and sharing implementation learnings\n   - **Capability Transfer**: Developing internal capacity to implement similar solutions\n   - **Innovation Culture**: Using successful implementation to encourage further innovation\n   - **Legacy Planning**: How successful solutions create foundation for future innovations\n\nProvide output as JSON with:\n- executionStrategy: Comprehensive implementation plan and roadmap\n- growthPlan: Scaling framework and expansion strategy\n- contingencyStrategy: Risk mitigation and contingency planning",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "provenConcepts",
+                "id": "proven_concepts_input",
+                "label": "Validated Solutions",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Solutions validated through prototyping"
+                }
+              },
+              {
+                "fieldName": "resourceAvailability",
+                "id": "resource_availability_input",
+                "label": "Implementation Capacity",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Available resources for implementation"
+                }
+              },
+              {
+                "fieldName": "scalingGoals",
+                "id": "scaling_goals_input",
+                "label": "Expansion Objectives",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Goals and objectives for scaling solutions"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "executionStrategy",
+                "id": "execution_strategy_output",
+                "label": "Implementation Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "growthPlan",
+                "id": "growth_plan_output",
+                "label": "Scaling Framework",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "contingencyStrategy",
+                "id": "contingency_strategy_output",
+                "label": "Risk Mitigation",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850396",
+          "language": "en",
+          "name": "Implementation Strategist",
+          "description": "Develops execution strategy and scaling approach through comprehensive planning frameworks, organizational integration, and sustainable growth strategies.",
+          "instructions": "Provide validated solutions, implementation capacity, and scaling goals. The routine will create execution strategies, growth plans, and risk mitigation approaches."
+        }
+      ]
+    }
+  ]
+}

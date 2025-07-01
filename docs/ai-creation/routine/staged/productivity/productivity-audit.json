@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Assess Current Workflows",
                 "description": "Analyzes existing work processes and time allocation patterns",
-                "subroutineId": "TODO: Need workflow analysis subroutine",
+                "subroutineId": "7829564732190850160",
                 "inputMap": {
                   "dailyActivities": "activityLog",
                   "workProcesses": "currentWorkflows",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Identify Time Wasters",
                 "description": "Spots low-value activities and productivity drains",
-                "subroutineId": "TODO: Need time waste identification subroutine",
+                "subroutineId": "7829564732190850163",
                 "inputMap": {
                   "activityBreakdown": "timeDistribution",
                   "valueMeasures": "activityValue",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Evaluate Tool Effectiveness",
                 "description": "Assesses productivity tools and their actual impact",
-                "subroutineId": "TODO: Need tool evaluation subroutine",
+                "subroutineId": "7829564732190850166",
                 "inputMap": {
                   "currentTools": "productivityTools",
                   "toolUsage": "utilizationPatterns",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Analyze Energy Management",
                 "description": "Reviews energy levels and optimal performance windows",
-                "subroutineId": "TODO: Need energy analysis subroutine",
+                "subroutineId": "7829564732190850169",
                 "inputMap": {
                   "energyPatterns": "dailyEnergyLevels",
                   "taskAlignment": "workEnergyMatch",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Assess Goal Alignment",
                 "description": "Evaluates how well activities align with stated objectives",
-                "subroutineId": "TODO: Need goal alignment analysis subroutine",
+                "subroutineId": "7829564732190850172",
                 "inputMap": {
                   "currentGoals": "objectiveTargets",
                   "activityBreakdown": "timeDistribution",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Optimization Plan",
                 "description": "Creates comprehensive productivity improvement strategy",
-                "subroutineId": "TODO: Need optimization planning subroutine",
+                "subroutineId": "7829564732190850175",
                 "inputMap": {
                   "allFindings": "auditResults",
                   "improvementAreas": "optimizationTargets",

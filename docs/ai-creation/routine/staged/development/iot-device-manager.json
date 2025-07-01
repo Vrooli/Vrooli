@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349382",
+  "publicId": "iot-de-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349383",
+      "publicId": "iot-dev-mgr-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of IoT device manager for comprehensive IoT device orchestration and connectivity management strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Systematic",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are an IoT device management expert providing comprehensive device orchestration strategies, connectivity optimization, and IoT ecosystem coordination solutions.\n\nIoT Context: {{input.iotContext}}\nDevice Characteristics: {{input.deviceCharacteristics}}\nConnectivity Requirements: {{input.connectivityRequirements}}\nManagement Goals: {{input.managementGoals}}\n\nDesign comprehensive IoT device management strategy:\n\n1. **Device Lifecycle Management**:\n   - Device provisioning automation\n   - Configuration management\n   - Firmware update strategies\n   - Health monitoring systems\n   - Decommissioning procedures\n\n2. **Connectivity and Communication**:\n   - Protocol selection and optimization\n   - Network topology design\n   - Edge computing integration\n   - Gateway management\n   - Mesh networking strategies\n\n3. **Data Collection and Processing**:\n   - Sensor data aggregation\n   - Real-time data streaming\n   - Edge analytics implementation\n   - Data pipeline optimization\n   - Storage tier management\n\n4. **Security and Authentication**:\n   - Device identity management\n   - Secure communication protocols\n   - Certificate management\n   - Access control policies\n   - Threat detection systems\n\n5. **Scalability and Performance**:\n   - Horizontal scaling strategies\n   - Load distribution optimization\n   - Bandwidth management\n   - Latency minimization\n   - Resource allocation\n\n6. **Monitoring and Diagnostics**:\n   - Device health tracking\n   - Performance metrics collection\n   - Fault detection and recovery\n   - Predictive maintenance\n   - Alert and notification systems\n\n7. **Integration and Interoperability**:\n   - Cloud platform integration\n   - Third-party system connectivity\n   - API gateway coordination\n   - Standard protocol support\n   - Legacy system integration\n\nProvide comprehensive IoT device management plan with lifecycle automation, connectivity optimization, security implementation, and monitoring frameworks for robust IoT ecosystems.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "iotContext",
+                "id": "iot_context_input",
+                "label": "IoT Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Industry domain, use cases, deployment scale, environment types, business objectives",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your IoT device management context"
+                }
+              },
+              {
+                "fieldName": "deviceCharacteristics",
+                "id": "device_characteristics_input",
+                "label": "Device Characteristics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Device types, capabilities, power constraints, processing power, sensor types, update frequencies",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What device characteristics exist?"
+                }
+              },
+              {
+                "fieldName": "connectivityRequirements",
+                "id": "connectivity_requirements_input",
+                "label": "Connectivity Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Communication protocols, network types, bandwidth needs, latency requirements, reliability expectations",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What connectivity requirements exist?"
+                }
+              },
+              {
+                "fieldName": "managementGoals",
+                "id": "management_goals_input",
+                "label": "Management Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Operational Efficiency", "value": "efficiency" },
+                    { "label": "Security Focus", "value": "security" },
+                    { "label": "Scalability Priority", "value": "scalability" },
+                    { "label": "Cost Optimization", "value": "cost" },
+                    { "label": "Reliability Focus", "value": "reliability" },
+                    { "label": "Comprehensive Management", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary management objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "iotDeviceManagementPlan",
+                "id": "iot_device_management_plan",
+                "label": "IoT Device Management Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349384",
+          "language": "en-US",
+          "name": "IoT Device Manager",
+          "description": "Provides comprehensive IoT device management with lifecycle automation, connectivity optimization, and monitoring frameworks for robust IoT ecosystems.",
+          "instructions": "Describe your IoT context, device characteristics, and management goals. The manager will design a comprehensive IoT device management strategy."
+        }
+      ]
+    }
+  ]
+}

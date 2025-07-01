@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Gather Current Status",
                 "description": "Collects current task status and team member updates",
-                "subroutineId": "TODO: Need data collection subroutine for status gathering",
+                "subroutineId": "7829564732190850232",
                 "inputMap": {
                   "currentGoals": "goalsAndOKRs",
                   "projectTimeline": "timeline",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Analyze Goal Alignment",
                 "description": "Checks if current tasks align with overall mission",
-                "subroutineId": "TODO: Need reasoning subroutine for alignment analysis",
+                "subroutineId": "7829564732190850235",
                 "inputMap": {
                   "currentStatus": "aggregatedStatus",
                   "currentGoals": "goalsAndOKRs",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Calculate Progress Metrics",
                 "description": "Computes progress against timeline and milestones",
-                "subroutineId": "TODO: Need deterministic calculation subroutine",
+                "subroutineId": "7829564732190850238",
                 "inputMap": {
                   "taskProgress": "progressMetrics",
                   "projectTimeline": "timeline",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Identify Course Corrections",
                 "description": "Determines necessary adjustments based on analysis",
-                "subroutineId": "TODO: Need reasoning subroutine for correction planning",
+                "subroutineId": "7829564732190850241",
                 "inputMap": {
                   "alignmentScore": "alignmentMetrics",
                   "misalignedTasks": "deviations",
@@ -126,7 +126,7 @@
                 "id": "step-5",
                 "name": "Generate Action Plan",
                 "description": "Creates actionable recommendations and triggers",
-                "subroutineId": "TODO: Need generation subroutine for action planning",
+                "subroutineId": "7829564732190850244",
                 "inputMap": {
                   "corrections": "recommendedAdjustments",
                   "reprioritization": "newPriorities",

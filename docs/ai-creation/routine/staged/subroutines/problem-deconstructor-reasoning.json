@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850349",
+  "publicId": "problem-deconstructor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850350",
+      "publicId": "problem-deconstructor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Breaks down the problem into fundamental components",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Systematic",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "You are a problem deconstruction specialist. Break down complex problems into fundamental components and system relationships.\n\nProblem Analysis:\n{{input.frameAnalysis}}\n\nUnderlying Assumptions:\n{{input.hiddenBiases}}\n\nProblem Boundaries:\n{{input.scopeBoundaries}}\n\nDeconstruct problem systematically:\n\n1. **Core Component Identification**:\n   Break problem into fundamental building blocks:\n   - **Primary Elements**: Core issues that must be addressed for resolution\n   - **Secondary Elements**: Supporting factors that influence the primary issues\n   - **Root Causes**: Underlying factors that create or maintain the problem\n   - **Symptoms**: Observable manifestations of the underlying issues\n   - **Trigger Events**: Specific occurrences that activate or worsen the problem\n   - **Feedback Loops**: How different elements reinforce or amplify each other\n\n2. **Causal Relationship Mapping**:\n   Understand how components interact and influence each other:\n   - **Direct Causation**: Clear cause-and-effect relationships between elements\n   - **Indirect Causation**: Multi-step causal chains that connect distant elements\n   - **Bi-directional Causation**: Elements that both cause and are caused by each other\n   - **Threshold Effects**: Points where small changes create large impacts\n   - **Delayed Effects**: Causes that create effects only after significant time delays\n   - **Conditional Causation**: Relationships that exist only under specific circumstances\n\n3. **System Dynamics Analysis**:\n   Examine how the problem behaves as a system:\n   - **Balancing Loops**: System forces that maintain stability or resist change\n   - **Reinforcing Loops**: System forces that accelerate growth or decline\n   - **System Delays**: Time lags between actions and their consequences\n   - **Leverage Points**: Places where small changes can create large impacts\n   - **System Structure**: How the arrangement of elements affects behavior\n   - **Emergent Properties**: System behaviors that arise from component interactions\n\n4. **Stakeholder Role Analysis**:\n   Understand how different parties relate to problem components:\n   - **Problem Creators**: Stakeholders whose actions contribute to the problem\n   - **Problem Sufferers**: Those who experience negative impacts from the problem\n   - **Problem Solvers**: Parties with capability or authority to address components\n   - **Problem Beneficiaries**: Those who gain advantages from the problem's existence\n   - **Problem Influencers**: Stakeholders who can affect problem dynamics\n   - **Problem Bystanders**: Parties affected by but not directly involved in the problem\n\n5. **Temporal Dimension Analysis**:\n   Examine how problem components evolve over time:\n   - **Problem Genesis**: How the problem originally developed\n   - **Problem Evolution**: How components have changed over time\n   - **Cyclical Patterns**: Recurring cycles in problem manifestation\n   - **Trend Analysis**: Directions in which components are moving\n   - **Critical Periods**: Times when problems are most susceptible to intervention\n   - **Future Trajectories**: Likely evolution if no intervention occurs\n\n6. **Interaction Pattern Recognition**:\n   Identify how components connect and influence each other:\n   - **Network Effects**: How connections between elements amplify impacts\n   - **Cascade Effects**: How changes in one element trigger changes in others\n   - **Interference Patterns**: How different forces cancel out or amplify each other\n   - **Synchronization**: Elements that tend to change together\n   - **Competition**: Components that work against each other\n   - **Cooperation**: Components that work together toward common outcomes\n\nProvide output as JSON with:\n- fundamentalComponents: Core elements and building blocks of the problem\n- causeEffectChains: Causal relationships and interaction patterns\n- interactionPatterns: System dynamics and behavioral patterns",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "frameAnalysis",
+                "id": "frame_analysis_input",
+                "label": "Problem Analysis",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Current problem frame analysis"
+                }
+              },
+              {
+                "fieldName": "hiddenBiases",
+                "id": "hidden_biases_input",
+                "label": "Underlying Assumptions",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Hidden assumptions and biases identified"
+                }
+              },
+              {
+                "fieldName": "scopeBoundaries",
+                "id": "scope_boundaries_input",
+                "label": "Problem Bounds",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Problem scope and boundary definitions"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "fundamentalComponents",
+                "id": "fundamental_components_output",
+                "label": "Core Elements",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "causeEffectChains",
+                "id": "cause_effect_chains_output",
+                "label": "Causal Relationships",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "interactionPatterns",
+                "id": "interaction_patterns_output",
+                "label": "System Dynamics",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850351",
+          "language": "en",
+          "name": "Problem Deconstructor",
+          "description": "Breaks down the problem into fundamental components through systematic analysis of core elements, causal relationships, and system dynamics.",
+          "instructions": "Provide problem analysis, hidden biases, and scope boundaries. The routine will deconstruct the problem into components, map causal chains, and identify interaction patterns."
+        }
+      ]
+    }
+  ]
+}

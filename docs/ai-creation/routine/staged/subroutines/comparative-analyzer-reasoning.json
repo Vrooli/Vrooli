@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850337",
+  "publicId": "comparative-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850338",
+      "publicId": "comparative-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Performs comparative analysis and identifies patterns",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are a comparative analysis specialist. Systematically compare findings, identify patterns, and resolve conflicts across research sources.\n\nExtracted Data:\n{{input.keyFindings}}\n\nComparison Methods:\n{{input.analysisFramework}}\n\nDisagreement Handling:\n{{input.conflictResolution}}\n\nPerform comprehensive comparative analysis:\n\n1. **Pattern Recognition Analysis**:\n   Identify recurring themes and trends across sources:\n   - **Convergent Themes**: Ideas, findings, or conclusions that appear consistently\n   - **Emergent Patterns**: Trends or relationships that become visible when comparing sources\n   - **Frequency Analysis**: How often specific claims, methods, or findings appear\n   - **Temporal Trends**: How ideas or findings have evolved over time periods\n   - **Contextual Patterns**: How findings vary across different settings or conditions\n   - **Methodological Patterns**: Common approaches or techniques used across studies\n\n2. **Consensus Point Identification**:\n   Find areas of agreement and strong evidence:\n   - **Universal Agreements**: Findings or conclusions supported by all or most sources\n   - **Strong Consensus**: Areas where overwhelming majority of sources align\n   - **Qualified Agreements**: Consensus that exists under specific conditions\n   - **Methodological Consensus**: Agreement on research approaches or measurement methods\n   - **Practical Consensus**: Shared recommendations for implementation or application\n   - **Theoretical Agreements**: Commonly accepted frameworks or explanatory models\n\n3. **Divergence and Conflict Mapping**:\n   Systematically identify and analyze disagreements:\n   - **Direct Contradictions**: Sources that make opposing claims about the same phenomena\n   - **Methodological Differences**: How different research approaches lead to different conclusions\n   - **Scope Variations**: Differences in what aspects of a topic sources address\n   - **Contextual Conflicts**: Findings that contradict each other in different settings\n   - **Temporal Disagreements**: How conclusions have changed over time periods\n   - **Evidence Quality Differences**: How source credibility affects conflicting claims\n\n4. **Comparative Framework Application**:\n   Use systematic methods to compare findings:\n   - **Side-by-Side Analysis**: Direct comparison of similar claims or findings\n   - **Strength of Evidence**: Comparative assessment of evidence quality across sources\n   - **Scope and Scale**: How findings compare in terms of breadth and depth\n   - **Applicability Comparison**: How well findings transfer across different contexts\n   - **Innovation Assessment**: Which sources contribute novel insights or approaches\n   - **Reliability Ranking**: Comparative credibility and trustworthiness of sources\n\n5. **Synthesis Preparation**:\n   Organize comparative findings for integration:\n   - **Integration Opportunities**: Where different sources can be combined for stronger conclusions\n   - **Resolution Strategies**: Approaches for handling conflicting information\n   - **Hierarchy Development**: Organizing findings by strength, relevance, and reliability\n   - **Gap Identification**: Areas where comparative analysis reveals missing information\n   - **Synthesis Framework**: Structure for integrating comparative findings\n   - **Quality Weighting**: How to balance different sources based on their comparative strengths\n\n6. **Meta-Analysis Elements**:\n   Higher-order analysis across the research landscape:\n   - **Research Quality Assessment**: Overall evaluation of the research base\n   - **Knowledge Maturity**: How well-developed the research area appears to be\n   - **Research Gaps**: Systematic identification of understudied areas\n   - **Methodological Recommendations**: Suggestions for improving future research\n   - **Generalizability Assessment**: How broadly findings can be applied\n   - **Future Research Directions**: Priority areas for additional investigation\n\nProvide output as JSON with:\n- emergentThemes: Pattern analysis and recurring themes identification\n- agreementAreas: Consensus points and areas of strong convergence\n- conflictingViews: Systematic mapping of disagreements and their resolution",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "keyFindings",
+                "id": "key_findings_input",
+                "label": "Extracted Data",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Key findings and data points from extraction phase"
+                }
+              },
+              {
+                "fieldName": "analysisFramework",
+                "id": "analysis_framework_input",
+                "label": "Comparison Methods",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Framework and methods for comparative analysis"
+                }
+              },
+              {
+                "fieldName": "conflictResolution",
+                "id": "conflict_resolution_input",
+                "label": "Disagreement Handling",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Approaches for handling conflicting information"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "emergentThemes",
+                "id": "emergent_themes_output",
+                "label": "Pattern Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "agreementAreas",
+                "id": "agreement_areas_output",
+                "label": "Consensus Points",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "conflictingViews",
+                "id": "conflicting_views_output",
+                "label": "Divergence Mapping",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850339",
+          "language": "en",
+          "name": "Comparative Analyzer",
+          "description": "Performs comparative analysis and identifies patterns through systematic comparison, consensus identification, and conflict resolution.",
+          "instructions": "Provide extracted findings, analysis framework, and conflict resolution approaches. The routine will identify patterns, map consensus areas, and systematically analyze disagreements."
+        }
+      ]
+    }
+  ]
+}

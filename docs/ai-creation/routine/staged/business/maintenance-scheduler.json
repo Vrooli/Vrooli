@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349076",
+  "publicId": "maint-sched-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349077",
+      "publicId": "main-sched-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of maintenance scheduler for comprehensive maintenance planning and schedule optimization",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Systematic",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a maintenance scheduling expert providing comprehensive maintenance planning, scheduling optimization, and resource allocation strategies for systems and equipment management.\n\nAssets/Systems: {{input.assetsSystems}}\nMaintenance Requirements: {{input.maintenanceRequirements}}\nResource Constraints: {{input.resourceConstraints}}\nSchedule Priority: {{input.schedulePriority}}\n\nDevelop comprehensive maintenance scheduling strategy:\n\n1. **Asset and System Assessment**:\n   - Equipment inventory and categorization\n   - Criticality and priority analysis\n   - Condition-based maintenance needs\n   - Performance and reliability assessment\n   - Lifecycle stage and replacement planning\n\n2. **Maintenance Planning Framework**:\n   - Preventive maintenance schedules\n   - Predictive maintenance triggers\n   - Corrective maintenance planning\n   - Emergency response procedures\n   - Compliance and regulatory requirements\n\n3. **Schedule Optimization Strategy**:\n   - Time-based scheduling algorithms\n   - Resource availability optimization\n   - Workload balancing and distribution\n   - Priority-based task sequencing\n   - Conflict resolution and rescheduling\n\n4. **Resource Allocation and Management**:\n   - Technician skill and availability matching\n   - Tool and equipment requirements\n   - Parts and material procurement\n   - Budget allocation and cost optimization\n   - Contractor and vendor coordination\n\n5. **Performance Monitoring and Tracking**:\n   - Schedule compliance monitoring\n   - Work order management system\n   - Key performance indicator tracking\n   - Maintenance effectiveness measurement\n   - Cost and efficiency analysis\n\n6. **Risk Management and Contingency**:\n   - Critical failure prevention\n   - Emergency maintenance protocols\n   - Backup scheduling strategies\n   - Resource shortage mitigation\n   - Business continuity planning\n\n7. **Continuous Improvement Framework**:\n   - Schedule optimization analysis\n   - Maintenance strategy refinement\n   - Technology integration opportunities\n   - Process standardization and automation\n   - Training and development planning\n\nProvide detailed maintenance scheduling plan with optimization strategies, resource allocation framework, and performance measurement system for efficient maintenance operations.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "assetsSystems",
+                "id": "assets_systems_input",
+                "label": "Assets/Systems",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Equipment, machinery, infrastructure, systems that need maintenance scheduling",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What assets or systems need maintenance scheduling?"
+                }
+              },
+              {
+                "fieldName": "maintenanceRequirements",
+                "id": "maintenance_requirements_input",
+                "label": "Maintenance Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Maintenance tasks, frequencies, standards, compliance requirements, manufacturer recommendations",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What are the maintenance requirements and standards?"
+                }
+              },
+              {
+                "fieldName": "resourceConstraints",
+                "id": "resource_constraints_input",
+                "label": "Resource Constraints",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Budget limitations, staff availability, time constraints, tool/part availability",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What resource constraints must be considered?"
+                }
+              },
+              {
+                "fieldName": "schedulePriority",
+                "id": "schedule_priority_input",
+                "label": "Schedule Priority",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Cost Minimization", "value": "cost" },
+                    { "label": "Reliability Maximization", "value": "reliability" },
+                    { "label": "Resource Optimization", "value": "resource" },
+                    { "label": "Compliance Priority", "value": "compliance" },
+                    { "label": "Emergency Preparedness", "value": "emergency" },
+                    { "label": "Balanced Approach", "value": "balanced" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Primary scheduling optimization goal"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "maintenanceSchedule",
+                "id": "maintenance_schedule",
+                "label": "Maintenance Schedule Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349078",
+          "language": "en-US",
+          "name": "Maintenance Scheduler",
+          "description": "Provides comprehensive maintenance scheduling and planning with resource optimization, priority management, and performance tracking for efficient maintenance operations.",
+          "instructions": "Describe your assets, maintenance requirements, and constraints. The scheduler will create optimized maintenance schedules with resource allocation and performance monitoring."
+        }
+      ]
+    }
+  ]
+}

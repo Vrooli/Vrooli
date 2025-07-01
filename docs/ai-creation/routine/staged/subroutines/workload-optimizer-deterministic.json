@@ -1,0 +1,106 @@
+{
+  "id": "7829564732190850277",
+  "publicId": "workload-optimizer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850278",
+      "publicId": "workload-optimizer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Balances tasks across time and resources",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "javascript",
+            "logic": "function optimizeWorkload({ urgentImportantPlan, availableTime, energyPatterns }) {\n  const immediateActions = urgentImportantPlan || {};\n  const timeCapacity = availableTime || getDefaultTimeCapacity();\n  const productivityCycles = energyPatterns || getDefaultEnergyCycles();\n  \n  const optimizedSchedule = [];\n  const timeAllocation = {};\n  const workloadMetrics = {};\n  \n  // Process immediate actions for optimal scheduling\n  const urgentTasks = immediateActions.tasks || [];\n  \n  // Calculate total workload and capacity\n  const workloadAnalysis = analyzeWorkloadCapacity(urgentTasks, timeCapacity);\n  \n  // Optimize task scheduling based on energy patterns\n  const scheduleOptimization = optimizeTaskScheduling(urgentTasks, productivityCycles, timeCapacity);\n  \n  // Generate time allocation recommendations\n  const allocationStrategy = generateTimeAllocation(scheduleOptimization, workloadAnalysis);\n  \n  function getDefaultTimeCapacity() {\n    return {\n      dailyHours: 8,\n      weeklyHours: 40,\n      focusBlocks: 4,\n      maxContinuousHours: 3,\n      bufferPercentage: 20,\n      breakRequirements: { frequency: 90, duration: 15 }\n    };\n  }\n  \n  function getDefaultEnergyCycles() {\n    return {\n      peakHours: ['09:00', '10:00', '11:00', '14:00', '15:00'],\n      lowEnergyHours: ['13:00', '16:00', '17:00'],\n      focusCapacity: { peak: 100, good: 80, moderate: 60, low: 40 },\n      taskTypes: {\n        creative: { preferredEnergy: 'peak', duration: 90 },\n        analytical: { preferredEnergy: 'peak', duration: 120 },\n        routine: { preferredEnergy: 'moderate', duration: 60 },\n        communication: { preferredEnergy: 'good', duration: 45 }\n      }\n    };\n  }\n  \n  function analyzeWorkloadCapacity(tasks, capacity) {\n    const totalEstimatedHours = tasks.reduce((sum, task) => {\n      const taskHours = task.estimatedHours || task.duration || 1;\n      return sum + taskHours;\n    }, 0);\n    \n    const availableHours = capacity.dailyHours * (1 - capacity.bufferPercentage / 100);\n    const capacityUtilization = (totalEstimatedHours / availableHours) * 100;\n    \n    const workloadLevel = getWorkloadLevel(capacityUtilization);\n    const overloadRisk = capacityUtilization > 90;\n    \n    return {\n      totalHours: totalEstimatedHours,\n      availableHours: availableHours,\n      utilization: Math.round(capacityUtilization),\n      workloadLevel: workloadLevel,\n      overloadRisk: overloadRisk,\n      recommendedAdjustments: generateCapacityRecommendations(capacityUtilization, tasks)\n    };\n  }\n  \n  function getWorkloadLevel(utilization) {\n    if (utilization <= 60) return 'light';\n    if (utilization <= 80) return 'moderate';\n    if (utilization <= 95) return 'heavy';\n    return 'overloaded';\n  }\n  \n  function generateCapacityRecommendations(utilization, tasks) {\n    const recommendations = [];\n    \n    if (utilization > 100) {\n      recommendations.push('Immediate workload reduction required - consider deferring or delegating tasks');\n      recommendations.push('Focus only on critical priorities to prevent burnout');\n    } else if (utilization > 90) {\n      recommendations.push('High utilization - build in extra buffer time for unexpected issues');\n      recommendations.push('Consider light task load for the following day');\n    } else if (utilization > 80) {\n      recommendations.push('Good utilization - monitor energy levels throughout the day');\n    } else if (utilization < 50) {\n      recommendations.push('Low utilization - opportunity to advance strategic projects');\n    }\n    \n    return recommendations;\n  }\n  \n  function optimizeTaskScheduling(tasks, cycles, capacity) {\n    const scheduledTasks = [];\n    const unscheduledTasks = [];\n    \n    // Sort tasks by priority and energy requirements\n    const prioritizedTasks = [...tasks].sort((a, b) => {\n      const priorityA = a.priority || a.urgencyScore || 50;\n      const priorityB = b.priority || b.urgencyScore || 50;\n      return priorityB - priorityA;\n    });\n    \n    let currentHour = 8; // Start at 8 AM\n    let energyBudget = 100;\n    let focusBlocksUsed = 0;\n    \n    prioritizedTasks.forEach(task => {\n      const taskEnergy = getTaskEnergyRequirement(task);\n      const taskDuration = task.estimatedHours || task.duration || 1;\n      const taskType = categorizeTask(task);\n      \n      // Find optimal time slot for this task\n      const optimalSlot = findOptimalTimeSlot(task, taskType, cycles, currentHour, energyBudget, focusBlocksUsed, capacity);\n      \n      if (optimalSlot.canSchedule) {\n        scheduledTasks.push({\n          ...task,\n          scheduledTime: optimalSlot.startTime,\n          duration: taskDuration,\n          energyMatch: optimalSlot.energyMatch,\n          optimizationScore: optimalSlot.score,\n          recommendations: optimalSlot.recommendations\n        });\n        \n        currentHour = optimalSlot.endTime;\n        energyBudget -= taskEnergy;\n        if (taskType === 'focus-intensive') focusBlocksUsed++;\n      } else {\n        unscheduledTasks.push({\n          ...task,\n          reason: optimalSlot.reason,\n          alternatives: optimalSlot.alternatives\n        });\n      }\n    });\n    \n    return {\n      scheduled: scheduledTasks,\n      unscheduled: unscheduledTasks,\n      utilizationScore: calculateUtilizationScore(scheduledTasks, capacity),\n      energyEfficiency: calculateEnergyEfficiency(scheduledTasks, cycles)\n    };\n  }\n  \n  function getTaskEnergyRequirement(task) {\n    const taskName = (task.taskName || task.name || '').toLowerCase();\n    \n    if (taskName.includes('creative') || taskName.includes('design') || taskName.includes('brainstorm')) {\n      return 40;\n    } else if (taskName.includes('analysis') || taskName.includes('research') || taskName.includes('complex')) {\n      return 35;\n    } else if (taskName.includes('meeting') || taskName.includes('call') || taskName.includes('discussion')) {\n      return 25;\n    } else if (taskName.includes('routine') || taskName.includes('administrative') || taskName.includes('email')) {\n      return 15;\n    }\n    \n    return 30; // Default moderate energy requirement\n  }\n  \n  function categorizeTask(task) {\n    const taskName = (task.taskName || task.name || '').toLowerCase();\n    \n    if (taskName.includes('creative') || taskName.includes('strategic') || taskName.includes('complex')) {\n      return 'focus-intensive';\n    } else if (taskName.includes('meeting') || taskName.includes('call') || taskName.includes('communication')) {\n      return 'collaborative';\n    } else if (taskName.includes('routine') || taskName.includes('administrative')) {\n      return 'routine';\n    }\n    \n    return 'standard';\n  }\n  \n  function findOptimalTimeSlot(task, taskType, cycles, currentHour, energyBudget, focusBlocksUsed, capacity) {\n    const taskEnergy = getTaskEnergyRequirement(task);\n    const taskDuration = task.estimatedHours || task.duration || 1;\n    \n    // Check if we have enough energy and time\n    if (energyBudget < taskEnergy) {\n      return {\n        canSchedule: false,\n        reason: 'Insufficient energy budget remaining',\n        alternatives: ['Schedule for next day', 'Take energy break', 'Reduce task scope']\n      };\n    }\n    \n    if (currentHour + taskDuration > 18) { // Don't schedule past 6 PM\n      return {\n        canSchedule: false,\n        reason: 'Outside available time window',\n        alternatives: ['Schedule for next day', 'Split into smaller chunks']\n      };\n    }\n    \n    if (taskType === 'focus-intensive' && focusBlocksUsed >= capacity.focusBlocks) {\n      return {\n        canSchedule: false,\n        reason: 'Maximum focus blocks exceeded for the day',\n        alternatives: ['Schedule for next day', 'Convert to lighter task']\n      };\n    }\n    \n    // Calculate energy match for this time slot\n    const hourString = String(Math.floor(currentHour)).padStart(2, '0') + ':00';\n    const energyMatch = getEnergyMatchScore(hourString, taskType, cycles);\n    \n    const optimizationScore = calculateOptimizationScore(task, energyMatch, currentHour, energyBudget);\n    \n    return {\n      canSchedule: true,\n      startTime: hourString,\n      endTime: currentHour + taskDuration,\n      energyMatch: energyMatch,\n      score: optimizationScore,\n      recommendations: generateSlotRecommendations(task, energyMatch, taskType)\n    };\n  }\n  \n  function getEnergyMatchScore(timeSlot, taskType, cycles) {\n    const isPeakHour = cycles.peakHours.includes(timeSlot);\n    const isLowEnergyHour = cycles.lowEnergyHours.includes(timeSlot);\n    \n    if (taskType === 'focus-intensive') {\n      return isPeakHour ? 100 : isLowEnergyHour ? 30 : 70;\n    } else if (taskType === 'routine') {\n      return isPeakHour ? 60 : isLowEnergyHour ? 80 : 75;\n    } else {\n      return isPeakHour ? 85 : isLowEnergyHour ? 50 : 75;\n    }\n  }\n  \n  function calculateOptimizationScore(task, energyMatch, currentHour, energyBudget) {\n    const priorityWeight = (task.priority || task.urgencyScore || 50) / 100;\n    const energyWeight = energyMatch / 100;\n    const timingWeight = currentHour < 12 ? 0.9 : currentHour < 15 ? 0.8 : 0.6; // Prefer morning/early afternoon\n    const capacityWeight = energyBudget > 50 ? 0.9 : 0.7;\n    \n    return Math.round((priorityWeight * 0.4 + energyWeight * 0.3 + timingWeight * 0.2 + capacityWeight * 0.1) * 100);\n  }\n  \n  function generateSlotRecommendations(task, energyMatch, taskType) {\n    const recommendations = [];\n    \n    if (energyMatch > 90) {\n      recommendations.push('Optimal energy match - ideal time for this task');\n    } else if (energyMatch < 50) {\n      recommendations.push('Low energy match - consider simpler approach or break task down');\n    }\n    \n    if (taskType === 'focus-intensive') {\n      recommendations.push('Eliminate distractions and notifications during this time');\n      recommendations.push('Prepare all necessary materials beforehand');\n    }\n    \n    return recommendations;\n  }\n  \n  function calculateUtilizationScore(scheduledTasks, capacity) {\n    const totalScheduledHours = scheduledTasks.reduce((sum, task) => sum + (task.duration || 1), 0);\n    return Math.round((totalScheduledHours / capacity.dailyHours) * 100);\n  }\n  \n  function calculateEnergyEfficiency(scheduledTasks, cycles) {\n    const avgEnergyMatch = scheduledTasks.reduce((sum, task) => sum + (task.energyMatch || 50), 0) / Math.max(1, scheduledTasks.length);\n    return Math.round(avgEnergyMatch);\n  }\n  \n  function generateTimeAllocation(scheduleOptimization, workloadAnalysis) {\n    const allocation = {\n      focusTime: 0,\n      collaborativeTime: 0,\n      routineTime: 0,\n      bufferTime: 0\n    };\n    \n    scheduleOptimization.scheduled.forEach(task => {\n      const duration = task.duration || 1;\n      const taskType = categorizeTask(task);\n      \n      if (taskType === 'focus-intensive') {\n        allocation.focusTime += duration;\n      } else if (taskType === 'collaborative') {\n        allocation.collaborativeTime += duration;\n      } else {\n        allocation.routineTime += duration;\n      }\n    });\n    \n    allocation.bufferTime = workloadAnalysis.availableHours - (allocation.focusTime + allocation.collaborativeTime + allocation.routineTime);\n    \n    return {\n      ...allocation,\n      totalAllocated: allocation.focusTime + allocation.collaborativeTime + allocation.routineTime,\n      allocationPercentages: {\n        focus: Math.round((allocation.focusTime / workloadAnalysis.availableHours) * 100),\n        collaborative: Math.round((allocation.collaborativeTime / workloadAnalysis.availableHours) * 100),\n        routine: Math.round((allocation.routineTime / workloadAnalysis.availableHours) * 100),\n        buffer: Math.round((allocation.bufferTime / workloadAnalysis.availableHours) * 100)\n      },\n      recommendations: generateAllocationRecommendations(allocation, workloadAnalysis)\n    };\n  }\n  \n  function generateAllocationRecommendations(allocation, workloadAnalysis) {\n    const recommendations = [];\n    \n    const focusPercentage = (allocation.focusTime / workloadAnalysis.availableHours) * 100;\n    const bufferPercentage = (allocation.bufferTime / workloadAnalysis.availableHours) * 100;\n    \n    if (focusPercentage > 60) {\n      recommendations.push('High focus time allocation - ensure adequate breaks between intensive tasks');\n    } else if (focusPercentage < 20) {\n      recommendations.push('Low focus time - opportunity to tackle more strategic work');\n    }\n    \n    if (bufferPercentage < 10) {\n      recommendations.push('Very tight schedule - monitor for unexpected delays and stress');\n    } else if (bufferPercentage > 30) {\n      recommendations.push('Generous buffer time - consider adding value-added activities');\n    }\n    \n    if (allocation.collaborativeTime > allocation.focusTime) {\n      recommendations.push('Meeting-heavy day - protect remaining focus time carefully');\n    }\n    \n    return recommendations;\n  }\n  \n  // Compile final results\n  optimizedSchedule.push(...scheduleOptimization.scheduled);\n  \n  Object.assign(timeAllocation, allocationStrategy);\n  \n  Object.assign(workloadMetrics, {\n    capacity: workloadAnalysis,\n    scheduling: {\n      tasksScheduled: scheduleOptimization.scheduled.length,\n      tasksUnscheduled: scheduleOptimization.unscheduled.length,\n      utilizationScore: scheduleOptimization.utilizationScore,\n      energyEfficiency: scheduleOptimization.energyEfficiency\n    },\n    optimization: {\n      averageOptimizationScore: scheduleOptimization.scheduled.length > 0 ?\n        Math.round(scheduleOptimization.scheduled.reduce((sum, task) => sum + task.optimizationScore, 0) / scheduleOptimization.scheduled.length) : 0,\n      peakTimeUtilization: calculatePeakTimeUtilization(scheduleOptimization.scheduled, productivityCycles),\n      workloadBalance: assessWorkloadBalance(allocationStrategy)\n    }\n  });\n  \n  function calculatePeakTimeUtilization(tasks, cycles) {\n    const peakTasks = tasks.filter(task => cycles.peakHours.includes(task.scheduledTime));\n    const peakHours = peakTasks.reduce((sum, task) => sum + (task.duration || 1), 0);\n    return Math.round((peakHours / cycles.peakHours.length) * 100);\n  }\n  \n  function assessWorkloadBalance(allocation) {\n    const total = allocation.focusTime + allocation.collaborativeTime + allocation.routineTime;\n    \n    if (allocation.focusTime / total > 0.7) return 'focus-heavy';\n    if (allocation.collaborativeTime / total > 0.6) return 'meeting-heavy';\n    if (allocation.routineTime / total > 0.5) return 'routine-heavy';\n    return 'balanced';\n  }\n  \n  return {\n    balancedWorkload: optimizedSchedule,\n    taskTimeBlocks: timeAllocation,\n    capacityAnalysis: workloadMetrics\n  };\n}"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "urgentImportantPlan",
+                "id": "urgent_important_plan_input",
+                "label": "Immediate Actions",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Action plans from previous step"
+                }
+              },
+              {
+                "fieldName": "availableTime",
+                "id": "available_time_input",
+                "label": "Time Capacity",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Daily/weekly time availability"
+                }
+              },
+              {
+                "fieldName": "energyPatterns",
+                "id": "energy_patterns_input",
+                "label": "Productivity Cycles",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Peak energy times and patterns"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "balancedWorkload",
+                "id": "balanced_workload_output",
+                "label": "Optimized Schedule",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "taskTimeBlocks",
+                "id": "task_time_blocks_output",
+                "label": "Time Allocation",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "capacityAnalysis",
+                "id": "capacity_analysis_output",
+                "label": "Workload Metrics",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850279",
+          "language": "en",
+          "name": "Workload Optimizer",
+          "description": "Balances tasks across time and resources using energy patterns, capacity analysis, and scheduling optimization algorithms.",
+          "instructions": "Provide action plans, time capacity, and productivity cycles. The routine will create an optimized schedule with balanced workload distribution and detailed capacity analysis."
+        }
+      ]
+    }
+  ]
+}

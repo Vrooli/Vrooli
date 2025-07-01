@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Categorize Expenses",
                 "description": "Organizes expenses into meaningful categories for analysis",
-                "subroutineId": "TODO: Need categorization subroutine for expense classification",
+                "subroutineId": "7829564732190850001",
                 "inputMap": {
                   "rawExpenses": "expenseData",
                   "customCategories": "userCategories",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Analyze Spending Patterns",
                 "description": "Identifies trends, cycles, and anomalies in spending behavior",
-                "subroutineId": "TODO: Need analysis subroutine for pattern recognition",
+                "subroutineId": "7829564732190850004",
                 "inputMap": {
                   "categorizedExpenses": "organizedSpending",
                   "historicalData": "pastSpending",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Compare Against Budget",
                 "description": "Evaluates actual spending versus planned budget allocations",
-                "subroutineId": "TODO: Need comparison subroutine for budget variance",
+                "subroutineId": "7829564732190850007",
                 "inputMap": {
                   "categoryTotals": "spendingByCategory",
                   "budgetLimits": "plannedBudget",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Generate Financial Insights",
                 "description": "Provides actionable insights and optimization recommendations",
-                "subroutineId": "TODO: Need insights subroutine for financial advice",
+                "subroutineId": "7829564732190850010",
                 "inputMap": {
                   "spendingTrends": "patternAnalysis",
                   "budgetVariance": "spendingGaps",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Create Action Plan",
                 "description": "Develops specific, actionable steps for budget improvement",
-                "subroutineId": "TODO: Need planning subroutine for financial action items",
+                "subroutineId": "7829564732190850013",
                 "inputMap": {
                   "savingsOpportunities": "costReductionTips",
                   "overBudgetCategories": "exceededLimits",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Reports",
                 "description": "Creates visual and summary reports for financial tracking",
-                "subroutineId": "TODO: Need reporting subroutine for data visualization",
+                "subroutineId": "7829564732190850016",
                 "inputMap": {
                   "allAnalysis": "financialData",
                   "actionItems": "improvementTasks",

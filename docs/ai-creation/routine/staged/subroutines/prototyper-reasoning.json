@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850391",
+  "publicId": "prototyper-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850392",
+      "publicId": "prototyper-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates rapid prototypes and validates solution effectiveness",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Experimental",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "You are a prototyping specialist. Create rapid prototypes and validate solution effectiveness through structured testing and iterative development.\n\nEvaluated Options:\n{{input.rankedSolutions}}\n\nTesting Capabilities:\n{{input.prototypingResources}}\n\nTesting Framework:\n{{input.validationCriteria}}\n\nDevelop comprehensive prototyping strategy:\n\n1. **Prototype Design Framework**:\n   Create testable versions of promising solutions:\n   - **Minimum Viable Prototype**: Simplest version that can test core solution hypotheses\n   - **Fidelity Planning**: Determining appropriate level of detail and functionality for testing\n   - **Component Isolation**: Testing individual solution elements before full integration\n   - **User Interface Mockups**: Visual representations of how stakeholders will interact with solutions\n   - **Process Simulation**: Modeling how solutions would work within existing workflows\n   - **Scenario Testing**: Evaluating solution performance under different conditions\n\n2. **Testing Strategy Development**:\n   Systematic approach to validation and learning:\n   - **Hypothesis Definition**: Clear statements about what the prototype should prove or disprove\n   - **Success Metrics**: Quantifiable measures of prototype effectiveness and value\n   - **User Testing Design**: How to gather feedback from actual stakeholders and users\n   - **Performance Benchmarking**: Comparing prototype results to current state and alternatives\n   - **Risk Testing**: Deliberately testing solution weaknesses and failure modes\n   - **Scalability Assessment**: Understanding how prototypes might perform at larger scale\n\n3. **Rapid Iteration Planning**:\n   Framework for quick learning and improvement cycles:\n   - **Build-Measure-Learn Cycles**: Structured approach to prototype development and testing\n   - **Feedback Integration**: How to incorporate learning into next prototype iterations\n   - **Pivot Criteria**: When and how to change direction based on prototype results\n   - **Version Control**: Tracking different prototype versions and their performance\n   - **Learning Documentation**: Capturing insights and lessons from each prototype iteration\n   - **Resource Optimization**: Making efficient use of prototyping time and materials\n\n4. **Validation Methodology**:\n   Rigorous assessment of prototype effectiveness:\n   - **Evidence Collection**: Gathering quantitative and qualitative data about prototype performance\n   - **Stakeholder Feedback**: Systematic collection of user and decision-maker responses\n   - **Comparative Analysis**: How prototypes perform relative to existing solutions\n   - **Unintended Consequences**: Identifying unexpected effects or side impacts\n   - **Implementation Insights**: Learning about what would be required for full deployment\n   - **Value Demonstration**: Proving that prototypes create meaningful benefits\n\n5. **Learning and Adaptation Process**:\n   Converting prototype results into solution improvements:\n   - **Insight Synthesis**: Combining learning from multiple prototype tests into actionable understanding\n   - **Solution Refinement**: Using prototype results to improve solution design\n   - **Implementation Planning**: Applying prototype learnings to full-scale deployment strategies\n   - **Risk Mitigation**: Addressing challenges and obstacles identified through prototyping\n   - **Capability Building**: Developing skills and resources needed for successful implementation\n   - **Stakeholder Preparation**: Using prototype results to build support for final solutions\n\n6. **Prototype Portfolio Management**:\n   Coordinating multiple prototype efforts effectively:\n   - **Resource Allocation**: Distributing prototyping effort across different solutions\n   - **Timeline Coordination**: Sequencing prototype development for optimal learning\n   - **Integration Planning**: How different prototypes might work together in final solutions\n   - **Knowledge Sharing**: Spreading learning from one prototype to enhance others\n   - **Decision Points**: When to continue, modify, or abandon specific prototype efforts\n   - **Success Scaling**: How to transition successful prototypes toward full implementation\n\nProvide output as JSON with:\n- testingOutcomes: Results and insights from prototype validation\n- provenConcepts: Solutions validated through successful prototyping\n- refinementRequirements: Areas needing further development and iteration",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "rankedSolutions",
+                "id": "ranked_solutions_input",
+                "label": "Evaluated Options",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Prioritized and evaluated solution options"
+                }
+              },
+              {
+                "fieldName": "prototypingResources",
+                "id": "prototyping_resources_input",
+                "label": "Testing Capabilities",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Available resources for prototyping and testing"
+                }
+              },
+              {
+                "fieldName": "validationCriteria",
+                "id": "validation_criteria_input",
+                "label": "Testing Framework",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Criteria and methods for validating prototypes"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "testingOutcomes",
+                "id": "testing_outcomes_output",
+                "label": "Prototype Results",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "provenConcepts",
+                "id": "proven_concepts_output",
+                "label": "Validated Solutions",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "refinementRequirements",
+                "id": "refinement_requirements_output",
+                "label": "Iteration Needs",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850393",
+          "language": "en",
+          "name": "Prototyper",
+          "description": "Creates rapid prototypes and validates solution effectiveness through systematic testing strategies, validation methodologies, and iterative development.",
+          "instructions": "Provide evaluated solutions, prototyping resources, and validation criteria. The routine will design testing approaches, validate concepts, and identify refinement needs."
+        }
+      ]
+    }
+  ]
+}

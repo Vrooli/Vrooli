@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850355",
+  "publicId": "solution-explorer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850356",
+      "publicId": "solution-explorer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Investigates solution possibilities under each new frame",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Innovative",
+            "maxTokens": 1300,
+            "model": null,
+            "prompt": "You are a solution exploration specialist. Investigate the creative solution possibilities that emerge from each reframed perspective.\n\nAlternative Frames:\n{{input.newPerspectives}}\n\nFrame Variations:\n{{input.perspectiveRange}}\n\nFeasibility Limits:\n{{input.solutionConstraints}}\n\nExplore solution spaces comprehensively:\n\n**Solution Space Exploration Workshop**\n\nLet's discover what becomes possible when we approach solutions from these new perspectives:\n\n1. **Frame-Specific Solution Generation**:\n   For each reframe, explore what solutions become visible:\n   - **Direct Solutions**: What this frame makes immediately obvious\n   - **Indirect Solutions**: Secondary approaches that this perspective enables\n   - **Counter-Intuitive Solutions**: Approaches that go against conventional wisdom\n   - **Emergent Solutions**: Ideas that arise from combining frame insights\n   - **Systemic Solutions**: Changes to the system itself rather than symptoms\n   - **Meta-Solutions**: Solutions that address how we solve problems\n\n2. **Creative Strategy Development**:\n   Develop innovative approaches inspired by reframes:\n   - **Inversion Strategies**: Doing the opposite of conventional approaches\n   - **Leverage Strategies**: Finding points where small changes create big impacts\n   - **Ecosystem Strategies**: Working with the whole system rather than parts\n   - **Timing Strategies**: When and in what sequence to implement changes\n   - **Partnership Strategies**: Who to collaborate with in unexpected ways\n   - **Resource Strategies**: How to use resources in novel or unconventional ways\n\n3. **Solution Architecture Exploration**:\n   Design comprehensive solution frameworks:\n   - **Multi-Layer Solutions**: Addressing different levels of the problem simultaneously\n   - **Adaptive Solutions**: Approaches that evolve and learn over time\n   - **Preventive Solutions**: Stopping problems before they start\n   - **Transformative Solutions**: Fundamentally changing the nature of the situation\n   - **Collaborative Solutions**: Engaging all stakeholders as co-creators\n   - **Self-Organizing Solutions**: Creating conditions for solutions to emerge naturally\n\n4. **Innovation and Creativity Amplification**:\n   Push beyond conventional thinking:\n   - **Breakthrough Innovations**: Solutions that fundamentally change the game\n   - **Cross-Pollination**: Borrowing successful approaches from other domains\n   - **Technology Integration**: How new technologies enable new solution possibilities\n   - **Social Innovation**: Harnessing collective intelligence and community resources\n   - **Experimental Approaches**: Testing small, reversible changes to learn and adapt\n   - **Artistic Solutions**: Creative, expressive, or aesthetic approaches to change\n\n5. **Resource and Implementation Creativity**:\n   Explore innovative ways to make solutions happen:\n   - **Resource Multiplication**: How small investments can generate larger resources\n   - **Waste-to-Value**: Turning problems or byproducts into solutions\n   - **Skill Recombination**: Using existing capabilities in new ways\n   - **Network Effects**: How solutions can spread and amplify through connections\n   - **Phase Implementation**: Breaking solutions into manageable, sequential phases\n   - **Pilot and Scale**: Starting small and growing successful approaches\n\n6. **Alternative Success Metrics**:\n   Redefine what successful solutions look like:\n   - **Process Success**: Measuring the quality of how we solve problems\n   - **Learning Success**: How much we discover and grow through solution attempts\n   - **Relationship Success**: How solutions strengthen connections and trust\n   - **Resilience Success**: How solutions make the system stronger for future challenges\n   - **Satisfaction Success**: How stakeholders feel about both process and outcomes\n   - **Sustainability Success**: How solutions create long-term positive cycles\n\n7. **Risk and Feasibility Innovation**:\n   Creative approaches to common implementation challenges:\n   - **Risk Mitigation Creativity**: Novel ways to reduce or manage risks\n   - **Constraint Navigation**: Working creatively within limitations\n   - **Resource Bootstrapping**: Starting with minimal resources and building momentum\n   - **Stakeholder Alignment**: Creative ways to build support and engagement\n   - **Change Management**: Innovative approaches to helping people adapt\n   - **Measurement Innovation**: New ways to track progress and success\n\n8. **Integration and Synthesis Opportunities**:\n   Combine solutions for greater impact:\n   - **Solution Stacking**: How multiple approaches can work together\n   - **Synergy Creation**: Where combined solutions are more powerful than individual ones\n   - **Portfolio Approaches**: Balancing different types of solutions for optimal results\n   - **Feedback Integration**: How solutions can learn from and improve each other\n   - **Ecosystem Building**: Creating environments where multiple solutions can thrive\n   - **Evolution Pathways**: How solutions can adapt and grow over time\n\n**Solution Quality Assessment:**\n- Does this solution address root causes or just symptoms?\n- How does it leverage the unique insights of its reframe?\n- What new possibilities does it open up?\n- How might it inspire additional innovations?\n- Does it create value for multiple stakeholders?\n- How resilient is it to changing conditions?\n\n**Implementation Readiness Factors:**\n- What resources would be required to test this approach?\n- Who would need to be involved for success?\n- What are the key risks and how might they be managed?\n- How could we start small and learn quickly?\n- What would early success indicators look like?\n- How might this solution evolve over time?\n\nGenerate solutions that are both inspiring and actionable, pushing beyond conventional thinking while remaining grounded in practical possibility!",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "newPerspectives",
+                "id": "new_perspectives_input",
+                "label": "Alternative Frames",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "New perspective frames to explore"
+                }
+              },
+              {
+                "fieldName": "perspectiveRange",
+                "id": "perspective_range_input",
+                "label": "Frame Variations",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Range and variations of perspectives"
+                }
+              },
+              {
+                "fieldName": "solutionConstraints",
+                "id": "solution_constraints_input",
+                "label": "Feasibility Limits",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Constraints and limitations for solution implementation"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "emergentSolutions",
+                "id": "emergent_solutions_output",
+                "label": "Solution Options",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "creativeStrategies",
+                "id": "creative_strategies_output",
+                "label": "Innovative Approaches",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "implementationNeeds",
+                "id": "implementation_needs_output",
+                "label": "Resource Requirements",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850357",
+          "language": "en",
+          "name": "Solution Explorer",
+          "description": "Investigates solution possibilities under each new frame through creative strategy development and innovation amplification.",
+          "instructions": "Provide alternative frames, perspective variations, and feasibility constraints. The routine will explore emergent solutions, develop creative strategies, and assess implementation needs."
+        }
+      ]
+    }
+  ]
+}

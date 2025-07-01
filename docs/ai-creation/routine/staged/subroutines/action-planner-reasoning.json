@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850274",
+  "publicId": "action-planner-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850275",
+      "publicId": "action-planner-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates specific recommendations per quadrant",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are an action planning specialist. Create specific, actionable recommendations for each Eisenhower Matrix quadrant.\n\nQuadrant 1 Tasks (Do First):\n{{input.doFirst}}\n\nQuadrant 2 Tasks (Schedule):\n{{input.schedule}}\n\nAvailable Resources:\n{{input.delegationOptions}}\n\nDevelop comprehensive action plans:\n\n1. **Immediate Actions (Q1 - Urgent & Important)**:\n   Create crisis management strategies:\n   - **Rapid Response Protocol**: Step-by-step approach for handling each Q1 task\n   - **Time Allocation**: Specific time blocks for immediate execution\n   - **Resource Mobilization**: What resources to deploy immediately\n   - **Dependencies Resolution**: How to handle blocking relationships\n   - **Quality Standards**: Minimum viable outcomes to maintain speed\n   - **Communication Plan**: Who to notify and when during execution\n\n2. **Strategic Scheduling (Q2 - Important, Not Urgent)**:\n   Design proactive execution framework:\n   - **Time Block Design**: Optimal scheduling patterns for strategic work\n   - **Deep Work Sessions**: Protected time for high-value activities\n   - **Progress Milestones**: Checkpoints to ensure steady advancement\n   - **Preparation Requirements**: What needs to be ready before starting\n   - **Energy Alignment**: Matching tasks to peak performance periods\n   - **Long-term Value Creation**: How tasks build toward larger objectives\n\n3. **Delegation Strategy (Q3 - Urgent, Not Important)**:\n   Optimize task distribution and management:\n   - **Delegation Candidates**: Who can handle which urgent tasks\n   - **Handoff Protocols**: How to transfer tasks effectively\n   - **Quality Control**: Monitoring without micromanaging\n   - **Communication Standards**: Clear expectations and deadlines\n   - **Decision Authority**: What decisions delegates can make independently\n   - **Escalation Triggers**: When to step back in personally\n\n4. **Task Optimization Strategies**:\n   Enhance overall execution effectiveness:\n   - **Batch Processing**: Grouping similar tasks for efficiency\n   - **Context Switching**: Minimizing mental overhead between tasks\n   - **Energy Management**: Aligning task difficulty with energy levels\n   - **Tool Integration**: Leveraging technology for smoother execution\n   - **Workflow Design**: Creating seamless task transitions\n   - **Contingency Planning**: Backup strategies for potential obstacles\n\n5. **Resource Optimization Framework**:\n   Maximize available capacity and capabilities:\n   - **Capacity Analysis**: Current vs required resource allocation\n   - **Skill Utilization**: Matching tasks to individual strengths\n   - **Time Investment**: ROI analysis for different task approaches\n   - **External Support**: When and how to seek additional help\n   - **Automation Opportunities**: Tasks that can be systematized\n   - **Investment Priorities**: Where to focus improvement efforts\n\nProvide output as JSON with:\n- immediateActions: Detailed crisis management plans for Q1 tasks\n- schedulingPlan: Strategic execution framework for Q2 tasks\n- delegationPlan: Complete delegation and management strategy for Q3 tasks",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "doFirst",
+                "id": "do_first_input",
+                "label": "Urgent & Important Tasks",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Tasks from Quadrant 1"
+                }
+              },
+              {
+                "fieldName": "schedule",
+                "id": "schedule_input",
+                "label": "Important, Not Urgent Tasks",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Tasks from Quadrant 2"
+                }
+              },
+              {
+                "fieldName": "delegationOptions",
+                "id": "delegation_options_input",
+                "label": "Available Resources",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "People, tools, or resources available for delegation"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "immediateActions",
+                "id": "immediate_actions_output",
+                "label": "Crisis Management Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "schedulingPlan",
+                "id": "scheduling_plan_output",
+                "label": "Strategic Execution Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "delegationPlan",
+                "id": "delegation_plan_output",
+                "label": "Delegation Strategy",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850276",
+          "language": "en",
+          "name": "Action Planner",
+          "description": "Creates specific recommendations per quadrant with crisis management, strategic scheduling, and delegation strategies.",
+          "instructions": "Provide urgent/important tasks and available resources. The routine will generate detailed action plans for immediate execution, strategic scheduling, and effective delegation."
+        }
+      ]
+    }
+  ]
+}

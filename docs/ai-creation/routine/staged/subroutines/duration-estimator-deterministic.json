@@ -1,0 +1,106 @@
+{
+  "id": "7829564732190850253",
+  "publicId": "duration-estimator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850254",
+      "publicId": "duration-estimator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Calculates time needed for each task",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "javascript",
+            "logic": "function estimateTaskDurations({ prioritizedTasks, pastDurations, taskDifficulty }) {\n  const tasks = Array.isArray(prioritizedTasks) ? prioritizedTasks : [prioritizedTasks].filter(Boolean);\n  const historical = Array.isArray(pastDurations) ? pastDurations : [pastDurations].filter(Boolean);\n  const complexity = Array.isArray(taskDifficulty) ? taskDifficulty : [taskDifficulty].filter(Boolean);\n  \n  const timeEstimates = tasks.map((task, index) => {\n    const taskData = typeof task === 'string' ? { name: task } : task;\n    const taskName = taskData.name || taskData.title || `Task ${index + 1}`;\n    \n    // Get base estimate from task data or historical data\n    let baseEstimate = taskData.estimatedMinutes || taskData.duration || \n                      taskData.estimatedHours ? taskData.estimatedHours * 60 : null;\n    \n    // Look for historical data\n    const historicalData = historical.find(h => \n      h.taskName === taskName || h.taskType === taskData.type || h.category === taskData.category\n    );\n    \n    if (!baseEstimate && historicalData) {\n      baseEstimate = historicalData.averageDuration || historicalData.duration || 60;\n    }\n    \n    // Default estimates by task type\n    if (!baseEstimate) {\n      const taskType = taskData.type || getTaskTypeFromName(taskName);\n      baseEstimate = getDefaultDuration(taskType);\n    }\n    \n    // Apply complexity multipliers\n    const complexityData = complexity[index] || taskData.complexity || 'medium';\n    const complexityMultiplier = getComplexityMultiplier(complexityData);\n    \n    const adjustedEstimate = Math.round(baseEstimate * complexityMultiplier);\n    \n    // Calculate buffer time (20% for uncertainty)\n    const bufferPercentage = getBufferPercentage(taskData, complexityData);\n    const bufferTime = Math.round(adjustedEstimate * bufferPercentage);\n    \n    const totalEstimate = adjustedEstimate + bufferTime;\n    \n    return {\n      taskId: taskData.id || taskName,\n      taskName: taskName,\n      baseEstimate: baseEstimate,\n      complexityFactor: complexityMultiplier,\n      adjustedEstimate: adjustedEstimate,\n      bufferTime: bufferTime,\n      totalEstimate: totalEstimate,\n      confidenceLevel: calculateConfidence(taskData, historicalData, complexityData),\n      estimationMethod: getEstimationMethod(baseEstimate, historicalData, complexityData),\n      taskType: taskData.type || getTaskTypeFromName(taskName),\n      originalTask: taskData\n    };\n  });\n  \n  function getTaskTypeFromName(name) {\n    const lowerName = name.toLowerCase();\n    if (lowerName.includes('meeting') || lowerName.includes('call')) return 'meeting';\n    if (lowerName.includes('email') || lowerName.includes('message')) return 'communication';\n    if (lowerName.includes('write') || lowerName.includes('document')) return 'writing';\n    if (lowerName.includes('review') || lowerName.includes('read')) return 'review';\n    if (lowerName.includes('code') || lowerName.includes('develop')) return 'development';\n    if (lowerName.includes('design') || lowerName.includes('create')) return 'creative';\n    if (lowerName.includes('plan') || lowerName.includes('strategy')) return 'planning';\n    if (lowerName.includes('research') || lowerName.includes('analyze')) return 'research';\n    return 'general';\n  }\n  \n  function getDefaultDuration(taskType) {\n    const defaults = {\n      'meeting': 60,\n      'communication': 30,\n      'writing': 90,\n      'review': 45,\n      'development': 120,\n      'creative': 90,\n      'planning': 60,\n      'research': 75,\n      'general': 60\n    };\n    return defaults[taskType] || 60;\n  }\n  \n  function getComplexityMultiplier(complexity) {\n    if (typeof complexity === 'object') {\n      // Handle detailed complexity object\n      const factors = {\n        technical: complexity.technical || 'medium',\n        scope: complexity.scope || 'medium',\n        dependencies: complexity.dependencies || 'medium'\n      };\n      \n      const multipliers = Object.values(factors).map(level => {\n        const levelMap = { 'low': 0.8, 'medium': 1.0, 'high': 1.3, 'very-high': 1.6 };\n        return levelMap[level] || 1.0;\n      });\n      \n      return multipliers.reduce((acc, mult) => acc * mult, 1.0) / multipliers.length;\n    }\n    \n    const multipliers = {\n      'trivial': 0.5,\n      'low': 0.8,\n      'medium': 1.0,\n      'high': 1.3,\n      'complex': 1.6,\n      'very-complex': 2.0\n    };\n    \n    return multipliers[complexity] || 1.0;\n  }\n  \n  function getBufferPercentage(task, complexity) {\n    let bufferPercent = 0.2; // Base 20% buffer\n    \n    // Increase buffer for uncertain tasks\n    if (!task.estimatedMinutes && !task.duration) bufferPercent += 0.1;\n    \n    // Adjust buffer based on complexity\n    if (complexity === 'high' || complexity === 'complex') bufferPercent += 0.1;\n    if (complexity === 'very-complex') bufferPercent += 0.2;\n    if (complexity === 'low' || complexity === 'trivial') bufferPercent -= 0.05;\n    \n    // Increase buffer for tasks with dependencies\n    if (task.dependencies && task.dependencies.length > 0) bufferPercent += 0.05;\n    \n    // Increase buffer for creative or research tasks\n    const taskType = task.type || getTaskTypeFromName(task.name || '');\n    if (taskType === 'creative' || taskType === 'research') bufferPercent += 0.1;\n    \n    return Math.min(0.5, Math.max(0.1, bufferPercent)); // Cap between 10% and 50%\n  }\n  \n  function calculateConfidence(task, historical, complexity) {\n    let confidence = 50; // Base confidence\n    \n    // Increase confidence if we have explicit duration\n    if (task.estimatedMinutes || task.duration) confidence += 30;\n    \n    // Increase confidence if we have historical data\n    if (historical) confidence += 25;\n    \n    // Decrease confidence for complex tasks\n    if (complexity === 'high' || complexity === 'complex') confidence -= 15;\n    if (complexity === 'very-complex') confidence -= 25;\n    \n    // Increase confidence for simple tasks\n    if (complexity === 'low' || complexity === 'trivial') confidence += 15;\n    \n    // Adjust for task type certainty\n    const taskType = task.type || getTaskTypeFromName(task.name || '');\n    if (taskType === 'meeting' || taskType === 'communication') confidence += 10;\n    if (taskType === 'creative' || taskType === 'research') confidence -= 10;\n    \n    return Math.min(95, Math.max(15, confidence));\n  }\n  \n  function getEstimationMethod(baseEstimate, historical, complexity) {\n    if (baseEstimate && historical) return 'explicit-with-historical';\n    if (baseEstimate) return 'explicit-estimate';\n    if (historical) return 'historical-data';\n    return 'default-heuristic';\n  }\n  \n  // Calculate total buffer requirements\n  const totalBufferTime = timeEstimates.reduce((sum, est) => sum + est.bufferTime, 0);\n  \n  // Calculate aggregate duration\n  const totalEstimatedTime = timeEstimates.reduce((sum, est) => sum + est.totalEstimate, 0);\n  \n  // Calculate confidence statistics\n  const avgConfidence = timeEstimates.length > 0 ? \n    Math.round(timeEstimates.reduce((sum, est) => sum + est.confidenceLevel, 0) / timeEstimates.length) : 0;\n    \n  const lowConfidenceTasks = timeEstimates.filter(est => est.confidenceLevel < 60);\n  \n  return {\n    timeEstimates: timeEstimates,\n    paddingRequirements: {\n      totalBufferMinutes: totalBufferTime,\n      averageBufferPercentage: timeEstimates.length > 0 ? \n        Math.round((totalBufferTime / (totalEstimatedTime - totalBufferTime)) * 100) : 0,\n      lowConfidenceTasks: lowConfidenceTasks.length,\n      recommendedContingency: Math.round(totalEstimatedTime * 0.15) // Additional 15% contingency\n    },\n    aggregateDuration: {\n      totalMinutes: totalEstimatedTime,\n      totalHours: Math.round((totalEstimatedTime / 60) * 100) / 100,\n      workingDays: Math.ceil(totalEstimatedTime / (8 * 60)), // Assuming 8-hour workdays\n      averageConfidence: avgConfidence,\n      estimationQuality: avgConfidence >= 75 ? 'high' : avgConfidence >= 60 ? 'medium' : 'low',\n      totalTasks: timeEstimates.length,\n      complexTaskCount: timeEstimates.filter(est => est.complexityFactor > 1.2).length,\n      uncertainTaskCount: lowConfidenceTasks.length\n    }\n  };\n}"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "prioritizedTasks",
+                "id": "prioritized_tasks_input",
+                "label": "Ordered Task List",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Prioritized task list"
+                }
+              },
+              {
+                "fieldName": "pastDurations",
+                "id": "past_durations_input",
+                "label": "Historical Data",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Past task duration data"
+                }
+              },
+              {
+                "fieldName": "taskDifficulty",
+                "id": "task_difficulty_input",
+                "label": "Complexity Factors",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Task complexity and difficulty ratings"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "timeEstimates",
+                "id": "time_estimates_output",
+                "label": "Task Durations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "paddingRequirements",
+                "id": "padding_requirements_output",
+                "label": "Buffer Time",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "aggregateDuration",
+                "id": "aggregate_duration_output",
+                "label": "Total Time Needed",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850255",
+          "language": "en",
+          "name": "Duration Estimator",
+          "description": "Calculates time needed for each task using historical data, complexity factors, and intelligent buffering.",
+          "instructions": "Provide prioritized tasks, historical duration data, and complexity factors. The routine will estimate durations with confidence levels and buffer requirements."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349265",
+  "publicId": "valid-c-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349266",
+      "publicId": "valid-coord-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of validation coordinator for comprehensive data validation and quality assurance coordination",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Rigorous",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a validation coordination expert providing comprehensive data validation strategies, quality assurance frameworks, and integrity verification systems.\n\nValidation Context: {{input.validationContext}}\nData Sources: {{input.dataSources}}\nValidation Requirements: {{input.validationRequirements}}\nQuality Standards: {{input.qualityStandards}}\n\nCoordinate comprehensive validation strategy:\n\n1. **Validation Framework Design**:\n   - Validation rule architecture\n   - Multi-tier validation strategy\n   - Real-time vs batch validation\n   - Error handling protocols\n   - Performance optimization\n\n2. **Data Quality Management**:\n   - Completeness validation\n   - Accuracy verification\n   - Consistency checking\n   - Uniqueness enforcement\n   - Timeliness assessment\n\n3. **Business Rule Validation**:\n   - Domain-specific rule implementation\n   - Constraint validation\n   - Cross-field validation\n   - Conditional logic verification\n   - Regulatory compliance checking\n\n4. **Schema and Format Validation**:\n   - Data type verification\n   - Format pattern matching\n   - Schema evolution handling\n   - Structure validation\n   - Encoding verification\n\n5. **Integration and Workflow Validation**:\n   - End-to-end data flow validation\n   - System integration verification\n   - API response validation\n   - Message format checking\n   - Workflow state validation\n\n6. **Performance and Scalability**:\n   - Validation performance optimization\n   - Parallel validation processing\n   - Resource utilization management\n   - Scalability planning\n   - Bottleneck identification\n\n7. **Monitoring and Reporting**:\n   - Validation metrics tracking\n   - Error pattern analysis\n   - Quality dashboard design\n   - Alert and notification systems\n   - Continuous improvement feedback\n\nProvide comprehensive validation coordination plan with framework design, quality management, business rule implementation, and monitoring systems for robust data validation.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "validationContext",
+                "id": "validation_context_input",
+                "label": "Validation Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Business domain, data criticality, processing volumes, system architecture, user impact",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your validation context"
+                }
+              },
+              {
+                "fieldName": "dataSources",
+                "id": "data_sources_input",
+                "label": "Data Sources",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Input systems, file formats, APIs, databases, streaming data, user inputs, external feeds",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What data sources need validation?"
+                }
+              },
+              {
+                "fieldName": "validationRequirements",
+                "id": "validation_requirements_input",
+                "label": "Validation Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Quality standards, business rules, compliance requirements, performance targets, error tolerance",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What validation requirements exist?"
+                }
+              },
+              {
+                "fieldName": "qualityStandards",
+                "id": "quality_standards_input",
+                "label": "Quality Standards",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "High Accuracy", "value": "accuracy" },
+                    { "label": "Real-time Validation", "value": "realtime" },
+                    { "label": "Compliance Focus", "value": "compliance" },
+                    { "label": "Performance Optimized", "value": "performance" },
+                    { "label": "Comprehensive Quality", "value": "comprehensive" },
+                    { "label": "Balanced Approach", "value": "balanced" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Primary quality focus"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "validationCoordinationPlan",
+                "id": "validation_coordination_plan",
+                "label": "Validation Coordination Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349267",
+          "language": "en-US",
+          "name": "Validation Coordinator",
+          "description": "Provides comprehensive validation coordination with framework design, quality management, and monitoring systems for robust data validation.",
+          "instructions": "Describe your validation context, data sources, and requirements. The coordinator will design a comprehensive validation strategy."
+        }
+      ]
+    }
+  ]
+}

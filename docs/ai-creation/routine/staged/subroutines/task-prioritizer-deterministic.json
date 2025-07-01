@@ -1,0 +1,106 @@
+{
+  "id": "7829564732190850091",
+  "publicId": "task-prior-det-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850092",
+      "publicId": "task-prior-det-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Deterministic task prioritization for daily planning",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "javascript",
+            "logic": "function prioritizeTasks({ taskList, deadlines, priorities }) {\n  // Merge task data\n  const tasks = taskList.map((task, index) => ({\n    ...task,\n    deadline: deadlines?.[index] || null,\n    priority: priorities?.[index] || 'medium',\n    index: index\n  }));\n\n  // Calculate priority scores\n  const scoredTasks = tasks.map(task => {\n    let score = 0;\n    \n    // Priority weight (high=30, medium=20, low=10)\n    const priorityWeights = { high: 30, urgent: 40, medium: 20, low: 10 };\n    score += priorityWeights[task.priority] || 20;\n    \n    // Deadline urgency (0-40 points based on how soon)\n    if (task.deadline) {\n      const hoursUntilDue = (new Date(task.deadline) - new Date()) / (1000 * 60 * 60);\n      if (hoursUntilDue < 0) score += 50; // Overdue\n      else if (hoursUntilDue < 24) score += 40;\n      else if (hoursUntilDue < 72) score += 30;\n      else if (hoursUntilDue < 168) score += 20;\n      else score += 10;\n    }\n    \n    // Estimated duration impact (shorter tasks get slight boost)\n    const duration = task.estimatedMinutes || 30;\n    if (duration <= 15) score += 5;\n    else if (duration <= 30) score += 3;\n    \n    // Dependencies (tasks that block others get priority)\n    if (task.blocksOthers) score += 15;\n    \n    return { ...task, priorityScore: score };\n  });\n\n  // Sort by score descending\n  const prioritizedTasks = scoredTasks.sort((a, b) => b.priorityScore - a.priorityScore);\n\n  // Identify critical path\n  const criticalPath = prioritizedTasks.filter(task => \n    task.priorityScore >= 60 || \n    task.priority === 'urgent' || \n    (task.deadline && (new Date(task.deadline) - new Date()) < 24 * 60 * 60 * 1000)\n  ).map(task => ({ id: task.id, name: task.name, reason: task.priorityScore >= 60 ? 'High score' : task.priority === 'urgent' ? 'Urgent priority' : 'Due soon' }));\n\n  // Generate rationale\n  const scoringRationale = {\n    method: \"Multi-factor scoring based on priority level, deadline urgency, duration, and dependencies\",\n    factors: [\n      \"Priority levels: urgent(40), high(30), medium(20), low(10) points\",\n      \"Deadline urgency: overdue(50), <24h(40), <3d(30), <7d(20), later(10) points\",\n      \"Duration bonus: ≤15min(5), ≤30min(3) points\",\n      \"Dependency bonus: blocks others(15) points\"\n    ],\n    topPriorities: prioritizedTasks.slice(0, 3).map(t => ({ name: t.name, score: t.priorityScore }))\n  };\n\n  return {\n    prioritizedTasks: prioritizedTasks,\n    criticalPath: criticalPath,\n    scoringRationale: scoringRationale\n  };\n}"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "taskList",
+                "id": "task_list_input",
+                "label": "All Tasks",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Array of task objects"
+                }
+              },
+              {
+                "fieldName": "deadlines",
+                "id": "deadlines_input",
+                "label": "Task Deadlines",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Array of deadline dates"
+                }
+              },
+              {
+                "fieldName": "priorities",
+                "id": "priorities_input",
+                "label": "Task Priorities",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Array of priority levels"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "prioritizedTasks",
+                "id": "prioritized_tasks_output",
+                "label": "Sorted Tasks",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "criticalPath",
+                "id": "critical_path_output",
+                "label": "Urgent Items",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "scoringRationale",
+                "id": "scoring_rationale_output",
+                "label": "Priority Explanation",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850093",
+          "language": "en",
+          "name": "Task Prioritizer (Deterministic)",
+          "description": "Sorts tasks by importance, urgency, and deadlines using a deterministic scoring algorithm.",
+          "instructions": "Provide task list with optional deadlines and priorities. The routine will calculate priority scores and sort tasks accordingly."
+        }
+      ]
+    }
+  ]
+}

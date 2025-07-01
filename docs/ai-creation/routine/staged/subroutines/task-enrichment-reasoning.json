@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850148",
+  "publicId": "task-enrich-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850149",
+      "publicId": "task-enrich-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Enriches tasks with context and details",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "You are a task enrichment specialist. Add context, deadlines, and priorities to extracted action items.\n\nExtracted Tasks:\n{{input.extractedTasks}}\n\nNote Metadata:\n{{input.noteProperties}}\n\nEnrichment Logic:\n{{input.inferenceRules}}\n\nEnrich each task with additional details:\n\n1. **Context Enhancement**:\n   For each task, add relevant context:\n   - **Background**: Why this task is needed\n   - **Scope**: What exactly needs to be done\n   - **Success Criteria**: How to know it's complete\n   - **Dependencies**: What needs to happen first\n   - **Resources Needed**: Tools, people, information required\n   - **Potential Blockers**: What could prevent completion\n   - **Related Tasks**: Other tasks that connect to this one\n\n2. **Deadline Inference**:\n   Determine or suggest deadlines based on:\n   - **Explicit dates**: Mentioned in notes\n   - **Event-driven**: \"Before next meeting\", \"By end of week\"\n   - **Urgency indicators**: \"ASAP\", \"urgent\", \"critical\"\n   - **Project timelines**: Based on mentioned milestones\n   - **Business logic**: Standard timeframes for task types\n   - **Dependencies**: When prerequisite tasks complete\n   \n   For each deadline, specify:\n   - Suggested due date\n   - Confidence level (high/medium/low)\n   - Reasoning for the timeline\n   - Flexibility (hard/soft deadline)\n\n3. **Priority Assignment**:\n   Assess task importance and urgency:\n   - **Critical**: Blocking others, urgent deadlines\n   - **High**: Important for project success\n   - **Medium**: Standard work items\n   - **Low**: Nice-to-have or future items\n   \n   Consider factors:\n   - Impact on other work\n   - Stakeholder importance\n   - Time sensitivity\n   - Resource requirements\n   - Risk if delayed\n\n4. **Task Categorization**:\n   Classify tasks for better organization:\n   - **Immediate**: Can start right away\n   - **Waiting**: Depends on others\n   - **Scheduled**: Has specific timing\n   - **Research**: Information gathering\n   - **Communication**: Coordination with others\n   - **Creation**: Producing deliverables\n   - **Review**: Evaluation activities\n\n5. **Effort Estimation**:\n   Estimate time and complexity:\n   - **Quick**: < 30 minutes\n   - **Short**: 30 minutes - 2 hours\n   - **Medium**: 2-8 hours\n   - **Long**: 1+ days\n   - **Complex**: Multiple days/weeks\n   \n   Include factors affecting effort:\n   - Skill level required\n   - Coordination needed\n   - Iteration likelihood\n   - Quality standards\n\n6. **Enhancement Recommendations**:\n   Suggest task improvements:\n   - Breaking large tasks into smaller ones\n   - Adding checklist items\n   - Identifying skill gaps\n   - Resource planning needs\n   - Risk mitigation steps\n\nProvide output as JSON with:\n- enrichedTasks: Tasks with enhanced details\n- inferredDeadlines: Suggested dates with reasoning\n- priorityAssignments: Importance and urgency ratings",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "extractedTasks",
+                "id": "extracted_tasks_input",
+                "label": "Action Items",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Tasks extracted from notes"
+                }
+              },
+              {
+                "fieldName": "noteProperties",
+                "id": "note_properties_input",
+                "label": "Metadata",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Note metadata and context"
+                }
+              },
+              {
+                "fieldName": "inferenceRules",
+                "id": "inference_rules_input",
+                "label": "Enrichment Logic",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Rules for task enrichment"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "enrichedTasks",
+                "id": "enriched_tasks_output",
+                "label": "Detailed Actions",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "inferredDeadlines",
+                "id": "inferred_deadlines_output",
+                "label": "Suggested Dates",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "priorityAssignments",
+                "id": "priority_assignments_output",
+                "label": "Task Importance",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850150",
+          "language": "en",
+          "name": "Task Enrichment (Reasoning)",
+          "description": "Adds context, deadlines, and priorities to extracted tasks using intelligent inference.",
+          "instructions": "Provide extracted tasks, note metadata, and enrichment rules. The routine will enhance tasks with detailed context and timing."
+        }
+      ]
+    }
+  ]
+}

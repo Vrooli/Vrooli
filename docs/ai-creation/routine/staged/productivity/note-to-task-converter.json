@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Parse Note Content",
                 "description": "Analyzes note structure and identifies sections",
-                "subroutineId": "TODO: Need note parsing subroutine",
+                "subroutineId": "7829564732190850142",
                 "inputMap": {
                   "noteContent": "rawNotes",
                   "noteType": "contentFormat",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Extract Action Items",
                 "description": "Identifies tasks, follow-ups, and commitments",
-                "subroutineId": "TODO: Need action extraction subroutine",
+                "subroutineId": "7829564732190850145",
                 "inputMap": {
                   "structuredNotes": "parsedContent",
                   "actionKeywords": "taskIndicators",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Enrich Task Details",
                 "description": "Adds context, deadlines, and priorities to tasks",
-                "subroutineId": "TODO: Need task enrichment subroutine",
+                "subroutineId": "7829564732190850148",
                 "inputMap": {
                   "extractedTasks": "actionItems",
                   "noteProperties": "metadata",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Resolve Ambiguities",
                 "description": "Clarifies unclear or incomplete task descriptions",
-                "subroutineId": "TODO: Need ambiguity resolution subroutine",
+                "subroutineId": "7829564732190850151",
                 "inputMap": {
                   "detailedActions": "enrichedTasks",
                   "extractionCertainty": "confidenceScores",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Format Task List",
                 "description": "Structures tasks into standard format",
-                "subroutineId": "TODO: Need task formatting subroutine",
+                "subroutineId": "7829564732190850154",
                 "inputMap": {
                   "unambiguousTasks": "clarifiedTasks",
                   "formatTemplate": "taskStructure",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Task Report",
                 "description": "Creates comprehensive task list with metadata",
-                "subroutineId": "TODO: Need report generation subroutine",
+                "subroutineId": "7829564732190850157",
                 "inputMap": {
                   "standardTasks": "formattedTasks",
                   "uncertainItems": "clarificationNeeded",

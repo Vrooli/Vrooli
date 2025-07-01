@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349085",
+  "publicId": "efficiency-a-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349086",
+      "publicId": "effic-anal-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of efficiency analyzer for comprehensive productivity and efficiency assessment and optimization",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are an efficiency analysis expert providing comprehensive assessment of productivity and operational efficiency with optimization recommendations.\n\nProcess/System: {{input.processSystem}}\nEfficiency Metrics: {{input.efficiencyMetrics}}\nResource Constraints: {{input.resourceConstraints}}\nOptimization Goals: {{input.optimizationGoals}}\n\nAnalyze efficiency comprehensively:\n\n1. **Current State Assessment**:\n   - Baseline efficiency measurement\n   - Resource utilization analysis\n   - Time and motion study\n   - Workflow mapping and evaluation\n   - Bottleneck identification\n\n2. **Performance Metrics Analysis**:\n   - Throughput and output measurement\n   - Quality and accuracy assessment\n   - Cost-effectiveness evaluation\n   - Time-to-completion analysis\n   - Error rate and rework frequency\n\n3. **Resource Optimization Analysis**:\n   - Human resource allocation\n   - Technology utilization assessment\n   - Material and supply efficiency\n   - Space and facility optimization\n   - Financial resource effectiveness\n\n4. **Process Flow Evaluation**:\n   - Value stream mapping\n   - Non-value-added activity identification\n   - Handoff and transition analysis\n   - Decision point optimization\n   - Parallel processing opportunities\n\n5. **Technology and Automation Assessment**:\n   - Automation potential identification\n   - Tool and system effectiveness\n   - Integration opportunity analysis\n   - Digital transformation benefits\n   - Technology ROI evaluation\n\n6. **Waste and Inefficiency Detection**:\n   - Time waste identification\n   - Resource waste analysis\n   - Redundancy and duplication detection\n   - Overprocessing elimination\n   - Motion and transportation waste\n\n7. **Improvement Strategy Development**:\n   - Quick win identification\n   - Long-term optimization planning\n   - Implementation priority ranking\n   - Resource requirement assessment\n   - Expected impact quantification\n\nProvide detailed efficiency analysis with current state assessment, optimization opportunities, and prioritized improvement recommendations for enhanced productivity and performance.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "processSystem",
+                "id": "process_system_input",
+                "label": "Process/System",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the process, workflow, or system to analyze for efficiency",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What process or system needs efficiency analysis?"
+                }
+              },
+              {
+                "fieldName": "efficiencyMetrics",
+                "id": "efficiency_metrics_input",
+                "label": "Current Metrics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Current performance data: time, cost, quality, throughput, error rates",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What efficiency metrics do you currently track?"
+                }
+              },
+              {
+                "fieldName": "resourceConstraints",
+                "id": "resource_constraints_input",
+                "label": "Resource Constraints",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Budget, time, personnel, technology, space limitations",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What resource constraints exist?"
+                }
+              },
+              {
+                "fieldName": "optimizationGoals",
+                "id": "optimization_goals_input",
+                "label": "Optimization Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Reduce Processing Time", "value": "time" },
+                    { "label": "Lower Operational Costs", "value": "cost" },
+                    { "label": "Improve Quality", "value": "quality" },
+                    { "label": "Increase Throughput", "value": "throughput" },
+                    { "label": "Enhance User Experience", "value": "experience" },
+                    { "label": "Resource Optimization", "value": "resources" }
+                  ],
+                  "defaultValue": "time",
+                  "helperText": "Primary optimization objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "efficiencyAnalysisReport",
+                "id": "efficiency_analysis_report",
+                "label": "Efficiency Analysis Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349087",
+          "language": "en-US",
+          "name": "Efficiency Analyzer",
+          "description": "Provides comprehensive efficiency assessment with performance analysis, resource optimization, and prioritized improvement recommendations for enhanced productivity.",
+          "instructions": "Describe the process/system, current metrics, and constraints. The analyzer will assess efficiency and provide optimization recommendations."
+        }
+      ]
+    }
+  ]
+}

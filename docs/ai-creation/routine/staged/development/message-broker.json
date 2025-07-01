@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349319",
+  "publicId": "messag-b-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349320",
+      "publicId": "msg-broker-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of message broker for comprehensive messaging architecture and communication coordination",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Architectural",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a message broker expert providing comprehensive messaging architecture strategies, communication patterns, and distributed system coordination solutions.\n\nMessaging Context: {{input.messagingContext}}\nCommunication Patterns: {{input.communicationPatterns}}\nReliability Requirements: {{input.reliabilityRequirements}}\nScalability Goals: {{input.scalabilityGoals}}\n\nDesign comprehensive message broker strategy:\n\n1. **Messaging Architecture Design**:\n   - Broker topology planning\n   - Queue vs topic selection\n   - Partition and routing strategies\n   - High availability configuration\n   - Load balancing mechanisms\n\n2. **Communication Pattern Implementation**:\n   - Point-to-point messaging\n   - Publish-subscribe models\n   - Request-reply patterns\n   - Message routing strategies\n   - Content-based routing\n\n3. **Message Delivery Guarantees**:\n   - At-most-once delivery\n   - At-least-once semantics\n   - Exactly-once processing\n   - Duplicate detection\n   - Idempotency handling\n\n4. **Performance Optimization**:\n   - Throughput maximization\n   - Latency minimization\n   - Batch processing strategies\n   - Connection pooling\n   - Resource optimization\n\n5. **Reliability and Fault Tolerance**:\n   - Message persistence strategies\n   - Replication mechanisms\n   - Failover procedures\n   - Dead letter queues\n   - Circuit breaker patterns\n\n6. **Security and Access Control**:\n   - Authentication mechanisms\n   - Authorization policies\n   - Message encryption\n   - Network security\n   - Audit logging\n\n7. **Monitoring and Management**:\n   - Performance metrics tracking\n   - Queue depth monitoring\n   - Consumer lag analysis\n   - Alert configuration\n   - Operational dashboards\n\nProvide comprehensive message broker plan with architecture design, communication patterns, reliability mechanisms, and monitoring strategies for robust messaging systems.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "messagingContext",
+                "id": "messaging_context_input",
+                "label": "Messaging Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "System architecture, application types, message volumes, integration requirements, business domain",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your messaging context"
+                }
+              },
+              {
+                "fieldName": "communicationPatterns",
+                "id": "communication_patterns_input",
+                "label": "Communication Patterns",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Synchronous/asynchronous needs, broadcast requirements, workflow coordination, event streaming",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What communication patterns are needed?"
+                }
+              },
+              {
+                "fieldName": "reliabilityRequirements",
+                "id": "reliability_requirements_input",
+                "label": "Reliability Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Delivery guarantees, persistence needs, fault tolerance, recovery requirements, data consistency",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What reliability requirements exist?"
+                }
+              },
+              {
+                "fieldName": "scalabilityGoals",
+                "id": "scalability_goals_input",
+                "label": "Scalability Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "High Throughput", "value": "throughput" },
+                    { "label": "Low Latency", "value": "latency" },
+                    { "label": "Horizontal Scaling", "value": "horizontal" },
+                    { "label": "Geographic Distribution", "value": "geographic" },
+                    { "label": "Cost Efficiency", "value": "cost" },
+                    { "label": "Balanced Scalability", "value": "balanced" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Primary scalability focus"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "messageBrokerPlan",
+                "id": "message_broker_plan",
+                "label": "Message Broker Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349321",
+          "language": "en-US",
+          "name": "Message Broker",
+          "description": "Provides comprehensive message broker architecture with communication patterns, reliability mechanisms, and monitoring strategies for robust messaging systems.",
+          "instructions": "Describe your messaging context, communication patterns, and requirements. The broker will design a comprehensive messaging architecture."
+        }
+      ]
+    }
+  ]
+}

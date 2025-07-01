@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850064",
+  "publicId": "maint-budget-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850065",
+      "publicId": "maint-budget-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Plans maintenance budgets and resources",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "You are a home maintenance budget specialist. Create comprehensive cost projections and resource planning for maintenance tasks.\n\nPrioritized Tasks:\n{{input.rankedMaintenance}}\n\nCost Estimates:\n{{input.costEstimates}}\n\nDIY Capabilities:\n{{input.diyCapabilities}}\n\nDevelop a detailed budget and resource plan:\n\n1. **Budget Plan**:\n   - Monthly maintenance budget allocation\n   - Emergency fund recommendations (1-3% of home value)\n   - Cost breakdown by category:\n     * Routine maintenance\n     * Preventive maintenance\n     * Major repairs/replacements\n     * Professional services\n   - Annual projection with seasonal variations\n   - Multi-year planning for major expenses\n\n2. **Resource Needs**:\n   Tools and equipment:\n   - Essential tool list for DIY tasks\n   - Specialized equipment rental needs\n   - Safety equipment requirements\n   \n   Materials and supplies:\n   - Common supplies to stock\n   - Bulk purchase opportunities\n   - Seasonal material needs\n\n3. **Contractor Requirements**:\n   - Tasks requiring professionals\n   - Recommended service providers by trade\n   - Service contract opportunities\n   - Cost comparison: DIY vs professional\n   - Contractor selection criteria\n\nProvide output as JSON with:\n- budgetPlan: Detailed cost projections and allocations\n- resourceNeeds: Tools and materials requirements\n- contractorRequirements: Professional service planning",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "rankedMaintenance",
+                "id": "ranked_maintenance_input",
+                "label": "Prioritized Tasks",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Tasks ranked by priority"
+                }
+              },
+              {
+                "fieldName": "costEstimates",
+                "id": "cost_estimates_input",
+                "label": "Pricing Data",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Cost estimates for tasks"
+                }
+              },
+              {
+                "fieldName": "diyCapabilities",
+                "id": "diy_capabilities_input",
+                "label": "Self-Service Options",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Skills and DIY preferences"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "budgetPlan",
+                "id": "budget_plan_output",
+                "label": "Cost Projections",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "resourceNeeds",
+                "id": "resource_needs_output",
+                "label": "Tools and Materials",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "contractorRequirements",
+                "id": "contractor_requirements_output",
+                "label": "Professional Services",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850066",
+          "language": "en",
+          "name": "Maintenance Budget Planner",
+          "description": "Creates detailed budget projections, identifies resource needs, and plans for professional services in home maintenance.",
+          "instructions": "Provide prioritized maintenance tasks, cost estimates, and DIY capabilities. The routine will create comprehensive budget and resource plans."
+        }
+      ]
+    }
+  ]
+}

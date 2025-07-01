@@ -1,0 +1,129 @@
+{
+  "id": "7892456378912349001",
+  "publicId": "crisis-ass-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349002",
+      "publicId": "crisis-eval-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of crisis assessment for rapid situation evaluation and response planning",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Urgent",
+            "maxTokens": 800,
+            "temperature": 0.2,
+            "prompt": "You are a crisis assessment expert providing rapid, systematic evaluation of crisis situations.\n\nCrisis Situation: {{input.crisisSituation}}\nStakeholders Affected: {{input.stakeholdersAffected}}\nImmediate Concerns: {{input.immediateConcerns}}\nAssessment Urgency: {{input.assessmentUrgency}}\n\nConduct rapid crisis assessment:\n\n1. **Situation Analysis**:\n   - Crisis severity evaluation (1-5 scale)\n   - Scope and scale assessment\n   - Root cause identification\n   - Timeline and progression analysis\n   - Immediate vs long-term impacts\n\n2. **Stakeholder Impact Assessment**:\n   - Primary affected parties\n   - Secondary impact zones\n   - Vulnerable population identification\n   - Reputation and relationship risks\n   - Legal and regulatory implications\n\n3. **Resource & Capability Evaluation**:\n   - Available response resources\n   - Current capacity limitations\n   - External support requirements\n   - Financial impact estimation\n   - Technical capabilities needed\n\n4. **Risk Prioritization**:\n   - Immediate life/safety risks\n   - Business continuity threats\n   - Financial exposure levels\n   - Regulatory compliance risks\n   - Long-term strategic impacts\n\n5. **Communication Assessment**:\n   - Information transparency needs\n   - Messaging sensitivity analysis\n   - Media attention probability\n   - Stakeholder communication priorities\n   - Crisis narrative development\n\n6. **Response Options**:\n   - Immediate action requirements\n   - Short-term stabilization measures\n   - Long-term recovery strategies\n   - Alternative response scenarios\n   - Resource allocation priorities\n\n7. **Decision Framework**:\n   - Critical decision points\n   - Authority and accountability\n   - Escalation triggers\n   - Success/failure metrics\n   - Exit strategy considerations\n\nProvide clear, actionable crisis assessment with prioritized recommendations for immediate response.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "crisisSituation",
+                "id": "crisis_situation_input",
+                "label": "Crisis Description",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the crisis situation: what happened, current status, key facts",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What is the crisis situation?"
+                }
+              },
+              {
+                "fieldName": "stakeholdersAffected",
+                "id": "stakeholders_affected_input",
+                "label": "Affected Stakeholders",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Employees, customers, partners, communities, investors, regulators",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Who is impacted by this crisis?"
+                }
+              },
+              {
+                "fieldName": "immediateConcerns",
+                "id": "immediate_concerns_input",
+                "label": "Immediate Concerns",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Safety issues, operational disruptions, financial losses, reputation damage",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What are the most pressing concerns?"
+                }
+              },
+              {
+                "fieldName": "assessmentUrgency",
+                "id": "assessment_urgency_input",
+                "label": "Response Urgency",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Critical (Minutes/Hours)", "value": "critical" },
+                    { "label": "High (Hours/1 Day)", "value": "high" },
+                    { "label": "Medium (1-3 Days)", "value": "medium" },
+                    { "label": "Standard (3-7 Days)", "value": "standard" }
+                  ],
+                  "defaultValue": "high",
+                  "helperText": "How quickly must you respond?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "crisisAssessmentReport",
+                "id": "crisis_assessment_report",
+                "label": "Crisis Assessment Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 12
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349003",
+          "language": "en-US",
+          "name": "Crisis Assessment",
+          "description": "Provides rapid, systematic evaluation of crisis situations with stakeholder impact analysis and prioritized response recommendations.",
+          "instructions": "Describe the crisis situation, affected stakeholders, and urgency level. The assessor will provide comprehensive evaluation and response priorities."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,142 @@
+{
+  "id": "7892456378912346013",
+  "publicId": "pipeline-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912346014",
+      "publicId": "pipe-design-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of build pipeline designer for CI/CD workflow creation",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 900,
+            "temperature": 0.4,
+            "prompt": "You are a CI/CD pipeline architect designing optimal build and deployment workflows.\n\nBuild Goal: {{input.buildGoal}}\nProject Type: {{input.projectType}}\nBuild Server: {{input.buildServer}}\nPipeline Templates: {{input.pipelineTemplates}}\n\nDesign a comprehensive CI/CD pipeline:\n\n1. **Pipeline Architecture**:\n   - Stage structure and dependencies\n   - Parallel vs sequential execution\n   - Conditional flows and branching\n   - Environment progression (dev→staging→prod)\n\n2. **Build Stages**:\n   - Source checkout and versioning\n   - Dependency management\n   - Compilation/bundling\n   - Code quality checks\n   - Security scanning\n\n3. **Testing Strategy**:\n   - Unit test execution\n   - Integration testing\n   - E2E/smoke tests\n   - Performance testing gates\n   - Test report aggregation\n\n4. **Artifact Management**:\n   - Build artifact creation\n   - Container image building\n   - Artifact versioning strategy\n   - Registry management\n   - Retention policies\n\n5. **Deployment Pipeline**:\n   - Environment-specific configurations\n   - Blue-green/canary strategies\n   - Rollback mechanisms\n   - Health checks and validations\n   - Post-deployment verification\n\n6. **Quality Gates**:\n   - Code coverage thresholds\n   - Security vulnerability limits\n   - Performance benchmarks\n   - Manual approval points\n\n7. **Pipeline Configuration**:\n   - YAML/JSON pipeline definition\n   - Environment variables\n   - Secrets management\n   - Notification settings\n   - Failure handling\n\nProvide a complete, implementable pipeline configuration with best practices.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "buildGoal",
+                "id": "build_goal_input",
+                "label": "Pipeline Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What should this pipeline achieve? (e.g., automated testing, continuous deployment, release management)",
+                  "multiline": true,
+                  "minRows": 2,
+                  "helperText": "Primary objectives for the pipeline"
+                }
+              },
+              {
+                "fieldName": "projectType",
+                "id": "project_type_input",
+                "label": "Project Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Web Application", "value": "web" },
+                    { "label": "Mobile App", "value": "mobile" },
+                    { "label": "Microservices", "value": "microservices" },
+                    { "label": "Library/Package", "value": "library" },
+                    { "label": "Desktop Application", "value": "desktop" },
+                    { "label": "Infrastructure/IaC", "value": "infrastructure" }
+                  ],
+                  "defaultValue": "web",
+                  "helperText": "Type of project being built"
+                }
+              },
+              {
+                "fieldName": "buildServer",
+                "id": "build_server_input",
+                "label": "CI/CD Platform",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "GitHub Actions", "value": "github" },
+                    { "label": "GitLab CI", "value": "gitlab" },
+                    { "label": "Jenkins", "value": "jenkins" },
+                    { "label": "CircleCI", "value": "circleci" },
+                    { "label": "Azure DevOps", "value": "azure" },
+                    { "label": "AWS CodePipeline", "value": "aws" }
+                  ],
+                  "defaultValue": "github",
+                  "helperText": "Target CI/CD platform"
+                }
+              },
+              {
+                "fieldName": "pipelineTemplates",
+                "id": "pipeline_templates_input",
+                "label": "Deployment Target",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Kubernetes", "value": "k8s" },
+                    { "label": "Docker/Containers", "value": "docker" },
+                    { "label": "Serverless", "value": "serverless" },
+                    { "label": "Traditional VM", "value": "vm" },
+                    { "label": "Static Hosting", "value": "static" }
+                  ],
+                  "defaultValue": "k8s",
+                  "helperText": "Where the application will be deployed"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "pipelineDesign",
+                "id": "pipeline_design",
+                "label": "CI/CD Pipeline Design",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912346015",
+          "language": "en-US",
+          "name": "Build Pipeline Designer",
+          "description": "Designs comprehensive CI/CD pipelines with stages, quality gates, and deployment strategies tailored to project requirements.",
+          "instructions": "Describe your pipeline goals and project type. The designer will create a complete CI/CD pipeline configuration with best practices."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,397 @@
+Ab Test Eval
+Accomplishment Analyzer
+Action Plan
+Action Planner
+Action Planning
+Activity Analyzer
+Ad Copy Gen
+Adv Prioritize
+Advanced Decision
+Agenda Email
+Alignment Advisor
+Alignment Assessor
+Anomaly Detect
+Api Docs Gen
+Api Integrate
+Ats Optimizer
+Audience Analyzer
+Auto Mkt Mcp
+Automation Evaluator
+Blog Writer
+Body Content
+Brainstorm
+Brand Build
+Brand Identity Creator
+Brand Voice
+Brief Assist
+Brief Comp
+Budget Calc
+Budget Framework Applier
+Budget Implementation Planner
+Budget Plan
+Budget Scenario Modeler
+Budget Track
+Bug Fix
+Bullet Writer
+Calendar Org
+Campaign Fact
+Campaign Theme
+Cap Gap
+Career Nav
+Challenge Identifier
+Character Dial
+Chart Gen
+Claim Decomposer
+Code Gen Test
+Code Review
+Comp Analysis
+Company Res
+Compliance Checker
+Concept Synthesizer
+Conclusion Writer
+Conflict Res
+Cont Cat
+Content Anal
+Content Analyzer
+Content Assembler
+Content Cluster
+Content Out
+Content Repurpose
+Context Search
+Contextual Search
+Contract Parser
+Contract Recommendation Generator
+Contract Review
+Contract Summary Compiler
+Corr Find
+Coupon Finder
+Cover Letter Drafter
+Cover Letter Writer
+Creative Idea Generator
+Creative Solve
+Crisis Mgmt
+Criteria Extractor
+Critical Challenger
+Customer Journey
+Daily Briefing Generator
+Daily Plan
+Daily Task Prioritizer
+Data Cleaner
+Data Insight
+Data Parser
+Data Viz
+Deadline Mon
+Debug Assist
+Dec Recomm
+Decision Framing
+Decision Frm
+Decision Fw
+Decision Matrix
+Deep Dive
+Delegate Auto
+Delegation Assessor
+Design Brain
+Dev Troubleshoot
+Differentiation Analyzer
+Digital Detox
+Digital Presence Planner
+Doc Formatter
+Doc Summ
+Doc Summary
+Document Formatter
+Edit Proof
+Effort Estimator
+Email Camp
+Email Campaign
+Email Classifier
+Email Cond
+Email Draft
+Email Parser
+Email Temp
+Email Triage
+Enhance Sug
+Essay Coach
+Essay Outl
+Event Plan
+Evidence Quality Evaluator
+Excel Db Import
+Exp Parser
+Expense Track
+Experience Analyzer
+Expert Adv
+Fact Check
+Fact Check Report Generator
+Feedback Generator
+Feedback Parser
+Feedback Sum
+Feedback Summary Generator
+Fin Goal Track
+Fin Indep
+Fin Report Summ
+Financial Independence
+Fitness Planner
+Flashcard Formatter
+Flashcard Quiz
+Followup Email
+Followup Suggester
+Format Gen
+Gain Loss Analyzer
+Gift Rec
+Git Workflow
+Glossary Gen
+Goal Align
+Goal Parser
+Goal Planner
+Goal Setter
+Growth Identification
+Habit Adjustment Planner
+Habit Anal
+Habit Analysis Assistant
+Habit Coach
+Habit Coaching Advisor
+Habit Framework Setup
+Habit Implementation
+Habit Logger
+Habit Obstacle Manager
+Habit Optimization Assistant
+Habit Pattern Analyzer
+Habit Report Generator
+Habit Reward System
+Habit Strat
+Habit Strategy Designer
+Habit Track
+Habit Trigger Setup
+Health Action Planner
+Health Ins
+Health Insights Generator
+Health Pattern Analyzer
+Health Track
+Health Trigger Identifier
+Highlight Ext
+Historical Comparison Searcher
+Home Maint
+Home Org
+Idea Analyzer
+Idea Expander
+Idea Organizer
+Idea Refine
+Ideation Facilitation
+Impact Evaluator
+Implementation Planner
+Income Analyzer
+Innovation Workshop
+Innovation Wrkshp
+Insight Extractor
+Insight Synthesizer
+Interview Prep
+Intro Writer
+Invest Analyze
+Invest Research
+Investment Research Compiler
+Investment Trend Analyzer
+Invoice Proc
+Journal Ins
+Journey Map
+Keyword Extract
+Knowledge Base Updater
+Landing Pg
+Lang Coach
+Lang Trans
+Lang Trans Sum
+Learn Path
+Learn Plan
+Learn Reflect
+Lecture Sum
+Lesson Extractor
+Loan Calc
+Local Scout
+Market Research Assistant
+Market Researcher
+Marketing Camp
+Matrix Builder
+Matrix Fmt
+Matrix Organizer
+Meal Plan
+Medical Summary Creator
+Meet Agenda
+Meet Mins
+Meeting Orch
+Memory Maint
+Mental Wellness Planner
+Messaging Developer
+Metrics Report
+Milestone Cr
+Milestone Creator
+Mindfulness
+Mindfulness Habit Builder
+Mindfulness Integration Coach
+Mindfulness Needs Assessor
+Mindfulness Practice Designer
+Mindfulness Progress Tracker
+Mindfulness Technique Trainer
+Mkt Compiler
+Morning Plan
+Morning Wellness Check
+Motiv Des
+Motiv Gen
+Motivation Booster
+Motivation Designer
+Multi Synth
+Narrative Builder
+Negotiate
+Networking Strategist
+News Digest
+News Sentiment Analyzer
+Note Parser
+Note Summary
+Note To Task
+Nutrition Planner
+Onboarding
+Opp Eval
+Option Generation
+Option Scor
+Outline Gen
+Pattern Analyzer
+Perf Optimize
+Perf Review
+Performance Data Collector
+Personal Dev
+Plan Assem
+Plan Assembler
+Platform Adapt
+Policy Summ
+Pomodoro
+Pr Statement
+Present Design
+Price Comp
+Priority Matrix
+Priority Mx
+Problem Clarifier
+Problem Reframe
+Problem Solve
+Prod Analyzer
+Prod Audit
+Product Analyzer
+Product Compare
+Progress Monitoring
+Progress Tracker
+Proj Org
+Proj Plan
+Project Phase Breakdown
+Project Plan
+Project Plan Generator
+Project Scope Analyzer
+Proposal Ast
+Pros Cons
+Question Generator
+Question Storm
+Recur Sched
+Regex Gen
+Rel Comm
+Relationship Comm
+Report Compiler
+Report Writer
+Requirement Analyzer
+Research Paper
+Research Syn
+Research Synth
+Resource Alloc
+Resume Bullet Creator
+Resume Helper
+Review Compiler
+Risk Assess
+Risk Assessor
+Role Optimization Generator
+Role Optimize
+Role Optimizer
+Scenario Mod
+Schedule Optimizer
+Scope Analyzer
+Score Calc
+Self Assessment
+Self Review
+Sentiment Analyzer
+Seo Opt
+Seo Optimizer
+Skills Assess
+Skills Gap Analyzer
+Sleep Analysis
+Slide Cond
+Slogan Gen
+Smart Goal
+Smart Goal Creator
+Social Batch
+Social Plan
+Social Post
+Speaking Coach
+Standup Syn
+Story Metaphor
+Strategic Plan
+Strategy Adapter
+Strength Finder
+Stress Coach
+Structure Evaluator
+Study Organizer
+Study Plan
+Study Sched
+Sub Manage
+Subscription Mgr
+Summary Generator
+Summary Organizer
+Survey Anl
+Swot Analysis
+Symp Patt
+Symptom Logger
+Tabular Formatter
+Task Alloc
+Task Analyzer
+Task Decomposer
+Task Evaluator
+Task Extractor
+Task Prior
+Task Prioritizer Core
+Tax Organizer
+Team Anal
+Team Analysis
+Team Build
+Team Structure Analyzer
+Tech Stack
+Term Extractor
+Theme Identifier
+Time Block
+Time Block Scheduler Core
+Time Mgmt
+Timeline Creator
+Title Gen
+Tone Style
+Tracker Set
+Tracker Setup
+Tradeoff
+Tradeoff Advisor
+Tradeoff Structurer
+Travel Plan
+Trend Analyzer
+Trends Monitor
+Triage Reporter
+Trig Ident
+Verdict Synthesizer
+Vid Script
+Vision Setting
+Visual Design Creator
+Weakness Detector
+Web Research
+Web Research Agent
+Weekly Data Aggregator
+Weekly Habit Goal Setter
+Weekly Rev
+Weight Calc
+Wellness Assessor
+Wellness Chk
+Wellness Plan
+What If Plan
+Workload Evaluator
+Workout Build
+Workshop Design
+Writing Feedback
+Writing Mentor
+Yes Man Av

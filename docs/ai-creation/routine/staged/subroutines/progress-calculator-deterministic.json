@@ -1,0 +1,106 @@
+{
+  "id": "7829564732190850238",
+  "publicId": "progress-calc-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850239",
+      "publicId": "progress-calc-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Computes progress against timeline and milestones",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "javascript",
+            "logic": "function calculateProgress({ progressMetrics, timeline, memberReports }) {\n  // Parse inputs\n  const metrics = progressMetrics || {};\n  const timelineData = Array.isArray(timeline) ? timeline : [timeline].filter(Boolean);\n  const teamReports = Array.isArray(memberReports) ? memberReports : [memberReports].filter(Boolean);\n  \n  const now = new Date();\n  \n  // Calculate overall progress report\n  const overallProgress = {\n    timestamp: now.toISOString(),\n    reportingPeriod: {\n      start: getWeekStart(now),\n      end: getWeekEnd(now),\n      weekNumber: getWeekNumber(now)\n    },\n    summaryMetrics: {\n      totalTasks: metrics.totalTasks || 0,\n      completedTasks: metrics.completedTasks || 0,\n      inProgressTasks: metrics.inProgressTasks || 0,\n      blockedTasks: metrics.blockedTasks || 0,\n      overdueTasks: metrics.overdueTasks || 0,\n      completionRate: metrics.completionRate || 0,\n      overallHealthScore: 0\n    },\n    trendAnalysis: {\n      progressDirection: 'stable',\n      velocityTrend: 'stable',\n      riskTrend: 'stable',\n      confidenceLevel: 'medium'\n    }\n  };\n  \n  // Calculate milestone tracking\n  const milestoneTracking = timelineData.map(milestone => {\n    const item = typeof milestone === 'string' ? { name: milestone } : milestone;\n    \n    const dueDate = item.dueDate ? new Date(item.dueDate) : null;\n    const startDate = item.startDate ? new Date(item.startDate) : null;\n    \n    let timelineProgress = 0;\n    let daysRemaining = null;\n    let daysOverdue = 0;\n    let isOverdue = false;\n    \n    if (dueDate) {\n      daysRemaining = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));\n      if (daysRemaining < 0) {\n        daysOverdue = Math.abs(daysRemaining);\n        isOverdue = true;\n        daysRemaining = 0;\n      }\n      \n      if (startDate && dueDate) {\n        const totalDuration = dueDate - startDate;\n        const elapsed = now - startDate;\n        timelineProgress = Math.max(0, Math.min(100, (elapsed / totalDuration) * 100));\n      }\n    }\n    \n    const actualProgress = item.progress || 0;\n    const progressVariance = actualProgress - timelineProgress;\n    \n    return {\n      milestoneId: item.id || item.name || 'unnamed',\n      milestoneName: item.name || 'Unnamed Milestone',\n      dueDate: item.dueDate,\n      status: item.status || 'pending',\n      actualProgress: actualProgress,\n      timelineProgress: Math.round(timelineProgress),\n      progressVariance: Math.round(progressVariance),\n      daysRemaining: daysRemaining,\n      daysOverdue: daysOverdue,\n      isOverdue: isOverdue,\n      riskLevel: calculateMilestoneRisk(item, daysRemaining, progressVariance),\n      dependencies: item.dependencies || [],\n      criticalPath: item.critical || false,\n      estimatedCompletion: estimateCompletion(item, actualProgress, timelineProgress)\n    };\n  });\n  \n  function calculateMilestoneRisk(milestone, daysRemaining, progressVariance) {\n    let riskScore = 0;\n    \n    // Time-based risk\n    if (daysRemaining === 0) riskScore += 50; // Overdue\n    else if (daysRemaining <= 3) riskScore += 30;\n    else if (daysRemaining <= 7) riskScore += 15;\n    \n    // Progress variance risk\n    if (progressVariance < -20) riskScore += 25;\n    else if (progressVariance < -10) riskScore += 15;\n    \n    // Status-based risk\n    if (milestone.status === 'blocked') riskScore += 20;\n    else if (milestone.status === 'at-risk') riskScore += 15;\n    \n    // Critical path risk amplifier\n    if (milestone.critical) riskScore *= 1.5;\n    \n    if (riskScore >= 50) return 'critical';\n    if (riskScore >= 30) return 'high';\n    if (riskScore >= 15) return 'medium';\n    return 'low';\n  }\n  \n  function estimateCompletion(milestone, actualProgress, timelineProgress) {\n    if (actualProgress >= 100) return milestone.dueDate || 'completed';\n    \n    if (actualProgress === 0) return 'not-started';\n    \n    const progressRate = actualProgress / Math.max(1, timelineProgress);\n    if (progressRate < 0.5) return 'delayed';\n    if (progressRate > 1.2) return 'ahead-of-schedule';\n    return 'on-track';\n  }\n  \n  // Calculate team velocity metrics\n  const teamVelocity = {\n    totalTeamMembers: teamReports.length,\n    activeMembers: teamReports.filter(m => m.availability !== 'unavailable').length,\n    averageHealthScore: teamReports.length > 0 ?\n      Math.round(teamReports.reduce((sum, m) => sum + (m.healthScore || 50), 0) / teamReports.length) : 0,\n    totalCapacity: calculateTotalCapacity(teamReports),\n    utilizationRate: calculateUtilizationRate(teamReports),\n    bottlenecks: identifyBottlenecks(teamReports),\n    velocityTrends: {\n      tasksCompletedThisWeek: teamReports.reduce((sum, m) => sum + (m.completedThisWeek || 0), 0),\n      averageTasksPerMember: teamReports.length > 0 ?\n        Math.round(teamReports.reduce((sum, m) => sum + ((m.currentTasks || []).length || 0), 0) / teamReports.length) : 0,\n      blockerCount: teamReports.reduce((sum, m) => sum + ((m.blockers || []).length || 0), 0),\n      capacityStrain: assessCapacityStrain(teamReports)\n    }\n  };\n  \n  function calculateTotalCapacity(reports) {\n    return reports.reduce((total, member) => {\n      let capacity = 1; // Base capacity\n      \n      if (member.capacity === 'reduced') capacity = 0.7;\n      else if (member.capacity === 'limited') capacity = 0.5;\n      else if (member.capacity === 'unavailable') capacity = 0;\n      else if (member.capacity === 'high') capacity = 1.2;\n      \n      if (member.availability === 'limited') capacity *= 0.8;\n      else if (member.availability === 'unavailable') capacity = 0;\n      \n      return total + capacity;\n    }, 0);\n  }\n  \n  function calculateUtilizationRate(reports) {\n    if (reports.length === 0) return 0;\n    \n    const totalUtilization = reports.reduce((sum, member) => {\n      const tasks = member.currentTasks || [];\n      const taskCount = Array.isArray(tasks) ? tasks.length : 0;\n      \n      // Estimate utilization based on task count and capacity\n      let utilization = Math.min(100, taskCount * 25); // Rough estimate\n      \n      if (member.workload === 'light') utilization = Math.min(utilization, 50);\n      else if (member.workload === 'heavy') utilization = Math.min(utilization + 20, 90);\n      else if (member.workload === 'overloaded') utilization = 100;\n      \n      return sum + utilization;\n    }, 0);\n    \n    return Math.round(totalUtilization / reports.length);\n  }\n  \n  function identifyBottlenecks(reports) {\n    return reports\n      .filter(member => {\n        const blockers = member.blockers || [];\n        const blockerCount = Array.isArray(blockers) ? blockers.length : 0;\n        return blockerCount > 0 || member.workload === 'overloaded' || member.healthScore < 60;\n      })\n      .map(member => ({\n        memberId: member.memberId,\n        memberName: member.memberName,\n        issue: getBottleneckIssue(member),\n        severity: getBottleneckSeverity(member),\n        impact: assessBottleneckImpact(member)\n      }));\n  }\n  \n  function getBottleneckIssue(member) {\n    const blockers = member.blockers || [];\n    const blockerCount = Array.isArray(blockers) ? blockers.length : 0;\n    \n    if (blockerCount > 2) return 'multiple-blockers';\n    if (blockerCount > 0) return 'blocked-tasks';\n    if (member.workload === 'overloaded') return 'capacity-overload';\n    if (member.healthScore < 40) return 'health-critical';\n    if (member.healthScore < 60) return 'health-at-risk';\n    return 'general-concern';\n  }\n  \n  function getBottleneckSeverity(member) {\n    const blockers = member.blockers || [];\n    const blockerCount = Array.isArray(blockers) ? blockers.length : 0;\n    \n    if (member.healthScore < 40 || blockerCount > 2) return 'critical';\n    if (member.healthScore < 60 || member.workload === 'overloaded') return 'high';\n    return 'medium';\n  }\n  \n  function assessBottleneckImpact(member) {\n    const tasks = member.currentTasks || [];\n    const taskCount = Array.isArray(tasks) ? tasks.length : 0;\n    \n    if (taskCount > 5) return 'high-impact';\n    if (taskCount > 2) return 'medium-impact';\n    return 'low-impact';\n  }\n  \n  function assessCapacityStrain(reports) {\n    const overloadedCount = reports.filter(m => m.workload === 'overloaded').length;\n    const heavyCount = reports.filter(m => m.workload === 'heavy').length;\n    const totalMembers = reports.length;\n    \n    if (totalMembers === 0) return 'unknown';\n    \n    const strainPercentage = ((overloadedCount * 2) + heavyCount) / totalMembers;\n    \n    if (strainPercentage > 0.7) return 'critical';\n    if (strainPercentage > 0.4) return 'high';\n    if (strainPercentage > 0.2) return 'moderate';\n    return 'low';\n  }\n  \n  // Update overall health score\n  const criticalMilestones = milestoneTracking.filter(m => m.riskLevel === 'critical').length;\n  const overdueMilestones = milestoneTracking.filter(m => m.isOverdue).length;\n  const teamHealthScore = teamVelocity.averageHealthScore;\n  \n  let healthScore = 100;\n  healthScore -= criticalMilestones * 15;\n  healthScore -= overdueMilestones * 10;\n  healthScore -= Math.max(0, 80 - teamHealthScore) * 0.5;\n  healthScore -= (metrics.blockedTasks || 0) * 2;\n  \n  overallProgress.summaryMetrics.overallHealthScore = Math.max(0, Math.round(healthScore));\n  \n  // Determine trends\n  if (overallProgress.summaryMetrics.overallHealthScore >= 80) {\n    overallProgress.trendAnalysis.progressDirection = 'positive';\n    overallProgress.trendAnalysis.confidenceLevel = 'high';\n  } else if (overallProgress.summaryMetrics.overallHealthScore <= 60) {\n    overallProgress.trendAnalysis.progressDirection = 'concerning';\n    overallProgress.trendAnalysis.confidenceLevel = 'low';\n  }\n  \n  // Helper functions for date calculations\n  function getWeekStart(date) {\n    const d = new Date(date);\n    const day = d.getDay();\n    const diff = d.getDate() - day + (day === 0 ? -6 : 1);\n    return new Date(d.setDate(diff)).toISOString().split('T')[0];\n  }\n  \n  function getWeekEnd(date) {\n    const start = new Date(getWeekStart(date));\n    const end = new Date(start);\n    end.setDate(start.getDate() + 6);\n    return end.toISOString().split('T')[0];\n  }\n  \n  function getWeekNumber(date) {\n    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);\n    const pastDaysOfYear = (date - firstDayOfYear) / 86400000;\n    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);\n  }\n  \n  return {\n    overallProgress: overallProgress,\n    milestoneTracking: milestoneTracking,\n    teamVelocity: teamVelocity\n  };\n}"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "progressMetrics",
+                "id": "progress_metrics_input",
+                "label": "Task Progress",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Progress metrics data"
+                }
+              },
+              {
+                "fieldName": "timeline",
+                "id": "timeline_input",
+                "label": "Project Timeline",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Project timeline and milestones"
+                }
+              },
+              {
+                "fieldName": "memberReports",
+                "id": "member_reports_input",
+                "label": "Team Updates",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Team member reports"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "overallProgress",
+                "id": "overall_progress_output",
+                "label": "Progress Report",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "milestoneTracking",
+                "id": "milestone_tracking_output",
+                "label": "Milestone Status",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "teamVelocity",
+                "id": "team_velocity_output",
+                "label": "Velocity Metrics",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850240",
+          "language": "en",
+          "name": "Progress Calculator",
+          "description": "Computes progress against timeline and milestones with team velocity analysis and health scoring.",
+          "instructions": "Provide progress metrics, timeline, and team reports. The routine will calculate comprehensive progress analysis with milestone tracking."
+        }
+      ]
+    }
+  ]
+}

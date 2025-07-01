@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Define Workshop Objectives",
                 "description": "Clarifies innovation goals and desired outcomes",
-                "subroutineId": "TODO: Need objective setting subroutine",
+                "subroutineId": "7829564732190850364",
                 "inputMap": {
                   "innovationGoals": "targetObjectives",
                   "participantProfile": "attendeeContext",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Design Workshop Structure",
                 "description": "Creates optimal flow and timing for innovation activities",
-                "subroutineId": "TODO: Need workshop design subroutine",
+                "subroutineId": "7829564732190850367",
                 "inputMap": {
                   "clarifiedObjectives": "workshopGoals",
                   "timeConstraints": "sessionDuration",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Select Innovation Methods",
                 "description": "Chooses appropriate techniques and tools for idea generation",
-                "subroutineId": "TODO: Need method selection subroutine",
+                "subroutineId": "7829564732190850370",
                 "inputMap": {
                   "innovationType": "creativityNeeds",
                   "sessionStructure": "workshopAgenda",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Plan Idea Development Process",
                 "description": "Structures how concepts will be refined and evaluated",
-                "subroutineId": "TODO: Need idea development subroutine",
+                "subroutineId": "7829564732190850373",
                 "inputMap": {
                   "selectedMethods": "innovationTechniques",
                   "evaluationCriteria": "ideaAssessment",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Create Facilitation Guide",
                 "description": "Develops detailed instructions for workshop execution",
-                "subroutineId": "TODO: Need facilitation planning subroutine",
+                "subroutineId": "7829564732190850376",
                 "inputMap": {
                   "exerciseFlow": "activitySequence",
                   "facilitationRequirements": "leadershipNeeds",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Plan Follow-up Actions",
                 "description": "Establishes post-workshop implementation and tracking",
-                "subroutineId": "TODO: Need follow-up planning subroutine",
+                "subroutineId": "7829564732190850379",
                 "inputMap": {
                   "workshopOutputs": "generatedIdeas",
                   "implementationCapacity": "executionResources",

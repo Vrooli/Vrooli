@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Assess Task Urgency",
                 "description": "Evaluates time sensitivity of each task",
-                "subroutineId": "TODO: Need urgency assessment subroutine",
+                "subroutineId": "7829564732190850265",
                 "inputMap": {
                   "taskList": "inputTasks",
                   "deadlines": "dueDates",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Evaluate Task Importance",
                 "description": "Determines impact and strategic value",
-                "subroutineId": "TODO: Need importance evaluation subroutine",
+                "subroutineId": "7829564732190850268",
                 "inputMap": {
                   "inputTasks": "taskList",
                   "goals": "strategicObjectives",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Categorize into Quadrants",
                 "description": "Places tasks in urgent/important matrix",
-                "subroutineId": "TODO: Need quadrant categorization subroutine",
+                "subroutineId": "7829564732190850271",
                 "inputMap": {
                   "taskUrgency": "urgencyScores",
                   "taskImportance": "importanceScores",
@@ -110,7 +110,7 @@
                 "id": "step-4",
                 "name": "Generate Action Plans",
                 "description": "Creates specific recommendations per quadrant",
-                "subroutineId": "TODO: Need action planning subroutine",
+                "subroutineId": "7829564732190850274",
                 "inputMap": {
                   "doFirst": "quadrant1",
                   "schedule": "quadrant2",
@@ -126,7 +126,7 @@
                 "id": "step-5",
                 "name": "Optimize Workload",
                 "description": "Balances tasks across time and resources",
-                "subroutineId": "TODO: Need workload optimization subroutine",
+                "subroutineId": "7829564732190850277",
                 "inputMap": {
                   "urgentImportantPlan": "immediateActions",
                   "availableTime": "timeCapacity",
@@ -142,7 +142,7 @@
                 "id": "step-6",
                 "name": "Create Implementation Guide",
                 "description": "Produces actionable priority report",
-                "subroutineId": "TODO: Need implementation guide subroutine",
+                "subroutineId": "7829564732190850280",
                 "inputMap": {
                   "balancedWorkload": "optimizedSchedule",
                   "quadrantExplanations": "categorizationRationale",

@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Assess Financial Starting Point",
                 "description": "Evaluates current financial position and cash flow",
-                "subroutineId": "TODO: Need financial assessment subroutine",
+                "subroutineId": "7829564732190850019",
                 "inputMap": {
                   "currentFinances": "financialSituation",
                   "incomeStreams": "earningsProfile",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Define FI Goals & Timeline",
                 "description": "Sets specific financial independence targets and timeframes",
-                "subroutineId": "TODO: Need FI goal setting subroutine",
+                "subroutineId": "7829564732190850022",
                 "inputMap": {
                   "independenceGoals": "targetLifestyle",
                   "retirementPlans": "futureVision",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Optimize Income Strategies",
                 "description": "Develops plans for increasing earning potential",
-                "subroutineId": "TODO: Need income optimization subroutine",
+                "subroutineId": "7829564732190850025",
                 "inputMap": {
                   "currentIncome": "earningsProfile",
                   "skillAssets": "professionalCapabilities",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Create Savings Strategy",
                 "description": "Maximizes savings rate through expense optimization",
-                "subroutineId": "TODO: Need savings optimization subroutine",
+                "subroutineId": "7829564732190850028",
                 "inputMap": {
                   "spendingPattern": "expenses",
                   "savingsGoals": "targetSavingsRate",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Design Investment Strategy",
                 "description": "Creates wealth-building investment approach",
-                "subroutineId": "TODO: Need investment planning subroutine",
+                "subroutineId": "7829564732190850031",
                 "inputMap": {
                   "investmentPotential": "savingsCapacity",
                   "riskTolerance": "investmentRisk",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Create Implementation Roadmap",
                 "description": "Develops actionable plan with tracking and adjustments",
-                "subroutineId": "TODO: Need implementation planning subroutine",
+                "subroutineId": "7829564732190850034",
                 "inputMap": {
                   "allStrategies": "comprehensivePlan",
                   "priorityActions": "criticalSteps",

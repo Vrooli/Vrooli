@@ -1,0 +1,139 @@
+{
+  "id": "7892456378912349106",
+  "publicId": "stack-tr-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349107",
+      "publicId": "stack-trace-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of stack trace analyzer for comprehensive error analysis and debugging guidance",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a stack trace analysis expert providing comprehensive error analysis, root cause identification, and debugging guidance from stack traces and error logs.\n\nStack Trace: {{input.stackTrace}}\nProgramming Language: {{input.programmingLanguage}}\nError Context: {{input.errorContext}}\nAnalysis Focus: {{input.analysisFocus}}\n\nProvide comprehensive stack trace analysis:\n\n1. **Error Classification and Identification**:\n   - Exception type and category\n   - Error severity and impact assessment\n   - Common vs. unusual error patterns\n   - Language-specific error characteristics\n   - Framework and library related issues\n\n2. **Stack Trace Parsing and Interpretation**:\n   - Call stack flow analysis\n   - Method and function sequence\n   - File and line number mapping\n   - Memory and execution context\n   - Thread and concurrency analysis\n\n3. **Root Cause Analysis**:\n   - Primary error source identification\n   - Contributing factor analysis\n   - Code logic and design issues\n   - Data and input validation problems\n   - Environmental and configuration causes\n\n4. **Code Path and Flow Analysis**:\n   - Execution path reconstruction\n   - Control flow and branching\n   - Method call hierarchy\n   - Variable state and mutation\n   - Resource allocation and cleanup\n\n5. **Common Error Patterns and Solutions**:\n   - Known error pattern matching\n   - Standard resolution approaches\n   - Best practice recommendations\n   - Anti-pattern identification\n   - Framework-specific solutions\n\n6. **Debugging Strategy and Investigation**:\n   - Systematic debugging approach\n   - Breakpoint and logging recommendations\n   - Unit test and validation strategies\n   - Reproduction and isolation techniques\n   - Tool and debugger usage guidance\n\n7. **Prevention and Code Improvement**:\n   - Error handling enhancement\n   - Input validation strengthening\n   - Resource management improvements\n   - Code review and quality practices\n   - Monitoring and alerting setup\n\nProvide actionable stack trace analysis with specific solutions, debugging strategies, and code improvement recommendations for effective error resolution and prevention.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "stackTrace",
+                "id": "stack_trace_input",
+                "label": "Stack Trace",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Paste the complete stack trace, error log, or exception details here",
+                  "multiline": true,
+                  "minRows": 8,
+                  "helperText": "Provide the full stack trace or error output"
+                }
+              },
+              {
+                "fieldName": "programmingLanguage",
+                "id": "programming_language_input",
+                "label": "Programming Language",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Java", "value": "java" },
+                    { "label": "JavaScript/Node.js", "value": "javascript" },
+                    { "label": "Python", "value": "python" },
+                    { "label": "C#/.NET", "value": "csharp" },
+                    { "label": "C/C++", "value": "cpp" },
+                    { "label": "Go", "value": "go" },
+                    { "label": "Rust", "value": "rust" },
+                    { "label": "Other/Mixed", "value": "other" }
+                  ],
+                  "defaultValue": "javascript",
+                  "helperText": "Programming language of the stack trace"
+                }
+              },
+              {
+                "fieldName": "errorContext",
+                "id": "error_context_input",
+                "label": "Error Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Application behavior, user actions, environmental conditions when error occurred",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe when and how the error occurred"
+                }
+              },
+              {
+                "fieldName": "analysisFocus",
+                "id": "analysis_focus_input",
+                "label": "Analysis Focus",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Root Cause Identification", "value": "root_cause" },
+                    { "label": "Quick Fix Solutions", "value": "quick_fix" },
+                    { "label": "Debugging Strategy", "value": "debugging" },
+                    { "label": "Code Improvement", "value": "improvement" },
+                    { "label": "Error Prevention", "value": "prevention" },
+                    { "label": "Comprehensive Analysis", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary focus of stack trace analysis"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "stackTraceAnalysis",
+                "id": "stack_trace_analysis",
+                "label": "Stack Trace Analysis",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349108",
+          "language": "en-US",
+          "name": "Stack Trace Analyzer",
+          "description": "Provides comprehensive stack trace analysis with error identification, root cause analysis, and debugging strategies for effective error resolution and prevention.",
+          "instructions": "Paste the stack trace, select the programming language, and describe the error context. The analyzer will provide detailed analysis and solutions."
+        }
+      ]
+    }
+  ]
+}

@@ -80,7 +80,7 @@
                 "id": "step-4",
                 "name": "Suggest Follow-up Actions",
                 "description": "Recommends specific follow-up actions and next steps",
-                "subroutineId": "followup-suggester-v1",
+                "subroutineId": "7829564732190850379",
                 "inputMap": {
                   "briefOverview": "summaryData",
                   "nextSteps": "actionItems",

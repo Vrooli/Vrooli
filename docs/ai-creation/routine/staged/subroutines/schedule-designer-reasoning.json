@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850289",
+  "publicId": "schedule-designer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850290",
+      "publicId": "schedule-designer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates time blocks and scheduling framework",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Systematic",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are a schedule design specialist. Create optimal time blocks and scheduling frameworks that align with priorities and energy patterns.\n\nPriority Matrix:\n{{input.organizedPriorities}}\n\nEnergy Patterns:\n{{input.energyPatterns}}\n\nFixed Obligations:\n{{input.externalCommitments}}\n\nDesign comprehensive scheduling framework:\n\n1. **Energy-Priority Alignment**:\n   Match high-priority work with peak energy:\n   - **Peak Energy Blocks**: Reserve best hours for most important tasks\n   - **Medium Energy Activities**: Schedule important but less demanding work\n   - **Low Energy Tasks**: Handle routine activities during natural valleys\n   - **Recovery Periods**: Build in restoration time to maintain capacity\n   - **Transition Management**: Design smooth shifts between different work types\n   - **Circadian Optimization**: Align task types with natural biological rhythms\n\n2. **Time Block Architecture**:\n   Create structured yet flexible scheduling framework:\n   - **Deep Work Blocks**: Protected time for high-concentration activities\n   - **Communication Windows**: Designated periods for meetings and collaboration\n   - **Administrative Batches**: Grouped time for routine tasks and maintenance\n   - **Learning Blocks**: Dedicated time for skill development and growth\n   - **Planning Sessions**: Regular time for review, adjustment, and preparation\n   - **Buffer Zones**: Flexibility reserves for unexpected priorities or delays\n\n3. **Daily Structure Design**:\n   Establish consistent patterns that support productivity:\n   - **Morning Routines**: Optimal start-of-day practices and preparation\n   - **Core Work Hours**: Primary productivity windows with minimal interruptions\n   - **Midday Breaks**: Strategic rest and recharge periods\n   - **Afternoon Focus**: Secondary productive periods with adjusted expectations\n   - **Evening Wind-down**: Closure activities and next-day preparation\n   - **Transition Rituals**: Practices that help shift between different modes\n\n4. **Weekly Planning Framework**:\n   Create sustainable patterns across longer timeframes:\n   - **Weekly Themes**: Days focused on specific types of work or priorities\n   - **Meeting Clustering**: Batching collaborative work to protect focus time\n   - **Project Advancement**: Consistent progress blocks for important initiatives\n   - **Review Cycles**: Regular assessment and adjustment opportunities\n   - **Preparation Time**: Planning and setup work to support smooth execution\n   - **Flexibility Reserves**: Unscheduled time for responding to opportunities\n\n5. **Context Management**:\n   Optimize environment and mindset for different activities:\n   - **Location Strategies**: Where different types of work happen most effectively\n   - **Tool Preparation**: Having necessary resources ready when needed\n   - **Mental State Cues**: Practices that help enter appropriate mindsets\n   - **Distraction Management**: Proactive measures to protect focus\n   - **Energy Management**: Practices that sustain or restore capacity\n   - **Social Boundaries**: Managing others' access and expectations\n\n6. **Flexibility Systems**:\n   Build adaptability into the schedule structure:\n   - **Priority Adjustment Protocols**: How to handle changing priorities\n   - **Emergency Procedures**: Responses to urgent situations or crises\n   - **Overload Management**: Strategies for high-demand periods\n   - **Opportunity Capture**: How to accommodate unexpected valuable activities\n   - **Recovery Mechanisms**: Returning to optimal patterns after disruptions\n   - **Seasonal Adjustments**: Adapting schedule to changing life circumstances\n\n7. **Implementation Support**:\n   Provide practical guidance for putting the schedule into practice:\n   - **Habit Formation**: Building consistent patterns through repetition\n   - **Resistance Management**: Overcoming natural tendencies to revert\n   - **Progress Tracking**: Monitoring adherence and effectiveness\n   - **Adjustment Triggers**: When and how to modify the schedule\n   - **Support Systems**: Tools and people that help maintain the structure\n   - **Troubleshooting**: Common problems and their solutions\n\nProvide output as JSON with:\n- timeStructure: Detailed scheduling framework with time blocks and daily patterns\n- optimalTiming: Energy-aligned scheduling recommendations\n- flexibilityReserves: Buffer systems and adaptability mechanisms",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "organizedPriorities",
+                "id": "organized_priorities_input",
+                "label": "Priority Matrix",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Prioritized goals and tasks"
+                }
+              },
+              {
+                "fieldName": "energyPatterns",
+                "id": "energy_patterns_input",
+                "label": "Productivity Rhythms",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Natural energy cycles and peak performance times"
+                }
+              },
+              {
+                "fieldName": "externalCommitments",
+                "id": "external_commitments_input",
+                "label": "Fixed Obligations",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Non-negotiable appointments and commitments"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "timeStructure",
+                "id": "time_structure_output",
+                "label": "Schedule Framework",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "optimalTiming",
+                "id": "optimal_timing_output",
+                "label": "Energy Alignment",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "flexibilityReserves",
+                "id": "flexibility_reserves_output",
+                "label": "Buffer System",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850291",
+          "language": "en",
+          "name": "Schedule Designer",
+          "description": "Creates time blocks and scheduling framework that aligns priorities with energy patterns for optimal productivity.",
+          "instructions": "Provide priority matrix, energy patterns, and fixed obligations. The routine will design a comprehensive scheduling framework with time blocks and flexibility systems."
+        }
+      ]
+    }
+  ]
+}

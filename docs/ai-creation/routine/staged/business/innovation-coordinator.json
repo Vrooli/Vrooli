@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349178",
+  "publicId": "innov-co-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349179",
+      "publicId": "innov-coord-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of innovation coordinator for comprehensive innovation program management and coordination",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Collaborative",
+            "maxTokens": 900,
+            "temperature": 0.4,
+            "prompt": "You are an innovation coordination expert providing comprehensive management and coordination frameworks for innovation programs, initiatives, and organizational innovation ecosystems.\n\nInnovation Program: {{input.innovationProgram}}\nStakeholder Groups: {{input.stakeholderGroups}}\nCoordination Scope: {{input.coordinationScope}}\nInnovation Goals: {{input.innovationGoals}}\n\nDevelop comprehensive innovation coordination framework:\n\n1. **Innovation Program Structure and Governance**:\n   - Program vision and strategic alignment\n   - Governance structure and decision-making\n   - Role and responsibility definition\n   - Authority and accountability framework\n   - Innovation policy and guideline establishment\n\n2. **Stakeholder Engagement and Collaboration**:\n   - Stakeholder mapping and analysis\n   - Engagement strategy development\n   - Communication and interaction protocols\n   - Collaboration platform and tool selection\n   - Cross-functional team coordination\n\n3. **Innovation Process and Workflow Management**:\n   - Innovation pipeline and funnel design\n   - Stage-gate process development\n   - Idea generation and collection systems\n   - Evaluation and selection criteria\n   - Development and implementation workflows\n\n4. **Resource Coordination and Allocation**:\n   - Resource requirement identification\n   - Budget allocation and financial planning\n   - Human resource and talent coordination\n   - Technology and infrastructure provision\n   - External partnership and vendor management\n\n5. **Project and Portfolio Management**:\n   - Innovation project planning and tracking\n   - Portfolio balance and optimization\n   - Timeline and milestone coordination\n   - Risk management and mitigation\n   - Quality assurance and control\n\n6. **Knowledge Management and Learning**:\n   - Innovation knowledge capture and sharing\n   - Best practice identification and dissemination\n   - Learning and development programs\n   - Intellectual property management\n   - Innovation culture development\n\n7. **Performance Monitoring and Optimization**:\n   - Innovation metrics and KPI tracking\n   - Progress monitoring and reporting\n   - Performance evaluation and assessment\n   - Continuous improvement processes\n   - Success celebration and recognition\n\nProvide comprehensive innovation coordination framework with program management, stakeholder engagement, and optimization strategies for effective innovation ecosystem orchestration and success.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "innovationProgram",
+                "id": "innovation_program_input",
+                "label": "Innovation Program",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Program description, objectives, scope, timeline, expected outcomes, strategic importance",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe the innovation program to be coordinated"
+                }
+              },
+              {
+                "fieldName": "stakeholderGroups",
+                "id": "stakeholder_groups_input",
+                "label": "Stakeholder Groups",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Internal teams, external partners, customers, suppliers, investors, research institutions",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Who are the key stakeholders involved in innovation?"
+                }
+              },
+              {
+                "fieldName": "coordinationScope",
+                "id": "coordination_scope_input",
+                "label": "Coordination Scope",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Single Innovation Project", "value": "single_project" },
+                    { "label": "Multiple Related Projects", "value": "multiple_projects" },
+                    { "label": "Department Innovation Program", "value": "department" },
+                    { "label": "Organization-wide Innovation", "value": "organization" },
+                    { "label": "Ecosystem/Partnership Innovation", "value": "ecosystem" },
+                    { "label": "Industry Innovation Initiative", "value": "industry" }
+                  ],
+                  "defaultValue": "organization",
+                  "helperText": "Scope of innovation coordination"
+                }
+              },
+              {
+                "fieldName": "innovationGoals",
+                "id": "innovation_goals_input",
+                "label": "Innovation Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Strategic objectives, performance targets, innovation outcomes, competitive advantages, success metrics",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What are the primary innovation goals and objectives?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "innovationCoordinationPlan",
+                "id": "innovation_coordination_plan",
+                "label": "Innovation Coordination Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349180",
+          "language": "en-US",
+          "name": "Innovation Coordinator",
+          "description": "Provides comprehensive innovation coordination frameworks with program management, stakeholder engagement, and optimization strategies for effective innovation ecosystem orchestration.",
+          "instructions": "Describe innovation program, stakeholders, and goals. The coordinator will create detailed coordination and management frameworks."
+        }
+      ]
+    }
+  ]
+}

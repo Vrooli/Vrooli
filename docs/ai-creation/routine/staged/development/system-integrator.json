@@ -1,0 +1,189 @@
+{
+  "id": "7892456378912349238",
+  "publicId": "system-i-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349239",
+      "publicId": "system-int-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of system integrator for comprehensive system integration planning and implementation",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Architectural",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a system integration expert providing comprehensive integration architecture, data flow design, and interoperability solutions.
+
+Integration Scope: {{input.integrationScope}}
+Systems Involved: {{input.systemsInvolved}}
+Integration Requirements: {{input.integrationRequirements}}
+Technical Constraints: {{input.technicalConstraints}}
+
+Design comprehensive system integration solution:
+
+1. **Integration Architecture Design**:
+   - Integration pattern selection
+   - Middleware architecture planning
+   - API gateway configuration
+   - Message broker design
+   - Service mesh implementation
+
+2. **Data Integration Strategy**:
+   - Data mapping and transformation
+   - Schema evolution handling
+   - Data quality assurance
+   - Real-time vs batch processing
+   - Master data management
+
+3. **Protocol and Communication**:
+   - Communication protocol selection
+   - Security implementation
+   - Authentication and authorization
+   - Message format standardization
+   - Error handling mechanisms
+
+4. **Performance Optimization**:
+   - Latency minimization strategies
+   - Throughput optimization
+   - Resource utilization efficiency
+   - Caching implementations
+   - Load balancing design
+
+5. **Reliability and Resilience**:
+   - Fault tolerance mechanisms
+   - Circuit breaker patterns
+   - Retry logic implementation
+   - Fallback strategy design
+   - Disaster recovery planning
+
+6. **Monitoring and Observability**:
+   - Integration health monitoring
+   - Performance metrics tracking
+   - Error rate analysis
+   - End-to-end tracing
+   - Alert and notification systems
+
+7. **Testing and Validation**:
+   - Integration testing strategy
+   - Contract testing implementation
+   - Load testing procedures
+   - Security testing protocols
+   - User acceptance testing
+
+Provide comprehensive system integration plan with architecture design, implementation strategies, performance optimization, and testing frameworks for seamless system interoperability.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "integrationScope",
+                "id": "integration_scope_input",
+                "label": "Integration Scope",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Business processes, data flows, user workflows, system boundaries, integration points",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe the integration scope"
+                }
+              },
+              {
+                "fieldName": "systemsInvolved",
+                "id": "systems_involved_input",
+                "label": "Systems Involved",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Applications, databases, APIs, legacy systems, cloud services, third-party systems",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What systems need integration?"
+                }
+              },
+              {
+                "fieldName": "integrationRequirements",
+                "id": "integration_requirements_input",
+                "label": "Integration Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Performance targets, security needs, compliance requirements, availability expectations",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What are the integration requirements?"
+                }
+              },
+              {
+                "fieldName": "technicalConstraints",
+                "id": "technical_constraints_input",
+                "label": "Technical Constraints",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Legacy System Limitations", "value": "legacy" },
+                    { "label": "Security Restrictions", "value": "security" },
+                    { "label": "Performance Requirements", "value": "performance" },
+                    { "label": "Budget Constraints", "value": "budget" },
+                    { "label": "Technology Restrictions", "value": "technology" },
+                    { "label": "Balanced Constraints", "value": "balanced" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Primary technical constraint"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "systemIntegrationPlan",
+                "id": "system_integration_plan",
+                "label": "System Integration Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349240",
+          "language": "en-US",
+          "name": "System Integrator",
+          "description": "Provides comprehensive system integration with architecture design, data flow optimization, and interoperability solutions for seamless system connectivity.",
+          "instructions": "Describe your integration scope, systems, and requirements. The integrator will design a comprehensive integration solution."
+        }
+      ]
+    }
+  ]
+}

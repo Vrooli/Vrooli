@@ -1,0 +1,106 @@
+{
+  "id": "7829564732190850232",
+  "publicId": "status-collector-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850233",
+      "publicId": "status-collector-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Collects current task status and team member updates",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "javascript",
+            "logic": "function collectStatusData({ goalsAndOKRs, timeline, teamList }) {\n  // Parse and standardize inputs\n  const goals = Array.isArray(goalsAndOKRs) ? goalsAndOKRs : [goalsAndOKRs].filter(Boolean);\n  const timelineData = Array.isArray(timeline) ? timeline : [timeline].filter(Boolean);\n  const team = Array.isArray(teamList) ? teamList : [teamList].filter(Boolean);\n  \n  // Aggregate current status from all sources\n  const aggregatedStatus = {\n    timestamp: new Date().toISOString(),\n    dataQuality: 'complete',\n    totalGoals: goals.length,\n    totalTasks: 0,\n    totalTeamMembers: team.length,\n    statusSummary: {},\n    dataCompleteness: {}\n  };\n  \n  // Process goals and extract task information\n  const goalSummary = goals.map(goal => {\n    const tasks = goal.tasks || goal.keyResults || [];\n    const taskArray = Array.isArray(tasks) ? tasks : [tasks].filter(Boolean);\n    \n    const goalStatus = {\n      goalId: goal.id || goal.name || 'unnamed',\n      goalName: goal.name || goal.title || 'Unnamed Goal',\n      priority: goal.priority || 'medium',\n      status: goal.status || 'active',\n      progress: goal.progress || 0,\n      dueDate: goal.dueDate || goal.deadline,\n      taskCount: taskArray.length,\n      completedTasks: taskArray.filter(t => t.status === 'completed' || t.completed === true).length,\n      inProgressTasks: taskArray.filter(t => t.status === 'in-progress' || t.status === 'active').length,\n      blockedTasks: taskArray.filter(t => t.status === 'blocked' || t.blocked === true).length,\n      overdueTasks: taskArray.filter(t => {\n        if (!t.dueDate) return false;\n        return new Date(t.dueDate) < new Date();\n      }).length\n    };\n    \n    aggregatedStatus.totalTasks += taskArray.length;\n    return goalStatus;\n  });\n  \n  // Calculate progress metrics\n  const progressMetrics = {\n    overallProgress: goals.length > 0 ? \n      Math.round(goals.reduce((sum, g) => sum + (g.progress || 0), 0) / goals.length) : 0,\n    totalTasks: aggregatedStatus.totalTasks,\n    completedTasks: goalSummary.reduce((sum, g) => sum + g.completedTasks, 0),\n    inProgressTasks: goalSummary.reduce((sum, g) => sum + g.inProgressTasks, 0),\n    blockedTasks: goalSummary.reduce((sum, g) => sum + g.blockedTasks, 0),\n    overdueTasks: goalSummary.reduce((sum, g) => sum + g.overdueTasks, 0),\n    completionRate: 0,\n    velocityIndicators: {\n      tasksCompletedThisWeek: 0,\n      averageCompletionTime: 'N/A',\n      burndownRate: 'calculating'\n    }\n  };\n  \n  if (progressMetrics.totalTasks > 0) {\n    progressMetrics.completionRate = Math.round(\n      (progressMetrics.completedTasks / progressMetrics.totalTasks) * 100\n    );\n  }\n  \n  // Process team member reports\n  const memberReports = team.map(member => {\n    const memberData = typeof member === 'string' ? { name: member } : member;\n    \n    return {\n      memberId: memberData.id || memberData.name || 'unknown',\n      memberName: memberData.name || 'Unnamed Member',\n      role: memberData.role || 'team-member',\n      availability: memberData.availability || 'available',\n      currentTasks: memberData.currentTasks || memberData.tasks || [],\n      completedThisWeek: memberData.completedThisWeek || 0,\n      blockers: memberData.blockers || memberData.issues || [],\n      capacity: memberData.capacity || 'normal',\n      lastUpdate: memberData.lastUpdate || new Date().toISOString(),\n      workload: calculateWorkload(memberData),\n      healthScore: calculateMemberHealth(memberData)\n    };\n  });\n  \n  function calculateWorkload(member) {\n    const tasks = member.currentTasks || member.tasks || [];\n    const taskArray = Array.isArray(tasks) ? tasks : [tasks].filter(Boolean);\n    \n    if (taskArray.length === 0) return 'light';\n    if (taskArray.length <= 3) return 'normal';\n    if (taskArray.length <= 6) return 'heavy';\n    return 'overloaded';\n  }\n  \n  function calculateMemberHealth(member) {\n    let score = 100;\n    \n    // Reduce score for blockers\n    const blockers = member.blockers || member.issues || [];\n    const blockerArray = Array.isArray(blockers) ? blockers : [blockers].filter(Boolean);\n    score -= blockerArray.length * 15;\n    \n    // Adjust for capacity\n    if (member.capacity === 'reduced') score -= 20;\n    if (member.capacity === 'limited') score -= 30;\n    \n    // Adjust for availability\n    if (member.availability === 'limited') score -= 15;\n    if (member.availability === 'unavailable') score -= 50;\n    \n    // Check last update recency\n    if (member.lastUpdate) {\n      const daysSinceUpdate = (new Date() - new Date(member.lastUpdate)) / (1000 * 60 * 60 * 24);\n      if (daysSinceUpdate > 7) score -= 10;\n      if (daysSinceUpdate > 14) score -= 20;\n    }\n    \n    return Math.max(0, Math.min(100, score));\n  }\n  \n  // Timeline analysis\n  const timelineAnalysis = timelineData.map(item => {\n    const timelineItem = typeof item === 'string' ? { name: item } : item;\n    \n    return {\n      milestoneId: timelineItem.id || timelineItem.name,\n      milestoneName: timelineItem.name || 'Unnamed Milestone',\n      dueDate: timelineItem.dueDate || timelineItem.deadline,\n      status: timelineItem.status || 'pending',\n      progress: timelineItem.progress || 0,\n      dependencies: timelineItem.dependencies || [],\n      criticalPath: timelineItem.critical || false,\n      daysUntilDue: timelineItem.dueDate ? \n        Math.ceil((new Date(timelineItem.dueDate) - new Date()) / (1000 * 60 * 60 * 24)) : null,\n      riskLevel: assessMilestoneRisk(timelineItem)\n    };\n  });\n  \n  function assessMilestoneRisk(milestone) {\n    let risk = 'low';\n    \n    if (milestone.dueDate) {\n      const daysUntilDue = Math.ceil((new Date(milestone.dueDate) - new Date()) / (1000 * 60 * 60 * 24));\n      if (daysUntilDue < 0) risk = 'critical';\n      else if (daysUntilDue < 7) risk = 'high';\n      else if (daysUntilDue < 14) risk = 'medium';\n    }\n    \n    if (milestone.status === 'blocked' || milestone.status === 'at-risk') {\n      risk = risk === 'critical' ? 'critical' : 'high';\n    }\n    \n    return risk;\n  }\n  \n  // Update aggregated status\n  aggregatedStatus.statusSummary = {\n    goalsSummary: goalSummary,\n    timelineAnalysis: timelineAnalysis,\n    teamHealthOverview: {\n      totalMembers: memberReports.length,\n      healthyMembers: memberReports.filter(m => m.healthScore >= 80).length,\n      atRiskMembers: memberReports.filter(m => m.healthScore < 60).length,\n      averageHealthScore: memberReports.length > 0 ? \n        Math.round(memberReports.reduce((sum, m) => sum + m.healthScore, 0) / memberReports.length) : 0\n    },\n    riskIndicators: {\n      criticalMilestones: timelineAnalysis.filter(m => m.riskLevel === 'critical').length,\n      overdueTasks: progressMetrics.overdueTasks,\n      blockedTasks: progressMetrics.blockedTasks,\n      teamAtRisk: memberReports.filter(m => m.healthScore < 60).length\n    }\n  };\n  \n  // Data completeness assessment\n  aggregatedStatus.dataCompleteness = {\n    goalsComplete: goals.every(g => g.name && g.status && typeof g.progress === 'number'),\n    timelineComplete: timelineData.every(t => t.name && t.dueDate),\n    teamDataComplete: team.every(m => m.name && m.currentTasks),\n    overallScore: calculateCompletenessScore(goals, timelineData, team)\n  };\n  \n  function calculateCompletenessScore(goals, timeline, team) {\n    let score = 0;\n    let maxScore = 0;\n    \n    // Goals completeness (40% weight)\n    goals.forEach(g => {\n      maxScore += 4;\n      if (g.name) score += 1;\n      if (g.status) score += 1;\n      if (typeof g.progress === 'number') score += 1;\n      if (g.dueDate) score += 1;\n    });\n    \n    // Timeline completeness (30% weight)\n    timeline.forEach(t => {\n      maxScore += 3;\n      if (t.name) score += 1;\n      if (t.dueDate) score += 1;\n      if (t.status) score += 1;\n    });\n    \n    // Team completeness (30% weight)\n    team.forEach(m => {\n      maxScore += 3;\n      if (m.name) score += 1;\n      if (m.currentTasks) score += 1;\n      if (m.availability) score += 1;\n    });\n    \n    return maxScore > 0 ? Math.round((score / maxScore) * 100) : 100;\n  }\n  \n  return {\n    aggregatedStatus: aggregatedStatus,\n    progressMetrics: progressMetrics,\n    memberReports: memberReports\n  };\n}"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "goalsAndOKRs",
+                "id": "goals_okrs_input",
+                "label": "Current Goals",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Goals and OKRs data"
+                }
+              },
+              {
+                "fieldName": "timeline",
+                "id": "timeline_input",
+                "label": "Project Timeline",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Project timeline and milestones"
+                }
+              },
+              {
+                "fieldName": "teamList",
+                "id": "team_list_input",
+                "label": "Team Members",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Team member information"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "aggregatedStatus",
+                "id": "aggregated_status_output",
+                "label": "Current Status",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "progressMetrics",
+                "id": "progress_metrics_output",
+                "label": "Task Progress",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "memberReports",
+                "id": "member_reports_output",
+                "label": "Team Updates",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850234",
+          "language": "en",
+          "name": "Status Data Collector",
+          "description": "Collects and aggregates current task status and team member updates for goal alignment analysis.",
+          "instructions": "Provide goals/OKRs, project timeline, and team member data. The routine will aggregate status information and calculate progress metrics."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,137 @@
+{
+  "id": "7892456378912349088",
+  "publicId": "email-patt-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349089",
+      "publicId": "email-pa-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of email pattern analyzer for comprehensive email communication analysis and optimization",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are an email pattern analysis expert providing comprehensive assessment of email communication patterns for optimization and insights.\n\nEmail Dataset: {{input.emailDataset}}\nAnalysis Scope: {{input.analysisScope}}\nPattern Focus: {{input.patternFocus}}\nAnalysis Goals: {{input.analysisGoals}}\n\nAnalyze email patterns comprehensively:\n\n1. **Communication Volume Analysis**:\n   - Email frequency patterns\n   - Temporal distribution analysis\n   - Peak and low activity periods\n   - Volume trend identification\n   - Seasonal or cyclical patterns\n\n2. **Content and Topic Analysis**:\n   - Subject line pattern recognition\n   - Content categorization\n   - Topic clustering and themes\n   - Sentiment analysis trends\n   - Language and tone patterns\n\n3. **Behavioral Pattern Detection**:\n   - Response time analysis\n   - Communication initiation patterns\n   - Reply chain characteristics\n   - Email length and complexity\n   - Attachment and media usage\n\n4. **Network and Relationship Analysis**:\n   - Communication network mapping\n   - Interaction frequency patterns\n   - Collaboration intensity analysis\n   - Influence and authority detection\n   - Cross-functional communication\n\n5. **Efficiency and Productivity Assessment**:\n   - Communication effectiveness metrics\n   - Time investment analysis\n   - Decision-making speed\n   - Information flow efficiency\n   - Bottleneck identification\n\n6. **Anomaly and Risk Detection**:\n   - Unusual communication patterns\n   - Security risk indicators\n   - Compliance violation detection\n   - Spam and phishing patterns\n   - Data leak risk assessment\n\n7. **Optimization Recommendations**:\n   - Communication efficiency improvements\n   - Process streamlining suggestions\n   - Tool and technology recommendations\n   - Training and development needs\n   - Policy and guideline updates\n\nProvide detailed email pattern analysis with insights into communication behavior, efficiency opportunities, and actionable recommendations for improved email management and productivity.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "emailDataset",
+                "id": "email_dataset_input",
+                "label": "Email Dataset",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the email data: source, timeframe, volume, participants, scope",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What email data is available for analysis?"
+                }
+              },
+              {
+                "fieldName": "analysisScope",
+                "id": "analysis_scope_input",
+                "label": "Analysis Scope",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Individual Analysis", "value": "individual" },
+                    { "label": "Team Communication", "value": "team" },
+                    { "label": "Department Level", "value": "department" },
+                    { "label": "Organization Wide", "value": "organization" },
+                    { "label": "Cross-Organization", "value": "cross_org" },
+                    { "label": "Customer Communication", "value": "customer" }
+                  ],
+                  "defaultValue": "team",
+                  "helperText": "Scope of email analysis"
+                }
+              },
+              {
+                "fieldName": "patternFocus",
+                "id": "pattern_focus_input",
+                "label": "Pattern Focus",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Communication Behavior", "value": "behavior" },
+                    { "label": "Content Analysis", "value": "content" },
+                    { "label": "Network Relationships", "value": "network" },
+                    { "label": "Productivity Patterns", "value": "productivity" },
+                    { "label": "Security and Compliance", "value": "security" },
+                    { "label": "Sentiment and Tone", "value": "sentiment" }
+                  ],
+                  "defaultValue": "behavior",
+                  "helperText": "Primary focus of pattern analysis"
+                }
+              },
+              {
+                "fieldName": "analysisGoals",
+                "id": "analysis_goals_input",
+                "label": "Analysis Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What insights or improvements are you seeking from this email analysis?",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What are the goals of this analysis?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "emailPatternAnalysisReport",
+                "id": "email_pattern_analysis_report",
+                "label": "Email Pattern Analysis Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349090",
+          "language": "en-US",
+          "name": "Email Pattern Analyzer",
+          "description": "Analyzes email communication patterns with behavioral insights, network analysis, and optimization recommendations for improved email management and productivity.",
+          "instructions": "Provide email dataset details, analysis scope, and pattern focus. The analyzer will identify patterns and provide actionable insights."
+        }
+      ]
+    }
+  ]
+}

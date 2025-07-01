@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850010",
+  "publicId": "fin-insights-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850011",
+      "publicId": "fin-insights-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates actionable financial insights and recommendations",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are a personal financial advisor. Based on the spending analysis and budget variance data, provide actionable insights and recommendations.\n\nSpending Trends:\n{{input.spendingTrends}}\n\nBudget Variance:\n{{input.budgetVariance}}\n\nFinancial Goals:\n{{input.financialGoals}}\n\nYour analysis should include:\n\n1. **Savings Opportunities**:\n   - Identify specific categories where spending can be reduced\n   - Calculate potential monthly/yearly savings\n   - Suggest practical ways to cut costs without major lifestyle changes\n\n2. **Spending Recommendations**:\n   - Behavioral changes that could improve financial health\n   - Category-specific tips based on spending patterns\n   - Warning signs to watch for\n\n3. **Goal Progress**:\n   - Assessment of progress toward stated financial goals\n   - Realistic timeline adjustments if needed\n   - Specific actions to accelerate goal achievement\n\n4. **Priority Actions**:\n   - Top 3-5 immediate actions to improve financial situation\n   - Quick wins vs. long-term strategies\n\nProvide output as a JSON object with:\n- savingsOpportunities: Array of specific savings suggestions with amounts\n- spendingRecommendations: Array of behavioral recommendations\n- goalProgress: Object with goal status and timeline\n- priorityActions: Array of top actions to take",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "spendingTrends",
+                "id": "spending_trends_input",
+                "label": "Spending Pattern Analysis",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Trends and patterns from spending analysis"
+                }
+              },
+              {
+                "fieldName": "budgetVariance",
+                "id": "budget_variance_input",
+                "label": "Budget Variance Data",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Budget vs actual spending comparison"
+                }
+              },
+              {
+                "fieldName": "financialGoals",
+                "id": "financial_goals_input",
+                "label": "Financial Goals",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "User's financial objectives and targets"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "savingsOpportunities",
+                "id": "savings_opportunities_output",
+                "label": "Savings Opportunities",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "spendingRecommendations",
+                "id": "spending_recommendations_output",
+                "label": "Spending Recommendations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "goalProgress",
+                "id": "goal_progress_output",
+                "label": "Goal Progress",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850012",
+          "language": "en",
+          "name": "Financial Insights Generator",
+          "description": "Analyzes spending patterns and budget data to provide personalized financial insights, savings opportunities, and actionable recommendations.",
+          "instructions": "Provide spending trends and budget variance data from previous analysis steps. Optionally include your financial goals for personalized recommendations. The routine will generate specific savings opportunities and action items."
+        }
+      ]
+    }
+  ]
+}

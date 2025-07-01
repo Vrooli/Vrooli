@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849761",
+  "publicId": "conflict-resolver-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847057",
+      "tag": "lifestyle",
+      "translations": [
+        {
+          "id": "7829564732190847157",
+          "language": "en",
+          "description": "Lifestyle and personal"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847052",
+      "tag": "decision-making",
+      "translations": [
+        {
+          "id": "7829564732190847152",
+          "language": "en",
+          "description": "Decision making and analysis"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849762",
+      "publicId": "conflict-resolver-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Develops healthy disagreement and problem-solving approaches",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "conflictPatterns",
+                "id": "conflict_patterns_input",
+                "label": "Conflict Patterns",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Common disagreement styles and triggers"
+              },
+              {
+                "fieldName": "relationshipDynamics",
+                "id": "relationship_dynamics_input",
+                "label": "Relationship Dynamics",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Power dynamics and communication patterns"
+              },
+              {
+                "fieldName": "resolutionGoals",
+                "id": "resolution_goals_input",
+                "label": "Resolution Goals",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Desired conflict outcomes"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "resolutionStrategies",
+                "id": "resolution_strategies_output",
+                "label": "Resolution Strategies",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "deescalationTechniques",
+                "id": "deescalation_techniques_output",
+                "label": "De-escalation Techniques",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "negotiationSkills",
+                "id": "negotiation_skills_output",
+                "label": "Negotiation Skills",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849763",
+          "language": "en",
+          "name": "Conflict Resolver",
+          "description": "Develops healthy conflict resolution and problem-solving strategies.",
+          "instructions": "Provide conflict patterns and dynamics. The routine will develop resolution skills."
+        }
+      ]
+    }
+  ]
+}

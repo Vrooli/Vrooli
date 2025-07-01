@@ -1,0 +1,189 @@
+{
+  "id": "7892456378912349199",
+  "publicId": "releas-m-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349200",
+      "publicId": "releas-mgr-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of release manager for comprehensive software release planning and deployment management",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a release management expert providing comprehensive release planning, deployment coordination, and rollout strategy optimization.
+
+Release Context: {{input.releaseContext}}
+Current State: {{input.currentState}}
+Release Requirements: {{input.releaseRequirements}}
+Deployment Strategy: {{input.deploymentStrategy}}
+
+Manage comprehensive release process:
+
+1. **Release Planning and Preparation**:
+   - Feature readiness assessment
+   - Dependency resolution planning
+   - Risk assessment and mitigation
+   - Timeline development
+   - Resource allocation planning
+
+2. **Version Management**:
+   - Semantic versioning strategy
+   - Branch management approach
+   - Tag and release naming
+   - Changelog generation
+   - Version compatibility matrix
+
+3. **Deployment Orchestration**:
+   - Environment progression planning
+   - Deployment sequence design
+   - Rollout strategy selection
+   - Blue-green deployment planning
+   - Canary release configuration
+
+4. **Testing and Validation**:
+   - Release testing strategy
+   - Smoke test planning
+   - Performance benchmarking
+   - Security validation
+   - User acceptance coordination
+
+5. **Risk Management**:
+   - Rollback procedure design
+   - Failure scenario planning
+   - Communication protocols
+   - Incident response preparation
+   - Business continuity planning
+
+6. **Stakeholder Coordination**:
+   - Release communication plan
+   - Training material preparation
+   - Documentation updates
+   - Support team readiness
+   - Customer notification strategy
+
+7. **Post-Release Management**:
+   - Monitoring setup
+   - Issue tracking preparation
+   - Feedback collection systems
+   - Patch planning framework
+   - Success metrics tracking
+
+Provide comprehensive release management plan with deployment strategies, risk mitigation, coordination procedures, and success criteria for smooth software releases.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "releaseContext",
+                "id": "release_context_input",
+                "label": "Release Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Application type, release size, feature scope, user impact, business criticality",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe the release context"
+                }
+              },
+              {
+                "fieldName": "currentState",
+                "id": "current_state_input",
+                "label": "Current State",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Development status, testing progress, known issues, infrastructure readiness, team capacity",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What is the current release status?"
+                }
+              },
+              {
+                "fieldName": "releaseRequirements",
+                "id": "release_requirements_input",
+                "label": "Release Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Compliance needs, downtime constraints, performance targets, security requirements",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What are the release requirements?"
+                }
+              },
+              {
+                "fieldName": "deploymentStrategy",
+                "id": "deployment_strategy_input",
+                "label": "Deployment Strategy",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Big Bang Release", "value": "bigbang" },
+                    { "label": "Phased Rollout", "value": "phased" },
+                    { "label": "Blue-Green Deployment", "value": "bluegreen" },
+                    { "label": "Canary Release", "value": "canary" },
+                    { "label": "Feature Flags", "value": "featureflags" },
+                    { "label": "Hybrid Strategy", "value": "hybrid" }
+                  ],
+                  "defaultValue": "phased",
+                  "helperText": "Preferred deployment approach"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "releaseManagementPlan",
+                "id": "release_management_plan",
+                "label": "Release Management Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349201",
+          "language": "en-US",
+          "name": "Release Manager",
+          "description": "Provides comprehensive release management with deployment planning, risk mitigation, and coordination strategies for successful software releases.",
+          "instructions": "Describe your release context, current state, and requirements. The manager will create a detailed release plan."
+        }
+      ]
+    }
+  ]
+}

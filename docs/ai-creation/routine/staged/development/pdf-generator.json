@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349328",
+  "publicId": "pdf-ge-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349329",
+      "publicId": "pdf-gen-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of PDF generator for comprehensive document generation and formatting strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a PDF generation expert providing comprehensive document creation strategies, formatting optimization, and automated report generation solutions.\n\nPDF Context: {{input.pdfContext}}\nContent Requirements: {{input.contentRequirements}}\nFormatting Needs: {{input.formattingNeeds}}\nGeneration Volume: {{input.generationVolume}}\n\nDesign comprehensive PDF generation strategy:\n\n1. **Document Architecture and Structure**:\n   - Template design strategies\n   - Layout and composition planning\n   - Multi-page document handling\n   - Header and footer management\n   - Table of contents generation\n\n2. **Content Integration and Formatting**:\n   - Dynamic content insertion\n   - Text formatting and styling\n   - Image and media embedding\n   - Table and chart integration\n   - Font and typography management\n\n3. **Data Source Integration**:\n   - Database connectivity\n   - API data consumption\n   - File import capabilities\n   - Real-time data integration\n   - Batch data processing\n\n4. **Advanced Features Implementation**:\n   - Form field generation\n   - Digital signature support\n   - Watermark and security features\n   - Hyperlink and navigation\n   - Annotation and commenting\n\n5. **Performance and Optimization**:\n   - Generation speed optimization\n   - Memory usage efficiency\n   - File size optimization\n   - Concurrent generation handling\n   - Resource management\n\n6. **Quality and Compliance**:\n   - PDF/A compliance\n   - Accessibility standards (PDF/UA)\n   - Print quality optimization\n   - Cross-platform compatibility\n   - Version consistency\n\n7. **Automation and Integration**:\n   - Batch processing workflows\n   - Scheduled generation\n   - API integration patterns\n   - Error handling and recovery\n   - Monitoring and logging\n\nProvide comprehensive PDF generation plan with document architecture, content integration, advanced features, and automation strategies for efficient document creation systems.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "pdfContext",
+                "id": "pdf_context_input",
+                "label": "PDF Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Document types, use cases, audience, distribution method, business requirements, regulatory needs",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your PDF generation context"
+                }
+              },
+              {
+                "fieldName": "contentRequirements",
+                "id": "content_requirements_input",
+                "label": "Content Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Data sources, content types, dynamic elements, static components, multimedia needs",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What content needs to be included?"
+                }
+              },
+              {
+                "fieldName": "formattingNeeds",
+                "id": "formatting_needs_input",
+                "label": "Formatting Needs",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Layout requirements, styling needs, branding elements, accessibility standards, print specifications",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What formatting requirements exist?"
+                }
+              },
+              {
+                "fieldName": "generationVolume",
+                "id": "generation_volume_input",
+                "label": "Generation Volume",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Low Volume (< 100/day)", "value": "low" },
+                    { "label": "Medium Volume (100-1000/day)", "value": "medium" },
+                    { "label": "High Volume (1000+/day)", "value": "high" },
+                    { "label": "Real-time Generation", "value": "realtime" },
+                    { "label": "Batch Processing", "value": "batch" },
+                    { "label": "Variable Volume", "value": "variable" }
+                  ],
+                  "defaultValue": "variable",
+                  "helperText": "Expected generation volume"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "pdfGenerationPlan",
+                "id": "pdf_generation_plan",
+                "label": "PDF Generation Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349330",
+          "language": "en-US",
+          "name": "PDF Generator",
+          "description": "Provides comprehensive PDF generation with document architecture, content integration, and automation strategies for efficient document creation systems.",
+          "instructions": "Describe your PDF context, content requirements, and formatting needs. The generator will design a comprehensive document generation strategy."
+        }
+      ]
+    }
+  ]
+}

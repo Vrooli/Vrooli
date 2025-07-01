@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850283",
+  "publicId": "time-audit-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850284",
+      "publicId": "time-audit-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Audits how time is currently spent and identifies patterns",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are a time management analyst. Conduct a comprehensive audit of current time usage to identify patterns, inefficiencies, and optimization opportunities.\n\nDaily Schedule:\n{{input.dailySchedule}}\n\nTask Inventory:\n{{input.taskInventory}}\n\nProductivity Challenges:\n{{input.productivityChallenges}}\n\nPerform detailed time usage analysis:\n\n1. **Time Distribution Analysis**:\n   Analyze how time is currently allocated:\n   - **Category Breakdown**: Work, personal, maintenance, leisure time distribution\n   - **Energy Alignment**: High-value tasks vs energy levels throughout the day\n   - **Productive vs Non-Productive Time**: Ratio of outcome-generating activities\n   - **Context Switching**: Frequency and impact of task transitions\n   - **Deep Work vs Shallow Work**: Balance of focused vs fragmented time\n   - **Planned vs Reactive Time**: Proactive execution vs responding to urgencies\n\n2. **Pattern Recognition**:\n   Identify recurring themes and behaviors:\n   - **Daily Rhythms**: Natural energy peaks and valleys\n   - **Interruption Patterns**: Common sources and timing of disruptions\n   - **Procrastination Triggers**: Tasks that consistently get delayed\n   - **Flow State Conditions**: When and how optimal focus is achieved\n   - **Time Leak Sources**: Small activities that accumulate significant time\n   - **Decision Fatigue Points**: Times when choices become harder\n\n3. **Inefficiency Detection**:\n   Pinpoint specific areas of time waste:\n   - **Redundant Activities**: Tasks being done multiple times unnecessarily\n   - **Poor Preparation**: Time lost due to inadequate planning or setup\n   - **Technology Friction**: Systems or tools that slow down work\n   - **Communication Overhead**: Excessive meetings, emails, or coordination\n   - **Perfectionism Costs**: Diminishing returns on quality improvements\n   - **Transition Inefficiencies**: Dead time between activities\n\n4. **Productive Pattern Analysis**:\n   Identify what's working well:\n   - **High-Impact Activities**: Tasks that generate disproportionate value\n   - **Optimal Conditions**: Environmental and temporal factors for peak performance\n   - **Effective Routines**: Habits that consistently support productivity\n   - **Energy Multipliers**: Activities that increase overall capacity\n   - **Successful Workflows**: Processes that run smoothly and effectively\n   - **Recovery Mechanisms**: What restores energy and focus most efficiently\n\n5. **Challenge Root Cause Analysis**:\n   Understand the underlying causes of productivity struggles:\n   - **Structural Issues**: Problems with systems, environment, or tools\n   - **Behavioral Patterns**: Habits or reflexes that undermine effectiveness\n   - **Capacity Mismatches**: Overcommitment or underutilization issues\n   - **Skill Gaps**: Areas where improved capabilities would save time\n   - **Motivation Factors**: What drives engagement vs disengagement\n   - **External Pressures**: How others' expectations affect time use\n\n6. **Opportunity Identification**:\n   Highlight specific improvement potential:\n   - **Quick Wins**: Easy changes with immediate time savings\n   - **Strategic Investments**: Larger changes with long-term benefits\n   - **Automation Candidates**: Repetitive tasks suitable for systematization\n   - **Delegation Opportunities**: Tasks others could handle more efficiently\n   - **Elimination Targets**: Activities that provide minimal value\n   - **Optimization Zones**: Areas where small improvements yield big results\n\nProvide output as JSON with:\n- usagePatterns: Detailed analysis of current time allocation and behavioral patterns\n- timeWasters: Specific inefficiencies and improvement opportunities\n- efficiencyZones: Productive patterns and optimal conditions to leverage",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "dailySchedule",
+                "id": "daily_schedule_input",
+                "label": "Current Time Use",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "How time is currently spent daily/weekly"
+                }
+              },
+              {
+                "fieldName": "taskInventory",
+                "id": "task_inventory_input",
+                "label": "Activity List",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List of regular tasks and responsibilities"
+                }
+              },
+              {
+                "fieldName": "productivityChallenges",
+                "id": "productivity_challenges_input",
+                "label": "Time Struggles",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Specific time management challenges faced"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "usagePatterns",
+                "id": "usage_patterns_output",
+                "label": "Time Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "timeWasters",
+                "id": "time_wasters_output",
+                "label": "Inefficiency Areas",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "efficiencyZones",
+                "id": "efficiency_zones_output",
+                "label": "Productive Patterns",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850285",
+          "language": "en",
+          "name": "Time Audit",
+          "description": "Audits how time is currently spent and identifies patterns, inefficiencies, and optimization opportunities through comprehensive analysis.",
+          "instructions": "Provide current daily schedule, task inventory, and productivity challenges. The routine will analyze time usage patterns and identify specific areas for improvement."
+        }
+      ]
+    }
+  ]
+}

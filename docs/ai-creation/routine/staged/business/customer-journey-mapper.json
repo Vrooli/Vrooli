@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Analyze Pain Points",
                 "description": "Identifies friction and frustration in the journey",
-                "subroutineId": "TODO: Need pain point analysis subroutine",
+                "subroutineId": "7829564732190850220",
                 "inputMap": {
                   "customerPhases": "journeyStages",
                   "feedbackData": "customerComplaints",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Identify Opportunities",
                 "description": "Discovers improvement and delight opportunities",
-                "subroutineId": "TODO: Need opportunity identification subroutine",
+                "subroutineId": "7829564732190850223",
                 "inputMap": {
                   "frictionAreas": "painPoints",
                   "competitorAnalysis": "marketBenchmarks",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Design Ideal Experience",
                 "description": "Creates optimized journey with enhanced touchpoints",
-                "subroutineId": "TODO: Need experience design subroutine",
+                "subroutineId": "7829564732190850226",
                 "inputMap": {
                   "improvementOptions": "opportunities",
                   "customerMotivations": "needsAnalysis",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Create Implementation Plan",
                 "description": "Develops roadmap for journey improvements",
-                "subroutineId": "TODO: Need implementation planning subroutine",
+                "subroutineId": "7829564732190850229",
                 "inputMap": {
                   "optimizedExperience": "idealJourney",
                   "resourceRequirements": "implementationNeeds",

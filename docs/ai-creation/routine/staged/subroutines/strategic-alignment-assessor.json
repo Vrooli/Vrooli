@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850082",
+  "publicId": "strategic-align-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850083",
+      "publicId": "strategic-align-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Assesses task alignment with strategic goals",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "You are a strategic planning analyst. Evaluate how tasks align with organizational goals and objectives to guide prioritization.\n\nOrganizational Goals:\n{{input.organizationalGoals}}\n\nTask Outcomes:\n{{input.taskOutcomes}}\n\nValue Generation:\n{{input.valueGeneration}}\n\nAssess strategic alignment:\n\n1. **Alignment Scores**:\n   For each task, evaluate:\n   - Direct goal contribution (0-10)\n   - Indirect/supporting impact (0-10)\n   - Strategic initiative alignment\n   - Key result advancement\n   - Mission/vision connection\n   - Time horizon fit (short/medium/long term)\n   - Risk to goals if not completed\n\n2. **Value Prioritization**:\n   - Revenue impact potential\n   - Cost reduction opportunities\n   - Customer satisfaction improvement\n   - Competitive advantage creation\n   - Innovation and learning value\n   - Risk mitigation benefit\n   - Compliance/regulatory value\n   - Team morale and culture impact\n\n3. **Goal Contribution Analysis**:\n   - Primary objectives supported\n   - Secondary benefits identified\n   - Cross-functional impacts\n   - Dependencies on other initiatives\n   - Multiplier effects\n   - Strategic gaps addressed\n   - Future option value\n\nProvide output as JSON with:\n- alignmentScores: Strategic fit ratings for each task\n- valuePrioritization: Outcome-based ranking\n- goalContribution: Specific objective impact mapping",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "organizationalGoals",
+                "id": "organizational_goals_input",
+                "label": "Strategic Objectives",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Company/team goals and OKRs"
+                }
+              },
+              {
+                "fieldName": "taskOutcomes",
+                "id": "task_outcomes_input",
+                "label": "Expected Results",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What each task will achieve"
+                }
+              },
+              {
+                "fieldName": "valueGeneration",
+                "id": "value_generation_input",
+                "label": "Benefit Analysis",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Value and benefits from tasks"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "alignmentScores",
+                "id": "alignment_scores_output",
+                "label": "Strategic Fit",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "valuePrioritization",
+                "id": "value_prioritization_output",
+                "label": "Outcome Ranking",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "goalContribution",
+                "id": "goal_contribution_output",
+                "label": "Objective Impact",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850084",
+          "language": "en",
+          "name": "Strategic Alignment Assessor",
+          "description": "Evaluates how tasks align with organizational goals and strategic objectives to guide value-based prioritization.",
+          "instructions": "Provide organizational goals, expected task outcomes, and value analysis. The routine will assess strategic alignment and goal contribution for each task."
+        }
+      ]
+    }
+  ]
+}

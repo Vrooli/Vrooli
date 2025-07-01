@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850160",
+  "publicId": "workflow-analyze-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850161",
+      "publicId": "workflow-analyze-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes work processes and time allocation",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are a workflow analysis expert. Analyze work processes and time allocation patterns to identify efficiency opportunities.\n\nDaily Activities:\n{{input.dailyActivities}}\n\nWork Processes:\n{{input.workProcesses}}\n\nTime Data:\n{{input.timeTracking}}\n\nAnalyze current workflows:\n\n1. **Process Mapping**:\n   Map how work flows through the day:\n   - **Core Work Activities**: Primary value-generating tasks\n   - **Support Activities**: Necessary but non-core tasks\n   - **Administrative Overhead**: Paperwork, reporting, bureaucracy\n   - **Communication Time**: Meetings, emails, calls, messaging\n   - **Learning & Development**: Skill building, research, training\n   - **Planning & Organization**: Scheduling, prioritizing, organizing\n   - **Breaks & Transitions**: Time between tasks, context switching\n   \n   For each process:\n   - Time allocation percentage\n   - Frequency and duration\n   - Dependencies and handoffs\n   - Quality requirements\n   - Improvement potential\n\n2. **Time Distribution Analysis**:\n   Break down how time is actually spent:\n   - **Deep Work Blocks**: Uninterrupted focus time\n   - **Shallow Work**: Administrative and routine tasks\n   - **Reactive Work**: Responding to requests, interruptions\n   - **Proactive Work**: Strategic, planned activities\n   - **Collaborative Time**: Working with others\n   - **Solo Work**: Independent task completion\n   - **Peak Performance Windows**: Most productive hours\n   - **Low Energy Periods**: Times of reduced effectiveness\n\n3. **Workflow Efficiency Assessment**:\n   Evaluate process effectiveness:\n   - **Task Completion Rates**: How much gets finished\n   - **Quality Consistency**: Standards maintained across work\n   - **Rework Frequency**: How often things need redoing\n   - **Deadline Performance**: On-time completion rates\n   - **Stress Indicators**: Pressure points and overwhelm\n   - **Flow State Frequency**: How often in optimal focus\n   - **Multitasking Impact**: Cost of task switching\n\n4. **Bottleneck Identification**:\n   Find workflow constraints:\n   - **Time Bottlenecks**: Where work gets delayed\n   - **Skill Bottlenecks**: Capability gaps slowing progress\n   - **Resource Bottlenecks**: Tools or information limitations\n   - **Decision Bottlenecks**: Waiting for approvals or choices\n   - **Communication Bottlenecks**: Information flow problems\n   - **System Bottlenecks**: Technology or process limitations\n   - **Energy Bottlenecks**: Fatigue or motivation issues\n\n5. **Pattern Recognition**:\n   Identify recurring themes:\n   - **Daily Rhythm Patterns**: Natural energy and focus cycles\n   - **Weekly Patterns**: How productivity varies by day\n   - **Task Clustering**: How similar activities group together\n   - **Interruption Patterns**: When and how focus gets broken\n   - **Recovery Patterns**: How long to regain focus after breaks\n   - **Peak Performance Conditions**: When best work happens\n   - **Stress Response Patterns**: How pressure affects performance\n\n6. **Workflow Quality Metrics**:\n   Assess overall workflow health:\n   - **Efficiency Score**: Output per unit of time invested\n   - **Effectiveness Rating**: Quality and impact of work produced\n   - **Sustainability Index**: Long-term maintainability of pace\n   - **Adaptability Score**: Ability to handle changes and interruptions\n   - **Satisfaction Level**: Enjoyment and fulfillment from work\n   - **Growth Trajectory**: Learning and skill development rate\n\nProvide actionable insights for workflow optimization.\n\nProvide output as JSON with:\n- workflowMap: Detailed process analysis and mapping\n- timeDistribution: Activity breakdown with time allocation\n- bottlenecks: Identified constraints and inefficiency points",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "dailyActivities",
+                "id": "daily_activities_input",
+                "label": "Activity Log",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Typical daily activities and tasks"
+                }
+              },
+              {
+                "fieldName": "workProcesses",
+                "id": "work_processes_input",
+                "label": "Current Workflows",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "How work gets done currently"
+                }
+              },
+              {
+                "fieldName": "timeTracking",
+                "id": "time_tracking_input",
+                "label": "Time Data",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Time tracking information if available"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "workflowMap",
+                "id": "workflow_map_output",
+                "label": "Process Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "timeDistribution",
+                "id": "time_distribution_output",
+                "label": "Activity Breakdown",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "bottlenecks",
+                "id": "bottlenecks_output",
+                "label": "Inefficiency Points",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850162",
+          "language": "en",
+          "name": "Workflow Analyzer (Reasoning)",
+          "description": "Analyzes existing work processes and time allocation patterns to identify efficiency opportunities.",
+          "instructions": "Provide daily activities, work processes, and time tracking data. The routine will analyze workflows and identify bottlenecks."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,138 @@
+{
+  "id": "7892456378912349100",
+  "publicId": "environ-mod-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349101",
+      "publicId": "env-model-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of environmental modeler for comprehensive environmental impact modeling and analysis",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Scientific",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are an environmental modeling expert providing comprehensive analysis of environmental factors and their impact on systems, operations, and outcomes.\n\nEnvironmental Context: {{input.environmentalContext}}\nModeling Scope: {{input.modelingScope}}\nKey Variables: {{input.keyVariables}}\nAnalysis Purpose: {{input.analysisPurpose}}\n\nCreate comprehensive environmental model:\n\n1. **Environmental System Mapping**:\n   - Factor identification and categorization\n   - Relationship and dependency mapping\n   - System boundary definition\n   - Feedback loop identification\n   - External influence assessment\n\n2. **Variable Analysis and Quantification**:\n   - Key parameter identification\n   - Measurement methodology development\n   - Data collection framework\n   - Baseline establishment\n   - Variability assessment\n\n3. **Impact Assessment Modeling**:\n   - Direct impact quantification\n   - Indirect effect evaluation\n   - Cumulative impact analysis\n   - Threshold identification\n   - Risk probability modeling\n\n4. **Scenario Development and Analysis**:\n   - Baseline scenario establishment\n   - Alternative scenario modeling\n   - Sensitivity analysis\n   - Worst-case scenario planning\n   - Optimization scenario development\n\n5. **Temporal Dynamics Modeling**:\n   - Short-term impact prediction\n   - Long-term trend analysis\n   - Seasonal variation modeling\n   - Change rate assessment\n   - Future projection development\n\n6. **Uncertainty and Risk Assessment**:\n   - Uncertainty quantification\n   - Confidence interval establishment\n   - Risk factor identification\n   - Mitigation strategy evaluation\n   - Contingency planning\n\n7. **Actionable Insights and Recommendations**:\n   - Optimization opportunity identification\n   - Intervention strategy development\n   - Monitoring requirement specification\n   - Decision support framework\n   - Implementation guidance\n\nProvide detailed environmental model with comprehensive analysis framework, impact assessment methodologies, and actionable recommendations for environmental optimization and risk management.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "environmentalContext",
+                "id": "environmental_context_input",
+                "label": "Environmental Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the environmental system, location, conditions, and scope of analysis",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What environmental context needs modeling?"
+                }
+              },
+              {
+                "fieldName": "modelingScope",
+                "id": "modeling_scope_input",
+                "label": "Modeling Scope",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Physical Environment", "value": "physical" },
+                    { "label": "Business Environment", "value": "business" },
+                    { "label": "Organizational Environment", "value": "organizational" },
+                    { "label": "Market Environment", "value": "market" },
+                    { "label": "Regulatory Environment", "value": "regulatory" },
+                    { "label": "Technology Environment", "value": "technology" },
+                    { "label": "Social Environment", "value": "social" }
+                  ],
+                  "defaultValue": "business",
+                  "helperText": "Primary environmental modeling scope"
+                }
+              },
+              {
+                "fieldName": "keyVariables",
+                "id": "key_variables_input",
+                "label": "Key Variables",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Critical environmental factors, variables, and parameters that influence outcomes",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What are the key environmental variables?"
+                }
+              },
+              {
+                "fieldName": "analysisPurpose",
+                "id": "analysis_purpose_input",
+                "label": "Analysis Purpose",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Impact Assessment", "value": "impact" },
+                    { "label": "Risk Management", "value": "risk" },
+                    { "label": "Optimization Planning", "value": "optimization" },
+                    { "label": "Compliance Analysis", "value": "compliance" },
+                    { "label": "Strategic Planning", "value": "strategy" },
+                    { "label": "Performance Prediction", "value": "prediction" }
+                  ],
+                  "defaultValue": "impact",
+                  "helperText": "Primary purpose of environmental modeling"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "environmentalModelReport",
+                "id": "environmental_model_report",
+                "label": "Environmental Model Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349102",
+          "language": "en-US",
+          "name": "Environmental Modeler",
+          "description": "Creates comprehensive environmental models with impact assessment, scenario analysis, and risk evaluation for informed decision-making and optimization.",
+          "instructions": "Describe environmental context, modeling scope, and key variables. The modeler will create detailed analysis frameworks and impact assessments."
+        }
+      ]
+    }
+  ]
+}

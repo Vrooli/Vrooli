@@ -1,0 +1,138 @@
+{
+  "id": "7892456378912347028",
+  "publicId": "content-opt-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912347029",
+      "publicId": "optimize-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of content optimizer for performance and engagement enhancement",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 800,
+            "temperature": 0.5,
+            "prompt": "You are a content optimization expert improving content for maximum performance and engagement.\n\nExisting Content: {{input.existingContent}}\nOptimization Goals: {{input.optimizationGoals}}\nPerformance Data: {{input.performanceData}}\nTarget Platform: {{input.targetPlatform}}\n\nOptimize content comprehensively:\n\n1. **Content Analysis**:\n   - Current performance assessment\n   - Engagement pattern identification\n   - Conversion funnel analysis\n   - Audience behavior insights\n   - Competitive benchmarking\n\n2. **Structure Optimization**:\n   - Hook strengthening\n   - Flow and pacing improvements\n   - Information hierarchy\n   - Paragraph optimization\n   - Call-to-action placement\n\n3. **Language Enhancement**:\n   - Clarity and readability\n   - Emotional resonance\n   - Power word integration\n   - Sentence variety\n   - Active voice usage\n\n4. **SEO Optimization**:\n   - Keyword integration\n   - Meta description optimization\n   - Header structure\n   - Internal linking opportunities\n   - Featured snippet potential\n\n5. **Engagement Boosters**:\n   - Interactive elements\n   - Visual content integration\n   - Social proof incorporation\n   - Urgency and scarcity\n   - Personalization opportunities\n\n6. **Platform Alignment**:\n   - Format optimization\n   - Algorithm considerations\n   - Best posting times\n   - Platform-specific features\n   - Cross-platform adaptation\n\n7. **Performance Tracking**:\n   - KPI identification\n   - A/B testing suggestions\n   - Monitoring recommendations\n   - Iteration strategies\n   - Success metrics\n\nProvide specific, data-driven optimizations that improve content performance and audience engagement.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "existingContent",
+                "id": "existing_content_input",
+                "label": "Content to Optimize",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Paste the content you want to optimize",
+                  "multiline": true,
+                  "minRows": 8,
+                  "helperText": "Current content that needs improvement"
+                }
+              },
+              {
+                "fieldName": "optimizationGoals",
+                "id": "optimization_goals_input",
+                "label": "Optimization Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Increase Engagement", "value": "engagement" },
+                    { "label": "Improve Conversions", "value": "conversion" },
+                    { "label": "Boost SEO Rankings", "value": "seo" },
+                    { "label": "Enhance Readability", "value": "readability" },
+                    { "label": "Expand Reach", "value": "reach" },
+                    { "label": "Build Authority", "value": "authority" }
+                  ],
+                  "defaultValue": "engagement",
+                  "helperText": "Primary optimization objective"
+                }
+              },
+              {
+                "fieldName": "performanceData",
+                "id": "performance_data_input",
+                "label": "Current Performance",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Views, engagement rate, conversions, bounce rate, etc.",
+                  "multiline": true,
+                  "minRows": 2,
+                  "helperText": "Optional: Current performance metrics"
+                }
+              },
+              {
+                "fieldName": "targetPlatform",
+                "id": "target_platform_input",
+                "label": "Target Platform",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Website/Blog", "value": "website" },
+                    { "label": "LinkedIn", "value": "linkedin" },
+                    { "label": "Facebook", "value": "facebook" },
+                    { "label": "Instagram", "value": "instagram" },
+                    { "label": "Twitter/X", "value": "twitter" },
+                    { "label": "YouTube", "value": "youtube" },
+                    { "label": "Email", "value": "email" }
+                  ],
+                  "defaultValue": "website",
+                  "helperText": "Primary platform for the content"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "optimizedContent",
+                "id": "optimized_content",
+                "label": "Optimized Content & Recommendations",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 12
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912347030",
+          "language": "en-US",
+          "name": "Content Optimizer",
+          "description": "Optimizes existing content for improved performance, engagement, and conversions with data-driven enhancements and platform-specific recommendations.",
+          "instructions": "Provide the content to optimize and your goals. The optimizer will enhance structure, language, and performance elements for better results."
+        }
+      ]
+    }
+  ]
+}

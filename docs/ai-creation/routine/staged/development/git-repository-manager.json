@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349376",
+  "publicId": "git-re-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349377",
+      "publicId": "git-repo-mgr-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of Git repository manager for comprehensive repository management and collaboration optimization strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Systematic",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a Git repository management expert providing comprehensive version control strategies, collaboration optimization, and repository governance solutions.\n\nRepository Context: {{input.repositoryContext}}\nTeam Structure: {{input.teamStructure}}\nWorkflow Requirements: {{input.workflowRequirements}}\nGovernance Needs: {{input.governanceNeeds}}\n\nDesign comprehensive Git repository management strategy:\n\n1. **Repository Architecture and Organization**:\n   - Repository structure design\n   - Monorepo vs multi-repo strategies\n   - Submodule and subtree management\n   - Directory organization\n   - File and folder conventions\n\n2. **Branching Strategy and Workflows**:\n   - Git flow implementation\n   - Feature branch workflows\n   - Release management strategies\n   - Hotfix procedures\n   - Merge vs rebase policies\n\n3. **Collaboration and Code Review**:\n   - Pull request workflows\n   - Code review processes\n   - Approval mechanisms\n   - Conflict resolution procedures\n   - Pair programming integration\n\n4. **Security and Access Control**:\n   - Repository access management\n   - Branch protection rules\n   - Commit signing requirements\n   - Sensitive data protection\n   - Audit logging\n\n5. **Automation and CI/CD Integration**:\n   - Hook configuration\n   - Automated testing triggers\n   - Build pipeline integration\n   - Deployment automation\n   - Quality gate enforcement\n\n6. **Performance and Optimization**:\n   - Repository size management\n   - Large file handling\n   - Clone and fetch optimization\n   - History cleanup strategies\n   - Storage optimization\n\n7. **Governance and Compliance**:\n   - Commit message standards\n   - Documentation requirements\n   - License management\n   - Compliance validation\n   - Backup and recovery\n\nProvide comprehensive Git repository management plan with organization strategies, workflow optimization, collaboration frameworks, and governance policies for effective version control.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "repositoryContext",
+                "id": "repository_context_input",
+                "label": "Repository Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Project types, codebase size, technology stack, organizational structure, compliance requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your repository management context"
+                }
+              },
+              {
+                "fieldName": "teamStructure",
+                "id": "team_structure_input",
+                "label": "Team Structure",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Team size, skill levels, geographic distribution, collaboration patterns, external contributors",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe your team structure"
+                }
+              },
+              {
+                "fieldName": "workflowRequirements",
+                "id": "workflow_requirements_input",
+                "label": "Workflow Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Release cycles, deployment frequency, quality requirements, integration needs, automation goals",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What workflow requirements exist?"
+                }
+              },
+              {
+                "fieldName": "governanceNeeds",
+                "id": "governance_needs_input",
+                "label": "Governance Needs",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Strict Governance", "value": "strict" },
+                    { "label": "Flexible Collaboration", "value": "flexible" },
+                    { "label": "Enterprise Compliance", "value": "enterprise" },
+                    { "label": "Open Source Model", "value": "opensource" },
+                    { "label": "Agile Development", "value": "agile" },
+                    { "label": "Balanced Approach", "value": "balanced" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Primary governance approach"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "gitRepositoryManagementPlan",
+                "id": "git_repository_management_plan",
+                "label": "Git Repository Management Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349378",
+          "language": "en-US",
+          "name": "Git Repository Manager",
+          "description": "Provides comprehensive Git repository management with organization strategies, workflow optimization, and governance policies for effective version control.",
+          "instructions": "Describe your repository context, team structure, and governance needs. The manager will design a comprehensive repository management strategy."
+        }
+      ]
+    }
+  ]
+}

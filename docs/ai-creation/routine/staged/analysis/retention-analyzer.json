@@ -1,0 +1,136 @@
+{
+  "id": "7892456378912349097",
+  "publicId": "retention-a-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349098",
+      "publicId": "retain-analy-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of retention analyzer for comprehensive customer and employee retention analysis",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a retention analysis expert providing comprehensive analysis of customer or employee retention patterns, churn factors, and retention improvement strategies.\n\nRetention Context: {{input.retentionContext}}\nRetention Data: {{input.retentionData}}\nChurn Indicators: {{input.churnIndicators}}\nAnalysis Period: {{input.analysisPeriod}}\n\nProvide comprehensive retention analysis:\n\n1. **Retention Metrics and Baseline Analysis**:\n   - Current retention rate calculation\n   - Churn rate and trend analysis\n   - Cohort-based retention evaluation\n   - Lifetime value and duration assessment\n   - Benchmark and industry comparison\n\n2. **Churn Pattern and Risk Identification**:\n   - Churn timing and seasonality patterns\n   - High-risk segment identification\n   - Early warning indicator analysis\n   - Behavioral change detection\n   - Predictive churn modeling\n\n3. **Retention Driver Analysis**:\n   - Key retention factor identification\n   - Satisfaction and engagement correlation\n   - Value proposition effectiveness\n   - Touch point and interaction impact\n   - Loyalty program and incentive analysis\n\n4. **Segmentation and Cohort Analysis**:\n   - Retention performance by segment\n   - New vs. existing cohort comparison\n   - High-value vs. low-value retention\n   - Geographic and demographic patterns\n   - Product and service usage correlation\n\n5. **Root Cause and Attribution Analysis**:\n   - Primary and secondary churn causes\n   - Competitive and market factor impact\n   - Internal process and experience gaps\n   - Communication and support effectiveness\n   - Product and service quality issues\n\n6. **Retention Improvement Opportunities**:\n   - High-impact intervention strategies\n   - Personalization and targeting opportunities\n   - Experience enhancement recommendations\n   - Process and system improvements\n   - Proactive retention campaign design\n\n7. **Strategic Retention Framework**:\n   - Retention optimization roadmap\n   - Resource allocation priorities\n   - Success measurement and tracking\n   - Continuous monitoring and adjustment\n   - Long-term retention strategy alignment\n\nProvide actionable retention analysis with data-driven insights, improvement recommendations, and strategic framework for enhanced retention performance and reduced churn.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "retentionContext",
+                "id": "retention_context_input",
+                "label": "Retention Context",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Customer Retention", "value": "customer" },
+                    { "label": "Employee Retention", "value": "employee" },
+                    { "label": "Subscriber Retention", "value": "subscriber" },
+                    { "label": "Member Retention", "value": "member" },
+                    { "label": "User Retention", "value": "user" },
+                    { "label": "Client Retention", "value": "client" }
+                  ],
+                  "defaultValue": "customer",
+                  "helperText": "Type of retention to analyze"
+                }
+              },
+              {
+                "fieldName": "retentionData",
+                "id": "retention_data_input",
+                "label": "Retention Data",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Retention rates, churn rates, cohort data, satisfaction scores, engagement metrics",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Provide available retention and performance data"
+                }
+              },
+              {
+                "fieldName": "churnIndicators",
+                "id": "churn_indicators_input",
+                "label": "Churn Indicators",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Known churn patterns, exit reasons, warning signs, risk factors",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What indicators suggest churn risk?"
+                }
+              },
+              {
+                "fieldName": "analysisPeriod",
+                "id": "analysis_period_input",
+                "label": "Analysis Period",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Last 3 Months", "value": "3_months" },
+                    { "label": "Last 6 Months", "value": "6_months" },
+                    { "label": "Last 12 Months", "value": "12_months" },
+                    { "label": "Multi-Year Trend", "value": "multi_year" },
+                    { "label": "Custom Period", "value": "custom" }
+                  ],
+                  "defaultValue": "12_months",
+                  "helperText": "Time period for retention analysis"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "retentionAnalysisReport",
+                "id": "retention_analysis_report",
+                "label": "Retention Analysis Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349099",
+          "language": "en-US",
+          "name": "Retention Analyzer",
+          "description": "Provides comprehensive retention analysis with churn pattern identification, driver analysis, and strategic improvement recommendations for enhanced retention performance.",
+          "instructions": "Describe the retention context, available data, and churn indicators. The analyzer will provide detailed retention insights and improvement strategies."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850319",
+  "publicId": "task-breakdown-creator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850320",
+      "publicId": "task-breakdown-creator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Decomposes project into major phases and tasks",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Methodical",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are a task breakdown specialist. Decompose projects into manageable phases and tasks using systematic work breakdown structure principles.\n\nProject Scope:\n{{input.projectScope}}\n\nKey Deliverables:\n{{input.keyDeliverables}}\n\nProject Timeline:\n{{input.projectTimeline}}\n\nCreate comprehensive task breakdown structure:\n\n1. **Project Phase Structure**:\n   Organize work into logical phases:\n   - **Initiation Phase**: Project setup, planning, and resource allocation\n   - **Planning Phase**: Detailed design, requirements gathering, and preparation\n   - **Execution Phase**: Core implementation and development work\n   - **Testing Phase**: Validation, quality assurance, and refinement\n   - **Deployment Phase**: Rollout, training, and go-live activities\n   - **Closure Phase**: Documentation, review, and project wrap-up\n\n2. **Work Breakdown Structure**:\n   Decompose each phase into specific tasks:\n   - **Level 1 Tasks**: Major work packages within each phase\n   - **Level 2 Tasks**: Detailed activities that comprise major work packages\n   - **Level 3 Tasks**: Granular tasks that can be assigned to individuals\n   - **Task Sizing**: Ensure tasks are appropriately sized (not too large or small)\n   - **Task Clarity**: Each task has clear, actionable objectives\n   - **Completeness**: All necessary work is captured in the breakdown\n\n3. **Task Categorization**:\n   Classify tasks by type and characteristics:\n   - **Critical Path Tasks**: Activities that directly impact project completion time\n   - **Parallel Tasks**: Work that can be done simultaneously with other activities\n   - **Dependent Tasks**: Activities that require completion of prerequisite work\n   - **Resource-Intensive Tasks**: Activities requiring significant time, people, or budget\n   - **Risk-Heavy Tasks**: Activities with high uncertainty or potential complications\n   - **Quick Wins**: Tasks that deliver value early in the project timeline\n\n4. **Task Specifications**:\n   Define detailed requirements for each task:\n   - **Task Objectives**: What the task aims to accomplish\n   - **Acceptance Criteria**: How to determine when the task is complete\n   - **Resource Requirements**: People, tools, or materials needed\n   - **Skill Requirements**: Capabilities needed to execute the task\n   - **Estimated Duration**: Time needed for completion\n   - **Complexity Level**: Difficulty rating to aid in resource allocation\n\n5. **Phase Integration**:\n   Ensure phases work together cohesively:\n   - **Phase Dependencies**: How phases build upon each other\n   - **Handoff Points**: Transition activities between phases\n   - **Phase Gates**: Decision points and approval processes\n   - **Deliverable Flow**: How outputs from one phase feed into the next\n   - **Quality Checkpoints**: Review and validation activities\n   - **Risk Mitigation**: How phases address project risks\n\n6. **Task Counting and Sizing**:\n   Provide quantitative breakdown metrics:\n   - **Total Task Count**: Overall number of tasks in the project\n   - **Tasks per Phase**: Distribution of work across phases\n   - **Task Complexity Distribution**: Mix of simple, moderate, and complex tasks\n   - **Estimated Total Effort**: Aggregate time requirements\n   - **Resource Loading**: Distribution of resource requirements\n   - **Critical Path Length**: Time required for longest task sequence\n\nProvide output as JSON with:\n- workBreakdown: Hierarchical task structure organized by phases\n- phaseStructure: Detailed phase definitions and organization\n- totalTasks: Quantitative summary of task count and distribution",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "projectScope",
+                "id": "project_scope_input",
+                "label": "Scope Definition",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Project scope and boundaries"
+                }
+              },
+              {
+                "fieldName": "keyDeliverables",
+                "id": "key_deliverables_input",
+                "label": "Deliverables",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Key project deliverables and outputs"
+                }
+              },
+              {
+                "fieldName": "projectTimeline",
+                "id": "project_timeline_input",
+                "label": "Timeline",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Project timeline and scheduling constraints"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "workBreakdown",
+                "id": "work_breakdown_output",
+                "label": "Task Hierarchy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "phaseStructure",
+                "id": "phase_structure_output",
+                "label": "Project Phases",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "totalTasks",
+                "id": "total_tasks_output",
+                "label": "Task Count",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850321",
+          "language": "en",
+          "name": "Task Breakdown Creator",
+          "description": "Decomposes project into major phases and tasks using systematic work breakdown structure principles and task categorization.",
+          "instructions": "Provide project scope, deliverables, and timeline. The routine will create a hierarchical task structure with phases, task specifications, and quantitative metrics."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849758",
+  "publicId": "expression-trainer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847057",
+      "tag": "lifestyle",
+      "translations": [
+        {
+          "id": "7829564732190847157",
+          "language": "en",
+          "description": "Lifestyle and personal"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847092",
+      "tag": "coaching",
+      "translations": [
+        {
+          "id": "7829564732190847192",
+          "language": "en",
+          "description": "Coaching and guidance"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849759",
+      "publicId": "expression-trainer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Improves clear, honest, and respectful communication",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "expressionChallenges",
+                "id": "expression_challenges_input",
+                "label": "Expression Challenges",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Difficulties in expressing thoughts and feelings"
+              },
+              {
+                "fieldName": "emotionalAwareness",
+                "id": "emotional_awareness_input",
+                "label": "Emotional Awareness",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Current level of emotional understanding"
+              },
+              {
+                "fieldName": "communicationStyle",
+                "id": "communication_style_input",
+                "label": "Communication Style",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Preferred ways of communicating"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "expressionTechniques",
+                "id": "expression_techniques_output",
+                "label": "Expression Techniques",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "clarityExercises",
+                "id": "clarity_exercises_output",
+                "label": "Clarity Exercises",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "assertivenessTraining",
+                "id": "assertiveness_training_output",
+                "label": "Assertiveness Training",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849760",
+          "language": "en",
+          "name": "Expression Trainer",
+          "description": "Develops skills for clear, honest, and respectful self-expression.",
+          "instructions": "Provide expression challenges and awareness level. The routine will train expression."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850382",
+  "publicId": "insight-gatherer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850383",
+      "publicId": "insight-gatherer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Collects relevant information and analogous solutions",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Investigative",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "You are an insight gathering specialist. Collect relevant information and analogous solutions from diverse sources to inform creative problem-solving.\n\nProblem Definition:\n{{input.clarifiedChallenge}}\n\nRelevant Fields:\n{{input.knowledgeDomains}}\n\nInspiration Areas:\n{{input.analogySources}}\n\nGather comprehensive insights systematically:\n\n1. **Direct Research Collection**:\n   Gather information directly related to the problem domain:\n   - **Best Practice Analysis**: How others have successfully addressed similar challenges\n   - **Failure Case Studies**: What approaches have been tried unsuccessfully and why\n   - **Current State Assessment**: Latest developments and trends in the problem domain\n   - **Expert Perspectives**: Professional opinions and recommendations from domain specialists\n   - **Empirical Evidence**: Research findings, statistics, and data relevant to the challenge\n   - **Regulatory Landscape**: Legal, compliance, or policy factors that influence solutions\n\n2. **Analogical Solution Mining**:\n   Discover solutions from seemingly unrelated domains:\n   - **Natural Systems**: How nature solves similar problems through evolution and adaptation\n   - **Different Industries**: Solutions from other sectors that could be adapted or translated\n   - **Historical Precedents**: How similar challenges were resolved in different time periods\n   - **Cultural Variations**: How different cultures approach analogous problems\n   - **Scale Differences**: Solutions that work at micro or macro levels that could be adapted\n   - **Cross-Functional Insights**: How other business functions handle similar dynamics\n\n3. **Stakeholder Intelligence Gathering**:\n   Understand diverse perspectives on the problem and potential solutions:\n   - **User Experience Research**: How the problem actually affects those who experience it\n   - **Decision Maker Priorities**: What criteria and constraints shape solution acceptance\n   - **Implementation Team Insights**: Practical challenges and opportunities for execution\n   - **Subject Matter Expert Knowledge**: Deep technical or specialized understanding\n   - **Customer/Beneficiary Needs**: What solutions would actually create value for end users\n   - **Organizational Context**: How company culture and systems influence solution viability\n\n4. **Innovation Pattern Recognition**:\n   Identify recurring themes and successful innovation approaches:\n   - **Solution Architectures**: Common structures and frameworks used in successful innovations\n   - **Innovation Triggers**: What conditions or catalysts typically lead to breakthrough solutions\n   - **Resource Leveraging**: How successful innovations make efficient use of available resources\n   - **Partnership Models**: Collaboration patterns that enhance innovation success\n   - **Technology Integration**: How emerging technologies enable new solution possibilities\n   - **Timing Factors**: When and why certain types of solutions become viable or attractive\n\n5. **Gap and Opportunity Analysis**:\n   Identify what's missing or underexplored in current approaches:\n   - **Unmet Needs**: Requirements or desires not addressed by existing solutions\n   - **Resource Inefficiencies**: Areas where current approaches waste time, money, or effort\n   - **Process Bottlenecks**: Constraints that limit the effectiveness of current solutions\n   - **Technology Gaps**: Missing capabilities that could enable better solutions\n   - **Market Opportunities**: Unserved or underserved segments that could benefit from innovation\n   - **System Integration**: Connections between different elements that could be strengthened\n\n6. **Future Trend Integration**:\n   Consider how emerging trends might create new solution possibilities:\n   - **Technology Trends**: How advancing capabilities might enable new approaches\n   - **Social Trends**: Changing behaviors and preferences that create new solution requirements\n   - **Economic Trends**: Financial conditions and business model innovations that affect feasibility\n   - **Environmental Trends**: Sustainability considerations that influence solution design\n   - **Regulatory Trends**: Evolving policies and compliance requirements that shape solutions\n   - **Demographic Trends**: Population changes that affect problem definition and solution needs\n\nProvide output as JSON with:\n- informationBase: Comprehensive research findings and domain knowledge\n- solutionAnalogies: Patterns and solutions from other domains\n- specialistKnowledge: Expert insights and technical understanding",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "clarifiedChallenge",
+                "id": "clarified_challenge_input",
+                "label": "Problem Definition",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Clearly defined problem or challenge"
+                }
+              },
+              {
+                "fieldName": "knowledgeDomains",
+                "id": "knowledge_domains_input",
+                "label": "Relevant Fields",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Areas of expertise and knowledge to explore"
+                }
+              },
+              {
+                "fieldName": "analogySources",
+                "id": "analogy_sources_input",
+                "label": "Inspiration Areas",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Domains or areas for analogical inspiration"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "informationBase",
+                "id": "information_base_output",
+                "label": "Research Findings",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "solutionAnalogies",
+                "id": "solution_analogies_output",
+                "label": "Analogous Patterns",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "specialistKnowledge",
+                "id": "specialist_knowledge_output",
+                "label": "Expert Insights",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850384",
+          "language": "en",
+          "name": "Insight Gatherer",
+          "description": "Collects relevant information and analogous solutions through systematic research, analogical mining, and expert knowledge gathering.",
+          "instructions": "Provide problem definition, relevant knowledge domains, and inspiration areas. The routine will gather comprehensive research findings, solution analogies, and specialist insights."
+        }
+      ]
+    }
+  ]
+}

@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Current Problem Frame",
                 "description": "Examines how the problem is currently understood and defined",
-                "subroutineId": "TODO: Need problem analysis subroutine",
+                "subroutineId": "7829564732190850346",
                 "inputMap": {
                   "problemStatement": "currentDefinition",
                   "stakeholderViews": "perspectivesInput",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Deconstruct Problem Elements",
                 "description": "Breaks down the problem into fundamental components",
-                "subroutineId": "TODO: Need problem deconstruction subroutine",
+                "subroutineId": "7829564732190850349",
                 "inputMap": {
                   "frameAnalysis": "problemAnalysis",
                   "hiddenBiases": "underlyingAssumptions",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Generate Alternative Frames",
                 "description": "Creates multiple new ways to view and understand the problem",
-                "subroutineId": "TODO: Need reframing generation subroutine",
+                "subroutineId": "7829564732190850352",
                 "inputMap": {
                   "fundamentalComponents": "coreElements",
                   "causeEffectChains": "causalRelationships",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Explore Solution Spaces",
                 "description": "Investigates solution possibilities under each new frame",
-                "subroutineId": "TODO: Need solution exploration subroutine",
+                "subroutineId": "7829564732190850355",
                 "inputMap": {
                   "newPerspectives": "alternativeFrames",
                   "perspectiveRange": "frameVariations",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Evaluate Frame Effectiveness",
                 "description": "Assesses which reframes offer the most promising paths",
-                "subroutineId": "TODO: Need frame evaluation subroutine",
+                "subroutineId": "7829564732190850358",
                 "inputMap": {
                   "emergentSolutions": "solutionOptions",
                   "creativeStrategies": "innovativeApproaches",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Synthesize Insights",
                 "description": "Combines best elements from multiple frames into actionable insights",
-                "subroutineId": "TODO: Need insights synthesis subroutine",
+                "subroutineId": "7829564732190850361",
                 "inputMap": {
                   "perspectiveValue": "frameRankings",
                   "feasibilityAssessment": "solutionViability",

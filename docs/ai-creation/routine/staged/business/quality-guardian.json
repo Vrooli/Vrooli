@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349082",
+  "publicId": "quality-g-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349083",
+      "publicId": "qual-guard-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of quality guardian for comprehensive quality assurance and process monitoring",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Vigilant",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a quality assurance guardian providing comprehensive quality monitoring, assessment, and improvement strategies across processes, products, and services.\n\nQuality Focus: {{input.qualityFocus}}\nCurrent Standards: {{input.currentStandards}}\nQuality Metrics: {{input.qualityMetrics}}\nAssessment Scope: {{input.assessmentScope}}\n\nProvide comprehensive quality guardian analysis:\n\n1. **Quality Assessment and Evaluation**:\n   - Current quality state analysis\n   - Standard compliance verification\n   - Performance against benchmarks\n   - Gap identification and prioritization\n   - Quality trend and pattern analysis\n\n2. **Quality Control and Monitoring**:\n   - Quality control process design\n   - Real-time monitoring systems\n   - Alert and escalation protocols\n   - Inspection and testing procedures\n   - Documentation and traceability\n\n3. **Quality Assurance Framework**:\n   - Quality management system design\n   - Process standardization and optimization\n   - Training and competency requirements\n   - Quality culture development\n   - Continuous improvement processes\n\n4. **Risk and Issue Management**:\n   - Quality risk identification\n   - Defect prevention strategies\n   - Root cause analysis procedures\n   - Corrective and preventive actions\n   - Quality incident response\n\n5. **Standards and Compliance**:\n   - Industry standard alignment\n   - Regulatory compliance verification\n   - Certification and audit preparation\n   - Best practice implementation\n   - Quality policy development\n\n6. **Performance Measurement**:\n   - Quality metrics and KPI tracking\n   - Customer satisfaction monitoring\n   - Process capability analysis\n   - Cost of quality assessment\n   - Benchmark and competitive analysis\n\n7. **Improvement and Innovation**:\n   - Quality improvement initiatives\n   - Innovation in quality practices\n   - Technology integration opportunities\n   - Stakeholder engagement strategies\n   - Sustainability and long-term planning\n\nProvide actionable quality guardian recommendations with monitoring frameworks, improvement strategies, and compliance verification for sustained quality excellence.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "qualityFocus",
+                "id": "quality_focus_input",
+                "label": "Quality Focus Area",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Product quality, service delivery, process execution, software development, manufacturing",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What area needs quality guardian oversight?"
+                }
+              },
+              {
+                "fieldName": "currentStandards",
+                "id": "current_standards_input",
+                "label": "Current Standards",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "ISO standards, industry best practices, company policies, regulatory requirements",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What quality standards are currently in place?"
+                }
+              },
+              {
+                "fieldName": "qualityMetrics",
+                "id": "quality_metrics_input",
+                "label": "Quality Metrics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Defect rates, customer satisfaction scores, compliance percentages, cycle times",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What quality metrics are tracked?"
+                }
+              },
+              {
+                "fieldName": "assessmentScope",
+                "id": "assessment_scope_input",
+                "label": "Assessment Scope",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Process Quality", "value": "process" },
+                    { "label": "Product Quality", "value": "product" },
+                    { "label": "Service Quality", "value": "service" },
+                    { "label": "System Quality", "value": "system" },
+                    { "label": "Organizational Quality", "value": "organizational" },
+                    { "label": "Comprehensive Quality", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Scope of quality assessment"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "qualityGuardianReport",
+                "id": "quality_guardian_report",
+                "label": "Quality Guardian Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349084",
+          "language": "en-US",
+          "name": "Quality Guardian",
+          "description": "Provides comprehensive quality assurance monitoring and improvement strategies with compliance verification and performance optimization for sustained quality excellence.",
+          "instructions": "Describe the quality focus area, current standards, and metrics. The guardian will provide detailed quality assessment and improvement recommendations."
+        }
+      ]
+    }
+  ]
+}

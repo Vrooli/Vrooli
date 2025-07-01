@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849770",
+  "publicId": "difficult-conversation-navigator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847057",
+      "tag": "lifestyle",
+      "translations": [
+        {
+          "id": "7829564732190847157",
+          "language": "en",
+          "description": "Lifestyle and personal"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847051",
+      "tag": "communication-content",
+      "translations": [
+        {
+          "id": "7829564732190847151",
+          "language": "en",
+          "description": "Communication and content systems"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849771",
+      "publicId": "difficult-conversation-navigator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Provides strategies for navigating conflict and sensitive topics",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "conflictTypes",
+                "id": "conflict_types_input",
+                "label": "Conflict Types",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Common disagreement patterns"
+              },
+              {
+                "fieldName": "sensitiveTriggers",
+                "id": "sensitive_triggers_input",
+                "label": "Sensitive Triggers",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Topics that cause tension"
+              },
+              {
+                "fieldName": "relationshipGoals",
+                "id": "relationship_goals_input",
+                "label": "Relationship Goals",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Desired relationship outcomes"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "conversationStrategies",
+                "id": "conversation_strategies_output",
+                "label": "Conversation Strategies",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "preparationGuides",
+                "id": "preparation_guides_output",
+                "label": "Preparation Guides",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "recoveryTechniques",
+                "id": "recovery_techniques_output",
+                "label": "Recovery Techniques",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849772",
+          "language": "en",
+          "name": "Difficult Conversation Navigator",
+          "description": "Provides comprehensive strategies for handling challenging discussions.",
+          "instructions": "Provide conflict types and triggers. The routine will navigate conversations."
+        }
+      ]
+    }
+  ]
+}

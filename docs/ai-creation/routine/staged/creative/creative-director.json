@@ -1,0 +1,132 @@
+{
+  "id": "7892456378912348025",
+  "publicId": "creative-d-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912348026",
+      "publicId": "creative-dir-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of creative director for comprehensive creative vision and execution",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Creative",
+            "maxTokens": 900,
+            "temperature": 0.7,
+            "prompt": "You are a creative director providing strategic creative vision and execution guidance for impactful creative projects.\n\nProject Brief: {{input.projectBrief}}\nTarget Audience: {{input.targetAudience}}\nCreative Objectives: {{input.creativeObjectives}}\nBrand Context: {{input.brandContext}}\n\nDevelop comprehensive creative direction:\n\n1. **Creative Strategy**:\n   - Central creative concept development\n   - Unique artistic vision articulation\n   - Emotional positioning strategy\n   - Differentiation from competition\n   - Creative hierarchy establishment\n\n2. **Visual Direction**:\n   - Overall aesthetic framework\n   - Color palette and typography\n   - Photography/illustration style\n   - Layout and composition principles\n   - Visual storytelling approach\n\n3. **Content & Messaging**:\n   - Core narrative development\n   - Tone of voice definition\n   - Key message prioritization\n   - Storytelling framework\n   - Content format strategy\n\n4. **Execution Framework**:\n   - Creative asset requirements\n   - Production approach and timeline\n   - Quality standards and guidelines\n   - Collaboration protocols\n   - Review and approval process\n\n5. **Multi-Channel Adaptation**:\n   - Platform-specific optimizations\n   - Format versatility planning\n   - Consistency maintenance\n   - Scalability considerations\n   - Interactive element integration\n\n6. **Innovation & Trends**:\n   - Cutting-edge technique integration\n   - Emerging technology opportunities\n   - Cultural relevance assessment\n   - Future-proofing strategies\n   - Creative risk evaluation\n\n7. **Performance & Impact**:\n   - Success metric definitions\n   - Creative effectiveness measurement\n   - Audience engagement optimization\n   - Iterative improvement planning\n   - Long-term brand building\n\nProvide visionary creative direction that balances artistic excellence with strategic business objectives and audience resonance.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "projectBrief",
+                "id": "project_brief_input",
+                "label": "Project Brief",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the creative project: campaign, product launch, rebranding, content series, etc.",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What creative project needs direction?"
+                }
+              },
+              {
+                "fieldName": "targetAudience",
+                "id": "target_audience_input",
+                "label": "Target Audience",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Demographics, psychographics, behaviors, preferences, cultural context",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Who is the creative intended for?"
+                }
+              },
+              {
+                "fieldName": "creativeObjectives",
+                "id": "creative_objectives_input",
+                "label": "Creative Objectives",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Brand Awareness", "value": "awareness" },
+                    { "label": "Emotional Connection", "value": "emotional" },
+                    { "label": "Product Launch", "value": "launch" },
+                    { "label": "Behavior Change", "value": "behavior" },
+                    { "label": "Thought Leadership", "value": "leadership" },
+                    { "label": "Community Building", "value": "community" },
+                    { "label": "Sales/Conversion", "value": "sales" }
+                  ],
+                  "defaultValue": "awareness",
+                  "helperText": "Primary creative goal"
+                }
+              },
+              {
+                "fieldName": "brandContext",
+                "id": "brand_context_input",
+                "label": "Brand Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Brand personality, values, existing visual identity, voice, market position",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What is the brand foundation?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "creativeDirection",
+                "id": "creative_direction",
+                "label": "Creative Direction",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7892456378912348027",
+          "language": "en-US",
+          "name": "Creative Director",
+          "description": "Provides strategic creative vision and execution guidance, balancing artistic excellence with business objectives for impactful creative projects.",
+          "instructions": "Describe your creative project, target audience, and brand context. The director will develop comprehensive creative strategy and execution guidance."
+        }
+      ]
+    }
+  ]
+}

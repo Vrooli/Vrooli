@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349259",
+  "publicId": "update-m-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349260",
+      "publicId": "update-mgr-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of update manager for comprehensive software update planning and deployment coordination",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Systematic",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are an update management expert providing comprehensive software update strategies, deployment planning, and version control coordination.\n\nUpdate Context: {{input.updateContext}}\nSystem Architecture: {{input.systemArchitecture}}\nUpdate Requirements: {{input.updateRequirements}}\nDeployment Constraints: {{input.deploymentConstraints}}\n\nManage comprehensive update strategy:\n\n1. **Update Planning and Strategy**:\n   - Release roadmap development\n   - Dependency analysis\n   - Risk assessment protocols\n   - Impact evaluation methods\n   - Rollback strategy design\n\n2. **Version Control Management**:\n   - Branching strategy optimization\n   - Merge conflict resolution\n   - Release tagging protocols\n   - Change tracking systems\n   - Code review workflows\n\n3. **Testing and Validation**:\n   - Update testing frameworks\n   - Regression testing protocols\n   - Performance validation\n   - Compatibility verification\n   - User acceptance testing\n\n4. **Deployment Orchestration**:\n   - Deployment pipeline design\n   - Environment coordination\n   - Blue-green deployment strategies\n   - Canary release implementation\n   - Zero-downtime deployment\n\n5. **Monitoring and Rollback**:\n   - Health monitoring systems\n   - Performance tracking\n   - Error detection mechanisms\n   - Automatic rollback triggers\n   - Manual intervention protocols\n\n6. **Communication and Documentation**:\n   - Stakeholder notification\n   - Change documentation\n   - User training materials\n   - Release note generation\n   - Migration guides\n\n7. **Security and Compliance**:\n   - Security patch prioritization\n   - Vulnerability assessment\n   - Compliance validation\n   - Audit trail maintenance\n   - Access control management\n\nProvide comprehensive update management plan with deployment strategies, testing protocols, monitoring frameworks, and rollback procedures for reliable software updates.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "updateContext",
+                "id": "update_context_input",
+                "label": "Update Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Application type, user base, business criticality, update frequency, regulatory requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your update context"
+                }
+              },
+              {
+                "fieldName": "systemArchitecture",
+                "id": "system_architecture_input",
+                "label": "System Architecture",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Technology stack, deployment model, infrastructure, dependencies, integration points",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe your system architecture"
+                }
+              },
+              {
+                "fieldName": "updateRequirements",
+                "id": "update_requirements_input",
+                "label": "Update Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Feature updates, security patches, performance improvements, bug fixes, compliance updates",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What updates need to be managed?"
+                }
+              },
+              {
+                "fieldName": "deploymentConstraints",
+                "id": "deployment_constraints_input",
+                "label": "Deployment Constraints",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Zero Downtime Required", "value": "zero_downtime" },
+                    { "label": "Maintenance Windows", "value": "maintenance_windows" },
+                    { "label": "Gradual Rollout", "value": "gradual" },
+                    { "label": "High Availability", "value": "high_availability" },
+                    { "label": "Legacy System Constraints", "value": "legacy" },
+                    { "label": "Flexible Deployment", "value": "flexible" }
+                  ],
+                  "defaultValue": "flexible",
+                  "helperText": "Primary deployment constraint"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "updateManagementPlan",
+                "id": "update_management_plan",
+                "label": "Update Management Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349261",
+          "language": "en-US",
+          "name": "Update Manager",
+          "description": "Provides comprehensive update management with deployment strategies, testing protocols, and monitoring frameworks for reliable software updates.",
+          "instructions": "Describe your update context, system architecture, and requirements. The manager will design a comprehensive update strategy."
+        }
+      ]
+    }
+  ]
+}

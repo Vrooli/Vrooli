@@ -1,0 +1,106 @@
+{
+  "id": "7829564732190850061",
+  "publicId": "maint-prior-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850062",
+      "publicId": "maint-prior-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Prioritizes maintenance tasks by urgency",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "code": "function prioritizeMaintenanceTasks(input) {\n  const { scheduledTasks, riskAssessment, budgetConstraints } = input;\n  \n  const result = {\n    prioritizedTasks: [],\n    urgencyMatrix: {\n      critical: [],\n      high: [],\n      medium: [],\n      low: [],\n      optional: []\n    },\n    deferralOptions: []\n  };\n  \n  // Priority scoring factors\n  const SAFETY_WEIGHT = 0.4;\n  const DAMAGE_PREVENTION_WEIGHT = 0.3;\n  const COST_EFFICIENCY_WEIGHT = 0.2;\n  const CONVENIENCE_WEIGHT = 0.1;\n  \n  // Process each task\n  scheduledTasks.forEach(task => {\n    let priorityScore = 0;\n    \n    // Safety impact (0-10)\n    const safetyScore = riskAssessment[task.category]?.safetyRisk || 0;\n    priorityScore += safetyScore * SAFETY_WEIGHT;\n    \n    // Damage prevention (0-10)\n    const damageRisk = riskAssessment[task.category]?.damageRisk || 0;\n    priorityScore += damageRisk * DAMAGE_PREVENTION_WEIGHT;\n    \n    // Cost efficiency (preventive vs reactive)\n    const costRatio = task.preventiveCost / (task.reactiveCost || task.preventiveCost * 5);\n    const costScore = (1 - costRatio) * 10;\n    priorityScore += costScore * COST_EFFICIENCY_WEIGHT;\n    \n    // Convenience/comfort impact\n    const convenienceScore = task.impactOnComfort || 5;\n    priorityScore += convenienceScore * CONVENIENCE_WEIGHT;\n    \n    // Time sensitivity adjustment\n    if (task.overdue) {\n      priorityScore *= 1.5;\n    } else if (task.daysUntilDue < 30) {\n      priorityScore *= 1.2;\n    }\n    \n    // Budget constraint check\n    const budgetAvailable = budgetConstraints.available || Infinity;\n    const canAfford = task.estimatedCost <= budgetAvailable;\n    \n    // Categorize by urgency\n    let urgencyLevel;\n    if (priorityScore >= 8) urgencyLevel = 'critical';\n    else if (priorityScore >= 6) urgencyLevel = 'high';\n    else if (priorityScore >= 4) urgencyLevel = 'medium';\n    else if (priorityScore >= 2) urgencyLevel = 'low';\n    else urgencyLevel = 'optional';\n    \n    const prioritizedTask = {\n      ...task,\n      priorityScore: Math.round(priorityScore * 10) / 10,\n      urgencyLevel,\n      canAfford,\n      deferralRisk: damageRisk > 7 ? 'high' : damageRisk > 4 ? 'medium' : 'low'\n    };\n    \n    result.prioritizedTasks.push(prioritizedTask);\n    result.urgencyMatrix[urgencyLevel].push(prioritizedTask);\n    \n    // Identify deferrable tasks\n    if (urgencyLevel === 'low' || urgencyLevel === 'optional' || !canAfford) {\n      result.deferralOptions.push({\n        task: task.name,\n        reason: !canAfford ? 'budget' : 'low-priority',\n        deferralRisk: prioritizedTask.deferralRisk,\n        recommendedTimeframe: urgencyLevel === 'low' ? '3-6 months' : '6-12 months'\n      });\n    }\n  });\n  \n  // Sort tasks by priority score\n  result.prioritizedTasks.sort((a, b) => b.priorityScore - a.priorityScore);\n  \n  // Add summary statistics\n  result.summary = {\n    totalTasks: scheduledTasks.length,\n    criticalCount: result.urgencyMatrix.critical.length,\n    totalCost: result.prioritizedTasks.reduce((sum, task) => sum + (task.estimatedCost || 0), 0),\n    budgetGap: Math.max(0, result.summary?.totalCost - budgetConstraints.available)\n  };\n  \n  return result;\n}\n\n// Execute the prioritization\nconst output = prioritizeMaintenanceTasks(input);\nreturn output;",
+            "language": "javascript"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "scheduledTasks",
+                "id": "scheduled_tasks_input",
+                "label": "Maintenance Calendar",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List of scheduled maintenance tasks"
+                }
+              },
+              {
+                "fieldName": "riskAssessment",
+                "id": "risk_assessment_input",
+                "label": "Failure Impact",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Risk levels by system category"
+                }
+              },
+              {
+                "fieldName": "budgetConstraints",
+                "id": "budget_constraints_input",
+                "label": "Cost Factors",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Available budget and constraints"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "prioritizedTasks",
+                "id": "prioritized_tasks_output",
+                "label": "Ranked Maintenance",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "urgencyMatrix",
+                "id": "urgency_matrix_output",
+                "label": "Priority Levels",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "deferralOptions",
+                "id": "deferral_options_output",
+                "label": "Postponable Items",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850063",
+          "language": "en",
+          "name": "Maintenance Task Prioritizer",
+          "description": "Prioritizes home maintenance tasks based on safety, damage prevention, cost efficiency, and budget constraints.",
+          "instructions": "Provide scheduled tasks, risk assessments, and budget constraints. The routine will rank tasks by urgency and identify which can be safely deferred."
+        }
+      ]
+    }
+  ]
+}

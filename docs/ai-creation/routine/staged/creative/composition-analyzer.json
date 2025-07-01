@@ -1,0 +1,141 @@
+{
+  "id": "7892456378912347022",
+  "publicId": "comp-anal-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912347023",
+      "publicId": "compose-ana-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of composition analyzer for visual and creative content analysis",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Artistic",
+            "maxTokens": 700,
+            "temperature": 0.5,
+            "prompt": "You are a composition expert analyzing visual and creative content for structural and aesthetic elements.\n\nContent Type: {{input.contentType}}\nComposition Elements: {{input.compositionElements}}\nAnalysis Focus: {{input.analysisFocus}}\nStyle Context: {{input.styleContext}}\n\nAnalyze composition comprehensively:\n\n1. **Structural Analysis**:\n   - Rule of thirds application\n   - Leading lines and flow\n   - Balance and symmetry\n   - Framing and boundaries\n   - Negative space usage\n\n2. **Visual Hierarchy**:\n   - Focal point identification\n   - Visual weight distribution\n   - Eye movement patterns\n   - Information priority\n   - Attention guidance\n\n3. **Color Composition**:\n   - Color harmony analysis\n   - Contrast effectiveness\n   - Temperature balance\n   - Saturation distribution\n   - Emotional color impact\n\n4. **Rhythmic Elements**:\n   - Pattern recognition\n   - Repetition and variation\n   - Rhythm and movement\n   - Unity and coherence\n   - Visual tension\n\n5. **Depth and Dimension**:\n   - Layering techniques\n   - Perspective usage\n   - Scale relationships\n   - Overlap and positioning\n   - Three-dimensional effects\n\n6. **Emotional Impact**:\n   - Mood and atmosphere\n   - Psychological effects\n   - Cultural considerations\n   - Symbolic elements\n   - Storytelling aspects\n\n7. **Improvement Recommendations**:\n   - Compositional adjustments\n   - Element repositioning\n   - Color modifications\n   - Balance corrections\n   - Enhancement opportunities\n\nProvide specific, actionable feedback for improving compositional strength and visual impact.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "contentType",
+                "id": "content_type_input",
+                "label": "Content Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Photography", "value": "photo" },
+                    { "label": "Graphic Design", "value": "design" },
+                    { "label": "Web Layout", "value": "web" },
+                    { "label": "Illustration", "value": "illustration" },
+                    { "label": "Video Frame", "value": "video" },
+                    { "label": "Art/Painting", "value": "art" }
+                  ],
+                  "defaultValue": "photo",
+                  "helperText": "Type of visual content to analyze"
+                }
+              },
+              {
+                "fieldName": "compositionElements",
+                "id": "composition_elements_input",
+                "label": "Visual Elements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the visual elements: subjects, objects, colors, shapes, text",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Key visual elements in the composition"
+                }
+              },
+              {
+                "fieldName": "analysisFocus",
+                "id": "analysis_focus_input",
+                "label": "Analysis Focus",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Overall Composition", "value": "overall" },
+                    { "label": "Color Analysis", "value": "color" },
+                    { "label": "Balance & Flow", "value": "balance" },
+                    { "label": "Visual Impact", "value": "impact" },
+                    { "label": "Technical Quality", "value": "technical" }
+                  ],
+                  "defaultValue": "overall",
+                  "helperText": "Primary analysis focus"
+                }
+              },
+              {
+                "fieldName": "styleContext",
+                "id": "style_context_input",
+                "label": "Style Context",
+                "type": "Selector",
+                "isRequired": false,
+                "props": {
+                  "options": [
+                    { "label": "Modern/Contemporary", "value": "modern" },
+                    { "label": "Classic/Traditional", "value": "classic" },
+                    { "label": "Minimalist", "value": "minimal" },
+                    { "label": "Bold/Dramatic", "value": "bold" },
+                    { "label": "Artistic/Creative", "value": "artistic" }
+                  ],
+                  "defaultValue": "modern",
+                  "helperText": "Intended style or aesthetic"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "compositionAnalysis",
+                "id": "composition_analysis",
+                "label": "Composition Analysis",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 10
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912347024",
+          "language": "en-US",
+          "name": "Composition Analyzer",
+          "description": "Analyzes visual composition for structural elements, balance, color harmony, and visual impact with specific improvement recommendations.",
+          "instructions": "Describe the visual content and elements. The analyzer will evaluate composition principles and provide enhancement suggestions."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "id": "7829564732190850310",
+  "publicId": "workload-balancer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850311",
+      "publicId": "workload-balancer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Ensures fair distribution across the swarm",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "javascript",
+            "logic": "function balanceWorkload({ topCandidates, workloadScores, teamBalance }) {\n  const candidates = Array.isArray(topCandidates) ? topCandidates : [topCandidates].filter(Boolean);\n  const workloads = workloadScores || {};\n  const balancePreferences = teamBalance || getDefaultBalancePreferences();\n  \n  if (candidates.length === 0) {\n    return {\n      selectedAgent: null,\n      newUtilization: {},\n      distributionMetrics: {\n        error: 'No candidates available for assignment'\n      }\n    };\n  }\n  \n  // Calculate current team balance metrics\n  const currentBalance = calculateTeamBalance(workloads);\n  \n  // Evaluate each candidate for balance impact\n  const balanceEvaluations = candidates.map(candidate => {\n    return evaluateBalanceImpact(candidate, workloads, currentBalance, balancePreferences);\n  });\n  \n  // Select best candidate based on balance and performance\n  const selectedCandidate = selectOptimalCandidate(balanceEvaluations, balancePreferences);\n  \n  // Calculate new utilization after assignment\n  const newUtilization = calculateNewUtilization(workloads, selectedCandidate);\n  \n  // Generate distribution metrics\n  const distributionMetrics = generateDistributionMetrics(currentBalance, newUtilization, selectedCandidate);\n  \n  function getDefaultBalancePreferences() {\n    return {\n      maxUtilizationDifference: 30, // Max difference between highest and lowest utilization\n      preferUnderutilized: true,     // Prefer assigning to less busy agents\n      balanceWeight: 0.3,            // How much to weight balance vs pure performance\n      avoidOverload: true,           // Avoid pushing agents over 90% utilization\n      fairnessThreshold: 20          // Maximum acceptable unfairness in distribution\n    };\n  }\n  \n  function calculateTeamBalance(workloads) {\n    const utilizationValues = Object.values(workloads)\n      .filter(w => w && typeof w.utilizationPercentage === 'number')\n      .map(w => w.utilizationPercentage);\n    \n    if (utilizationValues.length === 0) {\n      return {\n        averageUtilization: 0,\n        maxUtilization: 0,\n        minUtilization: 0,\n        utilizationSpread: 0,\n        balanceScore: 100,\n        teamSize: 0\n      };\n    }\n    \n    const avgUtilization = utilizationValues.reduce((sum, u) => sum + u, 0) / utilizationValues.length;\n    const maxUtilization = Math.max(...utilizationValues);\n    const minUtilization = Math.min(...utilizationValues);\n    const utilizationSpread = maxUtilization - minUtilization;\n    \n    // Calculate balance score (100 = perfectly balanced, 0 = very unbalanced)\n    const balanceScore = Math.max(0, 100 - (utilizationSpread * 2));\n    \n    return {\n      averageUtilization: Math.round(avgUtilization),\n      maxUtilization: maxUtilization,\n      minUtilization: minUtilization,\n      utilizationSpread: utilizationSpread,\n      balanceScore: Math.round(balanceScore),\n      teamSize: utilizationValues.length,\n      utilizationDistribution: calculateUtilizationDistribution(utilizationValues)\n    };\n  }\n  \n  function calculateUtilizationDistribution(values) {\n    const distribution = {\n      underutilized: 0,  // < 30%\n      light: 0,          // 30-50%\n      moderate: 0,       // 50-70%\n      heavy: 0,          // 70-90%\n      overloaded: 0      // > 90%\n    };\n    \n    values.forEach(utilization => {\n      if (utilization < 30) distribution.underutilized++;\n      else if (utilization < 50) distribution.light++;\n      else if (utilization < 70) distribution.moderate++;\n      else if (utilization < 90) distribution.heavy++;\n      else distribution.overloaded++;\n    });\n    \n    return distribution;\n  }\n  \n  function evaluateBalanceImpact(candidate, workloads, currentBalance, preferences) {\n    const agentId = candidate.agentId;\n    const currentWorkload = workloads[agentId] || { utilizationPercentage: 0 };\n    const currentUtilization = currentWorkload.utilizationPercentage || 0;\n    \n    // Estimate new utilization after this task\n    const estimatedTaskLoad = estimateTaskWorkload(candidate);\n    const newUtilization = Math.min(100, currentUtilization + estimatedTaskLoad);\n    \n    // Calculate balance impact\n    const balanceImpact = calculateBalanceImpact(newUtilization, currentBalance, preferences);\n    \n    // Calculate composite score (performance + balance)\n    const performanceScore = candidate.matchScore || 50;\n    const balanceScore = balanceImpact.balanceScore;\n    const compositeScore = (performanceScore * (1 - preferences.balanceWeight)) + \n                          (balanceScore * preferences.balanceWeight);\n    \n    return {\n      agentId: agentId,\n      candidate: candidate,\n      currentUtilization: currentUtilization,\n      estimatedNewUtilization: newUtilization,\n      estimatedTaskLoad: estimatedTaskLoad,\n      balanceImpact: balanceImpact,\n      performanceScore: performanceScore,\n      balanceScore: balanceScore,\n      compositeScore: Math.round(compositeScore),\n      recommendation: generateAssignmentRecommendation(balanceImpact, performanceScore, newUtilization, preferences)\n    };\n  }\n  \n  function estimateTaskWorkload(candidate) {\n    // Base task load estimation (can be refined with more context)\n    const baseLoad = 15; // Default task uses ~15% capacity\n    \n    // Adjust based on complexity if available\n    if (candidate.complexity) {\n      const complexityMultiplier = (candidate.complexity / 50); // Scale from complexity score\n      return Math.round(baseLoad * complexityMultiplier);\n    }\n    \n    // Adjust based on skill match (better match = more efficient = less load)\n    if (candidate.skillMatch && candidate.skillMatch.matchPercentage) {\n      const efficiencyFactor = candidate.skillMatch.matchPercentage / 100;\n      return Math.round(baseLoad / Math.max(0.5, efficiencyFactor));\n    }\n    \n    return baseLoad;\n  }\n  \n  function calculateBalanceImpact(newUtilization, currentBalance, preferences) {\n    // Calculate how this assignment affects team balance\n    const currentSpread = currentBalance.utilizationSpread;\n    const avgUtilization = currentBalance.averageUtilization;\n    \n    // Distance from average (prefer assignments that bring agents closer to average)\n    const distanceFromAverage = Math.abs(newUtilization - avgUtilization);\n    \n    // Overload risk\n    const overloadRisk = newUtilization > 90 ? (newUtilization - 90) * 5 : 0;\n    \n    // Fairness impact (how much this changes the spread)\n    const fairnessImpact = distanceFromAverage > currentSpread ? \n      (distanceFromAverage - currentSpread) * 2 : 0;\n    \n    // Calculate balance score (higher is better for balance)\n    let balanceScore = 100;\n    balanceScore -= distanceFromAverage; // Penalty for being far from average\n    balanceScore -= overloadRisk;        // Penalty for overloading\n    balanceScore -= fairnessImpact;      // Penalty for increasing unfairness\n    \n    // Bonus for balancing underutilized agents\n    if (preferences.preferUnderutilized && newUtilization < avgUtilization) {\n      balanceScore += 15;\n    }\n    \n    return {\n      balanceScore: Math.max(0, Math.round(balanceScore)),\n      distanceFromAverage: Math.round(distanceFromAverage),\n      overloadRisk: Math.round(overloadRisk),\n      fairnessImpact: Math.round(fairnessImpact),\n      improvesBalance: distanceFromAverage < currentSpread / 2\n    };\n  }\n  \n  function generateAssignmentRecommendation(balanceImpact, performanceScore, newUtilization, preferences) {\n    const reasons = [];\n    \n    if (performanceScore >= 80) {\n      reasons.push('Excellent skill match');\n    } else if (performanceScore >= 60) {\n      reasons.push('Good skill match');\n    } else {\n      reasons.push('Acceptable skill match');\n    }\n    \n    if (balanceImpact.improvesBalance) {\n      reasons.push('Improves team balance');\n    } else if (balanceImpact.balanceScore >= 70) {\n      reasons.push('Maintains good balance');\n    } else {\n      reasons.push('May impact team balance');\n    }\n    \n    if (newUtilization > 90) {\n      reasons.push('WARNING: May overload agent');\n    } else if (newUtilization > 80) {\n      reasons.push('High utilization after assignment');\n    } else if (newUtilization < 40) {\n      reasons.push('Utilizes underused capacity');\n    }\n    \n    return reasons;\n  }\n  \n  function selectOptimalCandidate(evaluations, preferences) {\n    if (evaluations.length === 0) return null;\n    \n    // Filter out candidates that would cause overload if preference is set\n    let viableCandidates = evaluations;\n    if (preferences.avoidOverload) {\n      const nonOverloadCandidates = evaluations.filter(e => e.estimatedNewUtilization <= 90);\n      if (nonOverloadCandidates.length > 0) {\n        viableCandidates = nonOverloadCandidates;\n      }\n    }\n    \n    // Sort by composite score (performance + balance)\n    viableCandidates.sort((a, b) => b.compositeScore - a.compositeScore);\n    \n    // Additional tie-breaking criteria\n    if (viableCandidates.length > 1 && \n        Math.abs(viableCandidates[0].compositeScore - viableCandidates[1].compositeScore) <= 5) {\n      \n      // Prefer better balance if scores are close\n      if (preferences.preferUnderutilized) {\n        viableCandidates.sort((a, b) => a.currentUtilization - b.currentUtilization);\n      }\n    }\n    \n    return viableCandidates[0];\n  }\n  \n  function calculateNewUtilization(workloads, selectedCandidate) {\n    if (!selectedCandidate) return workloads;\n    \n    const newUtilization = { ...workloads };\n    const agentId = selectedCandidate.agentId;\n    \n    if (newUtilization[agentId]) {\n      newUtilization[agentId] = {\n        ...newUtilization[agentId],\n        utilizationPercentage: selectedCandidate.estimatedNewUtilization,\n        activeTasks: (newUtilization[agentId].activeTasks || 0) + 1,\n        lastAssigned: new Date().toISOString()\n      };\n    }\n    \n    return newUtilization;\n  }\n  \n  function generateDistributionMetrics(currentBalance, newUtilization, selectedCandidate) {\n    if (!selectedCandidate) {\n      return {\n        error: 'No candidate selected',\n        currentBalance: currentBalance\n      };\n    }\n    \n    const newBalance = calculateTeamBalance(newUtilization);\n    \n    const balanceChange = {\n      utilizationSpreadChange: newBalance.utilizationSpread - currentBalance.utilizationSpread,\n      balanceScoreChange: newBalance.balanceScore - currentBalance.balanceScore,\n      averageUtilizationChange: newBalance.averageUtilization - currentBalance.averageUtilization\n    };\n    \n    const assignmentImpact = {\n      selectedAgent: selectedCandidate.agentId,\n      assignmentReason: selectedCandidate.recommendation,\n      performanceScore: selectedCandidate.performanceScore,\n      balanceScore: selectedCandidate.balanceScore,\n      compositeScore: selectedCandidate.compositeScore,\n      utilizationBefore: selectedCandidate.currentUtilization,\n      utilizationAfter: selectedCandidate.estimatedNewUtilization\n    };\n    \n    const teamMetrics = {\n      beforeAssignment: currentBalance,\n      afterAssignment: newBalance,\n      balanceChange: balanceChange,\n      balanceImprovement: balanceChange.balanceScoreChange > 0,\n      utilizationDistribution: newBalance.utilizationDistribution\n    };\n    \n    const recommendations = generateBalanceRecommendations(newBalance, balanceChange);\n    \n    return {\n      assignmentImpact: assignmentImpact,\n      teamMetrics: teamMetrics,\n      recommendations: recommendations,\n      balanceHealth: assessBalanceHealth(newBalance)\n    };\n  }\n  \n  function generateBalanceRecommendations(newBalance, balanceChange) {\n    const recommendations = [];\n    \n    if (newBalance.balanceScore < 60) {\n      recommendations.push('Team balance is degrading - consider workload redistribution');\n    }\n    \n    if (newBalance.utilizationSpread > 40) {\n      recommendations.push('High utilization spread - some agents may be overworked');\n    }\n    \n    if (newBalance.utilizationDistribution.overloaded > 0) {\n      recommendations.push(`${newBalance.utilizationDistribution.overloaded} agents are overloaded`);\n    }\n    \n    if (newBalance.utilizationDistribution.underutilized > newBalance.teamSize * 0.3) {\n      recommendations.push('Many agents are underutilized - opportunity for more work');\n    }\n    \n    if (balanceChange.balanceScoreChange > 5) {\n      recommendations.push('Assignment improved team balance');\n    } else if (balanceChange.balanceScoreChange < -5) {\n      recommendations.push('Assignment reduced team balance - monitor future assignments');\n    }\n    \n    return recommendations;\n  }\n  \n  function assessBalanceHealth(balance) {\n    if (balance.balanceScore >= 80) return 'excellent';\n    if (balance.balanceScore >= 60) return 'good';\n    if (balance.balanceScore >= 40) return 'fair';\n    return 'poor';\n  }\n  \n  return {\n    selectedAgent: selectedCandidate ? selectedCandidate.agentId : null,\n    newUtilization: newUtilization,\n    distributionMetrics: distributionMetrics\n  };\n}"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "topCandidates",
+                "id": "top_candidates_input",
+                "label": "Best Matches",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Top candidate agents for task assignment"
+                }
+              },
+              {
+                "fieldName": "workloadScores",
+                "id": "workload_scores_input",
+                "label": "Utilization Metrics",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Current workload and utilization data"
+                }
+              },
+              {
+                "fieldName": "teamBalance",
+                "id": "team_balance_input",
+                "label": "Balance Preferences",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Workload balancing preferences and policies"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "selectedAgent",
+                "id": "selected_agent_output",
+                "label": "Final Assignment",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "newUtilization",
+                "id": "new_utilization_output",
+                "label": "Workload Impact",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "distributionMetrics",
+                "id": "distribution_metrics_output",
+                "label": "Balance Score",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850312",
+          "language": "en",
+          "name": "Workload Balancer",
+          "description": "Ensures fair distribution across the swarm using balance impact analysis, utilization optimization, and team fairness algorithms.",
+          "instructions": "Provide top candidates, workload scores, and balance preferences. The routine will select the optimal agent while maintaining fair workload distribution."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,189 @@
+{
+  "id": "7892456378912349172",
+  "publicId": "operat-m-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349173",
+      "publicId": "operat-mon-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of operation monitor for comprehensive operational health and performance monitoring",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are an operations monitoring expert providing comprehensive operational health assessment, performance tracking, and incident detection.
+
+System Operations: {{input.systemOperations}}
+Monitoring Scope: {{input.monitoringScope}}
+Current Metrics: {{input.currentMetrics}}
+Monitoring Objectives: {{input.monitoringObjectives}}
+
+Monitor comprehensive operational health:
+
+1. **Operational Health Assessment**:
+   - Service availability monitoring
+   - Component health checks
+   - Dependency status tracking
+   - Resource utilization analysis
+   - Performance baseline comparison
+
+2. **Real-time Performance Monitoring**:
+   - Response time tracking
+   - Throughput measurement
+   - Error rate monitoring
+   - Queue depth analysis
+   - Concurrent user tracking
+
+3. **Incident Detection and Analysis**:
+   - Anomaly detection patterns
+   - Threshold breach identification
+   - Trend deviation analysis
+   - Predictive failure detection
+   - Root cause correlation
+
+4. **Business Process Monitoring**:
+   - Transaction flow tracking
+   - SLA compliance measurement
+   - Business KPI monitoring
+   - User experience metrics
+   - Revenue impact analysis
+
+5. **Infrastructure Monitoring**:
+   - Server health tracking
+   - Network performance monitoring
+   - Database performance metrics
+   - Storage utilization tracking
+   - Container/pod monitoring
+
+6. **Alert Management and Escalation**:
+   - Alert priority classification
+   - Escalation path definition
+   - Notification channel management
+   - Alert fatigue prevention
+   - Incident correlation rules
+
+7. **Reporting and Visualization**:
+   - Executive dashboard design
+   - Operational report generation
+   - Trend analysis visualization
+   - Capacity planning insights
+   - Performance forecasting
+
+Provide comprehensive operational monitoring report with health assessments, performance metrics, incident analysis, and improvement recommendations for optimal system operations.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "systemOperations",
+                "id": "system_operations_input",
+                "label": "System Operations",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "System components, services, business processes, user workflows, integration points",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe the systems and operations to monitor"
+                }
+              },
+              {
+                "fieldName": "monitoringScope",
+                "id": "monitoring_scope_input",
+                "label": "Monitoring Scope",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Infrastructure layers, application tiers, geographic regions, business functions",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What needs to be monitored?"
+                }
+              },
+              {
+                "fieldName": "currentMetrics",
+                "id": "current_metrics_input",
+                "label": "Current Metrics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Existing monitoring tools, collected metrics, alert thresholds, reporting frequency",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe current monitoring setup"
+                }
+              },
+              {
+                "fieldName": "monitoringObjectives",
+                "id": "monitoring_objectives_input",
+                "label": "Monitoring Objectives",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Uptime Maximization", "value": "uptime" },
+                    { "label": "Performance Optimization", "value": "performance" },
+                    { "label": "Incident Prevention", "value": "prevention" },
+                    { "label": "Cost Management", "value": "cost" },
+                    { "label": "Compliance Tracking", "value": "compliance" },
+                    { "label": "Comprehensive Monitoring", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary monitoring objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "operationalMonitoringReport",
+                "id": "operational_monitoring_report",
+                "label": "Operational Monitoring Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349174",
+          "language": "en-US",
+          "name": "Operation Monitor",
+          "description": "Provides comprehensive operational monitoring with health assessment, performance tracking, and incident detection for optimal system operations.",
+          "instructions": "Describe your system operations, monitoring scope, and objectives. The monitor will analyze operational health and performance."
+        }
+      ]
+    }
+  ]
+}

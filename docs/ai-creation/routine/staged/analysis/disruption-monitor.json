@@ -1,0 +1,130 @@
+{
+  "id": "7892456378912349073",
+  "publicId": "disruption-m-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349074",
+      "publicId": "disrupt-mon-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of disruption monitor for continuous disruption detection and early warning systems",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Vigilant",
+            "maxTokens": 800,
+            "temperature": 0.2,
+            "prompt": "You are a disruption monitoring expert providing continuous surveillance and early warning systems for potential disruption events.\n\nMonitoring Scope: {{input.monitoringScope}}\nCritical Systems: {{input.criticalSystems}}\nWarning Indicators: {{input.warningIndicators}}\nMonitoring Frequency: {{input.monitoringFrequency}}\n\nEstablish comprehensive disruption monitoring:\n\n1. **Monitoring Framework Design**:\n   - Key indicator identification\n   - Threshold and trigger definition\n   - Alert severity classification\n   - Monitoring tool integration\n   - Data source coordination\n\n2. **Early Warning System**:\n   - Predictive signal detection\n   - Anomaly pattern recognition\n   - Trend deviation analysis\n   - Risk escalation triggers\n   - Pre-disruption indicators\n\n3. **Real-time Surveillance**:\n   - Continuous system monitoring\n   - Performance metric tracking\n   - Environmental factor assessment\n   - Stakeholder feedback monitoring\n   - Market condition surveillance\n\n4. **Alert and Notification System**:\n   - Multi-channel alert distribution\n   - Stakeholder notification protocols\n   - Escalation path automation\n   - Priority-based messaging\n   - Response team activation\n\n5. **Data Collection and Analysis**:\n   - Multi-source data aggregation\n   - Pattern recognition algorithms\n   - Historical trend comparison\n   - Correlation analysis\n   - Predictive modeling\n\n6. **Response Coordination**:\n   - Incident response triggering\n   - Team mobilization protocols\n   - Resource allocation automation\n   - Communication coordination\n   - Documentation procedures\n\n7. **Continuous Improvement**:\n   - Monitoring effectiveness review\n   - False positive reduction\n   - Threshold optimization\n   - Coverage gap identification\n   - System enhancement planning\n\nProvide detailed disruption monitoring plan with surveillance frameworks, alert systems, and response protocols for proactive disruption management.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "monitoringScope",
+                "id": "monitoring_scope_input",
+                "label": "Monitoring Scope",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What needs monitoring: operations, markets, technology, environment, regulations",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What should be monitored for disruptions?"
+                }
+              },
+              {
+                "fieldName": "criticalSystems",
+                "id": "critical_systems_input",
+                "label": "Critical Systems",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Most important systems, processes, dependencies that require monitoring",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Which systems are most critical to monitor?"
+                }
+              },
+              {
+                "fieldName": "warningIndicators",
+                "id": "warning_indicators_input",
+                "label": "Warning Indicators",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Metrics, signals, patterns that indicate potential disruptions",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What are the key warning signs to watch for?"
+                }
+              },
+              {
+                "fieldName": "monitoringFrequency",
+                "id": "monitoring_frequency_input",
+                "label": "Monitoring Frequency",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Real-time Continuous", "value": "realtime" },
+                    { "label": "Every Few Minutes", "value": "minutes" },
+                    { "label": "Hourly Checks", "value": "hourly" },
+                    { "label": "Daily Reviews", "value": "daily" },
+                    { "label": "Weekly Assessments", "value": "weekly" }
+                  ],
+                  "defaultValue": "hourly",
+                  "helperText": "How frequently should monitoring occur?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "disruptionMonitoringPlan",
+                "id": "disruption_monitoring_plan",
+                "label": "Disruption Monitoring Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 12
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349075",
+          "language": "en-US",
+          "name": "Disruption Monitor",
+          "description": "Establishes comprehensive disruption monitoring systems with early warning capabilities, real-time surveillance, and automated response protocols for proactive management.",
+          "instructions": "Define monitoring scope, critical systems, and warning indicators. The monitor will create surveillance frameworks and alert systems."
+        }
+      ]
+    }
+  ]
+}

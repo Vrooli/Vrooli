@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850115",
+  "publicId": "conflict-res-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850116",
+      "publicId": "conflict-res-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Resolves scheduling conflicts intelligently",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are a scheduling expert resolving calendar conflicts. Analyze overlapping commitments and provide solutions.\n\nOverlapping Items:\n{{input.overlappingItems}}\n\nOptimized Schedule:\n{{input.efficientArrangement}}\n\nResolution Preferences:\n{{input.resolutionPreferences}}\n\nResolve scheduling conflicts:\n\n1. **Conflict Analysis**:\n   For each conflict:\n   - Identify overlapping time periods\n   - Assess impact of each conflicting item\n   - Determine flexibility and movability\n   - Evaluate consequences of delays\n   - Consider dependencies and deadlines\n\n2. **Resolution Strategies**:\n   Apply conflict resolution methods:\n   - **Time shifting**: Move flexible items to available slots\n   - **Duration compression**: Reduce task time with focused approach\n   - **Task splitting**: Break large tasks into smaller chunks\n   - **Priority override**: Reschedule lower priority items\n   - **Resource reallocation**: Delegate or defer tasks\n   - **Buffer utilization**: Use planned buffer time\n\n3. **Alternative Solutions**:\n   For each conflict, provide 2-3 options:\n   - Option A: Minimal disruption approach\n   - Option B: Optimization-focused approach\n   - Option C: Emergency/deadline-driven approach\n   \n   Include:\n   - New time slots for moved items\n   - Impact assessment\n   - Trade-offs and compromises\n   - Implementation difficulty\n\n4. **Warning System**:\n   Flag potential issues:\n   - Critical deadlines at risk\n   - Overcommitment patterns\n   - Insufficient buffer time\n   - Energy mismatch after changes\n   - Cascading schedule impacts\n\nProvide output as JSON with:\n- resolvedConflicts: Clean schedule with resolved overlaps\n- alternativeOptions: Multiple resolution approaches\n- warningFlags: Potential issues to monitor",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "overlappingItems",
+                "id": "overlapping_items_input",
+                "label": "Conflict Resolution",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Conflicting schedule items"
+                }
+              },
+              {
+                "fieldName": "efficientArrangement",
+                "id": "efficient_arrangement_input",
+                "label": "Optimized Schedule",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Current optimized arrangement"
+                }
+              },
+              {
+                "fieldName": "resolutionPreferences",
+                "id": "resolution_preferences_input",
+                "label": "Conflict Handling",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Resolution preferences and constraints"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "resolvedConflicts",
+                "id": "resolved_conflicts_output",
+                "label": "Clean Schedule",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "alternativeOptions",
+                "id": "alternative_options_output",
+                "label": "Rescheduling Choices",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "warningFlags",
+                "id": "warning_flags_output",
+                "label": "Potential Issues",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850117",
+          "language": "en",
+          "name": "Conflict Resolution (Reasoning)",
+          "description": "Resolves scheduling conflicts and overlapping commitments with multiple solution options.",
+          "instructions": "Provide overlapping items, optimized schedule, and resolution preferences. The routine will resolve conflicts and provide alternatives."
+        }
+      ]
+    }
+  ]
+}

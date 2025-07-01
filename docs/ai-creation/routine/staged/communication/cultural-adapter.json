@@ -1,0 +1,133 @@
+{
+  "id": "7892456378912349007",
+  "publicId": "cultural-ad-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349008",
+      "publicId": "cult-adapt-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of cultural adapter for cross-cultural content and communication adaptation",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Diplomatic",
+            "maxTokens": 800,
+            "temperature": 0.6,
+            "prompt": "You are a cultural adaptation expert helping navigate cross-cultural communication and content localization.\n\nSource Culture: {{input.sourceCulture}}\nTarget Culture: {{input.targetCulture}}\nContent Type: {{input.contentType}}\nAdaptation Goals: {{input.adaptationGoals}}\n\nAdapt content for cultural appropriateness:\n\n1. **Cultural Context Analysis**:\n   - Key cultural differences identification\n   - Value system comparisons\n   - Communication style variations\n   - Social norm differences\n   - Business etiquette considerations\n\n2. **Language & Communication**:\n   - Linguistic adaptation needs\n   - Formality level adjustments\n   - Direct vs indirect communication\n   - Non-verbal communication factors\n   - Silence and pause interpretations\n\n3. **Content Localization**:\n   - Cultural reference updates\n   - Metaphor and analogy replacement\n   - Color and symbol significance\n   - Religious and cultural sensitivity\n   - Historical context awareness\n\n4. **Visual & Design Adaptation**:\n   - Color psychology differences\n   - Layout and reading patterns\n   - Image and icon appropriateness\n   - Typography considerations\n   - Aesthetic preferences\n\n5. **Business Cultural Factors**:\n   - Decision-making processes\n   - Hierarchy and authority\n   - Relationship building approaches\n   - Time and scheduling concepts\n   - Negotiation styles\n\n6. **Sensitivity Considerations**:\n   - Taboo topics identification\n   - Religious considerations\n   - Political sensitivities\n   - Gender and social roles\n   - Economic awareness\n\n7. **Implementation Guidance**:\n   - Adaptation priority levels\n   - Testing and validation approaches\n   - Local expert consultation\n   - Feedback collection methods\n   - Continuous improvement\n\nProvide culturally sensitive adaptations that maintain effectiveness while respecting local customs and values.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "sourceCulture",
+                "id": "source_culture_input",
+                "label": "Source Culture",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Original culture/country where content was created",
+                  "helperText": "Where is the content originally from?"
+                }
+              },
+              {
+                "fieldName": "targetCulture",
+                "id": "target_culture_input",
+                "label": "Target Culture",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Target culture/country for adaptation",
+                  "helperText": "Which culture should this be adapted for?"
+                }
+              },
+              {
+                "fieldName": "contentType",
+                "id": "content_type_input",
+                "label": "Content Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Marketing Material", "value": "marketing" },
+                    { "label": "Business Communication", "value": "business" },
+                    { "label": "Product Documentation", "value": "documentation" },
+                    { "label": "Website Content", "value": "website" },
+                    { "label": "Training Material", "value": "training" },
+                    { "label": "Social Media", "value": "social" },
+                    { "label": "Legal/Compliance", "value": "legal" }
+                  ],
+                  "defaultValue": "marketing",
+                  "helperText": "Type of content being adapted"
+                }
+              },
+              {
+                "fieldName": "adaptationGoals",
+                "id": "adaptation_goals_input",
+                "label": "Adaptation Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Avoid Cultural Offense", "value": "avoid_offense" },
+                    { "label": "Maximize Engagement", "value": "engagement" },
+                    { "label": "Ensure Understanding", "value": "understanding" },
+                    { "label": "Build Trust", "value": "trust" },
+                    { "label": "Comply with Regulations", "value": "compliance" }
+                  ],
+                  "defaultValue": "understanding",
+                  "helperText": "Primary goal of cultural adaptation"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "culturalAdaptation",
+                "id": "cultural_adaptation",
+                "label": "Cultural Adaptation Guide",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 10
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349009",
+          "language": "en-US",
+          "name": "Cultural Adapter",
+          "description": "Adapts content and communication for different cultures, ensuring cultural sensitivity and effectiveness across cultural boundaries.",
+          "instructions": "Specify source and target cultures with content type. The adapter will provide culturally appropriate modifications and recommendations."
+        }
+      ]
+    }
+  ]
+}

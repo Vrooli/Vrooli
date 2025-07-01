@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850172",
+  "publicId": "goal-align-analyze-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850173",
+      "publicId": "goal-align-analyze-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes goal alignment with activities",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "You are a strategic alignment specialist. Evaluate how well daily activities align with stated objectives and goals.\n\nCurrent Goals:\n{{input.currentGoals}}\n\nTime Distribution:\n{{input.activityBreakdown}}\n\nProgress Metrics:\n{{input.progressMetrics}}\n\nAnalyze goal alignment:\n\n1. **Goal-Activity Mapping**:\n   For each goal, assess:\n   - **Direct Contributing Activities**: Tasks that directly advance the goal\n   - **Indirect Supporting Activities**: Tasks that support goal achievement\n   - **Neutral Activities**: Tasks neither helping nor hindering goals\n   - **Conflicting Activities**: Tasks that work against goal achievement\n   - **Time Allocation**: Percentage of time spent on goal-related activities\n   - **Quality of Effort**: Intensity and focus level on goal activities\n\n2. **Alignment Scoring**:\n   Calculate alignment metrics:\n   - **Overall Alignment Score**: Weighted average across all goals\n   - **Goal Priority vs Time Spent**: How well time allocation matches goal importance\n   - **Progress Rate**: Actual advancement toward goals\n   - **Efficiency Ratio**: Progress achieved per time invested\n   - **Consistency Score**: Regular vs sporadic effort on goals\n\n3. **Misalignment Analysis**:\n   Identify disconnects:\n   - **Time Spent on Non-Goals**: Activities consuming time without goal advancement\n   - **Neglected High-Priority Goals**: Important objectives getting insufficient attention\n   - **Scattered Effort**: Spreading time too thin across too many goals\n   - **Reactive vs Proactive**: Time spent responding vs purposefully working toward goals\n   - **Short-term vs Long-term**: Balance between immediate needs and future objectives\n\n4. **Focus Opportunities**:\n   Recommend improvements:\n   - **High-Impact Activities**: Tasks with maximum goal advancement potential\n   - **Quick Wins**: Easy changes with immediate alignment improvement\n   - **Resource Reallocation**: Moving time from low-value to high-value activities\n   - **Goal Prioritization**: Focusing effort on most important objectives\n   - **Elimination Candidates**: Activities to stop or delegate\n\nProvide output as JSON with:\n- alignmentScore: Goal-activity match analysis\n- misalignedEfforts: Activities that don't support goals\n- priorityGaps: Focus opportunities and recommendations",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "currentGoals",
+                "id": "current_goals_input",
+                "label": "Objective Targets",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Current goals and objectives"
+                }
+              },
+              {
+                "fieldName": "activityBreakdown",
+                "id": "activity_breakdown_input",
+                "label": "Time Distribution",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "How time is currently spent"
+                }
+              },
+              {
+                "fieldName": "progressMetrics",
+                "id": "progress_metrics_input",
+                "label": "Goal Progress",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Progress measurements and tracking data"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "alignmentScore",
+                "id": "alignment_score_output",
+                "label": "Goal Activity Match",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "misalignedEfforts",
+                "id": "misaligned_efforts_output",
+                "label": "Off Target Activities",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "priorityGaps",
+                "id": "priority_gaps_output",
+                "label": "Focus Opportunities",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850174",
+          "language": "en",
+          "name": "Goal Alignment Analyzer",
+          "description": "Evaluates how well activities align with stated objectives and identifies focus opportunities.",
+          "instructions": "Provide current goals, activity breakdown, and progress metrics. The routine will assess alignment and suggest improvements."
+        }
+      ]
+    }
+  ]
+}

@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Extract Key Information",
                 "description": "Identifies and extracts relevant data points and insights",
-                "subroutineId": "TODO: Need information extraction subroutine",
+                "subroutineId": "7829564732190850334",
                 "inputMap": {
                   "researchMaterials": "sourceCollection",
                   "relevanceFilters": "inclusionCriteria",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Analyze & Compare Findings",
                 "description": "Performs comparative analysis and identifies patterns",
-                "subroutineId": "TODO: Need comparative analysis subroutine",
+                "subroutineId": "7829564732190850337",
                 "inputMap": {
                   "keyFindings": "extractedData",
                   "analysisFramework": "comparisonMethods",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Synthesize Coherent Narrative",
                 "description": "Integrates findings into unified understanding",
-                "subroutineId": "TODO: Need synthesis subroutine",
+                "subroutineId": "7829564732190850340",
                 "inputMap": {
                   "emergentThemes": "patternAnalysis",
                   "supportingData": "evidenceChain",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Research Output",
                 "description": "Creates comprehensive research deliverables",
-                "subroutineId": "TODO: Need output generation subroutine",
+                "subroutineId": "7829564732190850343",
                 "inputMap": {
                   "integratedFindings": "synthesisNarrative",
                   "outputRequirements": "deliverableSpecs",

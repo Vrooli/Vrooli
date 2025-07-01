@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349145",
+  "publicId": "guidelines-c-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349146",
+      "publicId": "guide-creat-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of guidelines creator for comprehensive guideline and policy development",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Systematic",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a guidelines development expert creating comprehensive, clear, and actionable guidelines and policies for effective organizational governance and operations.\n\nGuideline Purpose: {{input.guidelinePurpose}}\nTarget Audience: {{input.targetAudience}}\nScope and Context: {{input.scopeAndContext}}\nCompliance Requirements: {{input.complianceRequirements}}\n\nDevelop comprehensive guidelines:\n\n1. **Purpose and Scope Definition**:\n   - Objective and rationale clarification\n   - Scope and boundary establishment\n   - Applicability and coverage definition\n   - Authority and responsibility assignment\n   - Legal and regulatory context\n\n2. **Policy Framework Development**:\n   - Core principles and values\n   - Key policy statements\n   - Decision-making criteria\n   - Governance structure definition\n   - Accountability mechanisms\n\n3. **Detailed Procedure Documentation**:\n   - Step-by-step process documentation\n   - Role and responsibility mapping\n   - Required actions and timelines\n   - Decision points and approval gates\n   - Exception handling procedures\n\n4. **Standards and Criteria Establishment**:\n   - Quality and performance standards\n   - Compliance measurement criteria\n   - Acceptance and rejection thresholds\n   - Documentation requirements\n   - Review and audit protocols\n\n5. **Implementation Guidance**:\n   - Rollout and training strategies\n   - Communication and awareness plans\n   - Resource and tool requirements\n   - Support and assistance mechanisms\n   - Change management considerations\n\n6. **Monitoring and Compliance Framework**:\n   - Compliance monitoring methods\n   - Reporting and documentation requirements\n   - Violation identification and response\n   - Corrective action procedures\n   - Continuous improvement processes\n\n7. **Review and Maintenance Protocols**:\n   - Regular review schedules\n   - Update and revision procedures\n   - Stakeholder feedback integration\n   - Version control and documentation\n   - Effectiveness evaluation methods\n\nProvide comprehensive guidelines with clear structure, actionable procedures, and implementation support for effective organizational compliance and operations.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "guidelinePurpose",
+                "id": "guideline_purpose_input",
+                "label": "Guideline Purpose",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What is the purpose of these guidelines? What problem or need do they address?",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What is the purpose and objective of these guidelines?"
+                }
+              },
+              {
+                "fieldName": "targetAudience",
+                "id": "target_audience_input",
+                "label": "Target Audience",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Who will use these guidelines? Roles, departments, experience levels, responsibilities",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Who is the target audience for these guidelines?"
+                }
+              },
+              {
+                "fieldName": "scopeAndContext",
+                "id": "scope_and_context_input",
+                "label": "Scope and Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What activities, processes, or areas do these guidelines cover? Organizational context and environment",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What is the scope and organizational context?"
+                }
+              },
+              {
+                "fieldName": "complianceRequirements",
+                "id": "compliance_requirements_input",
+                "label": "Compliance Requirements",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Legal/Regulatory Compliance", "value": "legal" },
+                    { "label": "Industry Standards", "value": "industry" },
+                    { "label": "Internal Policies", "value": "internal" },
+                    { "label": "Best Practices", "value": "best_practices" },
+                    { "label": "Safety and Security", "value": "safety" },
+                    { "label": "Quality Standards", "value": "quality" }
+                  ],
+                  "defaultValue": "internal",
+                  "helperText": "Primary compliance or standard requirement"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "guidelinesDocument",
+                "id": "guidelines_document",
+                "label": "Guidelines Document",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349147",
+          "language": "en-US",
+          "name": "Guidelines Creator",
+          "description": "Creates comprehensive guidelines and policies with clear procedures, compliance frameworks, and implementation guidance for effective organizational governance.",
+          "instructions": "Specify guideline purpose, target audience, and scope. The creator will develop detailed guidelines with implementation and compliance frameworks."
+        }
+      ]
+    }
+  ]
+}

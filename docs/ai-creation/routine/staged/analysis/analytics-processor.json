@@ -1,0 +1,133 @@
+{
+  "id": "7892456378912345016",
+  "publicId": "analytics-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912345017",
+      "publicId": "analyt-proc-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of analytics processor for usage data insights",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 800,
+            "temperature": 0.3,
+            "prompt": "You are a data analytics expert specializing in usage analytics and performance metrics.\n\nUsage Data: {{input.usageData}}\nAnalytics Metrics: {{input.analyticsMetrics}}\nAnalytics Engines: {{input.analyticsEngines}}\nInsight Generation: {{input.insightGeneration}}\n\nProcess the usage data and generate comprehensive analytics insights:\n\n1. **Key Metrics Summary**:\n   - Active users, engagement rates, retention\n   - Growth trends and patterns\n   - Performance indicators\n\n2. **Usage Patterns**:\n   - Peak usage times and frequencies\n   - Feature adoption and utilization\n   - User journey analysis\n\n3. **Trend Analysis**:\n   - Historical comparisons\n   - Emerging patterns\n   - Seasonal variations\n\n4. **Segmentation Insights**:\n   - User cohort behaviors\n   - Geographic/demographic patterns\n   - Power users vs casual users\n\n5. **Performance Analysis**:\n   - System performance metrics\n   - Bottlenecks and optimization opportunities\n   - Error rates and issues\n\n6. **Actionable Recommendations**:\n   - Specific improvements based on data\n   - Priority areas for focus\n   - Growth opportunities\n\n7. **Predictive Insights**:\n   - Future trend projections\n   - Risk indicators\n   - Opportunity forecasts\n\nPresent findings with clear visualizations descriptions and data-backed conclusions.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "usageData",
+                "id": "usage_data_input",
+                "label": "Usage Data",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "{ \"users\": 5000, \"sessions\": 15000, \"avgDuration\": 12.5, \"features\": {...} }",
+                  "minRows": 5,
+                  "helperText": "Raw usage data to analyze"
+                }
+              },
+              {
+                "fieldName": "analyticsMetrics",
+                "id": "analytics_metrics_input",
+                "label": "Key Metrics to Track",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "e.g., DAU, MAU, retention rate, conversion rate",
+                  "multiline": true,
+                  "minRows": 2,
+                  "helperText": "Specific metrics to focus on"
+                }
+              },
+              {
+                "fieldName": "analyticsEngines",
+                "id": "analytics_engines_input",
+                "label": "Analysis Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "User Behavior", "value": "behavior" },
+                    { "label": "Performance Metrics", "value": "performance" },
+                    { "label": "Business Intelligence", "value": "business" },
+                    { "label": "Growth Analytics", "value": "growth" },
+                    { "label": "Engagement Analysis", "value": "engagement" }
+                  ],
+                  "defaultValue": "behavior",
+                  "helperText": "Primary focus of analysis"
+                }
+              },
+              {
+                "fieldName": "insightGeneration",
+                "id": "insight_generation_input",
+                "label": "Time Period",
+                "type": "Selector",
+                "isRequired": false,
+                "props": {
+                  "options": [
+                    { "label": "Daily", "value": "daily" },
+                    { "label": "Weekly", "value": "weekly" },
+                    { "label": "Monthly", "value": "monthly" },
+                    { "label": "Quarterly", "value": "quarterly" }
+                  ],
+                  "defaultValue": "weekly",
+                  "helperText": "Analysis time frame"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "analyticsReport",
+                "id": "analytics_report",
+                "label": "Analytics Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 12
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912345018",
+          "language": "en-US",
+          "name": "Analytics Processor",
+          "description": "Processes usage analytics data to generate actionable insights, identify trends, and provide data-driven recommendations for platform improvement and growth.",
+          "instructions": "Provide usage data in JSON format along with the metrics you want to track. The processor will analyze patterns, generate insights, and provide actionable recommendations."
+        }
+      ]
+    }
+  ]
+}

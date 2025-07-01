@@ -1,0 +1,106 @@
+{
+  "id": "7829564732190850103",
+  "publicId": "time-analysis-det-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850104",
+      "publicId": "time-analysis-det-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes calendar for time block scheduling",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "javascript",
+            "logic": "function analyzeAvailableTime({ calendarData, timePreferences, workingHours }) {\n  // Parse working hours for the timeframe\n  const defaultHours = { start: '9:00 AM', end: '5:00 PM' };\n  const hours = workingHours || defaultHours;\n  \n  // Helper to convert time string to minutes since midnight\n  const parseTime = (timeStr) => {\n    const [time, period] = timeStr.split(' ');\n    let [hour, minute] = time.split(':').map(Number);\n    if (period === 'PM' && hour !== 12) hour += 12;\n    if (period === 'AM' && hour === 12) hour = 0;\n    return hour * 60 + (minute || 0);\n  };\n  \n  const formatTime = (minutes) => {\n    const hour = Math.floor(minutes / 60);\n    const min = minutes % 60;\n    const period = hour >= 12 ? 'PM' : 'AM';\n    const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;\n    return `${displayHour}:${min.toString().padStart(2, '0')} ${period}`;\n  };\n  \n  const workStart = parseTime(hours.start);\n  const workEnd = parseTime(hours.end);\n  \n  // Process existing calendar events\n  const events = (calendarData || []).map(event => ({\n    title: event.title,\n    start: parseTime(event.startTime),\n    end: parseTime(event.endTime),\n    type: event.type || 'meeting'\n  })).sort((a, b) => a.start - b.start);\n  \n  // Find available time slots\n  const availableSlots = [];\n  let currentTime = workStart;\n  \n  events.forEach(event => {\n    // Add slot before event if there's time\n    if (event.start > currentTime && event.start >= workStart && event.start <= workEnd) {\n      availableSlots.push({\n        start: currentTime,\n        end: Math.min(event.start, workEnd),\n        duration: Math.min(event.start, workEnd) - currentTime,\n        type: 'available'\n      });\n    }\n    currentTime = Math.max(currentTime, event.end);\n  });\n  \n  // Add final slot if time remains\n  if (currentTime < workEnd) {\n    availableSlots.push({\n      start: currentTime,\n      end: workEnd,\n      duration: workEnd - currentTime,\n      type: 'available'\n    });\n  }\n  \n  // Filter out slots too small to be useful\n  const usableSlots = availableSlots.filter(slot => slot.duration >= 15);\n  \n  // Categorize time slots by duration and quality\n  const categorizedSlots = usableSlots.map(slot => {\n    let quality = 'standard';\n    if (slot.duration >= 120) quality = 'deep-work';\n    else if (slot.duration >= 60) quality = 'focus';\n    else if (slot.duration >= 30) quality = 'task';\n    else quality = 'quick';\n    \n    return {\n      ...slot,\n      startFormatted: formatTime(slot.start),\n      endFormatted: formatTime(slot.end),\n      quality: quality\n    };\n  });\n  \n  // Identify optimal productivity periods based on time preferences\n  const prefs = timePreferences || {};\n  const peakHours = prefs.peakHours || [{ start: '9:00 AM', end: '11:00 AM' }, { start: '2:00 PM', end: '4:00 PM' }];\n  \n  const optimalPeriods = peakHours.map(period => {\n    const start = parseTime(period.start);\n    const end = parseTime(period.end);\n    \n    // Find slots that overlap with this peak period\n    const overlappingSlots = categorizedSlots.filter(slot => \n      slot.start < end && slot.end > start\n    );\n    \n    return {\n      period: `${period.start} - ${period.end}`,\n      start: start,\n      end: end,\n      availableTime: overlappingSlots.reduce((total, slot) => {\n        const overlapStart = Math.max(slot.start, start);\n        const overlapEnd = Math.min(slot.end, end);\n        return total + Math.max(0, overlapEnd - overlapStart);\n      }, 0),\n      slots: overlappingSlots\n    };\n  });\n  \n  // Calculate time constraints\n  const timeConstraints = {\n    totalWorkingTime: workEnd - workStart,\n    scheduledTime: events.reduce((total, event) => total + (event.end - event.start), 0),\n    availableTime: usableSlots.reduce((total, slot) => total + slot.duration, 0),\n    fragmentedSlots: usableSlots.filter(slot => slot.duration < 30).length,\n    largestBlock: Math.max(...usableSlots.map(s => s.duration), 0),\n    utilizationRate: Math.round((events.reduce((total, event) => total + (event.end - event.start), 0) / (workEnd - workStart)) * 100)\n  };\n  \n  return {\n    availableSlots: categorizedSlots,\n    timeConstraints: timeConstraints,\n    optimalPeriods: optimalPeriods\n  };\n}"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "calendarData",
+                "id": "calendar_data_input",
+                "label": "Existing Schedule",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Current appointments and commitments"
+                }
+              },
+              {
+                "fieldName": "timePreferences",
+                "id": "time_preferences_input",
+                "label": "Scheduling Constraints",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Peak hours and preferences"
+                }
+              },
+              {
+                "fieldName": "workingHours",
+                "id": "working_hours_input",
+                "label": "Availability Window",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Start and end times"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "availableSlots",
+                "id": "available_slots_output",
+                "label": "Free Time Blocks",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "timeConstraints",
+                "id": "time_constraints_output",
+                "label": "Scheduling Limitations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "optimalPeriods",
+                "id": "optimal_periods_output",
+                "label": "Productivity Windows",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850105",
+          "language": "en",
+          "name": "Time Analysis (Deterministic)",
+          "description": "Examines calendar and identifies available time slots for scheduling with quality ratings.",
+          "instructions": "Provide existing calendar data, time preferences, and working hours. The routine will analyze available time blocks."
+        }
+      ]
+    }
+  ]
+}

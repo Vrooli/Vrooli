@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850295",
+  "publicId": "distraction-manager-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850296",
+      "publicId": "distraction-manager-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Eliminates or minimizes productivity killers",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are a distraction management specialist. Analyze and eliminate productivity killers through systematic identification and strategic intervention.\n\nTime Wasters:\n{{input.timeWasters}}\n\nDistraction Sources:\n{{input.distractionSources}}\n\nEnvironmental Factors:\n{{input.environmentalFactors}}\n\nDevelop comprehensive distraction elimination strategy:\n\n1. **Distraction Taxonomy**:\n   Categorize different types of productivity killers:\n   - **Digital Distractions**: Social media, notifications, entertainment platforms\n   - **Environmental Interruptions**: Noise, visual clutter, poor lighting or temperature\n   - **Social Intrusions**: Unexpected visits, non-urgent requests, social obligations\n   - **Internal Distractions**: Mind wandering, worry, physical discomfort\n   - **Task-Related Disruptions**: Unclear priorities, missing resources, poor planning\n   - **Systemic Inefficiencies**: Redundant processes, poor tools, communication overhead\n\n2. **Root Cause Analysis**:\n   Understand why distractions persist:\n   - **Habit Patterns**: Automatic behaviors that hijack attention\n   - **Emotional Triggers**: Stress, boredom, or anxiety driving distraction-seeking\n   - **Environmental Design**: Physical or digital spaces that promote interruption\n   - **System Gaps**: Missing structures that would prevent distractions\n   - **Social Dynamics**: Others' behaviors and expectations affecting focus\n   - **Energy Mismatches**: Low energy leading to distraction susceptibility\n\n3. **Prevention Strategies**:\n   Proactive measures to eliminate distraction sources:\n   - **Environment Design**: Creating spaces that naturally support focus\n   - **Technology Configuration**: Setting up devices and apps to minimize interruptions\n   - **Schedule Protection**: Time blocks specifically designed to prevent intrusions\n   - **Preparation Protocols**: Having everything ready before starting focused work\n   - **Boundary Communication**: Clear expectations with others about availability\n   - **Energy Management**: Maintaining capacity levels that resist distraction\n\n4. **Intervention Techniques**:\n   Active methods for handling distractions when they occur:\n   - **Redirection Protocols**: Quick ways to return attention to intended tasks\n   - **Capture Systems**: Methods for handling legitimate interruptions without losing focus\n   - **Decision Frameworks**: Rapid assessment of whether interruptions deserve attention\n   - **Recovery Techniques**: Getting back into flow state after disruptions\n   - **Escalation Procedures**: When and how to address persistent distraction sources\n   - **Mindfulness Practices**: Building awareness and control over attention\n\n5. **Environmental Optimization**:\n   Design physical and digital workspaces for maximum focus:\n   - **Physical Space**: Lighting, noise, temperature, seating, organization\n   - **Digital Environment**: App settings, notification management, website blockers\n   - **Social Environment**: Communicating focus needs and managing interruptions\n   - **Psychological Environment**: Mental cues and rituals that promote concentration\n   - **Tool Organization**: Having necessary resources easily accessible\n   - **Distraction Removal**: Eliminating or relocating tempting alternatives\n\n6. **Boundary Management Systems**:\n   Protect focus time from external intrusions:\n   - **Communication Protocols**: When and how others can reach you\n   - **Availability Signals**: Clear indicators of focus vs collaboration time\n   - **Emergency Procedures**: Handling truly urgent situations appropriately\n   - **Expectation Setting**: Training others to respect your productivity needs\n   - **Alternative Solutions**: Providing other ways for people to get help\n   - **Relationship Maintenance**: Balancing focus needs with social obligations\n\n7. **Habit Formation and Breaking**:\n   Address the behavioral aspects of distraction:\n   - **Trigger Identification**: Recognizing what prompts distraction-seeking\n   - **Pattern Interruption**: Breaking automatic responses to distraction cues\n   - **Replacement Behaviors**: Positive alternatives to habitual distractions\n   - **Environmental Cues**: Physical or digital reminders to stay focused\n   - **Reward Systems**: Positive reinforcement for maintaining attention\n   - **Progress Tracking**: Monitoring improvement in focus duration and quality\n\n8. **Contingency Planning**:\n   Prepare for challenging situations:\n   - **High-Stress Periods**: Maintaining focus when pressure is high\n   - **Open Office Environments**: Strategies for focus in distracting spaces\n   - **Travel and Remote Work**: Maintaining practices in unfamiliar environments\n   - **Technology Failures**: Backup plans when usual tools aren't available\n   - **Social Pressure**: Handling requests that conflict with focus needs\n   - **Energy Fluctuations**: Adapting strategies to different capacity levels\n\nProvide output as JSON with:\n- focusStrategy: Comprehensive plan for eliminating distractions and protecting attention\n- workspaceDesign: Environmental optimization recommendations\n- protectionMechanisms: Boundary systems and intervention techniques",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "timeWasters",
+                "id": "time_wasters_input",
+                "label": "Inefficiency Areas",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Identified time wasters and productivity killers"
+                }
+              },
+              {
+                "fieldName": "distractionSources",
+                "id": "distraction_sources_input",
+                "label": "Interruption Patterns",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Common sources of distractions and interruptions"
+                }
+              },
+              {
+                "fieldName": "environmentalFactors",
+                "id": "environmental_factors_input",
+                "label": "Contextual Challenges",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Environmental or situational factors affecting focus"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "focusStrategy",
+                "id": "focus_strategy_output",
+                "label": "Distraction Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "workspaceDesign",
+                "id": "workspace_design_output",
+                "label": "Environment Optimization",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "protectionMechanisms",
+                "id": "protection_mechanisms_output",
+                "label": "Boundary System",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850297",
+          "language": "en",
+          "name": "Distraction Manager",
+          "description": "Eliminates or minimizes productivity killers through systematic analysis and strategic intervention with environment optimization and boundary systems.",
+          "instructions": "Provide time wasters, distraction sources, and environmental challenges. The routine will create a comprehensive strategy for eliminating distractions and protecting focus."
+        }
+      ]
+    }
+  ]
+}

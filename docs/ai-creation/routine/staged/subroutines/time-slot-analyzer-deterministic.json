@@ -1,0 +1,106 @@
+{
+  "id": "7829564732190850247",
+  "publicId": "time-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850248",
+      "publicId": "time-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Identifies open time slots in calendar",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "javascript",
+            "logic": "function analyzeTimeSlots({ existingSchedule, availabilityWindow, unavailablePeriods }) {\n  // Parse inputs and set defaults\n  const schedule = Array.isArray(existingSchedule) ? existingSchedule : [existingSchedule].filter(Boolean);\n  const workingHours = availabilityWindow || { start: '09:00', end: '17:00' };\n  const blocked = Array.isArray(unavailablePeriods) ? unavailablePeriods : [unavailablePeriods].filter(Boolean);\n  \n  // Get analysis timeframe (next 7 days by default)\n  const startDate = new Date();\n  const endDate = new Date(startDate);\n  endDate.setDate(startDate.getDate() + 7);\n  \n  // Create time slots analysis\n  const openTimeBlocks = [];\n  let totalSchedulableHours = 0;\n  const timeRestrictions = {\n    workingHours: workingHours,\n    blockedPeriods: blocked,\n    existingMeetings: schedule.length,\n    analysisDateRange: {\n      start: startDate.toISOString().split('T')[0],\n      end: endDate.toISOString().split('T')[0]\n    }\n  };\n  \n  // Analyze each day in the timeframe\n  for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {\n    const dayString = date.toISOString().split('T')[0];\n    const dayOfWeek = date.getDay();\n    \n    // Skip weekends unless specified in working hours\n    if (!shouldIncludeDay(dayOfWeek, workingHours)) {\n      continue;\n    }\n    \n    const daySlots = analyzeDaySlots(date, schedule, workingHours, blocked);\n    openTimeBlocks.push({\n      date: dayString,\n      dayOfWeek: getDayName(dayOfWeek),\n      availableSlots: daySlots.available,\n      totalAvailableMinutes: daySlots.totalMinutes,\n      schedulingEfficiency: daySlots.efficiency,\n      fragmentationScore: daySlots.fragmentation,\n      optimalForDeepWork: daySlots.deepWorkSuitable,\n      timeQualityRating: daySlots.qualityRating\n    });\n    \n    totalSchedulableHours += daySlots.totalMinutes / 60;\n  }\n  \n  function shouldIncludeDay(dayOfWeek, hours) {\n    // Default to weekdays unless specified\n    if (hours.workdays && Array.isArray(hours.workdays)) {\n      return hours.workdays.includes(dayOfWeek);\n    }\n    // Monday = 1, Sunday = 0\n    return dayOfWeek >= 1 && dayOfWeek <= 5;\n  }\n  \n  function getDayName(dayOfWeek) {\n    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];\n    return days[dayOfWeek];\n  }\n  \n  function analyzeDaySlots(date, schedule, workingHours, blocked) {\n    const dayString = date.toISOString().split('T')[0];\n    \n    // Get day's working hours\n    const startTime = parseTime(workingHours.start || '09:00');\n    const endTime = parseTime(workingHours.end || '17:00');\n    \n    // Create timeline for the day (in 15-minute increments)\n    const timeline = createDayTimeline(startTime, endTime);\n    \n    // Mark existing appointments\n    schedule.forEach(appointment => {\n      if (appointment.date === dayString || (appointment.start && appointment.start.includes(dayString))) {\n        markTimeSlotBusy(timeline, appointment);\n      }\n    });\n    \n    // Mark blocked periods\n    blocked.forEach(block => {\n      if (block.date === dayString || (block.start && block.start.includes(dayString))) {\n        markTimeSlotBusy(timeline, block);\n      }\n    });\n    \n    // Find available time blocks\n    const availableSlots = findAvailableBlocks(timeline);\n    const totalMinutes = availableSlots.reduce((sum, slot) => sum + slot.duration, 0);\n    \n    return {\n      available: availableSlots,\n      totalMinutes: totalMinutes,\n      efficiency: calculateEfficiency(timeline),\n      fragmentation: calculateFragmentation(availableSlots),\n      deepWorkSuitable: availableSlots.filter(slot => slot.duration >= 90).length,\n      qualityRating: calculateQualityRating(availableSlots, timeline)\n    };\n  }\n  \n  function parseTime(timeString) {\n    const [hours, minutes] = timeString.split(':').map(Number);\n    return hours * 60 + (minutes || 0);\n  }\n  \n  function timeToString(minutes) {\n    const hours = Math.floor(minutes / 60);\n    const mins = minutes % 60;\n    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;\n  }\n  \n  function createDayTimeline(startMinutes, endMinutes) {\n    const timeline = [];\n    for (let time = startMinutes; time < endMinutes; time += 15) {\n      timeline.push({\n        time: time,\n        timeString: timeToString(time),\n        available: true,\n        type: 'open'\n      });\n    }\n    return timeline;\n  }\n  \n  function markTimeSlotBusy(timeline, appointment) {\n    const startTime = appointment.startTime ? parseTime(appointment.startTime) : \n                     appointment.start ? parseTime(appointment.start.split('T')[1].substring(0, 5)) : null;\n    const endTime = appointment.endTime ? parseTime(appointment.endTime) : \n                   appointment.end ? parseTime(appointment.end.split('T')[1].substring(0, 5)) : null;\n    \n    if (!startTime || !endTime) return;\n    \n    timeline.forEach(slot => {\n      if (slot.time >= startTime && slot.time < endTime) {\n        slot.available = false;\n        slot.type = appointment.type || 'meeting';\n      }\n    });\n  }\n  \n  function findAvailableBlocks(timeline) {\n    const blocks = [];\n    let currentBlock = null;\n    \n    timeline.forEach(slot => {\n      if (slot.available) {\n        if (!currentBlock) {\n          currentBlock = {\n            startTime: slot.timeString,\n            startMinutes: slot.time,\n            duration: 15\n          };\n        } else {\n          currentBlock.duration += 15;\n        }\n      } else {\n        if (currentBlock) {\n          currentBlock.endTime = timeToString(currentBlock.startMinutes + currentBlock.duration);\n          currentBlock.endMinutes = currentBlock.startMinutes + currentBlock.duration;\n          currentBlock.suitableFor = determineSuitability(currentBlock.duration);\n          blocks.push(currentBlock);\n          currentBlock = null;\n        }\n      }\n    });\n    \n    // Handle block that extends to end of day\n    if (currentBlock) {\n      currentBlock.endTime = timeToString(currentBlock.startMinutes + currentBlock.duration);\n      currentBlock.endMinutes = currentBlock.startMinutes + currentBlock.duration;\n      currentBlock.suitableFor = determineSuitability(currentBlock.duration);\n      blocks.push(currentBlock);\n    }\n    \n    return blocks;\n  }\n  \n  function determineSuitability(duration) {\n    const activities = [];\n    \n    if (duration >= 15) activities.push('quick-task', 'email', 'planning');\n    if (duration >= 30) activities.push('meeting', 'call', 'review');\n    if (duration >= 60) activities.push('project-work', 'analysis', 'writing');\n    if (duration >= 90) activities.push('deep-work', 'complex-problem-solving');\n    if (duration >= 120) activities.push('creative-work', 'strategic-planning');\n    if (duration >= 180) activities.push('research', 'development', 'intensive-work');\n    \n    return activities;\n  }\n  \n  function calculateEfficiency(timeline) {\n    const totalSlots = timeline.length;\n    const availableSlots = timeline.filter(slot => slot.available).length;\n    \n    return totalSlots > 0 ? Math.round((availableSlots / totalSlots) * 100) : 0;\n  }\n  \n  function calculateFragmentation(availableSlots) {\n    if (availableSlots.length === 0) return 0;\n    \n    // Lower score is better (less fragmented)\n    const averageBlockSize = availableSlots.reduce((sum, slot) => sum + slot.duration, 0) / availableSlots.length;\n    const blockSizeVariance = calculateVariance(availableSlots.map(slot => slot.duration));\n    \n    // Normalize fragmentation score (0-100, lower is better)\n    const fragmentationScore = Math.min(100, Math.round((blockSizeVariance / averageBlockSize) * 10));\n    \n    return fragmentationScore;\n  }\n  \n  function calculateVariance(numbers) {\n    if (numbers.length === 0) return 0;\n    \n    const mean = numbers.reduce((sum, num) => sum + num, 0) / numbers.length;\n    const squaredDifferences = numbers.map(num => Math.pow(num - mean, 2));\n    \n    return squaredDifferences.reduce((sum, diff) => sum + diff, 0) / numbers.length;\n  }\n  \n  function calculateQualityRating(availableSlots, timeline) {\n    if (availableSlots.length === 0) return 0;\n    \n    let qualityScore = 0;\n    const maxScore = 100;\n    \n    // Factor 1: Large blocks are higher quality (40% weight)\n    const largeBlocks = availableSlots.filter(slot => slot.duration >= 60).length;\n    const totalBlocks = availableSlots.length;\n    qualityScore += (largeBlocks / Math.max(1, totalBlocks)) * 40;\n    \n    // Factor 2: Low fragmentation is higher quality (30% weight)\n    const fragmentationScore = calculateFragmentation(availableSlots);\n    qualityScore += (100 - fragmentationScore) * 0.3;\n    \n    // Factor 3: Good distribution throughout day (30% weight)\n    const distributionScore = calculateDistributionScore(availableSlots, timeline);\n    qualityScore += distributionScore * 0.3;\n    \n    return Math.round(Math.min(maxScore, qualityScore));\n  }\n  \n  function calculateDistributionScore(availableSlots, timeline) {\n    if (availableSlots.length === 0) return 0;\n    \n    const dayLength = timeline.length * 15; // Total day length in minutes\n    const morningSlots = availableSlots.filter(slot => slot.startMinutes < 12 * 60);\n    const afternoonSlots = availableSlots.filter(slot => slot.startMinutes >= 12 * 60);\n    \n    // Better score if time is available in both morning and afternoon\n    const morningTime = morningSlots.reduce((sum, slot) => sum + slot.duration, 0);\n    const afternoonTime = afternoonSlots.reduce((sum, slot) => sum + slot.duration, 0);\n    \n    if (morningTime > 0 && afternoonTime > 0) {\n      return 100; // Excellent distribution\n    } else if (morningTime > 0 || afternoonTime > 0) {\n      return 60; // Okay distribution\n    } else {\n      return 20; // Poor distribution\n    }\n  }\n  \n  // Calculate summary statistics\n  const summaryStats = {\n    totalDaysAnalyzed: openTimeBlocks.length,\n    averageDailyAvailableHours: openTimeBlocks.length > 0 ? \n      Math.round((totalSchedulableHours / openTimeBlocks.length) * 100) / 100 : 0,\n    totalAvailableHours: Math.round(totalSchedulableHours * 100) / 100,\n    bestDayForDeepWork: findBestDayForDeepWork(openTimeBlocks),\n    mostFragmentedDay: findMostFragmentedDay(openTimeBlocks),\n    optimalSchedulingDays: openTimeBlocks.filter(day => day.timeQualityRating >= 70).length,\n    schedulingChallenges: identifySchedulingChallenges(openTimeBlocks)\n  };\n  \n  function findBestDayForDeepWork(blocks) {\n    if (blocks.length === 0) return null;\n    \n    return blocks.reduce((best, current) => {\n      if (current.optimalForDeepWork > (best?.optimalForDeepWork || 0)) {\n        return current;\n      }\n      return best;\n    }, null)?.date || null;\n  }\n  \n  function findMostFragmentedDay(blocks) {\n    if (blocks.length === 0) return null;\n    \n    return blocks.reduce((worst, current) => {\n      if (current.fragmentationScore > (worst?.fragmentationScore || 0)) {\n        return current;\n      }\n      return worst;\n    }, null)?.date || null;\n  }\n  \n  function identifySchedulingChallenges(blocks) {\n    const challenges = [];\n    \n    const avgFragmentation = blocks.reduce((sum, b) => sum + b.fragmentationScore, 0) / blocks.length;\n    if (avgFragmentation > 60) challenges.push('high-fragmentation');\n    \n    const avgEfficiency = blocks.reduce((sum, b) => sum + b.schedulingEfficiency, 0) / blocks.length;\n    if (avgEfficiency < 40) challenges.push('low-availability');\n    \n    const deepWorkDays = blocks.filter(b => b.optimalForDeepWork > 0).length;\n    if (deepWorkDays < 2) challenges.push('limited-deep-work-opportunities');\n    \n    const avgQuality = blocks.reduce((sum, b) => sum + b.timeQualityRating, 0) / blocks.length;\n    if (avgQuality < 50) challenges.push('poor-time-quality');\n    \n    return challenges;\n  }\n  \n  return {\n    openTimeBlocks: openTimeBlocks,\n    schedulableHours: totalSchedulableHours,\n    timeRestrictions: {\n      ...timeRestrictions,\n      summaryStats: summaryStats\n    }\n  };\n}"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "existingSchedule",
+                "id": "existing_schedule_input",
+                "label": "Calendar Data",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Current calendar appointments"
+                }
+              },
+              {
+                "fieldName": "availabilityWindow",
+                "id": "availability_window_input",
+                "label": "Working Hours",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Available time window"
+                }
+              },
+              {
+                "fieldName": "unavailablePeriods",
+                "id": "unavailable_periods_input",
+                "label": "Blocked Time",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Blocked or unavailable periods"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "openTimeBlocks",
+                "id": "open_time_blocks_output",
+                "label": "Available Slots",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "schedulableHours",
+                "id": "schedulable_hours_output",
+                "label": "Total Available Time",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "timeRestrictions",
+                "id": "time_restrictions_output",
+                "label": "Constraint Map",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850249",
+          "language": "en",
+          "name": "Time Slot Analyzer",
+          "description": "Identifies open time slots in calendar with quality analysis, fragmentation scoring, and suitability assessment.",
+          "instructions": "Provide existing calendar, working hours, and blocked periods. The routine will analyze available time slots with quality metrics."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,139 @@
+{
+  "id": "7892456378912349061",
+  "publicId": "dependency-r-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349062",
+      "publicId": "dep-resolv-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of dependency resolver for software dependency management and conflict resolution",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a dependency resolution expert providing comprehensive analysis and solutions for software dependency management challenges.\n\nProject Context: {{input.projectContext}}\nDependency Issues: {{input.dependencyIssues}}\nTechnology Stack: {{input.technologyStack}}\nResolution Goals: {{input.resolutionGoals}}\n\nResolve dependency management challenges:\n\n1. **Dependency Analysis**:\n   - Dependency tree mapping\n   - Version conflict identification\n   - Circular dependency detection\n   - Transitive dependency analysis\n   - Vulnerability assessment\n\n2. **Conflict Resolution Strategy**:\n   - Version compatibility analysis\n   - Upgrade path planning\n   - Downgrade impact assessment\n   - Alternative package evaluation\n   - Fork and patch considerations\n\n3. **Package Management Optimization**:\n   - Lock file strategy\n   - Semantic versioning compliance\n   - Package source configuration\n   - Cache and repository optimization\n   - Build reproducibility enhancement\n\n4. **Security and Compliance**:\n   - Vulnerability scanning integration\n   - License compatibility check\n   - Security patch prioritization\n   - Compliance requirement validation\n   - Supply chain risk assessment\n\n5. **Performance and Size Optimization**:\n   - Bundle size analysis\n   - Tree shaking opportunities\n   - Redundant dependency elimination\n   - Load time optimization\n   - Memory footprint reduction\n\n6. **Automation and Tooling**:\n   - Automated dependency updates\n   - Conflict detection automation\n   - Testing pipeline integration\n   - Monitoring and alerting setup\n   - Documentation generation\n\n7. **Migration and Maintenance**:\n   - Upgrade strategy development\n   - Breaking change management\n   - Rollback procedure planning\n   - Long-term maintenance planning\n   - Team training recommendations\n\nProvide detailed dependency resolution plan with specific actions, tool recommendations, and best practices for sustainable dependency management.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "projectContext",
+                "id": "project_context_input",
+                "label": "Project Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Project type, size, team structure, deployment environment, constraints",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe the project context"
+                }
+              },
+              {
+                "fieldName": "dependencyIssues",
+                "id": "dependency_issues_input",
+                "label": "Dependency Issues",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Version conflicts, security vulnerabilities, build failures, performance issues",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What dependency problems need resolution?"
+                }
+              },
+              {
+                "fieldName": "technologyStack",
+                "id": "technology_stack_input",
+                "label": "Technology Stack",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Node.js/npm", "value": "nodejs" },
+                    { "label": "Python/pip", "value": "python" },
+                    { "label": "Java/Maven", "value": "java_maven" },
+                    { "label": "Java/Gradle", "value": "java_gradle" },
+                    { "label": ".NET/NuGet", "value": "dotnet" },
+                    { "label": "Ruby/Bundler", "value": "ruby" },
+                    { "label": "Go Modules", "value": "go" },
+                    { "label": "Rust/Cargo", "value": "rust" }
+                  ],
+                  "defaultValue": "nodejs",
+                  "helperText": "Primary technology stack and package manager"
+                }
+              },
+              {
+                "fieldName": "resolutionGoals",
+                "id": "resolution_goals_input",
+                "label": "Resolution Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Fix Build Issues", "value": "build_fix" },
+                    { "label": "Security Remediation", "value": "security" },
+                    { "label": "Performance Optimization", "value": "performance" },
+                    { "label": "Version Modernization", "value": "modernization" },
+                    { "label": "Maintenance Simplification", "value": "maintenance" },
+                    { "label": "Compliance Achievement", "value": "compliance" }
+                  ],
+                  "defaultValue": "build_fix",
+                  "helperText": "Primary goal for dependency resolution"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "dependencyResolutionPlan",
+                "id": "dependency_resolution_plan",
+                "label": "Dependency Resolution Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349063",
+          "language": "en-US",
+          "name": "Dependency Resolver",
+          "description": "Provides comprehensive dependency management solutions with conflict resolution, security assessment, and optimization strategies for sustainable software development.",
+          "instructions": "Describe project context, dependency issues, and technology stack. The resolver will analyze conflicts and provide detailed resolution strategies."
+        }
+      ]
+    }
+  ]
+}

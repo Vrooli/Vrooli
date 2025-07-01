@@ -1,0 +1,137 @@
+{
+  "id": "7892456378912346019",
+  "publicId": "career-orc-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912346020",
+      "publicId": "career-plan-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of career orchestrator for professional development planning",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Encouraging",
+            "maxTokens": 900,
+            "temperature": 0.6,
+            "prompt": "You are a career development strategist helping professionals achieve their career goals.\n\nCareer Goals: {{input.careerGoals}}\nProfessional Context: {{input.professionalContext}}\nSkill Frameworks: {{input.skillFrameworks}}\nNetworking Platforms: {{input.networkingPlatforms}}\n\nOrchestrate a comprehensive career development plan:\n\n1. **Current State Analysis**:\n   - Skills inventory and strengths\n   - Experience gaps identification\n   - Market positioning assessment\n   - Competitive advantage areas\n\n2. **Goal Alignment**:\n   - Short-term objectives (6-12 months)\n   - Medium-term milestones (1-3 years)\n   - Long-term vision (3-5 years)\n   - Success metrics for each phase\n\n3. **Skill Development Roadmap**:\n   - Critical skills to acquire\n   - Learning resources and courses\n   - Certification recommendations\n   - Practical project ideas\n   - Mentorship opportunities\n\n4. **Professional Branding**:\n   - Personal brand positioning\n   - LinkedIn optimization strategies\n   - Portfolio development\n   - Thought leadership opportunities\n   - Online presence enhancement\n\n5. **Networking Strategy**:\n   - Key connections to make\n   - Industry events and conferences\n   - Professional communities to join\n   - Relationship building tactics\n   - Mentorship cultivation\n\n6. **Career Advancement Tactics**:\n   - Internal promotion strategies\n   - Job search optimization\n   - Interview preparation focus areas\n   - Salary negotiation preparation\n   - Alternative career paths\n\n7. **Action Plan**:\n   - Weekly/monthly activities\n   - Milestone checkpoints\n   - Accountability measures\n   - Progress tracking methods\n\nProvide specific, actionable steps tailored to their goals and current situation.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "careerGoals",
+                "id": "career_goals_input",
+                "label": "Career Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Where do you want to be in your career? What role or achievement are you targeting?",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe your career aspirations"
+                }
+              },
+              {
+                "fieldName": "professionalContext",
+                "id": "professional_context_input",
+                "label": "Current Situation",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Current role, years of experience, industry, key skills",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Your current professional status"
+                }
+              },
+              {
+                "fieldName": "skillFrameworks",
+                "id": "skill_frameworks_input",
+                "label": "Career Field",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Technology/Engineering", "value": "tech" },
+                    { "label": "Business/Management", "value": "business" },
+                    { "label": "Creative/Design", "value": "creative" },
+                    { "label": "Sales/Marketing", "value": "sales" },
+                    { "label": "Healthcare/Science", "value": "healthcare" },
+                    { "label": "Education/Training", "value": "education" },
+                    { "label": "Finance/Accounting", "value": "finance" }
+                  ],
+                  "defaultValue": "tech",
+                  "helperText": "Primary career field"
+                }
+              },
+              {
+                "fieldName": "networkingPlatforms",
+                "id": "networking_platforms_input",
+                "label": "Career Stage",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Entry Level (0-2 years)", "value": "entry" },
+                    { "label": "Early Career (2-5 years)", "value": "early" },
+                    { "label": "Mid-Career (5-10 years)", "value": "mid" },
+                    { "label": "Senior Level (10+ years)", "value": "senior" },
+                    { "label": "Career Change", "value": "change" }
+                  ],
+                  "defaultValue": "mid",
+                  "helperText": "Current career stage"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "careerPlan",
+                "id": "career_plan",
+                "label": "Career Development Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7892456378912346021",
+          "language": "en-US",
+          "name": "Career Orchestrator",
+          "description": "Creates personalized career development plans with skill roadmaps, networking strategies, and actionable steps for professional growth.",
+          "instructions": "Share your career goals and current situation. The orchestrator will create a comprehensive development plan with specific actions and milestones."
+        }
+      ]
+    }
+  ]
+}

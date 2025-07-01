@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850217",
+  "publicId": "relationship-maintenance-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850218",
+      "publicId": "relationship-maintenance-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates ongoing development and relationship maintenance practices",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are a relationship maintenance strategist. Create sustainable systems for long-term relationship growth and health.\n\nDevelopment Objectives:\n{{input.developmentObjectives}}\n\nOngoing Habits:\n{{input.ongoingHabits}}\n\nReview Frequency:\n{{input.reviewFrequency}}\n\nCreate long-term relationship maintenance plan:\n\n1. **Growth and Development Strategy**:\n   Design continuous improvement framework:\n   \n   **Individual Growth Within Relationship**:\n   - Personal development goals that support the relationship\n   - Individual therapy or coaching when beneficial\n   - Pursuing personal interests and maintaining individual identity\n   - Learning new relationship skills through books, courses, or workshops\n   - Self-reflection practices and journaling about relationship patterns\n   - Emotional regulation and stress management techniques\n   \n   **Relationship Skill Development**:\n   - Communication technique refinement (active listening, assertiveness)\n   - Conflict resolution skill building and practice\n   - Intimacy and connection enhancement methods\n   - Trust-building and repair mechanisms\n   - Empathy and emotional intelligence development\n   - Adaptation skills for life changes and transitions\n   \n   **Shared Growth Experiences**:\n   - Couples workshops, retreats, or relationship education\n   - New shared hobbies, interests, or learning experiences\n   - Travel and adventure planning for bonding\n   - Community involvement and service projects together\n   - Spiritual or philosophical exploration as a couple\n   - Creative projects and collaborative endeavors\n\n2. **Daily and Weekly Maintenance Routines**:\n   Establish sustainable relationship habits:\n   \n   **Daily Connection Practices**:\n   - Morning check-ins or coffee time together\n   - Evening debriefs about the day's experiences\n   - Physical affection and touch throughout the day\n   - Gratitude expressions and appreciation moments\n   - Technology-free quality time periods\n   - Bedtime connection rituals\n   \n   **Weekly Relationship Rituals**:\n   - Dedicated date nights or quality time\n   - Relationship planning and goal-setting sessions\n   - Emotional temperature checks and feedback\n   - Household and life administration collaboration\n   - Sexual intimacy and romance prioritization\n   - Fun, play, and laughter activities\n   \n   **Monthly Maintenance Activities**:\n   - Comprehensive relationship review and celebration\n   - Goal reassessment and plan adjustments\n   - Deeper conversation about dreams and future\n   - Conflict resolution and repair work\n   - Appreciation and acknowledgment ceremonies\n   - Planning for upcoming challenges or opportunities\n\n3. **Progress Tracking and Assessment Framework**:\n   Monitor relationship health and development:\n   \n   **Key Performance Indicators**:\n   - Communication effectiveness ratings (1-10 scale)\n   - Conflict resolution success rates\n   - Intimacy and connection satisfaction levels\n   - Individual happiness and relationship satisfaction\n   - Trust and security feelings assessment\n   - Shared goal achievement progress\n   - Support and teamwork effectiveness\n   - Fun and enjoyment factor measurements\n   \n   **Assessment Methods**:\n   - Weekly relationship temperature checks\n   - Monthly comprehensive relationship reviews\n   - Quarterly goal setting and planning sessions\n   - Annual relationship vision and mission updates\n   - Regular feedback from trusted friends or mentors\n   - Professional relationship check-ups when needed\n   \n   **Documentation and Reflection**:\n   - Relationship journal keeping (individual or shared)\n   - Photo and memory documentation of positive experiences\n   - Achievement and milestone celebration records\n   - Challenge and growth opportunity documentation\n   - Learning and insight capture from difficult periods\n   - Gratitude and appreciation practice records\n\n4. **Adaptation and Crisis Management**:\n   Prepare for challenges and changes:\n   \n   **Preventive Maintenance**:\n   - Early warning system for relationship stress\n   - Regular stress assessment and management\n   - Communication skill maintenance and refreshing\n   - External stressor management strategies\n   - Support network cultivation and utilization\n   - Professional help seeking protocols\n   \n   **Change Adaptation Protocols**:\n   - Life transition planning and support\n   - Career change and financial stress management\n   - Family addition or loss adjustment procedures\n   - Health challenge and aging adaptation\n   - Geographic relocation and community change\n   - Personal growth and evolution accommodation\n   \n   **Crisis Response Framework**:\n   - Immediate conflict de-escalation techniques\n   - Professional intervention criteria and resources\n   - Separation and space-taking guidelines\n   - Repair and reconnection procedures\n   - Long-term healing and rebuilding plans\n   - Support system activation protocols\n\nProvide output as JSON with:\n- developmentStrategy: Comprehensive growth plan for individuals and relationship\n- sustainabilityPractices: Daily, weekly, and monthly maintenance routines\n- progressTracking: Assessment framework and monitoring systems",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "developmentObjectives",
+                "id": "development_objectives_input",
+                "label": "Growth Goals",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Long-term relationship development goals"
+                }
+              },
+              {
+                "fieldName": "ongoingHabits",
+                "id": "ongoing_habits_input",
+                "label": "Maintenance Practices",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Current relationship maintenance habits"
+                }
+              },
+              {
+                "fieldName": "reviewFrequency",
+                "id": "review_frequency_input",
+                "label": "Check-in Schedule",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "How often do you want to review progress?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "developmentStrategy",
+                "id": "development_strategy_output",
+                "label": "Growth Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "sustainabilityPractices",
+                "id": "sustainability_practices_output",
+                "label": "Maintenance Routines",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "progressTracking",
+                "id": "progress_tracking_output",
+                "label": "Assessment Framework",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850219",
+          "language": "en",
+          "name": "Relationship Maintenance Planner",
+          "description": "Creates ongoing development and relationship maintenance practices for long-term growth, sustainability, and crisis preparedness.",
+          "instructions": "Provide development goals, current habits, and review preferences. The routine will create a comprehensive maintenance plan with tracking systems."
+        }
+      ]
+    }
+  ]
+}

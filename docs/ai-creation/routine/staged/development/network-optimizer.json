@@ -1,0 +1,189 @@
+{
+  "id": "7892456378912349169",
+  "publicId": "networ-o-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349170",
+      "publicId": "networ-opt-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of network optimizer for comprehensive network performance and efficiency optimization",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a network optimization expert providing comprehensive network performance tuning, traffic optimization, and infrastructure efficiency strategies.
+
+Network Architecture: {{input.networkArchitecture}}
+Traffic Patterns: {{input.trafficPatterns}}
+Performance Issues: {{input.performanceIssues}}
+Optimization Goals: {{input.optimizationGoals}}
+
+Optimize comprehensive network performance:
+
+1. **Network Performance Analysis**:
+   - Bandwidth utilization assessment
+   - Latency measurement and mapping
+   - Packet loss identification
+   - Jitter analysis
+   - Throughput bottleneck detection
+
+2. **Traffic Optimization Strategies**:
+   - QoS policy implementation
+   - Traffic shaping and prioritization
+   - Protocol optimization
+   - Compression techniques
+   - Caching strategy deployment
+
+3. **Routing and Path Optimization**:
+   - Dynamic routing configuration
+   - Load balancing algorithms
+   - Path redundancy design
+   - BGP optimization
+   - MPLS implementation planning
+
+4. **Infrastructure Optimization**:
+   - Switch and router tuning
+   - Firewall rule optimization
+   - DNS performance enhancement
+   - CDN integration strategies
+   - Edge computing deployment
+
+5. **Security and Performance Balance**:
+   - Security rule optimization
+   - DDoS mitigation tuning
+   - SSL/TLS optimization
+   - VPN performance enhancement
+   - Zero-trust impact minimization
+
+6. **Monitoring and Analytics**:
+   - Real-time monitoring setup
+   - Performance baseline establishment
+   - Anomaly detection systems
+   - Predictive analytics implementation
+   - Capacity planning tools
+
+7. **Cost and Efficiency Optimization**:
+   - Bandwidth cost reduction
+   - Cloud egress optimization
+   - Peering strategy development
+   - Infrastructure consolidation
+   - Energy efficiency improvements
+
+Provide detailed network optimization plan with performance improvements, configuration changes, monitoring strategies, and cost reduction recommendations for maximum network efficiency.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "networkArchitecture",
+                "id": "network_architecture_input",
+                "label": "Network Architecture",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Network topology, equipment types, bandwidth capacity, geographic distribution, cloud connectivity",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your network architecture"
+                }
+              },
+              {
+                "fieldName": "trafficPatterns",
+                "id": "traffic_patterns_input",
+                "label": "Traffic Patterns",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Traffic volumes, peak times, application mix, user distribution, growth trends",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe network traffic characteristics"
+                }
+              },
+              {
+                "fieldName": "performanceIssues",
+                "id": "performance_issues_input",
+                "label": "Performance Issues",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Latency problems, bandwidth constraints, packet loss, application performance, user complaints",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What performance issues exist?"
+                }
+              },
+              {
+                "fieldName": "optimizationGoals",
+                "id": "optimization_goals_input",
+                "label": "Optimization Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Reduce Latency", "value": "latency" },
+                    { "label": "Increase Throughput", "value": "throughput" },
+                    { "label": "Improve Reliability", "value": "reliability" },
+                    { "label": "Reduce Costs", "value": "cost" },
+                    { "label": "Enhance Security", "value": "security" },
+                    { "label": "Comprehensive Optimization", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary optimization objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "networkOptimizationPlan",
+                "id": "network_optimization_plan",
+                "label": "Network Optimization Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349171",
+          "language": "en-US",
+          "name": "Network Optimizer",
+          "description": "Provides comprehensive network optimization with performance analysis, traffic management, and infrastructure tuning for maximum network efficiency.",
+          "instructions": "Describe your network architecture, traffic patterns, and issues. The optimizer will create a detailed improvement plan."
+        }
+      ]
+    }
+  ]
+}

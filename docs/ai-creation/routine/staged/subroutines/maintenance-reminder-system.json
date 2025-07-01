@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850067",
+  "publicId": "maint-remind-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850068",
+      "publicId": "maint-remind-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates maintenance reminder and tracking system",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 800,
+            "model": null,
+            "prompt": "You are a home maintenance tracking specialist. Create a comprehensive reminder system and progress monitoring framework.\n\nSeasonal Schedule:\n{{input.timeBasedTasks}}\n\nNotification Preferences:\n{{input.notificationPreferences}}\n\nTracking Requirements:\n{{input.trackingRequirements}}\n\nDesign a complete reminder and tracking system:\n\n1. **Reminder Schedule**:\n   - Task-specific reminder timing:\n     * 30 days before: Major tasks\n     * 14 days before: Schedule contractors\n     * 7 days before: Gather supplies\n     * 1 day before: Final prep\n   - Notification channels (email, text, app)\n   - Reminder frequency and escalation\n   - Weather-dependent task alerts\n   - Seasonal reminder batches\n\n2. **Tracking System**:\n   - Task completion logging\n   - Photo documentation capability\n   - Cost tracking per task\n   - Time spent recording\n   - Quality/condition notes\n   - Next maintenance prediction\n   - Warranty tracking integration\n\n3. **Completion Records**:\n   - Digital maintenance logbook\n   - Service history by system\n   - Contractor performance records\n   - Cost trend analysis\n   - Predictive maintenance alerts\n   - Annual summary reports\n\nProvide output as JSON with:\n- reminderSchedule: Notification plan with timing and channels\n- trackingSystem: Progress monitoring framework\n- completionRecords: Maintenance history structure",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "timeBasedTasks",
+                "id": "time_based_tasks_input",
+                "label": "Seasonal Schedule",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Tasks organized by season"
+                }
+              },
+              {
+                "fieldName": "notificationPreferences",
+                "id": "notification_preferences_input",
+                "label": "Reminder Settings",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "How and when to send reminders"
+                }
+              },
+              {
+                "fieldName": "trackingRequirements",
+                "id": "tracking_requirements_input",
+                "label": "Monitoring Needs",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What to track and measure"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "reminderSchedule",
+                "id": "reminder_schedule_output",
+                "label": "Notification Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "trackingSystem",
+                "id": "tracking_system_output",
+                "label": "Progress Monitoring",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "completionRecords",
+                "id": "completion_records_output",
+                "label": "Maintenance History",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850069",
+          "language": "en",
+          "name": "Maintenance Reminder System",
+          "description": "Creates automated reminder schedules, progress tracking systems, and maintenance history records for home upkeep.",
+          "instructions": "Provide seasonal task schedule, notification preferences, and tracking needs. The routine will create a comprehensive reminder and monitoring system."
+        }
+      ]
+    }
+  ]
+}

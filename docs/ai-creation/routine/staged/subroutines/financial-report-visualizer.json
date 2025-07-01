@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850016",
+  "publicId": "fin-report-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850017",
+      "publicId": "fin-report-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates comprehensive financial reports with visualizations",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 1500,
+            "model": null,
+            "prompt": "You are a financial reporting specialist. Create a comprehensive financial report with visualization specifications based on all the analysis data.\n\nComplete Financial Analysis:\n{{input.allAnalysis}}\n\nAction Items:\n{{input.actionItems}}\n\nReport Format Preference:\n{{input.reportFormat}}\n\nGenerate a comprehensive report that includes:\n\n1. **Executive Summary**:\n   - Overall financial health status (score out of 100)\n   - Key findings in bullet points\n   - Top 3 urgent items requiring attention\n   - Month-over-month improvement areas\n\n2. **Detailed Analysis Sections**:\n   - Spending by Category (with percentages)\n   - Budget Performance Summary\n   - Identified Problem Areas\n   - Savings Opportunities\n\n3. **Visual Chart Specifications**:\n   - Pie chart data for category spending\n   - Bar chart data for budget vs actual\n   - Trend line data for spending over time\n   - Color codes for status indicators\n\n4. **Alerts and Notifications**:\n   - Critical overspending alerts\n   - Upcoming bill reminders\n   - Goal milestone notifications\n   - Positive achievements to celebrate\n\n5. **Action Plan Summary**:\n   - This week's priorities\n   - This month's targets\n   - Progress tracking metrics\n\nProvide output as a JSON object with:\n- financialSummary: Object with executive summary and key metrics\n- visualCharts: Array of chart specifications with data and config\n- alertsNotifications: Array of alerts with priority levels\n- reportSections: Array of detailed report sections",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "allAnalysis",
+                "id": "all_analysis_input",
+                "label": "Complete Financial Analysis",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "All financial data and analysis results"
+                }
+              },
+              {
+                "fieldName": "actionItems",
+                "id": "action_items_input",
+                "label": "Action Items",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Improvement tasks and plans"
+                }
+              },
+              {
+                "fieldName": "reportFormat",
+                "id": "report_format_input",
+                "label": "Report Format",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Preferred presentation style (e.g., 'detailed', 'summary', 'visual')"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "financialSummary",
+                "id": "financial_summary_output",
+                "label": "Financial Summary",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "visualCharts",
+                "id": "visual_charts_output",
+                "label": "Chart Visualizations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "alertsNotifications",
+                "id": "alerts_output",
+                "label": "Alerts & Notifications",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850018",
+          "language": "en",
+          "name": "Financial Report Visualizer",
+          "description": "Creates comprehensive financial reports with executive summaries, visual chart specifications, and actionable alerts.",
+          "instructions": "Provide all financial analysis data and action items from previous steps. Optionally specify your preferred report format. The routine will generate a complete report with visualization specifications and priority alerts."
+        }
+      ]
+    }
+  ]
+}

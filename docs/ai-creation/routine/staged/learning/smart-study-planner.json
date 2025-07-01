@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Assess Study Requirements",
                 "description": "Analyzes exams, subjects, and difficulty levels",
-                "subroutineId": "TODO: Need requirements assessment subroutine",
+                "subroutineId": "7829564732190850178",
                 "inputMap": {
                   "examSchedule": "testDates",
                   "subjectList": "courseMaterial",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Calculate Available Time",
                 "description": "Determines study capacity and scheduling constraints",
-                "subroutineId": "TODO: Need time calculation subroutine",
+                "subroutineId": "7829564732190850181",
                 "inputMap": {
                   "testDates": "examSchedule",
                   "dailySchedule": "timeAvailability",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Allocate Study Time",
                 "description": "Distributes study hours across subjects optimally",
-                "subroutineId": "TODO: Need time allocation subroutine",
+                "subroutineId": "7829564732190850184",
                 "inputMap": {
                   "learningNeeds": "studyRequirements",
                   "studyCapacity": "availableHours",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Create Study Timeline",
                 "description": "Builds detailed schedule with review cycles",
-                "subroutineId": "TODO: Need timeline creation subroutine",
+                "subroutineId": "7829564732190850187",
                 "inputMap": {
                   "studyDistribution": "timeAllocation",
                   "learningSlots": "studyWindows",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Optimize Learning Efficiency",
                 "description": "Applies study techniques and cognitive strategies",
-                "subroutineId": "TODO: Need efficiency optimization subroutine",
+                "subroutineId": "7829564732190850190",
                 "inputMap": {
                   "detailedSchedule": "studyTimeline",
                   "learningStyle": "cognitivePreferences",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Study Guide",
                 "description": "Creates comprehensive study plan with tracking tools",
-                "subroutineId": "TODO: Need guide generation subroutine",
+                "subroutineId": "7829564732190850193",
                 "inputMap": {
                   "enhancedSchedule": "optimizedPlan",
                   "progressCheckpoints": "milestoneTracker",

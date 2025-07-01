@@ -1,0 +1,189 @@
+{
+  "id": "7892456378912349163",
+  "publicId": "migrat-p-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349164",
+      "publicId": "migrat-plan-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of migration planner for comprehensive system and data migration planning",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a migration planning expert providing comprehensive migration strategies, risk assessment, and implementation roadmaps.
+
+Current System: {{input.currentSystem}}
+Target System: {{input.targetSystem}}
+Migration Scope: {{input.migrationScope}}
+Business Constraints: {{input.businessConstraints}}
+
+Plan comprehensive migration strategy:
+
+1. **Migration Assessment and Analysis**:
+   - Current state documentation
+   - Target state definition
+   - Gap analysis identification
+   - Dependency mapping
+   - Risk assessment matrix
+
+2. **Migration Strategy Development**:
+   - Approach selection (big bang vs phased)
+   - Migration path design
+   - Rollback strategy planning
+   - Pilot program definition
+   - Success criteria establishment
+
+3. **Data Migration Planning**:
+   - Data mapping and transformation
+   - Quality assurance procedures
+   - Volume and performance planning
+   - Integrity verification methods
+   - Historical data handling
+
+4. **Technical Architecture Planning**:
+   - Infrastructure requirements
+   - Integration point mapping
+   - Security model migration
+   - Performance benchmarking
+   - Compatibility verification
+
+5. **Business Continuity Planning**:
+   - Downtime minimization strategies
+   - Parallel run approaches
+   - User communication plans
+   - Training requirements
+   - Support transition planning
+
+6. **Resource and Timeline Planning**:
+   - Team structure and roles
+   - Skill gap identification
+   - Timeline development
+   - Budget estimation
+   - External vendor coordination
+
+7. **Testing and Validation Strategy**:
+   - Test scenario development
+   - UAT planning and execution
+   - Performance testing approach
+   - Security validation
+   - Go-live criteria definition
+
+Provide detailed migration plan with phased approach, risk mitigation strategies, resource requirements, and comprehensive timeline for successful system migration.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "currentSystem",
+                "id": "current_system_input",
+                "label": "Current System",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Existing system architecture, technology stack, data volumes, user base, integrations",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe the current system"
+                }
+              },
+              {
+                "fieldName": "targetSystem",
+                "id": "target_system_input",
+                "label": "Target System",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "New platform, technology choices, architectural changes, capability improvements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe the target system"
+                }
+              },
+              {
+                "fieldName": "migrationScope",
+                "id": "migration_scope_input",
+                "label": "Migration Scope",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Components to migrate, data volumes, user groups, geographic regions, features",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What needs to be migrated?"
+                }
+              },
+              {
+                "fieldName": "businessConstraints",
+                "id": "business_constraints_input",
+                "label": "Business Constraints",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Minimal Downtime", "value": "downtime" },
+                    { "label": "Budget Limited", "value": "budget" },
+                    { "label": "Compliance Critical", "value": "compliance" },
+                    { "label": "Time Sensitive", "value": "time" },
+                    { "label": "Risk Averse", "value": "risk" },
+                    { "label": "Balanced Constraints", "value": "balanced" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Primary business constraint"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "migrationPlan",
+                "id": "migration_plan",
+                "label": "Migration Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349165",
+          "language": "en-US",
+          "name": "Migration Planner",
+          "description": "Provides comprehensive migration planning with strategy development, risk assessment, and implementation roadmaps for successful system transitions.",
+          "instructions": "Describe your current system, target system, and constraints. The planner will create a detailed migration strategy."
+        }
+      ]
+    }
+  ]
+}

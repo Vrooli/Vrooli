@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850364",
+  "publicId": "objective-setter-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850365",
+      "publicId": "objective-setter-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Clarifies innovation goals and desired outcomes",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "You are an objective setting specialist for innovation workshops. Clarify goals, define success metrics, and establish participant expectations.\n\nInnovation Goals:\n{{input.targetObjectives}}\n\nParticipant Context:\n{{input.attendeeContext}}\n\nBusiness Environment:\n{{input.businessEnvironment}}\n\nDefine clear workshop objectives:\n\n1. **Goal Clarification & Refinement**:\n   Transform broad innovation intentions into specific, actionable objectives:\n   - **Primary Objectives**: Core innovation outcomes the workshop must achieve\n   - **Secondary Objectives**: Additional value and learning opportunities\n   - **Innovation Scope**: Boundaries and focus areas for creative exploration\n   - **Success Definition**: What breakthrough or progress looks like\n   - **Value Proposition**: How achievement serves broader organizational goals\n   - **Constraint Acknowledgment**: Realistic limitations and working parameters\n\n2. **Participant Expectation Management**:\n   Align attendees around shared understanding:\n   - **Role Clarity**: How each participant contributes to innovation success\n   - **Engagement Level**: Expected participation intensity and commitment\n   - **Outcome Expectations**: What participants should expect to gain\n   - **Process Understanding**: How innovation will unfold during the workshop\n   - **Time Investment**: Realistic expectations about effort and focus required\n   - **Follow-up Commitments**: Post-workshop responsibilities and involvement\n\n3. **Success Metrics Development**:\n   Create measurable indicators of workshop effectiveness:\n   - **Immediate Outputs**: Tangible deliverables the workshop will produce\n   - **Quality Indicators**: How to assess the value of generated ideas\n   - **Engagement Metrics**: Signs of effective participation and collaboration\n   - **Learning Outcomes**: Knowledge and capabilities participants will develop\n   - **Innovation Momentum**: How workshop results will drive ongoing innovation\n   - **Implementation Readiness**: Preparation for turning ideas into action\n\n4. **Organizational Alignment**:\n   Ensure workshop objectives serve broader business needs:\n   - **Strategic Connection**: How innovation goals support company strategy\n   - **Resource Justification**: Why investing in this workshop makes sense\n   - **Stakeholder Value**: How different stakeholders benefit from success\n   - **Risk Management**: Addressing concerns about innovation investments\n   - **Cultural Integration**: How innovation aligns with organizational values\n   - **Long-term Vision**: How workshop contributes to sustainable innovation\n\n5. **Feasibility and Reality Check**:\n   Ground objectives in practical possibility:\n   - **Time Constraints**: What's achievable within workshop duration\n   - **Participant Capabilities**: Realistic expectations given attendee skills\n   - **Resource Availability**: What tools and support are actually available\n   - **Implementation Capacity**: Organization's ability to act on innovations\n   - **Change Readiness**: How prepared the organization is for innovation\n   - **Risk Tolerance**: Alignment with organizational appetite for change\n\nProvide output as JSON with:\n- clarifiedObjectives: Refined, specific innovation goals\n- achievementCriteria: Measurable success metrics and indicators\n- attendeeOutcomes: Clear participant expectations and commitments",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "targetObjectives",
+                "id": "target_objectives_input",
+                "label": "Innovation Goals",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "High-level innovation goals and desired outcomes"
+                }
+              },
+              {
+                "fieldName": "attendeeContext",
+                "id": "attendee_context_input",
+                "label": "Participant Profile",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Information about workshop participants"
+                }
+              },
+              {
+                "fieldName": "businessEnvironment",
+                "id": "business_environment_input",
+                "label": "Organizational Context",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Business context and organizational environment"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "clarifiedObjectives",
+                "id": "clarified_objectives_output",
+                "label": "Workshop Goals",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "achievementCriteria",
+                "id": "achievement_criteria_output",
+                "label": "Success Metrics",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "attendeeOutcomes",
+                "id": "attendee_outcomes_output",
+                "label": "Participant Expectations",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850366",
+          "language": "en",
+          "name": "Objective Setter",
+          "description": "Clarifies innovation goals and desired outcomes through systematic goal refinement, expectation management, and success metrics development.",
+          "instructions": "Provide innovation goals, participant context, and business environment. The routine will clarify objectives, define success criteria, and establish participant expectations."
+        }
+      ]
+    }
+  ]
+}

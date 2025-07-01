@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349310",
+  "publicId": "json-va-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349311",
+      "publicId": "json-valid-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of JSON validator for comprehensive JSON validation and schema management strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Rigorous",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a JSON validation expert providing comprehensive JSON validation strategies, schema management, and data integrity solutions for robust data processing.\n\nValidation Context: {{input.validationContext}}\nJSON Sources: {{input.jsonSources}}\nValidation Requirements: {{input.validationRequirements}}\nSchema Standards: {{input.schemaStandards}}\n\nDesign comprehensive JSON validation strategy:\n\n1. **Schema Design and Management**:\n   - JSON Schema specification\n   - Schema versioning strategies\n   - Reusable component design\n   - Inheritance and composition\n   - Schema evolution handling\n\n2. **Validation Framework Implementation**:\n   - Validation engine selection\n   - Multi-tier validation design\n   - Real-time vs batch validation\n   - Performance optimization\n   - Error handling mechanisms\n\n3. **Data Quality Assurance**:\n   - Structure validation\n   - Type checking protocols\n   - Format validation rules\n   - Business rule enforcement\n   - Constraint verification\n\n4. **Error Detection and Reporting**:\n   - Comprehensive error messaging\n   - Error categorization\n   - Debugging assistance\n   - Validation reporting\n   - User-friendly feedback\n\n5. **Performance Optimization**:\n   - Validation speed enhancement\n   - Memory usage optimization\n   - Caching strategies\n   - Parallel validation\n   - Resource management\n\n6. **Integration and Automation**:\n   - API integration patterns\n   - CI/CD pipeline integration\n   - Automated testing\n   - Monitoring and alerting\n   - Documentation generation\n\n7. **Security and Compliance**:\n   - Input sanitization\n   - Injection attack prevention\n   - Data privacy protection\n   - Compliance validation\n   - Audit trail maintenance\n\nProvide comprehensive JSON validation plan with schema design, validation frameworks, quality assurance, and integration strategies for reliable JSON data processing.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "validationContext",
+                "id": "validation_context_input",
+                "label": "Validation Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Data domains, application types, integration points, business rules, compliance requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your JSON validation context"
+                }
+              },
+              {
+                "fieldName": "jsonSources",
+                "id": "json_sources_input",
+                "label": "JSON Sources",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "APIs, configuration files, user inputs, data imports, message queues, database exports",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What JSON sources need validation?"
+                }
+              },
+              {
+                "fieldName": "validationRequirements",
+                "id": "validation_requirements_input",
+                "label": "Validation Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Quality standards, performance targets, error tolerance, security needs, business rules",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What validation requirements exist?"
+                }
+              },
+              {
+                "fieldName": "schemaStandards",
+                "id": "schema_standards_input",
+                "label": "Schema Standards",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "JSON Schema Draft 7", "value": "draft7" },
+                    { "label": "JSON Schema Draft 2019-09", "value": "draft2019" },
+                    { "label": "JSON Schema Draft 2020-12", "value": "draft2020" },
+                    { "label": "OpenAPI Schema", "value": "openapi" },
+                    { "label": "Custom Schema", "value": "custom" },
+                    { "label": "Flexible Standard", "value": "flexible" }
+                  ],
+                  "defaultValue": "flexible",
+                  "helperText": "Preferred schema standard"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "jsonValidationPlan",
+                "id": "json_validation_plan",
+                "label": "JSON Validation Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349312",
+          "language": "en-US",
+          "name": "JSON Validator",
+          "description": "Provides comprehensive JSON validation with schema design, validation frameworks, and integration strategies for reliable JSON data processing.",
+          "instructions": "Describe your validation context, JSON sources, and requirements. The validator will design a comprehensive JSON validation strategy."
+        }
+      ]
+    }
+  ]
+}

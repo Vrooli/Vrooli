@@ -1,0 +1,189 @@
+{
+  "id": "7892456378912349142",
+  "publicId": "recov-co-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349143",
+      "publicId": "recov-coord-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of recovery coordinator for comprehensive system and business recovery orchestration",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a recovery coordination expert providing comprehensive disaster recovery, business continuity, and system restoration strategies.
+
+Invalid State: {{input.invalidState}}
+Run Context: {{input.runContext}}
+Failure Details: {{input.failureDetails}}
+Recovery Scope: {{input.recoveryScope}}
+
+Coordinate comprehensive recovery process:
+
+1. **Failure Assessment and Triage**:
+   - Root cause identification
+   - Impact scope analysis
+   - Severity classification
+   - Dependency chain evaluation
+   - Critical path determination
+
+2. **Recovery Strategy Development**:
+   - Recovery approach selection
+   - Resource requirement assessment
+   - Timeline estimation
+   - Risk mitigation planning
+   - Fallback option identification
+
+3. **System State Recovery**:
+   - State restoration procedures
+   - Data recovery protocols
+   - Configuration rollback plans
+   - Service restart sequences
+   - Integrity verification steps
+
+4. **Business Continuity Management**:
+   - Critical function prioritization
+   - Alternative process activation
+   - Communication plan execution
+   - Stakeholder notification
+   - Service degradation management
+
+5. **Recovery Execution Coordination**:
+   - Task sequencing and scheduling
+   - Resource allocation optimization
+   - Team coordination protocols
+   - Progress monitoring systems
+   - Checkpoint verification
+
+6. **Validation and Testing**:
+   - Recovery verification procedures
+   - System health checks
+   - Performance baseline comparison
+   - User acceptance testing
+   - Rollback readiness assessment
+
+7. **Post-Recovery Analysis**:
+   - Recovery effectiveness evaluation
+   - Lessons learned documentation
+   - Process improvement recommendations
+   - Prevention strategy updates
+   - Recovery playbook refinement
+
+Provide detailed recovery coordination plan with step-by-step procedures, resource requirements, timeline estimates, and success criteria for effective system restoration.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "invalidState",
+                "id": "invalid_state_input",
+                "label": "Invalid State",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Current invalid or error state, symptoms, affected components",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe the invalid or error state"
+                }
+              },
+              {
+                "fieldName": "runContext",
+                "id": "run_context_input",
+                "label": "Run Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Execution context, environment details, configuration, dependencies",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Provide the execution context"
+                }
+              },
+              {
+                "fieldName": "failureDetails",
+                "id": "failure_details_input",
+                "label": "Failure Details",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Error messages, stack traces, logs, timeline of events, attempted fixes",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe the failure in detail"
+                }
+              },
+              {
+                "fieldName": "recoveryScope",
+                "id": "recovery_scope_input",
+                "label": "Recovery Scope",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Component Recovery", "value": "component" },
+                    { "label": "Service Recovery", "value": "service" },
+                    { "label": "System Recovery", "value": "system" },
+                    { "label": "Data Recovery", "value": "data" },
+                    { "label": "Full Disaster Recovery", "value": "disaster" },
+                    { "label": "Comprehensive Recovery", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Scope of recovery needed"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "recoveryPlan",
+                "id": "recovery_plan",
+                "label": "Recovery Coordination Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349144",
+          "language": "en-US",
+          "name": "Recovery Coordinator",
+          "description": "Provides comprehensive recovery coordination with failure assessment, restoration strategies, and business continuity planning for effective system recovery.",
+          "instructions": "Describe the invalid state, context, and failure details. The coordinator will create a detailed recovery plan."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850121",
+  "publicId": "meet-parse-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850122",
+      "publicId": "meet-parse-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Parses meeting content into structured format",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are a meeting content analyst. Parse the meeting transcript to extract structure and identify speakers.\n\nMeeting Transcript:\n{{input.meetingTranscript}}\n\nAttendees:\n{{input.attendeeList}}\n\nAgenda Items:\n{{input.meetingAgenda}}\n\nParse the meeting content:\n\n1. **Content Structure Analysis**:\n   - Identify main topics discussed\n   - Segment conversation by agenda items or natural topic breaks\n   - Note topic transitions and time flow\n   - Categorize discussion types (presentation, Q&A, debate, planning)\n   - Extract timing information if available\n\n2. **Topic Segmentation**:\n   Break content into logical segments:\n   - Opening/introductions\n   - Each agenda item discussion\n   - Ad-hoc topics that arose\n   - Action planning sessions\n   - Closing remarks\n   \n   For each segment:\n   - Topic title\n   - Key participants\n   - Duration/timing\n   - Discussion summary\n   - Outcome type (decision, information, planning)\n\n3. **Speaker Identification**:\n   Map who said what:\n   - Identify speakers from context clues\n   - Match statements to attendee names\n   - Note who led each topic\n   - Track who made key contributions\n   - Identify decision makers\n   \n   Handle cases where speakers aren't explicitly named:\n   - Use context clues (role, expertise, speaking style)\n   - Look for patterns in the transcript\n   - Mark uncertain attributions clearly\n\n4. **Content Formatting**:\n   Structure the output for downstream processing:\n   - Clean up transcription errors\n   - Standardize speaker names\n   - Organize chronologically\n   - Preserve important quotes verbatim\n   - Note any unclear or inaudible sections\n\nProvide output as JSON with:\n- structuredContent: Organized meeting flow\n- topicSegments: Discussion topics with details\n- speakerMap: Who said what mapping",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "meetingTranscript",
+                "id": "meeting_transcript_input",
+                "label": "Raw Meeting Content",
+                "type": "TextInput",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Meeting transcript or notes"
+                }
+              },
+              {
+                "fieldName": "attendeeList",
+                "id": "attendee_list_input",
+                "label": "Participants",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "List of meeting attendees"
+                }
+              },
+              {
+                "fieldName": "meetingAgenda",
+                "id": "meeting_agenda_input",
+                "label": "Agenda Items",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Meeting agenda topics"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "structuredContent",
+                "id": "structured_content_output",
+                "label": "Parsed Meeting",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "topicSegments",
+                "id": "topic_segments_output",
+                "label": "Discussion Topics",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "speakerMap",
+                "id": "speaker_map_output",
+                "label": "Who Said What",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850123",
+          "language": "en",
+          "name": "Meeting Content Parser",
+          "description": "Extracts structure from meeting transcripts, identifies speakers, and segments discussions by topic.",
+          "instructions": "Provide meeting transcript, attendee list, and agenda. The routine will parse content into structured format with speaker attribution."
+        }
+      ]
+    }
+  ]
+}

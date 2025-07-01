@@ -1,0 +1,119 @@
+{
+  "id": "7829564732190850331",
+  "publicId": "project-plan-compiler-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850332",
+      "publicId": "project-plan-compiler-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Compiles complete project task structure",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Comprehensive",
+            "maxTokens": 1400,
+            "model": null,
+            "prompt": "You are a project plan compilation expert. Create a comprehensive, actionable project plan that integrates all planning elements into a cohesive execution roadmap.\n\nDetailed Tasks:\n{{input.detailedTasks}}\n\nDependency Map:\n{{input.dependencyMap}}\n\nProject Milestones:\n{{input.projectMilestones}}\n\nProject Scope:\n{{input.projectScope}}\n\nCompile complete project execution plan:\n\n**Comprehensive Project Task Plan**\n\nLet's bring everything together into a complete, actionable project plan that your team can execute successfully:\n\n1. **Executive Project Summary**:\n   - **Project Vision**: What this project will accomplish and why it matters\n   - **Success Definition**: Clear criteria for project completion and success\n   - **Key Deliverables**: Major outputs and their value to stakeholders\n   - **Timeline Overview**: Project duration, key phases, and major milestones\n   - **Resource Summary**: Team size, budget, and critical resources needed\n   - **Risk Assessment**: Major challenges and mitigation strategies\n\n2. **Complete Task Breakdown Structure**:\n   Organize all tasks into a clear, hierarchical structure:\n   - **Phase-by-Phase Organization**: Tasks grouped by project phases\n   - **Task Dependencies**: Clear prerequisite relationships between tasks\n   - **Critical Path Highlights**: Tasks that directly impact project completion time\n   - **Parallel Work Opportunities**: Tasks that can be done simultaneously\n   - **Resource Assignments**: Who is responsible for each task or task group\n   - **Time Estimates**: Realistic duration expectations for all work\n\n3. **Detailed Execution Roadmap**:\n   Step-by-step guidance for project implementation:\n   - **Startup Activities**: First tasks to launch the project successfully\n   - **Phase Transitions**: How to move smoothly from one phase to the next\n   - **Quality Gates**: Checkpoints to ensure work meets standards\n   - **Decision Points**: When and how key project decisions will be made\n   - **Review Cycles**: Regular assessment and adjustment opportunities\n   - **Communication Schedule**: When and how project updates will be shared\n\n4. **Milestone and Progress Tracking**:\n   Framework for monitoring project advancement:\n   - **Milestone Calendar**: Key achievement dates and celebration points\n   - **Progress Indicators**: Metrics to track completion and quality\n   - **Early Warning Systems**: Signs that indicate potential problems\n   - **Course Correction Procedures**: How to adjust when things go off track\n   - **Stakeholder Updates**: Regular reporting and communication plans\n   - **Success Celebrations**: How achievements will be recognized\n\n5. **Resource Management Plan**:\n   Comprehensive approach to project resources:\n   - **Team Structure**: Roles, responsibilities, and reporting relationships\n   - **Skill Requirements**: Capabilities needed for different project phases\n   - **Resource Allocation**: How people, time, and budget will be distributed\n   - **External Dependencies**: Coordination with vendors, partners, or other teams\n   - **Capacity Planning**: Managing workload to prevent burnout and delays\n   - **Contingency Resources**: Backup plans for resource shortages\n\n6. **Risk Management and Contingency Planning**:\n   Proactive approach to project challenges:\n   - **Risk Register**: Identified risks with probability and impact assessments\n   - **Mitigation Strategies**: Specific actions to prevent or minimize risks\n   - **Contingency Plans**: Alternative approaches if primary plans fail\n   - **Emergency Procedures**: Rapid response protocols for critical issues\n   - **Escalation Paths**: When and how to involve senior leadership\n   - **Recovery Planning**: Getting back on track after setbacks\n\n7. **Quick Start Implementation Guide**:\n   Practical steps to begin project execution immediately:\n   - **Day 1 Checklist**: Essential activities to launch the project\n   - **First Week Priorities**: Critical tasks for project momentum\n   - **First Month Goals**: Early wins and foundation-building activities\n   - **Team Onboarding**: Getting everyone aligned and productive quickly\n   - **Tool Setup**: Systems and processes needed for effective collaboration\n   - **Communication Launch**: Establishing project communication rhythms\n\n8. **Success Factors and Best Practices**:\n   Key insights for project success:\n   - **Critical Success Factors**: Elements that most directly impact project outcomes\n   - **Best Practice Guidelines**: Proven approaches for common project challenges\n   - **Quality Standards**: Expectations for deliverable excellence\n   - **Collaboration Principles**: How the team will work together effectively\n   - **Decision-Making Framework**: How choices will be made efficiently\n   - **Continuous Improvement**: How the project will learn and adapt\n\n9. **Project Governance and Control**:\n   Structure for project oversight and decision-making:\n   - **Governance Structure**: Who has authority for different types of decisions\n   - **Change Control**: How scope, timeline, or resource changes will be managed\n   - **Quality Assurance**: Ongoing processes to ensure deliverable excellence\n   - **Performance Monitoring**: Tracking progress against plan and expectations\n   - **Stakeholder Engagement**: Keeping sponsors and users involved appropriately\n   - **Documentation Standards**: What needs to be recorded and how\n\n**Implementation Timeline:**\nPhase 1 (Weeks 1-2): Project launch and team mobilization\nPhase 2 (Weeks 3-8): Core development and implementation\nPhase 3 (Weeks 9-10): Testing, refinement, and preparation\nPhase 4 (Weeks 11-12): Deployment, training, and project closure\n\n**Success Metrics:**\n- On-time delivery within planned timeline\n- Quality deliverables meeting all acceptance criteria\n- Stakeholder satisfaction with outcomes\n- Team engagement and learning throughout project\n- Efficient resource utilization within budget\n\nMake this plan inspiring and actionable. Help the team feel confident about what they're building and how they'll succeed together.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "detailedTasks",
+                "id": "detailed_tasks_input",
+                "label": "Task Definitions",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Comprehensive task definitions and specifications"
+                }
+              },
+              {
+                "fieldName": "dependencyMap",
+                "id": "dependency_map_input",
+                "label": "Task Dependencies",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Task dependency mapping and relationships"
+                }
+              },
+              {
+                "fieldName": "projectMilestones",
+                "id": "project_milestones_input",
+                "label": "Milestones",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Project milestones and checkpoints"
+                }
+              },
+              {
+                "fieldName": "projectScope",
+                "id": "project_scope_input",
+                "label": "Scope Definition",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Project scope and objectives"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "completeTaskPlan",
+                "id": "complete_task_plan_output",
+                "label": "Project Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "planSummary",
+                "id": "plan_summary_output",
+                "label": "Executive Summary",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "startingTasks",
+                "id": "starting_tasks_output",
+                "label": "Quick Start Guide",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850333",
+          "language": "en",
+          "name": "Project Plan Compiler",
+          "description": "Compiles complete project task structure with comprehensive execution roadmap, resource management, and implementation guidance.",
+          "instructions": "Provide detailed tasks, dependency map, milestones, and scope. The routine will create a complete project plan with executive summary and quick start guide."
+        }
+      ]
+    }
+  ]
+}

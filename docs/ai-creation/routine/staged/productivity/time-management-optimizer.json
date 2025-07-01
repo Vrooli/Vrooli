@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Current Time Usage",
                 "description": "Audits how time is currently spent and identifies patterns",
-                "subroutineId": "TODO: Need time audit subroutine",
+                "subroutineId": "7829564732190850283",
                 "inputMap": {
                   "dailySchedule": "currentTimeUse",
                   "taskInventory": "activityList",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Prioritize Goals & Tasks",
                 "description": "Establishes clear priorities using proven frameworks",
-                "subroutineId": "TODO: Need prioritization subroutine",
+                "subroutineId": "7829564732190850286",
                 "inputMap": {
                   "objectives": "goalFramework",
                   "taskList": "responsibilityInventory",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Design Optimal Schedule Structure",
                 "description": "Creates time blocks and scheduling framework",
-                "subroutineId": "TODO: Need schedule design subroutine",
+                "subroutineId": "7829564732190850289",
                 "inputMap": {
                   "organizedPriorities": "priorityMatrix",
                   "energyPatterns": "productivityRhythms",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Implement Productivity Systems",
                 "description": "Establishes tools and methods for execution",
-                "subroutineId": "TODO: Need productivity tools subroutine",
+                "subroutineId": "7829564732190850292",
                 "inputMap": {
                   "timeStructure": "scheduleFramework",
                   "workStyle": "personalPreferences",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Address Time Wasters & Distractions",
                 "description": "Eliminates or minimizes productivity killers",
-                "subroutineId": "TODO: Need distraction management subroutine",
+                "subroutineId": "7829564732190850295",
                 "inputMap": {
                   "timeWasters": "inefficiencyAreas",
                   "distractionSources": "interruptionPatterns",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Monitor & Continuously Improve",
                 "description": "Tracks progress and refines time management approach",
-                "subroutineId": "TODO: Need improvement tracking subroutine",
+                "subroutineId": "7829564732190850298",
                 "inputMap": {
                   "performanceData": "productivityMetrics",
                   "systemFeedback": "effectivenessIndicators",

@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849764",
+  "publicId": "practice-planner-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847057",
+      "tag": "lifestyle",
+      "translations": [
+        {
+          "id": "7829564732190847157",
+          "language": "en",
+          "description": "Lifestyle and personal"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849765",
+      "publicId": "practice-planner-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Develops implementation strategy for ongoing improvement",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "allSkills",
+                "id": "all_skills_input",
+                "label": "All Skills",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Complete communication toolkit developed"
+              },
+              {
+                "fieldName": "timeAvailability",
+                "id": "time_availability_input",
+                "label": "Time Availability",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Available practice time and schedule"
+              },
+              {
+                "fieldName": "progressMetrics",
+                "id": "progress_metrics_input",
+                "label": "Progress Metrics",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "How to measure improvement"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "practiceSchedule",
+                "id": "practice_schedule_output",
+                "label": "Practice Schedule",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "exerciseRoutines",
+                "id": "exercise_routines_output",
+                "label": "Exercise Routines",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "trackingSystem",
+                "id": "tracking_system_output",
+                "label": "Tracking System",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849766",
+          "language": "en",
+          "name": "Practice Planner",
+          "description": "Creates structured practice plans for ongoing communication improvement.",
+          "instructions": "Provide skills toolkit and time availability. The routine will plan practice."
+        }
+      ]
+    }
+  ]
+}

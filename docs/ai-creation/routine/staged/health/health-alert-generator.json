@@ -1,0 +1,142 @@
+{
+  "id": "7892456378912349151",
+  "publicId": "health-al-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349152",
+      "publicId": "health-alert-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of health alert generator for comprehensive health monitoring and early warning system creation",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Caring",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a health alert system expert creating comprehensive health monitoring and early warning frameworks for proactive health management and risk prevention.\n\nHealth Focus Area: {{input.healthFocusArea}}\nRisk Factors: {{input.riskFactors}}\nMonitoring Scope: {{input.monitoringScope}}\nAlert Urgency: {{input.alertUrgency}}\n\nDevelop comprehensive health alert system:\n\n1. **Health Risk Assessment Framework**:\n   - Risk factor identification and categorization\n   - Baseline health status establishment\n   - Vulnerability and predisposition analysis\n   - Environmental and lifestyle factor evaluation\n   - Genetic and family history consideration\n\n2. **Monitoring Parameter Definition**:\n   - Key health indicator identification\n   - Measurement frequency and timing\n   - Normal range and threshold establishment\n   - Data collection method specification\n   - Quality and accuracy standards\n\n3. **Alert Trigger System Design**:\n   - Warning level classification (low, medium, high, critical)\n   - Threshold and criteria establishment\n   - Pattern recognition algorithms\n   - Trend analysis and prediction\n   - Emergency escalation protocols\n\n4. **Alert Content and Communication**:\n   - Clear and actionable alert messaging\n   - Severity and urgency communication\n   - Recommended action specification\n   - Timeline and priority guidance\n   - Contact and resource information\n\n5. **Response and Action Protocols**:\n   - Immediate response procedures\n   - Healthcare provider notification\n   - Self-care and intervention steps\n   - Emergency contact activation\n   - Documentation and tracking requirements\n\n6. **System Integration and Technology**:\n   - Wearable device integration\n   - Health record system connectivity\n   - Mobile app and notification systems\n   - Healthcare provider dashboard access\n   - Data privacy and security protocols\n\n7. **Validation and Continuous Improvement**:\n   - Alert accuracy measurement\n   - False positive/negative analysis\n   - User feedback integration\n   - System performance optimization\n   - Evidence-based refinement processes\n\nProvide comprehensive health alert system with monitoring frameworks, trigger mechanisms, and response protocols for proactive health management and early intervention.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "healthFocusArea",
+                "id": "health_focus_area_input",
+                "label": "Health Focus Area",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Cardiovascular Health", "value": "cardiovascular" },
+                    { "label": "Diabetes Management", "value": "diabetes" },
+                    { "label": "Mental Health Monitoring", "value": "mental_health" },
+                    { "label": "Chronic Disease Management", "value": "chronic_disease" },
+                    { "label": "Preventive Health Screening", "value": "preventive" },
+                    { "label": "Medication Compliance", "value": "medication" },
+                    { "label": "General Wellness Monitoring", "value": "general_wellness" }
+                  ],
+                  "defaultValue": "general_wellness",
+                  "helperText": "Primary health area for alert system"
+                }
+              },
+              {
+                "fieldName": "riskFactors",
+                "id": "risk_factors_input",
+                "label": "Risk Factors",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Known health risks, family history, lifestyle factors, medical conditions, medications",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What risk factors should the alert system monitor?"
+                }
+              },
+              {
+                "fieldName": "monitoringScope",
+                "id": "monitoring_scope_input",
+                "label": "Monitoring Scope",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Individual Personal Monitoring", "value": "individual" },
+                    { "label": "Family Health Monitoring", "value": "family" },
+                    { "label": "Care Facility Monitoring", "value": "facility" },
+                    { "label": "Community Health Tracking", "value": "community" },
+                    { "label": "Workplace Health Program", "value": "workplace" }
+                  ],
+                  "defaultValue": "individual",
+                  "helperText": "Scope of health monitoring system"
+                }
+              },
+              {
+                "fieldName": "alertUrgency",
+                "id": "alert_urgency_input",
+                "label": "Alert Urgency Level",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Critical - Emergency alerts only", "value": "critical" },
+                    { "label": "High - Immediate attention needed", "value": "high" },
+                    { "label": "Medium - Prompt attention recommended", "value": "medium" },
+                    { "label": "Low - Awareness and tracking", "value": "low" },
+                    { "label": "Comprehensive - All levels", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "medium",
+                  "helperText": "Primary urgency level for health alerts"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "healthAlertSystem",
+                "id": "health_alert_system",
+                "label": "Health Alert System",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349153",
+          "language": "en-US",
+          "name": "Health Alert Generator",
+          "description": "Creates comprehensive health monitoring and early warning systems with risk assessment, trigger mechanisms, and response protocols for proactive health management.",
+          "instructions": "Specify health focus area, risk factors, and monitoring scope. The generator will create detailed health alert systems with monitoring and response frameworks."
+        }
+      ]
+    }
+  ]
+}

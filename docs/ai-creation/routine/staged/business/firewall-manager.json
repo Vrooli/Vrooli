@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349373",
+  "publicId": "firewal-m-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349374",
+      "publicId": "fw-mgr-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of firewall manager for comprehensive network security and traffic control strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Security-focused",
+            "maxTokens": 900,
+            "temperature": 0.1,
+            "prompt": "You are a firewall management expert providing comprehensive network security strategies, traffic control optimization, and threat protection solutions.\n\nFirewall Context: {{input.firewallContext}}\nNetwork Architecture: {{input.networkArchitecture}}\nSecurity Requirements: {{input.securityRequirements}}\nPerformance Constraints: {{input.performanceConstraints}}\n\nDesign comprehensive firewall management strategy:\n\n1. **Firewall Architecture Design**:\n   - Multi-layer security implementation\n   - Network segmentation strategies\n   - DMZ configuration\n   - High availability setup\n   - Redundancy and failover\n\n2. **Rule Management and Optimization**:\n   - Rule hierarchy optimization\n   - Policy consolidation\n   - Access control lists\n   - Default deny strategies\n   - Rule performance tuning\n\n3. **Traffic Analysis and Control**:\n   - Deep packet inspection\n   - Application layer filtering\n   - Protocol-specific controls\n   - Bandwidth management\n   - Quality of service implementation\n\n4. **Threat Detection and Prevention**:\n   - Intrusion detection integration\n   - Malware blocking\n   - DDoS protection strategies\n   - Botnet detection\n   - Zero-day threat protection\n\n5. **Monitoring and Logging**:\n   - Real-time traffic monitoring\n   - Security event logging\n   - Alert configuration\n   - Forensic analysis capabilities\n   - Compliance reporting\n\n6. **Performance Optimization**:\n   - Throughput maximization\n   - Latency minimization\n   - Resource utilization\n   - Load balancing\n   - Hardware acceleration\n\n7. **Management and Automation**:\n   - Centralized management\n   - Policy automation\n   - Change management procedures\n   - Backup and recovery\n   - Update and patch management\n\nProvide comprehensive firewall management plan with architecture design, rule optimization, threat protection, and monitoring strategies for robust network security.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "firewallContext",
+                "id": "firewall_context_input",
+                "label": "Firewall Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Network size, organizational type, security posture, compliance requirements, threat landscape",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your firewall management context"
+                }
+              },
+              {
+                "fieldName": "networkArchitecture",
+                "id": "network_architecture_input",
+                "label": "Network Architecture",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Network topology, traffic patterns, critical assets, external connections, internal segmentation",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe your network architecture"
+                }
+              },
+              {
+                "fieldName": "securityRequirements",
+                "id": "security_requirements_input",
+                "label": "Security Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Threat protection needs, compliance standards, access control policies, data protection requirements",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What security requirements exist?"
+                }
+              },
+              {
+                "fieldName": "performanceConstraints",
+                "id": "performance_constraints_input",
+                "label": "Performance Constraints",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Maximum Security", "value": "security" },
+                    { "label": "High Performance", "value": "performance" },
+                    { "label": "Cost Efficiency", "value": "cost" },
+                    { "label": "Ease of Management", "value": "management" },
+                    { "label": "Compliance Focus", "value": "compliance" },
+                    { "label": "Balanced Approach", "value": "balanced" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Primary constraint focus"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "firewallManagementPlan",
+                "id": "firewall_management_plan",
+                "label": "Firewall Management Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349375",
+          "language": "en-US",
+          "name": "Firewall Manager",
+          "description": "Provides comprehensive firewall management with architecture design, rule optimization, and monitoring strategies for robust network security.",
+          "instructions": "Describe your firewall context, network architecture, and security requirements. The manager will design a comprehensive firewall strategy."
+        }
+      ]
+    }
+  ]
+}

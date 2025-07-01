@@ -1,0 +1,130 @@
+{
+  "id": "7892456378912349103",
+  "publicId": "escalation-r-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349104",
+      "publicId": "escal-rout-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of escalation router for intelligent issue escalation and routing management",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Systematic",
+            "maxTokens": 800,
+            "temperature": 0.2,
+            "prompt": "You are an escalation routing expert providing intelligent escalation pathways and routing decisions for issues, requests, and communications.\n\nIssue Details: {{input.issueDetails}}\nOrganization Structure: {{input.organizationStructure}}\nEscalation Triggers: {{input.escalationTriggers}}\nUrgency Level: {{input.urgencyLevel}}\n\nDevelop comprehensive escalation routing strategy:\n\n1. **Issue Classification and Assessment**:\n   - Issue type and category identification\n   - Severity and impact evaluation\n   - Urgency and time sensitivity assessment\n   - Complexity and resource requirements\n   - Stakeholder impact analysis\n\n2. **Escalation Path Determination**:\n   - Hierarchical escalation mapping\n   - Functional escalation routing\n   - Expertise-based routing decisions\n   - Authority level requirements\n   - Decision-making capability matching\n\n3. **Routing Logic and Criteria**:\n   - Automated routing rule development\n   - Conditional escalation triggers\n   - Threshold-based routing decisions\n   - Time-based escalation protocols\n   - Load balancing considerations\n\n4. **Communication Protocol Design**:\n   - Escalation notification templates\n   - Information packaging standards\n   - Handoff communication procedures\n   - Status update requirements\n   - Feedback loop establishment\n\n5. **Timeline and SLA Management**:\n   - Response time requirements\n   - Escalation timeline triggers\n   - Service level agreement compliance\n   - Priority-based scheduling\n   - Deadline management protocols\n\n6. **Quality Assurance and Tracking**:\n   - Escalation effectiveness monitoring\n   - Resolution tracking mechanisms\n   - Quality control checkpoints\n   - Performance measurement systems\n   - Continuous improvement processes\n\n7. **Exception Handling and Fallbacks**:\n   - Alternative routing options\n   - Overflow handling procedures\n   - Emergency escalation protocols\n   - Backup resource identification\n   - Crisis management routing\n\nProvide detailed escalation routing framework with intelligent routing logic, communication protocols, and quality assurance mechanisms for efficient issue resolution and stakeholder satisfaction.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "issueDetails",
+                "id": "issue_details_input",
+                "label": "Issue Details",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the type of issues, requests, or communications that need escalation routing",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What types of issues need escalation routing?"
+                }
+              },
+              {
+                "fieldName": "organizationStructure",
+                "id": "organization_structure_input",
+                "label": "Organization Structure",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Teams, departments, roles, authority levels, expertise areas, decision-making hierarchy",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What is the organizational structure for escalation?"
+                }
+              },
+              {
+                "fieldName": "escalationTriggers",
+                "id": "escalation_triggers_input",
+                "label": "Escalation Triggers",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Conditions that trigger escalation: time limits, severity levels, complexity factors",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What triggers escalation routing?"
+                }
+              },
+              {
+                "fieldName": "urgencyLevel",
+                "id": "urgency_level_input",
+                "label": "Default Urgency Level",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Critical (Immediate)", "value": "critical" },
+                    { "label": "High (1-4 hours)", "value": "high" },
+                    { "label": "Medium (1-2 days)", "value": "medium" },
+                    { "label": "Low (3-7 days)", "value": "low" },
+                    { "label": "Routine (No deadline)", "value": "routine" }
+                  ],
+                  "defaultValue": "medium",
+                  "helperText": "Typical urgency level for routing decisions"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "escalationRoutingPlan",
+                "id": "escalation_routing_plan",
+                "label": "Escalation Routing Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 12
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349105",
+          "language": "en-US",
+          "name": "Escalation Router",
+          "description": "Provides intelligent escalation routing with automated decision logic, communication protocols, and quality assurance for efficient issue resolution.",
+          "instructions": "Describe issue types, organization structure, and escalation triggers. The router will create intelligent routing frameworks and protocols."
+        }
+      ]
+    }
+  ]
+}

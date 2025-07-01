@@ -1,0 +1,189 @@
+{
+  "id": "7892456378912349250",
+  "publicId": "traffi-a-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349251",
+      "publicId": "traffi-anal-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of traffic analyzer for comprehensive network traffic analysis and optimization",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a traffic analysis expert providing comprehensive network traffic monitoring, pattern analysis, and performance optimization strategies.
+
+Traffic Context: {{input.trafficContext}}
+Current Metrics: {{input.currentMetrics}}
+Analysis Objectives: {{input.analysisObjectives}}
+Network Infrastructure: {{input.networkInfrastructure}}
+
+Analyze comprehensive traffic patterns:
+
+1. **Traffic Flow Analysis**:
+   - Volume and throughput measurement
+   - Peak usage identification
+   - Traffic distribution patterns
+   - Bandwidth utilization analysis
+   - Protocol usage breakdown
+
+2. **Performance Metrics Assessment**:
+   - Latency measurement and analysis
+   - Packet loss identification
+   - Jitter and quality metrics
+   - Response time evaluation
+   - Error rate calculation
+
+3. **User Behavior Analysis**:
+   - Usage pattern identification
+   - Geographic distribution analysis
+   - Device and platform breakdown
+   - Session duration analysis
+   - User journey mapping
+
+4. **Application Traffic Profiling**:
+   - Application-specific usage
+   - API call frequency analysis
+   - Content delivery optimization
+   - Service dependency mapping
+   - Resource consumption patterns
+
+5. **Security and Anomaly Detection**:
+   - Unusual traffic pattern identification
+   - DDoS attack detection
+   - Suspicious activity analysis
+   - Threat vector identification
+   - Compliance monitoring
+
+6. **Capacity Planning Insights**:
+   - Growth trend analysis
+   - Scaling requirement prediction
+   - Resource allocation optimization
+   - Cost impact assessment
+   - Performance forecasting
+
+7. **Optimization Recommendations**:
+   - Bottleneck identification
+   - Performance improvement strategies
+   - Infrastructure optimization
+   - Traffic shaping recommendations
+   - Quality of service tuning
+
+Provide comprehensive traffic analysis report with performance metrics, usage patterns, security insights, and optimization recommendations for enhanced network efficiency.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "trafficContext",
+                "id": "traffic_context_input",
+                "label": "Traffic Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Network type, user base, application types, geographic distribution, business model",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your traffic context"
+                }
+              },
+              {
+                "fieldName": "currentMetrics",
+                "id": "current_metrics_input",
+                "label": "Current Metrics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Traffic volumes, performance data, usage statistics, monitoring tools, known issues",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What traffic data is available?"
+                }
+              },
+              {
+                "fieldName": "analysisObjectives",
+                "id": "analysis_objectives_input",
+                "label": "Analysis Objectives",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Performance optimization, capacity planning, security monitoring, cost reduction goals",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What are your analysis goals?"
+                }
+              },
+              {
+                "fieldName": "networkInfrastructure",
+                "id": "network_infrastructure_input",
+                "label": "Network Infrastructure",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Cloud-based", "value": "cloud" },
+                    { "label": "On-premise", "value": "onpremise" },
+                    { "label": "Hybrid Infrastructure", "value": "hybrid" },
+                    { "label": "CDN-enabled", "value": "cdn" },
+                    { "label": "Multi-region", "value": "multiregion" },
+                    { "label": "Complex Infrastructure", "value": "complex" }
+                  ],
+                  "defaultValue": "cloud",
+                  "helperText": "Type of network infrastructure"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "trafficAnalysisReport",
+                "id": "traffic_analysis_report",
+                "label": "Traffic Analysis Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349252",
+          "language": "en-US",
+          "name": "Traffic Analyzer",
+          "description": "Provides comprehensive traffic analysis with flow monitoring, performance assessment, and optimization recommendations for enhanced network efficiency.",
+          "instructions": "Describe your traffic context, metrics, and objectives. The analyzer will provide detailed traffic insights and optimization strategies."
+        }
+      ]
+    }
+  ]
+}

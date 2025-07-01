@@ -1,0 +1,137 @@
+{
+  "id": "7892456378912349004",
+  "publicId": "crisis-co-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349005",
+      "publicId": "crisis-coord-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of crisis coordinator for crisis response management and coordination",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Commanding",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a crisis coordination expert managing comprehensive crisis response operations.\n\nCrisis Type: {{input.crisisType}}\nResponse Team: {{input.responseTeam}}\nAvailable Resources: {{input.availableResources}}\nCoordination Scope: {{input.coordinationScope}}\n\nCoordinate comprehensive crisis response:\n\n1. **Command Structure**:\n   - Incident command system setup\n   - Clear authority and responsibility\n   - Decision-making hierarchy\n   - Communication chain of command\n   - Escalation protocols\n\n2. **Resource Coordination**:\n   - Personnel deployment optimization\n   - Equipment and supply allocation\n   - External resource procurement\n   - Logistics coordination\n   - Budget and cost management\n\n3. **Communication Management**:\n   - Internal coordination protocols\n   - External stakeholder updates\n   - Media communication strategy\n   - Regular status reporting\n   - Information flow optimization\n\n4. **Response Operations**:\n   - Tactical response planning\n   - Timeline and milestone management\n   - Quality assurance protocols\n   - Safety procedures enforcement\n   - Performance monitoring\n\n5. **Stakeholder Coordination**:\n   - Multi-agency collaboration\n   - Vendor and contractor management\n   - Community liaison activities\n   - Regulatory body coordination\n   - Legal counsel integration\n\n6. **Situation Monitoring**:\n   - Real-time status tracking\n   - Threat level assessment\n   - Response effectiveness evaluation\n   - Resource utilization monitoring\n   - Outcome measurement\n\n7. **Recovery Transition**:\n   - Recovery phase planning\n   - Normal operations resumption\n   - Lessons learned capture\n   - Documentation completion\n   - Post-crisis evaluation\n\nProvide detailed coordination framework with clear roles, responsibilities, and operational procedures for effective crisis response management.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "crisisType",
+                "id": "crisis_type_input",
+                "label": "Crisis Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Natural Disaster", "value": "natural" },
+                    { "label": "Security Incident", "value": "security" },
+                    { "label": "Technology Failure", "value": "technology" },
+                    { "label": "Public Relations Crisis", "value": "pr" },
+                    { "label": "Financial Crisis", "value": "financial" },
+                    { "label": "Health Emergency", "value": "health" },
+                    { "label": "Operational Disruption", "value": "operational" }
+                  ],
+                  "defaultValue": "operational",
+                  "helperText": "Type of crisis being managed"
+                }
+              },
+              {
+                "fieldName": "responseTeam",
+                "id": "response_team_input",
+                "label": "Response Team",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Available team members, roles, expertise, external support",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Who is part of the crisis response team?"
+                }
+              },
+              {
+                "fieldName": "availableResources",
+                "id": "available_resources_input",
+                "label": "Available Resources",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Budget, equipment, facilities, technology, external contacts",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What resources are available for response?"
+                }
+              },
+              {
+                "fieldName": "coordinationScope",
+                "id": "coordination_scope_input",
+                "label": "Coordination Scope",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Internal Team Only", "value": "internal" },
+                    { "label": "Multi-Department", "value": "multi_dept" },
+                    { "label": "Organization-wide", "value": "org_wide" },
+                    { "label": "Multi-Organization", "value": "multi_org" },
+                    { "label": "Community/Public", "value": "public" }
+                  ],
+                  "defaultValue": "org_wide",
+                  "helperText": "Scope of coordination required"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "coordinationPlan",
+                "id": "coordination_plan",
+                "label": "Crisis Coordination Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349006",
+          "language": "en-US",
+          "name": "Crisis Coordinator",
+          "description": "Manages comprehensive crisis response operations with command structure, resource coordination, and stakeholder management for effective crisis resolution.",
+          "instructions": "Specify crisis type, response team, and available resources. The coordinator will create detailed operational coordination and management plans."
+        }
+      ]
+    }
+  ]
+}

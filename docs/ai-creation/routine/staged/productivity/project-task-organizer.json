@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Project Scope",
                 "description": "Understands project goals and requirements",
-                "subroutineId": "TODO: Need reasoning subroutine for project analysis",
+                "subroutineId": "7829564732190850316",
                 "inputMap": {
                   "projectDescription": "projectInfo",
                   "projectGoals": "objectives",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Create Task Breakdown",
                 "description": "Decomposes project into major phases and tasks",
-                "subroutineId": "TODO: Need reasoning subroutine for task decomposition",
+                "subroutineId": "7829564732190850319",
                 "inputMap": {
                   "projectScope": "scopeDefinition",
                   "keyDeliverables": "deliverables",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Define Task Details",
                 "description": "Adds specifics to each task including subtasks",
-                "subroutineId": "TODO: Need generation subroutine for task detailing",
+                "subroutineId": "7829564732190850322",
                 "inputMap": {
                   "taskHierarchy": "workBreakdown",
                   "projectMetrics": "successCriteria",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Identify Dependencies",
                 "description": "Maps task dependencies and sequencing",
-                "subroutineId": "TODO: Need deterministic dependency mapping subroutine",
+                "subroutineId": "7829564732190850325",
                 "inputMap": {
                   "detailedTasks": "taskDefinitions",
                   "projectPhases": "phaseStructure",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Create Milestones",
                 "description": "Establishes project milestones and checkpoints",
-                "subroutineId": "TODO: Need reasoning subroutine for milestone planning",
+                "subroutineId": "7829564732190850328",
                 "inputMap": {
                   "projectPhases": "phaseStructure",
                   "criticalPath": "criticalTasks",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Project Plan",
                 "description": "Compiles complete project task structure",
-                "subroutineId": "TODO: Need generation subroutine for plan compilation",
+                "subroutineId": "7829564732190850331",
                 "inputMap": {
                   "detailedTasks": "taskDefinitions",
                   "dependencyMap": "taskDependencies",

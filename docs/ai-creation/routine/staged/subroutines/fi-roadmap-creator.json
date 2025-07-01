@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850034",
+  "publicId": "fi-roadmap-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850035",
+      "publicId": "fi-roadmap-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates actionable FI implementation roadmap",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 1500,
+            "model": null,
+            "prompt": "You are a financial independence coach creating a detailed implementation roadmap. Synthesize all strategies into an actionable plan with tracking systems.\n\nComprehensive FI Plan:\n{{input.allStrategies}}\n\nPriority Actions:\n{{input.priorityActions}}\n\nProgress Metrics:\n{{input.trackingMetrics}}\n\nCreate a complete implementation roadmap:\n\n1. **Detailed Action Plan**:\n   - Week 1-4: Immediate actions\n     * Specific tasks with deadlines\n     * Account setups needed\n     * Initial optimizations\n   - Month 2-3: Foundation building\n     * System implementations\n     * Habit formation\n     * First milestone targets\n   - Month 4-6: Momentum phase\n     * Scale up strategies\n     * Refine systems\n     * Mid-term goals\n   - Month 7-12: Acceleration\n     * Advanced strategies\n     * Major milestones\n     * Year-end targets\n\n2. **Progress Tracking System**:\n   - Key metrics to track monthly\n   - Dashboard recommendations\n   - Automated tracking tools\n   - Review schedule (weekly/monthly/quarterly)\n   - Success benchmarks\n\n3. **Adjustment Framework**:\n   - Trigger points for strategy changes\n   - Common obstacles and solutions\n   - Flexibility guidelines\n   - Course correction protocols\n   - Contingency plans\n\n4. **Resources & Tools**:\n   - Essential apps/platforms\n   - Educational resources\n   - Community/support options\n   - Professional services needed\n\nProvide output as a JSON object with:\n- actionPlan: Detailed timeline with specific tasks and deadlines\n- progressTracking: Comprehensive monitoring system with metrics\n- adjustmentFramework: Guidelines for adapting the plan over time",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "allStrategies",
+                "id": "all_strategies_input",
+                "label": "Complete FI Plan",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "All strategies from previous steps"
+                }
+              },
+              {
+                "fieldName": "priorityActions",
+                "id": "priority_actions_input",
+                "label": "Critical First Steps",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Most important actions to take"
+                }
+              },
+              {
+                "fieldName": "trackingMetrics",
+                "id": "tracking_metrics_input",
+                "label": "Progress Measures",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "KPIs and success metrics"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "actionPlan",
+                "id": "action_plan_output",
+                "label": "Implementation Guide",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "progressTracking",
+                "id": "progress_tracking_output",
+                "label": "Monitoring System",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "adjustmentFramework",
+                "id": "adjustment_framework_output",
+                "label": "Adaptation Strategy",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850036",
+          "language": "en",
+          "name": "FI Roadmap Creator",
+          "description": "Synthesizes all financial independence strategies into a detailed, time-bound action plan with progress tracking and adjustment frameworks.",
+          "instructions": "Provide the comprehensive FI strategies, priority actions, and tracking metrics. The routine will create a detailed roadmap with specific tasks, timelines, and monitoring systems."
+        }
+      ]
+    }
+  ]
+}

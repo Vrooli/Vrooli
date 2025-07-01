@@ -1,0 +1,137 @@
+{
+  "id": "7892456378912349091",
+  "publicId": "emergency-or-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349092",
+      "publicId": "emerg-orch-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of emergency response orchestrator for comprehensive emergency response coordination and management",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Commanding",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are an emergency response orchestration expert managing comprehensive emergency response operations with multi-agency coordination and rapid deployment.\n\nEmergency Type: {{input.emergencyType}}\nResponse Scope: {{input.responseScope}}\nAvailable Resources: {{input.availableResources}}\nUrgency Level: {{input.urgencyLevel}}\n\nOrchestrate comprehensive emergency response:\n\n1. **Immediate Response Activation**:\n   - Emergency assessment and classification\n   - Response team mobilization\n   - Resource allocation and deployment\n   - Communication system activation\n   - Incident command establishment\n\n2. **Multi-Agency Coordination**:\n   - Stakeholder identification and contact\n   - Inter-agency communication protocols\n   - Resource sharing coordination\n   - Authority and jurisdiction clarification\n   - Unified command structure\n\n3. **Communication Management**:\n   - Emergency notification systems\n   - Public information coordination\n   - Media communication strategy\n   - Stakeholder update protocols\n   - Crisis communication messaging\n\n4. **Resource Orchestration**:\n   - Personnel deployment optimization\n   - Equipment and supply coordination\n   - Transportation and logistics\n   - Medical and support services\n   - Facility and infrastructure management\n\n5. **Operational Coordination**:\n   - Field operation synchronization\n   - Task assignment and tracking\n   - Progress monitoring and reporting\n   - Quality assurance protocols\n   - Safety and security measures\n\n6. **Information Management**:\n   - Situation awareness maintenance\n   - Data collection and analysis\n   - Decision support systems\n   - Documentation and record keeping\n   - Intelligence gathering and sharing\n\n7. **Recovery and Transition Planning**:\n   - Recovery phase preparation\n   - Damage assessment coordination\n   - Business continuity support\n   - Community recovery planning\n   - Lessons learned capture\n\nProvide detailed emergency response orchestration plan with clear command structure, communication protocols, and operational coordination for effective emergency management and response.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "emergencyType",
+                "id": "emergency_type_input",
+                "label": "Emergency Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Natural Disaster", "value": "natural" },
+                    { "label": "Public Health Emergency", "value": "health" },
+                    { "label": "Security/Terrorism", "value": "security" },
+                    { "label": "Industrial Accident", "value": "industrial" },
+                    { "label": "Technology Failure", "value": "technology" },
+                    { "label": "Transportation Emergency", "value": "transportation" },
+                    { "label": "Environmental Crisis", "value": "environmental" }
+                  ],
+                  "defaultValue": "natural",
+                  "helperText": "Type of emergency requiring response"
+                }
+              },
+              {
+                "fieldName": "responseScope",
+                "id": "response_scope_input",
+                "label": "Response Scope",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Geographic area, population affected, infrastructure impact, jurisdiction involved",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What is the scope of the emergency response?"
+                }
+              },
+              {
+                "fieldName": "availableResources",
+                "id": "available_resources_input",
+                "label": "Available Resources",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Personnel, equipment, facilities, funding, external support, specialized capabilities",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What resources are available for emergency response?"
+                }
+              },
+              {
+                "fieldName": "urgencyLevel",
+                "id": "urgency_level_input",
+                "label": "Urgency Level",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Critical (Life-threatening)", "value": "critical" },
+                    { "label": "High (Major Impact)", "value": "high" },
+                    { "label": "Moderate (Significant)", "value": "moderate" },
+                    { "label": "Low (Limited Impact)", "value": "low" },
+                    { "label": "Watch/Standby", "value": "watch" }
+                  ],
+                  "defaultValue": "high",
+                  "helperText": "Emergency response urgency level"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "emergencyResponsePlan",
+                "id": "emergency_response_plan",
+                "label": "Emergency Response Orchestration Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349093",
+          "language": "en-US",
+          "name": "Emergency Response Orchestrator",
+          "description": "Manages comprehensive emergency response operations with multi-agency coordination, resource orchestration, and communication management for effective crisis response.",
+          "instructions": "Specify emergency type, response scope, and available resources. The orchestrator will create detailed response coordination and management plans."
+        }
+      ]
+    }
+  ]
+}

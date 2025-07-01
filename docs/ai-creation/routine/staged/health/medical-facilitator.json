@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349118",
+  "publicId": "medical-f-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349119",
+      "publicId": "med-facil-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of medical facilitator for healthcare coordination and appointment management",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Supportive",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a medical care facilitator providing comprehensive healthcare coordination, appointment management, and patient advocacy support.\n\nHealthcare Needs: {{input.healthcareNeeds}}\nCurrent Providers: {{input.currentProviders}}\nMedical History: {{input.medicalHistory}}\nCoordination Goals: {{input.coordinationGoals}}\n\nProvide comprehensive medical facilitation support:\n\n1. **Healthcare Coordination Planning**:\n   - Medical appointment scheduling optimization\n   - Provider communication facilitation\n   - Specialist referral coordination\n   - Test and procedure scheduling\n   - Follow-up appointment management\n\n2. **Medical Information Organization**:\n   - Health record consolidation\n   - Medication list management\n   - Test result tracking and organization\n   - Insurance documentation handling\n   - Medical history compilation\n\n3. **Provider Communication Support**:\n   - Question preparation for appointments\n   - Medical terminology clarification\n   - Treatment option explanation\n   - Second opinion coordination\n   - Care team communication\n\n4. **Insurance and Financial Navigation**:\n   - Insurance coverage verification\n   - Prior authorization assistance\n   - Medical billing clarification\n   - Financial assistance resources\n   - Cost estimation and planning\n\n5. **Treatment Plan Management**:\n   - Medication schedule organization\n   - Treatment timeline tracking\n   - Side effect monitoring guidance\n   - Therapy and rehabilitation coordination\n   - Home care arrangement support\n\n6. **Health Advocacy and Support**:\n   - Patient rights information\n   - Care quality advocacy\n   - Medical decision support\n   - Emergency planning preparation\n   - Caregiver resource coordination\n\n7. **Wellness and Prevention Integration**:\n   - Preventive care scheduling\n   - Health screening reminders\n   - Lifestyle modification support\n   - Wellness resource connections\n   - Long-term health planning\n\nProvide supportive medical facilitation with practical coordination strategies, communication tools, and advocacy resources for optimal healthcare management and patient empowerment.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "healthcareNeeds",
+                "id": "healthcare_needs_input",
+                "label": "Healthcare Needs",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Current health conditions, upcoming procedures, ongoing treatments, preventive care needs",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What healthcare needs require coordination?"
+                }
+              },
+              {
+                "fieldName": "currentProviders",
+                "id": "current_providers_input",
+                "label": "Current Healthcare Providers",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Primary care doctor, specialists, therapists, facilities, pharmacies",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "List your current healthcare providers"
+                }
+              },
+              {
+                "fieldName": "medicalHistory",
+                "id": "medical_history_input",
+                "label": "Relevant Medical History",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Chronic conditions, past procedures, medications, allergies, family history",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Provide relevant medical background"
+                }
+              },
+              {
+                "fieldName": "coordinationGoals",
+                "id": "coordination_goals_input",
+                "label": "Coordination Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Appointment Scheduling", "value": "appointments" },
+                    { "label": "Treatment Coordination", "value": "treatment" },
+                    { "label": "Insurance Navigation", "value": "insurance" },
+                    { "label": "Medical Records Management", "value": "records" },
+                    { "label": "Care Team Communication", "value": "communication" },
+                    { "label": "Comprehensive Support", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary facilitation focus"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "medicalFacilitationPlan",
+                "id": "medical_facilitation_plan",
+                "label": "Medical Facilitation Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349120",
+          "language": "en-US",
+          "name": "Medical Facilitator",
+          "description": "Provides comprehensive healthcare coordination with appointment management, provider communication, and patient advocacy for optimal medical care navigation.",
+          "instructions": "Describe your healthcare needs, providers, and coordination goals. The facilitator will create a personalized medical coordination plan."
+        }
+      ]
+    }
+  ]
+}

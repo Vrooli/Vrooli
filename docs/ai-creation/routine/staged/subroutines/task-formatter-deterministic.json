@@ -1,0 +1,106 @@
+{
+  "id": "7829564732190850154",
+  "publicId": "task-format-det-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850155",
+      "publicId": "task-format-det-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Formats tasks into standard structure",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "javascript",
+            "logic": "function formatTaskList({ clarifiedTasks, formatTemplate, groupingCriteria }) {\n  // Default format template\n  const template = formatTemplate || {\n    fields: ['title', 'description', 'owner', 'priority', 'dueDate', 'category', 'status'],\n    structure: 'standard',\n    includeMetadata: true\n  };\n  \n  // Default grouping criteria\n  const groupBy = groupingCriteria || 'owner';\n  \n  // Process each task into standard format\n  const formattedTasks = clarifiedTasks.map((task, index) => {\n    const taskId = task.id || `task-${index + 1}`;\n    \n    // Create standardized task object\n    const standardTask = {\n      id: taskId,\n      title: cleanTaskTitle(task.title || task.description || 'Untitled Task'),\n      description: expandDescription(task),\n      owner: determineOwner(task),\n      priority: standardizePriority(task.priority),\n      dueDate: formatDate(task.dueDate || task.deadline),\n      category: categorizeTask(task),\n      status: 'pending',\n      tags: extractTags(task),\n      estimatedHours: estimateEffort(task),\n      dependencies: task.dependencies || [],\n      context: {\n        source: 'note-extraction',\n        confidence: task.confidence || 'medium',\n        originalText: task.originalText || '',\n        extractionMethod: task.method || 'automated'\n      },\n      metadata: {\n        createdAt: new Date().toISOString(),\n        extractedFrom: task.sourceSection || 'general',\n        clarificationLevel: task.clarified ? 'high' : 'low',\n        urgencyIndicators: identifyUrgency(task)\n      }\n    };\n    \n    return standardTask;\n  });\n  \n  function cleanTaskTitle(title) {\n    return title\n      .replace(/^(TODO|Action|Task):/i, '')\n      .replace(/[\\n\\r]+/g, ' ')\n      .trim()\n      .substring(0, 100); // Limit length\n  }\n  \n  function expandDescription(task) {\n    let desc = task.description || task.title || '';\n    if (task.context) desc += `\\n\\nContext: ${task.context}`;\n    if (task.background) desc += `\\n\\nBackground: ${task.background}`;\n    if (task.successCriteria) desc += `\\n\\nSuccess Criteria: ${task.successCriteria}`;\n    return desc.trim();\n  }\n  \n  function determineOwner(task) {\n    if (task.owner && task.owner !== 'unclear') return task.owner;\n    if (task.assignedTo) return task.assignedTo;\n    if (task.role) return `${task.role} (role-based)`;\n    return 'Unassigned';\n  }\n  \n  function standardizePriority(priority) {\n    if (!priority) return 'Medium';\n    const p = priority.toString().toLowerCase();\n    if (p.includes('crit') || p.includes('urgent') || p === 'high') return 'High';\n    if (p.includes('low') || p.includes('nice')) return 'Low';\n    return 'Medium';\n  }\n  \n  function formatDate(date) {\n    if (!date) return null;\n    try {\n      if (date instanceof Date) return date.toISOString().split('T')[0];\n      if (typeof date === 'string') {\n        // Handle relative dates\n        if (date.includes('today')) return new Date().toISOString().split('T')[0];\n        if (date.includes('tomorrow')) {\n          const tomorrow = new Date();\n          tomorrow.setDate(tomorrow.getDate() + 1);\n          return tomorrow.toISOString().split('T')[0];\n        }\n        if (date.includes('next week')) {\n          const nextWeek = new Date();\n          nextWeek.setDate(nextWeek.getDate() + 7);\n          return nextWeek.toISOString().split('T')[0];\n        }\n        // Try to parse as date\n        const parsed = new Date(date);\n        if (!isNaN(parsed.getTime())) {\n          return parsed.toISOString().split('T')[0];\n        }\n      }\n    } catch (error) {\n      // Invalid date\n    }\n    return null;\n  }\n  \n  function categorizeTask(task) {\n    if (task.category) return task.category;\n    \n    const text = (task.title + ' ' + task.description).toLowerCase();\n    if (/email|call|contact|meeting|discuss/.test(text)) return 'Communication';\n    if (/research|analyze|investigate|review/.test(text)) return 'Research';\n    if (/create|build|develop|write|design/.test(text)) return 'Creation';\n    if (/plan|schedule|organize|coordinate/.test(text)) return 'Planning';\n    if (/follow.?up|check|monitor|track/.test(text)) return 'Follow-up';\n    if (/fix|resolve|solve|address/.test(text)) return 'Problem-solving';\n    return 'General';\n  }\n  \n  function extractTags(task) {\n    const tags = [];\n    if (task.urgent || task.priority === 'High') tags.push('urgent');\n    if (task.category) tags.push(task.category.toLowerCase());\n    if (task.project) tags.push(task.project);\n    if (task.estimatedHours > 8) tags.push('large-task');\n    return tags;\n  }\n  \n  function estimateEffort(task) {\n    if (task.estimatedHours) return task.estimatedHours;\n    if (task.effort) {\n      const effort = task.effort.toLowerCase();\n      if (effort.includes('quick') || effort.includes('small')) return 0.5;\n      if (effort.includes('medium')) return 2;\n      if (effort.includes('large') || effort.includes('complex')) return 8;\n    }\n    // Default estimate based on category\n    const category = categorizeTask(task);\n    const estimates = {\n      'Communication': 0.5,\n      'Research': 2,\n      'Creation': 4,\n      'Planning': 1,\n      'Follow-up': 0.25,\n      'Problem-solving': 3,\n      'General': 1\n    };\n    return estimates[category] || 1;\n  }\n  \n  function identifyUrgency(task) {\n    const urgencyIndicators = [];\n    const text = (task.title + ' ' + task.description).toLowerCase();\n    if (/asap|urgent|immediate|critical/.test(text)) urgencyIndicators.push('high-urgency-keywords');\n    if (task.dueDate) {\n      const due = new Date(task.dueDate);\n      const now = new Date();\n      const daysUntilDue = (due - now) / (1000 * 60 * 60 * 24);\n      if (daysUntilDue < 1) urgencyIndicators.push('due-today');\n      else if (daysUntilDue < 3) urgencyIndicators.push('due-soon');\n    }\n    if (task.blocksOthers) urgencyIndicators.push('blocks-other-work');\n    return urgencyIndicators;\n  }\n  \n  // Group tasks based on criteria\n  const taskCategories = groupTasks(formattedTasks, groupBy);\n  \n  function groupTasks(tasks, criteria) {\n    const groups = {};\n    \n    tasks.forEach(task => {\n      let groupKey;\n      switch (criteria) {\n        case 'owner':\n          groupKey = task.owner;\n          break;\n        case 'priority':\n          groupKey = task.priority;\n          break;\n        case 'category':\n          groupKey = task.category;\n          break;\n        case 'dueDate':\n          if (task.dueDate) {\n            const due = new Date(task.dueDate);\n            const today = new Date();\n            const daysUntilDue = Math.ceil((due - today) / (1000 * 60 * 60 * 24));\n            if (daysUntilDue < 0) groupKey = 'Overdue';\n            else if (daysUntilDue === 0) groupKey = 'Today';\n            else if (daysUntilDue <= 7) groupKey = 'This Week';\n            else groupKey = 'Later';\n          } else {\n            groupKey = 'No Due Date';\n          }\n          break;\n        default:\n          groupKey = 'All Tasks';\n      }\n      \n      if (!groups[groupKey]) {\n        groups[groupKey] = [];\n      }\n      groups[groupKey].push(task);\n    });\n    \n    return groups;\n  }\n  \n  // Generate summary statistics\n  const summaryStats = {\n    totalTasks: formattedTasks.length,\n    byPriority: {\n      High: formattedTasks.filter(t => t.priority === 'High').length,\n      Medium: formattedTasks.filter(t => t.priority === 'Medium').length,\n      Low: formattedTasks.filter(t => t.priority === 'Low').length\n    },\n    byCategory: {},\n    withDueDates: formattedTasks.filter(t => t.dueDate).length,\n    totalEstimatedHours: formattedTasks.reduce((sum, task) => sum + task.estimatedHours, 0),\n    unassignedTasks: formattedTasks.filter(t => t.owner === 'Unassigned').length,\n    urgentTasks: formattedTasks.filter(t => t.metadata.urgencyIndicators.length > 0).length\n  };\n  \n  // Count by category\n  formattedTasks.forEach(task => {\n    summaryStats.byCategory[task.category] = (summaryStats.byCategory[task.category] || 0) + 1;\n  });\n  \n  return {\n    formattedTasks: formattedTasks,\n    taskCategories: taskCategories,\n    summaryStats: summaryStats\n  };\n}"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "clarifiedTasks",
+                "id": "clarified_tasks_input",
+                "label": "Unambiguous Tasks",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Clarified task list"
+                }
+              },
+              {
+                "fieldName": "formatTemplate",
+                "id": "format_template_input",
+                "label": "Task Structure",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Template for task formatting"
+                }
+              },
+              {
+                "fieldName": "groupingCriteria",
+                "id": "grouping_criteria_input",
+                "label": "Organization Rules",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "How to group tasks"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "formattedTasks",
+                "id": "formatted_tasks_output",
+                "label": "Standard Tasks",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "taskCategories",
+                "id": "task_categories_output",
+                "label": "Grouped Actions",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "summaryStats",
+                "id": "summary_stats_output",
+                "label": "Task Metrics",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850156",
+          "language": "en",
+          "name": "Task Formatter (Deterministic)",
+          "description": "Structures tasks into standard format with consistent fields and grouping options.",
+          "instructions": "Provide clarified tasks and formatting preferences. The routine will create standardized task objects with metadata and grouping."
+        }
+      ]
+    }
+  ]
+}

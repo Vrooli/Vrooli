@@ -1,0 +1,106 @@
+{
+  "id": "7829564732190850106",
+  "publicId": "task-prior-cal-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850107",
+      "publicId": "task-prior-cal-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Task prioritization for calendar scheduling",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "javascript",
+            "logic": "function prioritizeTasks({ taskList, priorityFactors, deadlineConstraints }) {\n  // Default priority factors\n  const factors = priorityFactors || {\n    importance: 0.4,\n    urgency: 0.3,\n    effort: 0.2,\n    dependencies: 0.1\n  };\n  \n  // Process tasks with scoring\n  const scoredTasks = taskList.map((task, index) => {\n    const taskData = {\n      id: task.id || `task-${index}`,\n      name: task.name || task.title,\n      duration: task.duration || task.estimatedMinutes || 30,\n      importance: task.importance || 'medium',\n      urgency: task.urgency || 'medium',\n      effort: task.effort || task.complexity || 'medium',\n      deadline: task.deadline,\n      dependencies: task.dependencies || [],\n      description: task.description || ''\n    };\n    \n    // Calculate importance score (1-10)\n    let importanceScore = 5;\n    if (taskData.importance === 'high' || taskData.importance === 'critical') importanceScore = 9;\n    else if (taskData.importance === 'medium') importanceScore = 5;\n    else if (taskData.importance === 'low') importanceScore = 2;\n    \n    // Calculate urgency score (1-10) based on deadline\n    let urgencyScore = 5;\n    if (taskData.deadline) {\n      const hoursUntilDue = (new Date(taskData.deadline) - new Date()) / (1000 * 60 * 60);\n      if (hoursUntilDue < 0) urgencyScore = 10; // Overdue\n      else if (hoursUntilDue < 24) urgencyScore = 9;\n      else if (hoursUntilDue < 72) urgencyScore = 7;\n      else if (hoursUntilDue < 168) urgencyScore = 5;\n      else urgencyScore = 3;\n    }\n    if (taskData.urgency === 'high') urgencyScore = Math.max(urgencyScore, 8);\n    else if (taskData.urgency === 'low') urgencyScore = Math.min(urgencyScore, 3);\n    \n    // Calculate effort score (higher effort = lower priority for quick wins)\n    let effortScore = 5;\n    if (taskData.effort === 'low' || taskData.duration <= 15) effortScore = 8;\n    else if (taskData.effort === 'medium' || taskData.duration <= 60) effortScore = 5;\n    else if (taskData.effort === 'high' || taskData.duration > 120) effortScore = 2;\n    \n    // Calculate dependency score\n    let dependencyScore = 5;\n    if (taskData.dependencies.length > 0) dependencyScore = 3; // Has dependencies = lower priority\n    \n    // Calculate composite score\n    const compositeScore = \n      (importanceScore * factors.importance) +\n      (urgencyScore * factors.urgency) +\n      (effortScore * factors.effort) +\n      (dependencyScore * factors.dependencies);\n    \n    return {\n      ...taskData,\n      scores: {\n        importance: importanceScore,\n        urgency: urgencyScore,\n        effort: effortScore,\n        dependency: dependencyScore,\n        composite: Math.round(compositeScore * 10) / 10\n      }\n    };\n  });\n  \n  // Sort by composite score (highest first)\n  const prioritizedTasks = scoredTasks.sort((a, b) => b.scores.composite - a.scores.composite);\n  \n  // Generate effort estimates with time allocations\n  const effortEstimates = prioritizedTasks.map(task => ({\n    taskId: task.id,\n    taskName: task.name,\n    estimatedDuration: task.duration,\n    complexityLevel: task.effort,\n    bufferTime: task.effort === 'high' ? Math.ceil(task.duration * 0.2) : \n                task.effort === 'medium' ? Math.ceil(task.duration * 0.1) : \n                Math.ceil(task.duration * 0.05),\n    recommendedTimeSlot: task.duration >= 120 ? 'deep-work' :\n                        task.duration >= 60 ? 'focus' :\n                        task.duration >= 30 ? 'task' : 'quick'\n  }));\n  \n  // Generate urgency levels for scheduling\n  const urgencyLevels = prioritizedTasks.map(task => ({\n    taskId: task.id,\n    taskName: task.name,\n    urgencyLevel: task.scores.urgency >= 8 ? 'critical' :\n                  task.scores.urgency >= 6 ? 'high' :\n                  task.scores.urgency >= 4 ? 'medium' : 'low',\n    priorityScore: task.scores.composite,\n    schedulingWeight: task.scores.composite * 10,\n    mustScheduleToday: task.scores.urgency >= 8 || \n                      (task.deadline && new Date(task.deadline) - new Date() < 24 * 60 * 60 * 1000)\n  }));\n  \n  return {\n    prioritizedTasks: prioritizedTasks,\n    effortEstimates: effortEstimates,\n    urgencyLevels: urgencyLevels\n  };\n}"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "taskList",
+                "id": "task_list_input",
+                "label": "Scheduling Requests",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Tasks to be scheduled"
+                }
+              },
+              {
+                "fieldName": "priorityFactors",
+                "id": "priority_factors_input",
+                "label": "Importance Criteria",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Weighting factors for scoring"
+                }
+              },
+              {
+                "fieldName": "deadlineConstraints",
+                "id": "deadline_constraints_input",
+                "label": "Time Requirements",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Deadline and timing constraints"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "prioritizedTasks",
+                "id": "prioritized_tasks_output",
+                "label": "Ranked Activities",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "effortEstimates",
+                "id": "effort_estimates_output",
+                "label": "Time Allocations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "urgencyLevels",
+                "id": "urgency_levels_output",
+                "label": "Priority Scores",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850108",
+          "language": "en",
+          "name": "Task Prioritization (Deterministic)",
+          "description": "Ranks tasks by importance, urgency, and effort requirements for calendar scheduling.",
+          "instructions": "Provide task list with priority factors and deadline constraints. The routine will calculate priority scores and effort estimates."
+        }
+      ]
+    }
+  ]
+}

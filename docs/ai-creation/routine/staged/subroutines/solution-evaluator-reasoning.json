@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850388",
+  "publicId": "solution-evaluator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850389",
+      "publicId": "solution-evaluator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Assesses ideas against criteria and improves promising concepts",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "You are a solution evaluation specialist. Assess ideas against criteria and improve promising concepts through systematic analysis and refinement.\n\nIdea Collection:\n{{input.conceptRepository}}\n\nSuccess Criteria:\n{{input.solutionGoals}}\n\nImplementation Reality:\n{{input.feasibilityFactors}}\n\nEvaluate and refine solutions systematically:\n\n1. **Multi-Criteria Assessment Framework**:\n   Evaluate ideas across multiple dimensions:\n   - **Impact Potential**: Expected magnitude of positive change the solution could create\n   - **Feasibility Analysis**: Realistic assessment of implementation possibility given resources\n   - **Resource Requirements**: Time, money, skills, and other assets needed for success\n   - **Risk Evaluation**: Potential negative consequences, failure modes, and mitigation strategies\n   - **Strategic Alignment**: How well the solution supports broader organizational goals\n   - **Stakeholder Acceptance**: Likelihood of support from key decision-makers and affected parties\n\n2. **Comparative Ranking System**:\n   Systematically compare solutions against each other:\n   - **Scoring Matrix**: Quantitative assessment across standardized criteria\n   - **Pairwise Comparison**: Direct comparison between individual solution options\n   - **Portfolio Balancing**: Mixing quick wins with longer-term transformational solutions\n   - **Synergy Assessment**: How solutions might work together for enhanced impact\n   - **Opportunity Cost**: What is given up by choosing one solution over alternatives\n   - **Implementation Sequencing**: Optimal order for pursuing multiple promising solutions\n\n3. **Feasibility Deep Dive**:\n   Thoroughly analyze implementation realities:\n   - **Technical Feasibility**: Whether the solution can actually be built or implemented\n   - **Economic Viability**: Cost-benefit analysis and return on investment assessment\n   - **Operational Integration**: How the solution fits with existing processes and systems\n   - **Regulatory Compliance**: Legal and policy requirements that must be satisfied\n   - **Timeline Realism**: Whether implementation can occur within required timeframes\n   - **Scalability Potential**: Ability to expand or replicate the solution if successful\n\n4. **Solution Refinement Process**:\n   Improve promising concepts through systematic enhancement:\n   - **Gap Identification**: Missing elements or weaknesses in current solution design\n   - **Strength Amplification**: Enhancing the most powerful aspects of promising solutions\n   - **Risk Mitigation**: Modifying solutions to reduce potential negative consequences\n   - **Efficiency Optimization**: Reducing resource requirements while maintaining effectiveness\n   - **User Experience**: Improving how stakeholders will interact with and benefit from solutions\n   - **Integration Enhancement**: Better connecting solutions with existing systems and processes\n\n5. **Innovation Value Assessment**:\n   Evaluate the unique benefits and breakthrough potential:\n   - **Competitive Advantage**: How the solution creates unique value not available elsewhere\n   - **Market Differentiation**: What makes this solution distinct from existing approaches\n   - **Learning Potential**: How implementing this solution builds organizational capabilities\n   - **Future Optionality**: New possibilities the solution creates for additional innovations\n   - **Network Effects**: How solution value increases as more people use or benefit from it\n   - **Sustainability**: Long-term viability and self-reinforcing characteristics\n\n6. **Implementation Strategy Development**:\n   Plan how to execute the most promising solutions:\n   - **Phase Planning**: Breaking implementation into manageable, sequential stages\n   - **Resource Mobilization**: Securing necessary assets, skills, and support for success\n   - **Change Management**: Helping stakeholders adapt to new approaches and systems\n   - **Success Metrics**: Defining how to measure progress and achievement\n   - **Contingency Planning**: Backup approaches if primary implementation strategies fail\n   - **Learning Integration**: Building feedback loops for continuous solution improvement\n\nProvide output as JSON with:\n- rankedSolutions: Prioritized list of solutions with evaluation scores\n- improvedIdeas: Enhanced versions of promising concepts\n- feasibilityAssessment: Implementation viability analysis and recommendations",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "conceptRepository",
+                "id": "concept_repository_input",
+                "label": "Idea Collection",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Generated ideas and solution concepts"
+                }
+              },
+              {
+                "fieldName": "solutionGoals",
+                "id": "solution_goals_input",
+                "label": "Success Criteria",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Goals and criteria for solution success"
+                }
+              },
+              {
+                "fieldName": "feasibilityFactors",
+                "id": "feasibility_factors_input",
+                "label": "Implementation Reality",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Constraints and factors affecting implementation"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "rankedSolutions",
+                "id": "ranked_solutions_output",
+                "label": "Evaluated Options",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "improvedIdeas",
+                "id": "improved_ideas_output",
+                "label": "Refined Concepts",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "feasibilityAssessment",
+                "id": "feasibility_assessment_output",
+                "label": "Implementation Viability",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850390",
+          "language": "en",
+          "name": "Solution Evaluator",
+          "description": "Assesses ideas against criteria and improves promising concepts through systematic evaluation frameworks, comparative analysis, and refinement processes.",
+          "instructions": "Provide idea collection, success criteria, and feasibility factors. The routine will rank solutions, refine concepts, and assess implementation viability."
+        }
+      ]
+    }
+  ]
+}

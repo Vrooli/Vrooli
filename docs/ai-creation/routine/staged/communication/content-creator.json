@@ -1,0 +1,138 @@
+{
+  "id": "7892456378912347025",
+  "publicId": "content-cr-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912347026",
+      "publicId": "create-cont-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of content creator for comprehensive content development",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Creative",
+            "maxTokens": 900,
+            "temperature": 0.7,
+            "prompt": "You are a content creation expert developing engaging, purpose-driven content.\n\nContent Goals: {{input.contentGoals}}\nTarget Audience: {{input.targetAudience}}\nContent Format: {{input.contentFormat}}\nBrand Voice: {{input.brandVoice}}\n\nCreate comprehensive content:\n\n1. **Content Strategy**:\n   - Clear objective definition\n   - Key message identification\n   - Value proposition articulation\n   - Call-to-action strategy\n   - Success metrics\n\n2. **Audience Alignment**:\n   - Demographic targeting\n   - Pain point addressing\n   - Interest and preference matching\n   - Language and tone adaptation\n   - Cultural sensitivity\n\n3. **Content Structure**:\n   - Compelling hook/opening\n   - Logical flow and progression\n   - Supporting evidence/examples\n   - Clear transitions\n   - Strong conclusion\n\n4. **Engagement Elements**:\n   - Interactive components\n   - Visual content suggestions\n   - Storytelling techniques\n   - Emotional connection points\n   - Social sharing potential\n\n5. **Format Optimization**:\n   - Platform-specific adaptation\n   - Length and pacing\n   - Visual hierarchy\n   - Readability enhancement\n   - Mobile optimization\n\n6. **Brand Consistency**:\n   - Voice and tone alignment\n   - Messaging consistency\n   - Visual brand integration\n   - Value alignment\n   - Personality expression\n\n7. **Content Variants**:\n   - Multiple format versions\n   - Different platform adaptations\n   - Headline/title options\n   - Summary versions\n   - Follow-up content ideas\n\nCreate original, engaging content that achieves objectives while serving the audience effectively.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "contentGoals",
+                "id": "content_goals_input",
+                "label": "Content Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What should this content achieve? (educate, entertain, convert, build awareness)",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Primary objectives for the content"
+                }
+              },
+              {
+                "fieldName": "targetAudience",
+                "id": "target_audience_input",
+                "label": "Target Audience",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe your audience: demographics, interests, challenges, preferences",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Who is the intended audience?"
+                }
+              },
+              {
+                "fieldName": "contentFormat",
+                "id": "content_format_input",
+                "label": "Content Format",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Blog Post/Article", "value": "blog" },
+                    { "label": "Social Media Post", "value": "social" },
+                    { "label": "Email Newsletter", "value": "email" },
+                    { "label": "Video Script", "value": "video" },
+                    { "label": "Presentation/Slides", "value": "presentation" },
+                    { "label": "Website Copy", "value": "web" },
+                    { "label": "Marketing Material", "value": "marketing" }
+                  ],
+                  "defaultValue": "blog",
+                  "helperText": "Primary content format"
+                }
+              },
+              {
+                "fieldName": "brandVoice",
+                "id": "brand_voice_input",
+                "label": "Brand Voice",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Professional & Authoritative", "value": "professional" },
+                    { "label": "Friendly & Conversational", "value": "friendly" },
+                    { "label": "Creative & Inspiring", "value": "creative" },
+                    { "label": "Educational & Helpful", "value": "educational" },
+                    { "label": "Bold & Confident", "value": "bold" },
+                    { "label": "Warm & Empathetic", "value": "empathetic" }
+                  ],
+                  "defaultValue": "professional",
+                  "helperText": "Tone and personality for the content"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "createdContent",
+                "id": "created_content",
+                "label": "Created Content",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7892456378912347027",
+          "language": "en-US",
+          "name": "Content Creator",
+          "description": "Creates comprehensive, engaging content tailored to specific audiences and objectives with strategic messaging and brand alignment.",
+          "instructions": "Define your content goals, target audience, and format. The creator will develop original content with strategic structure and engaging elements."
+        }
+      ]
+    }
+  ]
+}

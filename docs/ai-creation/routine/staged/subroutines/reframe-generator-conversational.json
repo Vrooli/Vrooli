@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850352",
+  "publicId": "reframe-generator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850353",
+      "publicId": "reframe-generator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates multiple new ways to view and understand the problem",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Creative",
+            "maxTokens": 1300,
+            "model": null,
+            "prompt": "You are a creative reframing specialist. Generate multiple innovative perspectives that transform how problems are understood and approached.\n\nCore Elements:\n{{input.fundamentalComponents}}\n\nCausal Relationships:\n{{input.causeEffectChains}}\n\nPerspective Methods:\n{{input.reframingTechniques}}\n\nGenerate transformative alternative frames:\n\n**Creative Problem Reframing Workshop**\n\nLet's explore this problem from completely new angles that open up fresh solution possibilities:\n\n1. **Perspective Shift Techniques**:\n   Apply systematic reframing methods:\n   - **Stakeholder Reversal**: What if we viewed this from the opposite stakeholder's perspective?\n   - **Scale Shifting**: How does this problem look at micro vs macro levels?\n   - **Time Reversal**: What if we started with the desired end state and worked backward?\n   - **Resource Inversion**: What if our biggest constraint became our biggest advantage?\n   - **Assumption Flipping**: What if our core assumptions were completely wrong?\n   - **Metaphor Mapping**: What if this problem were like something completely different?\n\n2. **Alternative Problem Definitions**:\n   Reimagine what the real problem might be:\n   - **Symptom vs Root**: What if what we think is the problem is just a symptom?\n   - **Individual vs System**: What if this is a system problem, not an individual one?\n   - **Problem vs Opportunity**: What if this 'problem' is actually a disguised opportunity?\n   - **Wrong Problem**: What if we're solving the wrong problem entirely?\n   - **Meta-Problem**: What if the real problem is how we're thinking about the problem?\n   - **Solution-Created Problem**: What if our previous solutions created this problem?\n\n3. **Unconventional Angle Exploration**:\n   Discover surprising new viewpoints:\n   - **Paradoxical Framing**: What if the solution requires embracing the problem?\n   - **Abundance Mindset**: What if scarcity isn't real and resources are actually abundant?\n   - **Strength-Based**: What if we focused only on what's working well?\n   - **Anti-Solution**: What if we deliberately made the problem worse first?\n   - **Adjacent Problem**: What if solving a nearby problem automatically fixes this one?\n   - **Non-Problem Frame**: What if this isn't actually a problem that needs solving?\n\n4. **Cross-Domain Inspiration**:\n   Borrow perspectives from other fields:\n   - **Nature Metaphors**: How would nature solve this problem?\n   - **Technology Lens**: What if we approached this like a software/hardware challenge?\n   - **Game Theory**: What if this were a multi-player strategic game?\n   - **Artistic Expression**: How would an artist approach this challenge?\n   - **Scientific Method**: What if we treated this as a research hypothesis?\n   - **Sports Strategy**: How would a coach approach this performance challenge?\n\n5. **Value and Goal Reframing**:\n   Question what success really means:\n   - **Value Redefinition**: What if our definition of success is too narrow?\n   - **Multi-Stakeholder Win**: What if everyone could win in a different way?\n   - **Process vs Outcome**: What if the journey is more important than the destination?\n   - **Learning Focus**: What if the goal is learning, not solving?\n   - **Relationship Building**: What if the goal is strengthening connections?\n   - **Long-term Optimization**: What if we optimize for 10 years instead of 10 months?\n\n6. **Creative Constraint Manipulation**:\n   Transform limitations into advantages:\n   - **Constraint Celebration**: What if our limitations are actually gifts?\n   - **Artificial Constraints**: What if we added even more constraints to force creativity?\n   - **Constraint Removal**: What if we ignored certain constraints entirely?\n   - **Constraint Trading**: What if we could exchange one constraint for another?\n   - **Constraint Redefinition**: What if our constraints aren't real or are poorly defined?\n   - **Constraint as Feature**: What if our biggest limitation became our unique advantage?\n\n7. **Radical Recontextualization**:\n   Place the problem in entirely new contexts:\n   - **Historical Perspective**: How would people 100 years ago/from now approach this?\n   - **Cultural Translation**: How would different cultures frame and solve this?\n   - **Scale Transformation**: What if this problem existed at personal vs global scale?\n   - **Genre Shifting**: What if this were a comedy instead of a drama?\n   - **Industry Translation**: How would completely different industries handle this?\n   - **Reality Shifting**: What if the rules of reality were different?\n\n8. **Integration and Synthesis**:\n   Combine multiple reframes for richer perspectives:\n   - **Frame Stacking**: How do multiple reframes work together?\n   - **Perspective Weaving**: Can we create hybrid viewpoints?\n   - **Dynamic Framing**: How might the best frame change over time?\n   - **Contextual Switching**: When might different frames be most useful?\n   - **Stakeholder-Specific Frames**: What frame works best for each stakeholder?\n   - **Evolution Potential**: How might these frames evolve as we learn more?\n\n**Reframing Quality Check:**\n- Does this frame open up new solution possibilities?\n- Does it challenge our fundamental assumptions?\n- Does it make the problem more solvable or interesting?\n- Does it include previously overlooked perspectives?\n- Does it inspire energy and creativity rather than discouragement?\n\nGenerate frames that are surprising, thought-provoking, and genuinely useful for breakthrough thinking!",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "fundamentalComponents",
+                "id": "fundamental_components_input",
+                "label": "Core Elements",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Fundamental components of the problem"
+                }
+              },
+              {
+                "fieldName": "causeEffectChains",
+                "id": "cause_effect_chains_input",
+                "label": "Causal Relationships",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Identified causal relationships and patterns"
+                }
+              },
+              {
+                "fieldName": "reframingTechniques",
+                "id": "reframing_techniques_input",
+                "label": "Perspective Methods",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Specific reframing techniques to apply"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "newPerspectives",
+                "id": "new_perspectives_output",
+                "label": "Alternative Frames",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "perspectiveRange",
+                "id": "perspective_range_output",
+                "label": "Frame Variations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "unconventionalAngles",
+                "id": "unconventional_angles_output",
+                "label": "Creative Twists",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850354",
+          "language": "en",
+          "name": "Reframe Generator",
+          "description": "Creates multiple new ways to view and understand the problem through creative perspective techniques and unconventional angle exploration.",
+          "instructions": "Provide core elements, causal relationships, and reframing techniques. The routine will generate alternative frames, perspective variations, and creative recontextualizations."
+        }
+      ]
+    }
+  ]
+}

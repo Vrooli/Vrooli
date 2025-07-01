@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349103",
+  "publicId": "security-v-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349104",
+      "publicId": "security-val-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of security validator for comprehensive security assessment and vulnerability analysis",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Vigilant",
+            "maxTokens": 900,
+            "temperature": 0.1,
+            "prompt": "You are a cybersecurity validation expert providing comprehensive security assessment, vulnerability analysis, and compliance verification for systems, applications, and processes.\n\nSecurity Scope: {{input.securityScope}}\nCurrent Security Measures: {{input.currentSecurityMeasures}}\nCompliance Requirements: {{input.complianceRequirements}}\nValidation Focus: {{input.validationFocus}}\n\nProvide comprehensive security validation analysis:\n\n1. **Security Posture Assessment**:\n   - Current security control evaluation\n   - Security architecture review\n   - Asset and data classification\n   - Risk exposure and threat landscape\n   - Security maturity assessment\n\n2. **Vulnerability Analysis and Testing**:\n   - Technical vulnerability identification\n   - Penetration testing recommendations\n   - Code security review guidance\n   - Configuration and deployment security\n   - Third-party and supply chain risks\n\n3. **Access Control and Authentication**:\n   - Identity and access management review\n   - Authentication mechanism validation\n   - Authorization and privilege analysis\n   - Multi-factor authentication assessment\n   - Session and credential management\n\n4. **Data Protection and Privacy**:\n   - Data encryption and protection\n   - Privacy control implementation\n   - Data classification and handling\n   - Backup and recovery security\n   - Data retention and disposal\n\n5. **Compliance and Regulatory Validation**:\n   - Regulatory requirement mapping\n   - Compliance gap analysis\n   - Audit and certification readiness\n   - Policy and procedure alignment\n   - Documentation and evidence review\n\n6. **Incident Response and Monitoring**:\n   - Security monitoring effectiveness\n   - Incident response capability\n   - Logging and audit trail analysis\n   - Threat detection and alerting\n   - Recovery and business continuity\n\n7. **Security Improvement Recommendations**:\n   - Priority-based remediation plan\n   - Security control enhancement\n   - Technology and process improvements\n   - Training and awareness programs\n   - Continuous monitoring strategies\n\nProvide actionable security validation report with vulnerability identification, compliance verification, and strategic improvement recommendations for enhanced security posture.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "securityScope",
+                "id": "security_scope_input",
+                "label": "Security Scope",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Systems, applications, networks, processes, or infrastructure to validate",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What needs security validation?"
+                }
+              },
+              {
+                "fieldName": "currentSecurityMeasures",
+                "id": "current_security_measures_input",
+                "label": "Current Security Measures",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Existing security controls, tools, policies, procedures, technologies in place",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe current security implementations"
+                }
+              },
+              {
+                "fieldName": "complianceRequirements",
+                "id": "compliance_requirements_input",
+                "label": "Compliance Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "SOC2, ISO27001, GDPR, HIPAA, PCI-DSS, industry standards, regulatory requirements",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What compliance standards must be met?"
+                }
+              },
+              {
+                "fieldName": "validationFocus",
+                "id": "validation_focus_input",
+                "label": "Validation Focus",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Application Security", "value": "application" },
+                    { "label": "Infrastructure Security", "value": "infrastructure" },
+                    { "label": "Data Security", "value": "data" },
+                    { "label": "Network Security", "value": "network" },
+                    { "label": "Compliance Validation", "value": "compliance" },
+                    { "label": "Comprehensive Security", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary security validation focus"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "securityValidationReport",
+                "id": "security_validation_report",
+                "label": "Security Validation Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349105",
+          "language": "en-US",
+          "name": "Security Validator",
+          "description": "Provides comprehensive security validation with vulnerability analysis, compliance verification, and strategic improvement recommendations for enhanced security posture.",
+          "instructions": "Describe the security scope, current measures, and compliance requirements. The validator will assess security posture and provide improvement recommendations."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,136 @@
+{
+  "id": "7892456378912349136",
+  "publicId": "garden-pl-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349137",
+      "publicId": "garden-plan-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of garden planner for comprehensive garden design and cultivation planning",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Nurturing",
+            "maxTokens": 900,
+            "temperature": 0.5,
+            "prompt": "You are a garden planning expert providing comprehensive garden design and cultivation guidance for successful and sustainable gardening.\n\nGarden Space: {{input.gardenSpace}}\nGardening Goals: {{input.gardeningGoals}}\nClimate Zone: {{input.climateZone}}\nExperience Level: {{input.experienceLevel}}\n\nCreate comprehensive garden plan:\n\n1. **Site Analysis and Preparation**:\n   - Space assessment and measurements\n   - Soil condition evaluation\n   - Sunlight and shade mapping\n   - Drainage and water consideration\n   - Microclimate identification\n\n2. **Garden Design and Layout**:\n   - Space utilization optimization\n   - Plant placement and spacing\n   - Pathway and access planning\n   - Aesthetic and functional design\n   - Growth accommodation planning\n\n3. **Plant Selection and Planning**:\n   - Climate-appropriate plant choices\n   - Seasonal planting schedule\n   - Companion planting strategies\n   - Succession planting planning\n   - Pest and disease resistance\n\n4. **Growing Season Management**:\n   - Seed starting and transplanting\n   - Watering and irrigation planning\n   - Fertilization and soil amendments\n   - Pruning and maintenance schedules\n   - Harvest timing and techniques\n\n5. **Sustainable Gardening Practices**:\n   - Organic growing methods\n   - Composting and waste recycling\n   - Water conservation strategies\n   - Biodiversity enhancement\n   - Natural pest management\n\n6. **Seasonal Planning and Care**:\n   - Spring preparation activities\n   - Summer maintenance routines\n   - Fall harvest and cleanup\n   - Winter protection and planning\n   - Year-round garden calendar\n\n7. **Troubleshooting and Problem Solving**:\n   - Common problem identification\n   - Disease and pest management\n   - Environmental stress solutions\n   - Yield optimization strategies\n   - Continuous improvement planning\n\nProvide detailed garden plan with design layout, planting schedules, maintenance guidelines, and seasonal care instructions for successful garden cultivation and enjoyment.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "gardenSpace",
+                "id": "garden_space_input",
+                "label": "Garden Space",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Size, location, type (backyard, containers, raised beds), existing conditions",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe your available garden space"
+                }
+              },
+              {
+                "fieldName": "gardeningGoals",
+                "id": "gardening_goals_input",
+                "label": "Gardening Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Food Production", "value": "food" },
+                    { "label": "Beautiful Landscaping", "value": "beauty" },
+                    { "label": "Herb and Medicine Garden", "value": "herbs" },
+                    { "label": "Wildlife and Pollinator Support", "value": "wildlife" },
+                    { "label": "Educational/Learning", "value": "education" },
+                    { "label": "Therapeutic/Wellness", "value": "wellness" },
+                    { "label": "Mixed Purpose", "value": "mixed" }
+                  ],
+                  "defaultValue": "food",
+                  "helperText": "Primary gardening objective"
+                }
+              },
+              {
+                "fieldName": "climateZone",
+                "id": "climate_zone_input",
+                "label": "Climate Information",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "USDA zone, typical weather patterns, growing season length, precipitation",
+                  "multiline": true,
+                  "minRows": 2,
+                  "helperText": "What is your climate and growing conditions?"
+                }
+              },
+              {
+                "fieldName": "experienceLevel",
+                "id": "experience_level_input",
+                "label": "Experience Level",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Complete Beginner", "value": "beginner" },
+                    { "label": "Some Experience", "value": "intermediate" },
+                    { "label": "Experienced Gardener", "value": "experienced" },
+                    { "label": "Expert/Master Gardener", "value": "expert" }
+                  ],
+                  "defaultValue": "beginner",
+                  "helperText": "Your current gardening experience level"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "gardenPlan",
+                "id": "garden_plan",
+                "label": "Garden Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349138",
+          "language": "en-US",
+          "name": "Garden Planner",
+          "description": "Provides comprehensive garden design and cultivation planning with layout design, plant selection, and seasonal care guidance for successful gardening.",
+          "instructions": "Describe garden space, goals, and climate conditions. The planner will create detailed garden design and cultivation strategies."
+        }
+      ]
+    }
+  ]
+}

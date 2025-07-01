@@ -1,0 +1,189 @@
+{
+  "id": "7892456378912349226",
+  "publicId": "servic-c-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349227",
+      "publicId": "servic-coord-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of service coordinator for comprehensive microservice orchestration and distributed system coordination",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Orchestral",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a service coordination expert providing comprehensive microservice orchestration, distributed system management, and service mesh optimization.
+
+Service Architecture: {{input.serviceArchitecture}}
+Current Services: {{input.currentServices}}
+Coordination Challenges: {{input.coordinationChallenges}}
+Integration Goals: {{input.integrationGoals}}
+
+Coordinate comprehensive service ecosystem:
+
+1. **Service Discovery and Registration**:
+   - Service registry management
+   - Health check orchestration
+   - Load balancing coordination
+   - Failover mechanism design
+   - Service versioning strategy
+
+2. **Communication Orchestration**:
+   - API gateway configuration
+   - Inter-service communication patterns
+   - Message queue coordination
+   - Event-driven architecture
+   - Protocol standardization
+
+3. **Data Consistency Management**:
+   - Distributed transaction coordination
+   - Saga pattern implementation
+   - Event sourcing strategy
+   - Data synchronization protocols
+   - Conflict resolution mechanisms
+
+4. **Security and Access Control**:
+   - Service-to-service authentication
+   - Authorization policy management
+   - Certificate management
+   - Secret distribution
+   - Zero-trust implementation
+
+5. **Observability and Monitoring**:
+   - Distributed tracing setup
+   - Service metrics aggregation
+   - Log correlation strategies
+   - Performance monitoring
+   - Error tracking coordination
+
+6. **Resilience and Fault Tolerance**:
+   - Circuit breaker patterns
+   - Retry policy coordination
+   - Bulkhead isolation strategies
+   - Graceful degradation planning
+   - Chaos engineering integration
+
+7. **Deployment and Lifecycle Management**:
+   - Rolling deployment coordination
+   - Blue-green deployment strategies
+   - Canary release management
+   - Version compatibility matrix
+   - Service retirement planning
+
+Provide comprehensive service coordination plan with orchestration strategies, communication patterns, resilience mechanisms, and operational procedures for robust distributed systems.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "serviceArchitecture",
+                "id": "service_architecture_input",
+                "label": "Service Architecture",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Service mesh, microservice count, communication patterns, data storage, technology stack",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your service architecture"
+                }
+              },
+              {
+                "fieldName": "currentServices",
+                "id": "current_services_input",
+                "label": "Current Services",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Service inventory, dependencies, communication flows, deployment status, versions",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe your current services"
+                }
+              },
+              {
+                "fieldName": "coordinationChallenges",
+                "id": "coordination_challenges_input",
+                "label": "Coordination Challenges",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Integration complexity, data consistency issues, deployment challenges, monitoring gaps",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What coordination challenges exist?"
+                }
+              },
+              {
+                "fieldName": "integrationGoals",
+                "id": "integration_goals_input",
+                "label": "Integration Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Seamless Communication", "value": "communication" },
+                    { "label": "High Availability", "value": "availability" },
+                    { "label": "Scalable Architecture", "value": "scalability" },
+                    { "label": "Observability Excellence", "value": "observability" },
+                    { "label": "Security First", "value": "security" },
+                    { "label": "Comprehensive Integration", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary integration objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "serviceCoordinationPlan",
+                "id": "service_coordination_plan",
+                "label": "Service Coordination Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349228",
+          "language": "en-US",
+          "name": "Service Coordinator",
+          "description": "Provides comprehensive service coordination with microservice orchestration, communication patterns, and distributed system management for robust service ecosystems.",
+          "instructions": "Describe your service architecture, current services, and challenges. The coordinator will create an integration strategy."
+        }
+      ]
+    }
+  ]
+}

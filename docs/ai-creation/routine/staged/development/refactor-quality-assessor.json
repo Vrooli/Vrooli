@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349091",
+  "publicId": "refactor-q-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349092",
+      "publicId": "refact-qual-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of refactor quality assessor for comprehensive code refactoring evaluation and optimization",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a code refactoring quality expert providing comprehensive assessment of code refactoring initiatives, quality improvements, and technical debt reduction strategies.\n\nCode Context: {{input.codeContext}}\nRefactoring Scope: {{input.refactoringScope}}\nQuality Metrics: {{input.qualityMetrics}}\nAssessment Focus: {{input.assessmentFocus}}\n\nProvide comprehensive refactoring quality assessment:\n\n1. **Code Quality Analysis**:\n   - Current code quality assessment\n   - Technical debt identification\n   - Code complexity and maintainability\n   - Design pattern adherence\n   - Code smell detection and categorization\n\n2. **Refactoring Impact Evaluation**:\n   - Refactoring benefits and improvements\n   - Risk assessment and potential issues\n   - Performance impact analysis\n   - Maintainability enhancement evaluation\n   - Test coverage and reliability impact\n\n3. **Architecture and Design Assessment**:\n   - System architecture improvements\n   - Design principle compliance\n   - Module coupling and cohesion\n   - Scalability and extensibility\n   - Integration and dependency analysis\n\n4. **Quality Metrics and Measurements**:\n   - Code quality metric analysis\n   - Complexity reduction assessment\n   - Duplication elimination evaluation\n   - Performance benchmark comparison\n   - Security and vulnerability assessment\n\n5. **Refactoring Strategy Recommendations**:\n   - Priority-based refactoring roadmap\n   - Incremental improvement strategies\n   - Risk mitigation approaches\n   - Resource allocation recommendations\n   - Timeline and milestone planning\n\n6. **Testing and Validation Framework**:\n   - Test strategy for refactored code\n   - Regression testing requirements\n   - Quality assurance protocols\n   - Continuous integration considerations\n   - Performance validation procedures\n\n7. **Long-term Maintenance and Evolution**:\n   - Code maintainability improvements\n   - Future refactoring prevention\n   - Development process enhancements\n   - Knowledge transfer and documentation\n   - Continuous quality monitoring\n\nProvide actionable refactoring quality assessment with specific recommendations, risk mitigation strategies, and quality improvement roadmap for sustainable code enhancement.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "codeContext",
+                "id": "code_context_input",
+                "label": "Code Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Programming language, framework, application type, codebase size, team structure",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe the codebase and development context"
+                }
+              },
+              {
+                "fieldName": "refactoringScope",
+                "id": "refactoring_scope_input",
+                "label": "Refactoring Scope",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Specific modules, functions, classes, or entire system areas that were refactored",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What was refactored or needs assessment?"
+                }
+              },
+              {
+                "fieldName": "qualityMetrics",
+                "id": "quality_metrics_input",
+                "label": "Quality Metrics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Cyclomatic complexity, code coverage, duplication rates, performance metrics",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Current quality metrics and measurements"
+                }
+              },
+              {
+                "fieldName": "assessmentFocus",
+                "id": "assessment_focus_input",
+                "label": "Assessment Focus",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Code Quality Improvement", "value": "quality" },
+                    { "label": "Performance Optimization", "value": "performance" },
+                    { "label": "Maintainability Enhancement", "value": "maintainability" },
+                    { "label": "Technical Debt Reduction", "value": "technical_debt" },
+                    { "label": "Architecture Modernization", "value": "architecture" },
+                    { "label": "Comprehensive Assessment", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary focus of refactoring assessment"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "refactoringQualityReport",
+                "id": "refactoring_quality_report",
+                "label": "Refactoring Quality Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349093",
+          "language": "en-US",
+          "name": "Refactor Quality Assessor",
+          "description": "Provides comprehensive assessment of code refactoring quality with technical debt analysis, improvement recommendations, and long-term maintainability strategies.",
+          "instructions": "Describe the code context, refactoring scope, and quality metrics. The assessor will evaluate refactoring quality and provide improvement recommendations."
+        }
+      ]
+    }
+  ]
+}

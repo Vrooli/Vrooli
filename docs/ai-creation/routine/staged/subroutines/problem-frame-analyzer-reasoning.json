@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850346",
+  "publicId": "problem-frame-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850347",
+      "publicId": "problem-frame-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Examines how the problem is currently understood and defined",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "You are a problem framing analyst. Examine how problems are currently understood to reveal hidden assumptions and limiting perspectives.\n\nProblem Statement:\n{{input.problemStatement}}\n\nStakeholder Views:\n{{input.stakeholderViews}}\n\nSituational Elements:\n{{input.contextualFactors}}\n\nAnalyze current problem frame comprehensively:\n\n1. **Current Frame Analysis**:\n   Examine how the problem is presently understood:\n   - **Problem Definition**: How the issue is currently articulated and bounded\n   - **Causal Attribution**: What causes are assumed to create or maintain the problem\n   - **Scope Boundaries**: What is considered part of the problem vs external factors\n   - **Success Criteria**: How problem resolution is currently defined\n   - **Solution Space**: What types of solutions are currently being considered\n   - **Stakeholder Roles**: How different parties are positioned relative to the problem\n\n2. **Underlying Assumptions Identification**:\n   Reveal hidden biases and mental models:\n   - **Causal Assumptions**: Beliefs about what creates or perpetuates the problem\n   - **Solution Assumptions**: Preconceptions about what types of solutions will work\n   - **Resource Assumptions**: Beliefs about what resources are available or required\n   - **Stakeholder Assumptions**: Preconceptions about people's motivations and capabilities\n   - **Timeline Assumptions**: Beliefs about how quickly problems can or should be solved\n   - **Context Assumptions**: Beliefs about situational factors that can't be changed\n\n3. **Constraint and Limitation Analysis**:\n   Identify factors that restrict problem-solving:\n   - **Mental Constraints**: Cognitive biases or thinking patterns that limit options\n   - **Organizational Constraints**: Structural factors that restrict possible solutions\n   - **Resource Constraints**: Real or perceived limitations on available resources\n   - **Political Constraints**: Power dynamics or stakeholder interests that limit options\n   - **Technical Constraints**: Technological or methodological limitations\n   - **Cultural Constraints**: Values, beliefs, or norms that restrict solution space\n\n4. **Perspective Diversity Assessment**:\n   Evaluate the range of viewpoints being considered:\n   - **Stakeholder Representation**: Which voices are included vs excluded from problem definition\n   - **Temporal Perspectives**: Short-term vs long-term views of the problem\n   - **Hierarchical Perspectives**: How the problem looks from different organizational levels\n   - **Functional Perspectives**: How different roles or disciplines view the problem\n   - **Cultural Perspectives**: How different backgrounds influence problem understanding\n   - **Experiential Perspectives**: How past experiences shape current problem framing\n\n5. **Frame Effectiveness Evaluation**:\n   Assess how well the current frame serves problem-solving:\n   - **Clarity Assessment**: How clearly the problem is defined and understood\n   - **Actionability**: Whether the current frame enables effective action\n   - **Scope Appropriateness**: Whether the problem boundaries are helpful or limiting\n   - **Solution Enablement**: How well the frame opens up viable solution paths\n   - **Stakeholder Alignment**: Whether all parties share a compatible understanding\n   - **Adaptability**: How well the frame can evolve as new information emerges\n\nProvide output as JSON with:\n- frameAnalysis: Comprehensive analysis of current problem understanding\n- hiddenBiases: Identified assumptions and mental models limiting perspective\n- limitingFactors: Constraints and factors restricting solution space",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "problemStatement",
+                "id": "problem_statement_input",
+                "label": "Current Definition",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "How the problem is currently defined and understood"
+                }
+              },
+              {
+                "fieldName": "stakeholderViews",
+                "id": "stakeholder_views_input",
+                "label": "Perspectives Input",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Different stakeholder viewpoints on the problem"
+                }
+              },
+              {
+                "fieldName": "contextualFactors",
+                "id": "contextual_factors_input",
+                "label": "Situational Elements",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Context and background factors affecting the problem"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "frameAnalysis",
+                "id": "frame_analysis_output",
+                "label": "Problem Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "hiddenBiases",
+                "id": "hidden_biases_output",
+                "label": "Underlying Assumptions",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "limitingFactors",
+                "id": "limiting_factors_output",
+                "label": "Constraint Identification",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850348",
+          "language": "en",
+          "name": "Problem Frame Analyzer",
+          "description": "Examines how the problem is currently understood and defined through frame analysis, assumption identification, and constraint assessment.",
+          "instructions": "Provide current problem definition, stakeholder views, and contextual factors. The routine will analyze the current frame, identify hidden biases, and map limiting factors."
+        }
+      ]
+    }
+  ]
+}

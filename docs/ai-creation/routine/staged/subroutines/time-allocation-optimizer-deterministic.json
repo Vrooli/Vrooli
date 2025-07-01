@@ -1,0 +1,106 @@
+{
+  "id": "7829564732190850256",
+  "publicId": "time-optimizer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850257",
+      "publicId": "time-optimizer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Assigns tasks to optimal time slots",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "javascript",
+            "logic": "function optimizeTimeAllocation({ availableSlots, taskDurations, productivityCurve }) {\n  const slots = Array.isArray(availableSlots) ? availableSlots : [availableSlots].filter(Boolean);\n  const tasks = Array.isArray(taskDurations) ? taskDurations : [taskDurations].filter(Boolean);\n  const energyCurve = productivityCurve || getDefaultProductivityCurve();\n  \n  // Flatten all available time slots across days\n  const allSlots = [];\n  slots.forEach(dayData => {\n    if (dayData.availableSlots) {\n      dayData.availableSlots.forEach(slot => {\n        allSlots.push({\n          ...slot,\n          date: dayData.date,\n          dayOfWeek: dayData.dayOfWeek,\n          energyLevel: getEnergyLevel(slot.startTime, energyCurve),\n          qualityScore: calculateSlotQuality(slot, energyCurve)\n        });\n      });\n    }\n  });\n  \n  // Sort tasks by priority (assuming they're already prioritized)\n  const sortedTasks = [...tasks].sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0));\n  \n  const timeAllocations = [];\n  const utilizationStats = {\n    totalAvailableMinutes: allSlots.reduce((sum, slot) => sum + slot.duration, 0),\n    totalTaskMinutes: tasks.reduce((sum, task) => sum + task.totalEstimate, 0),\n    allocatedMinutes: 0,\n    unallocatedTasks: [],\n    overflowTasks: []\n  };\n  \n  // Allocation algorithm\n  const allocatedSlots = [];\n  \n  sortedTasks.forEach(task => {\n    const bestSlot = findBestSlotForTask(task, allSlots, allocatedSlots, energyCurve);\n    \n    if (bestSlot) {\n      const allocation = {\n        taskId: task.taskId,\n        taskName: task.taskName,\n        date: bestSlot.date,\n        startTime: bestSlot.startTime,\n        endTime: calculateEndTime(bestSlot.startTime, task.totalEstimate),\n        duration: task.totalEstimate,\n        slotDuration: bestSlot.duration,\n        energyLevel: bestSlot.energyLevel,\n        matchQuality: calculateMatchQuality(task, bestSlot),\n        taskType: task.taskType,\n        priority: task.finalScore || 50,\n        bufferIncluded: task.bufferTime,\n        confidence: task.confidenceLevel || 70\n      };\n      \n      timeAllocations.push(allocation);\n      utilizationStats.allocatedMinutes += task.totalEstimate;\n      \n      // Mark slot as used (or partially used)\n      allocatedSlots.push({\n        ...bestSlot,\n        taskId: task.taskId,\n        remainingDuration: bestSlot.duration - task.totalEstimate,\n        allocated: true\n      });\n      \n      // If slot has remaining time, split it\n      if (bestSlot.duration > task.totalEstimate) {\n        const remainingSlot = {\n          ...bestSlot,\n          startTime: calculateEndTime(bestSlot.startTime, task.totalEstimate),\n          duration: bestSlot.duration - task.totalEstimate,\n          qualityScore: bestSlot.qualityScore * 0.9 // Slightly lower quality due to fragmentation\n        };\n        \n        if (remainingSlot.duration >= 15) { // Only keep slots 15+ minutes\n          allSlots.push(remainingSlot);\n        }\n      }\n      \n      // Remove the used slot from available slots\n      const slotIndex = allSlots.findIndex(s => \n        s.date === bestSlot.date && s.startTime === bestSlot.startTime\n      );\n      if (slotIndex !== -1) {\n        allSlots.splice(slotIndex, 1);\n      }\n    } else {\n      utilizationStats.unallocatedTasks.push({\n        taskId: task.taskId,\n        taskName: task.taskName,\n        duration: task.totalEstimate,\n        reason: determineUnallocationReason(task, allSlots)\n      });\n    }\n  });\n  \n  function getDefaultProductivityCurve() {\n    return {\n      '06:00': 0.3, '07:00': 0.5, '08:00': 0.7, '09:00': 0.8, '10:00': 0.9,\n      '11:00': 0.9, '12:00': 0.7, '13:00': 0.6, '14:00': 0.8, '15:00': 0.8,\n      '16:00': 0.7, '17:00': 0.6, '18:00': 0.5, '19:00': 0.4, '20:00': 0.3,\n      '21:00': 0.2, '22:00': 0.1\n    };\n  }\n  \n  function getEnergyLevel(timeString, curve) {\n    const hour = timeString.split(':')[0] + ':00';\n    return curve[hour] || 0.5;\n  }\n  \n  function calculateSlotQuality(slot, energyCurve) {\n    const energyLevel = getEnergyLevel(slot.startTime, energyCurve);\n    const durationScore = Math.min(1, slot.duration / 120); // Prefer longer slots up to 2 hours\n    \n    return Math.round((energyLevel * 0.6 + durationScore * 0.4) * 100);\n  }\n  \n  function findBestSlotForTask(task, availableSlots, allocated, energyCurve) {\n    const suitableSlots = availableSlots.filter(slot => {\n      // Must fit in slot\n      if (slot.duration < task.totalEstimate) return false;\n      \n      // Check if slot is already allocated\n      const isAllocated = allocated.some(alloc => \n        alloc.date === slot.date && alloc.startTime === slot.startTime\n      );\n      if (isAllocated) return false;\n      \n      // Task type compatibility\n      if (slot.suitableFor && !isTaskTypeCompatible(task.taskType, slot.suitableFor)) {\n        return false;\n      }\n      \n      return true;\n    });\n    \n    if (suitableSlots.length === 0) return null;\n    \n    // Score each suitable slot\n    const scoredSlots = suitableSlots.map(slot => ({\n      ...slot,\n      matchScore: calculateSlotScore(task, slot, energyCurve)\n    }));\n    \n    // Return best scoring slot\n    return scoredSlots.sort((a, b) => b.matchScore - a.matchScore)[0];\n  }\n  \n  function isTaskTypeCompatible(taskType, suitableForList) {\n    if (!taskType || !suitableForList) return true;\n    \n    const compatibilityMap = {\n      'meeting': ['meeting', 'call'],\n      'communication': ['quick-task', 'email', 'meeting'],\n      'writing': ['project-work', 'analysis', 'writing', 'creative-work'],\n      'development': ['deep-work', 'complex-problem-solving', 'project-work'],\n      'creative': ['creative-work', 'deep-work', 'project-work'],\n      'research': ['research', 'analysis', 'deep-work'],\n      'planning': ['strategic-planning', 'planning', 'analysis'],\n      'review': ['review', 'analysis', 'project-work']\n    };\n    \n    const requiredTypes = compatibilityMap[taskType] || [taskType];\n    return requiredTypes.some(type => suitableForList.includes(type));\n  }\n  \n  function calculateSlotScore(task, slot, energyCurve) {\n    let score = 0;\n    \n    // Energy alignment (40% weight)\n    const taskEnergyRequirement = getTaskEnergyRequirement(task.taskType);\n    const energyMatch = Math.abs(slot.energyLevel - taskEnergyRequirement);\n    score += (1 - energyMatch) * 40;\n    \n    // Duration efficiency (30% weight)\n    const durationEfficiency = task.totalEstimate / slot.duration;\n    score += Math.min(1, durationEfficiency) * 30;\n    \n    // Slot quality (20% weight)\n    score += (slot.qualityScore / 100) * 20;\n    \n    // Priority matching (10% weight)\n    const priority = task.finalScore || 50;\n    if (priority > 75 && slot.energyLevel > 0.7) score += 10;\n    else if (priority < 40 && slot.energyLevel < 0.5) score += 5;\n    \n    return Math.round(score);\n  }\n  \n  function getTaskEnergyRequirement(taskType) {\n    const requirements = {\n      'development': 0.9,\n      'creative': 0.8,\n      'research': 0.8,\n      'planning': 0.7,\n      'writing': 0.7,\n      'review': 0.6,\n      'meeting': 0.5,\n      'communication': 0.4,\n      'general': 0.6\n    };\n    \n    return requirements[taskType] || 0.6;\n  }\n  \n  function calculateMatchQuality(task, slot) {\n    const energyRequirement = getTaskEnergyRequirement(task.taskType);\n    const energyMatch = 1 - Math.abs(slot.energyLevel - energyRequirement);\n    const durationFit = Math.min(1, task.totalEstimate / slot.duration);\n    \n    return Math.round((energyMatch * 0.6 + durationFit * 0.4) * 100);\n  }\n  \n  function calculateEndTime(startTime, durationMinutes) {\n    const [hours, minutes] = startTime.split(':').map(Number);\n    const startMinutes = hours * 60 + minutes;\n    const endMinutes = startMinutes + durationMinutes;\n    \n    const endHours = Math.floor(endMinutes / 60);\n    const endMins = endMinutes % 60;\n    \n    return `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;\n  }\n  \n  function determineUnallocationReason(task, availableSlots) {\n    if (availableSlots.length === 0) return 'no-available-slots';\n    \n    const maxSlotDuration = Math.max(...availableSlots.map(s => s.duration));\n    if (task.totalEstimate > maxSlotDuration) return 'task-too-long';\n    \n    const compatibleSlots = availableSlots.filter(slot => \n      isTaskTypeCompatible(task.taskType, slot.suitableFor)\n    );\n    if (compatibleSlots.length === 0) return 'no-compatible-slots';\n    \n    return 'scheduling-conflict';\n  }\n  \n  // Calculate efficiency metrics\n  const efficiencyScore = Math.round(\n    (utilizationStats.allocatedMinutes / Math.max(1, utilizationStats.totalAvailableMinutes)) * 100\n  );\n  \n  // Identify any conflicts or adjustments needed\n  const scheduleAdjustments = {\n    overallocatedSlots: [],\n    fragmentedTime: allSlots.filter(slot => slot.duration < 30).length,\n    lowQualityAllocations: timeAllocations.filter(alloc => alloc.matchQuality < 60).length,\n    suggestions: generateOptimizationSuggestions(timeAllocations, utilizationStats)\n  };\n  \n  function generateOptimizationSuggestions(allocations, utilization) {\n    const suggestions = [];\n    \n    if (utilization.unallocatedTasks.length > 0) {\n      suggestions.push('Consider extending working hours or rescheduling some tasks to accommodate unallocated work');\n    }\n    \n    const lowQualityCount = allocations.filter(a => a.matchQuality < 60).length;\n    if (lowQualityCount > allocations.length * 0.3) {\n      suggestions.push('Many tasks are assigned to suboptimal time slots - consider adjusting energy patterns or task priorities');\n    }\n    \n    if (utilization.allocatedMinutes / utilization.totalAvailableMinutes > 0.9) {\n      suggestions.push('Schedule is very tight - consider adding buffer time or reducing task scope');\n    }\n    \n    return suggestions;\n  }\n  \n  return {\n    timeAllocations: timeAllocations,\n    utilizationRate: efficiencyScore,\n    scheduleAdjustments: scheduleAdjustments\n  };\n}"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "availableSlots",
+                "id": "available_slots_input",
+                "label": "Open Time Blocks",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Available time slots from analysis"
+                }
+              },
+              {
+                "fieldName": "taskDurations",
+                "id": "task_durations_input",
+                "label": "Time Estimates",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Task duration estimates"
+                }
+              },
+              {
+                "fieldName": "productivityCurve",
+                "id": "productivity_curve_input",
+                "label": "Energy Patterns",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Personal productivity patterns"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "timeAllocations",
+                "id": "time_allocations_output",
+                "label": "Optimal Schedule",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "utilizationRate",
+                "id": "utilization_rate_output",
+                "label": "Efficiency Score",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "scheduleAdjustments",
+                "id": "schedule_adjustments_output",
+                "label": "Conflict Resolutions",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850258",
+          "language": "en",
+          "name": "Time Allocation Optimizer",
+          "description": "Assigns tasks to optimal time slots based on energy patterns, duration requirements, and task compatibility.",
+          "instructions": "Provide available time slots, task durations, and productivity patterns. The routine will optimize task allocation for maximum efficiency."
+        }
+      ]
+    }
+  ]
+}

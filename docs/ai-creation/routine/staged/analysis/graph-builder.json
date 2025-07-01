@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349301",
+  "publicId": "graph-b-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349302",
+      "publicId": "graph-bldr-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of graph builder for comprehensive graph construction and network analysis strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a graph building expert providing comprehensive graph construction strategies, network analysis, and data relationship modeling for complex systems.\n\nGraph Context: {{input.graphContext}}\nData Sources: {{input.dataSources}}\nAnalysis Objectives: {{input.analysisObjectives}}\nVisualization Requirements: {{input.visualizationRequirements}}\n\nDesign comprehensive graph building strategy:\n\n1. **Graph Architecture Design**:\n   - Graph type selection (directed, undirected, weighted)\n   - Node and edge modeling\n   - Schema design strategies\n   - Hierarchical structure planning\n   - Multi-layer graph design\n\n2. **Data Integration and Mapping**:\n   - Entity relationship extraction\n   - Data source integration\n   - Attribute mapping strategies\n   - Temporal graph construction\n   - Dynamic graph updates\n\n3. **Graph Construction Algorithms**:\n   - Efficient building algorithms\n   - Incremental construction\n   - Parallel processing optimization\n   - Memory management strategies\n   - Scalability considerations\n\n4. **Analysis and Computation**:\n   - Centrality measures calculation\n   - Community detection algorithms\n   - Path finding optimization\n   - Clustering techniques\n   - Pattern recognition\n\n5. **Performance Optimization**:\n   - Query optimization strategies\n   - Index design and management\n   - Caching mechanisms\n   - Distributed processing\n   - Storage optimization\n\n6. **Visualization and Interaction**:\n   - Layout algorithms\n   - Interactive visualization design\n   - User interface optimization\n   - Real-time updates\n   - Export and sharing capabilities\n\n7. **Quality and Validation**:\n   - Data quality assessment\n   - Graph validation techniques\n   - Consistency checking\n   - Error detection and correction\n   - Performance monitoring\n\nProvide comprehensive graph building plan with architecture design, construction algorithms, analysis techniques, and visualization strategies for effective graph-based solutions.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "graphContext",
+                "id": "graph_context_input",
+                "label": "Graph Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Domain type, relationship complexity, scale requirements, use case objectives, business context",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your graph building context"
+                }
+              },
+              {
+                "fieldName": "dataSources",
+                "id": "data_sources_input",
+                "label": "Data Sources",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Data types, formats, volumes, relationships, quality levels, update frequencies",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What data sources will build the graph?"
+                }
+              },
+              {
+                "fieldName": "analysisObjectives",
+                "id": "analysis_objectives_input",
+                "label": "Analysis Objectives",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Analysis goals, insights needed, decision support, pattern discovery, optimization targets",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What analysis objectives exist?"
+                }
+              },
+              {
+                "fieldName": "visualizationRequirements",
+                "id": "visualization_requirements_input",
+                "label": "Visualization Requirements",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Interactive Exploration", "value": "interactive" },
+                    { "label": "Static Reporting", "value": "static" },
+                    { "label": "Real-time Updates", "value": "realtime" },
+                    { "label": "Large Scale Visualization", "value": "large_scale" },
+                    { "label": "Mobile-friendly", "value": "mobile" },
+                    { "label": "Comprehensive Visualization", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary visualization focus"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "graphBuildingPlan",
+                "id": "graph_building_plan",
+                "label": "Graph Building Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349303",
+          "language": "en-US",
+          "name": "Graph Builder",
+          "description": "Provides comprehensive graph building with architecture design, construction algorithms, and visualization strategies for effective graph-based solutions.",
+          "instructions": "Describe your graph context, data sources, and analysis objectives. The builder will design a comprehensive graph construction strategy."
+        }
+      ]
+    }
+  ]
+}

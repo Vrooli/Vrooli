@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Task Requirements",
                 "description": "Breaks down task into required skills and resources",
-                "subroutineId": "TODO: Need reasoning subroutine for task decomposition",
+                "subroutineId": "7829564732190850301",
                 "inputMap": {
                   "newTask": "taskDescription",
                   "taskMetadata": "taskProperties",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Assess Agent Capabilities",
                 "description": "Evaluates available agents and their current workload",
-                "subroutineId": "TODO: Need deterministic agent assessment subroutine",
+                "subroutineId": "7829564732190850304",
                 "inputMap": {
                   "agentProfiles": "agentSkillProfiles",
                   "workloadData": "currentWorkloads",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Match Tasks to Agents",
                 "description": "Finds optimal agent-task matches based on multiple factors",
-                "subroutineId": "TODO: Need deterministic matching algorithm subroutine",
+                "subroutineId": "7829564732190850307",
                 "inputMap": {
                   "requiredSkills": "skillRequirements",
                   "agentCapabilities": "skillMatrix",
@@ -110,7 +110,7 @@
                 "id": "step-4",
                 "name": "Balance Workload",
                 "description": "Ensures fair distribution across the swarm",
-                "subroutineId": "TODO: Need deterministic workload balancing subroutine",
+                "subroutineId": "7829564732190850310",
                 "inputMap": {
                   "topCandidates": "bestMatches",
                   "workloadScores": "utilizationMetrics",
@@ -126,7 +126,7 @@
                 "id": "step-5",
                 "name": "Generate Delegation Plan",
                 "description": "Creates detailed assignment with context and expectations",
-                "subroutineId": "TODO: Need generation subroutine for delegation planning",
+                "subroutineId": "7829564732190850313",
                 "inputMap": {
                   "finalAssignment": "selectedAgent",
                   "newTask": "taskDescription",

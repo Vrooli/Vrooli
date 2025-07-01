@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850130",
+  "publicId": "decision-highlight-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850131",
+      "publicId": "decision-highlight-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Highlights and documents decisions made",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "You are a decision documentation specialist. Analyze and formally document all decisions made during the meeting.\n\nDecisions Made:\n{{input.decisions}}\n\nStructured Content:\n{{input.structuredContent}}\n\nSpeaker Mapping:\n{{input.speakerMap}}\n\nDocument decisions comprehensively:\n\n1. **Formal Decision Documentation**:\n   For each decision identified:\n   - **Decision Statement**: Clear, concise description of what was decided\n   - **Decision Category**: Strategic, operational, financial, personnel, etc.\n   - **Impact Level**: High/Medium/Low organizational impact\n   - **Implementation Timeline**: When the decision takes effect\n   - **Affected Stakeholders**: Who is impacted by this decision\n   - **Resource Requirements**: Budget, personnel, or other resources needed\n   - **Success Metrics**: How success will be measured\n   \n2. **Decision Rationale Analysis**:\n   Extract the reasoning process:\n   - **Problem Statement**: What issue prompted this decision\n   - **Options Considered**: Alternative approaches discussed\n   - **Evaluation Criteria**: Factors used to compare options\n   - **Key Arguments**: Main points supporting the chosen option\n   - **Risks Acknowledged**: Known risks and mitigation strategies\n   - **Benefits Expected**: Anticipated positive outcomes\n   - **Trade-offs Made**: What was sacrificed for this choice\n   - **Assumptions**: Underlying assumptions in the decision\n\n3. **Approval & Authority Mapping**:\n   Document decision-making authority:\n   - **Primary Decision Maker**: Who had final authority\n   - **Influencers**: Who provided key input or recommendations\n   - **Supporters**: Who explicitly endorsed the decision\n   - **Concerns Raised**: Who expressed reservations and why\n   - **Consensus Level**: Unanimous, majority, or leadership decision\n   - **Approval Method**: Vote, consensus, executive decision, etc.\n   - **Dissenting Views**: Any recorded disagreements or minority opinions\n\n4. **Implementation & Follow-up**:\n   Connect decisions to action:\n   - **Next Steps**: Immediate actions required\n   - **Communication Plan**: How decision will be announced\n   - **Monitoring**: How implementation will be tracked\n   - **Review Schedule**: When decision effectiveness will be assessed\n   - **Escalation Process**: What to do if problems arise\n\nFormat decisions for easy reference and accountability tracking.\n\nProvide output as JSON with:\n- formalDecisions: Comprehensive decision documentation\n- decisionRationale: Reasoning and analysis behind decisions\n- approvals: Authority and approval mapping",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "decisions",
+                "id": "decisions_input",
+                "label": "Decisions Made",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Identified decisions from meeting"
+                }
+              },
+              {
+                "fieldName": "structuredContent",
+                "id": "structured_content_input",
+                "label": "Parsed Meeting",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Full meeting content structure"
+                }
+              },
+              {
+                "fieldName": "speakerMap",
+                "id": "speaker_map_input",
+                "label": "Who Said What",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Speaker attribution data"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "formalDecisions",
+                "id": "formal_decisions_output",
+                "label": "Documented Decisions",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "decisionRationale",
+                "id": "decision_rationale_output",
+                "label": "Reasoning Behind",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "approvals",
+                "id": "approvals_output",
+                "label": "Who Approved",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850132",
+          "language": "en",
+          "name": "Decision Highlighter",
+          "description": "Emphasizes and documents decisions made during meetings with rationale and approval tracking.",
+          "instructions": "Provide identified decisions, structured content, and speaker mapping. The routine will create comprehensive decision documentation."
+        }
+      ]
+    }
+  ]
+}

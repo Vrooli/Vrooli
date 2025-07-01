@@ -1,0 +1,100 @@
+{
+  "id": "7829564732190850052",
+  "publicId": "travel-pack-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850053",
+      "publicId": "travel-pack-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Compiles comprehensive travel documentation",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 1500,
+            "model": null,
+            "prompt": "You are a travel documentation specialist. Compile all travel information into organized, easy-to-use documents and checklists.\n\nDaily Schedules:\n{{input.dayByDayPlan}}\n\nBooking Recommendations:\n{{input.reservationStrategy}}\n\nLocal Tips:\n{{input.insiderAdvice}}\n\nCreate comprehensive travel materials:\n\n1. **Complete Itinerary Document**:\n   - Cover page with trip overview\n   - Day-by-day detailed schedule\n   - Maps and directions\n   - Contact information\n   - Emergency procedures\n   - Quick reference guide\n   Format as printable document structure\n\n2. **Booking Checklist**:\n   - Pre-trip bookings needed\n   - Confirmation numbers section\n   - Cancellation deadlines\n   - Payment tracking\n   - Document requirements\n   - Insurance details\n   Organize by timeline (3 months before, 1 month before, etc.)\n\n3. **Travel Resources**:\n   - Packing list by category\n   - Important phrases card\n   - Offline maps recommendations\n   - Useful apps list\n   - Embassy contacts\n   - Medical information\n   - Weather preparation\n\nProvide output as JSON with:\n- completeItinerary: Structured travel document with all details\n- bookingChecklist: Organized reservation list with timelines\n- travelResources: Helpful materials and reference guides",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "dayByDayPlan",
+                "id": "day_by_day_input",
+                "label": "Daily Schedules",
+                "type": "JSON",
+                "isRequired": true
+              },
+              {
+                "fieldName": "reservationStrategy",
+                "id": "reservation_strategy_input",
+                "label": "Booking Recommendations",
+                "type": "JSON",
+                "isRequired": true
+              },
+              {
+                "fieldName": "insiderAdvice",
+                "id": "insider_advice_input",
+                "label": "Local Tips",
+                "type": "JSON",
+                "isRequired": true
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "completeItinerary",
+                "id": "complete_itinerary_output",
+                "label": "Travel Document",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "bookingChecklist",
+                "id": "booking_checklist_output",
+                "label": "Reservation List",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "travelResources",
+                "id": "travel_resources_output",
+                "label": "Helpful Materials",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850054",
+          "language": "en",
+          "name": "Travel Package Compiler",
+          "description": "Compiles all travel planning elements into organized documents, checklists, and resource guides for easy trip management.",
+          "instructions": "Provide the daily itinerary, booking details, and local tips. The routine will create comprehensive travel documents and checklists ready for your trip."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,140 @@
+{
+  "id": "7892456378912346022",
+  "publicId": "climate-an-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912346023",
+      "publicId": "climate-data-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of climate analyzer for environmental data analysis",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Scientific",
+            "maxTokens": 800,
+            "temperature": 0.3,
+            "prompt": "You are a climate science expert analyzing environmental data and trends.\n\nData Source: {{input.dataSource}}\nAnalysis Type: {{input.analysisType}}\nClimate Databases: {{input.climateDatabases}}\nModeling Tools: {{input.modelingTools}}\n\nPerform comprehensive climate analysis:\n\n1. **Data Overview**:\n   - Data quality assessment\n   - Temporal and spatial coverage\n   - Key variables analyzed\n   - Measurement uncertainties\n\n2. **Trend Analysis**:\n   - Temperature trends and anomalies\n   - Precipitation patterns\n   - Extreme weather events frequency\n   - Seasonal variations\n   - Long-term climate shifts\n\n3. **Regional Impacts**:\n   - Geographic-specific changes\n   - Ecosystem impacts\n   - Agricultural implications\n   - Water resource effects\n   - Urban heat island effects\n\n4. **Climate Projections**:\n   - Future scenario modeling\n   - Confidence intervals\n   - Tipping point risks\n   - Mitigation scenario comparisons\n\n5. **Environmental Indicators**:\n   - Greenhouse gas concentrations\n   - Sea level changes\n   - Ice coverage trends\n   - Biodiversity impacts\n   - Air quality metrics\n\n6. **Risk Assessment**:\n   - Climate-related hazards\n   - Vulnerability assessments\n   - Economic impact projections\n   - Social consequences\n   - Infrastructure risks\n\n7. **Recommendations**:\n   - Adaptation strategies\n   - Mitigation opportunities\n   - Policy implications\n   - Further research needs\n   - Monitoring priorities\n\nProvide scientifically accurate analysis with clear visualizations descriptions and actionable insights.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "dataSource",
+                "id": "data_source_input",
+                "label": "Data Source Description",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the climate data source, time period, and geographic scope",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Climate data details"
+                }
+              },
+              {
+                "fieldName": "analysisType",
+                "id": "analysis_type_input",
+                "label": "Analysis Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Historical Trend Analysis", "value": "trend" },
+                    { "label": "Future Projections", "value": "projection" },
+                    { "label": "Impact Assessment", "value": "impact" },
+                    { "label": "Risk Analysis", "value": "risk" },
+                    { "label": "Comparative Study", "value": "comparative" }
+                  ],
+                  "defaultValue": "trend",
+                  "helperText": "Primary analysis focus"
+                }
+              },
+              {
+                "fieldName": "climateDatabases",
+                "id": "climate_databases_input",
+                "label": "Geographic Scope",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Global", "value": "global" },
+                    { "label": "Continental", "value": "continental" },
+                    { "label": "National", "value": "national" },
+                    { "label": "Regional", "value": "regional" },
+                    { "label": "Local/City", "value": "local" }
+                  ],
+                  "defaultValue": "regional",
+                  "helperText": "Geographic scale of analysis"
+                }
+              },
+              {
+                "fieldName": "modelingTools",
+                "id": "modeling_tools_input",
+                "label": "Time Horizon",
+                "type": "Selector",
+                "isRequired": false,
+                "props": {
+                  "options": [
+                    { "label": "Past Decade", "value": "decade" },
+                    { "label": "Past 30 Years", "value": "30year" },
+                    { "label": "Past Century", "value": "century" },
+                    { "label": "Future 2050", "value": "2050" },
+                    { "label": "Future 2100", "value": "2100" }
+                  ],
+                  "defaultValue": "30year",
+                  "helperText": "Time period for analysis"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "climateAnalysis",
+                "id": "climate_analysis",
+                "label": "Climate Analysis Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 12
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912346024",
+          "language": "en-US",
+          "name": "Climate Analyzer",
+          "description": "Analyzes climate and environmental data to identify trends, project future scenarios, and assess impacts with scientific rigor.",
+          "instructions": "Provide climate data source details and analysis type. The analyzer will perform comprehensive environmental analysis with actionable insights."
+        }
+      ]
+    }
+  ]
+}

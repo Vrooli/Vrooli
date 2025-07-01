@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850175",
+  "publicId": "optimization-plan-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850176",
+      "publicId": "optimization-plan-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates comprehensive productivity improvement strategy",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are a productivity optimization strategist. Create a comprehensive improvement plan based on audit findings.\n\nAudit Results:\n{{input.allFindings}}\n\nOptimization Targets:\n{{input.improvementAreas}}\n\nImplementation Constraints:\n{{input.personalConstraints}}\n\nGenerate optimization strategy:\n\n1. **Strategic Improvement Plan**:\n   Create comprehensive optimization approach:\n   - **Quick Wins** (0-2 weeks): Immediate improvements with minimal effort\n   - **Short-term Optimizations** (1-3 months): Moderate changes with clear benefits\n   - **Long-term Transformations** (3-12 months): Major workflow and habit changes\n   - **Ongoing Maintenance**: Continuous improvement practices\n\n2. **Priority Action Sequence**:\n   Order improvements by impact and feasibility:\n   - **Phase 1: Foundation Building**: Basic systems and habits\n   - **Phase 2: Efficiency Gains**: Process optimization and tool improvements\n   - **Phase 3: Advanced Optimization**: Complex workflow redesign\n   - **Phase 4: Sustainability**: Long-term maintenance and growth\n\n3. **Implementation Roadmap**:\n   Detail execution steps:\n   - **Week 1-2**: Immediate actions and quick fixes\n   - **Month 1**: Foundation establishment\n   - **Month 2-3**: System implementation and habit formation\n   - **Month 4-6**: Advanced optimizations and refinement\n   - **Month 7-12**: Mastery and continuous improvement\n\n4. **Change Management Strategy**:\n   Address implementation challenges:\n   - **Habit Formation**: Techniques for building new productivity habits\n   - **Resistance Management**: Overcoming internal resistance to change\n   - **Support Systems**: Tools and accountability for sustained change\n   - **Progress Tracking**: Metrics and milestones for measuring improvement\n   - **Adjustment Protocols**: How to modify the plan based on results\n\n5. **Measurement Framework**:\n   Define success metrics:\n   - **Productivity Metrics**: Output, quality, efficiency measures\n   - **Well-being Indicators**: Stress, satisfaction, energy levels\n   - **Time Metrics**: Deep work time, distraction frequency, goal alignment\n   - **Goal Achievement**: Progress toward stated objectives\n   - **System Health**: Tool effectiveness, workflow smoothness\n\n6. **Risk Mitigation**:\n   Address potential implementation challenges:\n   - **Overwhelming Change**: Pacing and gradual implementation\n   - **Tool Learning Curves**: Training and transition strategies\n   - **Habit Regression**: Maintenance and reinforcement systems\n   - **External Pressures**: Managing competing demands during optimization\n   - **Perfectionism**: Focusing on progress over perfection\n\nMake the plan actionable with specific steps and timelines.\n\nProvide output as JSON with:\n- optimizationPlan: Complete improvement strategy with phases\n- prioritizedActions: Ordered sequence of implementation steps\n- measurementPlan: Tracking metrics and success indicators",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "allFindings",
+                "id": "all_findings_input",
+                "label": "Audit Results",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Complete audit findings and analysis"
+                }
+              },
+              {
+                "fieldName": "improvementAreas",
+                "id": "improvement_areas_input",
+                "label": "Optimization Targets",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Areas identified for improvement"
+                }
+              },
+              {
+                "fieldName": "personalConstraints",
+                "id": "personal_constraints_input",
+                "label": "Implementation Limits",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Constraints and limitations to consider"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "optimizationPlan",
+                "id": "optimization_plan_output",
+                "label": "Improvement Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "prioritizedActions",
+                "id": "prioritized_actions_output",
+                "label": "Action Sequence",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "measurementPlan",
+                "id": "measurement_plan_output",
+                "label": "Tracking Metrics",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850177",
+          "language": "en",
+          "name": "Optimization Planner",
+          "description": "Creates comprehensive productivity improvement strategy with implementation roadmap and measurement framework.",
+          "instructions": "Provide audit findings, improvement areas, and constraints. The routine will generate a detailed optimization plan with prioritized actions."
+        }
+      ]
+    }
+  ]
+}

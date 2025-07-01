@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349358",
+  "publicId": "api-ga-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349359",
+      "publicId": "api-gw-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of API gateway for comprehensive API management and traffic orchestration strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Architectural",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are an API gateway expert providing comprehensive API management strategies, traffic orchestration, and service mesh coordination solutions.\n\nGateway Context: {{input.gatewayContext}}\nAPI Architecture: {{input.apiArchitecture}}\nTraffic Requirements: {{input.trafficRequirements}}\nSecurity Needs: {{input.securityNeeds}}\n\nDesign comprehensive API gateway strategy:\n\n1. **Gateway Architecture Design**:\n   - Service discovery integration\n   - Load balancing strategies\n   - Request routing optimization\n   - Backend service coordination\n   - High availability configuration\n\n2. **Traffic Management and Control**:\n   - Rate limiting and throttling\n   - Request/response transformation\n   - Protocol translation\n   - Circuit breaker implementation\n   - Retry and timeout policies\n\n3. **Security and Authentication**:\n   - Authentication integration\n   - Authorization enforcement\n   - API key management\n   - OAuth/JWT handling\n   - Security policy implementation\n\n4. **Performance Optimization**:\n   - Response caching strategies\n   - Request aggregation\n   - Compression optimization\n   - Connection pooling\n   - Resource utilization\n\n5. **Monitoring and Observability**:\n   - Request/response logging\n   - Performance metrics tracking\n   - Health check coordination\n   - Distributed tracing\n   - Alert and notification systems\n\n6. **API Lifecycle Management**:\n   - Version management\n   - Deprecation strategies\n   - Documentation generation\n   - Testing and validation\n   - Deployment coordination\n\n7. **Integration and Ecosystem**:\n   - Service mesh integration\n   - DevOps pipeline coordination\n   - Third-party API management\n   - Legacy system integration\n   - Cloud provider optimization\n\nProvide comprehensive API gateway plan with architecture design, traffic management, security implementation, and monitoring frameworks for robust API orchestration.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "gatewayContext",
+                "id": "gateway_context_input",
+                "label": "Gateway Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "System architecture, microservice setup, API ecosystem, traffic patterns, business requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your API gateway context"
+                }
+              },
+              {
+                "fieldName": "apiArchitecture",
+                "id": "api_architecture_input",
+                "label": "API Architecture",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Service count, API types, protocol mix, backend systems, integration patterns",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe your API architecture"
+                }
+              },
+              {
+                "fieldName": "trafficRequirements",
+                "id": "traffic_requirements_input",
+                "label": "Traffic Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Request volumes, peak loads, latency targets, throughput needs, geographic distribution",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What traffic requirements exist?"
+                }
+              },
+              {
+                "fieldName": "securityNeeds",
+                "id": "security_needs_input",
+                "label": "Security Needs",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Enterprise Security", "value": "enterprise" },
+                    { "label": "Public API Protection", "value": "public" },
+                    { "label": "Internal Microservices", "value": "internal" },
+                    { "label": "Partner Integration", "value": "partner" },
+                    { "label": "Multi-tenant Security", "value": "multitenant" },
+                    { "label": "Comprehensive Security", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary security focus"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "apiGatewayPlan",
+                "id": "api_gateway_plan",
+                "label": "API Gateway Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349360",
+          "language": "en-US",
+          "name": "API Gateway",
+          "description": "Provides comprehensive API gateway with architecture design, traffic management, and monitoring frameworks for robust API orchestration.",
+          "instructions": "Describe your gateway context, API architecture, and security needs. The gateway will design a comprehensive API management strategy."
+        }
+      ]
+    }
+  ]
+}

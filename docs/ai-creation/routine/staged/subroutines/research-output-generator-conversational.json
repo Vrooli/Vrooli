@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850343",
+  "publicId": "research-output-generator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850344",
+      "publicId": "research-output-generator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates comprehensive research deliverables",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 1400,
+            "model": null,
+            "prompt": "You are a research documentation specialist. Create comprehensive, professional research deliverables that effectively communicate findings and insights.\n\nSynthesis Narrative:\n{{input.integratedFindings}}\n\nDeliverable Specifications:\n{{input.outputRequirements}}\n\nCommunication Style:\n{{input.audienceNeeds}}\n\nGenerate complete research documentation:\n\n**Comprehensive Research Documentation Package**\n\nLet's create professional research deliverables that effectively communicate your findings:\n\n1. **Complete Research Report**:\n   Develop a comprehensive document covering all aspects:\n   - **Executive Summary**: High-level overview with key findings and recommendations\n   - **Research Methodology**: Approach taken, sources consulted, and analysis methods\n   - **Literature Review**: Comprehensive overview of existing knowledge and research\n   - **Key Findings**: Detailed presentation of primary discoveries and insights\n   - **Analysis and Discussion**: Interpretation of findings with supporting evidence\n   - **Conclusions**: Clear statements of what the research demonstrates\n   - **Recommendations**: Actionable guidance based on research findings\n   - **Limitations and Future Research**: Acknowledgment of boundaries and next steps\n   - **References and Sources**: Complete bibliography and source documentation\n   - **Appendices**: Supporting data, detailed analyses, and supplementary materials\n\n2. **Executive Summary and Key Insights**:\n   Create accessible overview for busy stakeholders:\n   - **One-Page Summary**: Essential findings and recommendations in concise format\n   - **Key Insight Highlights**: Most important discoveries clearly presented\n   - **Strategic Implications**: What the findings mean for decision-making\n   - **Priority Recommendations**: Top actions suggested by the research\n   - **Quick Reference Guide**: Easy-to-scan bullets and takeaways\n   - **Visual Summaries**: Charts, graphs, or infographics highlighting key points\n\n3. **Actionable Recommendations Framework**:\n   Develop practical guidance for implementation:\n   - **Strategic Recommendations**: High-level direction and approach\n   - **Tactical Recommendations**: Specific actions and implementation steps\n   - **Priority Sequencing**: Order in which recommendations should be pursued\n   - **Resource Requirements**: What's needed to implement each recommendation\n   - **Timeline Guidance**: Suggested timeframes for implementation\n   - **Success Metrics**: How to measure progress and effectiveness\n   - **Risk Considerations**: Potential challenges and mitigation strategies\n   - **Stakeholder Implications**: Impact on different groups and how to manage\n\n4. **Research Evidence Documentation**:\n   Provide transparent documentation of findings:\n   - **Evidence Matrix**: How conclusions are supported by research sources\n   - **Source Quality Assessment**: Evaluation of research source credibility\n   - **Methodology Transparency**: Clear explanation of analytical approaches\n   - **Bias Acknowledgment**: Recognition of potential limitations or skews\n   - **Confidence Levels**: Degree of certainty for different findings\n   - **Alternative Interpretations**: Other plausible ways to understand the data\n\n5. **Communication Formats for Different Audiences**:\n   Tailor presentation to audience needs:\n   - **Technical Report**: Detailed analysis for research-oriented audiences\n   - **Management Brief**: Strategic insights for decision-makers\n   - **Stakeholder Presentation**: Visual and narrative formats for broader audiences\n   - **Implementation Guide**: Practical instructions for those executing recommendations\n   - **FAQ Document**: Anticipated questions and clear answers\n   - **Quick Reference Cards**: Essential information in portable format\n\n6. **Visual and Interactive Elements**:\n   Enhance understanding through effective presentation:\n   - **Key Finding Visualizations**: Charts and graphs illustrating main points\n   - **Process Flow Diagrams**: How recommendations fit together\n   - **Timeline Presentations**: Sequential or chronological information\n   - **Comparison Tables**: Side-by-side analysis of options or approaches\n   - **Infographic Summaries**: Visual storytelling of research journey and outcomes\n   - **Interactive Elements**: Ways for audiences to explore findings deeper\n\n7. **Quality Assurance and Validation**:\n   Ensure accuracy and professionalism:\n   - **Fact Checking**: Verification of all claims and citations\n   - **Logical Flow**: Coherent progression from questions to conclusions\n   - **Clarity Assessment**: Understandability for intended audiences\n   - **Completeness Review**: Coverage of all important aspects\n   - **Professional Standards**: Adherence to research documentation best practices\n   - **Accessibility Considerations**: Usability for diverse audiences and needs\n\n8. **Implementation Support Materials**:\n   Help audiences act on the research:\n   - **Getting Started Checklist**: First steps for implementing recommendations\n   - **Resource Lists**: Tools, references, and support materials\n   - **Template Documents**: Starting points for implementation activities\n   - **Progress Tracking Tools**: Ways to monitor implementation success\n   - **Expert Contact Information**: People to consult for additional guidance\n   - **Update Mechanisms**: How to stay current as new information emerges\n\n**Quality Standards:**\n- Professional presentation with clear, engaging writing\n- Accurate citations and transparent methodology\n- Logical organization with clear navigation\n- Appropriate depth for intended audiences\n- Actionable insights with practical value\n- Honest acknowledgment of limitations\n\n**Deliverable Formats:**\n- Comprehensive written report (traditional format)\n- Executive presentation slides\n- Visual summary infographics\n- Implementation planning tools\n- Reference and resource guides\n\nMake this research documentation package compelling, credible, and useful. Help your audience understand not just what you found, but what it means and what they should do about it.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "integratedFindings",
+                "id": "integrated_findings_input",
+                "label": "Synthesis Narrative",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Integrated research findings and narrative"
+                }
+              },
+              {
+                "fieldName": "outputRequirements",
+                "id": "output_requirements_input",
+                "label": "Deliverable Specs",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Specifications for research deliverables"
+                }
+              },
+              {
+                "fieldName": "audienceNeeds",
+                "id": "audience_needs_input",
+                "label": "Communication Style",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Audience requirements and communication preferences"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "comprehensiveDocument",
+                "id": "comprehensive_document_output",
+                "label": "Research Report",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "condensedInsights",
+                "id": "condensed_insights_output",
+                "label": "Executive Summary",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "actionableGuidance",
+                "id": "actionable_guidance_output",
+                "label": "Recommendation Set",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850345",
+          "language": "en",
+          "name": "Research Output Generator",
+          "description": "Creates comprehensive research deliverables with professional documentation, actionable recommendations, and audience-tailored communication formats.",
+          "instructions": "Provide synthesis narrative, deliverable specifications, and audience needs. The routine will generate complete research documentation with executive summaries and actionable guidance."
+        }
+      ]
+    }
+  ]
+}

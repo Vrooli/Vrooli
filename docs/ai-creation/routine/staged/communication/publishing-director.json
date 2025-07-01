@@ -1,0 +1,138 @@
+{
+  "id": "7892456378912349130",
+  "publicId": "publish-d-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349131",
+      "publicId": "publish-dir-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of publishing director for comprehensive content publishing workflow management",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 900,
+            "temperature": 0.4,
+            "prompt": "You are a publishing director expert providing comprehensive content publishing strategies, workflow management, and multi-channel distribution planning.\n\nContent Type: {{input.contentType}}\nPublishing Channels: {{input.publishingChannels}}\nAudience Profile: {{input.audienceProfile}}\nPublishing Goals: {{input.publishingGoals}}\n\nDevelop comprehensive publishing strategy:\n\n1. **Publishing Strategy and Planning**:\n   - Editorial calendar development\n   - Content pipeline management\n   - Publishing frequency optimization\n   - Seasonal and trend alignment\n   - Cross-channel coordination\n\n2. **Content Preparation and Quality Control**:\n   - Editorial standards and guidelines\n   - Content review and approval workflows\n   - Fact-checking and verification processes\n   - Style guide implementation\n   - Version control and asset management\n\n3. **Multi-Channel Distribution Strategy**:\n   - Platform-specific optimization\n   - Content adaptation and formatting\n   - Release timing and scheduling\n   - Cross-promotion strategies\n   - Syndication and partnerships\n\n4. **Audience Engagement and Growth**:\n   - Target audience segmentation\n   - Engagement strategy development\n   - Community building approaches\n   - Feedback integration systems\n   - Subscriber and follower growth\n\n5. **Metadata and Discoverability**:\n   - SEO and keyword optimization\n   - Tagging and categorization\n   - Description and summary writing\n   - Thumbnail and preview optimization\n   - Search algorithm considerations\n\n6. **Performance Tracking and Analytics**:\n   - Key metric identification\n   - Analytics setup and monitoring\n   - A/B testing strategies\n   - ROI measurement\n   - Competitive benchmarking\n\n7. **Monetization and Business Development**:\n   - Revenue model implementation\n   - Pricing strategy optimization\n   - Partnership opportunities\n   - Brand collaboration approaches\n   - Long-term sustainability planning\n\nProvide actionable publishing direction with workflow optimization, distribution strategies, and growth frameworks for successful content publishing operations.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "contentType",
+                "id": "content_type_input",
+                "label": "Content Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Blog/Articles", "value": "blog" },
+                    { "label": "Books/eBooks", "value": "books" },
+                    { "label": "Video Content", "value": "video" },
+                    { "label": "Podcast/Audio", "value": "audio" },
+                    { "label": "Newsletter", "value": "newsletter" },
+                    { "label": "Social Media", "value": "social" },
+                    { "label": "Mixed Content", "value": "mixed" }
+                  ],
+                  "defaultValue": "mixed",
+                  "helperText": "Primary content format"
+                }
+              },
+              {
+                "fieldName": "publishingChannels",
+                "id": "publishing_channels_input",
+                "label": "Publishing Channels",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Website, YouTube, Amazon, social media platforms, email lists, podcast platforms",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Where will content be published?"
+                }
+              },
+              {
+                "fieldName": "audienceProfile",
+                "id": "audience_profile_input",
+                "label": "Target Audience",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Demographics, interests, content preferences, engagement patterns, platform usage",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe your target audience"
+                }
+              },
+              {
+                "fieldName": "publishingGoals",
+                "id": "publishing_goals_input",
+                "label": "Publishing Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Audience Growth", "value": "growth" },
+                    { "label": "Brand Building", "value": "brand" },
+                    { "label": "Revenue Generation", "value": "revenue" },
+                    { "label": "Thought Leadership", "value": "leadership" },
+                    { "label": "Community Building", "value": "community" },
+                    { "label": "Comprehensive Success", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary publishing objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "publishingStrategy",
+                "id": "publishing_strategy",
+                "label": "Publishing Strategy",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349132",
+          "language": "en-US",
+          "name": "Publishing Director",
+          "description": "Provides comprehensive publishing strategies with workflow management, multi-channel distribution, and audience growth frameworks for successful content operations.",
+          "instructions": "Describe your content type, publishing channels, and goals. The director will create detailed publishing strategies and workflows."
+        }
+      ]
+    }
+  ]
+}

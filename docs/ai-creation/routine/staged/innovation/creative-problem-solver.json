@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Gather Insights & Research",
                 "description": "Collects relevant information and analogous solutions",
-                "subroutineId": "TODO: Need insight gathering subroutine",
+                "subroutineId": "7829564732190850382",
                 "inputMap": {
                   "clarifiedChallenge": "problemDefinition",
                   "knowledgeDomains": "relevantFields",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Generate Creative Ideas",
                 "description": "Uses divergent thinking techniques to produce solution concepts",
-                "subroutineId": "TODO: Need idea generation subroutine",
+                "subroutineId": "7829564732190850385",
                 "inputMap": {
                   "informationBase": "researchFindings",
                   "creativityTechniques": "ideationMethods",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Evaluate & Refine Solutions",
                 "description": "Assesses ideas against criteria and improves promising concepts",
-                "subroutineId": "TODO: Need solution evaluation subroutine",
+                "subroutineId": "7829564732190850388",
                 "inputMap": {
                   "conceptRepository": "ideaCollection",
                   "solutionGoals": "successCriteria",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Prototype & Test Solutions",
                 "description": "Creates rapid prototypes and validates solution effectiveness",
-                "subroutineId": "TODO: Need prototyping subroutine",
+                "subroutineId": "7829564732190850391",
                 "inputMap": {
                   "rankedSolutions": "evaluatedOptions",
                   "prototypingResources": "testingCapabilities",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Plan Implementation & Scale",
                 "description": "Develops execution strategy and scaling approach",
-                "subroutineId": "TODO: Need implementation planning subroutine",
+                "subroutineId": "7829564732190850394",
                 "inputMap": {
                   "provenConcepts": "validatedSolutions",
                   "resourceAvailability": "implementationCapacity",

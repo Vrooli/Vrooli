@@ -1,0 +1,123 @@
+{
+  "id": "7892456378912346010",
+  "publicId": "build-opt-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912346011",
+      "publicId": "build-perf-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of build optimizer for CI/CD performance improvement",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 800,
+            "temperature": 0.4,
+            "prompt": "You are a build optimization expert specializing in CI/CD performance.\n\nStep Metrics: {{input.stepMetrics}}\nStep Type: {{input.stepType}}\nOptimization Strategies: {{input.optimizationStrategies}}\n\nAnalyze and optimize the build process:\n\n1. **Performance Analysis**:\n   - Identify bottlenecks in build times\n   - Memory and CPU usage patterns\n   - I/O operations impact\n   - Network dependency delays\n\n2. **Optimization Strategies**:\n   - Caching opportunities (dependencies, artifacts, layers)\n   - Parallelization possibilities\n   - Build step ordering optimization\n   - Resource allocation improvements\n\n3. **Technology-Specific Optimizations**:\n   - Language-specific build improvements\n   - Framework optimizations\n   - Bundler/compiler configurations\n   - Test execution strategies\n\n4. **Infrastructure Recommendations**:\n   - Build agent specifications\n   - Distributed build strategies\n   - Container optimization\n   - Storage and network improvements\n\n5. **Incremental Build Strategy**:\n   - Change detection mechanisms\n   - Selective rebuilding\n   - Dependency graph optimization\n   - Monorepo considerations\n\n6. **Monitoring & Metrics**:\n   - Key performance indicators\n   - Build time tracking\n   - Success rate improvements\n   - Cost optimization metrics\n\n7. **Implementation Plan**:\n   - Quick wins (immediate improvements)\n   - Medium-term optimizations\n   - Long-term architectural changes\n   - ROI for each optimization\n\nProvide specific, actionable recommendations with expected performance improvements.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "stepMetrics",
+                "id": "step_metrics_input",
+                "label": "Build Step Metrics",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "{ \"duration\": 300, \"cpu\": 85, \"memory\": 2048, \"cacheHitRate\": 0.3 }",
+                  "minRows": 3,
+                  "helperText": "Performance metrics for build steps"
+                }
+              },
+              {
+                "fieldName": "stepType",
+                "id": "step_type_input",
+                "label": "Build Step Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Dependencies Install", "value": "dependencies" },
+                    { "label": "Compilation/Build", "value": "compile" },
+                    { "label": "Testing", "value": "test" },
+                    { "label": "Linting/Analysis", "value": "lint" },
+                    { "label": "Docker Build", "value": "docker" },
+                    { "label": "Deployment", "value": "deploy" }
+                  ],
+                  "defaultValue": "compile",
+                  "helperText": "Type of build step to optimize"
+                }
+              },
+              {
+                "fieldName": "optimizationStrategies",
+                "id": "optimization_strategies_input",
+                "label": "Build Environment",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "GitHub Actions", "value": "github" },
+                    { "label": "GitLab CI", "value": "gitlab" },
+                    { "label": "Jenkins", "value": "jenkins" },
+                    { "label": "CircleCI", "value": "circleci" },
+                    { "label": "Azure DevOps", "value": "azure" },
+                    { "label": "Custom/Other", "value": "custom" }
+                  ],
+                  "defaultValue": "github",
+                  "helperText": "CI/CD platform being used"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "optimizationPlan",
+                "id": "optimization_plan",
+                "label": "Build Optimization Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 12
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912346012",
+          "language": "en-US",
+          "name": "Build Optimizer",
+          "description": "Analyzes build performance metrics and provides optimization strategies for faster, more efficient CI/CD pipelines.",
+          "instructions": "Provide build step metrics and type. The optimizer will analyze performance and suggest specific improvements for your CI/CD pipeline."
+        }
+      ]
+    }
+  ]
+}

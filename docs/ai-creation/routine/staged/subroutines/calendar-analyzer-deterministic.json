@@ -1,0 +1,104 @@
+{
+  "id": "7829564732190850094",
+  "publicId": "cal-analyze-det-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850095",
+      "publicId": "cal-analyze-det-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes calendar to find available time blocks",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "javascript",
+            "logic": "function analyzeCalendar({ calendarEvents, workingHours, breakPreferences }) {\n  // Parse working hours\n  const parseTime = (timeStr) => {\n    const [time, period] = timeStr.split(' ');\n    let [hours, minutes] = time.split(':').map(Number);\n    if (period === 'PM' && hours !== 12) hours += 12;\n    if (period === 'AM' && hours === 12) hours = 0;\n    return hours * 60 + (minutes || 0);\n  };\n  \n  const [startTime, endTime] = (workingHours || '9:00 AM - 5:00 PM').split(' - ');\n  const dayStartMinutes = parseTime(startTime);\n  const dayEndMinutes = parseTime(endTime);\n  const totalMinutes = dayEndMinutes - dayStartMinutes;\n  \n  // Convert calendar events to time blocks\n  const events = (calendarEvents || []).map(event => ({\n    start: parseTime(event.startTime),\n    end: parseTime(event.endTime),\n    title: event.title\n  })).sort((a, b) => a.start - b.start);\n  \n  // Find available slots\n  const availableSlots = [];\n  let currentTime = dayStartMinutes;\n  \n  events.forEach(event => {\n    if (event.start > currentTime) {\n      availableSlots.push({\n        start: currentTime,\n        end: event.start,\n        duration: event.start - currentTime\n      });\n    }\n    currentTime = Math.max(currentTime, event.end);\n  });\n  \n  // Add final slot if available\n  if (currentTime < dayEndMinutes) {\n    availableSlots.push({\n      start: currentTime,\n      end: dayEndMinutes,\n      duration: dayEndMinutes - currentTime\n    });\n  }\n  \n  // Apply break preferences\n  const breaks = breakPreferences || { frequency: 'every-2-hours', duration: 15 };\n  const breakInterval = breaks.frequency === 'every-hour' ? 60 : \n                       breaks.frequency === 'every-90-min' ? 90 : \n                       breaks.frequency === 'every-2-hours' ? 120 : 180;\n  \n  // Insert breaks into available slots\n  const slotsWithBreaks = [];\n  let lastBreak = dayStartMinutes;\n  \n  availableSlots.forEach(slot => {\n    let slotStart = slot.start;\n    while (slotStart < slot.end) {\n      const nextBreak = lastBreak + breakInterval;\n      if (nextBreak > slotStart && nextBreak < slot.end) {\n        // Add slot before break\n        if (nextBreak - slotStart > 15) {\n          slotsWithBreaks.push({\n            start: slotStart,\n            end: nextBreak,\n            duration: nextBreak - slotStart,\n            type: 'work'\n          });\n        }\n        // Add break\n        slotsWithBreaks.push({\n          start: nextBreak,\n          end: nextBreak + breaks.duration,\n          duration: breaks.duration,\n          type: 'break'\n        });\n        slotStart = nextBreak + breaks.duration;\n        lastBreak = nextBreak;\n      } else {\n        // Add remaining slot\n        if (slot.end - slotStart > 15) {\n          slotsWithBreaks.push({\n            start: slotStart,\n            end: slot.end,\n            duration: slot.end - slotStart,\n            type: 'work'\n          });\n        }\n        break;\n      }\n    }\n  });\n  \n  // Calculate constraints\n  const constraints = {\n    fixedMeetings: events.length,\n    breakCount: slotsWithBreaks.filter(s => s.type === 'break').length,\n    largestBlock: Math.max(...slotsWithBreaks.filter(s => s.type === 'work').map(s => s.duration)),\n    fragmentedSlots: slotsWithBreaks.filter(s => s.type === 'work' && s.duration < 30).length\n  };\n  \n  // Total available time\n  const totalAvailableTime = slotsWithBreaks\n    .filter(s => s.type === 'work')\n    .reduce((sum, slot) => sum + slot.duration, 0);\n  \n  return {\n    availableSlots: slotsWithBreaks,\n    constraints: constraints,\n    totalAvailableTime: totalAvailableTime\n  };\n}"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "calendarEvents",
+                "id": "calendar_events_input",
+                "label": "Existing Events",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Array of calendar events"
+                }
+              },
+              {
+                "fieldName": "workingHours",
+                "id": "working_hours_input",
+                "label": "Available Hours",
+                "type": "TextInput",
+                "isRequired": false,
+                "defaultValue": "9:00 AM - 5:00 PM"
+              },
+              {
+                "fieldName": "breakPreferences",
+                "id": "break_preferences_input",
+                "label": "Break Settings",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Break frequency and duration"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "availableSlots",
+                "id": "available_slots_output",
+                "label": "Free Time Blocks",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_output",
+                "label": "Scheduling Constraints",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "totalAvailableTime",
+                "id": "total_available_time_output",
+                "label": "Available Minutes",
+                "type": "IntegerInput"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850096",
+          "language": "en",
+          "name": "Calendar Analyzer (Deterministic)",
+          "description": "Identifies fixed commitments and available time blocks in your calendar with break scheduling.",
+          "instructions": "Provide existing calendar events, working hours, and break preferences. The routine will find available time slots."
+        }
+      ]
+    }
+  ]
+}

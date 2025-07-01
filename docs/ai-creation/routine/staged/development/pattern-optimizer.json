@@ -1,0 +1,189 @@
+{
+  "id": "7892456378912349178",
+  "publicId": "patter-o-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349179",
+      "publicId": "patter-opt-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of pattern optimizer for comprehensive design pattern optimization and code structure improvement",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a software pattern optimization expert providing comprehensive design pattern analysis, code structure improvement, and architectural optimization.
+
+Code Context: {{input.codeContext}}
+Current Patterns: {{input.currentPatterns}}
+Quality Issues: {{input.qualityIssues}}
+Optimization Goals: {{input.optimizationGoals}}
+
+Optimize comprehensive pattern implementation:
+
+1. **Pattern Analysis and Assessment**:
+   - Current pattern identification
+   - Pattern appropriateness evaluation
+   - Anti-pattern detection
+   - Pattern misuse identification
+   - Complexity assessment
+
+2. **Design Pattern Optimization**:
+   - Pattern selection improvement
+   - Implementation refinement
+   - Pattern combination strategies
+   - Simplification opportunities
+   - Modern pattern alternatives
+
+3. **Code Structure Enhancement**:
+   - Module organization optimization
+   - Dependency structure improvement
+   - Coupling reduction strategies
+   - Cohesion enhancement
+   - Interface design optimization
+
+4. **Performance Pattern Tuning**:
+   - Algorithm pattern optimization
+   - Caching pattern implementation
+   - Lazy loading strategies
+   - Resource pooling patterns
+   - Concurrency pattern selection
+
+5. **Maintainability Improvements**:
+   - Code readability enhancement
+   - Pattern documentation
+   - Naming convention optimization
+   - Abstraction level adjustment
+   - Testing pattern integration
+
+6. **Scalability Pattern Design**:
+   - Distributed pattern selection
+   - Microservice pattern optimization
+   - Event-driven architectures
+   - Data pattern scalability
+   - Load distribution patterns
+
+7. **Refactoring Strategy**:
+   - Incremental improvement plan
+   - Risk mitigation approach
+   - Testing strategy alignment
+   - Migration path design
+   - Backward compatibility handling
+
+Provide detailed pattern optimization plan with current state analysis, improvement recommendations, implementation strategies, and quality metrics for enhanced code architecture.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "codeContext",
+                "id": "code_context_input",
+                "label": "Code Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Application type, technology stack, codebase size, team structure, domain complexity",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your code and architecture context"
+                }
+              },
+              {
+                "fieldName": "currentPatterns",
+                "id": "current_patterns_input",
+                "label": "Current Patterns",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Existing design patterns, architectural patterns, coding conventions, framework usage",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What patterns are currently implemented?"
+                }
+              },
+              {
+                "fieldName": "qualityIssues",
+                "id": "quality_issues_input",
+                "label": "Quality Issues",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Code smells, maintenance difficulties, performance problems, testing challenges, scalability limits",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What quality issues need addressing?"
+                }
+              },
+              {
+                "fieldName": "optimizationGoals",
+                "id": "optimization_goals_input",
+                "label": "Optimization Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Improve Maintainability", "value": "maintainability" },
+                    { "label": "Enhance Performance", "value": "performance" },
+                    { "label": "Increase Scalability", "value": "scalability" },
+                    { "label": "Reduce Complexity", "value": "complexity" },
+                    { "label": "Modernize Architecture", "value": "modernize" },
+                    { "label": "Comprehensive Improvement", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary optimization objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "patternOptimizationPlan",
+                "id": "pattern_optimization_plan",
+                "label": "Pattern Optimization Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349180",
+          "language": "en-US",
+          "name": "Pattern Optimizer",
+          "description": "Provides comprehensive pattern optimization with design analysis, structure improvements, and architectural enhancements for better code quality.",
+          "instructions": "Describe your code context, current patterns, and quality issues. The optimizer will recommend pattern improvements."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850301",
+  "publicId": "task-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850302",
+      "publicId": "task-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Breaks down task into required skills and resources",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "You are a task analysis specialist. Break down tasks into their component requirements for optimal agent allocation.\n\nNew Task:\n{{input.newTask}}\n\nTask Metadata:\n{{input.taskMetadata}}\n\nTask Constraints:\n{{input.taskConstraints}}\n\nAnalyze task requirements systematically:\n\n1. **Skill Requirements Analysis**:\n   Identify all capabilities needed for successful completion:\n   - **Core Competencies**: Primary skills essential for the task\n   - **Supporting Skills**: Secondary abilities that enhance performance\n   - **Domain Knowledge**: Specific expertise or background required\n   - **Technical Skills**: Tools, technologies, or systems knowledge needed\n   - **Soft Skills**: Communication, problem-solving, or interpersonal abilities\n   - **Experience Level**: Seniority or years of experience required\n\n2. **Resource Requirements Assessment**:\n   Determine what resources the task demands:\n   - **Time Investment**: Estimated duration and scheduling requirements\n   - **Computational Resources**: Processing power, memory, or bandwidth needs\n   - **Access Requirements**: Systems, databases, or external services needed\n   - **Collaboration Needs**: Whether task requires coordination with others\n   - **Information Access**: Data sources or knowledge bases required\n   - **Tool Dependencies**: Specific software, APIs, or platforms needed\n\n3. **Task Complexity Evaluation**:\n   Assess the difficulty and sophistication level:\n   - **Cognitive Load**: Mental effort and focus required\n   - **Problem Complexity**: How challenging or novel the problem is\n   - **Uncertainty Level**: Degree of ambiguity or unknown factors\n   - **Interdependencies**: How task connects to other work or systems\n   - **Quality Standards**: Precision or excellence requirements\n   - **Risk Factors**: Potential complications or failure modes\n\n4. **Task Characteristics**:\n   Define key properties that affect assignment:\n   - **Urgency Level**: How time-sensitive the task is\n   - **Importance**: Strategic value or impact of completion\n   - **Autonomy Requirements**: Level of independence or supervision needed\n   - **Creativity Demands**: Innovation or original thinking required\n   - **Routine vs Novel**: Whether task follows established patterns\n   - **Error Tolerance**: Acceptable margin for mistakes or iterations\n\nProvide output as JSON with:\n- skillRequirements: Detailed breakdown of needed capabilities and expertise\n- resourceRequirements: Comprehensive list of resources and dependencies\n- complexityScore: Numerical assessment of task difficulty and requirements",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "newTask",
+                "id": "new_task_input",
+                "label": "Task Description",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Description of the task to analyze"
+                }
+              },
+              {
+                "fieldName": "taskMetadata",
+                "id": "task_metadata_input",
+                "label": "Task Properties",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Additional task metadata and context"
+                }
+              },
+              {
+                "fieldName": "taskConstraints",
+                "id": "task_constraints_input",
+                "label": "Constraints",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Limitations or restrictions for the task"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "skillRequirements",
+                "id": "skill_requirements_output",
+                "label": "Required Skills",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "resourceRequirements",
+                "id": "resource_requirements_output",
+                "label": "Resource Needs",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "complexityScore",
+                "id": "complexity_score_output",
+                "label": "Task Complexity",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850303",
+          "language": "en",
+          "name": "Task Analyzer",
+          "description": "Breaks down task into required skills and resources through systematic analysis of competencies, resources, and complexity factors.",
+          "instructions": "Provide task description with any metadata and constraints. The routine will analyze skill requirements, resource needs, and complexity for optimal agent allocation."
+        }
+      ]
+    }
+  ]
+}

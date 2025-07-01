@@ -1,0 +1,125 @@
+{
+  "id": "7829564732190850139",
+  "publicId": "multi-format-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850140",
+      "publicId": "multi-format-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Formats content for different social media platforms",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 1500,
+            "model": null,
+            "prompt": "You are a social media formatting specialist. Transform content ideas into platform-optimized posts with hashtags and scheduling.\n\nContent Ideas:\n{{input.contentIdeas}}\n\nTarget Platforms:\n{{input.platforms}}\n\nHashtag Preferences:\n{{input.hashtagPreferences}}\n\nScheduling Preference:\n{{input.schedulingPreference}}\n\nFormat content for each platform:\n\n1. **Platform-Specific Formatting**:\n   \n   **Facebook Posts:**\n   - Longer, storytelling format (1-3 paragraphs)\n   - Include engaging questions\n   - Add relevant links and mentions\n   - Use 1-3 strategic hashtags\n   - Include call-to-action\n   \n   **Instagram Posts:**\n   - Visual-first captions (1-2 paragraphs)\n   - Hook in first line\n   - Use line breaks for readability\n   - 5-15 relevant hashtags\n   - Stories and Reels suggestions\n   \n   **Twitter/X Posts:**\n   - Concise, punchy messages (under 280 chars)\n   - Thread suggestions for longer content\n   - 1-3 hashtags maximum\n   - @mentions for engagement\n   - Retweet-worthy formatting\n   \n   **LinkedIn Posts:**\n   - Professional, value-driven content\n   - Industry insights and thought leadership\n   - Professional hashtags (3-5)\n   - Network engagement focus\n   - Business-appropriate tone\n   \n   **TikTok Content:**\n   - Video concept descriptions\n   - Trending audio suggestions\n   - Popular hashtag combinations\n   - Engaging hooks for first 3 seconds\n   - Challenge or trend participation\n\n2. **Hashtag Strategy**:\n   Create platform-specific hashtag sets:\n   - **High-volume hashtags** (1M+ posts) for discovery\n   - **Medium-volume hashtags** (100K-1M) for targeted reach\n   - **Niche hashtags** (<100K) for community engagement\n   - **Branded hashtags** for campaign tracking\n   - **Location hashtags** if relevant\n   - **Trending hashtags** when appropriate\n\n3. **Content Calendar & Scheduling**:\n   Organize posting schedule:\n   - **Optimal posting times** for each platform\n   - **Content mix balance** (educational, promotional, entertaining)\n   - **Cross-platform coordination** to avoid over-posting\n   - **Theme days** or series suggestions\n   - **Engagement windows** for maximum reach\n   - **Content recycling** opportunities\n\n4. **Engagement Optimization**:\n   Maximize interaction potential:\n   - **Question-based CTAs** for comments\n   - **Share-worthy quotes** and statistics\n   - **Tag-a-friend opportunities**\n   - **User-generated content prompts**\n   - **Community challenges** or contests\n   - **Behind-the-scenes** moments\n\n5. **Performance Tracking Setup**:\n   Prepare for measurement:\n   - **UTM parameters** for link tracking\n   - **Campaign hashtags** for monitoring\n   - **Engagement benchmarks** to track\n   - **A/B testing** suggestions\n   - **Content performance indicators**\n\nProvide complete, ready-to-post content for each platform.\n\nProvide output as JSON with:\n- platformPosts: Formatted posts for each platform\n- hashtagStrategy: Hashtag recommendations by platform\n- contentCalendar: Suggested posting schedule\n- engagementTactics: Specific engagement strategies",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "contentIdeas",
+                "id": "content_ideas_input",
+                "label": "Content Ideas",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Generated content ideas"
+                }
+              },
+              {
+                "fieldName": "platforms",
+                "id": "platforms_input",
+                "label": "Platforms",
+                "type": "TextInput",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Target platforms list"
+                }
+              },
+              {
+                "fieldName": "hashtagPreferences",
+                "id": "hashtag_preferences_input",
+                "label": "Hashtag Preferences",
+                "type": "TextInput",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Hashtag strategy preferences"
+                }
+              },
+              {
+                "fieldName": "schedulingPreference",
+                "id": "scheduling_preference_input",
+                "label": "Scheduling Preference",
+                "type": "TextInput",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Preferred posting schedule"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "platformPosts",
+                "id": "platform_posts_output",
+                "label": "Formatted Posts",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "hashtagStrategy",
+                "id": "hashtag_strategy_output",
+                "label": "Hashtag Recommendations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "contentCalendar",
+                "id": "content_calendar_output",
+                "label": "Posting Schedule",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "engagementTactics",
+                "id": "engagement_tactics_output",
+                "label": "Engagement Strategies",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850141",
+          "language": "en",
+          "name": "Multi-Platform Formatter",
+          "description": "Formats content ideas into platform-optimized posts with hashtags, scheduling, and engagement strategies.",
+          "instructions": "Provide content ideas, target platforms, hashtag preferences, and scheduling needs. The routine will create formatted posts for each platform."
+        }
+      ]
+    }
+  ]
+}

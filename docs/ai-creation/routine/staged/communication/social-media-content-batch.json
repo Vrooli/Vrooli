@@ -27,7 +27,7 @@
                 "id": "post_ideas_generator",
                 "name": "Post Ideas Generator",
                 "description": "Generate content ideas for multiple social platforms",
-                "routineId": "TODO: PostIdeasGenerator subroutine",
+                "routineId": "7829564732190850136",
                 "inputs": {
                   "theme": "{{input.theme}}",
                   "platforms": "{{input.platforms}}",
@@ -39,7 +39,7 @@
                 "id": "multi_platform_formatter",
                 "name": "Multi-Platform Formatter",
                 "description": "Format content for different social media platforms",
-                "routineId": "TODO: MultiPlatformFormatter subroutine",
+                "routineId": "7829564732190850139",
                 "inputs": {
                   "contentIdeas": "{{steps.post_ideas_generator.output.ideas}}",
                   "platforms": "{{input.platforms}}",

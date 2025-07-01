@@ -1,0 +1,138 @@
+{
+  "id": "7892456378912349175",
+  "publicId": "innov-as-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349176",
+      "publicId": "innov-assess-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of innovation assessor for comprehensive innovation evaluation and potential analysis",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Visionary",
+            "maxTokens": 900,
+            "temperature": 0.4,
+            "prompt": "You are an innovation assessment expert providing comprehensive evaluation of innovation opportunities, ideas, and initiatives for strategic decision-making and development planning.\n\nInnovation Focus: {{input.innovationFocus}}\nInnovation Description: {{input.innovationDescription}}\nAssessment Criteria: {{input.assessmentCriteria}}\nOrganizational Context: {{input.organizationalContext}}\n\nConduct comprehensive innovation assessment:\n\n1. **Innovation Analysis and Characterization**:\n   - Innovation type and category classification\n   - Novelty and originality evaluation\n   - Scope and scale assessment\n   - Technology and methodology analysis\n   - Competitive differentiation evaluation\n\n2. **Market and Opportunity Assessment**:\n   - Market size and potential analysis\n   - Target audience and customer validation\n   - Competitive landscape and positioning\n   - Market timing and readiness evaluation\n   - Revenue and business model potential\n\n3. **Technical and Feasibility Evaluation**:\n   - Technical complexity and requirements\n   - Resource and capability assessment\n   - Development timeline and milestones\n   - Risk and challenge identification\n   - Technology maturity and readiness\n\n4. **Strategic Alignment and Fit Analysis**:\n   - Organizational strategy and goal alignment\n   - Core competency and capability match\n   - Cultural and operational fit assessment\n   - Resource allocation and priority evaluation\n   - Long-term vision and roadmap integration\n\n5. **Impact and Value Proposition Assessment**:\n   - Expected benefits and value creation\n   - Customer and stakeholder impact\n   - Competitive advantage and differentiation\n   - Social and environmental impact\n   - Economic and financial returns\n\n6. **Risk and Investment Analysis**:\n   - Financial investment and resource requirements\n   - Risk identification and mitigation strategies\n   - Return on investment and payback analysis\n   - Uncertainty and scenario planning\n   - Success probability and confidence assessment\n\n7. **Recommendation and Implementation Planning**:\n   - Go/no-go decision framework\n   - Development and implementation roadmap\n   - Success metrics and tracking systems\n   - Resource allocation and team planning\n   - Next steps and action planning\n\nProvide comprehensive innovation assessment with detailed analysis, risk evaluation, and strategic recommendations for informed innovation investment and development decisions.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "innovationFocus",
+                "id": "innovation_focus_input",
+                "label": "Innovation Focus",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Product Innovation", "value": "product" },
+                    { "label": "Process Innovation", "value": "process" },
+                    { "label": "Service Innovation", "value": "service" },
+                    { "label": "Business Model Innovation", "value": "business_model" },
+                    { "label": "Technology Innovation", "value": "technology" },
+                    { "label": "Organizational Innovation", "value": "organizational" },
+                    { "label": "Marketing Innovation", "value": "marketing" }
+                  ],
+                  "defaultValue": "product",
+                  "helperText": "Primary type of innovation being assessed"
+                }
+              },
+              {
+                "fieldName": "innovationDescription",
+                "id": "innovation_description_input",
+                "label": "Innovation Description",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Detailed description of the innovation: concept, features, benefits, target market, unique value proposition",
+                  "multiline": true,
+                  "minRows": 5,
+                  "helperText": "Describe the innovation to be assessed"
+                }
+              },
+              {
+                "fieldName": "assessmentCriteria",
+                "id": "assessment_criteria_input",
+                "label": "Assessment Criteria",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Market Potential Focus", "value": "market" },
+                    { "label": "Technical Feasibility Focus", "value": "technical" },
+                    { "label": "Strategic Fit Focus", "value": "strategic" },
+                    { "label": "Financial Viability Focus", "value": "financial" },
+                    { "label": "Risk Assessment Focus", "value": "risk" },
+                    { "label": "Comprehensive Evaluation", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary focus of the assessment"
+                }
+              },
+              {
+                "fieldName": "organizationalContext",
+                "id": "organizational_context_input",
+                "label": "Organizational Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Organization size, industry, resources, capabilities, strategic goals, innovation culture",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Provide organizational context for assessment"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "innovationAssessment",
+                "id": "innovation_assessment",
+                "label": "Innovation Assessment",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349177",
+          "language": "en-US",
+          "name": "Innovation Assessor",
+          "description": "Provides comprehensive innovation assessment with detailed analysis, risk evaluation, and strategic recommendations for informed innovation investment and development decisions.",
+          "instructions": "Describe the innovation, focus area, and organizational context. The assessor will create detailed evaluation and recommendations."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,144 @@
+{
+  "id": "7892456378912349166",
+  "publicId": "impact-rp-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349167",
+      "publicId": "impact-report-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of impact reporter for comprehensive impact communication and reporting across stakeholders",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are an impact reporting expert creating comprehensive reports and communications that effectively convey impact results, insights, and value to diverse stakeholder audiences.\n\nImpact Data: {{input.impactData}}\nTarget Audience: {{input.targetAudience}}\nReporting Purpose: {{input.reportingPurpose}}\nReport Format: {{input.reportFormat}}\n\nDevelop comprehensive impact report:\n\n1. **Executive Summary and Key Findings**:\n   - Impact overview and highlights\n   - Key achievement and outcome summary\n   - Major insights and learnings\n   - Value proposition and significance\n   - Strategic implications and recommendations\n\n2. **Impact Context and Background**:\n   - Program or initiative description\n   - Goal and objective alignment\n   - Target population and stakeholders\n   - Implementation context and environment\n   - Historical and comparative framework\n\n3. **Methodology and Approach**:\n   - Measurement and evaluation framework\n   - Data collection and analysis methods\n   - Quality assurance and validation\n   - Limitations and constraints acknowledgment\n   - Methodological rigor and standards\n\n4. **Results and Outcomes Presentation**:\n   - Quantitative results and statistics\n   - Qualitative findings and insights\n   - Visual data representation and charts\n   - Before-and-after comparisons\n   - Trend analysis and patterns\n\n5. **Impact Analysis and Interpretation**:\n   - Outcome significance and meaning\n   - Causal relationship analysis\n   - Success factor identification\n   - Challenge and barrier assessment\n   - Unexpected result exploration\n\n6. **Stakeholder Stories and Testimonials**:\n   - Beneficiary experience narratives\n   - Stakeholder testimonial integration\n   - Case study and example presentation\n   - Human impact and personal stories\n   - Community and organizational voice\n\n7. **Lessons Learned and Future Directions**:\n   - Key learning and insight synthesis\n   - Best practice identification\n   - Improvement and enhancement opportunities\n   - Scaling and replication potential\n   - Future planning and sustainability\n\nProvide comprehensive impact report with clear communication, compelling storytelling, and actionable insights for effective stakeholder engagement and decision-making support.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "impactData",
+                "id": "impact_data_input",
+                "label": "Impact Data",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Key metrics, outcomes achieved, data points, success stories, challenges encountered",
+                  "multiline": true,
+                  "minRows": 5,
+                  "helperText": "What impact data and results need to be reported?"
+                }
+              },
+              {
+                "fieldName": "targetAudience",
+                "id": "target_audience_input",
+                "label": "Target Audience",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Funders and Donors", "value": "funders" },
+                    { "label": "Board and Leadership", "value": "leadership" },
+                    { "label": "Community Stakeholders", "value": "community" },
+                    { "label": "Government Officials", "value": "government" },
+                    { "label": "Academic and Research", "value": "academic" },
+                    { "label": "General Public", "value": "public" },
+                    { "label": "Multiple Audiences", "value": "multiple" }
+                  ],
+                  "defaultValue": "funders",
+                  "helperText": "Primary audience for the impact report"
+                }
+              },
+              {
+                "fieldName": "reportingPurpose",
+                "id": "reporting_purpose_input",
+                "label": "Reporting Purpose",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Accountability and Compliance", "value": "accountability" },
+                    { "label": "Fundraising and Support", "value": "fundraising" },
+                    { "label": "Learning and Improvement", "value": "learning" },
+                    { "label": "Public Awareness and Advocacy", "value": "awareness" },
+                    { "label": "Strategic Planning", "value": "strategic" },
+                    { "label": "Program Evaluation", "value": "evaluation" }
+                  ],
+                  "defaultValue": "accountability",
+                  "helperText": "Primary purpose of the impact report"
+                }
+              },
+              {
+                "fieldName": "reportFormat",
+                "id": "report_format_input",
+                "label": "Report Format",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Comprehensive Written Report", "value": "comprehensive" },
+                    { "label": "Executive Summary Brief", "value": "summary" },
+                    { "label": "Visual Infographic", "value": "infographic" },
+                    { "label": "Presentation Slides", "value": "presentation" },
+                    { "label": "Dashboard Format", "value": "dashboard" },
+                    { "label": "Multi-format Package", "value": "multiformat" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Preferred format for impact reporting"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "impactReport",
+                "id": "impact_report",
+                "label": "Impact Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349168",
+          "language": "en-US",
+          "name": "Impact Reporter",
+          "description": "Creates comprehensive impact reports with clear communication, compelling storytelling, and actionable insights for effective stakeholder engagement and decision-making.",
+          "instructions": "Provide impact data, target audience, and reporting purpose. The reporter will create detailed impact reports tailored to stakeholder needs."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "id": "7892456378912349109",
+  "publicId": "ip-strat-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349110",
+      "publicId": "ip-strategy-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of IP strategist for comprehensive intellectual property strategy and portfolio management",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are an intellectual property strategy expert providing comprehensive IP portfolio management, protection strategies, and commercialization guidance.\n\nBusiness Context: {{input.businessContext}}\nIP Assets: {{input.ipAssets}}\nStrategic Goals: {{input.strategicGoals}}\nIndustry Focus: {{input.industryFocus}}\n\nDevelop comprehensive IP strategy:\n\n1. **IP Portfolio Assessment and Mapping**:\n   - Current IP asset inventory and valuation\n   - Patent, trademark, and copyright analysis\n   - Trade secret identification and protection\n   - IP strength and vulnerability assessment\n   - Competitive IP landscape analysis\n\n2. **IP Protection Strategy Development**:\n   - Patent filing strategy and timing\n   - Trademark registration planning\n   - Copyright protection measures\n   - Trade secret management protocols\n   - Geographic protection coverage\n\n3. **IP Commercialization and Monetization**:\n   - Licensing opportunity identification\n   - Technology transfer strategies\n   - Joint venture and partnership structures\n   - IP-based revenue stream development\n   - Valuation and pricing strategies\n\n4. **Risk Management and Enforcement**:\n   - Infringement risk assessment\n   - Freedom-to-operate analysis\n   - Enforcement strategy development\n   - Litigation avoidance tactics\n   - IP insurance considerations\n\n5. **Innovation and R&D Alignment**:\n   - R&D and IP strategy integration\n   - Innovation pipeline protection\n   - Inventor incentive programs\n   - IP creation processes\n   - Competitive advantage building\n\n6. **IP Operations and Management**:\n   - IP portfolio management systems\n   - Budget allocation and cost optimization\n   - External counsel and vendor management\n   - IP committee and governance structure\n   - Performance metrics and reporting\n\n7. **Strategic IP Planning and Execution**:\n   - Long-term IP roadmap development\n   - M&A and due diligence considerations\n   - International expansion strategies\n   - Technology trend adaptation\n   - Continuous portfolio optimization\n\nProvide actionable IP strategy with protection recommendations, commercialization opportunities, and portfolio management framework for maximizing intellectual property value.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "businessContext",
+                "id": "business_context_input",
+                "label": "Business Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Company size, industry, products/services, market position, innovation focus",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your business and innovation landscape"
+                }
+              },
+              {
+                "fieldName": "ipAssets",
+                "id": "ip_assets_input",
+                "label": "Current IP Assets",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Existing patents, trademarks, copyrights, trade secrets, know-how, brands",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What intellectual property do you currently have?"
+                }
+              },
+              {
+                "fieldName": "strategicGoals",
+                "id": "strategic_goals_input",
+                "label": "Strategic Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Market Protection", "value": "protection" },
+                    { "label": "Revenue Generation", "value": "revenue" },
+                    { "label": "Competitive Advantage", "value": "competitive" },
+                    { "label": "Technology Leadership", "value": "technology" },
+                    { "label": "Brand Building", "value": "brand" },
+                    { "label": "Portfolio Expansion", "value": "expansion" },
+                    { "label": "Comprehensive IP Strategy", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary IP strategy objective"
+                }
+              },
+              {
+                "fieldName": "industryFocus",
+                "id": "industry_focus_input",
+                "label": "Industry Focus",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Technology sector, pharmaceutical, manufacturing, software, creative industries",
+                  "multiline": true,
+                  "minRows": 2,
+                  "helperText": "What industry or sector are you operating in?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "ipStrategyPlan",
+                "id": "ip_strategy_plan",
+                "label": "IP Strategy Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349111",
+          "language": "en-US",
+          "name": "IP Strategist",
+          "description": "Provides comprehensive intellectual property strategy with portfolio management, protection planning, and commercialization guidance for maximizing IP value.",
+          "instructions": "Describe your business context, current IP assets, and strategic goals. The strategist will create detailed IP strategy and management recommendations."
+        }
+      ]
+    }
+  ]
+}

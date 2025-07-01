@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349124",
+  "publicId": "plant-ca-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349125",
+      "publicId": "plant-care-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of plant care advisor for comprehensive plant care guidance and garden management",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Nurturing",
+            "maxTokens": 900,
+            "temperature": 0.4,
+            "prompt": "You are a plant care expert providing comprehensive guidance for indoor and outdoor plant care, garden management, and botanical health optimization.\n\nPlant Information: {{input.plantInformation}}\nGrowing Conditions: {{input.growingConditions}}\nCare Challenges: {{input.careChallenges}}\nGardening Goals: {{input.gardeningGoals}}\n\nProvide comprehensive plant care guidance:\n\n1. **Plant Health Assessment and Diagnosis**:\n   - Current health status evaluation\n   - Disease and pest identification\n   - Nutrient deficiency analysis\n   - Environmental stress assessment\n   - Growth pattern evaluation\n\n2. **Customized Care Schedule**:\n   - Watering frequency and amount\n   - Fertilization schedule and type\n   - Pruning and maintenance timing\n   - Seasonal care adjustments\n   - Repotting and soil refresh schedule\n\n3. **Environmental Optimization**:\n   - Light requirement analysis\n   - Temperature and humidity management\n   - Air circulation and placement\n   - Soil composition recommendations\n   - Container and drainage optimization\n\n4. **Problem Prevention and Treatment**:\n   - Common issue prevention strategies\n   - Pest control methods (organic/chemical)\n   - Disease treatment protocols\n   - Recovery and rehabilitation plans\n   - Preventive care measures\n\n5. **Growth and Propagation Guidance**:\n   - Propagation methods and timing\n   - Growth promotion techniques\n   - Companion planting suggestions\n   - Seasonal growth management\n   - Harvest timing and methods\n\n6. **Garden Design and Planning**:\n   - Plant compatibility assessment\n   - Space utilization strategies\n   - Aesthetic arrangement ideas\n   - Succession planting schedules\n   - Biodiversity enhancement\n\n7. **Sustainable Gardening Practices**:\n   - Water conservation techniques\n   - Organic care alternatives\n   - Composting and soil health\n   - Native plant integration\n   - Eco-friendly pest management\n\nProvide personalized plant care advice with practical schedules, troubleshooting guidance, and sustainable gardening strategies for thriving plants and gardens.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "plantInformation",
+                "id": "plant_information_input",
+                "label": "Plant Information",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Plant species, varieties, age, size, indoor/outdoor location, quantity",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your plants or garden"
+                }
+              },
+              {
+                "fieldName": "growingConditions",
+                "id": "growing_conditions_input",
+                "label": "Growing Conditions",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Climate zone, light exposure, soil type, space available, water access",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe your growing environment"
+                }
+              },
+              {
+                "fieldName": "careChallenges",
+                "id": "care_challenges_input",
+                "label": "Care Challenges",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Current problems, past failures, time constraints, knowledge gaps, resource limitations",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What challenges are you facing with plant care?"
+                }
+              },
+              {
+                "fieldName": "gardeningGoals",
+                "id": "gardening_goals_input",
+                "label": "Gardening Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Healthy Houseplants", "value": "houseplants" },
+                    { "label": "Productive Vegetable Garden", "value": "vegetables" },
+                    { "label": "Beautiful Flower Garden", "value": "flowers" },
+                    { "label": "Sustainable Food Production", "value": "food" },
+                    { "label": "Low-Maintenance Landscaping", "value": "landscaping" },
+                    { "label": "Mixed Garden Success", "value": "mixed" }
+                  ],
+                  "defaultValue": "mixed",
+                  "helperText": "Primary gardening objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "plantCareGuide",
+                "id": "plant_care_guide",
+                "label": "Plant Care Guide",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349126",
+          "language": "en-US",
+          "name": "Plant Care Advisor",
+          "description": "Provides comprehensive plant care guidance with customized schedules, problem-solving strategies, and sustainable gardening practices for thriving plants and gardens.",
+          "instructions": "Describe your plants, growing conditions, and challenges. The advisor will provide personalized care guidance and gardening strategies."
+        }
+      ]
+    }
+  ]
+}

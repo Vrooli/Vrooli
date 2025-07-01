@@ -1,0 +1,133 @@
+{
+  "id": "7892456378912349070",
+  "publicId": "ml-strat-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349071",
+      "publicId": "ml-strategy-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of ML strategy planner for comprehensive machine learning implementation and optimization strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a machine learning strategy expert providing comprehensive ML implementation planning and optimization strategies for business and technical objectives.\n\nBusiness Problem: {{input.businessProblem}}\nData Assets: {{input.dataAssets}}\nTechnical Constraints: {{input.technicalConstraints}}\nML Objectives: {{input.mlObjectives}}\n\nDevelop comprehensive ML strategy and implementation plan:\n\n1. **Problem Definition and Scope**:\n   - Business problem analysis and framing\n   - ML problem type identification\n   - Success criteria and metrics definition\n   - Stakeholder requirement analysis\n   - Feasibility assessment and constraints\n\n2. **Data Strategy and Assessment**:\n   - Data availability and quality analysis\n   - Data collection and acquisition strategy\n   - Feature engineering opportunities\n   - Data preprocessing requirements\n   - Privacy and compliance considerations\n\n3. **ML Model and Algorithm Selection**:\n   - Algorithm comparison and selection\n   - Model architecture recommendations\n   - Training and validation strategies\n   - Performance optimization approaches\n   - Interpretability and explainability needs\n\n4. **Infrastructure and Technology Stack**:\n   - Computing resource requirements\n   - Platform and framework selection\n   - Scalability and performance planning\n   - MLOps and deployment strategies\n   - Monitoring and maintenance systems\n\n5. **Implementation Roadmap**:\n   - Phased development approach\n   - Proof of concept planning\n   - Minimum viable product definition\n   - Timeline and milestone planning\n   - Resource allocation and team structure\n\n6. **Risk Management and Mitigation**:\n   - Technical risk assessment\n   - Model bias and fairness considerations\n   - Security and privacy protection\n   - Regulatory compliance planning\n   - Fallback and contingency strategies\n\n7. **Performance Monitoring and Optimization**:\n   - Model performance tracking\n   - Continuous learning and improvement\n   - A/B testing and experimentation\n   - Feedback loop integration\n   - Long-term maintenance planning\n\nProvide detailed ML strategy with technical specifications, implementation roadmap, and performance optimization framework for successful machine learning deployment and operation.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "businessProblem",
+                "id": "business_problem_input",
+                "label": "Business Problem",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Business challenge, objectives, current process, desired outcomes, success criteria",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What business problem should ML solve?"
+                }
+              },
+              {
+                "fieldName": "dataAssets",
+                "id": "data_assets_input",
+                "label": "Data Assets",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Available data sources, quality, volume, formats, collection methods, access constraints",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your available data and quality"
+                }
+              },
+              {
+                "fieldName": "technicalConstraints",
+                "id": "technical_constraints_input",
+                "label": "Technical Constraints",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Infrastructure limitations, budget constraints, timeline, regulatory requirements, team expertise",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What technical and resource constraints exist?"
+                }
+              },
+              {
+                "fieldName": "mlObjectives",
+                "id": "ml_objectives_input",
+                "label": "ML Objectives",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Predictive Analytics", "value": "prediction" },
+                    { "label": "Classification", "value": "classification" },
+                    { "label": "Recommendation System", "value": "recommendation" },
+                    { "label": "Natural Language Processing", "value": "nlp" },
+                    { "label": "Computer Vision", "value": "vision" },
+                    { "label": "Anomaly Detection", "value": "anomaly" },
+                    { "label": "Process Optimization", "value": "optimization" },
+                    { "label": "Multiple Objectives", "value": "multiple" }
+                  ],
+                  "defaultValue": "prediction",
+                  "helperText": "Primary ML use case"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "mlStrategy",
+                "id": "ml_strategy",
+                "label": "ML Strategy Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349072",
+          "language": "en-US",
+          "name": "ML Strategy Planner",
+          "description": "Provides comprehensive machine learning strategy and implementation planning with technical specifications, data strategy, and performance optimization frameworks for successful ML deployment.",
+          "instructions": "Describe your business problem, available data, and constraints. The planner will create detailed ML strategies with implementation roadmaps and optimization approaches."
+        }
+      ]
+    }
+  ]
+}

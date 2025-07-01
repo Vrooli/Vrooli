@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850223",
+  "publicId": "opportunity-finder-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850224",
+      "publicId": "opportunity-finder-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Discovers improvement and delight opportunities in customer experience",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Innovative",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are a customer experience innovation strategist. Identify opportunities to improve and create delightful customer experiences.\n\nPain Points:\n{{input.painPoints}}\n\nMarket Benchmarks:\n{{input.marketBenchmarks}}\n\nEnhancement Areas:\n{{input.enhancementAreas}}\n\nDiscover improvement opportunities:\n\n1. **Improvement Opportunity Analysis**:\n   Transform pain points into enhancement possibilities:\n   \n   **Process Optimization Opportunities**:\n   - Automation potential for repetitive tasks\n   - Self-service options for common requests\n   - Streamlined workflows and reduced steps\n   - Integration opportunities between systems\n   - Proactive communication and updates\n   - Intelligent routing and personalization\n   \n   **Technology Enhancement Opportunities**:\n   - AI and machine learning applications\n   - Mobile-first experience improvements\n   - Real-time data and analytics utilization\n   - API integrations for seamless experiences\n   - Voice and conversational interfaces\n   - Augmented reality and immersive experiences\n   \n   **Service Design Opportunities**:\n   - Co-creation and participatory design\n   - Journey orchestration and optimization\n   - Omnichannel experience consistency\n   - Emotional design and empathy integration\n   - Accessibility and inclusive design\n   - Sustainable and socially responsible practices\n   \n   **Data and Insights Opportunities**:\n   - Predictive analytics for customer needs\n   - Behavioral segmentation and personalization\n   - Real-time feedback and sentiment analysis\n   - Cross-channel data integration\n   - Customer lifetime value optimization\n   - Churn prediction and retention strategies\n\n2. **Delight Moment Creation**:\n   Identify wow factor opportunities:\n   \n   **Surprise and Delight Touchpoints**:\n   - Unexpected value additions\n   - Personalized recommendations and insights\n   - Milestone and achievement celebrations\n   - Exclusive access and VIP treatment\n   - Thoughtful gestures and human touches\n   - Community building and connection\n   \n   **Emotional Engagement Opportunities**:\n   - Storytelling and brand narrative integration\n   - Emotional journey design and empathy\n   - Celebration of customer success\n   - Social impact and purpose alignment\n   - Nostalgia and memory creation\n   - Humor and entertainment integration\n   \n   **Innovation and Experimentation**:\n   - Emerging technology adoption\n   - New interaction paradigms\n   - Creative problem-solving approaches\n   - Industry boundary crossing\n   - Sustainability and future-forward thinking\n   - Cultural and local customization\n   \n   **Community and Social Opportunities**:\n   - User-generated content and advocacy\n   - Peer-to-peer support and connection\n   - Social sharing and viral mechanics\n   - Influencer and partnership integration\n   - Events and experiential marketing\n   - Cause marketing and social responsibility\n\n3. **Competitive Advantage Development**:\n   Create unique differentiation opportunities:\n   \n   **Market Gap Analysis**:\n   - Unmet customer needs identification\n   - Competitor weakness exploitation\n   - Blue ocean opportunity discovery\n   - Niche market specialization\n   - Premium service differentiation\n   - Value proposition enhancement\n   \n   **Innovation Leadership**:\n   - First-mover advantage opportunities\n   - Patent and intellectual property potential\n   - Industry standard setting\n   - Thought leadership positioning\n   - Research and development investment\n   - Strategic partnership formation\n   \n   **Customer Loyalty and Retention**:\n   - Switching cost creation\n   - Network effect development\n   - Habit formation and routine integration\n   - Emotional attachment building\n   - Community and ecosystem creation\n   - Data and learning advantage accumulation\n   \n   **Operational Excellence**:\n   - Cost structure optimization\n   - Quality and reliability improvement\n   - Speed and efficiency enhancement\n   - Scalability and flexibility building\n   - Risk management and resilience\n   - Continuous improvement culture\n\n4. **Opportunity Prioritization Framework**:\n   Evaluate and rank improvement possibilities:\n   \n   **Impact Assessment**:\n   - Customer satisfaction improvement potential\n   - Revenue and profitability impact\n   - Market share and competitive advantage\n   - Brand perception and reputation\n   - Employee satisfaction and engagement\n   - Operational efficiency gains\n   \n   **Feasibility Evaluation**:\n   - Resource requirements and availability\n   - Technical complexity and risk\n   - Timeline and implementation speed\n   - Organizational capability and readiness\n   - Regulatory and compliance considerations\n   - Return on investment projections\n   \n   **Strategic Alignment**:\n   - Business strategy and vision fit\n   - Brand values and positioning alignment\n   - Customer segment and market focus\n   - Technology roadmap compatibility\n   - Partnership and ecosystem synergy\n   - Long-term sustainability and growth\n\nProvide output as JSON with:\n- improvementOptions: Categorized opportunities for experience enhancement\n- wowFactors: Specific delight moments and emotional engagement strategies\n- differentiators: Competitive advantage opportunities with strategic value",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "painPoints",
+                "id": "pain_points_input",
+                "label": "Friction Areas",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Identified pain points and friction areas"
+                }
+              },
+              {
+                "fieldName": "marketBenchmarks",
+                "id": "market_benchmarks_input",
+                "label": "Competitor Analysis",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Competitive landscape and benchmarks"
+                }
+              },
+              {
+                "fieldName": "enhancementAreas",
+                "id": "enhancement_areas_input",
+                "label": "Innovation Potential",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Areas with potential for innovation"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "improvementOptions",
+                "id": "improvement_options_output",
+                "label": "Opportunities",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "wowFactors",
+                "id": "wow_factors_output",
+                "label": "Delight Moments",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "differentiators",
+                "id": "differentiators_output",
+                "label": "Competitive Advantages",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850225",
+          "language": "en",
+          "name": "Opportunity Identifier",
+          "description": "Discovers improvement and delight opportunities by analyzing pain points, market benchmarks, and competitive landscape.",
+          "instructions": "Provide pain points, competitive analysis, and innovation areas. The routine will identify improvement opportunities and competitive differentiators."
+        }
+      ]
+    }
+  ]
+}

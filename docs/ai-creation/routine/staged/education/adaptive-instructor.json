@@ -1,0 +1,125 @@
+{
+  "id": "7892456378912345010",
+  "publicId": "adapt-inst-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912345011",
+      "publicId": "adapt-teach-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of adaptive instructor for personalized learning",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Educational",
+            "maxTokens": 700,
+            "temperature": 0.6,
+            "prompt": "You are an adaptive learning instructor who personalizes instruction based on student progress.\n\nExercise Results: {{input.exerciseResults}}\nLearning Progress: {{input.learningProgress}}\nLanguage Curricula: {{input.languageCurricula}}\nAssessment Tools: {{input.assessmentTools}}\n\nBased on the learner's performance and progress:\n\n1. **Progress Analysis**: Evaluate their current level and recent performance\n2. **Strengths & Weaknesses**: Identify what they're doing well and areas needing work\n3. **Adaptive Content**: Provide the next lesson/exercise at the appropriate difficulty level\n4. **Learning Strategy**: Suggest personalized learning techniques based on their patterns\n5. **Practice Exercises**: Create 3-5 targeted exercises focusing on weak areas\n6. **Encouragement**: Provide motivating feedback acknowledging their progress\n7. **Next Steps**: Clear path forward with specific goals\n\nAdapt your instruction style to the learner's:\n- Current proficiency level\n- Learning pace\n- Common mistake patterns\n- Preferred learning style (if evident from data)\n\nMake the content engaging and appropriately challenging - not too easy to bore them, not too hard to discourage them.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "exerciseResults",
+                "id": "exercise_results_input",
+                "label": "Recent Exercise Results",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "{ \"score\": 85, \"mistakes\": [\"verb conjugation\", \"pronunciation\"], \"timeSpent\": 15 }",
+                  "helperText": "Latest exercise performance data"
+                }
+              },
+              {
+                "fieldName": "learningProgress",
+                "id": "learning_progress_input",
+                "label": "Overall Learning Progress",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "{ \"level\": \"intermediate\", \"completedLessons\": 45, \"totalHours\": 120, \"streakDays\": 15 }",
+                  "helperText": "Cumulative learning data"
+                }
+              },
+              {
+                "fieldName": "languageCurricula",
+                "id": "language_curricula_input",
+                "label": "Subject/Language",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "e.g., Spanish, Python Programming, Mathematics",
+                  "helperText": "What subject is being learned"
+                }
+              },
+              {
+                "fieldName": "assessmentTools",
+                "id": "assessment_tools_input",
+                "label": "Learning Focus",
+                "type": "Selector",
+                "isRequired": false,
+                "props": {
+                  "options": [
+                    { "label": "Vocabulary & Grammar", "value": "vocab_grammar" },
+                    { "label": "Conversation Skills", "value": "conversation" },
+                    { "label": "Written Communication", "value": "writing" },
+                    { "label": "Comprehension", "value": "comprehension" },
+                    { "label": "Technical Skills", "value": "technical" },
+                    { "label": "Problem Solving", "value": "problem_solving" }
+                  ],
+                  "defaultValue": "vocab_grammar",
+                  "helperText": "Primary learning objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "adaptiveLesson",
+                "id": "adaptive_lesson",
+                "label": "Personalized Lesson",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 10
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7892456378912345012",
+          "language": "en-US",
+          "name": "Adaptive Instructor",
+          "description": "Provides personalized instruction that adapts to learner progress, creating customized lessons and exercises based on performance data and learning patterns.",
+          "instructions": "Provide recent exercise results and overall learning progress. The instructor will analyze performance and deliver personalized content at the appropriate difficulty level."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349331",
+  "publicId": "queue-m-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349332",
+      "publicId": "queue-mgr-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of queue manager for comprehensive queue management and task processing coordination",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Systematic",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a queue management expert providing comprehensive queue architecture strategies, task processing optimization, and distributed job coordination solutions.\n\nQueue Context: {{input.queueContext}}\nProcessing Requirements: {{input.processingRequirements}}\nReliability Needs: {{input.reliabilityNeeds}}\nScaling Demands: {{input.scalingDemands}}\n\nDesign comprehensive queue management strategy:\n\n1. **Queue Architecture Design**:\n   - Queue topology planning\n   - Priority queue implementation\n   - Dead letter queue strategies\n   - Queue partitioning schemes\n   - Message routing patterns\n\n2. **Task Processing Optimization**:\n   - Worker pool management\n   - Load balancing strategies\n   - Batch processing coordination\n   - Parallel execution patterns\n   - Resource allocation optimization\n\n3. **Reliability and Durability**:\n   - Message persistence strategies\n   - Acknowledgment patterns\n   - Retry mechanisms\n   - Error handling procedures\n   - Data consistency guarantees\n\n4. **Performance Tuning**:\n   - Throughput optimization\n   - Latency minimization\n   - Memory usage efficiency\n   - Connection pooling\n   - Resource utilization monitoring\n\n5. **Scaling and Distribution**:\n   - Horizontal scaling strategies\n   - Auto-scaling mechanisms\n   - Cross-datacenter replication\n   - Load distribution algorithms\n   - Capacity planning\n\n6. **Monitoring and Observability**:\n   - Queue depth monitoring\n   - Processing rate tracking\n   - Worker health monitoring\n   - Performance metrics collection\n   - Alert configuration\n\n7. **Security and Access Control**:\n   - Authentication mechanisms\n   - Authorization policies\n   - Message encryption\n   - Audit logging\n   - Compliance validation\n\nProvide comprehensive queue management plan with architecture design, processing optimization, reliability mechanisms, and monitoring strategies for robust task processing systems.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "queueContext",
+                "id": "queue_context_input",
+                "label": "Queue Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Application types, task volumes, processing patterns, system architecture, business requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your queue management context"
+                }
+              },
+              {
+                "fieldName": "processingRequirements",
+                "id": "processing_requirements_input",
+                "label": "Processing Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Task types, processing times, priority levels, ordering requirements, resource needs",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What processing requirements exist?"
+                }
+              },
+              {
+                "fieldName": "reliabilityNeeds",
+                "id": "reliability_needs_input",
+                "label": "Reliability Needs",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Delivery guarantees, fault tolerance, data persistence, recovery requirements, SLA targets",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What reliability requirements exist?"
+                }
+              },
+              {
+                "fieldName": "scalingDemands",
+                "id": "scaling_demands_input",
+                "label": "Scaling Demands",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Predictable Load", "value": "predictable" },
+                    { "label": "Variable Load", "value": "variable" },
+                    { "label": "Burst Processing", "value": "burst" },
+                    { "label": "High Throughput", "value": "throughput" },
+                    { "label": "Global Distribution", "value": "global" },
+                    { "label": "Flexible Scaling", "value": "flexible" }
+                  ],
+                  "defaultValue": "flexible",
+                  "helperText": "Primary scaling requirement"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "queueManagementPlan",
+                "id": "queue_management_plan",
+                "label": "Queue Management Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349333",
+          "language": "en-US",
+          "name": "Queue Manager",
+          "description": "Provides comprehensive queue management with architecture design, processing optimization, and monitoring strategies for robust task processing systems.",
+          "instructions": "Describe your queue context, processing requirements, and scaling demands. The manager will design a comprehensive queue management strategy."
+        }
+      ]
+    }
+  ]
+}

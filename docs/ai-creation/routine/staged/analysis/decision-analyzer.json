@@ -1,0 +1,132 @@
+{
+  "id": "7892456378912349025",
+  "publicId": "decision-an-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349026",
+      "publicId": "decision-a-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of decision analyzer for comprehensive decision analysis and evaluation framework",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 900,
+            "temperature": 0.4,
+            "prompt": "You are a decision analysis expert providing systematic evaluation and framework for complex decision-making.\n\nDecision Context: {{input.decisionContext}}\nAvailable Options: {{input.availableOptions}}\nStakeholders: {{input.stakeholders}}\nAnalysis Framework: {{input.analysisFramework}}\n\nConduct comprehensive decision analysis:\n\n1. **Decision Framework Setup**:\n   - Decision criteria identification\n   - Objective and goal clarification\n   - Constraint and limitation mapping\n   - Success metric definition\n   - Timeline and urgency assessment\n\n2. **Option Evaluation**:\n   - Alternative assessment matrix\n   - Pros and cons analysis\n   - Feasibility evaluation\n   - Resource requirement assessment\n   - Implementation complexity review\n\n3. **Risk and Impact Analysis**:\n   - Potential risk identification\n   - Impact probability assessment\n   - Consequence severity evaluation\n   - Mitigation strategy development\n   - Contingency planning\n\n4. **Stakeholder Analysis**:\n   - Stakeholder mapping and influence\n   - Interest and impact assessment\n   - Support and resistance factors\n   - Communication requirements\n   - Buy-in strategy development\n\n5. **Cost-Benefit Assessment**:\n   - Financial impact analysis\n   - Resource allocation evaluation\n   - Return on investment calculation\n   - Opportunity cost consideration\n   - Value proposition assessment\n\n6. **Scenario Planning**:\n   - Best case scenario analysis\n   - Worst case scenario preparation\n   - Most likely outcome projection\n   - Sensitivity analysis\n   - Break-even point identification\n\n7. **Decision Recommendation**:\n   - Weighted decision matrix\n   - Recommendation ranking\n   - Implementation roadmap\n   - Success monitoring plan\n   - Decision review schedule\n\nProvide structured decision analysis with clear evaluation criteria, risk assessment, and evidence-based recommendations for optimal decision-making.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "decisionContext",
+                "id": "decision_context_input",
+                "label": "Decision Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What decision needs to be made? Background, current situation, key factors",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What decision are you facing?"
+                }
+              },
+              {
+                "fieldName": "availableOptions",
+                "id": "available_options_input",
+                "label": "Available Options",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List all available alternatives and potential approaches",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What are your options?"
+                }
+              },
+              {
+                "fieldName": "stakeholders",
+                "id": "stakeholders_input",
+                "label": "Stakeholders",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Who is affected by or influences this decision?",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Who are the key stakeholders?"
+                }
+              },
+              {
+                "fieldName": "analysisFramework",
+                "id": "analysis_framework_input",
+                "label": "Analysis Framework",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Strategic Business Decision", "value": "strategic" },
+                    { "label": "Operational Decision", "value": "operational" },
+                    { "label": "Investment Decision", "value": "investment" },
+                    { "label": "Risk Management", "value": "risk" },
+                    { "label": "Resource Allocation", "value": "resource" },
+                    { "label": "Technology Choice", "value": "technology" },
+                    { "label": "Market Entry", "value": "market" }
+                  ],
+                  "defaultValue": "strategic",
+                  "helperText": "Type of decision analysis framework"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "decisionAnalysisReport",
+                "id": "decision_analysis_report",
+                "label": "Decision Analysis Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349027",
+          "language": "en-US",
+          "name": "Decision Analyzer",
+          "description": "Provides systematic decision analysis with comprehensive evaluation framework, risk assessment, and evidence-based recommendations for complex decisions.",
+          "instructions": "Describe the decision context, available options, and key stakeholders. The analyzer will provide structured evaluation and recommendations."
+        }
+      ]
+    }
+  ]
+}

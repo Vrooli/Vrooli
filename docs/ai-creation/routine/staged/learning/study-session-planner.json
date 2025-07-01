@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Assess Study Requirements",
                 "description": "Evaluates material scope, difficulty, and learning objectives",
-                "subroutineId": "TODO: Need study assessment subroutine",
+                "subroutineId": "7829564732190850196",
                 "inputMap": {
                   "subjectMatter": "studyContent",
                   "learningGoals": "objectives",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Analyze Time & Energy",
                 "description": "Maps available time slots and energy patterns",
-                "subroutineId": "TODO: Need time analysis subroutine",
+                "subroutineId": "7829564732190850199",
                 "inputMap": {
                   "schedule": "availableTime",
                   "energyPatterns": "productivityCycles",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Design Study Structure",
                 "description": "Creates optimal session structure with techniques",
-                "subroutineId": "TODO: Need structure design subroutine",
+                "subroutineId": "7829564732190850202",
                 "inputMap": {
                   "materialBreakdown": "contentAnalysis",
                   "learningStyle": "preferredMethods",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Create Practice Activities",
                 "description": "Develops active learning exercises and assessments",
-                "subroutineId": "TODO: Need practice design subroutine",
+                "subroutineId": "7829564732190850205",
                 "inputMap": {
                   "studyBlocks": "sessionStructure",
                   "knowledgeGaps": "gapIdentification",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Optimize Memory Retention",
                 "description": "Implements spaced repetition and memory techniques",
-                "subroutineId": "TODO: Need retention optimization subroutine",
+                "subroutineId": "7829564732190850208",
                 "inputMap": {
                   "learningMethods": "techniqueSelection",
                   "forgettingCurve": "retentionScience",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Build Progress Tracking",
                 "description": "Creates monitoring system for learning progress",
-                "subroutineId": "TODO: Need progress tracking subroutine",
+                "subroutineId": "7829564732190850211",
                 "inputMap": {
                   "objectives": "learningGoals",
                   "knowledgeChecks": "selfAssessments",

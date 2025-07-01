@@ -1,0 +1,106 @@
+{
+  "id": "7829564732190850325",
+  "publicId": "dependency-mapper-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850326",
+      "publicId": "dependency-mapper-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Maps task dependencies and sequencing",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "javascript",
+            "logic": "function mapTaskDependencies({ detailedTasks, projectPhases, taskDetails }) {\n  const tasks = Array.isArray(detailedTasks) ? detailedTasks : [detailedTasks].filter(Boolean);\n  const phases = Array.isArray(projectPhases) ? projectPhases : [projectPhases].filter(Boolean);\n  const details = taskDetails || {};\n  \n  const dependencyMap = {};\n  const criticalPath = [];\n  const parallelTasks = [];\n  \n  // Create task lookup for easier processing\n  const taskLookup = createTaskLookup(tasks);\n  \n  // Analyze dependencies for each task\n  tasks.forEach(task => {\n    const taskId = task.id || task.taskId || task.name;\n    if (!taskId) return;\n    \n    const dependencies = analyzeDependencies(task, taskLookup, phases);\n    dependencyMap[taskId] = dependencies;\n  });\n  \n  // Calculate critical path\n  const criticalPathAnalysis = calculateCriticalPath(dependencyMap, taskLookup);\n  criticalPath.push(...criticalPathAnalysis.path);\n  \n  // Identify parallel tasks\n  const parallelAnalysis = identifyParallelTasks(dependencyMap, taskLookup);\n  parallelTasks.push(...parallelAnalysis.parallelGroups);\n  \n  function createTaskLookup(taskList) {\n    const lookup = {};\n    \n    taskList.forEach(task => {\n      const taskId = task.id || task.taskId || task.name;\n      if (taskId) {\n        lookup[taskId] = {\n          ...task,\n          id: taskId,\n          duration: task.duration || task.estimatedDuration || 1,\n          phase: task.phase || 'unknown',\n          complexity: task.complexity || 'medium',\n          dependencies: task.dependencies || [],\n          subtasks: task.subtasks || []\n        };\n      }\n    });\n    \n    return lookup;\n  }\n  \n  function analyzeDependencies(task, lookup, phases) {\n    const taskId = task.id || task.taskId || task.name;\n    const explicitDependencies = task.dependencies || [];\n    const implicitDependencies = findImplicitDependencies(task, lookup, phases);\n    \n    // Combine explicit and implicit dependencies\n    const allDependencies = [...explicitDependencies, ...implicitDependencies];\n    \n    // Remove duplicates and invalid dependencies\n    const validDependencies = [...new Set(allDependencies)]\n      .filter(depId => depId !== taskId && lookup[depId]);\n    \n    // Categorize dependencies\n    const dependencyTypes = categorizeDependencies(validDependencies, lookup, task);\n    \n    // Calculate dependency metrics\n    const dependencyMetrics = calculateDependencyMetrics(validDependencies, lookup);\n    \n    return {\n      prerequisites: validDependencies,\n      dependencyTypes: dependencyTypes,\n      metrics: dependencyMetrics,\n      blockedBy: validDependencies,\n      blocks: findTasksBlockedByThis(taskId, lookup),\n      parallelWith: findParallelTasks(taskId, validDependencies, lookup),\n      criticalityScore: calculateTaskCriticality(taskId, validDependencies, lookup)\n    };\n  }\n  \n  function findImplicitDependencies(task, lookup, phases) {\n    const implicit = [];\n    const taskPhase = task.phase;\n    \n    // Phase-based dependencies\n    if (taskPhase) {\n      Object.values(lookup).forEach(otherTask => {\n        if (otherTask.id === task.id) return;\n        \n        // Tasks in earlier phases are dependencies\n        if (isEarlierPhase(otherTask.phase, taskPhase, phases)) {\n          implicit.push(otherTask.id);\n        }\n      });\n    }\n    \n    // Resource-based dependencies\n    if (task.resources) {\n      Object.values(lookup).forEach(otherTask => {\n        if (otherTask.id === task.id) return;\n        \n        // Tasks using same exclusive resources\n        if (hasResourceConflict(task.resources, otherTask.resources)) {\n          implicit.push(otherTask.id);\n        }\n      });\n    }\n    \n    // Output-input dependencies\n    if (task.inputs) {\n      Object.values(lookup).forEach(otherTask => {\n        if (otherTask.id === task.id) return;\n        \n        // Tasks whose outputs are this task's inputs\n        if (hasOutputInputMatch(otherTask.outputs, task.inputs)) {\n          implicit.push(otherTask.id);\n        }\n      });\n    }\n    \n    return implicit;\n  }\n  \n  function isEarlierPhase(phase1, phase2, phases) {\n    const phaseOrder = ['initiation', 'planning', 'execution', 'testing', 'deployment', 'closure'];\n    const index1 = phaseOrder.indexOf(phase1.toLowerCase());\n    const index2 = phaseOrder.indexOf(phase2.toLowerCase());\n    \n    if (index1 === -1 || index2 === -1) return false;\n    return index1 < index2;\n  }\n  \n  function hasResourceConflict(resources1, resources2) {\n    if (!resources1 || !resources2) return false;\n    \n    const exclusive1 = resources1.exclusive || [];\n    const exclusive2 = resources2.exclusive || [];\n    \n    return exclusive1.some(resource => exclusive2.includes(resource));\n  }\n  \n  function hasOutputInputMatch(outputs, inputs) {\n    if (!outputs || !inputs) return false;\n    \n    return outputs.some(output => inputs.includes(output));\n  }\n  \n  function categorizeDependencies(dependencies, lookup, task) {\n    const types = {\n      mandatory: [],\n      optional: [],\n      external: [],\n      resource: [],\n      technical: [],\n      business: []\n    };\n    \n    dependencies.forEach(depId => {\n      const depTask = lookup[depId];\n      if (!depTask) return;\n      \n      // Determine dependency type based on relationship\n      if (isMandatoryDependency(task, depTask)) {\n        types.mandatory.push(depId);\n      } else {\n        types.optional.push(depId);\n      }\n      \n      if (isExternalDependency(depTask)) {\n        types.external.push(depId);\n      }\n      \n      if (isResourceDependency(task, depTask)) {\n        types.resource.push(depId);\n      }\n      \n      if (isTechnicalDependency(task, depTask)) {\n        types.technical.push(depId);\n      } else {\n        types.business.push(depId);\n      }\n    });\n    \n    return types;\n  }\n  \n  function isMandatoryDependency(task, depTask) {\n    // Check if the dependency is critical for task completion\n    return task.inputs && depTask.outputs && \n           task.inputs.some(input => depTask.outputs.includes(input));\n  }\n  \n  function isExternalDependency(task) {\n    return task.type === 'external' || task.external === true;\n  }\n  \n  function isResourceDependency(task, depTask) {\n    return task.resources && depTask.resources &&\n           hasResourceConflict(task.resources, depTask.resources);\n  }\n  \n  function isTechnicalDependency(task, depTask) {\n    const technicalTypes = ['technical', 'development', 'testing', 'deployment'];\n    return technicalTypes.includes(task.type) && technicalTypes.includes(depTask.type);\n  }\n  \n  function calculateDependencyMetrics(dependencies, lookup) {\n    const totalDependencies = dependencies.length;\n    const dependencyComplexity = dependencies.reduce((sum, depId) => {\n      const depTask = lookup[depId];\n      const complexityScore = {\n        'low': 1,\n        'medium': 2,\n        'high': 3\n      }[depTask?.complexity || 'medium'];\n      return sum + complexityScore;\n    }, 0);\n    \n    const maxDependencyDuration = Math.max(\n      0,\n      ...dependencies.map(depId => lookup[depId]?.duration || 0)\n    );\n    \n    return {\n      dependencyCount: totalDependencies,\n      complexityScore: dependencyComplexity,\n      maxDependencyDuration: maxDependencyDuration,\n      dependencyRisk: calculateDependencyRisk(totalDependencies, dependencyComplexity)\n    };\n  }\n  \n  function calculateDependencyRisk(count, complexity) {\n    // Higher count and complexity increase risk\n    const baseRisk = Math.min(100, (count * 10) + (complexity * 5));\n    \n    if (baseRisk <= 20) return 'low';\n    if (baseRisk <= 50) return 'medium';\n    if (baseRisk <= 80) return 'high';\n    return 'critical';\n  }\n  \n  function findTasksBlockedByThis(taskId, lookup) {\n    const blockedTasks = [];\n    \n    Object.values(lookup).forEach(task => {\n      if (task.dependencies && task.dependencies.includes(taskId)) {\n        blockedTasks.push(task.id);\n      }\n    });\n    \n    return blockedTasks;\n  }\n  \n  function findParallelTasks(taskId, dependencies, lookup) {\n    const parallelTasks = [];\n    \n    Object.values(lookup).forEach(task => {\n      if (task.id === taskId) return;\n      \n      // Tasks are parallel if they don't depend on each other\n      const taskDeps = task.dependencies || [];\n      const noDependencyOnEachOther = !dependencies.includes(task.id) && !taskDeps.includes(taskId);\n      \n      if (noDependencyOnEachOther) {\n        parallelTasks.push(task.id);\n      }\n    });\n    \n    return parallelTasks;\n  }\n  \n  function calculateTaskCriticality(taskId, dependencies, lookup) {\n    const task = lookup[taskId];\n    if (!task) return 0;\n    \n    // Factors that increase criticality\n    let criticalityScore = 0;\n    \n    // Task duration impact\n    criticalityScore += (task.duration || 1) * 10;\n    \n    // Number of dependent tasks\n    const blockedTasks = findTasksBlockedByThis(taskId, lookup);\n    criticalityScore += blockedTasks.length * 15;\n    \n    // Number of dependencies\n    criticalityScore += dependencies.length * 5;\n    \n    // Complexity impact\n    const complexityMultiplier = {\n      'low': 1.0,\n      'medium': 1.2,\n      'high': 1.5\n    }[task.complexity || 'medium'];\n    \n    criticalityScore *= complexityMultiplier;\n    \n    return Math.min(100, Math.round(criticalityScore));\n  }\n  \n  function calculateCriticalPath(dependencyMap, lookup) {\n    // Simplified critical path calculation\n    const visited = new Set();\n    const path = [];\n    const durations = {};\n    \n    // Calculate longest path through dependencies\n    function calculateLongestPath(taskId, currentPath = []) {\n      if (visited.has(taskId) || currentPath.includes(taskId)) {\n        return 0; // Avoid cycles\n      }\n      \n      const task = lookup[taskId];\n      if (!task) return 0;\n      \n      const dependencies = dependencyMap[taskId]?.prerequisites || [];\n      \n      if (dependencies.length === 0) {\n        durations[taskId] = task.duration || 1;\n        return task.duration || 1;\n      }\n      \n      let maxDependencyDuration = 0;\n      dependencies.forEach(depId => {\n        const depDuration = calculateLongestPath(depId, [...currentPath, taskId]);\n        maxDependencyDuration = Math.max(maxDependencyDuration, depDuration);\n      });\n      \n      const totalDuration = maxDependencyDuration + (task.duration || 1);\n      durations[taskId] = totalDuration;\n      \n      return totalDuration;\n    }\n    \n    // Find all task durations\n    Object.keys(lookup).forEach(taskId => {\n      calculateLongestPath(taskId);\n    });\n    \n    // Build critical path by following longest durations\n    const criticalTasks = Object.entries(durations)\n      .sort(([,a], [,b]) => b - a)\n      .slice(0, Math.min(10, Object.keys(durations).length))\n      .map(([taskId]) => ({\n        taskId: taskId,\n        duration: lookup[taskId]?.duration || 1,\n        totalPathDuration: durations[taskId],\n        criticalityScore: dependencyMap[taskId]?.criticalityScore || 0\n      }));\n    \n    return {\n      path: criticalTasks,\n      totalDuration: Math.max(...Object.values(durations), 0),\n      criticalTaskCount: criticalTasks.length\n    };\n  }\n  \n  function identifyParallelTasks(dependencyMap, lookup) {\n    const parallelGroups = [];\n    const processed = new Set();\n    \n    Object.keys(dependencyMap).forEach(taskId => {\n      if (processed.has(taskId)) return;\n      \n      const parallelWith = dependencyMap[taskId]?.parallelWith || [];\n      \n      if (parallelWith.length > 0) {\n        const group = {\n          groupId: `parallel-${parallelGroups.length + 1}`,\n          tasks: [taskId, ...parallelWith],\n          estimatedDuration: Math.max(\n            ...parallelWith.concat(taskId).map(id => lookup[id]?.duration || 1)\n          ),\n          totalEffort: parallelWith.concat(taskId).reduce(\n            (sum, id) => sum + (lookup[id]?.duration || 1), 0\n          )\n        };\n        \n        parallelGroups.push(group);\n        \n        // Mark all tasks in this group as processed\n        [taskId, ...parallelWith].forEach(id => processed.add(id));\n      }\n    });\n    \n    return {\n      parallelGroups: parallelGroups,\n      maxParallelism: Math.max(...parallelGroups.map(g => g.tasks.length), 1),\n      parallelizationOpportunities: parallelGroups.length\n    };\n  }\n  \n  // Generate summary statistics\n  const dependencyStats = {\n    totalTasks: Object.keys(dependencyMap).length,\n    totalDependencies: Object.values(dependencyMap).reduce(\n      (sum, dep) => sum + (dep.prerequisites?.length || 0), 0\n    ),\n    averageDependencies: Object.keys(dependencyMap).length > 0 ?\n      Math.round(Object.values(dependencyMap).reduce(\n        (sum, dep) => sum + (dep.prerequisites?.length || 0), 0\n      ) / Object.keys(dependencyMap).length * 10) / 10 : 0,\n    criticalPathLength: criticalPath.length,\n    parallelOpportunities: parallelTasks.length,\n    highRiskDependencies: Object.values(dependencyMap).filter(\n      dep => dep.metrics?.dependencyRisk === 'high' || dep.metrics?.dependencyRisk === 'critical'\n    ).length\n  };\n  \n  return {\n    taskDependencies: {\n      ...dependencyMap,\n      _metadata: {\n        generatedAt: new Date().toISOString(),\n        statistics: dependencyStats\n      }\n    },\n    criticalTasks: criticalPath,\n    concurrentWork: parallelTasks\n  };\n}"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "detailedTasks",
+                "id": "detailed_tasks_input",
+                "label": "Task Definitions",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Detailed task definitions to analyze"
+                }
+              },
+              {
+                "fieldName": "projectPhases",
+                "id": "project_phases_input",
+                "label": "Phase Structure",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Project phase organization"
+                }
+              },
+              {
+                "fieldName": "taskDetails",
+                "id": "task_details_input",
+                "label": "Task Descriptions",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Additional task specification details"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "taskDependencies",
+                "id": "task_dependencies_output",
+                "label": "Dependency Map",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "criticalTasks",
+                "id": "critical_tasks_output",
+                "label": "Critical Path",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "concurrentWork",
+                "id": "concurrent_work_output",
+                "label": "Parallel Tasks",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850327",
+          "language": "en",
+          "name": "Dependency Mapper",
+          "description": "Maps task dependencies and sequencing using dependency analysis algorithms, critical path calculation, and parallel task identification.",
+          "instructions": "Provide detailed tasks, phase structure, and task descriptions. The routine will analyze dependencies, calculate critical path, and identify parallel work opportunities."
+        }
+      ]
+    }
+  ]
+}

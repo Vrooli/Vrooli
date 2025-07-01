@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850208",
+  "publicId": "retention-optimize-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850209",
+      "publicId": "retention-optimize-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Implements spaced repetition and memory techniques",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Scientific",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are a memory and retention expert. Design evidence-based systems for long-term knowledge retention using cognitive science principles.\n\nTechnique Selection:\n{{input.techniqueSelection}}\n\nRetention Science:\n{{input.retentionScience}}\n\nRepetition Timing:\n{{input.repetitionTiming}}\n\nOptimize memory retention:\n\n1. **Spaced Repetition Schedule**:\n   Implement scientifically-backed review timing:\n   \n   **Initial Learning Phase**:\n   - Day 0: First exposure and active learning\n   - Day 1: First review (24-hour interval)\n   - Day 3: Second review (3-day interval)\n   - Day 7: Third review (1-week interval)\n   - Day 14: Fourth review (2-week interval)\n   - Day 30: Fifth review (1-month interval)\n   - Day 90: Long-term maintenance review\n   \n   **Adaptive Intervals**:\n   - Easy material: Extend intervals faster\n   - Difficult material: Keep shorter intervals longer\n   - Personal performance: Adjust based on recall success\n   - Context factors: Consider stress, sleep, other learning\n   \n   **Review Types by Interval**:\n   - 1-day: Active recall and self-testing\n   - 3-day: Application and problem-solving\n   - 1-week: Integration with new concepts\n   - 2-week: Transfer to different contexts\n   - 1-month: Comprehensive synthesis\n   - 3-month: Real-world application\n\n2. **Memory Enhancement Techniques**:\n   Apply cognitive strategies for better encoding:\n   \n   **Elaborative Processing**:\n   - Connect to personal experiences\n   - Create vivid mental imagery\n   - Generate multiple examples\n   - Explain in your own words\n   - Ask why and how questions\n   \n   **Organizational Strategies**:\n   - Hierarchical outlining\n   - Concept mapping\n   - Categorical grouping\n   - Sequential ordering\n   - Pattern identification\n   \n   **Mnemonic Devices**:\n   - Acronyms and acrostics\n   - Method of loci (memory palace)\n   - Keyword method for vocabulary\n   - Rhymes and music\n   - Visual-verbal dual coding\n   \n   **Contextual Enhancement**:\n   - Multiple environmental contexts\n   - Varied study locations\n   - Different times of day\n   - Multiple sensory modalities\n   - Social learning contexts\n\n3. **Retention Strategy Framework**:\n   Build comprehensive memory systems:\n   \n   **Encoding Optimization**:\n   - Deep vs shallow processing\n   - Attention and focus management\n   - Emotional engagement\n   - Multi-sensory integration\n   - Active vs passive learning\n   \n   **Consolidation Support**:\n   - Sleep and memory consolidation\n   - Interleaved practice schedules\n   - Testing effect utilization\n   - Distributed practice timing\n   - Interference reduction\n   \n   **Retrieval Strengthening**:\n   - Varied question formats\n   - Cued vs free recall\n   - Recognition vs production\n   - Speed vs accuracy emphasis\n   - Errorful vs errorless learning\n   \n   **Transfer Facilitation**:\n   - Near vs far transfer\n   - Abstract principle extraction\n   - Multiple context exposure\n   - Analogical reasoning\n   - Metacognitive awareness\n\n4. **Personalization and Adaptation**:\n   Customize to individual factors:\n   - Learning style preferences\n   - Memory strengths and weaknesses\n   - Available time and schedule\n   - Motivation and goals\n   - Prior knowledge and experience\n   - Stress and environmental factors\n\nProvide output as JSON with:\n- reviewSchedule: Detailed spaced repetition timeline with specific activities\n- mnemonicStrategies: Memory techniques matched to content types\n- retentionStrategy: Comprehensive framework for long-term knowledge retention",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "techniqueSelection",
+                "id": "technique_selection_input",
+                "label": "Learning Methods",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Selected learning techniques"
+                }
+              },
+              {
+                "fieldName": "retentionScience",
+                "id": "retention_science_input",
+                "label": "Forgetting Curve",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Memory science principles to apply"
+                }
+              },
+              {
+                "fieldName": "repetitionTiming",
+                "id": "repetition_timing_input",
+                "label": "Review Schedule",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Preferred review timing"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "reviewSchedule",
+                "id": "review_schedule_output",
+                "label": "Spaced Repetition",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "mnemonicStrategies",
+                "id": "mnemonic_strategies_output",
+                "label": "Memory Techniques",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "retentionStrategy",
+                "id": "retention_strategy_output",
+                "label": "Consolidation Plan",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850210",
+          "language": "en",
+          "name": "Retention Optimizer",
+          "description": "Implements spaced repetition and memory techniques based on cognitive science for optimal long-term retention.",
+          "instructions": "Provide learning techniques, retention science preferences, and timing constraints. The routine will create a comprehensive memory retention system."
+        }
+      ]
+    }
+  ]
+}

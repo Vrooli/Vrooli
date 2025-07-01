@@ -1,0 +1,126 @@
+{
+  "id": "7892456378912346007",
+  "publicId": "budget-alrt-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912346008",
+      "publicId": "budg-alert-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of budget alert generator for financial monitoring",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 600,
+            "temperature": 0.3,
+            "prompt": "You are a financial monitoring system generating budget alerts and recommendations.\n\nCurrent Spend: {{input.currentSpend}}\nBudget: {{input.budget}}\nBurn Rate: {{input.burnRate}}\nAlert Threshold: {{input.alertThreshold}}\n\nGenerate appropriate budget alerts:\n\n1. **Alert Status**:\n   - Calculate percentage of budget consumed\n   - Determine alert severity (Critical/High/Medium/Low/OK)\n   - Project when budget will be exhausted at current rate\n\n2. **Spending Analysis**:\n   - Current spending vs budget comparison\n   - Burn rate analysis (daily/weekly/monthly)\n   - Trend identification (accelerating/steady/decelerating)\n\n3. **Alert Message**:\n   - Clear, actionable alert headline\n   - Specific numbers and percentages\n   - Time remaining at current burn rate\n   - Recommended immediate actions\n\n4. **Cost Optimization**:\n   - Top spending categories to review\n   - Quick wins for cost reduction\n   - Long-term optimization strategies\n\n5. **Forecast**:\n   - End-of-period projection\n   - Best/worst case scenarios\n   - Required spending adjustments\n\n6. **Action Items**:\n   - Immediate steps to take\n   - Stakeholders to notify\n   - Review meetings to schedule\n\nFormat as a clear, priority-based alert that drives immediate action when needed.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "currentSpend",
+                "id": "current_spend_input",
+                "label": "Current Spend",
+                "type": "IntegerInput",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Amount spent so far",
+                  "min": 0,
+                  "helperText": "Total amount spent in current period"
+                }
+              },
+              {
+                "fieldName": "budget",
+                "id": "budget_input",
+                "label": "Total Budget",
+                "type": "IntegerInput",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Total budget allocated",
+                  "min": 1,
+                  "helperText": "Total budget for the period"
+                }
+              },
+              {
+                "fieldName": "burnRate",
+                "id": "burn_rate_input",
+                "label": "Daily Burn Rate",
+                "type": "IntegerInput",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Average daily spending",
+                  "min": 0,
+                  "helperText": "Average spending per day"
+                }
+              },
+              {
+                "fieldName": "alertThreshold",
+                "id": "alert_threshold_input",
+                "label": "Alert Threshold",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "50% - Early Warning", "value": "50" },
+                    { "label": "70% - Standard", "value": "70" },
+                    { "label": "80% - Conservative", "value": "80" },
+                    { "label": "90% - Last Minute", "value": "90" }
+                  ],
+                  "defaultValue": "70",
+                  "helperText": "When to trigger budget alerts"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "budgetAlert",
+                "id": "budget_alert",
+                "label": "Budget Alert",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 8
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7892456378912346009",
+          "language": "en-US",
+          "name": "Budget Alert Generator",
+          "description": "Generates budget alerts and spending recommendations based on current spend, burn rate, and defined thresholds.",
+          "instructions": "Enter current spending, budget, and burn rate. The generator will create appropriate alerts and cost optimization recommendations."
+        }
+      ]
+    }
+  ]
+}

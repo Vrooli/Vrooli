@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850157",
+  "publicId": "task-report-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850158",
+      "publicId": "task-report-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates comprehensive task reports",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "You are a task reporting specialist. Create comprehensive task lists with metadata and export-ready formats.\n\nFormatted Tasks:\n{{input.formattedTasks}}\n\nUncertain Items:\n{{input.uncertainItems}}\n\nOutput Preferences:\n{{input.reportFormat}}\n\nGenerate comprehensive task report:\n\n1. **Executive Summary**:\n   - **Total Tasks Extracted**: Count and overview\n   - **Confidence Distribution**: High/medium/low certainty breakdown\n   - **Priority Breakdown**: Critical/high/medium/low task counts\n   - **Category Distribution**: Types of tasks identified\n   - **Assignment Status**: Assigned vs unassigned tasks\n   - **Timeline Overview**: Tasks with/without deadlines\n   - **Key Insights**: Notable patterns or concerns\n\n2. **Complete Task List**:\n   Format each task clearly:\n   ```\n   ## Task [ID]: [Title]\n   **Owner**: [Assigned Person]\n   **Priority**: [High/Medium/Low]\n   **Due Date**: [Date or \"Not specified\"]\n   **Category**: [Task Type]\n   **Estimated Effort**: [Hours]\n   \n   **Description**:\n   [Detailed task description]\n   \n   **Success Criteria**:\n   [How to know it's complete]\n   \n   **Dependencies**:\n   [Prerequisites or blockers]\n   \n   **Context**:\n   [Background and source information]\n   ```\n\n3. **Uncertainty Report**:\n   Document items needing clarification:\n   - **Unclear Tasks**: Items requiring more information\n   - **Ambiguous Ownership**: Tasks without clear assignees\n   - **Missing Deadlines**: Time-sensitive items without dates\n   - **Scope Questions**: Tasks needing scope definition\n   - **Recommended Follow-up**: Suggested clarification actions\n\n4. **Export-Ready Formats**:\n   Create integration-friendly versions:\n   - **CSV Format**: Spreadsheet-compatible structure\n   - **JSON Format**: API/system integration ready\n   - **Markdown**: Documentation and sharing format\n   - **Calendar Events**: Tasks with deadlines as events\n   - **Project Management**: Format for PM tools\n\n5. **Implementation Recommendations**:\n   - **Immediate Actions**: Tasks to start right away\n   - **This Week**: Priority items for current week\n   - **Follow-up Required**: Items needing clarification\n   - **Long-term Planning**: Tasks for future scheduling\n   - **Resource Needs**: Skills or tools required\n   - **Communication Plan**: Who to notify about tasks\n\n6. **Quality Metrics**:\n   - **Extraction Accuracy**: Confidence assessment\n   - **Completeness Score**: How thorough the extraction was\n   - **Action Coverage**: Percentage of actionable content captured\n   - **Review Recommendations**: What to double-check\n\nMake the report actionable and ready for team distribution.\n\nProvide output as JSON with:\n- taskReport: Complete formatted task list\n- reviewSummary: Extraction quality and insights\n- integrationReady: Export formats for different systems",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "formattedTasks",
+                "id": "formatted_tasks_input",
+                "label": "Standard Tasks",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Formatted task list"
+                }
+              },
+              {
+                "fieldName": "uncertainItems",
+                "id": "uncertain_items_input",
+                "label": "Clarification Needed",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Items requiring clarification"
+                }
+              },
+              {
+                "fieldName": "reportFormat",
+                "id": "report_format_input",
+                "label": "Output Preferences",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Preferred report format and style"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "taskReport",
+                "id": "task_report_output",
+                "label": "Complete Task List",
+                "type": "TextInput"
+              },
+              {
+                "fieldName": "reviewSummary",
+                "id": "review_summary_output",
+                "label": "Extraction Summary",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "integrationReady",
+                "id": "integration_ready_output",
+                "label": "Exportable Tasks",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850159",
+          "language": "en",
+          "name": "Task Report Generator",
+          "description": "Creates comprehensive task list with metadata and export-ready formats for team distribution.",
+          "instructions": "Provide formatted tasks, uncertain items, and format preferences. The routine will generate a complete task report with multiple export options."
+        }
+      ]
+    }
+  ]
+}

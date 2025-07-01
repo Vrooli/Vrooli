@@ -1,0 +1,143 @@
+{
+  "id": "7892456378912349160",
+  "publicId": "impact-mg-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349161",
+      "publicId": "impact-mgr-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of impact manager for comprehensive impact planning and management across initiatives and projects",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are an impact management expert providing comprehensive frameworks for planning, executing, and optimizing impact across initiatives, projects, and organizational efforts.\n\nInitiative Focus: {{input.initiativeFocus}}\nImpact Goals: {{input.impactGoals}}\nStakeholder Scope: {{input.stakeholderScope}}\nManagement Timeline: {{input.managementTimeline}}\n\nDevelop comprehensive impact management strategy:\n\n1. **Impact Vision and Goal Setting**:\n   - Impact vision and mission definition\n   - SMART impact goal establishment\n   - Theory of change development\n   - Outcome and output identification\n   - Success criteria specification\n\n2. **Stakeholder Analysis and Engagement**:\n   - Stakeholder mapping and analysis\n   - Benefit and beneficiary identification\n   - Engagement strategy development\n   - Communication and feedback systems\n   - Partnership and collaboration planning\n\n3. **Impact Planning and Strategy Development**:\n   - Impact pathway design and mapping\n   - Resource allocation and planning\n   - Risk assessment and mitigation\n   - Timeline and milestone establishment\n   - Implementation strategy creation\n\n4. **Measurement and Evaluation Framework**:\n   - Key performance indicator definition\n   - Data collection and analysis systems\n   - Baseline establishment and tracking\n   - Outcome measurement methodologies\n   - Evaluation and assessment protocols\n\n5. **Implementation and Execution Management**:\n   - Activity coordination and oversight\n   - Progress monitoring and tracking\n   - Quality assurance and control\n   - Resource management and optimization\n   - Team coordination and leadership\n\n6. **Learning and Adaptation Systems**:\n   - Continuous improvement processes\n   - Feedback integration and response\n   - Strategy adaptation and refinement\n   - Best practice identification and sharing\n   - Knowledge management and documentation\n\n7. **Sustainability and Scale Planning**:\n   - Long-term sustainability strategies\n   - Scaling and replication planning\n   - Funding and resource sustainability\n   - Institutional and system change\n   - Legacy and continuation planning\n\nProvide comprehensive impact management framework with strategic planning, execution systems, and optimization approaches for maximum positive impact achievement and sustainability.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "initiativeFocus",
+                "id": "initiative_focus_input",
+                "label": "Initiative Focus",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Social Impact Initiative", "value": "social" },
+                    { "label": "Environmental Sustainability", "value": "environmental" },
+                    { "label": "Economic Development", "value": "economic" },
+                    { "label": "Educational Program", "value": "educational" },
+                    { "label": "Healthcare Improvement", "value": "healthcare" },
+                    { "label": "Community Development", "value": "community" },
+                    { "label": "Organizational Change", "value": "organizational" }
+                  ],
+                  "defaultValue": "social",
+                  "helperText": "Primary focus area for impact management"
+                }
+              },
+              {
+                "fieldName": "impactGoals",
+                "id": "impact_goals_input",
+                "label": "Impact Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Specific outcomes desired, target beneficiaries, measurable changes, timeline expectations",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What impact do you want to achieve?"
+                }
+              },
+              {
+                "fieldName": "stakeholderScope",
+                "id": "stakeholder_scope_input",
+                "label": "Stakeholder Scope",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Local Community", "value": "local" },
+                    { "label": "Regional/State Level", "value": "regional" },
+                    { "label": "National Impact", "value": "national" },
+                    { "label": "International/Global", "value": "global" },
+                    { "label": "Organizational Internal", "value": "internal" },
+                    { "label": "Industry/Sector Wide", "value": "industry" }
+                  ],
+                  "defaultValue": "local",
+                  "helperText": "Scope of stakeholder engagement and impact"
+                }
+              },
+              {
+                "fieldName": "managementTimeline",
+                "id": "management_timeline_input",
+                "label": "Management Timeline",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Short-term (1-6 months)", "value": "short" },
+                    { "label": "Medium-term (6-18 months)", "value": "medium" },
+                    { "label": "Long-term (1-3 years)", "value": "long" },
+                    { "label": "Multi-year (3+ years)", "value": "multiyear" },
+                    { "label": "Ongoing/Continuous", "value": "ongoing" }
+                  ],
+                  "defaultValue": "medium",
+                  "helperText": "Timeline for impact management and achievement"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "impactManagementPlan",
+                "id": "impact_management_plan",
+                "label": "Impact Management Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349162",
+          "language": "en-US",
+          "name": "Impact Manager",
+          "description": "Provides comprehensive impact management frameworks with strategic planning, execution systems, and optimization approaches for maximum positive impact achievement.",
+          "instructions": "Specify initiative focus, impact goals, and stakeholder scope. The manager will create detailed impact management strategies and frameworks."
+        }
+      ]
+    }
+  ]
+}

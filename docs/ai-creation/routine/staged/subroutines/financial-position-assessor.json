@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850019",
+  "publicId": "fin-assess-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850020",
+      "publicId": "fin-assess-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Comprehensive financial position assessment",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are a certified financial planner conducting a comprehensive financial assessment. Analyze the provided financial data to evaluate the current financial position.\n\nCurrent Financial Situation:\n{{input.currentFinances}}\n\nIncome Streams:\n{{input.incomeStreams}}\n\nExpenses:\n{{input.expenses}}\n\nPerform a thorough analysis including:\n\n1. **Net Worth Calculation**:\n   - Total assets (liquid, investments, property, etc.)\n   - Total liabilities (debt, mortgages, loans)\n   - Net worth assessment with breakdown\n   - Asset liquidity analysis\n\n2. **Cash Flow Analysis**:\n   - Monthly/annual income from all sources\n   - Fixed vs variable expenses\n   - Discretionary spending analysis\n   - Cash flow trends and seasonality\n\n3. **Savings Capacity Assessment**:\n   - Current savings rate calculation\n   - Potential savings with optimization\n   - Emergency fund adequacy\n   - Investment capacity analysis\n\n4. **Financial Health Metrics**:\n   - Debt-to-income ratio\n   - Expense ratios by category\n   - Financial stability score\n   - Risk factors and vulnerabilities\n\nProvide output as a JSON object with:\n- netWorthAnalysis: Detailed breakdown of assets, liabilities, and net worth\n- cashFlowAssessment: Income vs expenses analysis with monthly surplus/deficit\n- savingsCapacity: Current and potential savings rates with investment capacity",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "currentFinances",
+                "id": "current_finances_input",
+                "label": "Current Financial Situation",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Assets, liabilities, accounts, investments"
+                }
+              },
+              {
+                "fieldName": "incomeStreams",
+                "id": "income_streams_input",
+                "label": "Income Sources",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Salary, business income, investments, etc."
+                }
+              },
+              {
+                "fieldName": "expenses",
+                "id": "expenses_input",
+                "label": "Monthly Expenses",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "All regular and irregular expenses"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "netWorthAnalysis",
+                "id": "net_worth_output",
+                "label": "Net Worth Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "cashFlowAssessment",
+                "id": "cash_flow_output",
+                "label": "Cash Flow Assessment",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "savingsCapacity",
+                "id": "savings_capacity_output",
+                "label": "Savings Capacity",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850021",
+          "language": "en",
+          "name": "Financial Position Assessor",
+          "description": "Conducts comprehensive analysis of current financial position including net worth calculation, cash flow assessment, and savings capacity evaluation.",
+          "instructions": "Provide your complete financial picture including all assets, liabilities, income sources, and expenses. The routine will calculate your net worth, analyze cash flow, and determine your capacity for saving and investing."
+        }
+      ]
+    }
+  ]
+}

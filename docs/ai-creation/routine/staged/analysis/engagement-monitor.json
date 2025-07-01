@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349097",
+  "publicId": "engage-mon-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349098",
+      "publicId": "engage-m-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of engagement monitor for comprehensive engagement metrics tracking and analysis",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 800,
+            "temperature": 0.3,
+            "prompt": "You are an engagement monitoring expert providing comprehensive tracking and analysis of stakeholder engagement metrics and effectiveness.\n\nEngagement Program: {{input.engagementProgram}}\nMonitoring Objectives: {{input.monitoringObjectives}}\nKey Metrics: {{input.keyMetrics}}\nStakeholder Groups: {{input.stakeholderGroups}}\n\nEstablish comprehensive engagement monitoring:\n\n1. **Engagement Metrics Framework**:\n   - Key performance indicator definition\n   - Participation rate tracking\n   - Interaction quality assessment\n   - Satisfaction level measurement\n   - Retention and loyalty metrics\n\n2. **Real-time Activity Monitoring**:\n   - Engagement event tracking\n   - Platform usage analytics\n   - Communication response rates\n   - Content interaction patterns\n   - Behavioral trend analysis\n\n3. **Stakeholder Segmentation Analysis**:\n   - Group-specific engagement patterns\n   - Demographic participation trends\n   - Preference and behavior mapping\n   - Engagement journey tracking\n   - Lifecycle stage analysis\n\n4. **Quality and Sentiment Assessment**:\n   - Engagement depth evaluation\n   - Feedback sentiment analysis\n   - Satisfaction score tracking\n   - Net promoter score monitoring\n   - Relationship strength indicators\n\n5. **Channel and Platform Performance**:\n   - Multi-channel engagement tracking\n   - Platform effectiveness comparison\n   - Content performance analysis\n   - Communication method optimization\n   - Technology adoption rates\n\n6. **Trend and Pattern Recognition**:\n   - Seasonal engagement variations\n   - Long-term trend identification\n   - Predictive engagement modeling\n   - Early warning indicators\n   - Opportunity identification\n\n7. **Reporting and Insights Generation**:\n   - Dashboard and visualization creation\n   - Regular performance reporting\n   - Actionable insight extraction\n   - Recommendation development\n   - Stakeholder communication\n\nProvide detailed engagement monitoring plan with comprehensive metrics framework, tracking methodologies, and insight generation for data-driven engagement optimization.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "engagementProgram",
+                "id": "engagement_program_input",
+                "label": "Engagement Program",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the engagement initiative, platform, or program being monitored",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What engagement program needs monitoring?"
+                }
+              },
+              {
+                "fieldName": "monitoringObjectives",
+                "id": "monitoring_objectives_input",
+                "label": "Monitoring Objectives",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Measure Program Effectiveness", "value": "effectiveness" },
+                    { "label": "Track Participation Levels", "value": "participation" },
+                    { "label": "Assess Satisfaction Quality", "value": "satisfaction" },
+                    { "label": "Identify Improvement Areas", "value": "improvement" },
+                    { "label": "Predict Engagement Trends", "value": "prediction" },
+                    { "label": "Optimize Resource Allocation", "value": "optimization" }
+                  ],
+                  "defaultValue": "effectiveness",
+                  "helperText": "Primary monitoring objective"
+                }
+              },
+              {
+                "fieldName": "keyMetrics",
+                "id": "key_metrics_input",
+                "label": "Key Metrics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Specific metrics to track: participation rates, response times, satisfaction scores, retention",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What specific metrics should be monitored?"
+                }
+              },
+              {
+                "fieldName": "stakeholderGroups",
+                "id": "stakeholder_groups_input",
+                "label": "Stakeholder Groups",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Groups to monitor: customers, employees, partners, community members",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Which stakeholder groups need monitoring?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "engagementMonitoringPlan",
+                "id": "engagement_monitoring_plan",
+                "label": "Engagement Monitoring Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 12
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349099",
+          "language": "en-US",
+          "name": "Engagement Monitor",
+          "description": "Provides comprehensive engagement tracking with metrics framework, real-time monitoring, and insights generation for data-driven engagement optimization.",
+          "instructions": "Describe engagement program, monitoring objectives, and key metrics. The monitor will create tracking frameworks and analysis methodologies."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850328",
+  "publicId": "milestone-planner-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850329",
+      "publicId": "milestone-planner-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Establishes project milestones and checkpoints",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "You are a milestone planning specialist. Create meaningful project checkpoints that track progress and enable course corrections.\n\nProject Phases:\n{{input.projectPhases}}\n\nCritical Tasks:\n{{input.criticalPath}}\n\nProject Timeline:\n{{input.projectTimeline}}\n\nEstablish comprehensive milestone framework:\n\n1. **Major Project Milestones**:\n   Define key achievement points throughout the project:\n   - **Phase Completion Milestones**: End of each major project phase\n   - **Deliverable Milestones**: Completion of major outputs or products\n   - **Decision Point Milestones**: Key go/no-go decisions or approvals\n   - **Integration Milestones**: When different work streams come together\n   - **Quality Gate Milestones**: Achievement of specific quality or performance standards\n   - **Stakeholder Milestones**: Key presentations, reviews, or sign-offs\n\n2. **Milestone Timing and Sequencing**:\n   Establish logical progression of checkpoints:\n   - **Early Win Milestones**: Quick achievements that build momentum\n   - **Mid-Project Checkpoints**: Progress validation and course correction opportunities\n   - **Late-Stage Milestones**: Final validation and preparation for completion\n   - **Buffer Considerations**: Built-in time allowances for unexpected delays\n   - **Dependency Alignment**: Milestones that coordinate with external dependencies\n   - **Resource Availability**: Timing that matches when people and resources are available\n\n3. **Review Points and Checkpoints**:\n   Create structured evaluation opportunities:\n   - **Progress Review Sessions**: Regular assessment of work completed vs planned\n   - **Quality Checkpoints**: Validation that deliverables meet standards\n   - **Risk Assessment Points**: Evaluation of current risks and mitigation strategies\n   - **Scope Validation**: Confirmation that project remains aligned with objectives\n   - **Resource Optimization**: Review of resource allocation and utilization\n   - **Stakeholder Alignment**: Ensuring continued support and engagement\n\n4. **Success Indicators and Metrics**:\n   Define measurable criteria for each milestone:\n   - **Completion Criteria**: Specific conditions that must be met\n   - **Quality Standards**: Performance or excellence benchmarks\n   - **Acceptance Criteria**: Stakeholder approval requirements\n   - **Performance Metrics**: Quantitative measures of progress\n   - **Value Delivery**: Benefits or outcomes realized\n   - **Risk Indicators**: Warning signs or success predictors\n\n5. **Milestone Documentation and Communication**:\n   Establish clear reporting and communication around milestones:\n   - **Milestone Definitions**: Clear descriptions of what each milestone represents\n   - **Success Criteria**: Detailed specifications for milestone completion\n   - **Reporting Requirements**: What information needs to be provided\n   - **Communication Plans**: Who needs to be informed and when\n   - **Celebration Protocols**: How achievements will be recognized\n   - **Escalation Procedures**: What to do if milestones are missed\n\n6. **Contingency and Recovery Planning**:\n   Prepare for milestone-related challenges:\n   - **Delay Mitigation**: Strategies for recovering from missed milestones\n   - **Scope Adjustment**: How to modify milestones if project scope changes\n   - **Resource Reallocation**: Moving resources to critical milestones\n   - **Alternative Paths**: Backup plans if original milestone approach fails\n   - **Stakeholder Management**: Communicating milestone changes effectively\n   - **Recovery Timelines**: Realistic plans for getting back on track\n\nProvide output as JSON with:\n- projectMilestones: Comprehensive milestone schedule with timing and criteria\n- reviewPoints: Structured checkpoint framework for progress evaluation\n- successIndicators: Measurable criteria and metrics for milestone achievement",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "projectPhases",
+                "id": "project_phases_input",
+                "label": "Phase Structure",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Project phases and their organization"
+                }
+              },
+              {
+                "fieldName": "criticalPath",
+                "id": "critical_path_input",
+                "label": "Critical Tasks",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Critical path tasks and dependencies"
+                }
+              },
+              {
+                "fieldName": "projectTimeline",
+                "id": "project_timeline_input",
+                "label": "Timeline",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Project timeline and scheduling constraints"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "projectMilestones",
+                "id": "project_milestones_output",
+                "label": "Milestones",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "reviewPoints",
+                "id": "review_points_output",
+                "label": "Checkpoints",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "successIndicators",
+                "id": "success_indicators_output",
+                "label": "Milestone Metrics",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850330",
+          "language": "en",
+          "name": "Milestone Planner",
+          "description": "Establishes project milestones and checkpoints through strategic milestone framework creation and success indicator definition.",
+          "instructions": "Provide project phases, critical path, and timeline. The routine will create comprehensive milestone schedule with review points and measurable success criteria."
+        }
+      ]
+    }
+  ]
+}

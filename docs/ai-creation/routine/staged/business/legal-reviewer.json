@@ -1,0 +1,132 @@
+{
+  "id": "7892456378912349055",
+  "publicId": "legal-rev-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349056",
+      "publicId": "legal-review-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of legal reviewer for comprehensive legal compliance and risk assessment",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a legal review expert providing comprehensive analysis of legal compliance, risk assessment, and regulatory requirements.\n\nDocument/Content: {{input.documentContent}}\nJurisdiction: {{input.jurisdiction}}\nReview Purpose: {{input.reviewPurpose}}\nCompliance Requirements: {{input.complianceRequirements}}\n\nConduct comprehensive legal review:\n\n1. **Legal Compliance Assessment**:\n   - Regulatory requirement analysis\n   - Industry standard compliance\n   - Jurisdictional law alignment\n   - Licensing and permit requirements\n   - Professional standard adherence\n\n2. **Risk Identification and Analysis**:\n   - Legal liability exposure\n   - Contractual risk assessment\n   - Intellectual property concerns\n   - Privacy and data protection risks\n   - Employment law considerations\n\n3. **Document and Content Review**:\n   - Legal accuracy verification\n   - Terminology and language review\n   - Clause and provision analysis\n   - Disclosure requirement check\n   - Representation and warranty review\n\n4. **Regulatory Compliance Verification**:\n   - Federal regulation compliance\n   - State and local law alignment\n   - International regulation consideration\n   - Industry-specific requirements\n   - Cross-border compliance issues\n\n5. **Contract and Agreement Analysis**:\n   - Terms and conditions review\n   - Liability and indemnification clauses\n   - Termination and breach provisions\n   - Dispute resolution mechanisms\n   - Governing law specifications\n\n6. **Intellectual Property Protection**:\n   - Copyright and trademark review\n   - Patent infringement assessment\n   - Trade secret protection\n   - License agreement compliance\n   - Fair use consideration\n\n7. **Recommendations and Mitigation**:\n   - Risk mitigation strategies\n   - Compliance improvement recommendations\n   - Legal structure optimization\n   - Documentation requirements\n   - Professional consultation needs\n\nProvide detailed legal review report with identified risks, compliance gaps, and actionable recommendations for legal protection and regulatory adherence.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "documentContent",
+                "id": "document_content_input",
+                "label": "Document/Content to Review",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Provide the document, contract, policy, or content that needs legal review",
+                  "multiline": true,
+                  "minRows": 6,
+                  "helperText": "What needs legal review?"
+                }
+              },
+              {
+                "fieldName": "jurisdiction",
+                "id": "jurisdiction_input",
+                "label": "Jurisdiction",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Relevant jurisdictions: countries, states, provinces, regulatory bodies",
+                  "multiline": true,
+                  "minRows": 2,
+                  "helperText": "Which legal jurisdictions apply?"
+                }
+              },
+              {
+                "fieldName": "reviewPurpose",
+                "id": "review_purpose_input",
+                "label": "Review Purpose",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Contract Review", "value": "contract" },
+                    { "label": "Compliance Check", "value": "compliance" },
+                    { "label": "Risk Assessment", "value": "risk" },
+                    { "label": "Policy Review", "value": "policy" },
+                    { "label": "IP Protection", "value": "ip" },
+                    { "label": "Regulatory Approval", "value": "regulatory" },
+                    { "label": "Due Diligence", "value": "due_diligence" }
+                  ],
+                  "defaultValue": "compliance",
+                  "helperText": "Primary purpose of legal review"
+                }
+              },
+              {
+                "fieldName": "complianceRequirements",
+                "id": "compliance_requirements_input",
+                "label": "Compliance Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Specific regulations, industry standards, contractual obligations, company policies",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What compliance requirements must be met?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "legalReviewReport",
+                "id": "legal_review_report",
+                "label": "Legal Review Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349057",
+          "language": "en-US",
+          "name": "Legal Reviewer",
+          "description": "Provides comprehensive legal compliance assessment, risk analysis, and regulatory review with actionable recommendations for legal protection and adherence.",
+          "instructions": "Provide document content, jurisdiction, and compliance requirements. The reviewer will analyze legal risks and provide compliance recommendations."
+        }
+      ]
+    }
+  ]
+}

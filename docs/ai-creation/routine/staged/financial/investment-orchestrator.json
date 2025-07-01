@@ -1,0 +1,136 @@
+{
+  "id": "7892456378912349115",
+  "publicId": "invest-or-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349116",
+      "publicId": "invest-orch-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of investment orchestrator for comprehensive portfolio management and investment coordination",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are an investment orchestration expert providing comprehensive portfolio management, investment coordination, and strategic wealth optimization strategies.\n\nInvestment Goals: {{input.investmentGoals}}\nPortfolio Details: {{input.portfolioDetails}}\nRisk Profile: {{input.riskProfile}}\nTime Horizon: {{input.timeHorizon}}\n\nDevelop comprehensive investment orchestration strategy:\n\n1. **Portfolio Architecture and Design**:\n   - Strategic asset allocation framework\n   - Portfolio structure optimization\n   - Investment vehicle selection\n   - Geographic and sector diversification\n   - Alternative investment integration\n\n2. **Investment Strategy Coordination**:\n   - Multi-strategy implementation\n   - Active vs. passive allocation\n   - Growth and value balance\n   - Income generation strategies\n   - Capital preservation tactics\n\n3. **Risk Management and Hedging**:\n   - Portfolio risk assessment\n   - Correlation and volatility analysis\n   - Hedging strategy implementation\n   - Downside protection measures\n   - Stress testing and scenario analysis\n\n4. **Execution and Implementation**:\n   - Investment timing and sequencing\n   - Order execution optimization\n   - Cost minimization strategies\n   - Tax-efficient implementation\n   - Liquidity management\n\n5. **Performance Monitoring and Optimization**:\n   - Real-time performance tracking\n   - Attribution analysis\n   - Rebalancing triggers and execution\n   - Benchmark comparison\n   - Alpha generation strategies\n\n6. **Tax and Estate Planning Integration**:\n   - Tax-loss harvesting coordination\n   - Estate planning alignment\n   - Charitable giving strategies\n   - Trust and entity structuring\n   - Cross-border considerations\n\n7. **Dynamic Portfolio Management**:\n   - Market condition adaptation\n   - Tactical allocation adjustments\n   - Opportunity capture strategies\n   - Risk factor management\n   - Long-term wealth building\n\nProvide actionable investment orchestration plan with portfolio design, implementation strategies, and ongoing management framework for optimal wealth creation and preservation.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "investmentGoals",
+                "id": "investment_goals_input",
+                "label": "Investment Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Wealth accumulation, retirement planning, income generation, capital preservation, legacy building",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What are your primary investment objectives?"
+                }
+              },
+              {
+                "fieldName": "portfolioDetails",
+                "id": "portfolio_details_input",
+                "label": "Portfolio Details",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Current assets, investment accounts, asset allocation, total portfolio value",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your current investment portfolio"
+                }
+              },
+              {
+                "fieldName": "riskProfile",
+                "id": "risk_profile_input",
+                "label": "Risk Profile",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Conservative", "value": "conservative" },
+                    { "label": "Moderately Conservative", "value": "moderate_conservative" },
+                    { "label": "Moderate", "value": "moderate" },
+                    { "label": "Moderately Aggressive", "value": "moderate_aggressive" },
+                    { "label": "Aggressive", "value": "aggressive" },
+                    { "label": "Very Aggressive", "value": "very_aggressive" }
+                  ],
+                  "defaultValue": "moderate",
+                  "helperText": "Your risk tolerance level"
+                }
+              },
+              {
+                "fieldName": "timeHorizon",
+                "id": "time_horizon_input",
+                "label": "Investment Time Horizon",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Short-term (< 3 years)", "value": "short" },
+                    { "label": "Medium-term (3-7 years)", "value": "medium" },
+                    { "label": "Long-term (7-15 years)", "value": "long" },
+                    { "label": "Very Long-term (15+ years)", "value": "very_long" },
+                    { "label": "Multi-generational", "value": "multi_generational" }
+                  ],
+                  "defaultValue": "long",
+                  "helperText": "Your investment time horizon"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "investmentOrchestrationPlan",
+                "id": "investment_orchestration_plan",
+                "label": "Investment Orchestration Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349117",
+          "language": "en-US",
+          "name": "Investment Orchestrator",
+          "description": "Provides comprehensive investment portfolio orchestration with strategic asset allocation, risk management, and wealth optimization for long-term financial success.",
+          "instructions": "Describe your investment goals, portfolio details, and risk profile. The orchestrator will create a comprehensive investment management strategy."
+        }
+      ]
+    }
+  ]
+}

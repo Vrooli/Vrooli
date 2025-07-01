@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349061",
+  "publicId": "local-ad-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349062",
+      "publicId": "local-adapt-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of localization adapter for comprehensive content and cultural adaptation across languages and regions",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Cultural",
+            "maxTokens": 900,
+            "temperature": 0.4,
+            "prompt": "You are a localization expert providing comprehensive adaptation strategies for content, products, and services across different languages, cultures, and markets.\n\nContent/Product: {{input.contentProduct}}\nTarget Markets: {{input.targetMarkets}}\nLocalization Scope: {{input.localizationScope}}\nCultural Considerations: {{input.culturalConsiderations}}\n\nDevelop comprehensive localization adaptation strategy:\n\n1. **Language and Translation Analysis**:\n   - Translation strategy and methodology\n   - Linguistic adaptation requirements\n   - Terminology and glossary management\n   - Regional language variations\n   - Technical translation considerations\n\n2. **Cultural Adaptation Framework**:\n   - Cultural sensitivity assessment\n   - Local customs and traditions integration\n   - Social norms and values alignment\n   - Religious and ethical considerations\n   - Communication style adaptation\n\n3. **Market-Specific Customization**:\n   - Local market research insights\n   - Competitive landscape analysis\n   - Consumer behavior patterns\n   - Regulatory and legal requirements\n   - Business practice adaptations\n\n4. **Technical Localization Strategy**:\n   - User interface and experience adaptation\n   - Date, time, and number format conversion\n   - Currency and payment method integration\n   - Character encoding and typography\n   - Right-to-left language support\n\n5. **Content and Media Localization**:\n   - Visual content adaptation\n   - Audio and video localization\n   - Marketing message adaptation\n   - Brand positioning adjustment\n   - Color and symbol considerations\n\n6. **Quality Assurance and Testing**:\n   - Linguistic quality assurance\n   - Cultural appropriateness review\n   - Functional testing protocols\n   - User acceptance testing\n   - Feedback integration processes\n\n7. **Implementation and Management**:\n   - Localization workflow design\n   - Resource and timeline planning\n   - Vendor and translator management\n   - Version control and maintenance\n   - Continuous improvement processes\n\nProvide detailed localization adaptation plan with cultural insights, technical specifications, and implementation strategies for successful market entry and user engagement.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "contentProduct",
+                "id": "content_product_input",
+                "label": "Content/Product to Localize",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Software application, website, marketing content, product documentation, service offering",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What needs to be localized?"
+                }
+              },
+              {
+                "fieldName": "targetMarkets",
+                "id": "target_markets_input",
+                "label": "Target Markets",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Countries, regions, languages, specific cultural groups or market segments",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Which markets are you targeting?"
+                }
+              },
+              {
+                "fieldName": "localizationScope",
+                "id": "localization_scope_input",
+                "label": "Localization Scope",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Translation Only", "value": "translation" },
+                    { "label": "Cultural Adaptation", "value": "cultural" },
+                    { "label": "Technical Localization", "value": "technical" },
+                    { "label": "Market Entry Strategy", "value": "market_entry" },
+                    { "label": "Comprehensive Localization", "value": "comprehensive" },
+                    { "label": "Content Internationalization", "value": "internationalization" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Scope of localization needed"
+                }
+              },
+              {
+                "fieldName": "culturalConsiderations",
+                "id": "cultural_considerations_input",
+                "label": "Cultural Considerations",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Specific cultural sensitivities, religious considerations, social norms, business practices",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What cultural factors should be considered?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "localizationStrategy",
+                "id": "localization_strategy",
+                "label": "Localization Strategy",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349063",
+          "language": "en-US",
+          "name": "Localization Adapter",
+          "description": "Provides comprehensive localization strategies for adapting content, products, and services across different languages, cultures, and markets with cultural sensitivity and technical precision.",
+          "instructions": "Describe what needs localization, target markets, and cultural considerations. The adapter will create detailed localization strategies with cultural insights and implementation guidance."
+        }
+      ]
+    }
+  ]
+}

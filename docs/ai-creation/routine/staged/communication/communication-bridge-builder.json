@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912347007",
+  "publicId": "comm-bridge-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912347008",
+      "publicId": "comm-build-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of communication bridge builder for cross-functional coordination",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Diplomatic",
+            "maxTokens": 800,
+            "temperature": 0.6,
+            "prompt": "You are a communication expert building bridges between different groups, departments, or stakeholders.\n\nCommunication Gap: {{input.communicationGap}}\nStakeholder Groups: {{input.stakeholderGroups}}\nContext: {{input.context}}\nBridge Objectives: {{input.bridgeObjectives}}\n\nBuild effective communication bridges:\n\n1. **Gap Analysis**:\n   - Identify communication barriers\n   - Root causes of misunderstanding\n   - Cultural or professional differences\n   - Language and terminology gaps\n   - Structural impediments\n\n2. **Stakeholder Mapping**:\n   - Key influencers and decision makers\n   - Communication preferences\n   - Motivations and concerns\n   - Power dynamics\n   - Success metrics for each group\n\n3. **Bridge Strategy**:\n   - Common ground identification\n   - Shared objectives alignment\n   - Value proposition translation\n   - Win-win scenarios\n   - Trust-building approaches\n\n4. **Communication Framework**:\n   - Regular touchpoint schedule\n   - Meeting formats and agendas\n   - Information sharing protocols\n   - Feedback mechanisms\n   - Escalation procedures\n\n5. **Language Translation**:\n   - Technical to business language\n   - Department-specific terminology\n   - Cultural communication styles\n   - Visual communication aids\n   - Metaphors and analogies\n\n6. **Relationship Building**:\n   - Introduction strategies\n   - Informal interaction opportunities\n   - Joint problem-solving sessions\n   - Celebration of shared wins\n   - Conflict resolution processes\n\n7. **Success Measurement**:\n   - Communication effectiveness metrics\n   - Relationship quality indicators\n   - Collaboration outcomes\n   - Feedback collection methods\n\nProvide specific, actionable bridge-building strategies that foster collaboration.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "communicationGap",
+                "id": "communication_gap_input",
+                "label": "Communication Challenge",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the communication gap or challenge between groups",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What communication barriers exist?"
+                }
+              },
+              {
+                "fieldName": "stakeholderGroups",
+                "id": "stakeholder_groups_input",
+                "label": "Groups Involved",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "e.g., Engineering team and Sales team, Developers and QA, Management and Staff",
+                  "multiline": true,
+                  "minRows": 2,
+                  "helperText": "Which groups need better communication?"
+                }
+              },
+              {
+                "fieldName": "context",
+                "id": "context_input",
+                "label": "Context",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Cross-Department", "value": "department" },
+                    { "label": "Technical-Business", "value": "tech_business" },
+                    { "label": "Internal-External", "value": "internal_external" },
+                    { "label": "Management-Staff", "value": "mgmt_staff" },
+                    { "label": "Cultural/Geographic", "value": "cultural" },
+                    { "label": "Project Teams", "value": "project" }
+                  ],
+                  "defaultValue": "department",
+                  "helperText": "Type of communication bridge needed"
+                }
+              },
+              {
+                "fieldName": "bridgeObjectives",
+                "id": "bridge_objectives_input",
+                "label": "Success Outcome",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What should improved communication achieve?",
+                  "multiline": true,
+                  "minRows": 2,
+                  "helperText": "Desired outcome of better communication"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "bridgeStrategy",
+                "id": "bridge_strategy",
+                "label": "Communication Bridge Strategy",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 12
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7892456378912347009",
+          "language": "en-US",
+          "name": "Communication Bridge Builder",
+          "description": "Builds effective communication bridges between different groups, departments, or stakeholders to improve collaboration and understanding.",
+          "instructions": "Describe the communication gap and groups involved. The bridge builder will create strategies to improve understanding and collaboration."
+        }
+      ]
+    }
+  ]
+}

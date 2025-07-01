@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850031",
+  "publicId": "invest-strat-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850032",
+      "publicId": "invest-strat-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates personalized investment strategies for wealth building",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are an investment strategist specializing in financial independence portfolios. Create a comprehensive investment strategy based on the investor's profile.\n\nInvestment Capacity:\n{{input.investmentPotential}}\n\nRisk Tolerance:\n{{input.riskTolerance}}\n\nTimeline & Milestones:\n{{input.timelineSchedule}}\n\nDesign a complete investment strategy:\n\n1. **Overall Investment Plan**:\n   - Investment philosophy alignment\n   - Risk-adjusted return targets\n   - Time horizon considerations\n   - Tax optimization strategies\n   - Rebalancing frequency\n\n2. **Asset Allocation Model**:\n   - Stock/bond allocation by age\n   - Domestic vs international split\n   - Growth vs value tilt\n   - Alternative investments consideration\n   - Allocation glide path over time\n\n3. **Investment Vehicles**:\n   - Tax-advantaged accounts priority (401k, IRA, HSA)\n   - Taxable account strategies\n   - Recommended funds/ETFs\n   - Cost considerations (expense ratios)\n   - Platform recommendations\n\n4. **Implementation Steps**:\n   - Account opening sequence\n   - Initial investment allocation\n   - Dollar-cost averaging schedule\n   - Milestone-based adjustments\n   - Performance monitoring\n\nProvide output as a JSON object with:\n- investmentPlan: Overall strategy with philosophy and targets\n- assetAllocation: Detailed allocation percentages and rationale\n- investmentVehicles: Specific accounts and funds to use",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "investmentPotential",
+                "id": "investment_potential_input",
+                "label": "Savings Capacity",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Monthly/annual amount available to invest"
+                }
+              },
+              {
+                "fieldName": "riskTolerance",
+                "id": "risk_tolerance_input",
+                "label": "Risk Profile",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Risk tolerance, investment experience, preferences"
+                }
+              },
+              {
+                "fieldName": "timelineSchedule",
+                "id": "timeline_schedule_input",
+                "label": "FI Timeline",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Years to FI, milestone dates"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "investmentPlan",
+                "id": "investment_plan_output",
+                "label": "Investment Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "assetAllocation",
+                "id": "asset_allocation_output",
+                "label": "Portfolio Structure",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "investmentVehicles",
+                "id": "investment_vehicles_output",
+                "label": "Accounts & Funds",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850033",
+          "language": "en",
+          "name": "Investment Strategist",
+          "description": "Creates personalized investment strategies including asset allocation, account selection, and specific fund recommendations for building wealth toward financial independence.",
+          "instructions": "Provide your investment capacity, risk tolerance, and FI timeline. The routine will design a complete investment strategy with specific allocations and implementation steps."
+        }
+      ]
+    }
+  ]
+}

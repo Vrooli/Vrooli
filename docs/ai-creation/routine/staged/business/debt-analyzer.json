@@ -1,0 +1,135 @@
+{
+  "id": "7892456378912349022",
+  "publicId": "debt-analy-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349023",
+      "publicId": "debt-anal-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of debt analyzer for comprehensive debt assessment and management strategy",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Financial",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a debt analysis expert providing comprehensive debt assessment and strategic management recommendations.\n\nDebt Portfolio: {{input.debtPortfolio}}\nFinancial Position: {{input.financialPosition}}\nAnalysis Purpose: {{input.analysisPurpose}}\nRisk Tolerance: {{input.riskTolerance}}\n\nConduct comprehensive debt analysis:\n\n1. **Debt Portfolio Assessment**:\n   - Total debt obligations\n   - Debt categorization and prioritization\n   - Interest rate analysis\n   - Payment schedule review\n   - Debt-to-income ratios\n\n2. **Financial Impact Analysis**:\n   - Cash flow impact evaluation\n   - Interest cost calculations\n   - Opportunity cost assessment\n   - Tax implications review\n   - Credit score impact analysis\n\n3. **Risk Assessment**:\n   - Default probability evaluation\n   - Interest rate risk exposure\n   - Liquidity risk analysis\n   - Market condition sensitivity\n   - Economic scenario impact\n\n4. **Debt Restructuring Options**:\n   - Consolidation opportunities\n   - Refinancing possibilities\n   - Negotiation strategies\n   - Payment modification options\n   - Settlement considerations\n\n5. **Repayment Strategy Development**:\n   - Priority-based payment plans\n   - Accelerated payment options\n   - Minimum payment optimization\n   - Emergency fund considerations\n   - Timeline projections\n\n6. **Cost-Benefit Analysis**:\n   - Total interest cost projections\n   - Early payment savings\n   - Restructuring cost evaluations\n   - Investment opportunity comparisons\n   - Net present value calculations\n\n7. **Strategic Recommendations**:\n   - Optimal debt management approach\n   - Action prioritization\n   - Implementation timeline\n   - Performance monitoring metrics\n   - Contingency planning\n\nProvide detailed debt analysis with clear financial projections and actionable strategies for optimal debt management and reduction.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "debtPortfolio",
+                "id": "debt_portfolio_input",
+                "label": "Debt Portfolio",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List all debts: type, balance, interest rate, monthly payment, terms",
+                  "multiline": true,
+                  "minRows": 5,
+                  "helperText": "What debts need analysis?"
+                }
+              },
+              {
+                "fieldName": "financialPosition",
+                "id": "financial_position_input",
+                "label": "Financial Position",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Income, expenses, assets, savings, investment capacity, financial goals",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What is your current financial situation?"
+                }
+              },
+              {
+                "fieldName": "analysisPurpose",
+                "id": "analysis_purpose_input",
+                "label": "Analysis Purpose",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Debt Reduction Strategy", "value": "reduction" },
+                    { "label": "Refinancing Evaluation", "value": "refinancing" },
+                    { "label": "Consolidation Assessment", "value": "consolidation" },
+                    { "label": "Financial Planning", "value": "planning" },
+                    { "label": "Risk Management", "value": "risk" },
+                    { "label": "Investment Decisions", "value": "investment" }
+                  ],
+                  "defaultValue": "reduction",
+                  "helperText": "Primary purpose of debt analysis"
+                }
+              },
+              {
+                "fieldName": "riskTolerance",
+                "id": "risk_tolerance_input",
+                "label": "Risk Tolerance",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Conservative", "value": "conservative" },
+                    { "label": "Moderate", "value": "moderate" },
+                    { "label": "Aggressive", "value": "aggressive" },
+                    { "label": "Very Conservative", "value": "very_conservative" }
+                  ],
+                  "defaultValue": "moderate",
+                  "helperText": "Financial risk tolerance level"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "debtAnalysisReport",
+                "id": "debt_analysis_report",
+                "label": "Debt Analysis Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349024",
+          "language": "en-US",
+          "name": "Debt Analyzer",
+          "description": "Conducts comprehensive debt portfolio analysis with financial impact assessment and strategic management recommendations for optimal debt reduction.",
+          "instructions": "Provide debt portfolio details and financial position. The analyzer will evaluate options and create strategic debt management recommendations."
+        }
+      ]
+    }
+  ]
+}

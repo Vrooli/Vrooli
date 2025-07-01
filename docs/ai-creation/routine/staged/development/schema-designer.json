@@ -1,0 +1,189 @@
+{
+  "id": "7892456378912349133",
+  "publicId": "schema-d-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349134",
+      "publicId": "schema-des-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of schema designer for comprehensive database and data structure design",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a database schema design expert providing comprehensive data modeling, structure optimization, and database architecture solutions.
+
+Schema Purpose: {{input.schemaPurpose}}
+Data Requirements: {{input.dataRequirements}}
+Technology Stack: {{input.technologyStack}}
+Design Constraints: {{input.designConstraints}}
+
+Design comprehensive database schema:
+
+1. **Conceptual Data Modeling**:
+   - Entity identification and definition
+   - Relationship mapping and cardinality
+   - Business rule integration
+   - Domain modeling approach
+   - Core entity hierarchy
+
+2. **Logical Schema Design**:
+   - Table structure optimization
+   - Primary and foreign key design
+   - Constraint definition and rules
+   - Index strategy planning
+   - View and procedure design
+
+3. **Normalization and Optimization**:
+   - Normalization level assessment
+   - Denormalization strategies
+   - Performance optimization techniques
+   - Query pattern analysis
+   - Storage efficiency planning
+
+4. **Data Type and Field Design**:
+   - Appropriate data type selection
+   - Field size optimization
+   - Null handling strategies
+   - Default value implementation
+   - Computed field design
+
+5. **Relationship and Integrity Management**:
+   - Referential integrity enforcement
+   - Cascade rules definition
+   - Junction table design
+   - Polymorphic associations
+   - Temporal relationship handling
+
+6. **Performance and Scalability**:
+   - Partitioning strategies
+   - Sharding considerations
+   - Caching layer design
+   - Read/write optimization
+   - Growth accommodation planning
+
+7. **Security and Compliance Design**:
+   - Access control implementation
+   - Data encryption strategies
+   - Audit trail design
+   - Compliance requirement integration
+   - Privacy protection mechanisms
+
+Provide detailed schema design with ERD descriptions, SQL DDL examples, optimization strategies, and implementation guidelines for robust database architecture.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "schemaPurpose",
+                "id": "schema_purpose_input",
+                "label": "Schema Purpose",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Application type, business domain, core functionality, user scale, data volume expectations",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe the purpose and context of the schema"
+                }
+              },
+              {
+                "fieldName": "dataRequirements",
+                "id": "data_requirements_input",
+                "label": "Data Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Main entities, data types, relationships, transaction patterns, reporting needs",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe the data to be stored and managed"
+                }
+              },
+              {
+                "fieldName": "technologyStack",
+                "id": "technology_stack_input",
+                "label": "Technology Stack",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "PostgreSQL", "value": "postgresql" },
+                    { "label": "MySQL", "value": "mysql" },
+                    { "label": "MongoDB", "value": "mongodb" },
+                    { "label": "SQL Server", "value": "sqlserver" },
+                    { "label": "Oracle", "value": "oracle" },
+                    { "label": "Multi-Database", "value": "multi" }
+                  ],
+                  "defaultValue": "postgresql",
+                  "helperText": "Primary database technology"
+                }
+              },
+              {
+                "fieldName": "designConstraints",
+                "id": "design_constraints_input",
+                "label": "Design Constraints",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Performance requirements, compliance needs, legacy system integration, team expertise",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What constraints must be considered?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "schemaDesign",
+                "id": "schema_design",
+                "label": "Schema Design",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349135",
+          "language": "en-US",
+          "name": "Schema Designer",
+          "description": "Provides comprehensive database schema design with data modeling, optimization strategies, and implementation guidelines for robust database architecture.",
+          "instructions": "Describe your schema purpose, data requirements, and technology stack. The designer will create detailed database schema designs."
+        }
+      ]
+    }
+  ]
+}

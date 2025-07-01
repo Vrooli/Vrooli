@@ -1,0 +1,126 @@
+{
+  "id": "7892456378912345019",
+  "publicId": "anomaly-det-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912345020",
+      "publicId": "anom-detect-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of anomaly detector for pattern analysis and fraud detection",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 700,
+            "temperature": 0.2,
+            "prompt": "You are an expert in anomaly detection, pattern recognition, and fraud prevention.\n\nAction/Event: {{input.action}}\nUser Profile: {{input.userProfile}}\nHistorical Patterns: {{input.patterns}}\nBaseline Behavior: {{input.baseline}}\n\nAnalyze the provided action/event for anomalies:\n\n1. **Anomaly Detection**:\n   - Compare against baseline behavior\n   - Identify statistical outliers\n   - Pattern deviations\n   - Unusual combinations of factors\n\n2. **Risk Assessment**:\n   - Severity level (Critical/High/Medium/Low/None)\n   - Confidence score (0-100%)\n   - Type of anomaly detected\n\n3. **Behavioral Analysis**:\n   - Deviation from user's normal patterns\n   - Comparison with peer group behavior\n   - Time-based anomalies\n   - Location or context anomalies\n\n4. **Fraud Indicators** (if applicable):\n   - Red flags identified\n   - Similar known fraud patterns\n   - Velocity checks\n\n5. **Contextual Factors**:\n   - Legitimate reasons for anomaly\n   - Environmental factors\n   - Recent changes in user status\n\n6. **Recommended Actions**:\n   - Immediate actions required\n   - Additional verification needed\n   - Monitoring recommendations\n\n7. **False Positive Analysis**:\n   - Likelihood this is a false alarm\n   - Factors supporting legitimacy\n\nProvide clear, actionable intelligence for security teams.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "action",
+                "id": "action_input",
+                "label": "Action/Event to Analyze",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "{ \"type\": \"transaction\", \"amount\": 5000, \"location\": \"new_country\", \"time\": \"2am\" }",
+                  "minRows": 3,
+                  "helperText": "The suspicious action or event data"
+                }
+              },
+              {
+                "fieldName": "userProfile",
+                "id": "user_profile_input",
+                "label": "User Profile",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "{ \"accountAge\": 180, \"typicalAmount\": 100, \"locations\": [\"US\"], \"activeHours\": \"9am-6pm\" }",
+                  "minRows": 3,
+                  "helperText": "User's historical profile and characteristics"
+                }
+              },
+              {
+                "fieldName": "patterns",
+                "id": "patterns_input",
+                "label": "Historical Patterns",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Previous transactions, login patterns, usage history",
+                  "multiline": true,
+                  "minRows": 2,
+                  "helperText": "Optional: Historical behavior patterns"
+                }
+              },
+              {
+                "fieldName": "baseline",
+                "id": "baseline_input",
+                "label": "Detection Sensitivity",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "High Sensitivity (More Alerts)", "value": "high" },
+                    { "label": "Balanced", "value": "balanced" },
+                    { "label": "Low Sensitivity (Fewer Alerts)", "value": "low" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Anomaly detection threshold"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "anomalyReport",
+                "id": "anomaly_report",
+                "label": "Anomaly Detection Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 10
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912345021",
+          "language": "en-US",
+          "name": "Anomaly Detector",
+          "description": "Detects anomalous patterns in user behavior, transactions, or system events. Provides risk assessment and fraud indicators with actionable security recommendations.",
+          "instructions": "Provide the action/event to analyze along with user profile data. The detector will identify anomalies, assess risk levels, and recommend appropriate responses."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850151",
+  "publicId": "ambiguity-resolve-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850152",
+      "publicId": "ambiguity-resolve-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Resolves unclear task descriptions",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "You are a task clarification specialist. Resolve unclear or incomplete task descriptions using context and logic.\n\nEnriched Tasks:\n{{input.enrichedTasks}}\n\nConfidence Scores:\n{{input.confidenceScores}}\n\nResolution Strategies:\n{{input.clarificationRules}}\n\nClarify ambiguous tasks:\n\n1. **Ambiguity Detection**:\n   Identify unclear elements in tasks:\n   - **Vague verbs**: \"Handle\", \"deal with\", \"look into\"\n   - **Missing specifics**: \"Contact [someone]\", \"Update [something]\"\n   - **Unclear scope**: \"Review the document\" (which document?)\n   - **Ambiguous owners**: \"Team should...\" (which team member?)\n   - **Indefinite timing**: \"Soon\", \"later\", \"when possible\"\n   - **Multiple interpretations**: Could mean different things\n   - **Missing context**: Task without sufficient background\n\n2. **Context-Based Resolution**:\n   Use available context to clarify:\n   - **Note source**: What type of meeting/discussion\n   - **Previous tasks**: Pattern from similar tasks\n   - **Role assignments**: Who typically does what\n   - **Project context**: What the overall goal is\n   - **Timeline context**: When things need to happen\n   - **Stakeholder context**: Who is involved\n\n3. **Clarification Strategies**:\n   Apply resolution methods:\n   - **Specificity enhancement**: Add concrete details\n   - **Scope definition**: Clarify boundaries and deliverables\n   - **Owner assignment**: Suggest likely responsible person\n   - **Method specification**: Add how-to details\n   - **Success criteria**: Define completion conditions\n   - **Timeline estimation**: Suggest realistic deadlines\n   - **Dependency mapping**: Identify prerequisites\n\n4. **Uncertainty Management**:\n   Handle remaining ambiguities:\n   - **Flag for clarification**: Mark items needing human input\n   - **Provide alternatives**: Multiple interpretation options\n   - **Make assumptions**: Document reasoning for choices\n   - **Partial completion**: Define what can be done now\n   - **Research tasks**: Convert ambiguity into investigation\n\n5. **Quality Assurance**:\n   Ensure clarity improvements:\n   - **Action verb clarity**: Use specific, actionable verbs\n   - **Deliverable specificity**: Clear output expectations\n   - **Measurement criteria**: How to verify completion\n   - **Resource requirements**: What's needed to complete\n   - **Communication needs**: Who to involve or inform\n\n6. **Documentation of Changes**:\n   Track clarification decisions:\n   - **Original unclear version**: What was ambiguous\n   - **Resolution applied**: How it was clarified\n   - **Confidence level**: How certain the resolution is\n   - **Assumptions made**: What was inferred\n   - **Verification needed**: What requires confirmation\n\nProvide output as JSON with:\n- clarifiedTasks: Unambiguous task descriptions\n- clarificationNeeded: Items requiring human input\n- assumptions: Inference notes and reasoning",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "enrichedTasks",
+                "id": "enriched_tasks_input",
+                "label": "Detailed Actions",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Tasks with enriched details"
+                }
+              },
+              {
+                "fieldName": "confidenceScores",
+                "id": "confidence_scores_input",
+                "label": "Extraction Certainty",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Confidence ratings for tasks"
+                }
+              },
+              {
+                "fieldName": "clarificationRules",
+                "id": "clarification_rules_input",
+                "label": "Resolution Strategies",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Rules for resolving ambiguity"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "clarifiedTasks",
+                "id": "clarified_tasks_output",
+                "label": "Unambiguous Tasks",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "clarificationNeeded",
+                "id": "clarification_needed_output",
+                "label": "Uncertain Items",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "assumptions",
+                "id": "assumptions_output",
+                "label": "Inference Notes",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850153",
+          "language": "en",
+          "name": "Ambiguity Resolver (Reasoning)",
+          "description": "Clarifies unclear or incomplete task descriptions using context and intelligent inference.",
+          "instructions": "Provide enriched tasks, confidence scores, and resolution rules. The routine will clarify ambiguous elements and flag items needing verification."
+        }
+      ]
+    }
+  ]
+}

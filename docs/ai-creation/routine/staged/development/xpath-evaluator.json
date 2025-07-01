@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349352",
+  "publicId": "xpath-e-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349353",
+      "publicId": "xpath-eval-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of XPath evaluator for comprehensive XPath expression optimization and XML/HTML navigation strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are an XPath evaluation expert providing comprehensive XPath expression strategies, XML/HTML navigation optimization, and document parsing solutions.\n\nXPath Context: {{input.xpathContext}}\nDocument Structure: {{input.documentStructure}}\nExtraction Goals: {{input.extractionGoals}}\nPerformance Requirements: {{input.performanceRequirements}}\n\nDesign comprehensive XPath evaluation strategy:\n\n1. **XPath Expression Optimization**:\n   - Efficient path construction\n   - Axis selection optimization\n   - Predicate performance tuning\n   - Function usage optimization\n   - Expression simplification\n\n2. **Document Navigation Strategies**:\n   - Tree traversal optimization\n   - Node selection techniques\n   - Attribute access patterns\n   - Text content extraction\n   - Namespace handling\n\n3. **Performance Enhancement**:\n   - Query compilation optimization\n   - Index utilization strategies\n   - Memory usage minimization\n   - Execution time reduction\n   - Batch processing techniques\n\n4. **Complex Query Construction**:\n   - Multi-condition predicates\n   - Union and intersection operations\n   - Recursive descent patterns\n   - Dynamic expression building\n   - Conditional logic implementation\n\n5. **Error Handling and Validation**:\n   - Expression syntax validation\n   - Runtime error management\n   - Fallback strategies\n   - Debugging techniques\n   - Result verification\n\n6. **Cross-Platform Compatibility**:\n   - XPath version differences\n   - Browser implementation variations\n   - Library compatibility\n   - Standard compliance\n   - Feature detection\n\n7. **Integration and Automation**:\n   - API integration patterns\n   - Automated testing frameworks\n   - Expression libraries\n   - Code generation tools\n   - Documentation generation\n\nProvide comprehensive XPath evaluation plan with expression optimization, navigation strategies, performance enhancement, and integration frameworks for efficient document processing.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "xpathContext",
+                "id": "xpath_context_input",
+                "label": "XPath Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Use case type, document processing needs, extraction complexity, automation requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your XPath evaluation context"
+                }
+              },
+              {
+                "fieldName": "documentStructure",
+                "id": "document_structure_input",
+                "label": "Document Structure",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "XML/HTML structure, nesting depth, namespace usage, attribute patterns, content types",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What document structures need processing?"
+                }
+              },
+              {
+                "fieldName": "extractionGoals",
+                "id": "extraction_goals_input",
+                "label": "Extraction Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Target elements, data types, extraction patterns, filtering requirements, output formats",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What data needs to be extracted?"
+                }
+              },
+              {
+                "fieldName": "performanceRequirements",
+                "id": "performance_requirements_input",
+                "label": "Performance Requirements",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "High Speed Processing", "value": "speed" },
+                    { "label": "Memory Efficiency", "value": "memory" },
+                    { "label": "Large Document Handling", "value": "large_docs" },
+                    { "label": "Real-time Processing", "value": "realtime" },
+                    { "label": "Batch Processing", "value": "batch" },
+                    { "label": "Balanced Performance", "value": "balanced" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Primary performance focus"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "xpathEvaluationPlan",
+                "id": "xpath_evaluation_plan",
+                "label": "XPath Evaluation Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349354",
+          "language": "en-US",
+          "name": "XPath Evaluator",
+          "description": "Provides comprehensive XPath evaluation with expression optimization, navigation strategies, and integration frameworks for efficient document processing.",
+          "instructions": "Describe your XPath context, document structure, and performance requirements. The evaluator will design a comprehensive XPath strategy."
+        }
+      ]
+    }
+  ]
+}

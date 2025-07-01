@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349277",
+  "publicId": "yaml-pr-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349278",
+      "publicId": "yaml-proc-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of YAML processor for comprehensive YAML processing and configuration management strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a YAML processing expert providing comprehensive YAML handling strategies, configuration management, and data processing optimization.\n\nYAML Context: {{input.yamlContext}}\nProcessing Requirements: {{input.processingRequirements}}\nConfiguration Needs: {{input.configurationNeeds}}\nValidation Standards: {{input.validationStandards}}\n\nDesign comprehensive YAML processing solution:\n\n1. **YAML Processing Strategy**:\n   - Parser selection and optimization\n   - Safe vs unsafe loading analysis\n   - Multi-document handling\n   - Stream processing capabilities\n   - Error handling mechanisms\n\n2. **Schema and Validation**:\n   - Schema definition strategies\n   - JSON Schema validation\n   - Custom validation rules\n   - Type checking protocols\n   - Structure verification\n\n3. **Configuration Management**:\n   - Environment-specific configs\n   - Secret management integration\n   - Variable interpolation\n   - Template processing\n   - Dynamic configuration loading\n\n4. **Data Transformation**:\n   - JSON conversion strategies\n   - Object mapping frameworks\n   - Data type handling\n   - Structure flattening/nesting\n   - Format standardization\n\n5. **Security and Safety**:\n   - Injection attack prevention\n   - Safe deserialization\n   - Input sanitization\n   - Access control validation\n   - Audit logging\n\n6. **Performance Optimization**:\n   - Large file processing\n   - Memory management\n   - Caching strategies\n   - Parallel processing\n   - Resource optimization\n\n7. **Integration and Deployment**:\n   - CI/CD pipeline integration\n   - Kubernetes configuration\n   - Docker compose handling\n   - Application config loading\n   - Runtime configuration updates\n\nProvide comprehensive YAML processing plan with strategy selection, validation frameworks, configuration management, and optimization techniques for efficient YAML handling.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "yamlContext",
+                "id": "yaml_context_input",
+                "label": "YAML Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "YAML usage types, file sizes, complexity levels, deployment contexts, security requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your YAML processing context"
+                }
+              },
+              {
+                "fieldName": "processingRequirements",
+                "id": "processing_requirements_input",
+                "label": "Processing Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Parsing volumes, real-time needs, validation requirements, transformation goals, performance targets",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What processing requirements exist?"
+                }
+              },
+              {
+                "fieldName": "configurationNeeds",
+                "id": "configuration_needs_input",
+                "label": "Configuration Needs",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Application configs, deployment manifests, CI/CD pipelines, environment variables, secret management",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What configuration needs exist?"
+                }
+              },
+              {
+                "fieldName": "validationStandards",
+                "id": "validation_standards_input",
+                "label": "Validation Standards",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Strict Validation", "value": "strict" },
+                    { "label": "Schema-based Validation", "value": "schema" },
+                    { "label": "Security-focused", "value": "security" },
+                    { "label": "Performance-optimized", "value": "performance" },
+                    { "label": "DevOps Integration", "value": "devops" },
+                    { "label": "Flexible Processing", "value": "flexible" }
+                  ],
+                  "defaultValue": "flexible",
+                  "helperText": "Primary validation approach"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "yamlProcessingStrategy",
+                "id": "yaml_processing_strategy",
+                "label": "YAML Processing Strategy",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349279",
+          "language": "en-US",
+          "name": "YAML Processor",
+          "description": "Provides comprehensive YAML processing with strategy selection, validation frameworks, and configuration management for efficient YAML handling.",
+          "instructions": "Describe your YAML context, processing requirements, and validation needs. The processor will design a comprehensive YAML processing strategy."
+        }
+      ]
+    }
+  ]
+}

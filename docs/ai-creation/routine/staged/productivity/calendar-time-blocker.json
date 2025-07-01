@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Available Time",
                 "description": "Examines calendar and identifies available time slots for scheduling",
-                "subroutineId": "TODO: Need time analysis subroutine",
+                "subroutineId": "7829564732190850103",
                 "inputMap": {
                   "calendarData": "existingSchedule",
                   "timePreferences": "schedulingConstraints",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Prioritize Tasks",
                 "description": "Ranks tasks by importance, urgency, and effort requirements",
-                "subroutineId": "TODO: Need task prioritization subroutine",
+                "subroutineId": "7829564732190850106",
                 "inputMap": {
                   "taskList": "schedulingRequests",
                   "priorityFactors": "importanceCriteria",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Match Tasks to Time Blocks",
                 "description": "Assigns tasks to optimal time slots based on duration and energy needs",
-                "subroutineId": "TODO: Need task matching subroutine",
+                "subroutineId": "7829564732190850109",
                 "inputMap": {
                   "freeTimeBlocks": "availableSlots",
                   "rankedActivities": "prioritizedTasks",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Optimize Schedule Flow",
                 "description": "Arranges time blocks for maximum efficiency and minimal context switching",
-                "subroutineId": "TODO: Need schedule optimization subroutine",
+                "subroutineId": "7829564732190850112",
                 "inputMap": {
                   "scheduledBlocks": "taskAssignments",
                   "transitionTimes": "bufferAllocation",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Handle Conflicts",
                 "description": "Resolves scheduling conflicts and overlapping commitments",
-                "subroutineId": "TODO: Need conflict resolution subroutine",
+                "subroutineId": "7829564732190850115",
                 "inputMap": {
                   "overlappingItems": "conflictResolution",
                   "efficientArrangement": "optimizedSchedule",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Final Schedule",
                 "description": "Creates completed time-blocked calendar with all assignments",
-                "subroutineId": "TODO: Need schedule generation subroutine",
+                "subroutineId": "7829564732190850118",
                 "inputMap": {
                   "cleanSchedule": "resolvedConflicts",
                   "reschedulingChoices": "alternativeOptions",

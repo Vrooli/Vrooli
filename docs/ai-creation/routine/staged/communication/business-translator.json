@@ -1,0 +1,133 @@
+{
+  "id": "7892456378912346016",
+  "publicId": "biz-trans-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912346017",
+      "publicId": "biz-xlate-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of business translator for technical-business communication",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 700,
+            "temperature": 0.5,
+            "prompt": "You are an expert at translating between technical and business languages, making complex concepts accessible.\n\nTechnical Content: {{input.technicalContent}}\nTarget Audience: {{input.targetAudience}}\nBusiness Vocabulary: {{input.businessVocabulary}}\nIndustry Context: {{input.industryContext}}\n\nTranslate the technical content for business stakeholders:\n\n1. **Executive Summary**:\n   - Key message in 2-3 sentences\n   - Business impact and value\n   - Call to action or decision needed\n\n2. **Business Context**:\n   - Why this matters to the business\n   - Strategic alignment\n   - Competitive advantages\n   - Risk mitigation\n\n3. **Key Concepts Translation**:\n   - Technical terms → business language\n   - Analogies and real-world examples\n   - Visual metaphors when helpful\n   - Avoid jargon and acronyms\n\n4. **Value Proposition**:\n   - ROI and business benefits\n   - Cost savings or revenue impact\n   - Efficiency improvements\n   - Customer experience enhancement\n\n5. **Implementation Overview**:\n   - High-level timeline\n   - Resource requirements (people, budget)\n   - Success metrics\n   - Key milestones\n\n6. **Risk & Mitigation**:\n   - Potential challenges in business terms\n   - Mitigation strategies\n   - Fallback options\n\n7. **Next Steps**:\n   - Clear action items\n   - Decision points\n   - Stakeholder involvement needed\n\nMaintain accuracy while ensuring complete accessibility to non-technical audiences.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "technicalContent",
+                "id": "technical_content_input",
+                "label": "Technical Content",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Technical documentation, reports, or proposals to translate",
+                  "multiline": true,
+                  "minRows": 5,
+                  "helperText": "The technical content to translate"
+                }
+              },
+              {
+                "fieldName": "targetAudience",
+                "id": "target_audience_input",
+                "label": "Target Audience",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "C-Suite Executives", "value": "executive" },
+                    { "label": "Business Managers", "value": "manager" },
+                    { "label": "Product Owners", "value": "product" },
+                    { "label": "Sales Team", "value": "sales" },
+                    { "label": "Marketing Team", "value": "marketing" },
+                    { "label": "Investors", "value": "investor" }
+                  ],
+                  "defaultValue": "executive",
+                  "helperText": "Primary business audience"
+                }
+              },
+              {
+                "fieldName": "businessVocabulary",
+                "id": "business_vocabulary_input",
+                "label": "Communication Style",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Formal/Corporate", "value": "formal" },
+                    { "label": "Conversational", "value": "conversational" },
+                    { "label": "Persuasive/Sales", "value": "persuasive" },
+                    { "label": "Educational", "value": "educational" }
+                  ],
+                  "defaultValue": "formal",
+                  "helperText": "Preferred communication style"
+                }
+              },
+              {
+                "fieldName": "industryContext",
+                "id": "industry_context_input",
+                "label": "Industry",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "e.g., Finance, Healthcare, Retail, Manufacturing",
+                  "helperText": "Industry-specific context"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "businessTranslation",
+                "id": "business_translation",
+                "label": "Business Translation",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 10
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7892456378912346018",
+          "language": "en-US",
+          "name": "Business Translator",
+          "description": "Translates technical content into clear business language, focusing on value, impact, and strategic alignment for non-technical stakeholders.",
+          "instructions": "Provide technical content and specify your target business audience. The translator will create accessible, value-focused business documentation."
+        }
+      ]
+    }
+  ]
+}

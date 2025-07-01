@@ -1,0 +1,189 @@
+{
+  "id": "7892456378912349160",
+  "publicId": "memory-o-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349161",
+      "publicId": "memory-opt-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of memory optimizer for comprehensive memory management and performance optimization",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a memory optimization expert providing comprehensive memory management, performance tuning, and resource efficiency strategies.
+
+System Profile: {{input.systemProfile}}
+Memory Usage Patterns: {{input.memoryUsagePatterns}}
+Performance Requirements: {{input.performanceRequirements}}
+Optimization Goals: {{input.optimizationGoals}}
+
+Optimize comprehensive memory management:
+
+1. **Memory Usage Analysis**:
+   - Heap and stack profiling
+   - Memory leak detection
+   - Allocation pattern analysis
+   - Garbage collection metrics
+   - Cache utilization assessment
+
+2. **Memory Allocation Optimization**:
+   - Object pooling strategies
+   - Memory pre-allocation
+   - Lazy loading implementation
+   - Reference management
+   - Buffer optimization
+
+3. **Data Structure Optimization**:
+   - Structure selection and sizing
+   - Collection framework tuning
+   - Compression techniques
+   - Serialization optimization
+   - Index structure efficiency
+
+4. **Cache Performance Enhancement**:
+   - Cache hierarchy optimization
+   - Cache-friendly algorithms
+   - Prefetching strategies
+   - Cache invalidation policies
+   - Memory locality improvements
+
+5. **Garbage Collection Tuning**:
+   - GC algorithm selection
+   - Generation sizing
+   - Collection frequency optimization
+   - Pause time minimization
+   - Memory pressure handling
+
+6. **Resource Lifecycle Management**:
+   - Object lifecycle optimization
+   - Resource pooling implementation
+   - Disposal pattern enforcement
+   - Weak reference utilization
+   - Memory barrier optimization
+
+7. **Monitoring and Diagnostics**:
+   - Memory metric collection
+   - Performance profiling setup
+   - Alert threshold configuration
+   - Memory dump analysis
+   - Trend analysis and forecasting
+
+Provide detailed memory optimization plan with profiling results, optimization strategies, implementation guidelines, and monitoring setup for maximum memory efficiency.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "systemProfile",
+                "id": "system_profile_input",
+                "label": "System Profile",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Application type, technology stack, runtime environment, hardware specs, deployment scale",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your system profile"
+                }
+              },
+              {
+                "fieldName": "memoryUsagePatterns",
+                "id": "memory_usage_patterns_input",
+                "label": "Memory Usage Patterns",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Current memory consumption, peak usage times, allocation patterns, known issues",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe memory usage characteristics"
+                }
+              },
+              {
+                "fieldName": "performanceRequirements",
+                "id": "performance_requirements_input",
+                "label": "Performance Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Response time targets, throughput needs, memory limits, latency constraints",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What performance targets must be met?"
+                }
+              },
+              {
+                "fieldName": "optimizationGoals",
+                "id": "optimization_goals_input",
+                "label": "Optimization Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Reduce Memory Usage", "value": "reduce" },
+                    { "label": "Improve Performance", "value": "performance" },
+                    { "label": "Fix Memory Leaks", "value": "leaks" },
+                    { "label": "Optimize GC", "value": "gc" },
+                    { "label": "Scale Efficiency", "value": "scale" },
+                    { "label": "Comprehensive Optimization", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary optimization objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "memoryOptimizationPlan",
+                "id": "memory_optimization_plan",
+                "label": "Memory Optimization Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349162",
+          "language": "en-US",
+          "name": "Memory Optimizer",
+          "description": "Provides comprehensive memory optimization with usage analysis, performance tuning, and resource efficiency strategies for maximum system performance.",
+          "instructions": "Describe your system profile, memory usage, and performance needs. The optimizer will create a detailed memory optimization plan."
+        }
+      ]
+    }
+  ]
+}

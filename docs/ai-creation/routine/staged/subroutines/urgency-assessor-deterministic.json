@@ -1,0 +1,106 @@
+{
+  "id": "7829564732190850265",
+  "publicId": "urgency-assessor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850266",
+      "publicId": "urgency-assessor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Evaluates time sensitivity of each task",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "javascript",
+            "logic": "function assessTaskUrgency({ inputTasks, dueDates, timeFactors }) {\n  const tasks = Array.isArray(inputTasks) ? inputTasks : [inputTasks].filter(Boolean);\n  const deadlines = Array.isArray(dueDates) ? dueDates : [dueDates].filter(Boolean);\n  const urgencyCriteria = timeFactors || getDefaultUrgencyCriteria();\n  \n  const taskUrgency = [];\n  const timeConstraints = {};\n  const urgencyExplanation = [];\n  \n  tasks.forEach((task, index) => {\n    const taskData = typeof task === 'string' ? { name: task } : task;\n    const taskName = taskData.name || taskData.title || `Task ${index + 1}`;\n    \n    // Get deadline information\n    const deadline = deadlines[index] || taskData.deadline || taskData.dueDate;\n    const hasDeadline = !!deadline;\n    \n    // Calculate urgency score\n    const urgencyAnalysis = calculateUrgencyScore(taskData, deadline, urgencyCriteria);\n    \n    taskUrgency.push({\n      taskId: taskData.id || taskName,\n      taskName: taskName,\n      urgencyScore: urgencyAnalysis.score,\n      urgencyLevel: urgencyAnalysis.level,\n      deadline: deadline,\n      daysUntilDue: urgencyAnalysis.daysUntilDue,\n      urgencyFactors: urgencyAnalysis.factors,\n      timeConstraintType: urgencyAnalysis.constraintType\n    });\n    \n    // Store time constraints\n    timeConstraints[taskName] = {\n      deadline: deadline,\n      daysRemaining: urgencyAnalysis.daysUntilDue,\n      constraintLevel: urgencyAnalysis.constraintType,\n      bufferTime: urgencyAnalysis.bufferNeeded\n    };\n    \n    // Generate explanation\n    urgencyExplanation.push({\n      taskName: taskName,\n      reasoning: urgencyAnalysis.reasoning,\n      factors: urgencyAnalysis.factors,\n      recommendation: urgencyAnalysis.recommendation\n    });\n  });\n  \n  function getDefaultUrgencyCriteria() {\n    return {\n      deadlineWeights: {\n        overdue: 100,\n        today: 90,\n        tomorrow: 80,\n        thisWeek: 60,\n        nextWeek: 40,\n        thisMonth: 25,\n        later: 10,\n        none: 5\n      },\n      dependencyWeight: 15,\n      consequenceWeight: 20,\n      externalPressureWeight: 10,\n      opportunityWindowWeight: 15\n    };\n  }\n  \n  function calculateUrgencyScore(task, deadline, criteria) {\n    let score = 0;\n    const factors = [];\n    let daysUntilDue = null;\n    \n    // Calculate deadline urgency\n    if (deadline) {\n      const deadlineDate = new Date(deadline);\n      const today = new Date();\n      daysUntilDue = Math.ceil((deadlineDate - today) / (1000 * 60 * 60 * 24));\n      \n      let deadlineCategory;\n      if (daysUntilDue < 0) {\n        deadlineCategory = 'overdue';\n        score += criteria.deadlineWeights.overdue;\n        factors.push('Overdue deadline');\n      } else if (daysUntilDue === 0) {\n        deadlineCategory = 'today';\n        score += criteria.deadlineWeights.today;\n        factors.push('Due today');\n      } else if (daysUntilDue === 1) {\n        deadlineCategory = 'tomorrow';\n        score += criteria.deadlineWeights.tomorrow;\n        factors.push('Due tomorrow');\n      } else if (daysUntilDue <= 7) {\n        deadlineCategory = 'thisWeek';\n        score += criteria.deadlineWeights.thisWeek;\n        factors.push('Due this week');\n      } else if (daysUntilDue <= 14) {\n        deadlineCategory = 'nextWeek';\n        score += criteria.deadlineWeights.nextWeek;\n        factors.push('Due next week');\n      } else if (daysUntilDue <= 30) {\n        deadlineCategory = 'thisMonth';\n        score += criteria.deadlineWeights.thisMonth;\n        factors.push('Due this month');\n      } else {\n        deadlineCategory = 'later';\n        score += criteria.deadlineWeights.later;\n        factors.push('Future deadline');\n      }\n    } else {\n      score += criteria.deadlineWeights.none;\n      factors.push('No specific deadline');\n    }\n    \n    // Check for dependencies\n    if (task.blocks || task.dependencies || task.blocking) {\n      const dependencyList = task.blocks || task.dependencies || task.blocking;\n      if (Array.isArray(dependencyList) ? dependencyList.length > 0 : dependencyList) {\n        score += criteria.dependencyWeight;\n        factors.push('Blocks other tasks');\n      }\n    }\n    \n    // Assess consequences of delay\n    if (task.consequences || task.impact) {\n      const consequences = task.consequences || task.impact;\n      if (typeof consequences === 'string') {\n        if (consequences.toLowerCase().includes('critical') || \n            consequences.toLowerCase().includes('severe')) {\n          score += criteria.consequenceWeight;\n          factors.push('Severe consequences if delayed');\n        } else if (consequences.toLowerCase().includes('moderate')) {\n          score += criteria.consequenceWeight * 0.6;\n          factors.push('Moderate consequences if delayed');\n        }\n      } else if (typeof consequences === 'number' && consequences > 7) {\n        score += criteria.consequenceWeight;\n        factors.push('High-impact consequences');\n      }\n    }\n    \n    // External pressure or expectations\n    if (task.stakeholders || task.client || task.boss || task.external) {\n      score += criteria.externalPressureWeight;\n      factors.push('External stakeholder expectations');\n    }\n    \n    // Time-sensitive opportunities\n    if (task.opportunity || task.timeSensitive) {\n      score += criteria.opportunityWindowWeight;\n      factors.push('Time-sensitive opportunity');\n    }\n    \n    // Meeting or event urgency\n    if (task.type === 'meeting' || task.type === 'event' || \n        (task.name && task.name.toLowerCase().includes('meeting'))) {\n      score += 20;\n      factors.push('Scheduled meeting or event');\n    }\n    \n    // Determine urgency level\n    let level;\n    if (score >= 90) level = 'critical';\n    else if (score >= 70) level = 'high';\n    else if (score >= 40) level = 'medium';\n    else if (score >= 20) level = 'low';\n    else level = 'minimal';\n    \n    // Determine constraint type\n    let constraintType;\n    if (daysUntilDue !== null) {\n      if (daysUntilDue < 0) constraintType = 'overdue';\n      else if (daysUntilDue <= 1) constraintType = 'immediate';\n      else if (daysUntilDue <= 7) constraintType = 'short-term';\n      else if (daysUntilDue <= 30) constraintType = 'medium-term';\n      else constraintType = 'long-term';\n    } else {\n      constraintType = 'flexible';\n    }\n    \n    // Calculate buffer time needed\n    let bufferNeeded = 0;\n    if (daysUntilDue !== null && daysUntilDue > 0) {\n      if (level === 'critical' || level === 'high') {\n        bufferNeeded = Math.max(1, Math.floor(daysUntilDue * 0.2));\n      } else if (level === 'medium') {\n        bufferNeeded = Math.max(1, Math.floor(daysUntilDue * 0.1));\n      }\n    }\n    \n    // Generate reasoning and recommendation\n    const reasoning = generateUrgencyReasoning(score, level, factors, daysUntilDue);\n    const recommendation = generateUrgencyRecommendation(level, constraintType, daysUntilDue);\n    \n    return {\n      score: Math.min(100, Math.round(score)),\n      level: level,\n      daysUntilDue: daysUntilDue,\n      factors: factors,\n      constraintType: constraintType,\n      bufferNeeded: bufferNeeded,\n      reasoning: reasoning,\n      recommendation: recommendation\n    };\n  }\n  \n  function generateUrgencyReasoning(score, level, factors, daysUntilDue) {\n    let reasoning = `Urgency score: ${score}/100 (${level} priority). `;\n    \n    if (factors.length > 0) {\n      reasoning += `Key factors: ${factors.join(', ')}. `;\n    }\n    \n    if (daysUntilDue !== null) {\n      if (daysUntilDue < 0) {\n        reasoning += `This task is ${Math.abs(daysUntilDue)} day(s) overdue and requires immediate attention.`;\n      } else if (daysUntilDue <= 1) {\n        reasoning += 'This task has an immediate deadline and should be prioritized.';\n      } else {\n        reasoning += `With ${daysUntilDue} days until the deadline, this task needs to be scheduled appropriately.`;\n      }\n    } else {\n      reasoning += 'No specific deadline allows for flexible scheduling based on other priorities.';\n    }\n    \n    return reasoning;\n  }\n  \n  function generateUrgencyRecommendation(level, constraintType, daysUntilDue) {\n    if (level === 'critical') {\n      return 'Handle immediately - drop other activities if necessary';\n    } else if (level === 'high') {\n      return 'Schedule for today or tomorrow - high priority';\n    } else if (level === 'medium') {\n      if (constraintType === 'short-term') {\n        return 'Schedule within the next few days';\n      } else {\n        return 'Important but can be scheduled strategically';\n      }\n    } else if (level === 'low') {\n      return 'Schedule when convenient - lower priority';\n    } else {\n      return 'Consider if this task is necessary - very low urgency';\n    }\n  }\n  \n  // Sort tasks by urgency score for summary\n  const sortedByUrgency = [...taskUrgency].sort((a, b) => b.urgencyScore - a.urgencyScore);\n  \n  // Generate summary statistics\n  const urgencySummary = {\n    totalTasks: taskUrgency.length,\n    criticalTasks: taskUrgency.filter(t => t.urgencyLevel === 'critical').length,\n    highUrgencyTasks: taskUrgency.filter(t => t.urgencyLevel === 'high').length,\n    overdueTasks: taskUrgency.filter(t => t.daysUntilDue !== null && t.daysUntilDue < 0).length,\n    todayTasks: taskUrgency.filter(t => t.daysUntilDue === 0).length,\n    averageUrgencyScore: taskUrgency.length > 0 ? \n      Math.round(taskUrgency.reduce((sum, t) => sum + t.urgencyScore, 0) / taskUrgency.length) : 0,\n    mostUrgent: sortedByUrgency[0]?.taskName || null,\n    leastUrgent: sortedByUrgency[sortedByUrgency.length - 1]?.taskName || null\n  };\n  \n  return {\n    taskUrgency: taskUrgency,\n    timeConstraints: {\n      ...timeConstraints,\n      summary: urgencySummary\n    },\n    urgencyExplanation: urgencyExplanation\n  };\n}"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "inputTasks",
+                "id": "input_tasks_input",
+                "label": "Task List",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List of tasks to assess for urgency"
+                }
+              },
+              {
+                "fieldName": "dueDates",
+                "id": "due_dates_input",
+                "label": "Deadlines",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Deadline information for tasks"
+                }
+              },
+              {
+                "fieldName": "timeFactors",
+                "id": "time_factors_input",
+                "label": "Urgency Criteria",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Custom urgency assessment criteria"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "taskUrgency",
+                "id": "task_urgency_output",
+                "label": "Urgency Scores",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "timeConstraints",
+                "id": "time_constraints_output",
+                "label": "Deadline Map",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "urgencyExplanation",
+                "id": "urgency_explanation_output",
+                "label": "Urgency Rationale",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850267",
+          "language": "en",
+          "name": "Urgency Assessor",
+          "description": "Evaluates time sensitivity of tasks using deadline proximity, dependencies, consequences, and external factors.",
+          "instructions": "Provide task list, deadlines, and urgency criteria. The routine will score each task's urgency and provide detailed explanations."
+        }
+      ]
+    }
+  ]
+}

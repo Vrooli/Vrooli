@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850199",
+  "publicId": "time-energy-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850200",
+      "publicId": "time-energy-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Maps available time slots and energy patterns for optimal scheduling",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "You are a time and energy optimization expert. Analyze availability and productivity patterns to create optimal study schedules.\n\nAvailable Time:\n{{input.availableTime}}\n\nProductivity Cycles:\n{{input.productivityCycles}}\n\nOther Obligations:\n{{input.otherObligations}}\n\nAnalyze time and energy patterns:\n\n1. **Time Window Mapping**:\n   Identify all available study periods:\n   - **Daily Time Slots**: Hour-by-hour availability\n   - **Weekly Patterns**: Consistent vs variable schedules\n   - **Seasonal Variations**: Changes over time\n   - **Buffer Time**: Unexpected delays and flexibility\n   - **Travel Time**: Commute periods for mobile study\n   - **Micro-sessions**: Short 15-30 minute windows\n\n2. **Energy Pattern Analysis**:\n   Map natural productivity rhythms:\n   - **Peak Performance Hours**: When you're most alert\n   - **Energy Dips**: Low productivity periods\n   - **Recovery Periods**: Time needed between sessions\n   - **Circadian Rhythms**: Natural daily cycles\n   - **Weekly Energy Patterns**: How energy varies by day\n   - **Activity-Specific Energy**: Different types of mental work\n\n3. **Schedule Integration Strategy**:\n   Coordinate with existing commitments:\n   - **Fixed Obligations**: Non-negotiable time blocks\n   - **Flexible Activities**: What can be moved or shortened\n   - **Transition Time**: Switching between activities\n   - **Mental Context Switching**: Cognitive overhead\n   - **Physical Location**: Where different activities happen\n   - **Social Commitments**: Impact on study consistency\n\n4. **Optimization Principles**:\n   Apply time management science:\n   - **Chronotype Alignment**: Match tasks to natural rhythms\n   - **Cognitive Load Distribution**: Balance difficult and easy tasks\n   - **Attention Restoration**: Natural breaks and recovery\n   - **Habit Formation**: Consistent timing for automaticity\n   - **Energy Conservation**: Minimize decision fatigue\n   - **Flow State Creation**: Uninterrupted focus periods\n\nProvide output as JSON with:\n- studyWindows: Detailed available time slots with energy ratings\n- peakPeriods: Optimal times for different types of study activities\n- timeAllocation: Recommended schedule structure with rationale",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "availableTime",
+                "id": "available_time_input",
+                "label": "Schedule",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Your daily/weekly availability"
+                }
+              },
+              {
+                "fieldName": "productivityCycles",
+                "id": "productivity_cycles_input",
+                "label": "Energy Patterns",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "When are you most/least productive?"
+                }
+              },
+              {
+                "fieldName": "otherObligations",
+                "id": "other_obligations_input",
+                "label": "Commitments",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Work, family, and other commitments"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "studyWindows",
+                "id": "study_windows_output",
+                "label": "Time Mapping",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "peakPeriods",
+                "id": "peak_periods_output",
+                "label": "Energy Optimization",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "timeAllocation",
+                "id": "time_allocation_output",
+                "label": "Schedule Integration",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850201",
+          "language": "en",
+          "name": "Time & Energy Analyzer",
+          "description": "Maps available time slots and energy patterns to optimize study scheduling based on natural productivity rhythms.",
+          "instructions": "Provide your schedule, energy patterns, and other commitments. The routine will identify optimal study windows aligned with your productivity cycles."
+        }
+      ]
+    }
+  ]
+}

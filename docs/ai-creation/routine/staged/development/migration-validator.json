@@ -1,0 +1,137 @@
+{
+  "id": "7892456378912349121",
+  "publicId": "migrat-va-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349122",
+      "publicId": "migrat-valid-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of migration validator for comprehensive data and system migration validation",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a migration validation expert providing comprehensive data and system migration verification, integrity checking, and quality assurance.\n\nMigration Type: {{input.migrationType}}\nSource System: {{input.sourceSystem}}\nTarget System: {{input.targetSystem}}\nValidation Scope: {{input.validationScope}}\n\nPerform comprehensive migration validation:\n\n1. **Pre-Migration Validation**:\n   - Source data integrity verification\n   - Migration readiness assessment\n   - Dependency and prerequisite checking\n   - Resource availability validation\n   - Risk and compatibility analysis\n\n2. **Data Integrity and Completeness**:\n   - Record count verification\n   - Data type and format validation\n   - Referential integrity checking\n   - Constraint and rule validation\n   - Duplicate and orphan detection\n\n3. **Migration Process Validation**:\n   - Transformation rule verification\n   - Mapping accuracy assessment\n   - Error handling and logging review\n   - Performance and timing validation\n   - Rollback capability testing\n\n4. **Post-Migration Verification**:\n   - Data accuracy comparison\n   - Functional equivalence testing\n   - Business rule validation\n   - User acceptance criteria\n   - System integration testing\n\n5. **Performance and Quality Metrics**:\n   - Migration speed and efficiency\n   - Error rate and resolution tracking\n   - Data quality scoring\n   - Downtime and availability impact\n   - Resource utilization analysis\n\n6. **Security and Compliance Validation**:\n   - Access control preservation\n   - Encryption and data protection\n   - Audit trail continuity\n   - Regulatory compliance verification\n   - Privacy and confidentiality checks\n\n7. **Validation Reporting and Sign-off**:\n   - Comprehensive validation report\n   - Issue and resolution documentation\n   - Stakeholder approval checklist\n   - Go-live readiness assessment\n   - Post-migration monitoring plan\n\nProvide detailed migration validation analysis with verification results, issue identification, and quality assurance recommendations for successful migration completion.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "migrationType",
+                "id": "migration_type_input",
+                "label": "Migration Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Database Migration", "value": "database" },
+                    { "label": "Application Migration", "value": "application" },
+                    { "label": "Cloud Migration", "value": "cloud" },
+                    { "label": "Platform Migration", "value": "platform" },
+                    { "label": "Data Center Migration", "value": "datacenter" },
+                    { "label": "System Upgrade", "value": "upgrade" }
+                  ],
+                  "defaultValue": "database",
+                  "helperText": "Type of migration to validate"
+                }
+              },
+              {
+                "fieldName": "sourceSystem",
+                "id": "source_system_input",
+                "label": "Source System",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Current system, version, platform, database type, architecture details",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe the source system being migrated from"
+                }
+              },
+              {
+                "fieldName": "targetSystem",
+                "id": "target_system_input",
+                "label": "Target System",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "New system, version, platform, database type, architecture details",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe the target system being migrated to"
+                }
+              },
+              {
+                "fieldName": "validationScope",
+                "id": "validation_scope_input",
+                "label": "Validation Scope",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Data Integrity Only", "value": "data" },
+                    { "label": "Functional Validation", "value": "functional" },
+                    { "label": "Performance Testing", "value": "performance" },
+                    { "label": "Security Validation", "value": "security" },
+                    { "label": "User Acceptance", "value": "uat" },
+                    { "label": "Comprehensive Validation", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Scope of migration validation"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "migrationValidationReport",
+                "id": "migration_validation_report",
+                "label": "Migration Validation Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349123",
+          "language": "en-US",
+          "name": "Migration Validator",
+          "description": "Provides comprehensive migration validation with data integrity checking, system verification, and quality assurance for successful migration completion.",
+          "instructions": "Describe the migration type, source and target systems, and validation scope. The validator will perform comprehensive migration verification."
+        }
+      ]
+    }
+  ]
+}

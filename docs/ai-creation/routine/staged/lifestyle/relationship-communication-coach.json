@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Develop Listening Skills",
                 "description": "Enhances active listening and empathy capabilities",
-                "subroutineId": "TODO: Need listening skills subroutine",
+                "subroutineId": "7829564732190849755",
                 "inputMap": {
                   "listeningChallenges": "hearingBarriers",
                   "empathyLevel": "understandingCapacity",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Practice Expression Skills",
                 "description": "Improves clear, honest, and respectful communication",
-                "subroutineId": "TODO: Need expression training subroutine",
+                "subroutineId": "7829564732190849758",
                 "inputMap": {
                   "expressionChallenges": "communicationBarriers",
                   "emotionalRegulation": "feelingsManagement",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Build Conflict Resolution Skills",
                 "description": "Develops healthy disagreement and problem-solving approaches",
-                "subroutineId": "TODO: Need conflict resolution subroutine",
+                "subroutineId": "7829564732190849761",
                 "inputMap": {
                   "conflictPatterns": "disagreementStyles",
                   "tensionPoints": "conflictTriggers",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Create Practice Plan",
                 "description": "Develops implementation strategy for ongoing improvement",
-                "subroutineId": "TODO: Need practice planning subroutine",
+                "subroutineId": "7829564732190849764",
                 "inputMap": {
                   "allSkills": "communicationToolkit",
                   "relationshipContext": "practiceEnvironment",

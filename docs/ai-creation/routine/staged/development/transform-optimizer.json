@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349256",
+  "publicId": "transf-o-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349257",
+      "publicId": "transf-opt-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of transform optimizer for comprehensive data transformation and processing optimization",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a transformation optimization expert providing comprehensive data transformation strategies, processing pipeline optimization, and performance enhancement solutions.\n\nTransformation Context: {{input.transformationContext}}\nData Sources: {{input.dataSources}}\nTransformation Goals: {{input.transformationGoals}}\nPerformance Requirements: {{input.performanceRequirements}}\n\nOptimize comprehensive data transformation:\n\n1. **Transformation Strategy Design**:\n   - Data flow architecture\n   - Pipeline design patterns\n   - Processing paradigm selection\n   - Transformation logic optimization\n   - Error handling strategies\n\n2. **Performance Optimization**:\n   - Processing speed enhancement\n   - Memory usage optimization\n   - CPU utilization efficiency\n   - I/O operation minimization\n   - Parallel processing implementation\n\n3. **Data Quality Management**:\n   - Validation rule implementation\n   - Cleansing strategy design\n   - Consistency checking\n   - Duplicate detection\n   - Data lineage tracking\n\n4. **Scalability Engineering**:\n   - Horizontal scaling strategies\n   - Load distribution optimization\n   - Resource allocation planning\n   - Bottleneck identification\n   - Capacity planning\n\n5. **Format and Schema Optimization**:\n   - Schema evolution handling\n   - Format conversion efficiency\n   - Compression optimization\n   - Serialization strategies\n   - Compatibility maintenance\n\n6. **Monitoring and Observability**:\n   - Transformation metrics tracking\n   - Performance monitoring\n   - Error rate analysis\n   - Data quality metrics\n   - Pipeline health monitoring\n\n7. **Cost and Resource Optimization**:\n   - Resource usage minimization\n   - Cost-effective processing\n   - Energy efficiency optimization\n   - Storage optimization\n   - Cloud resource management\n\nProvide comprehensive transformation optimization plan with strategy design, performance enhancement, quality management, and monitoring frameworks for efficient data transformation.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "transformationContext",
+                "id": "transformation_context_input",
+                "label": "Transformation Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Business domain, data types, transformation complexity, system architecture, user requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your transformation context"
+                }
+              },
+              {
+                "fieldName": "dataSources",
+                "id": "data_sources_input",
+                "label": "Data Sources",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Input formats, data volumes, source systems, APIs, files, databases, streaming sources",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What data sources need transformation?"
+                }
+              },
+              {
+                "fieldName": "transformationGoals",
+                "id": "transformation_goals_input",
+                "label": "Transformation Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Output requirements, business objectives, data quality targets, integration needs",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What are the transformation objectives?"
+                }
+              },
+              {
+                "fieldName": "performanceRequirements",
+                "id": "performance_requirements_input",
+                "label": "Performance Requirements",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "High Throughput", "value": "throughput" },
+                    { "label": "Low Latency", "value": "latency" },
+                    { "label": "Resource Efficiency", "value": "efficiency" },
+                    { "label": "Real-time Processing", "value": "realtime" },
+                    { "label": "Cost Optimization", "value": "cost" },
+                    { "label": "Balanced Performance", "value": "balanced" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Primary performance focus"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "transformOptimizationPlan",
+                "id": "transform_optimization_plan",
+                "label": "Transform Optimization Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349258",
+          "language": "en-US",
+          "name": "Transform Optimizer",
+          "description": "Provides comprehensive transformation optimization with strategy design, performance enhancement, and quality management for efficient data processing.",
+          "instructions": "Describe your transformation context, data sources, and goals. The optimizer will design a comprehensive transformation strategy."
+        }
+      ]
+    }
+  ]
+}

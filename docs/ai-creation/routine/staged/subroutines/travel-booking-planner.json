@@ -1,0 +1,100 @@
+{
+  "id": "7829564732190850043",
+  "publicId": "booking-plan-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850044",
+      "publicId": "booking-plan-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Plans transportation and accommodation bookings",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "You are a travel booking specialist. Create comprehensive transportation and accommodation plans based on trip requirements.\n\nTrip Parameters:\n{{input.tripParameters}}\n\nBudget Constraints:\n{{input.budgetConstraints}}\n\nComfort Preferences:\n{{input.comfortPreferences}}\n\nDevelop booking strategies for:\n\n1. **Transportation Plan**:\n   - Flight options with pros/cons\n   - Ground transportation (rental car, public transit, transfers)\n   - Inter-city travel if needed\n   - Cost estimates and booking timing\n\n2. **Accommodation Options**:\n   - Location recommendations (neighborhoods/areas)\n   - Property types matching preferences\n   - Specific hotel/rental suggestions\n   - Price ranges and amenities\n   - Booking flexibility considerations\n\n3. **Booking Recommendations**:\n   - Optimal booking timeline\n   - Cancellation policy considerations\n   - Money-saving strategies\n   - Insurance recommendations\n   - Loyalty program opportunities\n\nProvide output as JSON with:\n- transportationPlan: Detailed travel logistics with options\n- accommodationOptions: Lodging recommendations by area\n- bookingRecommendations: Strategy for reservations and timing",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "tripParameters",
+                "id": "trip_parameters_input",
+                "label": "Trip Requirements",
+                "type": "JSON",
+                "isRequired": true
+              },
+              {
+                "fieldName": "budgetConstraints",
+                "id": "budget_constraints_input",
+                "label": "Financial Limits",
+                "type": "JSON",
+                "isRequired": true
+              },
+              {
+                "fieldName": "comfortPreferences",
+                "id": "comfort_preferences_input",
+                "label": "Standards Level",
+                "type": "JSON",
+                "isRequired": true
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "transportationPlan",
+                "id": "transportation_output",
+                "label": "Travel Logistics",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "accommodationOptions",
+                "id": "accommodation_output",
+                "label": "Lodging Arrangements",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "bookingRecommendations",
+                "id": "booking_output",
+                "label": "Reservation Strategy",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850045",
+          "language": "en",
+          "name": "Travel Booking Planner",
+          "description": "Plans optimal transportation and accommodation options with booking strategies based on budget and preferences.",
+          "instructions": "Provide trip requirements, budget constraints, and comfort preferences. The routine will create comprehensive booking plans with specific recommendations."
+        }
+      ]
+    }
+  ]
+}

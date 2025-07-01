@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850286",
+  "publicId": "goal-prioritizer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850287",
+      "publicId": "goal-prioritizer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Establishes clear priorities using proven frameworks",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are a strategic prioritization specialist. Help establish clear priorities using proven frameworks and systematic analysis.\n\nObjectives:\n{{input.objectives}}\n\nTask List:\n{{input.taskList}}\n\nConstraints:\n{{input.constraints}}\n\nCreate comprehensive prioritization framework:\n\n1. **Goal Hierarchy Framework**:\n   Establish clear priority structure:\n   - **Core Mission Alignment**: Primary objectives that define success\n   - **Strategic Goals**: Mid-term outcomes that advance the mission\n   - **Tactical Objectives**: Short-term milestones and deliverables\n   - **Supporting Activities**: Tasks that enable higher-level goals\n   - **Maintenance Requirements**: Essential operations to sustain progress\n   - **Exploratory Initiatives**: Experimental or developmental activities\n\n2. **Value-Impact Analysis**:\n   Assess each goal and task systematically:\n   - **Return on Investment**: Expected value relative to time/energy invested\n   - **Multiplier Effects**: How achievement amplifies other successes\n   - **Risk Mitigation**: Problems prevented or vulnerabilities addressed\n   - **Capability Building**: Skills, relationships, or assets developed\n   - **Momentum Generation**: How progress creates forward energy\n   - **Opportunity Cost**: What is sacrificed by not pursuing alternatives\n\n3. **Time-Sensitivity Evaluation**:\n   Determine urgency and timing requirements:\n   - **Critical Deadlines**: Non-negotiable time constraints\n   - **Optimal Timing Windows**: When conditions favor success\n   - **Dependency Chains**: Tasks that enable or block other activities\n   - **Seasonal Factors**: Time-of-year considerations affecting priority\n   - **Energy Alignment**: Matching priority level to personal capacity\n   - **External Synchronization**: Coordination with others' schedules\n\n4. **Resource Requirements Assessment**:\n   Understand what each priority demands:\n   - **Time Investment**: Realistic duration estimates and scheduling needs\n   - **Mental Energy**: Cognitive load and focus requirements\n   - **Physical Resources**: Tools, materials, or environment needed\n   - **Social Capital**: Relationships or collaborations required\n   - **Financial Costs**: Budget implications and resource allocation\n   - **Skill Development**: Learning or preparation needed for success\n\n5. **Constraint Integration**:\n   Work within realistic limitations:\n   - **Capacity Boundaries**: Maximum sustainable workload\n   - **Resource Limitations**: Available time, money, people, tools\n   - **External Dependencies**: Others' availability and commitments\n   - **Quality Standards**: Minimum acceptable outcomes\n   - **Recovery Requirements**: Downtime needed to maintain performance\n   - **Flexibility Needs**: Buffer for unexpected opportunities or crises\n\n6. **Priority Matrix Creation**:\n   Organize goals and tasks systematically:\n   - **Must Do**: Critical priorities that define success or failure\n   - **Should Do**: Important activities that significantly advance goals\n   - **Could Do**: Valuable tasks that enhance outcomes when time permits\n   - **Won't Do**: Activities to explicitly defer or eliminate\n   - **Conditional Priorities**: Tasks dependent on specific circumstances\n   - **Review Triggers**: Conditions that warrant priority reassessment\n\n7. **Focus Area Definition**:\n   Establish clear concentration zones:\n   - **Primary Focus**: Top 1-3 priorities receiving majority attention\n   - **Secondary Focus**: Important areas receiving regular but limited time\n   - **Maintenance Mode**: Ongoing responsibilities requiring minimal energy\n   - **Learning Investments**: Development activities for future capability\n   - **Relationship Priorities**: Key connections to nurture and maintain\n   - **Personal Sustainability**: Self-care and energy management essentials\n\nProvide output as JSON with:\n- organizedPriorities: Hierarchical priority structure with clear categorization\n- focusAreas: Defined concentration zones with resource allocation guidance\n- workStructure: Task organization system aligned with strategic priorities",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "objectives",
+                "id": "objectives_input",
+                "label": "Goal Framework",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Primary goals and strategic objectives"
+                }
+              },
+              {
+                "fieldName": "taskList",
+                "id": "task_list_input",
+                "label": "Responsibility Inventory",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Current tasks and responsibilities"
+                }
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Limitations Factors",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Time, resource, or other constraints"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "organizedPriorities",
+                "id": "organized_priorities_output",
+                "label": "Priority Matrix",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "focusAreas",
+                "id": "focus_areas_output",
+                "label": "Goal Alignment",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "workStructure",
+                "id": "work_structure_output",
+                "label": "Task Hierarchy",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850288",
+          "language": "en",
+          "name": "Goal Prioritizer",
+          "description": "Establishes clear priorities using proven frameworks through systematic value-impact analysis and strategic goal hierarchy creation.",
+          "instructions": "Provide objectives, task list, and constraints. The routine will create a comprehensive prioritization framework with organized priorities and focus areas."
+        }
+      ]
+    }
+  ]
+}

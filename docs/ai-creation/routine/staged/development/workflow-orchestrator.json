@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349271",
+  "publicId": "workfl-o-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349272",
+      "publicId": "workflow-orch-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of workflow orchestrator for comprehensive workflow design and process automation coordination",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Orchestrative",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a workflow orchestration expert providing comprehensive workflow design, process automation, and execution coordination strategies.\n\nWorkflow Context: {{input.workflowContext}}\nProcess Requirements: {{input.processRequirements}}\nIntegration Points: {{input.integrationPoints}}\nAutomation Goals: {{input.automationGoals}}\n\nOrchestrate comprehensive workflow solution:\n\n1. **Workflow Architecture Design**:\n   - Process flow modeling\n   - State machine design\n   - Event-driven architecture\n   - Microservice orchestration\n   - Service mesh integration\n\n2. **Process Automation Framework**:\n   - Task automation strategies\n   - Decision point optimization\n   - Parallel processing coordination\n   - Sequential workflow management\n   - Conditional branching logic\n\n3. **Integration and Communication**:\n   - System integration patterns\n   - API orchestration\n   - Message queue coordination\n   - Event streaming management\n   - Data synchronization\n\n4. **Error Handling and Recovery**:\n   - Failure detection mechanisms\n   - Retry policy implementation\n   - Compensation workflows\n   - Circuit breaker patterns\n   - Graceful degradation\n\n5. **Performance Optimization**:\n   - Throughput maximization\n   - Latency minimization\n   - Resource utilization\n   - Load balancing strategies\n   - Scaling mechanisms\n\n6. **Monitoring and Observability**:\n   - Workflow health monitoring\n   - Performance metrics tracking\n   - End-to-end tracing\n   - Alert and notification systems\n   - Real-time dashboard design\n\n7. **Governance and Compliance**:\n   - Workflow approval processes\n   - Audit trail implementation\n   - Compliance validation\n   - Security control integration\n   - Change management protocols\n\nProvide comprehensive workflow orchestration plan with architecture design, automation frameworks, integration patterns, and monitoring systems for efficient workflow execution.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "workflowContext",
+                "id": "workflow_context_input",
+                "label": "Workflow Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Business domain, process complexity, user involvement, system landscape, regulatory requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your workflow context"
+                }
+              },
+              {
+                "fieldName": "processRequirements",
+                "id": "process_requirements_input",
+                "label": "Process Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Business processes, approval flows, data transformations, system interactions, user tasks",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What processes need orchestration?"
+                }
+              },
+              {
+                "fieldName": "integrationPoints",
+                "id": "integration_points_input",
+                "label": "Integration Points",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "External systems, APIs, databases, messaging systems, third-party services, legacy applications",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What systems need integration?"
+                }
+              },
+              {
+                "fieldName": "automationGoals",
+                "id": "automation_goals_input",
+                "label": "Automation Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Process Efficiency", "value": "efficiency" },
+                    { "label": "Error Reduction", "value": "error_reduction" },
+                    { "label": "Scalability", "value": "scalability" },
+                    { "label": "Cost Optimization", "value": "cost" },
+                    { "label": "Compliance Automation", "value": "compliance" },
+                    { "label": "Comprehensive Automation", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary automation objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "workflowOrchestrationPlan",
+                "id": "workflow_orchestration_plan",
+                "label": "Workflow Orchestration Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349273",
+          "language": "en-US",
+          "name": "Workflow Orchestrator",
+          "description": "Provides comprehensive workflow orchestration with architecture design, automation frameworks, and monitoring systems for efficient workflow execution.",
+          "instructions": "Describe your workflow context, process requirements, and integration needs. The orchestrator will design a comprehensive workflow solution."
+        }
+      ]
+    }
+  ]
+}

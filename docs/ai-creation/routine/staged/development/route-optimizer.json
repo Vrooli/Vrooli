@@ -1,0 +1,195 @@
+{
+  "id": "7892456378912349214",
+  "publicId": "route-o-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349215",
+      "publicId": "route-opt-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of route optimizer for comprehensive routing optimization and path efficiency",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Efficient",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a route optimization expert providing comprehensive routing strategies, path efficiency analysis, and traffic flow optimization.
+
+Routing Context: {{input.routingContext}}
+Current Routes: {{input.currentRoutes}}
+Optimization Criteria: {{input.optimizationCriteria}}
+Constraints: {{input.constraints}}
+
+Optimize comprehensive routing strategies:
+
+1. **Route Analysis and Assessment**:
+   - Current path efficiency evaluation
+   - Bottleneck identification
+   - Traffic pattern analysis
+   - Load distribution assessment
+   - Performance metric calculation
+
+2. **Algorithm Selection and Tuning**:
+   - Routing algorithm comparison
+   - Shortest path optimization
+   - Load balancing strategies
+   - Dynamic routing implementation
+   - Failover path design
+
+3. **Network Topology Optimization**:
+   - Path redundancy planning
+   - Geographic route optimization
+   - Latency minimization strategies
+   - Bandwidth utilization improvement
+   - Connection pooling optimization
+
+4. **Traffic Management**:
+   - Flow control mechanisms
+   - Congestion avoidance strategies
+   - Priority-based routing
+   - Quality of Service implementation
+   - Adaptive routing protocols
+
+5. **Performance Optimization**:
+   - Response time improvement
+   - Throughput maximization
+   - Resource utilization balancing
+   - Cache-friendly routing
+   - Proximity-based optimization
+
+6. **Scalability and Reliability**:
+   - Route scalability planning
+   - Fault tolerance design
+   - Multi-path routing strategies
+   - Circuit breaker implementation
+   - Graceful degradation handling
+
+7. **Monitoring and Adaptation**:
+   - Real-time route monitoring
+   - Performance metric tracking
+   - Adaptive route adjustment
+   - Anomaly detection systems
+   - Continuous optimization loops
+
+Provide comprehensive route optimization plan with algorithm recommendations, implementation strategies, monitoring approaches, and performance enhancement techniques for optimal routing efficiency.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "routingContext",
+                "id": "routing_context_input",
+                "label": "Routing Context",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Network Routing", "value": "network" },
+                    { "label": "API Routing", "value": "api" },
+                    { "label": "CDN Routing", "value": "cdn" },
+                    { "label": "Database Routing", "value": "database" },
+                    { "label": "Service Mesh", "value": "servicemesh" },
+                    { "label": "Multi-Layer Routing", "value": "multilayer" }
+                  ],
+                  "defaultValue": "network",
+                  "helperText": "Type of routing to optimize"
+                }
+              },
+              {
+                "fieldName": "currentRoutes",
+                "id": "current_routes_input",
+                "label": "Current Routes",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Existing routing configuration, path definitions, traffic patterns, performance metrics",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe current routing setup"
+                }
+              },
+              {
+                "fieldName": "optimizationCriteria",
+                "id": "optimization_criteria_input",
+                "label": "Optimization Criteria",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Performance targets, cost constraints, reliability requirements, user experience goals",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What needs to be optimized?"
+                }
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Constraints",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Latency Sensitive", "value": "latency" },
+                    { "label": "Bandwidth Limited", "value": "bandwidth" },
+                    { "label": "Cost Constrained", "value": "cost" },
+                    { "label": "High Availability Required", "value": "availability" },
+                    { "label": "Security Focused", "value": "security" },
+                    { "label": "Balanced Optimization", "value": "balanced" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Primary optimization constraint"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "routeOptimizationPlan",
+                "id": "route_optimization_plan",
+                "label": "Route Optimization Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349216",
+          "language": "en-US",
+          "name": "Route Optimizer",
+          "description": "Provides comprehensive route optimization with path efficiency analysis, algorithm selection, and traffic management for optimal routing performance.",
+          "instructions": "Describe your routing context, current setup, and criteria. The optimizer will create an efficient routing strategy."
+        }
+      ]
+    }
+  ]
+}

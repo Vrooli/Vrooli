@@ -1,0 +1,195 @@
+{
+  "id": "7892456378912349148",
+  "publicId": "interf-d-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349149",
+      "publicId": "interf-des-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of interface designer for comprehensive UI/UX and API interface design",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Creative",
+            "maxTokens": 900,
+            "temperature": 0.5,
+            "prompt": "You are an interface design expert providing comprehensive UI/UX design, API architecture, and interaction pattern solutions.
+
+Interface Type: {{input.interfaceType}}
+User Requirements: {{input.userRequirements}}
+Technical Constraints: {{input.technicalConstraints}}
+Design Goals: {{input.designGoals}}
+
+Design comprehensive interface solution:
+
+1. **User Experience Architecture**:
+   - User journey mapping
+   - Information architecture design
+   - Navigation flow optimization
+   - Interaction pattern selection
+   - Accessibility compliance planning
+
+2. **Visual Design Framework**:
+   - Design system establishment
+   - Component library planning
+   - Color scheme and typography
+   - Responsive layout strategies
+   - Brand consistency integration
+
+3. **Interface Component Design**:
+   - Core component specification
+   - State and behavior definition
+   - Micro-interaction design
+   - Animation and transition planning
+   - Error state handling
+
+4. **API Interface Architecture**:
+   - Endpoint structure design
+   - Request/response schema
+   - Authentication flow design
+   - Rate limiting strategies
+   - Version management approach
+
+5. **Usability and Performance**:
+   - Load time optimization
+   - Touch target sizing
+   - Keyboard navigation support
+   - Screen reader compatibility
+   - Performance metrics definition
+
+6. **Cross-Platform Consistency**:
+   - Platform-specific adaptations
+   - Design token system
+   - Responsive breakpoints
+   - Progressive enhancement
+   - Fallback strategies
+
+7. **Implementation Guidelines**:
+   - Technical specification writing
+   - Developer handoff documentation
+   - Testing criteria definition
+   - Maintenance considerations
+   - Evolution roadmap planning
+
+Provide detailed interface design with wireframes descriptions, component specifications, interaction patterns, and implementation guidelines for effective user experiences.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "interfaceType",
+                "id": "interface_type_input",
+                "label": "Interface Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Web Application UI", "value": "webapp" },
+                    { "label": "Mobile App Interface", "value": "mobile" },
+                    { "label": "REST API", "value": "rest" },
+                    { "label": "GraphQL API", "value": "graphql" },
+                    { "label": "Command Line Interface", "value": "cli" },
+                    { "label": "Multi-Interface System", "value": "multi" }
+                  ],
+                  "defaultValue": "webapp",
+                  "helperText": "Type of interface to design"
+                }
+              },
+              {
+                "fieldName": "userRequirements",
+                "id": "user_requirements_input",
+                "label": "User Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Target users, key features, workflow requirements, accessibility needs, device types",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe user needs and requirements"
+                }
+              },
+              {
+                "fieldName": "technicalConstraints",
+                "id": "technical_constraints_input",
+                "label": "Technical Constraints",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Technology stack, performance requirements, browser support, API limitations, security needs",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What technical constraints exist?"
+                }
+              },
+              {
+                "fieldName": "designGoals",
+                "id": "design_goals_input",
+                "label": "Design Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Simplicity and Usability", "value": "simplicity" },
+                    { "label": "Power and Flexibility", "value": "power" },
+                    { "label": "Visual Impact", "value": "visual" },
+                    { "label": "Accessibility First", "value": "accessibility" },
+                    { "label": "Performance Optimized", "value": "performance" },
+                    { "label": "Balanced Design", "value": "balanced" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Primary design objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "interfaceDesign",
+                "id": "interface_design",
+                "label": "Interface Design",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349150",
+          "language": "en-US",
+          "name": "Interface Designer",
+          "description": "Provides comprehensive interface design with UI/UX patterns, API architecture, and implementation guidelines for effective user interactions.",
+          "instructions": "Describe your interface type, user requirements, and constraints. The designer will create detailed interface specifications."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849767",
+  "publicId": "active-listening-trainer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847057",
+      "tag": "lifestyle",
+      "translations": [
+        {
+          "id": "7829564732190847157",
+          "language": "en",
+          "description": "Lifestyle and personal"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847092",
+      "tag": "coaching",
+      "translations": [
+        {
+          "id": "7829564732190847192",
+          "language": "en",
+          "description": "Coaching and guidance"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849768",
+      "publicId": "active-listening-trainer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Builds foundation for effective understanding and empathy",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "listeningChallenges",
+                "id": "listening_challenges_input",
+                "label": "Listening Challenges",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Barriers to hearing and understanding"
+              },
+              {
+                "fieldName": "communicationPatterns",
+                "id": "communication_patterns_input",
+                "label": "Communication Patterns",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Current interaction styles"
+              },
+              {
+                "fieldName": "learningStyle",
+                "id": "learning_style_input",
+                "label": "Learning Style",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "experiential",
+                "options": [
+                  "theoretical",
+                  "experiential",
+                  "visual",
+                  "auditory"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "listeningFramework",
+                "id": "listening_framework_output",
+                "label": "Listening Framework",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "practiceActivities",
+                "id": "practice_activities_output",
+                "label": "Practice Activities",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "feedbackMethods",
+                "id": "feedback_methods_output",
+                "label": "Feedback Methods",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849769",
+          "language": "en",
+          "name": "Active Listening Trainer",
+          "description": "Builds comprehensive active listening skills with practical exercises.",
+          "instructions": "Provide listening challenges and patterns. The routine will train active listening."
+        }
+      ]
+    }
+  ]
+}

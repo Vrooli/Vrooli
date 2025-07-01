@@ -1,0 +1,130 @@
+{
+  "id": "7892456378912349046",
+  "publicId": "learning-pa-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349047",
+      "publicId": "learn-path-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of learning path designer for personalized learning journey design and optimization",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 900,
+            "temperature": 0.5,
+            "prompt": "You are a learning path design expert creating personalized learning journeys optimized for individual goals and capabilities.\n\nLearning Objective: {{input.learningObjective}}\nLearner Profile: {{input.learnerProfile}}\nTime Constraints: {{input.timeConstraints}}\nResource Availability: {{input.resourceAvailability}}\n\nDesign comprehensive learning path:\n\n1. **Learning Journey Architecture**:\n   - Goal decomposition and milestone mapping\n   - Prerequisite skill identification\n   - Learning module sequencing\n   - Dependency relationship mapping\n   - Progress checkpoint establishment\n\n2. **Personalized Path Design**:\n   - Learning style accommodation\n   - Pace and intensity customization\n   - Difficulty progression optimization\n   - Interest and motivation alignment\n   - Strength and weakness consideration\n\n3. **Content and Resource Curation**:\n   - Learning material selection\n   - Multi-modal resource integration\n   - Quality and relevance assessment\n   - Accessibility consideration\n   - Cost and availability evaluation\n\n4. **Skill Building Progression**:\n   - Foundational skill establishment\n   - Incremental complexity increase\n   - Practice and application opportunities\n   - Mastery validation points\n   - Transfer and generalization support\n\n5. **Engagement and Motivation**:\n   - Interest maintenance strategies\n   - Challenge level optimization\n   - Achievement recognition systems\n   - Social learning opportunities\n   - Real-world application connections\n\n6. **Assessment and Adaptation**:\n   - Progress monitoring mechanisms\n   - Competency evaluation methods\n   - Path adjustment protocols\n   - Remediation pathway options\n   - Acceleration opportunity identification\n\n7. **Support System Integration**:\n   - Mentorship and guidance access\n   - Peer learning community connection\n   - Resource and tool availability\n   - Help and support mechanisms\n   - Feedback and coaching integration\n\nProvide detailed learning path design with clear progression stages, resource recommendations, and adaptive mechanisms for personalized learning success.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "learningObjective",
+                "id": "learning_objective_input",
+                "label": "Learning Objective",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What skill, knowledge, or competency should be achieved? Success criteria and desired outcomes",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What is the learning goal?"
+                }
+              },
+              {
+                "fieldName": "learnerProfile",
+                "id": "learner_profile_input",
+                "label": "Learner Profile",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Current skills, experience level, learning preferences, strengths, challenges, motivation",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Who is the learner?"
+                }
+              },
+              {
+                "fieldName": "timeConstraints",
+                "id": "time_constraints_input",
+                "label": "Time Constraints",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Intensive (1-4 weeks)", "value": "intensive" },
+                    { "label": "Accelerated (1-3 months)", "value": "accelerated" },
+                    { "label": "Standard (3-6 months)", "value": "standard" },
+                    { "label": "Extended (6-12 months)", "value": "extended" },
+                    { "label": "Self-Paced", "value": "self_paced" }
+                  ],
+                  "defaultValue": "standard",
+                  "helperText": "Available time for learning"
+                }
+              },
+              {
+                "fieldName": "resourceAvailability",
+                "id": "resource_availability_input",
+                "label": "Resource Availability",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Budget, technology access, learning platform preferences, mentorship availability",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What resources are available for learning?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "learningPathDesign",
+                "id": "learning_path_design",
+                "label": "Learning Path Design",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349048",
+          "language": "en-US",
+          "name": "Learning Path Designer",
+          "description": "Creates personalized learning journeys with optimized progression, resource curation, and adaptive mechanisms for effective skill development and knowledge acquisition.",
+          "instructions": "Specify learning objectives, learner profile, and available resources. The designer will create a personalized learning path with clear progression stages."
+        }
+      ]
+    }
+  ]
+}

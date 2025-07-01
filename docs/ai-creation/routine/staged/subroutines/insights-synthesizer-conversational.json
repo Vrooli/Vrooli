@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850361",
+  "publicId": "insights-synthesizer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850362",
+      "publicId": "insights-synthesizer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Combines best elements from multiple frames into actionable insights",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Integrative",
+            "maxTokens": 1300,
+            "model": null,
+            "prompt": "You are an insights synthesis specialist. Combine the best elements from multiple frames into cohesive, actionable strategic guidance.\n\nFrame Rankings:\n{{input.perspectiveValue}}\n\nSolution Viability:\n{{input.feasibilityAssessment}}\n\nIntegration Principles:\n{{input.synthesisCriteria}}\n\nSynthesize comprehensive insights:\n\n**Strategic Insights Integration Workshop**\n\nLet's weave together the most valuable elements from our reframing exploration into clear, actionable guidance:\n\n1. **Transformed Problem Understanding**:\n   Integrate insights into a new, richer problem perspective:\n   - **Evolved Problem Definition**: How our understanding has fundamentally shifted\n   - **Multi-Dimensional View**: The problem as seen through multiple complementary lenses\n   - **Root Cause Clarity**: Deeper understanding of what really drives the problem\n   - **System Perspective**: How the problem fits into larger patterns and relationships\n   - **Stakeholder Complexity**: Nuanced understanding of different parties' experiences\n   - **Temporal Dynamics**: How the problem evolves and changes over time\n\n2. **Strategic Insight Integration**:\n   Synthesize the most valuable discoveries:\n   - **Core Breakthroughs**: The most important 'aha' moments from reframing\n   - **Paradigm Shifts**: Fundamental changes in how we approach the situation\n   - **Hidden Opportunities**: Previously invisible possibilities now revealed\n   - **Leverage Points**: Where small changes can create disproportionate impact\n   - **Success Redefinition**: New ways to think about what constitutes victory\n   - **Innovation Pathways**: Creative approaches that emerge from fresh perspectives\n\n3. **Actionable Strategic Recommendations**:\n   Develop clear guidance for moving forward:\n   - **Priority Actions**: The most important steps to take immediately\n   - **Strategic Approaches**: Overarching methods for addressing the transformed problem\n   - **Innovation Initiatives**: Creative projects that leverage new insights\n   - **Stakeholder Engagement**: How to involve different parties in new ways\n   - **System Interventions**: Changes that address root causes rather than symptoms\n   - **Capability Building**: Skills and resources needed to implement new approaches\n\n4. **Implementation Execution Plan**:\n   Create practical roadmap for action:\n   - **Phase Structure**: Logical sequence for implementing insights\n   - **Quick Wins**: Early actions that build momentum and demonstrate value\n   - **Pilot Projects**: Low-risk ways to test promising new approaches\n   - **Resource Strategy**: How to mobilize necessary support and capabilities\n   - **Change Management**: How to help stakeholders adapt to new perspectives\n   - **Progress Tracking**: How to measure success and learn from implementation\n\n5. **Risk Management and Contingencies**:\n   Prepare for challenges and obstacles:\n   - **Implementation Risks**: Potential obstacles and how to address them\n   - **Resistance Management**: How to handle skepticism or opposition\n   - **Resource Backup Plans**: Alternative approaches if primary resources aren't available\n   - **Timing Strategies**: When to push forward vs when to be patient\n   - **Adaptation Mechanisms**: How to adjust as you learn from implementation\n   - **Fallback Strategies**: What to do if primary approaches don't work\n\n6. **Learning and Evolution Framework**:\n   Build in continuous improvement:\n   - **Feedback Systems**: How to capture learning from implementation attempts\n   - **Insight Refinement**: How to deepen understanding as you gain experience\n   - **Approach Evolution**: How strategies should adapt based on results\n   - **Knowledge Sharing**: How to spread insights to others facing similar challenges\n   - **Innovation Culture**: How to maintain creative problem-solving momentum\n   - **Future Reframing**: How to continue discovering new perspectives over time\n\n7. **Success Amplification Strategies**:\n   Maximize the impact of successful initiatives:\n   - **Scaling Mechanisms**: How to expand successful approaches\n   - **Multiplication Effects**: How success in one area can catalyze success in others\n   - **Network Building**: How to create communities around new approaches\n   - **Story Creation**: How to communicate successes in inspiring ways\n   - **Capability Transfer**: How to help others adopt successful innovations\n   - **Systemic Integration**: How to embed successful changes into ongoing operations\n\n8. **Long-Term Vision and Evolution**:\n   Paint a picture of the transformed future:\n   - **Vision Statement**: What success looks like when new approaches are fully implemented\n   - **Cultural Transformation**: How perspectives and behaviors will evolve\n   - **System Evolution**: How the broader system becomes healthier and more effective\n   - **Capability Development**: New skills and capacities that will emerge\n   - **Innovation Momentum**: How creative problem-solving becomes self-sustaining\n   - **Legacy Impact**: How these changes will benefit future challenges and opportunities\n\n**Integration Quality Checks:**\n- Does this synthesis honor the best insights from multiple reframes?\n- Are the recommendations specific enough to be actionable?\n- Do the strategies address root causes rather than just symptoms?\n- Is there a clear path from current state to desired future?\n- Are stakeholders positioned to succeed with these new approaches?\n- Does the plan build in learning and adaptation mechanisms?\n\n**Communication and Adoption Support:**\n- How can these insights be communicated most effectively?\n- What will help stakeholders embrace new perspectives?\n- How can early adopters be supported and celebrated?\n- What resources will help with successful implementation?\n- How can resistance be transformed into engagement?\n- What makes this approach inspiring and energizing?\n\nCreate synthesis that is both visionary and practical, helping people see new possibilities while providing clear steps for making them real!",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "perspectiveValue",
+                "id": "perspective_value_input",
+                "label": "Frame Rankings",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Rankings and value assessments of different frames"
+                }
+              },
+              {
+                "fieldName": "feasibilityAssessment",
+                "id": "feasibility_assessment_input",
+                "label": "Solution Viability",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Viability analysis of potential solutions"
+                }
+              },
+              {
+                "fieldName": "synthesisCriteria",
+                "id": "synthesis_criteria_input",
+                "label": "Integration Principles",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Principles and criteria for synthesis integration"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "transformedPerspective",
+                "id": "transformed_perspective_output",
+                "label": "Reframed Problem",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "strategicRecommendations",
+                "id": "strategic_recommendations_output",
+                "label": "Actionable Insights",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "executionPlan",
+                "id": "execution_plan_output",
+                "label": "Implementation Guidance",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850363",
+          "language": "en",
+          "name": "Insights Synthesizer",
+          "description": "Combines best elements from multiple frames into actionable insights through strategic integration and comprehensive execution planning.",
+          "instructions": "Provide frame rankings, solution viability, and integration principles. The routine will synthesize insights into transformed perspectives, strategic recommendations, and execution plans."
+        }
+      ]
+    }
+  ]
+}

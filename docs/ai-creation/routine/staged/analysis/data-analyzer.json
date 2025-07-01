@@ -1,0 +1,130 @@
+{
+  "id": "7892456378912349016",
+  "publicId": "data-analy-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349017",
+      "publicId": "data-anal-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of data analyzer for comprehensive data analysis and insights generation",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a data analysis expert providing comprehensive analysis and insights from data sets.\n\nDataset Description: {{input.datasetDescription}}\nAnalysis Goals: {{input.analysisGoals}}\nData Quality Notes: {{input.dataQuality}}\nAnalysis Depth: {{input.analysisDepth}}\n\nConduct comprehensive data analysis:\n\n1. **Data Understanding**:\n   - Dataset structure and composition\n   - Variable types and distributions\n   - Data completeness assessment\n   - Outlier and anomaly identification\n   - Temporal or categorical patterns\n\n2. **Descriptive Statistics**:\n   - Central tendency measures\n   - Variability and spread analysis\n   - Frequency distributions\n   - Correlation analysis\n   - Cross-tabulation insights\n\n3. **Pattern Recognition**:\n   - Trend identification\n   - Seasonal or cyclical patterns\n   - Clustering analysis\n   - Segmentation opportunities\n   - Relationship mapping\n\n4. **Predictive Insights**:\n   - Forecasting opportunities\n   - Risk factor identification\n   - Performance predictors\n   - Probability assessments\n   - Scenario modeling\n\n5. **Business Intelligence**:\n   - Key performance indicators\n   - Benchmark comparisons\n   - Optimization opportunities\n   - Resource allocation insights\n   - Strategic recommendations\n\n6. **Data Quality Assessment**:\n   - Completeness evaluation\n   - Accuracy verification\n   - Consistency checks\n   - Reliability assessment\n   - Bias detection\n\n7. **Actionable Recommendations**:\n   - Priority action items\n   - Implementation roadmap\n   - Risk mitigation strategies\n   - Monitoring frameworks\n   - Success metrics definition\n\nProvide clear analysis with visual representation suggestions and actionable business insights for data-driven decision making.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "datasetDescription",
+                "id": "dataset_description_input",
+                "label": "Dataset Description",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the dataset: source, size, variables, format, time period",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What data are you analyzing?"
+                }
+              },
+              {
+                "fieldName": "analysisGoals",
+                "id": "analysis_goals_input",
+                "label": "Analysis Objectives",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What questions do you want answered? What insights are you seeking?",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What do you want to learn from the data?"
+                }
+              },
+              {
+                "fieldName": "dataQuality",
+                "id": "data_quality_input",
+                "label": "Data Quality Notes",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Known issues, missing values, outliers, data collection methods",
+                  "multiline": true,
+                  "minRows": 2,
+                  "helperText": "Any data quality concerns?"
+                }
+              },
+              {
+                "fieldName": "analysisDepth",
+                "id": "analysis_depth_input",
+                "label": "Analysis Depth",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Quick Overview", "value": "overview" },
+                    { "label": "Standard Analysis", "value": "standard" },
+                    { "label": "Deep Dive Analysis", "value": "deep" },
+                    { "label": "Statistical Modeling", "value": "statistical" },
+                    { "label": "Advanced Analytics", "value": "advanced" }
+                  ],
+                  "defaultValue": "standard",
+                  "helperText": "Required level of analysis depth"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "analysisReport",
+                "id": "analysis_report",
+                "label": "Data Analysis Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349018",
+          "language": "en-US",
+          "name": "Data Analyzer",
+          "description": "Conducts comprehensive data analysis providing statistical insights, pattern recognition, and actionable business intelligence for informed decision making.",
+          "instructions": "Provide dataset description and analysis goals. The analyzer will examine patterns, trends, and generate insights with actionable recommendations."
+        }
+      ]
+    }
+  ]
+}

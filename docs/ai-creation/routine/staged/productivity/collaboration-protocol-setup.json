@@ -1,0 +1,135 @@
+{
+  "id": "7892456378912347004",
+  "publicId": "collab-proto-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912347005",
+      "publicId": "collab-setup-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of collaboration protocol setup for team coordination",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 800,
+            "temperature": 0.5,
+            "prompt": "You are a collaboration expert designing effective team coordination protocols.\n\nTeam Structure: {{input.teamStructure}}\nProject Type: {{input.projectType}}\nCollaboration Tools: {{input.collaborationTools}}\nTimezone Considerations: {{input.timezoneConsiderations}}\n\nDesign comprehensive collaboration protocols:\n\n1. **Communication Framework**:\n   - Meeting cadence and structure\n   - Communication channels for different purposes\n   - Response time expectations\n   - Escalation procedures\n   - Documentation standards\n\n2. **Decision-Making Process**:\n   - Decision authority matrix\n   - Consensus-building methods\n   - Conflict resolution procedures\n   - Vote/approval mechanisms\n   - Documentation requirements\n\n3. **Workflow Coordination**:\n   - Task assignment protocols\n   - Progress tracking methods\n   - Handoff procedures\n   - Quality review processes\n   - Dependency management\n\n4. **Tool Integration**:\n   - Platform standardization\n   - File sharing protocols\n   - Version control practices\n   - Access permissions\n   - Backup procedures\n\n5. **Remote/Hybrid Considerations**:\n   - Timezone accommodation\n   - Async communication protocols\n   - Virtual meeting best practices\n   - Cultural sensitivity guidelines\n   - Inclusion strategies\n\n6. **Performance Monitoring**:\n   - Collaboration metrics\n   - Feedback mechanisms\n   - Process improvement cycles\n   - Team health indicators\n\n7. **Onboarding Protocol**:\n   - New member integration\n   - Protocol training materials\n   - Mentorship assignments\n   - Progress checkpoints\n\nProvide specific, implementable protocols tailored to the team structure.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "teamStructure",
+                "id": "team_structure_input",
+                "label": "Team Structure",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Team size, roles, hierarchy, experience levels",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe your team composition"
+                }
+              },
+              {
+                "fieldName": "projectType",
+                "id": "project_type_input",
+                "label": "Project Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Software Development", "value": "software" },
+                    { "label": "Creative/Design", "value": "creative" },
+                    { "label": "Research & Development", "value": "research" },
+                    { "label": "Marketing Campaign", "value": "marketing" },
+                    { "label": "Operations/Process", "value": "operations" },
+                    { "label": "Cross-functional", "value": "cross_functional" }
+                  ],
+                  "defaultValue": "software",
+                  "helperText": "Type of project or work"
+                }
+              },
+              {
+                "fieldName": "collaborationTools",
+                "id": "collaboration_tools_input",
+                "label": "Available Tools",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Slack, Teams, Jira, GitHub, Figma, etc.",
+                  "multiline": true,
+                  "minRows": 2,
+                  "helperText": "List collaboration tools available"
+                }
+              },
+              {
+                "fieldName": "timezoneConsiderations",
+                "id": "timezone_considerations_input",
+                "label": "Team Distribution",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Co-located", "value": "colocated" },
+                    { "label": "Same Timezone", "value": "same_tz" },
+                    { "label": "2-3 Timezones", "value": "multi_tz" },
+                    { "label": "Global (24h spread)", "value": "global" }
+                  ],
+                  "defaultValue": "same_tz",
+                  "helperText": "Geographic distribution of team"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "collaborationProtocol",
+                "id": "collaboration_protocol",
+                "label": "Collaboration Protocol",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 12
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912347006",
+          "language": "en-US",
+          "name": "Collaboration Protocol Setup",
+          "description": "Designs comprehensive team collaboration protocols including communication frameworks, decision-making processes, and workflow coordination.",
+          "instructions": "Describe your team structure and project type. The protocol designer will create tailored collaboration guidelines and processes."
+        }
+      ]
+    }
+  ]
+}

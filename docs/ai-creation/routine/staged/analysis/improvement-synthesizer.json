@@ -1,0 +1,132 @@
+{
+  "id": "7892456378912349172",
+  "publicId": "improve-sy-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349173",
+      "publicId": "improve-synth-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of improvement synthesizer for comprehensive improvement opportunity identification and integration",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Insightful",
+            "maxTokens": 900,
+            "temperature": 0.4,
+            "prompt": "You are an improvement synthesis expert providing comprehensive analysis to identify, integrate, and prioritize improvement opportunities across systems, processes, and organizational functions.\n\nImprovement Scope: {{input.improvementScope}}\nData Sources: {{input.dataSources}}\nImprovement Goals: {{input.improvementGoals}}\nConstraints: {{input.constraints}}\n\nDevelop comprehensive improvement synthesis:\n\n1. **Data Analysis and Pattern Recognition**:\n   - Multi-source data integration and analysis\n   - Performance pattern and trend identification\n   - Anomaly and exception detection\n   - Root cause and contributing factor analysis\n   - Cross-functional impact assessment\n\n2. **Improvement Opportunity Identification**:\n   - Efficiency enhancement opportunities\n   - Quality improvement potential\n   - Cost reduction and optimization areas\n   - Innovation and modernization possibilities\n   - Process redesign and automation options\n\n3. **Impact Assessment and Prioritization**:\n   - Benefit estimation and quantification\n   - Implementation effort and resource analysis\n   - Risk and complexity evaluation\n   - Strategic alignment and importance scoring\n   - ROI and value proposition assessment\n\n4. **Synthesis and Integration Framework**:\n   - Improvement portfolio development\n   - Synergy and dependency identification\n   - Implementation sequence and timing\n   - Resource allocation and planning\n   - Change management consideration\n\n5. **Solution Design and Recommendations**:\n   - Integrated improvement strategy development\n   - Best practice and benchmark integration\n   - Technology and tool recommendations\n   - Process redesign and optimization\n   - Training and capability development\n\n6. **Implementation Planning and Roadmap**:\n   - Phased implementation approach\n   - Quick win and long-term initiative balance\n   - Resource requirement and timeline\n   - Success metrics and tracking systems\n   - Risk mitigation and contingency planning\n\n7. **Monitoring and Continuous Improvement**:\n   - Progress tracking and measurement\n   - Feedback integration and adaptation\n   - Continuous monitoring and optimization\n   - Learning and knowledge capture\n   - Sustainable improvement culture development\n\nProvide comprehensive improvement synthesis with integrated opportunities, prioritized recommendations, and implementation strategies for systematic and sustainable organizational enhancement.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "improvementScope",
+                "id": "improvement_scope_input",
+                "label": "Improvement Scope",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Business Processes", "value": "processes" },
+                    { "label": "Organizational Performance", "value": "organizational" },
+                    { "label": "Technology Systems", "value": "technology" },
+                    { "label": "Customer Experience", "value": "customer" },
+                    { "label": "Operational Efficiency", "value": "operational" },
+                    { "label": "Quality Management", "value": "quality" },
+                    { "label": "Comprehensive Organizational", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "processes",
+                  "helperText": "Primary scope for improvement synthesis"
+                }
+              },
+              {
+                "fieldName": "dataSources",
+                "id": "data_sources_input",
+                "label": "Data Sources",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Performance metrics, feedback surveys, process audits, benchmarking data, stakeholder input, system analytics",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What data sources are available for improvement analysis?"
+                }
+              },
+              {
+                "fieldName": "improvementGoals",
+                "id": "improvement_goals_input",
+                "label": "Improvement Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Specific objectives, target outcomes, performance improvements, strategic goals, success criteria",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What are the key improvement goals and objectives?"
+                }
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Constraints and Limitations",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Budget limitations, time constraints, resource availability, regulatory requirements, organizational resistance",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What constraints and limitations should be considered?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "improvementSynthesis",
+                "id": "improvement_synthesis",
+                "label": "Improvement Synthesis",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349174",
+          "language": "en-US",
+          "name": "Improvement Synthesizer",
+          "description": "Provides comprehensive improvement synthesis with integrated opportunities, prioritized recommendations, and implementation strategies for systematic organizational enhancement.",
+          "instructions": "Specify improvement scope, data sources, and goals. The synthesizer will create integrated improvement strategies and implementation plans."
+        }
+      ]
+    }
+  ]
+}

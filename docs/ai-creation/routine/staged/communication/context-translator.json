@@ -1,0 +1,137 @@
+{
+  "id": "7892456378912348010",
+  "publicId": "context-tr-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912348011",
+      "publicId": "ctx-trans-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of context translator for situational content adaptation",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Adaptive",
+            "maxTokens": 700,
+            "temperature": 0.6,
+            "prompt": "You are a context translation expert adapting content for different situations, audiences, and cultural contexts.\n\nOriginal Content: {{input.originalContent}}\nTarget Context: {{input.targetContext}}\nCultural Considerations: {{input.culturalConsiderations}}\nAdaptation Purpose: {{input.adaptationPurpose}}\n\nTranslate content for new context:\n\n1. **Context Analysis**:\n   - Situational differences identification\n   - Audience expectation shifts\n   - Cultural norm considerations\n   - Communication style requirements\n   - Formality level adjustments\n\n2. **Language Adaptation**:\n   - Vocabulary appropriateness\n   - Tone and register adjustment\n   - Idiomatic expression updates\n   - Technical terminology modification\n   - Clarity optimization\n\n3. **Cultural Translation**:\n   - Cultural reference adaptation\n   - Metaphor and analogy updates\n   - Value system alignment\n   - Sensitivity considerations\n   - Local relevance enhancement\n\n4. **Structural Modification**:\n   - Information hierarchy adjustment\n   - Argument structure adaptation\n   - Evidence type modification\n   - Conclusion style changes\n   - Call-to-action adaptation\n\n5. **Contextual Relevance**:\n   - Situational appropriateness\n   - Timing considerations\n   - Environmental factors\n   - Relationship dynamics\n   - Power structure awareness\n\n6. **Message Preservation**:\n   - Core meaning retention\n   - Intent clarity maintenance\n   - Value proposition consistency\n   - Key takeaway preservation\n   - Authenticity balance\n\nProvide contextually appropriate translation that maintains message integrity while maximizing effectiveness in the new context.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "originalContent",
+                "id": "original_content_input",
+                "label": "Original Content",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Paste the content that needs contextual adaptation",
+                  "multiline": true,
+                  "minRows": 6,
+                  "helperText": "Content to be translated for new context"
+                }
+              },
+              {
+                "fieldName": "targetContext",
+                "id": "target_context_input",
+                "label": "Target Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the new context: setting, audience, situation, purpose",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Where and how will this content be used?"
+                }
+              },
+              {
+                "fieldName": "culturalConsiderations",
+                "id": "cultural_considerations_input",
+                "label": "Cultural Context",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Same Culture/Region", "value": "same" },
+                    { "label": "Different Country/Culture", "value": "different" },
+                    { "label": "Professional/Industry", "value": "professional" },
+                    { "label": "Age/Generation Gap", "value": "generational" },
+                    { "label": "Socioeconomic Difference", "value": "socioeconomic" },
+                    { "label": "Educational Level", "value": "educational" }
+                  ],
+                  "defaultValue": "same",
+                  "helperText": "Primary cultural/contextual shift"
+                }
+              },
+              {
+                "fieldName": "adaptationPurpose",
+                "id": "adaptation_purpose_input",
+                "label": "Adaptation Goal",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Increase Understanding", "value": "understanding" },
+                    { "label": "Improve Acceptance", "value": "acceptance" },
+                    { "label": "Enhance Engagement", "value": "engagement" },
+                    { "label": "Reduce Offense/Sensitivity", "value": "sensitivity" },
+                    { "label": "Match Formality Level", "value": "formality" },
+                    { "label": "Improve Relevance", "value": "relevance" }
+                  ],
+                  "defaultValue": "understanding",
+                  "helperText": "Primary goal of adaptation"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "translatedContent",
+                "id": "translated_content",
+                "label": "Context-Adapted Content",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 10
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7892456378912348012",
+          "language": "en-US",
+          "name": "Context Translator",
+          "description": "Adapts content for different cultural, situational, and audience contexts while preserving core meaning and maximizing relevance.",
+          "instructions": "Provide content and describe the target context. The translator will adapt language, tone, and cultural references for optimal effectiveness."
+        }
+      ]
+    }
+  ]
+}

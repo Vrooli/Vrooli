@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Gather Task Inventory",
                 "description": "Collects all tasks with metadata and dependencies",
-                "subroutineId": "TODO: Need task collection subroutine",
+                "subroutineId": "7829564732190850073",
                 "inputMap": {
                   "taskSources": "inputChannels",
                   "projectBacklogs": "taskRepositories",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Apply Prioritization Frameworks",
                 "description": "Uses multiple methods to score and rank tasks",
-                "subroutineId": "TODO: Need framework application subroutine",
+                "subroutineId": "7829564732190850076",
                 "inputMap": {
                   "completeTaskList": "taskInventory",
                   "priorityFrameworks": "scoringMethods",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Analyze Resource Constraints",
                 "description": "Evaluates available resources against task requirements",
-                "subroutineId": "TODO: Need resource analysis subroutine",
+                "subroutineId": "7829564732190850079",
                 "inputMap": {
                   "resourceAvailability": "capacityInventory",
                   "taskRequirements": "resourceNeeds",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Consider Strategic Alignment",
                 "description": "Aligns tasks with organizational goals and objectives",
-                "subroutineId": "TODO: Need alignment assessment subroutine",
+                "subroutineId": "7829564732190850082",
                 "inputMap": {
                   "organizationalGoals": "strategicObjectives",
                   "taskOutcomes": "expectedResults",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Generate Priority Sequence",
                 "description": "Creates final prioritized task list with rationale",
-                "subroutineId": "TODO: Need sequencing subroutine",
+                "subroutineId": "7829564732190850085",
                 "inputMap": {
                   "multiCriteriaRanking": "weightedScoring",
                   "allocationPossibilities": "resourceMapping",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Create Adaptive Framework",
                 "description": "Establishes system for dynamic reprioritization",
-                "subroutineId": "TODO: Need adaptation framework subroutine",
+                "subroutineId": "7829564732190850088",
                 "inputMap": {
                   "taskSequence": "prioritizedList",
                   "changeTriggers": "reprioritizationEvents",

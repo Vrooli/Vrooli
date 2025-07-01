@@ -1,0 +1,195 @@
+{
+  "id": "7892456378912349211",
+  "publicId": "risk-mo-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349212",
+      "publicId": "risk-mon-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of risk monitor for comprehensive risk assessment and threat tracking",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Vigilant",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a risk monitoring expert providing comprehensive risk assessment, threat detection, and vulnerability tracking.
+
+Risk Domain: {{input.riskDomain}}
+Current Risk Profile: {{input.currentRiskProfile}}
+Monitoring Scope: {{input.monitoringScope}}
+Risk Tolerance: {{input.riskTolerance}}
+
+Monitor comprehensive risk landscape:
+
+1. **Risk Identification and Classification**:
+   - Threat vector mapping
+   - Vulnerability assessment
+   - Risk category classification
+   - Impact severity ranking
+   - Probability estimation
+
+2. **Real-time Risk Monitoring**:
+   - Continuous threat detection
+   - Anomaly pattern recognition
+   - Early warning systems
+   - Risk indicator tracking
+   - Escalation trigger monitoring
+
+3. **Business Impact Analysis**:
+   - Financial impact assessment
+   - Operational disruption evaluation
+   - Reputation damage potential
+   - Regulatory compliance risks
+   - Strategic objective threats
+
+4. **Technical Risk Assessment**:
+   - Security vulnerability scanning
+   - System failure risk analysis
+   - Data breach probability
+   - Performance degradation risks
+   - Integration failure potential
+
+5. **Market and External Risks**:
+   - Competitive threat monitoring
+   - Economic factor tracking
+   - Regulatory change impact
+   - Supplier risk assessment
+   - Environmental risk factors
+
+6. **Risk Mitigation Tracking**:
+   - Control effectiveness monitoring
+   - Mitigation strategy progress
+   - Residual risk calculation
+   - Contingency plan readiness
+   - Insurance coverage adequacy
+
+7. **Predictive Risk Analytics**:
+   - Risk trend forecasting
+   - Scenario modeling
+   - Stress testing results
+   - Monte Carlo simulations
+   - Risk correlation analysis
+
+Provide comprehensive risk monitoring report with threat assessments, vulnerability analysis, impact evaluation, and mitigation recommendations for proactive risk management.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "riskDomain",
+                "id": "risk_domain_input",
+                "label": "Risk Domain",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Cybersecurity", "value": "cybersecurity" },
+                    { "label": "Operational", "value": "operational" },
+                    { "label": "Financial", "value": "financial" },
+                    { "label": "Compliance", "value": "compliance" },
+                    { "label": "Strategic", "value": "strategic" },
+                    { "label": "Enterprise-wide", "value": "enterprise" }
+                  ],
+                  "defaultValue": "enterprise",
+                  "helperText": "Primary risk domain to monitor"
+                }
+              },
+              {
+                "fieldName": "currentRiskProfile",
+                "id": "current_risk_profile_input",
+                "label": "Current Risk Profile",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Known risks, recent incidents, vulnerability assessments, threat intelligence, risk score",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your current risk situation"
+                }
+              },
+              {
+                "fieldName": "monitoringScope",
+                "id": "monitoring_scope_input",
+                "label": "Monitoring Scope",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Systems to monitor, risk categories, geographic regions, business units, time horizons",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What needs to be monitored?"
+                }
+              },
+              {
+                "fieldName": "riskTolerance",
+                "id": "risk_tolerance_input",
+                "label": "Risk Tolerance",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Risk Averse", "value": "averse" },
+                    { "label": "Conservative", "value": "conservative" },
+                    { "label": "Moderate", "value": "moderate" },
+                    { "label": "Aggressive", "value": "aggressive" },
+                    { "label": "High Risk Tolerance", "value": "high" },
+                    { "label": "Context Dependent", "value": "context" }
+                  ],
+                  "defaultValue": "moderate",
+                  "helperText": "Organization's risk tolerance level"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "riskMonitoringReport",
+                "id": "risk_monitoring_report",
+                "label": "Risk Monitoring Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349213",
+          "language": "en-US",
+          "name": "Risk Monitor",
+          "description": "Provides comprehensive risk monitoring with threat detection, vulnerability assessment, and impact analysis for proactive risk management.",
+          "instructions": "Describe your risk domain, current profile, and monitoring needs. The monitor will assess and track risks."
+        }
+      ]
+    }
+  ]
+}

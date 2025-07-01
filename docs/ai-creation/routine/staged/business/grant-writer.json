@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349142",
+  "publicId": "grant-wr-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349143",
+      "publicId": "grant-write-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of grant writer for comprehensive grant proposal development and funding application creation",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a grant writing expert creating comprehensive, compelling grant proposals that effectively communicate project value and funding needs to secure financial support.\n\nProject Description: {{input.projectDescription}}\nFunding Amount: {{input.fundingAmount}}\nFunder Type: {{input.funderType}}\nOrganization Profile: {{input.organizationProfile}}\n\nDevelop comprehensive grant proposal:\n\n1. **Executive Summary and Overview**:\n   - Project vision and mission alignment\n   - Compelling problem statement\n   - Solution overview and innovation\n   - Expected impact and outcomes\n   - Funding request summary\n\n2. **Needs Assessment and Justification**:\n   - Problem magnitude and urgency\n   - Target population description\n   - Evidence-based need documentation\n   - Gap analysis and opportunity\n   - Community and stakeholder impact\n\n3. **Project Design and Methodology**:\n   - Approach and implementation strategy\n   - Evidence-based methodology\n   - Innovation and best practices\n   - Risk mitigation and contingencies\n   - Quality assurance framework\n\n4. **Goals, Objectives, and Outcomes**:\n   - SMART goal framework application\n   - Measurable objective definition\n   - Short and long-term outcomes\n   - Impact measurement strategy\n   - Sustainability planning\n\n5. **Budget and Financial Planning**:\n   - Detailed budget breakdown\n   - Cost justification and rationale\n   - Matching funds and leverage\n   - Cost-effectiveness demonstration\n   - Financial sustainability planning\n\n6. **Organizational Capacity and Qualifications**:\n   - Organizational history and mission\n   - Staff qualifications and expertise\n   - Past performance and success\n   - Partnership and collaboration\n   - Infrastructure and resources\n\n7. **Evaluation and Reporting Framework**:\n   - Evaluation methodology design\n   - Data collection and analysis plan\n   - Reporting schedule and format\n   - Stakeholder communication strategy\n   - Continuous improvement processes\n\nProvide comprehensive grant proposal with compelling narrative, detailed planning, and strong justification for funding support and project success.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "projectDescription",
+                "id": "project_description_input",
+                "label": "Project Description",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the project: purpose, goals, activities, target population, expected outcomes",
+                  "multiline": true,
+                  "minRows": 5,
+                  "helperText": "What project needs grant funding?"
+                }
+              },
+              {
+                "fieldName": "fundingAmount",
+                "id": "funding_amount_input",
+                "label": "Funding Request",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Amount requested, use of funds, timeline, matching funds",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "How much funding is needed and how will it be used?"
+                }
+              },
+              {
+                "fieldName": "funderType",
+                "id": "funder_type_input",
+                "label": "Funder Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Government Agency", "value": "government" },
+                    { "label": "Private Foundation", "value": "foundation" },
+                    { "label": "Corporate Funder", "value": "corporate" },
+                    { "label": "Community Foundation", "value": "community" },
+                    { "label": "Research Institution", "value": "research" },
+                    { "label": "International Organization", "value": "international" }
+                  ],
+                  "defaultValue": "foundation",
+                  "helperText": "Type of funding organization"
+                }
+              },
+              {
+                "fieldName": "organizationProfile",
+                "id": "organization_profile_input",
+                "label": "Organization Profile",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Organization mission, history, capacity, qualifications, past success",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe the organization applying for funding"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "grantProposal",
+                "id": "grant_proposal",
+                "label": "Grant Proposal",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349144",
+          "language": "en-US",
+          "name": "Grant Writer",
+          "description": "Creates comprehensive grant proposals with compelling narratives, detailed planning, and strong justification for securing funding support and project success.",
+          "instructions": "Describe project, funding needs, and organization profile. The writer will create detailed grant proposals tailored to funder requirements."
+        }
+      ]
+    }
+  ]
+}

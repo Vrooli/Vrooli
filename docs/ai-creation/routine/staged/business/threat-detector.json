@@ -1,0 +1,189 @@
+{
+  "id": "7892456378912349244",
+  "publicId": "threat-d-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349245",
+      "publicId": "threat-det-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of threat detector for comprehensive threat identification and security analysis",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Vigilant",
+            "maxTokens": 900,
+            "temperature": 0.1,
+            "prompt": "You are a threat detection expert providing comprehensive threat identification, risk assessment, and security vulnerability analysis.
+
+Threat Context: {{input.threatContext}}
+Detection Scope: {{input.detectionScope}}
+Current Security State: {{input.currentSecurityState}}
+Detection Requirements: {{input.detectionRequirements}}
+
+Detect and analyze comprehensive threat landscape:
+
+1. **Threat Intelligence Gathering**:
+   - External threat monitoring
+   - Attack vector identification
+   - Threat actor profiling
+   - Vulnerability database analysis
+   - Industry-specific threat tracking
+
+2. **Behavioral Analysis**:
+   - Anomaly detection patterns
+   - User behavior analysis
+   - Network traffic anomalies
+   - System usage deviations
+   - Access pattern irregularities
+
+3. **Technical Threat Detection**:
+   - Malware signature analysis
+   - Code injection detection
+   - SQL injection identification
+   - Cross-site scripting detection
+   - Buffer overflow analysis
+
+4. **Infrastructure Threat Assessment**:
+   - Network intrusion detection
+   - Port scanning identification
+   - DDoS attack recognition
+   - Unauthorized access attempts
+   - Configuration vulnerabilities
+
+5. **Data Security Threats**:
+   - Data exfiltration detection
+   - Unauthorized data access
+   - Privacy violation identification
+   - Backup integrity threats
+   - Data corruption analysis
+
+6. **Advanced Persistent Threats**:
+   - Long-term infiltration detection
+   - Lateral movement tracking
+   - Command and control identification
+   - Zero-day exploit detection
+   - Advanced evasion techniques
+
+7. **Threat Impact Analysis**:
+   - Risk severity assessment
+   - Business impact evaluation
+   - Attack timeline reconstruction
+   - Damage assessment
+   - Recovery requirement analysis
+
+Provide comprehensive threat detection report with identified threats, risk assessments, impact analysis, and mitigation recommendations for robust security posture.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "threatContext",
+                "id": "threat_context_input",
+                "label": "Threat Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Industry type, business model, data sensitivity, geographic presence, regulatory environment",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your threat context"
+                }
+              },
+              {
+                "fieldName": "detectionScope",
+                "id": "detection_scope_input",
+                "label": "Detection Scope",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Systems to monitor, networks, applications, endpoints, cloud services, user activities",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What needs threat detection?"
+                }
+              },
+              {
+                "fieldName": "currentSecurityState",
+                "id": "current_security_state_input",
+                "label": "Current Security State",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Existing security tools, known vulnerabilities, recent incidents, detection capabilities",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe current security posture"
+                }
+              },
+              {
+                "fieldName": "detectionRequirements",
+                "id": "detection_requirements_input",
+                "label": "Detection Requirements",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Real-time Detection", "value": "realtime" },
+                    { "label": "Advanced Persistent Threats", "value": "apt" },
+                    { "label": "Insider Threats", "value": "insider" },
+                    { "label": "External Attacks", "value": "external" },
+                    { "label": "Data Protection", "value": "data" },
+                    { "label": "Comprehensive Detection", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary detection focus"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "threatDetectionReport",
+                "id": "threat_detection_report",
+                "label": "Threat Detection Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349246",
+          "language": "en-US",
+          "name": "Threat Detector",
+          "description": "Provides comprehensive threat detection with intelligence gathering, behavioral analysis, and security vulnerability identification for robust threat management.",
+          "instructions": "Describe your threat context, detection scope, and security state. The detector will identify and analyze potential threats."
+        }
+      ]
+    }
+  ]
+}

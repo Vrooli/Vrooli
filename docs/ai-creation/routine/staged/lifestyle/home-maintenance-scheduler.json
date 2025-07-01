@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Inventory Home Systems",
                 "description": "Catalogs all home systems, appliances, and maintenance areas",
-                "subroutineId": "TODO: Need home inventory subroutine",
+                "subroutineId": "7829564732190850055",
                 "inputMap": {
                   "homeProfile": "propertyDetails",
                   "systemsList": "homeComponents",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Create Maintenance Schedule",
                 "description": "Builds comprehensive maintenance calendar based on best practices",
-                "subroutineId": "TODO: Need schedule creation subroutine",
+                "subroutineId": "7829564732190850058",
                 "inputMap": {
                   "completeAssetList": "systemInventory",
                   "maintenanceGuidelines": "industryStandards",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Prioritize Tasks",
                 "description": "Ranks maintenance tasks by urgency and importance",
-                "subroutineId": "TODO: Need task prioritization subroutine",
+                "subroutineId": "7829564732190850061",
                 "inputMap": {
                   "scheduledTasks": "maintenanceCalendar",
                   "riskAssessment": "failureImpact",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Budget & Resource Planning",
                 "description": "Estimates costs and identifies resource needs",
-                "subroutineId": "TODO: Need budget planning subroutine",
+                "subroutineId": "7829564732190850064",
                 "inputMap": {
                   "rankedMaintenance": "prioritizedTasks",
                   "costEstimates": "pricingData",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Generate Reminders & Tracking",
                 "description": "Creates notification system and progress tracking",
-                "subroutineId": "TODO: Need reminder system subroutine",
+                "subroutineId": "7829564732190850067",
                 "inputMap": {
                   "timeBasedTasks": "seasonalSchedule",
                   "notificationPreferences": "reminderSettings",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Create Action Plan",
                 "description": "Compiles comprehensive maintenance guide and checklists",
-                "subroutineId": "TODO: Need action plan subroutine",
+                "subroutineId": "7829564732190850070",
                 "inputMap": {
                   "costProjections": "budgetPlan",
                   "notificationPlan": "reminderSchedule",

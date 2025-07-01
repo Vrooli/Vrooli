@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850118",
+  "publicId": "sched-gen-conv-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850119",
+      "publicId": "sched-gen-conv-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates final time-blocked calendar",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "You are a calendar specialist creating a final time-blocked schedule. Format the completed calendar with usage insights.\n\nClean Schedule:\n{{input.cleanSchedule}}\n\nRescheduling Choices:\n{{input.reschedulingChoices}}\n\nCalendar Format:\n{{input.outputFormat}}\n\nGenerate the final schedule:\n\n1. **Time-Blocked Calendar**:\n   Create a clear, chronological schedule:\n   - **Morning Block (8:00 AM - 12:00 PM)**\n     - List each time slot with task\n     - Include buffer times\n     - Note energy level indicators\n   - **Afternoon Block (1:00 PM - 5:00 PM)**\n     - Continue chronological listing\n     - Show task transitions\n     - Highlight focus periods\n   - **Evening/Wrap-up (5:00 PM+)**\n     - End-of-day activities\n     - Next-day preparation\n   \n   Format each entry:\n   ```\n   ⏰ 9:00 AM - 10:30 AM: [Task Name]\n   🔋 Energy: High | 📊 Priority: Critical\n   📝 Notes: [Implementation tips]\n   ⏸️ Buffer: 10 minutes\n   ```\n\n2. **Schedule Metrics**:\n   - Total productive time scheduled\n   - Task completion rate potential\n   - Energy-task alignment score\n   - Buffer time percentage\n   - Focus blocks identified\n   - Context switch count\n   - Peak productivity utilization\n\n3. **Implementation Tips**:\n   - Setup recommendations before starting\n   - Environment optimization for each block\n   - Distraction management strategies\n   - Transition rituals between tasks\n   - Emergency replanning protocols\n   - End-of-day review process\n   - Success measurement criteria\n\nMake the calendar actionable and motivating.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "cleanSchedule",
+                "id": "clean_schedule_input",
+                "label": "Resolved Conflicts",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Conflict-free schedule"
+                }
+              },
+              {
+                "fieldName": "reschedulingChoices",
+                "id": "rescheduling_choices_input",
+                "label": "Alternative Options",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Alternative scheduling options"
+                }
+              },
+              {
+                "fieldName": "outputFormat",
+                "id": "output_format_input",
+                "label": "Calendar Format",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Desired output format preferences"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "finalSchedule",
+                "id": "final_schedule_output",
+                "label": "Time Blocked Calendar",
+                "type": "TextInput"
+              },
+              {
+                "fieldName": "scheduleMetrics",
+                "id": "schedule_metrics_output",
+                "label": "Utilization Statistics",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "implementationTips",
+                "id": "implementation_tips_output",
+                "label": "Execution Guidance",
+                "type": "TextInput"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850120",
+          "language": "en",
+          "name": "Schedule Generator (Conversational)",
+          "description": "Creates completed time-blocked calendar with implementation guidance and utilization statistics.",
+          "instructions": "Provide clean schedule, alternative options, and format preferences. The routine will generate the final formatted calendar."
+        }
+      ]
+    }
+  ]
+}

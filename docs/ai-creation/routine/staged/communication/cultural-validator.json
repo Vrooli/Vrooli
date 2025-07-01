@@ -1,0 +1,132 @@
+{
+  "id": "7892456378912349010",
+  "publicId": "cultural-v-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349011",
+      "publicId": "cult-valid-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of cultural validator for content cultural appropriateness validation",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 700,
+            "temperature": 0.3,
+            "prompt": "You are a cultural validation expert reviewing content for cultural appropriateness and sensitivity.\n\nContent to Validate: {{input.contentToValidate}}\nTarget Culture: {{input.targetCulture}}\nValidation Criteria: {{input.validationCriteria}}\nSensitivity Level: {{input.sensitivityLevel}}\n\nValidate content for cultural appropriateness:\n\n1. **Cultural Sensitivity Review**:\n   - Offensive content identification\n   - Stereotype detection\n   - Religious sensitivity check\n   - Political neutrality assessment\n   - Gender and social inclusivity\n\n2. **Language Appropriateness**:\n   - Terminology accuracy\n   - Formality level assessment\n   - Idiomatic expression review\n   - Translation quality check\n   - Local language preferences\n\n3. **Visual Content Validation**:\n   - Image cultural appropriateness\n   - Color symbolism assessment\n   - Gesture and body language review\n   - Clothing and appearance check\n   - Symbolic representation analysis\n\n4. **Business Cultural Alignment**:\n   - Professional norms compliance\n   - Communication style appropriateness\n   - Hierarchy and respect factors\n   - Time and urgency concepts\n   - Business etiquette adherence\n\n5. **Legal & Regulatory Compliance**:\n   - Local law compliance\n   - Advertising standard adherence\n   - Privacy regulation alignment\n   - Content restriction awareness\n   - Disclosure requirement check\n\n6. **Risk Assessment**:\n   - Potential offense probability\n   - Misunderstanding likelihood\n   - Reputation risk evaluation\n   - Legal exposure assessment\n   - Cultural backlash potential\n\n7. **Improvement Recommendations**:\n   - Specific modification suggestions\n   - Alternative approach options\n   - Cultural enhancement opportunities\n   - Risk mitigation strategies\n   - Local expert consultation needs\n\nProvide clear validation results with specific issues identified and actionable improvement recommendations.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "contentToValidate",
+                "id": "content_to_validate_input",
+                "label": "Content to Validate",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Paste the content that needs cultural validation",
+                  "multiline": true,
+                  "minRows": 6,
+                  "helperText": "Content to be culturally validated"
+                }
+              },
+              {
+                "fieldName": "targetCulture",
+                "id": "target_culture_input",
+                "label": "Target Culture",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Target culture, country, or region",
+                  "helperText": "Which culture should this be validated against?"
+                }
+              },
+              {
+                "fieldName": "validationCriteria",
+                "id": "validation_criteria_input",
+                "label": "Validation Focus",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "General Cultural Sensitivity", "value": "general" },
+                    { "label": "Business Communication", "value": "business" },
+                    { "label": "Marketing Content", "value": "marketing" },
+                    { "label": "Educational Material", "value": "educational" },
+                    { "label": "Legal/Compliance", "value": "legal" },
+                    { "label": "Social Media Content", "value": "social" }
+                  ],
+                  "defaultValue": "general",
+                  "helperText": "Primary validation focus area"
+                }
+              },
+              {
+                "fieldName": "sensitivityLevel",
+                "id": "sensitivity_level_input",
+                "label": "Sensitivity Level",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Standard Review", "value": "standard" },
+                    { "label": "High Sensitivity", "value": "high" },
+                    { "label": "Maximum Scrutiny", "value": "maximum" }
+                  ],
+                  "defaultValue": "standard",
+                  "helperText": "Required level of cultural sensitivity"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "validationReport",
+                "id": "validation_report",
+                "label": "Cultural Validation Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 10
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349012",
+          "language": "en-US",
+          "name": "Cultural Validator",
+          "description": "Validates content for cultural appropriateness, sensitivity, and compliance with local customs and regulations across different cultures.",
+          "instructions": "Provide content and target culture for validation. The validator will check for cultural sensitivity issues and provide improvement recommendations."
+        }
+      ]
+    }
+  ]
+}

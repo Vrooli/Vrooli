@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349379",
+  "publicId": "http-cl-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349380",
+      "publicId": "http-client-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of HTTP client for comprehensive HTTP communication and API integration strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are an HTTP client expert providing comprehensive HTTP communication strategies, API integration optimization, and request handling solutions.\n\nHTTP Context: {{input.httpContext}}\nAPI Requirements: {{input.apiRequirements}}\nPerformance Needs: {{input.performanceNeeds}}\nReliability Goals: {{input.reliabilityGoals}}\n\nDesign comprehensive HTTP client strategy:\n\n1. **HTTP Client Architecture**:\n   - Client library selection\n   - Connection management\n   - Session handling\n   - Keep-alive optimization\n   - Protocol version support\n\n2. **Request Optimization**:\n   - Request batching strategies\n   - Header optimization\n   - Payload compression\n   - Caching mechanisms\n   - Connection pooling\n\n3. **Error Handling and Resilience**:\n   - Retry mechanisms\n   - Circuit breaker patterns\n   - Timeout configuration\n   - Exponential backoff\n   - Graceful degradation\n\n4. **Security Implementation**:\n   - TLS/SSL configuration\n   - Certificate validation\n   - Authentication methods\n   - Token management\n   - Request signing\n\n5. **Performance Monitoring**:\n   - Response time tracking\n   - Throughput measurement\n   - Error rate monitoring\n   - Connection health\n   - Resource utilization\n\n6. **Integration Patterns**:\n   - REST API integration\n   - GraphQL support\n   - WebSocket handling\n   - Server-sent events\n   - File upload/download\n\n7. **Testing and Debugging**:\n   - Request/response logging\n   - Mock server integration\n   - Performance testing\n   - Load testing support\n   - Debug utilities\n\nProvide comprehensive HTTP client plan with architecture design, optimization strategies, security implementation, and monitoring frameworks for reliable HTTP communication.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "httpContext",
+                "id": "http_context_input",
+                "label": "HTTP Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Application type, integration scope, API diversity, traffic volumes, usage patterns",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your HTTP client context"
+                }
+              },
+              {
+                "fieldName": "apiRequirements",
+                "id": "api_requirements_input",
+                "label": "API Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "API types, authentication methods, data formats, protocol versions, special features",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What API requirements exist?"
+                }
+              },
+              {
+                "fieldName": "performanceNeeds",
+                "id": "performance_needs_input",
+                "label": "Performance Needs",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Response time targets, throughput requirements, concurrency needs, resource constraints",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What performance needs exist?"
+                }
+              },
+              {
+                "fieldName": "reliabilityGoals",
+                "id": "reliability_goals_input",
+                "label": "Reliability Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "High Availability", "value": "availability" },
+                    { "label": "Fault Tolerance", "value": "fault_tolerance" },
+                    { "label": "Performance Consistency", "value": "consistency" },
+                    { "label": "Error Recovery", "value": "recovery" },
+                    { "label": "Graceful Degradation", "value": "degradation" },
+                    { "label": "Comprehensive Reliability", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary reliability focus"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "httpClientPlan",
+                "id": "http_client_plan",
+                "label": "HTTP Client Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349381",
+          "language": "en-US",
+          "name": "HTTP Client",
+          "description": "Provides comprehensive HTTP client with architecture design, optimization strategies, and monitoring frameworks for reliable HTTP communication.",
+          "instructions": "Describe your HTTP context, API requirements, and performance needs. The client will design a comprehensive HTTP communication strategy."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "id": "7892456378912349154",
+  "publicId": "health-br-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349155",
+      "publicId": "healthcare-bridge-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of healthcare bridge for connecting patients with appropriate healthcare resources and services",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Compassionate",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a healthcare navigation expert connecting patients with appropriate healthcare resources, services, and support systems for optimal care coordination and health outcomes.\n\nHealth Concern: {{input.healthConcern}}\nPatient Profile: {{input.patientProfile}}\nResource Needs: {{input.resourceNeeds}}\nAccess Barriers: {{input.accessBarriers}}\n\nDevelop comprehensive healthcare bridge plan:\n\n1. **Healthcare Needs Assessment**:\n   - Primary health concern evaluation\n   - Severity and urgency determination\n   - Specialized care requirements\n   - Support service identification\n   - Care coordination complexity analysis\n\n2. **Provider and Facility Matching**:\n   - Specialist and provider identification\n   - Facility and clinic recommendations\n   - Quality and reputation assessment\n   - Location and accessibility consideration\n   - Insurance and payment compatibility\n\n3. **Care Pathway Development**:\n   - Referral sequence planning\n   - Appointment scheduling coordination\n   - Diagnostic and testing protocols\n   - Treatment timeline establishment\n   - Follow-up and monitoring plans\n\n4. **Resource Connection and Support**:\n   - Financial assistance programs\n   - Transportation and logistics support\n   - Insurance navigation guidance\n   - Prescription and medication access\n   - Community resource identification\n\n5. **Communication and Advocacy**:\n   - Provider communication facilitation\n   - Medical record and information sharing\n   - Patient advocacy and representation\n   - Care team coordination\n   - Family and caregiver involvement\n\n6. **Barrier Removal and Problem Solving**:\n   - Access obstacle identification\n   - Alternative solution development\n   - Emergency and urgent care options\n   - Cultural and language accommodation\n   - Technology and digital health integration\n\n7. **Ongoing Support and Navigation**:\n   - Care transition management\n   - Service coordination monitoring\n   - Resource utilization tracking\n   - Outcome and satisfaction assessment\n   - Continuous navigation support\n\nProvide comprehensive healthcare bridge plan with provider connections, resource access, and navigation support for seamless healthcare coordination and optimal patient outcomes.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "healthConcern",
+                "id": "health_concern_input",
+                "label": "Health Concern",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Primary health issue, symptoms, diagnosis, treatment needs, urgency level",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What health concern needs healthcare resources?"
+                }
+              },
+              {
+                "fieldName": "patientProfile",
+                "id": "patient_profile_input",
+                "label": "Patient Profile",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Age, medical history, current medications, disabilities, special needs, preferences",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe the patient's profile and needs"
+                }
+              },
+              {
+                "fieldName": "resourceNeeds",
+                "id": "resource_needs_input",
+                "label": "Resource Needs",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Primary Care Provider", "value": "primary_care" },
+                    { "label": "Specialist Referral", "value": "specialist" },
+                    { "label": "Emergency/Urgent Care", "value": "emergency" },
+                    { "label": "Mental Health Services", "value": "mental_health" },
+                    { "label": "Diagnostic Services", "value": "diagnostic" },
+                    { "label": "Rehabilitation Services", "value": "rehabilitation" },
+                    { "label": "Comprehensive Care Coordination", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "primary_care",
+                  "helperText": "Primary healthcare resource needed"
+                }
+              },
+              {
+                "fieldName": "accessBarriers",
+                "id": "access_barriers_input",
+                "label": "Access Barriers",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Insurance limitations, financial constraints, transportation, language, geographic, scheduling challenges",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What barriers exist to accessing healthcare?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "healthcareBridgePlan",
+                "id": "healthcare_bridge_plan",
+                "label": "Healthcare Bridge Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349156",
+          "language": "en-US",
+          "name": "Healthcare Bridge",
+          "description": "Connects patients with appropriate healthcare resources and services through comprehensive navigation, coordination, and barrier removal for optimal care access.",
+          "instructions": "Describe health concern, patient profile, and access barriers. The bridge will create detailed resource connections and navigation plans."
+        }
+      ]
+    }
+  ]
+}

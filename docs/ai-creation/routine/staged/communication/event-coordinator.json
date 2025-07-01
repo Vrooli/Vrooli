@@ -1,0 +1,137 @@
+{
+  "id": "7892456378912349106",
+  "publicId": "event-coord-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349107",
+      "publicId": "event-co-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of event coordinator for comprehensive event planning and execution management",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Organizational",
+            "maxTokens": 900,
+            "temperature": 0.4,
+            "prompt": "You are an event coordination expert providing comprehensive planning and execution management for successful events and gatherings.\n\nEvent Type: {{input.eventType}}\nEvent Scope: {{input.eventScope}}\nTarget Audience: {{input.targetAudience}}\nEvent Timeline: {{input.eventTimeline}}\n\nCoordinate comprehensive event planning and execution:\n\n1. **Event Planning and Strategy**:\n   - Objective and goal definition\n   - Target audience analysis\n   - Success criteria establishment\n   - Budget planning and allocation\n   - Risk assessment and mitigation\n\n2. **Logistics and Operations**:\n   - Venue selection and management\n   - Equipment and technology setup\n   - Catering and hospitality arrangements\n   - Transportation coordination\n   - Security and safety protocols\n\n3. **Program and Content Development**:\n   - Agenda and schedule creation\n   - Speaker and presenter coordination\n   - Content development and review\n   - Interactive element design\n   - Entertainment and engagement planning\n\n4. **Registration and Communication**:\n   - Registration system setup\n   - Invitation and promotion strategy\n   - Pre-event communication plan\n   - Attendee information management\n   - Updates and notification protocols\n\n5. **Vendor and Stakeholder Management**:\n   - Vendor selection and coordination\n   - Contract negotiation and management\n   - Stakeholder communication\n   - Partnership and sponsorship coordination\n   - Team coordination and delegation\n\n6. **Technology and Media Integration**:\n   - Audio-visual setup and management\n   - Live streaming and recording\n   - Social media coordination\n   - Digital platform integration\n   - Technical support planning\n\n7. **Execution and Follow-up**:\n   - Day-of-event coordination\n   - Real-time problem solving\n   - Quality assurance monitoring\n   - Post-event evaluation\n   - Follow-up communication and analysis\n\nProvide detailed event coordination plan with comprehensive logistics, stakeholder management, and execution frameworks for successful event delivery and participant satisfaction.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "eventType",
+                "id": "event_type_input",
+                "label": "Event Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Conference/Summit", "value": "conference" },
+                    { "label": "Workshop/Training", "value": "workshop" },
+                    { "label": "Corporate Meeting", "value": "meeting" },
+                    { "label": "Product Launch", "value": "launch" },
+                    { "label": "Trade Show/Exhibition", "value": "trade_show" },
+                    { "label": "Social/Networking Event", "value": "social" },
+                    { "label": "Virtual/Hybrid Event", "value": "virtual" }
+                  ],
+                  "defaultValue": "conference",
+                  "helperText": "Type of event being coordinated"
+                }
+              },
+              {
+                "fieldName": "eventScope",
+                "id": "event_scope_input",
+                "label": "Event Scope",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Event purpose, size, duration, location, key objectives and requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What is the scope and purpose of the event?"
+                }
+              },
+              {
+                "fieldName": "targetAudience",
+                "id": "target_audience_input",
+                "label": "Target Audience",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Attendee demographics, interests, expectations, participation level, special needs",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Who is the target audience for this event?"
+                }
+              },
+              {
+                "fieldName": "eventTimeline",
+                "id": "event_timeline_input",
+                "label": "Event Timeline",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Rush (2-4 weeks)", "value": "rush" },
+                    { "label": "Fast Track (1-2 months)", "value": "fast" },
+                    { "label": "Standard (2-4 months)", "value": "standard" },
+                    { "label": "Extended (4-6 months)", "value": "extended" },
+                    { "label": "Major Event (6+ months)", "value": "major" }
+                  ],
+                  "defaultValue": "standard",
+                  "helperText": "Planning timeline available"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "eventCoordinationPlan",
+                "id": "event_coordination_plan",
+                "label": "Event Coordination Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349108",
+          "language": "en-US",
+          "name": "Event Coordinator",
+          "description": "Provides comprehensive event planning and execution management with logistics coordination, stakeholder management, and quality assurance for successful events.",
+          "instructions": "Specify event type, scope, and target audience. The coordinator will create detailed planning frameworks and execution strategies."
+        }
+      ]
+    }
+  ]
+}

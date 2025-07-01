@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Travel Requirements",
                 "description": "Gathers preferences, constraints, and trip objectives",
-                "subroutineId": "TODO: Need travel analysis subroutine",
+                "subroutineId": "7829564732190850037",
                 "inputMap": {
                   "destination": "travelLocation",
                   "tripPurpose": "travelObjectives",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Research Destinations",
                 "description": "Explores attractions, culture, and local information",
-                "subroutineId": "TODO: Need destination research subroutine",
+                "subroutineId": "7829564732190850040",
                 "inputMap": {
                   "locationOverview": "destinationInsights",
                   "interestCategories": "activityPreferences",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Plan Transportation & Accommodation",
                 "description": "Arranges flights, hotels, and local transport",
-                "subroutineId": "TODO: Need booking planning subroutine",
+                "subroutineId": "7829564732190850043",
                 "inputMap": {
                   "tripParameters": "requirementsAnalysis",
                   "budgetConstraints": "financialLimits",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Create Daily Itinerary",
                 "description": "Designs day-by-day schedule with activities",
-                "subroutineId": "TODO: Need itinerary creation subroutine",
+                "subroutineId": "7829564732190850046",
                 "inputMap": {
                   "pointsOfInterest": "attractionsList",
                   "travelLogistics": "transportationPlan",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Add Practical Details",
                 "description": "Includes dining, budgets, and local tips",
-                "subroutineId": "TODO: Need practical details subroutine",
+                "subroutineId": "7829564732190850049",
                 "inputMap": {
                   "localKnowledge": "culturalInsights",
                   "dietaryNeeds": "foodPreferences",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Compile Travel Package",
                 "description": "Creates comprehensive travel documents and guides",
-                "subroutineId": "TODO: Need package compilation subroutine",
+                "subroutineId": "7829564732190850052",
                 "inputMap": {
                   "dayByDayPlan": "dailySchedules",
                   "reservationStrategy": "bookingRecommendations",

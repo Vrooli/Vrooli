@@ -1,0 +1,136 @@
+{
+  "id": "7892456378912349049",
+  "publicId": "learning-pd-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349050",
+      "publicId": "learn-patt-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of learning pattern detector for comprehensive learning behavior analysis and pattern identification",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a learning pattern analysis expert identifying behavioral patterns and learning characteristics from educational data.\n\nLearning Data: {{input.learningData}}\nLearner Information: {{input.learnerInformation}}\nPattern Focus: {{input.patternFocus}}\nAnalysis Period: {{input.analysisPeriod}}\n\nDetect and analyze learning patterns:\n\n1. **Engagement Pattern Analysis**:\n   - Activity participation trends\n   - Time-of-day engagement patterns\n   - Session duration characteristics\n   - Interaction frequency analysis\n   - Content type preferences\n\n2. **Learning Behavior Identification**:\n   - Study habit patterns\n   - Procrastination tendencies\n   - Completion rate trends\n   - Help-seeking behaviors\n   - Self-regulation strategies\n\n3. **Performance Pattern Detection**:\n   - Skill acquisition trajectories\n   - Error pattern analysis\n   - Improvement rate identification\n   - Plateau and breakthrough points\n   - Assessment performance trends\n\n4. **Cognitive Load Patterns**:\n   - Difficulty handling characteristics\n   - Information processing preferences\n   - Attention span variations\n   - Multitasking behavior analysis\n   - Cognitive overload indicators\n\n5. **Social Learning Patterns**:\n   - Collaboration preferences\n   - Peer interaction behaviors\n   - Help-giving and receiving patterns\n   - Discussion participation trends\n   - Group work effectiveness\n\n6. **Content Interaction Patterns**:\n   - Resource utilization preferences\n   - Media type engagement levels\n   - Navigation behavior analysis\n   - Revisit and review patterns\n   - Content depth exploration\n\n7. **Adaptive Learning Insights**:\n   - Learning style manifestations\n   - Personalization effectiveness\n   - Intervention response patterns\n   - Motivation fluctuation cycles\n   - Success factor correlations\n\nProvide detailed pattern analysis with identified trends, behavioral insights, and recommendations for learning optimization and personalization strategies.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "learningData",
+                "id": "learning_data_input",
+                "label": "Learning Data",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Learning activities, completion rates, time spent, assessment scores, engagement metrics",
+                  "multiline": true,
+                  "minRows": 5,
+                  "helperText": "What learning data is available for analysis?"
+                }
+              },
+              {
+                "fieldName": "learnerInformation",
+                "id": "learner_information_input",
+                "label": "Learner Information",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Demographics, background, goals, preferences, current skill level",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What information is available about the learners?"
+                }
+              },
+              {
+                "fieldName": "patternFocus",
+                "id": "pattern_focus_input",
+                "label": "Pattern Focus",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Learning Behavior Patterns", "value": "behavior" },
+                    { "label": "Performance Trends", "value": "performance" },
+                    { "label": "Engagement Patterns", "value": "engagement" },
+                    { "label": "Learning Style Indicators", "value": "style" },
+                    { "label": "Risk Factor Detection", "value": "risk" },
+                    { "label": "Success Predictors", "value": "success" }
+                  ],
+                  "defaultValue": "behavior",
+                  "helperText": "Primary focus of pattern detection"
+                }
+              },
+              {
+                "fieldName": "analysisPeriod",
+                "id": "analysis_period_input",
+                "label": "Analysis Period",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Single Session", "value": "session" },
+                    { "label": "Weekly Patterns", "value": "weekly" },
+                    { "label": "Monthly Trends", "value": "monthly" },
+                    { "label": "Course Duration", "value": "course" },
+                    { "label": "Long-term Tracking", "value": "longterm" }
+                  ],
+                  "defaultValue": "course",
+                  "helperText": "Time period for pattern analysis"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "patternAnalysisReport",
+                "id": "pattern_analysis_report",
+                "label": "Learning Pattern Analysis Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349051",
+          "language": "en-US",
+          "name": "Learning Pattern Detector",
+          "description": "Analyzes learning data to identify behavioral patterns, performance trends, and engagement characteristics for personalized learning optimization.",
+          "instructions": "Provide learning data and learner information. The detector will identify patterns and provide insights for learning personalization and optimization."
+        }
+      ]
+    }
+  ]
+}

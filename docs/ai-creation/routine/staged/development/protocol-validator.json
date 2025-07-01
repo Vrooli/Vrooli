@@ -1,0 +1,195 @@
+{
+  "id": "7892456378912349193",
+  "publicId": "protoc-v-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349194",
+      "publicId": "protoc-valid-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of protocol validator for comprehensive communication protocol validation and compliance",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 900,
+            "temperature": 0.1,
+            "prompt": "You are a protocol validation expert providing comprehensive communication protocol verification, standard compliance, and interoperability validation.
+
+Protocol Type: {{input.protocolType}}
+Implementation Details: {{input.implementationDetails}}
+Validation Requirements: {{input.validationRequirements}}
+Protocol Standards: {{input.protocolStandards}}
+
+Validate comprehensive protocol compliance:
+
+1. **Protocol Specification Validation**:
+   - Message format verification
+   - Field requirement checking
+   - Data type validation
+   - Encoding compliance
+   - Version compatibility
+
+2. **Communication Flow Verification**:
+   - Handshake sequence validation
+   - State machine compliance
+   - Timeout handling verification
+   - Retry mechanism checking
+   - Connection lifecycle validation
+
+3. **Security Protocol Validation**:
+   - Authentication flow checking
+   - Encryption standard compliance
+   - Certificate validation
+   - Key exchange verification
+   - Security header validation
+
+4. **Performance Compliance**:
+   - Latency requirement validation
+   - Throughput verification
+   - Bandwidth usage checking
+   - Message size compliance
+   - Rate limiting validation
+
+5. **Error Handling Validation**:
+   - Error code compliance
+   - Exception flow verification
+   - Recovery procedure validation
+   - Fault tolerance checking
+   - Graceful degradation verification
+
+6. **Interoperability Testing**:
+   - Cross-platform validation
+   - Version compatibility checking
+   - Standard compliance verification
+   - Third-party integration testing
+   - Backward compatibility assessment
+
+7. **Compliance and Certification**:
+   - Industry standard compliance
+   - Regulatory requirement validation
+   - Certification readiness assessment
+   - Documentation completeness
+   - Test coverage verification
+
+Provide comprehensive protocol validation report with compliance status, identified violations, interoperability assessment, and remediation recommendations for robust protocol implementation.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "protocolType",
+                "id": "protocol_type_input",
+                "label": "Protocol Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "HTTP/REST", "value": "http" },
+                    { "label": "WebSocket", "value": "websocket" },
+                    { "label": "gRPC", "value": "grpc" },
+                    { "label": "MQTT", "value": "mqtt" },
+                    { "label": "Custom Protocol", "value": "custom" },
+                    { "label": "Multiple Protocols", "value": "multiple" }
+                  ],
+                  "defaultValue": "http",
+                  "helperText": "Type of protocol to validate"
+                }
+              },
+              {
+                "fieldName": "implementationDetails",
+                "id": "implementation_details_input",
+                "label": "Implementation Details",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Protocol version, implementation language, framework used, custom extensions, integration points",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe the protocol implementation"
+                }
+              },
+              {
+                "fieldName": "validationRequirements",
+                "id": "validation_requirements_input",
+                "label": "Validation Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Compliance standards, performance targets, security requirements, compatibility needs",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What validation is required?"
+                }
+              },
+              {
+                "fieldName": "protocolStandards",
+                "id": "protocol_standards_input",
+                "label": "Protocol Standards",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "RFC Compliance", "value": "rfc" },
+                    { "label": "Industry Standards", "value": "industry" },
+                    { "label": "Internal Standards", "value": "internal" },
+                    { "label": "Security Standards", "value": "security" },
+                    { "label": "Performance Standards", "value": "performance" },
+                    { "label": "All Standards", "value": "all" }
+                  ],
+                  "defaultValue": "all",
+                  "helperText": "Standards to validate against"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "protocolValidationReport",
+                "id": "protocol_validation_report",
+                "label": "Protocol Validation Report",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349195",
+          "language": "en-US",
+          "name": "Protocol Validator",
+          "description": "Provides comprehensive protocol validation with specification verification, compliance checking, and interoperability assessment for robust communication protocols.",
+          "instructions": "Describe your protocol type, implementation, and requirements. The validator will verify protocol compliance and standards."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849755",
+  "publicId": "listening-skills-developer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847057",
+      "tag": "lifestyle",
+      "translations": [
+        {
+          "id": "7829564732190847157",
+          "language": "en",
+          "description": "Lifestyle and personal"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847092",
+      "tag": "coaching",
+      "translations": [
+        {
+          "id": "7829564732190847192",
+          "language": "en",
+          "description": "Coaching and guidance"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849756",
+      "publicId": "listening-skills-developer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Enhances active listening and empathy capabilities",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "listeningChallenges",
+                "id": "listening_challenges_input",
+                "label": "Listening Challenges",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Current barriers to effective listening"
+              },
+              {
+                "fieldName": "relationshipContext",
+                "id": "relationship_context_input",
+                "label": "Relationship Context",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Type and dynamics of relationship"
+              },
+              {
+                "fieldName": "communicationGoals",
+                "id": "communication_goals_input",
+                "label": "Communication Goals",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Desired listening improvements"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "listeningTechniques",
+                "id": "listening_techniques_output",
+                "label": "Listening Techniques",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "empathyExercises",
+                "id": "empathy_exercises_output",
+                "label": "Empathy Exercises",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "practiceScenarios",
+                "id": "practice_scenarios_output",
+                "label": "Practice Scenarios",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849757",
+          "language": "en",
+          "name": "Listening Skills Developer",
+          "description": "Develops active listening techniques and empathy-building exercises.",
+          "instructions": "Provide listening challenges and context. The routine will develop skills."
+        }
+      ]
+    }
+  ]
+}

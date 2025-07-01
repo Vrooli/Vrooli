@@ -1,0 +1,132 @@
+{
+  "id": "7892456378912349064",
+  "publicId": "logistics-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349065",
+      "publicId": "logist-mgr-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of logistics manager for comprehensive supply chain and logistics optimization",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Systematic",
+            "maxTokens": 900,
+            "temperature": 0.3,
+            "prompt": "You are a logistics management expert providing comprehensive strategies for supply chain optimization, inventory management, and logistics coordination.\n\nLogistics Challenge: {{input.logisticsChallenge}}\nSupply Chain Details: {{input.supplyChainDetails}}\nOptimization Goals: {{input.optimizationGoals}}\nConstraints: {{input.constraints}}\n\nDevelop comprehensive logistics management strategy:\n\n1. **Supply Chain Analysis and Mapping**:\n   - Current supply chain assessment\n   - Vendor and supplier evaluation\n   - Distribution network analysis\n   - Bottleneck and inefficiency identification\n   - Cost and performance benchmarking\n\n2. **Inventory Management Optimization**:\n   - Inventory level optimization\n   - Demand forecasting and planning\n   - Stock rotation and turnover strategies\n   - Safety stock and buffer management\n   - Just-in-time implementation\n\n3. **Transportation and Distribution**:\n   - Route optimization strategies\n   - Carrier selection and management\n   - Delivery schedule optimization\n   - Cost-effective shipping solutions\n   - Multi-modal transportation planning\n\n4. **Warehouse and Storage Management**:\n   - Warehouse layout optimization\n   - Storage capacity planning\n   - Pick and pack efficiency\n   - Automation and technology integration\n   - Space utilization strategies\n\n5. **Technology and Systems Integration**:\n   - Logistics management systems\n   - Real-time tracking and visibility\n   - Data analytics and reporting\n   - Automation and AI integration\n   - Digital transformation strategies\n\n6. **Risk Management and Contingency**:\n   - Supply chain risk assessment\n   - Disruption mitigation strategies\n   - Alternative supplier identification\n   - Emergency response protocols\n   - Business continuity planning\n\n7. **Performance Monitoring and Optimization**:\n   - Key performance indicator tracking\n   - Cost analysis and reduction\n   - Service level optimization\n   - Continuous improvement processes\n   - Stakeholder communication\n\nProvide detailed logistics management plan with optimization strategies, implementation roadmap, and performance measurement frameworks for efficient supply chain operations.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "logisticsChallenge",
+                "id": "logistics_challenge_input",
+                "label": "Logistics Challenge",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Current logistics issues, inefficiencies, problems to solve, optimization opportunities",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "What logistics challenges need to be addressed?"
+                }
+              },
+              {
+                "fieldName": "supplyChainDetails",
+                "id": "supply_chain_details_input",
+                "label": "Supply Chain Details",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Suppliers, warehouses, distribution centers, products, volumes, geographic coverage",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your current supply chain setup"
+                }
+              },
+              {
+                "fieldName": "optimizationGoals",
+                "id": "optimization_goals_input",
+                "label": "Optimization Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Cost Reduction", "value": "cost" },
+                    { "label": "Speed and Efficiency", "value": "speed" },
+                    { "label": "Quality Improvement", "value": "quality" },
+                    { "label": "Scalability", "value": "scalability" },
+                    { "label": "Risk Mitigation", "value": "risk" },
+                    { "label": "Sustainability", "value": "sustainability" },
+                    { "label": "Comprehensive Optimization", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary optimization objective"
+                }
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Constraints",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Budget limitations, regulatory requirements, geographic restrictions, technology constraints",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What constraints must be considered?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "logisticsOptimizationPlan",
+                "id": "logistics_optimization_plan",
+                "label": "Logistics Optimization Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349066",
+          "language": "en-US",
+          "name": "Logistics Manager",
+          "description": "Provides comprehensive logistics management strategies for supply chain optimization, inventory management, and distribution efficiency with performance measurement and risk mitigation.",
+          "instructions": "Describe your logistics challenges, supply chain details, and optimization goals. The manager will create detailed logistics optimization strategies and implementation plans."
+        }
+      ]
+    }
+  ]
+}

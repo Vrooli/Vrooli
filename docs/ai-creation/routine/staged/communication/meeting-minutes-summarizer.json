@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Parse Meeting Content",
                 "description": "Extracts structure from meeting transcript or notes",
-                "subroutineId": "TODO: Need reasoning subroutine for content parsing",
+                "subroutineId": "7829564732190850121",
                 "inputMap": {
                   "meetingTranscript": "rawMeetingContent",
                   "attendeeList": "participants",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Extract Key Points",
                 "description": "Identifies main discussion points and outcomes",
-                "subroutineId": "TODO: Need reasoning subroutine for key point extraction",
+                "subroutineId": "7829564732190850124",
                 "inputMap": {
                   "structuredContent": "parsedMeeting",
                   "topicSegments": "discussionTopics",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Extract Action Items",
                 "description": "Identifies tasks, assignments, and deadlines",
-                "subroutineId": "TODO: Need reasoning subroutine for action item extraction",
+                "subroutineId": "7829564732190850127",
                 "inputMap": {
                   "structuredContent": "parsedMeeting",
                   "speakerMap": "whoSaidWhat",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Highlight Decisions",
                 "description": "Emphasizes decisions made during the meeting",
-                "subroutineId": "TODO: Need reasoning subroutine for decision highlighting",
+                "subroutineId": "7829564732190850130",
                 "inputMap": {
                   "decisions": "decisionsMade",
                   "structuredContent": "parsedMeeting",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Generate Minutes",
                 "description": "Creates formal meeting minutes document",
-                "subroutineId": "TODO: Need generation subroutine for minutes formatting",
+                "subroutineId": "7829564732190850133",
                 "inputMap": {
                   "mainDiscussionPoints": "keyPoints",
                   "extractedActions": "actionItems",

@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850166",
+  "publicId": "tool-eval-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850167",
+      "publicId": "tool-eval-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Evaluates productivity tools and their impact",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "You are a productivity tool assessment expert. Evaluate the effectiveness of current tools and suggest improvements.\n\nCurrent Tools:\n{{input.currentTools}}\n\nUtilization Patterns:\n{{input.toolUsage}}\n\nEffectiveness Metrics:\n{{input.toolOutcomes}}\n\nEvaluate tool effectiveness:\n\n1. **Tool Assessment Framework**:\n   For each tool, evaluate:\n   - **Adoption Rate**: How consistently it's used\n   - **Learning Curve**: Time to become proficient\n   - **Integration**: How well it works with other tools\n   - **Reliability**: Stability and uptime\n   - **ROI**: Time saved vs time invested\n   - **User Satisfaction**: Enjoyment and ease of use\n   - **Feature Utilization**: Which capabilities are actually used\n\n2. **Underutilized Opportunities**:\n   - Advanced features not being used\n   - Automation possibilities\n   - Integration opportunities\n   - Template or workflow optimization\n   - Shortcut and efficiency features\n   - Collaboration capabilities\n   - Mobile or cross-platform usage\n\n3. **Tool Redundancy Analysis**:\n   - Multiple tools doing similar functions\n   - Overlap in capabilities\n   - Unnecessary complexity\n   - Licensing costs vs value\n   - Maintenance overhead\n\n4. **Alternative Recommendations**:\n   - Better tools for specific use cases\n   - Consolidation opportunities\n   - Free alternatives to paid tools\n   - Newer solutions with better features\n   - Tools that integrate better with existing workflow\n\nProvide output as JSON with:\n- toolAssessment: Detailed evaluation of each tool\n- underutilizedTools: Missed opportunities with current tools\n- toolRecommendations: Suggested improvements and alternatives",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "currentTools",
+                "id": "current_tools_input",
+                "label": "Productivity Tools",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Current productivity tools and systems"
+                }
+              },
+              {
+                "fieldName": "toolUsage",
+                "id": "tool_usage_input",
+                "label": "Utilization Patterns",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "How tools are currently used"
+                }
+              },
+              {
+                "fieldName": "toolOutcomes",
+                "id": "tool_outcomes_input",
+                "label": "Effectiveness Metrics",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Results and outcomes from tool usage"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "toolAssessment",
+                "id": "tool_assessment_output",
+                "label": "Tool Effectiveness",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "underutilizedTools",
+                "id": "underutilized_tools_output",
+                "label": "Missed Opportunities",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "toolRecommendations",
+                "id": "tool_recommendations_output",
+                "label": "Better Alternatives",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850168",
+          "language": "en",
+          "name": "Tool Effectiveness Evaluator",
+          "description": "Assesses productivity tools and their actual impact with recommendations for optimization.",
+          "instructions": "Provide current tools, usage patterns, and effectiveness metrics. The routine will evaluate tool performance and suggest improvements."
+        }
+      ]
+    }
+  ]
+}

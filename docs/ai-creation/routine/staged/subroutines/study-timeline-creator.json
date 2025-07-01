@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190850187",
+  "publicId": "study-timeline-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190850188",
+      "publicId": "study-timeline-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates detailed study schedule with review cycles",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "You are a study scheduling expert. Create detailed timelines with spaced repetition and progress milestones.\n\nStudy Distribution:\n{{input.studyDistribution}}\n\nStudy Windows:\n{{input.studyWindows}}\n\nRetention Approach:\n{{input.reviewStrategy}}\n\nCreate comprehensive study timeline:\n\n1. **Daily Schedule Structure**:\n   Design optimal daily study patterns:\n   - **Morning Sessions**: High-energy subjects (2-3 hours)\n   - **Afternoon Sessions**: Practice and application (1-2 hours)\n   - **Evening Sessions**: Review and light reading (1-2 hours)\n   - **Weekend Intensives**: Deep dives and catch-up (3-4 hours)\n   \n   For each time slot:\n   - Subject assignment based on energy requirements\n   - Session duration and break intervals\n   - Activity type (learning, practice, review)\n   - Backup plans for schedule disruptions\n\n2. **Weekly Study Cycles**:\n   Create balanced weekly rhythms:\n   - **Monday**: New material introduction\n   - **Tuesday-Wednesday**: Core learning and practice\n   - **Thursday**: Review and consolidation\n   - **Friday**: Practice problems and application\n   - **Saturday**: Intensive study and catch-up\n   - **Sunday**: Review, planning, and lighter study\n   \n   Include:\n   - Subject rotation to maintain freshness\n   - Difficulty progression throughout week\n   - Adequate rest and recovery periods\n   - Flexibility for unexpected events\n\n3. **Spaced Repetition Schedule**:\n   Implement evidence-based review cycles:\n   - **Day 1**: Initial learning\n   - **Day 2**: First review (24-hour cycle)\n   - **Day 7**: Second review (1-week cycle)\n   - **Day 14**: Third review (2-week cycle)\n   - **Day 30**: Fourth review (1-month cycle)\n   - **Pre-exam**: Final intensive review\n   \n   Customize intervals based on:\n   - Material difficulty and complexity\n   - Personal retention patterns\n   - Exam proximity and importance\n   - Available time for review sessions\n\n4. **Progress Milestones**:\n   Set measurable checkpoints:\n   - **Weekly Goals**: Specific topics to complete\n   - **Bi-weekly Assessments**: Self-testing and evaluation\n   - **Monthly Reviews**: Comprehensive progress evaluation\n   - **Milestone Celebrations**: Motivation and reward points\n   - **Adjustment Triggers**: When to modify the plan\n   \n   Include tracking metrics:\n   - Material coverage percentage\n   - Practice problem completion rates\n   - Self-assessment scores\n   - Time adherence rates\n   - Confidence levels by topic\n\n5. **Exam Preparation Phases**:\n   Structure final preparation periods:\n   - **4 weeks before**: Complete initial learning\n   - **3 weeks before**: Focus on practice and application\n   - **2 weeks before**: Intensive review and weak area focus\n   - **1 week before**: Mock exams and final review\n   - **3 days before**: Light review and strategy preparation\n   - **Day before**: Rest, relaxation, and confidence building\n\n6. **Contingency Planning**:\n   Prepare for common challenges:\n   - **Schedule Disruptions**: Backup study times and catch-up strategies\n   - **Difficult Topics**: Extra time allocation and alternative approaches\n   - **Motivation Dips**: Re-engagement techniques and support systems\n   - **Falling Behind**: Prioritization and efficient catch-up methods\n   - **Overwhelm**: Stress management and workload reduction\n\nCreate actionable, day-by-day schedules with specific tasks.\n\nProvide output as JSON with:\n- studyTimeline: Detailed daily and weekly schedule\n- reviewCycles: Spaced repetition plan with dates\n- milestoneTracker: Progress checkpoints and assessment schedule",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "studyDistribution",
+                "id": "study_distribution_input",
+                "label": "Time Allocation",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Time distribution across subjects"
+                }
+              },
+              {
+                "fieldName": "studyWindows",
+                "id": "study_windows_input",
+                "label": "Learning Slots",
+                "type": "JSON",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Available study time windows"
+                }
+              },
+              {
+                "fieldName": "reviewStrategy",
+                "id": "review_strategy_input",
+                "label": "Retention Approach",
+                "type": "JSON",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Preferred review and retention strategies"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "studyTimeline",
+                "id": "study_timeline_output",
+                "label": "Detailed Schedule",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "reviewCycles",
+                "id": "review_cycles_output",
+                "label": "Reinforcement Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "milestoneTracker",
+                "id": "milestone_tracker_output",
+                "label": "Progress Checkpoints",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190850189",
+          "language": "en",
+          "name": "Study Timeline Creator",
+          "description": "Builds detailed schedule with review cycles, spaced repetition, and progress milestones.",
+          "instructions": "Provide study distribution, available windows, and review strategy. The routine will create a comprehensive timeline with checkpoints."
+        }
+      ]
+    }
+  ]
+}
