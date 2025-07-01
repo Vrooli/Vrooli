@@ -12,7 +12,9 @@
  */
 
 import { generatePK } from "@vrooli/shared";
-import { type Redis } from "ioredis";
+import { logger } from "../../../events/logger.js";
+import { CacheService } from "../../../redisConn.js";
+import { getEventBus } from "../../events/eventBus.js";
 import type { ISwarmContextManager } from "../shared/SwarmContextManager.js";
 import {
     type ResourceUsage,
@@ -128,20 +130,14 @@ export interface IRunContextManager {
  */
 export class RunContextManager implements IRunContextManager {
     private readonly swarmContextManager: ISwarmContextManager;
-    private readonly eventBus: IEventBus;
-    private readonly redis: Redis;
 
     // Track active run allocations for cleanup
     private readonly activeAllocations = new Map<string, RunAllocation>();
 
     constructor(
         swarmContextManager: ISwarmContextManager,
-        eventBus: IEventBus,
-        redis: Redis,
     ) {
         this.swarmContextManager = swarmContextManager;
-        this.eventBus = eventBus;
-        this.redis = redis;
     }
 
     async allocateFromSwarm(
@@ -219,8 +215,8 @@ export class RunContextManager implements IRunContextManager {
 
         // Clean up tracking
         this.activeAllocations.delete(runId);
-        await this.redis.del(`run_allocation:${runId}`);
-        await this.redis.del(`run_context:${runId}`);
+        await CacheService.get().del(`run_allocation:${runId}`);
+        await CacheService.get().del(`run_context:${runId}`);
 
         logger.info("Released run resources to swarm", {
             runId,
@@ -234,7 +230,7 @@ export class RunContextManager implements IRunContextManager {
     }
 
     async getRunContext(runId: string): Promise<RunExecutionContext> {
-        const data = await this.redis.get(`run_context:${runId}`);
+        const data = await CacheService.get().get(`run_context:${runId}`);
         if (!data) {
             throw new Error(`Run context not found: ${runId}`);
         }
@@ -283,7 +279,7 @@ export class RunContextManager implements IRunContextManager {
     }
 
     async emitRunStarted(runId: string, routineId: string, allocation: RunAllocation): Promise<void> {
-        await this.eventBus.publish({
+        await getEventBus().publish({
             type: EventTypes.RUN_STARTED,
             source: { tier: 2, component: "RunContextManager" },
             data: {
@@ -300,7 +296,7 @@ export class RunContextManager implements IRunContextManager {
     }
 
     async emitRunCompleted(runId: string, result: any, usage: ResourceUsage): Promise<void> {
-        await this.eventBus.publish({
+        await getEventBus().publish({
             type: EventTypes.RUN_COMPLETED,
             source: { tier: 2, component: "RunContextManager" },
             data: {
@@ -317,7 +313,7 @@ export class RunContextManager implements IRunContextManager {
     }
 
     async emitRunFailed(runId: string, error: any, usage: ResourceUsage): Promise<void> {
-        await this.eventBus.publish({
+        await getEventBus().publish({
             type: EventTypes.RUN_FAILED,
             source: { tier: 2, component: "RunContextManager" },
             data: {

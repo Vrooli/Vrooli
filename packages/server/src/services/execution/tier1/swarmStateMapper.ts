@@ -1,14 +1,12 @@
 // AI_CHECK: STARTUP_ERRORS=1 | LAST: 2025-06-25
-import { ExecutionStates } from "@vrooli/shared";
-import { type ChatConfigObject, type SwarmSubTask } from "@vrooli/shared";
-import { type Swarm, type SwarmConfiguration } from "@vrooli/shared";
+import { ExecutionStates, type ChatConfigObject, type Swarm, type SwarmConfiguration, type SwarmSubTask } from "@vrooli/shared";
 
 /**
  * Service to map between execution tier swarm states and UI-friendly chat config states
  */
 export class SwarmStateMapper {
     /**
-     * Maps ExecutionState enum to UI-friendly status strings
+     * Maps ExecutionStates enum to UI-friendly status strings
      */
     static mapExecutionStateToSwarmStatus(state: keyof typeof ExecutionStates): string {
         const stateMap: Record<keyof typeof ExecutionStates, string> = {
@@ -101,7 +99,7 @@ export class SwarmStateMapper {
     ): SwarmSubTask[] {
         // This is a simplified implementation - in practice, you'd need more
         // detailed task tracking to properly map individual subtask statuses
-        const completionRatio = swarm.metrics?.tasksCompleted 
+        const completionRatio = swarm.metrics?.tasksCompleted
             ? swarm.metrics.tasksCompleted / Math.max(subtasks.length, 1)
             : 0;
 
@@ -109,7 +107,7 @@ export class SwarmStateMapper {
             // Simple heuristic: mark tasks as done based on completion ratio
             const taskIndex = index + 1;
             const isComplete = taskIndex <= Math.floor(completionRatio * subtasks.length);
-            
+
             return {
                 ...task,
                 status: isComplete ? "done" : task.status,

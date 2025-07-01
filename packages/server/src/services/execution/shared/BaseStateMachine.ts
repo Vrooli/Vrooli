@@ -32,7 +32,8 @@
 
 import { generatePK, type UnifiedEvent } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
-import { EventUtils, getUnifiedEventSystem, type BaseEvent, type IEventBus } from "../../events/index.js";
+import { getEventBus } from "../../events/eventBus.js";
+import { EventUtils, type BaseEvent } from "../../events/index.js";
 import { ErrorHandler, type ComponentErrorHandler } from "./ErrorHandler.js";
 
 /**
@@ -96,7 +97,6 @@ export abstract class BaseStateMachine<
 
     protected disposed = false;
     protected pendingDrainTimeout: NodeJS.Timeout | null = null;
-    protected readonly unifiedEventBus: IEventBus | null;
     protected readonly componentName: string;
     protected readonly errorHandler: ComponentErrorHandler;
     protected readonly maxQueueSize: number = DEFAULT_MAX_QUEUE_SIZE; // Prevent unbounded growth
@@ -122,19 +122,14 @@ export abstract class BaseStateMachine<
             ...coordinationConfig,
         };
 
-        // Get unified event system for modern event publishing
-        this.unifiedEventBus = getUnifiedEventSystem();
-
         // Determine if event-driven coordination is available and enabled
         this.eventDrivenCoordinationEnabled =
-            this.coordinationConfig.enableEventDriven !== false &&
-            this.unifiedEventBus !== null;
+            this.coordinationConfig.enableEventDriven !== false;
 
         // Create error handler for consistent error management
         this.errorHandler = new ErrorHandler().createComponentHandler(this.componentName);
 
         logger.info(`[${this.componentName}] Initialized with ${this.eventDrivenCoordinationEnabled ? "event-driven" : "legacy"} coordination`, {
-            eventSystemAvailable: this.unifiedEventBus !== null,
             coordinationMode: this.eventDrivenCoordinationEnabled ? "event-driven" : "legacy",
             swarmId: this.coordinationConfig.swarmId,
         });
@@ -358,7 +353,7 @@ export abstract class BaseStateMachine<
             this.state = BaseStates.RUNNING as TState;
 
             // Emit processing start event for emergent monitoring
-            await this.publishUnifiedEvent("state_machine.processing.started", {
+            await this.publishEvent("state_machine.processing.started", {
                 taskId: this.getTaskId(),
                 queueSize: this.eventQueue.length,
                 processingMode: "event-driven",
@@ -402,7 +397,7 @@ export abstract class BaseStateMachine<
             }
 
             // Emit processing completion event for emergent monitoring
-            await this.publishUnifiedEvent("state_machine.processing.completed", {
+            await this.publishEvent("state_machine.processing.completed", {
                 taskId: this.getTaskId(),
                 finalQueueSize: this.eventQueue.length,
                 processingMode: "event-driven",
@@ -505,7 +500,7 @@ export abstract class BaseStateMachine<
     /**
      * Helper method for publishing events using unified event system
      */
-    protected async publishUnifiedEvent(
+    protected async publishEvent(
         eventType: string,
         data: any,
         options?: {
@@ -516,11 +511,6 @@ export abstract class BaseStateMachine<
             conversationId?: string;
         },
     ): Promise<void> {
-        if (!this.unifiedEventBus) {
-            logger.debug(`[${this.componentName}] Unified event bus not available, skipping event publish`);
-            return;
-        }
-
         try {
             const event = EventUtils.createBaseEvent(
                 eventType,
@@ -537,7 +527,7 @@ export abstract class BaseStateMachine<
                 ),
             );
 
-            await this.unifiedEventBus.publish(event);
+            await getEventBus().publish(event);
         } catch (error) {
             logger.error(`[${this.componentName}] Failed to publish unified event`, {
                 eventType,
@@ -550,7 +540,7 @@ export abstract class BaseStateMachine<
      * Emit an event to the event bus using UnifiedEventSystem
      */
     protected async emitEvent(type: string, data: unknown): Promise<void> {
-        await this.publishUnifiedEvent(
+        await this.publishEvent(
             `state.machine.${type}`,
             data,
             {
@@ -564,7 +554,7 @@ export abstract class BaseStateMachine<
      * Emit a state change event (common pattern for state machines)
      */
     protected async emitStateChange(fromState: TState, toState: TState, context?: Record<string, any>): Promise<void> {
-        await this.publishUnifiedEvent(
+        await this.publishEvent(
             "state_machine.state.changed",
             {
                 taskId: this.getTaskId(),
@@ -719,14 +709,12 @@ export abstract class BaseStateMachine<
      */
     public getCoordinationStatus(): {
         mode: "event-driven" | "legacy";
-        eventSystemAvailable: boolean;
         distributedLockingEnabled: boolean;
         currentLock: string | null;
         swarmId?: string;
     } {
         return {
             mode: this.eventDrivenCoordinationEnabled ? "event-driven" : "legacy",
-            eventSystemAvailable: this.unifiedEventBus !== null,
             distributedLockingEnabled: this.coordinationConfig.enableDistributedLocking || false,
             currentLock: this.currentDistributedLock,
             swarmId: this.coordinationConfig.swarmId,

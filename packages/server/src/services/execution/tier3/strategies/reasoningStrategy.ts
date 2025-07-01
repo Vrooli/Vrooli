@@ -4,10 +4,8 @@ import {
     type ResourceUsage,
     type StrategyExecutionResult,
 } from "@vrooli/shared";
-import { type Logger } from "winston";
-import { type EventBus } from "../../../events/types.js";
-import { LLMIntegrationService } from "../../integration/llmIntegrationService.js";
-import { MinimalStrategyBase, type MinimalExecutionMetadata } from "./shared/index.js";
+import { logger } from "../../../../events/logger.js";
+import { LLMIntegrationService } from "../../integration/response.js";
 
 /**
  * MINIMAL REASONING STRATEGY
@@ -35,9 +33,9 @@ export class ReasoningStrategy extends MinimalStrategyBase {
 
     private readonly llmService: LLMIntegrationService;
 
-    constructor(logger: Logger, eventBus: IEventBus) {
-        super(logger, eventBus);
-        this.llmService = new LLMIntegrationService(logger);
+    constructor() {
+        super();
+        this.llmService = new LLMIntegrationService();
     }
 
     /**
@@ -53,7 +51,7 @@ export class ReasoningStrategy extends MinimalStrategyBase {
         const startTime = Date.now();
         const stepId = context.stepId;
 
-        this.logger.info("[ReasoningStrategy] Starting minimal reasoning execution", {
+        logger.info("[ReasoningStrategy] Starting minimal reasoning execution", {
             stepId,
             stepType: context.stepType,
         });
@@ -92,7 +90,7 @@ export class ReasoningStrategy extends MinimalStrategyBase {
 
             // Base class handles event emission
 
-            this.logger.info("[ReasoningStrategy] Reasoning execution completed", {
+            logger.info("[ReasoningStrategy] Reasoning execution completed", {
                 stepId,
                 success: true,
                 executionTime,
@@ -105,7 +103,7 @@ export class ReasoningStrategy extends MinimalStrategyBase {
             const executionTime = Date.now() - startTime;
             const errorMessage = error instanceof Error ? error.message : String(error);
 
-            this.logger.error("[ReasoningStrategy] Reasoning execution failed", {
+            logger.error("[ReasoningStrategy] Reasoning execution failed", {
                 stepId,
                 error: errorMessage,
                 executionTime,

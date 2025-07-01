@@ -29,7 +29,7 @@
  * 
  * ```typescript
  * export class TierThreeExecutor extends BaseTierExecutor {
- *     constructor(logger: Logger, eventBus: EventBus) {
+ *     constructor(eventBus: EventBus) {
  *         super(logger, eventBus, "TierThreeExecutor", "tier3");
  *     }
  * 
@@ -69,8 +69,7 @@ import {
     ResourceTracker,
     type TierExecutionRequest,
 } from "@vrooli/shared";
-import { type Logger } from "winston";
-import { type IEventBus } from "../../events/types.js";
+import { logger } from "../../../events/logger.js";
 import { BaseComponent } from "./BaseComponent.js";
 
 /**
@@ -78,7 +77,7 @@ import { BaseComponent } from "./BaseComponent.js";
  */
 export interface TierErrorContext {
     tier: "tier1" | "tier2" | "tier3";
-    executionId: string;
+    swarmId: string;
     inputType?: string;
     phase: "validation" | "execution" | "cleanup" | "delegation";
     additionalContext?: Record<string, unknown>;
@@ -106,12 +105,10 @@ export abstract class BaseTierExecutor extends BaseComponent {
     protected readonly activeExecutions = new Map<string, ExecutionMetrics>();
 
     constructor(
-        logger: Logger,
-        eventBus: IEventBus,
         componentName: string,
         tierName: "tier1" | "tier2" | "tier3",
     ) {
-        super(logger, eventBus, componentName);
+        super(componentName);
         this.tierName = tierName;
         this.componentName = componentName;
     }
@@ -124,11 +121,11 @@ export abstract class BaseTierExecutor extends BaseComponent {
         executeImpl: (request: TierExecutionRequest<TInput>) => Promise<ExecutionResult<TOutput>>,
     ): Promise<ExecutionResult<TOutput>> {
         const startTime = Date.now();
-        const executionId = request.context.executionId;
+        const swarmId = request.context.swarmId;
         const resourceTracker = new ResourceTracker(request.allocation);
 
         // Track execution start
-        this.activeExecutions.set(executionId, {
+        this.activeExecutions.set(swarmId, {
             startTime,
             resourceTracker,
             phase: "validation",
@@ -136,27 +133,27 @@ export abstract class BaseTierExecutor extends BaseComponent {
 
         try {
             // Phase 1: Input validation
-            this.updateExecutionPhase(executionId, "validation");
+            this.updateExecutionPhase(swarmId, "validation");
             this.validateRequest(request);
 
             // Phase 2: Execution
-            this.updateExecutionPhase(executionId, "execution");
+            this.updateExecutionPhase(swarmId, "execution");
             const result = await executeImpl(request);
 
             // Phase 3: Result validation and cleanup
-            this.updateExecutionPhase(executionId, "cleanup");
+            this.updateExecutionPhase(swarmId, "cleanup");
             this.validateResult(result, request);
 
             // Mark execution as successful
-            const metrics = this.activeExecutions.get(executionId)!;
+            const metrics = this.activeExecutions.get(swarmId)!;
             metrics.endTime = Date.now();
             metrics.duration = metrics.endTime - startTime;
             metrics.success = true;
 
             // Emit success event (don't let event publishing failure affect result)
-            this.publishUnifiedEvent("tier.execution.completed", {
+            this.publishEvent("tier.execution.completed", {
                 tier: this.tierName,
-                executionId,
+                swarmId,
                 duration: metrics.duration,
                 resourceUsage: result.resourcesUsed || resourceTracker.getCurrentUsage(),
             }, {
@@ -164,7 +161,7 @@ export abstract class BaseTierExecutor extends BaseComponent {
                 priority: "medium",
                 tags: ["execution", "completion", this.tierName],
             }).catch(eventError => {
-                this.logger.error(`[${this.componentName}] Failed to emit success event`, {
+                logger.error(`[${this.componentName}] Failed to emit success event`, {
                     eventError: eventError instanceof Error ? eventError.message : String(eventError),
                 });
             });
@@ -175,7 +172,7 @@ export abstract class BaseTierExecutor extends BaseComponent {
             return this.createStandardizedErrorResult<TOutput>(error, request, startTime);
         } finally {
             // Always clean up tracking
-            this.cleanupExecution(executionId);
+            this.cleanupExecution(swarmId);
         }
     }
 
@@ -187,11 +184,11 @@ export abstract class BaseTierExecutor extends BaseComponent {
         request: TierExecutionRequest<any>,
         startTime: number,
     ): ExecutionResult<TOutput> {
-        const executionId = request.context.executionId;
+        const swarmId = request.context.swarmId;
         const duration = Date.now() - startTime;
 
         // Get current execution metrics if available
-        const metrics = this.activeExecutions.get(executionId);
+        const metrics = this.activeExecutions.get(swarmId);
         const resourceUsage = metrics?.resourceTracker.getCurrentUsage() || {
             creditsUsed: "0",
             durationMs: duration,
@@ -210,14 +207,14 @@ export abstract class BaseTierExecutor extends BaseComponent {
         // Create error context
         const errorContext: TierErrorContext = {
             tier: this.tierName,
-            executionId,
+            swarmId,
             inputType: this.getInputTypeName(request.input),
             phase: metrics?.phase || "unknown",
             additionalContext: this.getAdditionalErrorContext(request, error),
         };
 
         // Log error with full context
-        this.logger.error(`[${this.componentName}] Execution failed`, {
+        logger.error(`[${this.componentName}] Execution failed`, {
             ...errorContext,
             error: error instanceof Error ? error.message : String(error),
             stack: error instanceof Error ? error.stack : undefined,
@@ -225,7 +222,7 @@ export abstract class BaseTierExecutor extends BaseComponent {
         });
 
         // Emit error event
-        this.publishUnifiedEvent("tier.execution.failed", {
+        this.publishEvent("tier.execution.failed", {
             ...errorContext,
             error: error instanceof Error ? error.message : String(error),
             duration,
@@ -235,7 +232,7 @@ export abstract class BaseTierExecutor extends BaseComponent {
             priority: "high",
             tags: ["execution", "error", this.tierName],
         }).catch(eventError => {
-            this.logger.error(`[${this.componentName}] Failed to emit error event`, {
+            logger.error(`[${this.componentName}] Failed to emit error event`, {
                 eventError: eventError instanceof Error ? eventError.message : String(eventError),
             });
         });
@@ -270,7 +267,7 @@ export abstract class BaseTierExecutor extends BaseComponent {
      * Validate request structure and content (override in subclasses)
      */
     protected validateRequest(request: TierExecutionRequest<any>): void {
-        if (!request.context?.executionId) {
+        if (!request.context?.swarmId) {
             throw new Error("Missing execution ID in request context");
         }
 
@@ -296,8 +293,8 @@ export abstract class BaseTierExecutor extends BaseComponent {
         }
 
         if (!result.resourcesUsed) {
-            this.logger.warn(`[${this.componentName}] Execution result missing resource usage`, {
-                executionId: request.context.executionId,
+            logger.warn(`[${this.componentName}] Execution result missing resource usage`, {
+                swarmId: request.context.swarmId,
             });
         }
     }
@@ -305,8 +302,8 @@ export abstract class BaseTierExecutor extends BaseComponent {
     /**
      * Update execution phase for tracking
      */
-    private updateExecutionPhase(executionId: string, phase: string): void {
-        const metrics = this.activeExecutions.get(executionId);
+    private updateExecutionPhase(swarmId: string, phase: string): void {
+        const metrics = this.activeExecutions.get(swarmId);
         if (metrics) {
             metrics.phase = phase;
         }
@@ -315,10 +312,10 @@ export abstract class BaseTierExecutor extends BaseComponent {
     /**
      * Clean up execution tracking
      */
-    private cleanupExecution(executionId: string): void {
+    private cleanupExecution(swarmId: string): void {
         // Keep metrics for a short time for debugging, then remove
         setTimeout(() => {
-            this.activeExecutions.delete(executionId);
+            this.activeExecutions.delete(swarmId);
         }, 60_000); // 1 minute retention
     }
 
@@ -362,8 +359,8 @@ export abstract class BaseTierExecutor extends BaseComponent {
     /**
      * Get current execution metrics for monitoring
      */
-    public getExecutionMetrics(executionId: string): ExecutionMetrics | undefined {
-        return this.activeExecutions.get(executionId);
+    public getExecutionMetrics(swarmId: string): ExecutionMetrics | undefined {
+        return this.activeExecutions.get(swarmId);
     }
 
     /**

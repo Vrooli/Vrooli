@@ -1,6 +1,6 @@
 import { RunState } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
-import type { IEventBus } from "../../events/types.js";
+import { getEventBus } from "../../events/eventBus.js";
 import type { ISwarmContextManager } from "../shared/SwarmContextManager.js";
 import type { IRunContextManager } from "./runContextManager.js";
 import type { ResourceUsage, RunAllocation } from "./types.js";
@@ -30,7 +30,6 @@ export class RoutineStateMachine {
     private readonly contextId: string;
     private readonly swarmContextManager?: ISwarmContextManager;
     private readonly runContextManager?: IRunContextManager;
-    private readonly eventBus: IEventBus;
 
     // Resource tracking
     private currentAllocation?: RunAllocation;
@@ -45,13 +44,11 @@ export class RoutineStateMachine {
     constructor(
         contextId: string,
         swarmContextManager: ISwarmContextManager | undefined,
-        eventBus: IEventBus,
         runContextManager?: IRunContextManager,
     ) {
         this.contextId = contextId;
         this.swarmContextManager = swarmContextManager;
         this.runContextManager = runContextManager;
-        this.eventBus = eventBus;
     }
 
     /**
@@ -159,7 +156,7 @@ export class RoutineStateMachine {
      */
     private async emitStateChange(fromState: RunState, toState: RunState): Promise<void> {
         try {
-            await this.eventBus.publish({
+            await getEventBus().publish({
                 type: "routine.state.changed",
                 source: { tier: 2, component: "RoutineStateMachine" },
                 data: {

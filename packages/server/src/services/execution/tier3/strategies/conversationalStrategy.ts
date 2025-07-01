@@ -7,9 +7,8 @@ import {
     type StrategyExecutionResult,
     StrategyType,
 } from "@vrooli/shared";
-import { type Logger } from "winston";
-import { type EventBus } from "../../../events/types.js";
-import { LLMIntegrationService } from "../../integration/llmIntegrationService.js";
+import { logger } from "../../../../events/logger.js";
+import { LLMIntegrationService } from "../../integration/response.js";
 import { type ToolOrchestrator } from "../engine/toolOrchestrator.js";
 import { type ValidationEngine } from "../engine/validationEngine.js";
 import { type ExecutionMetadata, MinimalStrategyBase, type StrategyConfig } from "./shared/index.js";
@@ -46,18 +45,16 @@ export class ConversationalStrategy extends MinimalStrategyBase {
     private static readonly TURN_TIMEOUT_MS = 60000; // 1 minute per turn
 
     constructor(
-        logger: Logger,
-        eventBus: IEventBus,
         config: StrategyConfig = {},
         toolOrchestrator?: ToolOrchestrator,
         validationEngine?: ValidationEngine,
     ) {
-        super(logger, eventBus, {
+        super({
             timeoutMs: ConversationalStrategy.TURN_TIMEOUT_MS * ConversationalStrategy.MAX_CONVERSATION_TURNS,
             ...config,
         });
 
-        this.llmService = new LLMIntegrationService(logger);
+        this.llmService = new LLMIntegrationService();
         this.toolOrchestrator = toolOrchestrator;
         this.validationEngine = validationEngine;
     }
@@ -99,7 +96,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
 
         let totalTokensUsed = 0;
 
-        this.logger.info("[ConversationalStrategy] Starting conversational execution", {
+        logger.info("[ConversationalStrategy] Starting conversational execution", {
             stepId: context.stepId,
             stepType: context.stepType,
             attempt: metadata.retryCount + 1,
@@ -359,7 +356,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
         request: LLMRequest,
         context: StrategyExecutionContext,
     ): Promise<ConversationalResponse> {
-        this.logger.debug("[ConversationalStrategy] Executing conversational reasoning", {
+        logger.debug("[ConversationalStrategy] Executing conversational reasoning", {
             stepId: context.stepId,
             messages: request.messages.length,
         });
@@ -395,7 +392,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
             };
 
         } catch (error) {
-            this.logger.error("[ConversationalStrategy] LLM execution failed", {
+            logger.error("[ConversationalStrategy] LLM execution failed", {
                 stepId: context.stepId,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -551,7 +548,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
         const config = context.config;
         return typeof config.creativity === "number" ? config.creativity : 0.7;
     }
-    
+
     /**
      * Check if response requires tool execution
      */
@@ -632,12 +629,12 @@ export class ConversationalStrategy extends MinimalStrategyBase {
         response: ConversationalResponse,
         context: StrategyExecutionContext,
     ): Promise<ConversationalResponse> {
-        this.logger.debug("[ConversationalStrategy] Tool execution requested", {
+        logger.debug("[ConversationalStrategy] Tool execution requested", {
             toolCalls: response.toolCalls?.length || 0,
         });
 
         if (!this.toolOrchestrator) {
-            this.logger.warn("[ConversationalStrategy] No tool orchestrator available, skipping tool execution");
+            logger.warn("[ConversationalStrategy] No tool orchestrator available, skipping tool execution");
             return response;
         }
 
@@ -650,7 +647,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
 
         for (const toolCall of response.toolCalls) {
             try {
-                this.logger.info("[ConversationalStrategy] Executing tool", {
+                logger.info("[ConversationalStrategy] Executing tool", {
                     toolName: toolCall.name,
                     stepId: context.stepId,
                 });
@@ -665,7 +662,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
                 // Estimate token usage for tool result
                 additionalTokensUsed += Math.ceil(JSON.stringify(result).length / 4);
             } catch (error) {
-                this.logger.error("[ConversationalStrategy] Tool execution failed", {
+                logger.error("[ConversationalStrategy] Tool execution failed", {
                     toolName: toolCall.name,
                     error: error instanceof Error ? error.message : String(error),
                 });
@@ -689,12 +686,12 @@ export class ConversationalStrategy extends MinimalStrategyBase {
         outputs: Record<string, unknown>,
         context: StrategyExecutionContext,
     ): Promise<Record<string, unknown>> {
-        this.logger.debug("[ConversationalStrategy] Validating outputs", {
+        logger.debug("[ConversationalStrategy] Validating outputs", {
             outputKeys: Object.keys(outputs),
         });
 
         if (!this.validationEngine) {
-            this.logger.warn("[ConversationalStrategy] No validation engine available, skipping validation");
+            logger.warn("[ConversationalStrategy] No validation engine available, skipping validation");
             return outputs;
         }
 
@@ -705,17 +702,17 @@ export class ConversationalStrategy extends MinimalStrategyBase {
             );
 
             if (validationResult.valid) {
-                this.logger.debug("[ConversationalStrategy] Outputs validated successfully");
+                logger.debug("[ConversationalStrategy] Outputs validated successfully");
                 return validationResult.data || outputs;
             } else {
-                this.logger.warn("[ConversationalStrategy] Output validation failed", {
+                logger.warn("[ConversationalStrategy] Output validation failed", {
                     errors: validationResult.errors,
                 });
                 // Return original outputs but log validation errors
                 return outputs;
             }
         } catch (error) {
-            this.logger.error("[ConversationalStrategy] Validation error", {
+            logger.error("[ConversationalStrategy] Validation error", {
                 error: error instanceof Error ? error.message : String(error),
             });
             // Return original outputs on validation error

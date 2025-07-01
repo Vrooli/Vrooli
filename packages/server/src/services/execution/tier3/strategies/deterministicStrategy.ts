@@ -4,8 +4,7 @@ import {
     type ExecutionContext as StrategyExecutionContext,
     type StrategyExecutionResult,
 } from "@vrooli/shared";
-import { type Logger } from "winston";
-import { type EventBus } from "../../../events/types.js";
+import { logger } from "../../../../events/logger.js";
 import { ToolOrchestrator } from "../engine/toolOrchestrator.js";
 import { ValidationEngine } from "../engine/validationEngine.js";
 import { MinimalStrategyBase, type MinimalExecutionMetadata } from "./shared/strategyBase.js";
@@ -84,10 +83,10 @@ export class DeterministicStrategy extends MinimalStrategyBase {
     private static readonly TRANSFORMATION_COST = 2;
     private static readonly MINIMAL_COST = 1;
 
-    constructor(logger: Logger, eventBus: IEventBus) {
-        super(logger, eventBus);
-        this.toolOrchestrator = new ToolOrchestrator(logger);
-        this.validationEngine = new ValidationEngine(logger);
+    constructor() {
+        super();
+        this.toolOrchestrator = new ToolOrchestrator();
+        this.validationEngine = new ValidationEngine();
         this.cache = new Map<string, CacheEntry>();
     }
 
@@ -104,7 +103,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
             // Check cache first for efficiency
             const cachedResult = await this.checkCache(context);
             if (cachedResult) {
-                this.logger.debug("[DeterministicStrategy] Cache hit", { stepId });
+                logger.debug("[DeterministicStrategy] Cache hit", { stepId });
                 return this.createCachedResult(cachedResult, metadata);
             }
 
@@ -137,7 +136,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
             };
 
         } catch (error) {
-            this.logger.error("[DeterministicStrategy] Execution failed", {
+            logger.error("[DeterministicStrategy] Execution failed", {
                 stepId,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -341,7 +340,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
             const stepDuration = Date.now() - stepStart;
 
             // Emit execution events for monitoring agents instead of tracking directly
-            this.eventBus.publish("execution.step_completed", {
+            getEventBus().publish("execution.step_completed", {
                 stepId: step.id,
                 stepType: step.type,
                 duration: stepDuration,
@@ -386,7 +385,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
                     errors.push(...engineValidation.errors);
                 }
             } catch (error) {
-                this.logger.warn("[DeterministicStrategy] ValidationEngine error", {
+                logger.warn("[DeterministicStrategy] ValidationEngine error", {
                     error: error instanceof Error ? error.message : String(error),
                 });
             }
@@ -672,7 +671,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
             throw new Error("API call requires a valid URL parameter");
         }
 
-        this.logger.debug("[DeterministicStrategy] Executing API call", {
+        logger.debug("[DeterministicStrategy] Executing API call", {
             url,
             method,
             timeout,
@@ -743,7 +742,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
 
         // Apply transformation rules if provided
         if (transformRules && typeof transformRules === "object") {
-            this.logger.debug("[DeterministicStrategy] Executing data transformation", {
+            logger.debug("[DeterministicStrategy] Executing data transformation", {
                 inputType: typeof input,
                 rulesCount: Array.isArray(transformRules) ? transformRules.length : Object.keys(transformRules).length,
                 outputFormat,

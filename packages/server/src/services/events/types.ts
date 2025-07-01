@@ -9,6 +9,13 @@
  */
 
 /**
+ * Interface for SocketService to avoid circular dependencies
+ */
+export interface SocketServiceInterface {
+    emitSocketEvent<T extends string>(event: T, roomId: string, payload: any): void;
+}
+
+/**
  * Base event interface that all Vrooli events must implement.
  * Provides essential metadata for routing, correlation, and tracking.
  */
@@ -262,6 +269,29 @@ export interface PreActionEventData {
     estimatedCost?: string;
     timeoutMs?: number;
     fallbackAction?: "emergency_stop" | "safe_fallback" | "user_prompt";
+}
+
+/**
+ * Resource rate limiting events for monitoring and control.
+ * Emitted when rate limits are exceeded or quotas are approached.
+ */
+export interface ResourceRateLimitEvent extends BaseEvent {
+    type: "resource/rate_limited" | "resource/quota_warning" | "resource/quota_exhausted";
+    source: EventSource & { tier: "cross-cutting" };
+    data: ResourceRateLimitEventData;
+}
+
+export interface ResourceRateLimitEventData {
+    originalEventId: string;
+    originalEventType: string;
+    limitType: "user" | "event_type" | "global" | "cost";
+    retryAfterMs?: number;
+    userId?: string;
+    conversationId?: string;
+    quotaRemaining?: number;
+    quotaLimit?: number;
+    resetTime?: Date;
+    costIncurred?: number;
 }
 
 /**

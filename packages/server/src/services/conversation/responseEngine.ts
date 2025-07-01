@@ -12,7 +12,8 @@ import { Notify } from "../../notify/notify.js";
 import { SocketService } from "../../sockets/io.js"; // Still needed for roomHasOpenConnections check
 import { type LLMCompletionTask } from "../../tasks/taskTypes.js";
 import { BusService } from "../bus.js";
-import { EventTypes, EventUtils, getUnifiedEventSystem, type IEventBus } from "../events/index.js";
+import { getEventBus } from "../events/eventBus.js";
+import { EventTypes, EventUtils } from "../events/index.js";
 import { CompositeGraph, type AgentGraph } from "../execution/tier1/agentGraph.js";
 import { ToolRegistry } from "../mcp/registry.js";
 import { SwarmTools } from "../mcp/tools.js";
@@ -117,7 +118,6 @@ play‑nice horizontal scaling, and—critically— a clear *handoff point* to a
   • **credit:cost_incurred**       – Stores the cost incurred for response generation/tool use during event processing.  
 */
 export class ReasoningEngine {
-    private readonly unifiedEventBus: IEventBus | null;
 
     /**
      * @param contextBuilder     Collects all chat history that can fit into the context window of a bot turn.
@@ -128,9 +128,7 @@ export class ReasoningEngine {
         private readonly contextBuilder: ContextBuilder,
         private readonly llmRouter: LlmRouter,
         public readonly toolRunner: ToolRunner,
-    ) {
-        this.unifiedEventBus = getUnifiedEventSystem();
-    }
+    ) { }
 
     /**
      * Handles abort or timeout scenarios by emitting appropriate events and returning an error.
@@ -188,7 +186,7 @@ export class ReasoningEngine {
         errorCode: ResponseErrorCode,
         toolName?: string,
     ): Promise<void> {
-        if (!chatId || !this.unifiedEventBus) return;
+        if (!chatId) return;
 
         // Determine if the error is retryable based on error code and context
         const isRetryable = this._isErrorRetryable(errorCode, stage, toolName);
@@ -200,7 +198,7 @@ export class ReasoningEngine {
 
         if (stage === "before-tool-call" || stage === "tool-call-processing") {
             // Specific for tool failures
-            await this.unifiedEventBus.publish(
+            await getEventBus().publish(
                 EventUtils.createBaseEvent(
                     EventTypes.BOT_STATUS_UPDATED,
                     {
@@ -216,7 +214,7 @@ export class ReasoningEngine {
             );
         } else {
             // General response stream error
-            await this.unifiedEventBus.publish(
+            await getEventBus().publish(
                 EventUtils.createBaseEvent(
                     EventTypes.BOT_RESPONSE_STREAM,
                     {
@@ -231,7 +229,7 @@ export class ReasoningEngine {
             );
 
             // Bot status error
-            await this.unifiedEventBus.publish(
+            await getEventBus().publish(
                 EventUtils.createBaseEvent(
                     EventTypes.BOT_STATUS_UPDATED,
                     {
@@ -407,13 +405,13 @@ export class ReasoningEngine {
                 // Append to draft message
                 updatedDraftMessage = ev.final ? ev.content : draftMessage + ev.content;
                 // Emit to client
-                if (chatId && this.unifiedEventBus) {
+                if (chatId) {
                     const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
                     const metadata = EventUtils.createEventMetadata("fire-and-forget", "medium", {
                         conversationId: chatId,
                     });
 
-                    this.unifiedEventBus.publish(
+                    getEventBus().publish(
                         EventUtils.createBaseEvent(
                             EventTypes.BOT_RESPONSE_STREAM,
                             {
@@ -431,13 +429,13 @@ export class ReasoningEngine {
 
             case "reasoning":
                 // Emit to client
-                if (chatId && this.unifiedEventBus) {
+                if (chatId) {
                     const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
                     const metadata = EventUtils.createEventMetadata("fire-and-forget", "medium", {
                         conversationId: chatId,
                     });
 
-                    this.unifiedEventBus.publish(
+                    getEventBus().publish(
                         EventUtils.createBaseEvent(
                             EventTypes.BOT_MODEL_REASONING_STREAM,
                             {
@@ -500,13 +498,13 @@ export class ReasoningEngine {
                 const cost = BigInt(ev.cost);
                 responseStats.creditsUsed += cost; // Add LLM generation cost to cumulative response stats
                 // Emit to client
-                if (chatId && this.unifiedEventBus) {
+                if (chatId) {
                     const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
                     const metadata = EventUtils.createEventMetadata("fire-and-forget", "medium", {
                         conversationId: chatId,
                     });
 
-                    this.unifiedEventBus.publish(
+                    getEventBus().publish(
                         EventUtils.createBaseEvent(
                             EventTypes.BOT_RESPONSE_STREAM,
                             {
@@ -597,13 +595,13 @@ export class ReasoningEngine {
         abortSignal?: AbortSignal,
     ): Promise<{ finalMessage: MessageState; responseStats: ResponseStats }> {
         // Signal typing start
-        if (chatId && this.unifiedEventBus) {
+        if (chatId) {
             const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
             const metadata = EventUtils.createEventMetadata("fire-and-forget", "low", {
                 conversationId: chatId,
             });
 
-            this.unifiedEventBus.publish(
+            getEventBus().publish(
                 EventUtils.createBaseEvent(
                     EventTypes.BOT_TYPING_UPDATED,
                     {
@@ -650,13 +648,13 @@ export class ReasoningEngine {
 
         try {
             // Emit thinking status before starting the main loop
-            if (chatId && this.unifiedEventBus) {
+            if (chatId) {
                 const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
                 const metadata = EventUtils.createEventMetadata("fire-and-forget", "medium", {
                     conversationId: chatId,
                 });
 
-                this.unifiedEventBus.publish(
+                getEventBus().publish(
                     EventUtils.createBaseEvent(
                         EventTypes.BOT_STATUS_UPDATED,
                         {
@@ -725,13 +723,13 @@ export class ReasoningEngine {
             }
 
             // Emit processing_complete status if the loop finished without exhausting inputs
-            if (chatId && inputs.length === 0 && this.unifiedEventBus) {
+            if (chatId && inputs.length === 0) {
                 const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
                 const metadata = EventUtils.createEventMetadata("fire-and-forget", "medium", {
                     conversationId: chatId,
                 });
 
-                this.unifiedEventBus.publish(
+                getEventBus().publish(
                     EventUtils.createBaseEvent(
                         EventTypes.BOT_STATUS_UPDATED,
                         {
@@ -769,13 +767,13 @@ export class ReasoningEngine {
             });
 
             // Signal typing end
-            if (chatId && this.unifiedEventBus) {
+            if (chatId) {
                 const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
                 const metadata = EventUtils.createEventMetadata("fire-and-forget", "low", {
                     conversationId: chatId,
                 });
 
-                this.unifiedEventBus.publish(
+                getEventBus().publish(
                     EventUtils.createBaseEvent(
                         EventTypes.BOT_TYPING_UPDATED,
                         {
@@ -986,8 +984,6 @@ export class ReasoningEngine {
         availableTools?: Tool[],
         schedulingRules?: any,
     ): Promise<void> {
-        if (!this.unifiedEventBus) return;
-
         const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
         const metadata = EventUtils.createEventMetadata("reliable", "high", {
             conversationId,
@@ -995,7 +991,7 @@ export class ReasoningEngine {
         });
 
         // Emit tool approval required event
-        await this.unifiedEventBus.publish(
+        await getEventBus().publish(
             EventUtils.createBaseEvent(
                 EventTypes.TOOL_APPROVAL_REQUIRED,
                 {
@@ -1033,7 +1029,7 @@ export class ReasoningEngine {
         }
 
         // Emit bot status update
-        await this.unifiedEventBus.publish(
+        await getEventBus().publish(
             EventUtils.createBaseEvent(
                 EventTypes.BOT_STATUS_UPDATED,
                 {
@@ -1068,13 +1064,13 @@ export class ReasoningEngine {
         const _toolCost = BigInt(0); // Unused but kept for potential future use
 
         // Emit tool_calling status BEFORE executing
-        if (conversationId && this.unifiedEventBus) {
+        if (conversationId) {
             const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
             const metadata = EventUtils.createEventMetadata("fire-and-forget", "medium", {
                 conversationId,
             });
 
-            this.unifiedEventBus.publish(
+            getEventBus().publish(
                 EventUtils.createBaseEvent(
                     EventTypes.BOT_STATUS_UPDATED,
                     {
@@ -1122,13 +1118,13 @@ export class ReasoningEngine {
             toolCost = BigInt(toolCallResponse.data.creditsUsed);
             entry = { ...fnEntryBase, result: { success: true, output } };
 
-            if (conversationId && this.unifiedEventBus) {
+            if (conversationId) {
                 const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
                 const metadata = EventUtils.createEventMetadata("fire-and-forget", "medium", {
                     conversationId,
                 });
 
-                this.unifiedEventBus.publish(
+                getEventBus().publish(
                     EventUtils.createBaseEvent(
                         EventTypes.BOT_STATUS_UPDATED,
                         {
@@ -1151,13 +1147,13 @@ export class ReasoningEngine {
             // Determine if this tool error is retryable
             const isToolErrorRetryable = this._isToolErrorRetryable(toolCallResponse.error);
 
-            if (conversationId && this.unifiedEventBus) {
+            if (conversationId) {
                 const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
                 const metadata = EventUtils.createEventMetadata("fire-and-forget", "medium", {
                     conversationId,
                 });
 
-                this.unifiedEventBus.publish(
+                getEventBus().publish(
                     EventUtils.createBaseEvent(
                         EventTypes.BOT_STATUS_UPDATED,
                         {
@@ -1241,7 +1237,6 @@ export class ReasoningEngine {
  */
 export class CompletionService {
     private readonly activeControllers = new Map<string, AbortController>();
-    private readonly unifiedEventBus: IEventBus | null;
 
     /**
      * @param reasoningEngine    Low-level engine for generating responses.
@@ -1256,9 +1251,7 @@ export class CompletionService {
         private readonly conversationStore: ConversationStateStore,
         private readonly messageStore: MessageStore,
         private readonly toolRegistry: ToolRegistry,
-    ) {
-        this.unifiedEventBus = getUnifiedEventSystem();
-    }
+    ) { }
 
     public async getConversationState(conversationId: string): Promise<ConversationState | null> {
         return this.conversationStore.get(conversationId);
@@ -1920,13 +1913,13 @@ export class CompletionService {
                             currentResponseStats.push(botResponse.responseStats);
                         } catch (reEngageError: any) {
                             logger.error(`Error re-engaging bot ${callerBot.id} after approved tool execution`, { error: reEngageError });
-                            if (conversationId && this.unifiedEventBus) {
+                            if (conversationId) {
                                 const eventSource = EventUtils.createEventSource("cross-cutting", "CompletionService");
                                 const metadata = EventUtils.createEventMetadata("fire-and-forget", "high", {
                                     conversationId,
                                 });
 
-                                this.unifiedEventBus.publish(
+                                getEventBus().publish(
                                     EventUtils.createBaseEvent(
                                         EventTypes.BOT_STATUS_UPDATED,
                                         {
@@ -2021,13 +2014,13 @@ export class CompletionService {
                             currentResponseStats.push(botResponse.responseStats);
                         } catch (reEngageError: any) {
                             logger.error(`Error re-engaging bot ${callerBot.id} after tool rejection`, { error: reEngageError });
-                            if (conversationId && this.unifiedEventBus) {
+                            if (conversationId) {
                                 const eventSource = EventUtils.createEventSource("cross-cutting", "CompletionService");
                                 const metadata = EventUtils.createEventMetadata("fire-and-forget", "high", {
                                     conversationId,
                                 });
 
-                                this.unifiedEventBus.publish(
+                                getEventBus().publish(
                                     EventUtils.createBaseEvent(
                                         EventTypes.BOT_STATUS_UPDATED,
                                         {

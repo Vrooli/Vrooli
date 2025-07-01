@@ -16,12 +16,11 @@
  * with maximum flexibility for specialized agent swarms to implement advanced capabilities.
  */
 
-import { nanoid } from "@vrooli/shared";
+import { nanoid } from "nanoid";
 import { type Logger } from "winston";
-import { type ApprovalSystem, createApprovalSystem } from "./approval.js";
-import { type EventCatalog, createEventCatalog } from "./catalog.js";
-import { type EventBus, createEventBus } from "./eventBus.js";
-import type { BarrierSyncConfig, BaseEvent, EventMetadata, EventSource } from "./types.js";
+import { type ApprovalSystem } from "./approval.js";
+import { type EventBus } from "./eventBus.js";
+import type { BarrierSyncConfig, BaseEvent, EventMetadata, EventSource, SocketServiceInterface } from "./types.js";
 
 /**
  * Unified Event System Configuration
@@ -46,7 +45,11 @@ export interface UnifiedEventSystemConfig {
     logger?: Logger;
     enableMetrics?: boolean;
     enableReplay?: boolean;
+
+    /** Socket service for automatic socket event emission */
+    socketService?: SocketServiceInterface;
 }
+
 
 /**
  * Unified Event System Factory
@@ -55,40 +58,7 @@ export interface UnifiedEventSystemConfig {
  */
 export interface UnifiedEventSystem {
     eventBus: EventBus;
-    eventCatalog: EventCatalog;
     approvalSystem: ApprovalSystem;
-}
-
-/**
- * Create a complete unified event system with configuration
- */
-export async function createUnifiedEventSystem(config: UnifiedEventSystemConfig): Promise<EventBus> {
-    const logger = config.logger || console as any as Logger;
-
-    // For now, return just the EventBus (which implements IEventBus)
-    // The full UnifiedEventSystem interface will be implemented as components are migrated
-    const eventBus = createEventBus(logger);
-
-    // Start the event bus
-    await eventBus.start();
-
-    return eventBus;
-}
-
-/**
- * Legacy create function for backward compatibility
- * @deprecated Use createUnifiedEventSystem(config) instead
- */
-export function createUnifiedEventSystemLegacy(logger: Logger): UnifiedEventSystem {
-    const eventBus = createEventBus(logger);
-    const eventCatalog = createEventCatalog(logger);
-    const approvalSystem = createApprovalSystem(eventBus, logger);
-
-    return {
-        eventBus,
-        eventCatalog,
-        approvalSystem,
-    };
 }
 
 /**
@@ -183,6 +153,12 @@ export const EventTypes = {
     // Resource update events for swarms
     RESOURCE_SWARM_UPDATED: "resource/swarm/updated",
     RESOURCE_USER_UPDATED: "resource/user/updated",
+
+    // Bot status events (for socket broadcasts)
+    BOT_STATUS_UPDATED: "bot/status/updated",
+    BOT_RESPONSE_STREAM: "bot/response/stream",
+    BOT_MODEL_REASONING_STREAM: "bot/reasoning/stream",
+    BOT_TYPING_UPDATED: "bot/typing/updated",
 } as const;
 
 /**
@@ -229,11 +205,19 @@ export const EventPatterns = {
     TIER1_EVENTS: "swarm/*",
     TIER2_EVENTS: "routine/*",
     TIER3_EVENTS: "step/*",
+
+    // Bot events
+    BOT_EVENTS: "bot/*",
+    BOT_STATUS_EVENTS: "bot/status/*",
+    BOT_RESPONSE_EVENTS: "bot/response/*",
 } as const;
 
 /**
  * Utility functions for creating common event structures
  */
+// Re-export types for easy access
+export type { BaseEvent, EventMetadata, EventSource, IEventBus, SocketServiceInterface } from "./types.js";
+
 export const EventUtils = {
     /**
      * Create a basic event source

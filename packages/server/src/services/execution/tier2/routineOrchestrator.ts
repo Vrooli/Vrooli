@@ -1,5 +1,4 @@
 // AI_CHECK: STARTUP_ERRORS=4 | LAST: 2025-06-25 | FIXED: Import/export mismatch causing module not found error
-import { type IEventBus } from "../../events/types.js";
 import { BaseComponent } from "../shared/BaseComponent.js";
 // Socket events now handled through unified event system
 import { EventTypes } from "../../events/index.js";
@@ -13,6 +12,7 @@ import {
     type TierExecutionRequest,
 } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
+import { getEventBus } from "../../events/eventBus.js";
 import { type ISwarmContextManager } from "../shared/SwarmContextManager.js";
 import { MOISEGate } from "./moiseGate.js";
 
@@ -65,8 +65,8 @@ export class RoutineOrchestrator extends BaseComponent implements TierCommunicat
     private readonly activeExecutions = new Map<string, RoutineExecutor>();
 
 
-    constructor(eventBus: IEventBus, contextManager?: ISwarmContextManager) {
-        super(eventBus, "RoutineOrchestrator");
+    constructor(contextManager?: ISwarmContextManager) {
+        super("RoutineOrchestrator");
         this.tier3Executor = tier3Executor;
         this.contextManager = contextManager;
 
@@ -81,7 +81,7 @@ export class RoutineOrchestrator extends BaseComponent implements TierCommunicat
         // Setup event handlers
         this.setupEventHandlers();
 
-        this.logger.info("[RoutineOrchestrator] Initialized with lean architecture", {
+        logger.info("[RoutineOrchestrator] Initialized with lean architecture", {
             hasContextManager: !!contextManager,
         });
     }
@@ -120,7 +120,7 @@ export class RoutineOrchestrator extends BaseComponent implements TierCommunicat
             // Create execution request for the lean executor
             const executionRequest: TierExecutionRequest<RoutineExecutionInput> = {
                 context: {
-                    executionId: config.runId,
+                    swarmId: config.swarmId,
                     userId: config.userId,
                     startTime: Date.now(),
                     variables: {},
@@ -149,7 +149,7 @@ export class RoutineOrchestrator extends BaseComponent implements TierCommunicat
                 });
 
             // Emit run started event
-            await this.publishUnifiedEvent(EventTypes.ROUTINE_STARTED, {
+            await this.publishEvent(EventTypes.ROUTINE_STARTED, {
                 runId: config.runId,
                 routineVersionId: config.routineVersionId,
                 swarmId: config.swarmId,
@@ -232,7 +232,7 @@ export class RoutineOrchestrator extends BaseComponent implements TierCommunicat
         }
 
         // Emit cancellation event
-        await this.publishUnifiedEvent(
+        await this.publishEvent(
             "run.cancelled",
             {
                 runId,
@@ -281,7 +281,7 @@ export class RoutineOrchestrator extends BaseComponent implements TierCommunicat
      */
     private setupEventHandlers(): void {
         // Handle step completion from Tier 3
-        this.eventBus.on("step.completed", async (event) => {
+        getEventBus().on("step.completed", async (event) => {
             const { runId, stepId, outputs } = event.data;
 
             // Check if we have an active executor for this run
@@ -301,7 +301,7 @@ export class RoutineOrchestrator extends BaseComponent implements TierCommunicat
         });
 
         // Handle step failure from Tier 3
-        this.eventBus.on("step.failed", async (event) => {
+        getEventBus().on("step.failed", async (event) => {
             const { runId, stepId, error } = event.data;
 
             // Check if we have an active executor for this run
@@ -323,7 +323,7 @@ export class RoutineOrchestrator extends BaseComponent implements TierCommunicat
         });
 
         // Handle performance insights
-        this.eventBus.on("performance.insight", async (event) => {
+        getEventBus().on("performance.insight", async (event) => {
             const { runId } = event.data;
             // Performance insights can be logged or used for optimization
             logger.info("[RoutineOrchestrator] Performance insight received", {
@@ -360,7 +360,6 @@ export class RoutineOrchestrator extends BaseComponent implements TierCommunicat
         }
 
         return new RoutineExecutor(
-            this.eventBus,
             this.contextManager,
             this.moiseGate,
             this.tier3Executor,
@@ -389,7 +388,7 @@ export class RoutineOrchestrator extends BaseComponent implements TierCommunicat
 
             if (result.success) {
                 // Emit completion event
-                await this.publishUnifiedEvent(EventTypes.ROUTINE_COMPLETED, {
+                await this.publishEvent(EventTypes.ROUTINE_COMPLETED, {
                     runId,
                     swarmId,
                     outputs: result.outputs,
@@ -401,7 +400,7 @@ export class RoutineOrchestrator extends BaseComponent implements TierCommunicat
                 });
             } else {
                 // Emit failure event
-                await this.publishUnifiedEvent(EventTypes.ROUTINE_FAILED, {
+                await this.publishEvent(EventTypes.ROUTINE_FAILED, {
                     runId,
                     swarmId,
                     error: result.error,
@@ -419,7 +418,7 @@ export class RoutineOrchestrator extends BaseComponent implements TierCommunicat
             const errorMessage = error instanceof Error ? error.message : String(error);
 
             // Emit failure event
-            await this.publishUnifiedEvent(EventTypes.ROUTINE_FAILED, {
+            await this.publishEvent(EventTypes.ROUTINE_FAILED, {
                 runId,
                 swarmId,
                 error: errorMessage,
@@ -443,28 +442,28 @@ export class RoutineOrchestrator extends BaseComponent implements TierCommunicat
     async execute<TInput extends RoutineExecutionInput, TOutput>(
         request: TierExecutionRequest<TInput>,
     ): Promise<ExecutionResult<TOutput>> {
-        this.logger.info("[RoutineOrchestrator] Executing with lean architecture", {
-            executionId: request.context.executionId,
+        logger.info("[RoutineOrchestrator] Executing with lean architecture", {
+            swarmId: request.context.swarmId,
         });
 
         // Create a RoutineExecutor for this specific execution
-        const contextId = `execution-${request.context.executionId}`;
+        const contextId = `execution-${request.context.swarmId}`;
         const leanExecutor = this.createLeanExecutor(contextId);
 
         // Track this execution
-        this.activeExecutions.set(request.context.executionId, leanExecutor);
+        this.activeExecutions.set(request.context.swarmId, leanExecutor);
 
         try {
             // Execute using lean architecture
             const result = await leanExecutor.execute(request);
 
             // Clean up tracking
-            this.activeExecutions.delete(request.context.executionId);
+            this.activeExecutions.delete(request.context.swarmId);
 
             return result as ExecutionResult<TOutput>;
         } catch (error) {
             // Clean up tracking on error
-            this.activeExecutions.delete(request.context.executionId);
+            this.activeExecutions.delete(request.context.swarmId);
             throw error;
         }
     }

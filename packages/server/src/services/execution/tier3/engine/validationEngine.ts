@@ -1,9 +1,9 @@
 import { nanoid } from "@vrooli/shared";
-import { type Logger } from "winston";
 import * as yup from "yup";
-import { type EventBus } from "../../../events/types.js";
-import { EventTypes, EventUtils, getUnifiedEventSystem, type IEventBus } from "../../../events/index.js";
-import { ErrorHandler, type ComponentErrorHandler } from "../../shared/ErrorHandler.js";
+import { logger } from "../../../../events/logger.js";
+import { getEventBus } from "../../../events/eventBus.js";
+import { EventTypes, EventUtils } from "../../../events/index.js";
+import { type ComponentErrorHandler } from "../../shared/ErrorHandler.js";
 
 /**
  * Validation result from schema validation
@@ -115,32 +115,21 @@ interface _ReasoningFramework {
  * @see ReasoningValidator - AI reasoning validation replacement
  */
 export class ValidationEngine {
-    private readonly logger: Logger;
     private readonly errorHandler: ComponentErrorHandler;
-    private readonly unifiedEventBus: IEventBus | null;
 
-    constructor(logger: Logger, eventBus?: EventBus) {
-        this.logger = logger;
-
-        // Get unified event system for modern event publishing
-        this.unifiedEventBus = getUnifiedEventSystem();
-
-        if (eventBus) {
-            this.errorHandler = new ErrorHandler(logger).createComponentHandler("ValidationEngine");
-        } else {
-            this.errorHandler = {
-                execute: async <T>(fn: () => Promise<T>) => fn(),
-                handleError: (error: Error) => {
-                    this.logger.error("[ValidationEngine] Error occurred", { error: error.message });
-                },
-            } as unknown as ComponentErrorHandler;
-        }
+    constructor() {
+        this.errorHandler = {
+            execute: async <T>(fn: () => Promise<T>) => fn(),
+            handleError: (error: Error) => {
+                logger.error("[ValidationEngine] Error occurred", { error: error.message });
+            },
+        } as unknown as ComponentErrorHandler;
     }
 
     /**
      * Helper method for publishing events using unified event system
      */
-    private async publishUnifiedEvent(
+    private async publishEvent(
         eventType: string,
         data: any,
         options?: {
@@ -149,11 +138,6 @@ export class ValidationEngine {
             tags?: string[];
         },
     ): Promise<void> {
-        if (!this.unifiedEventBus) {
-            this.logger.debug("[ValidationEngine] Unified event bus not available, skipping event publication");
-            return;
-        }
-
         try {
             const event = EventUtils.createBaseEvent(
                 eventType,
@@ -168,16 +152,16 @@ export class ValidationEngine {
                 ),
             );
 
-            await this.unifiedEventBus.publish(event);
+            await getEventBus().publish(event);
 
-            this.logger.debug("[ValidationEngine] Published unified event", {
+            logger.debug("[ValidationEngine] Published unified event", {
                 eventType,
                 deliveryGuarantee: options?.deliveryGuarantee,
                 priority: options?.priority,
             });
 
         } catch (eventError) {
-            this.logger.error("[ValidationEngine] Failed to publish unified event", {
+            logger.error("[ValidationEngine] Failed to publish unified event", {
                 eventType,
                 error: eventError instanceof Error ? eventError.message : String(eventError),
             });
@@ -213,7 +197,7 @@ export class ValidationEngine {
                     strategy: executionContext?.strategy || "unknown",
                 };
 
-                this.logger.debug("[ValidationEngine] Validating outputs", {
+                logger.debug("[ValidationEngine] Validating outputs", {
                     outputKeys: Object.keys(outputs),
                     hasSchema: !!schema,
                     context,
@@ -233,7 +217,7 @@ export class ValidationEngine {
                 }
 
                 // 2. Emit raw outputs for emergent agent analysis using unified event system
-                await this.publishUnifiedEvent(EventTypes.SAFETY_PRE_ACTION, {
+                await this.publishEvent(EventTypes.SAFETY_PRE_ACTION, {
                     executionId: context.executionId,
                     stepId: context.stepId,
                     routineId: context.routineId,
@@ -261,7 +245,7 @@ export class ValidationEngine {
                 const isValid = allErrors.length === 0;
                 const validationDuration = Date.now() - startTime;
 
-                await this.publishUnifiedEvent(EventTypes.SAFETY_POST_ACTION, {
+                await this.publishEvent(EventTypes.SAFETY_POST_ACTION, {
                     executionId: context.executionId,
                     stepId: context.stepId,
                     routineId: context.routineId,
@@ -505,7 +489,7 @@ export class ValidationEngine {
     }): Promise<void> {
         try {
             // Emit security scan request for security agents using unified event system
-            await this.publishUnifiedEvent(EventTypes.THREAT_DETECTED, {
+            await this.publishEvent(EventTypes.THREAT_DETECTED, {
                 data,
                 executionId: context.executionId,
                 stepId: context.stepId,
@@ -521,7 +505,7 @@ export class ValidationEngine {
             });
 
             // Emit quality check request for quality agents using unified event system
-            await this.publishUnifiedEvent(EventTypes.EXECUTION_ERROR_OCCURRED, {
+            await this.publishEvent(EventTypes.EXECUTION_ERROR_OCCURRED, {
                 data,
                 executionId: context.executionId,
                 stepId: context.stepId,
@@ -537,7 +521,7 @@ export class ValidationEngine {
             });
         } catch (error) {
             // Don't fail validation if event emission fails
-            this.logger.warn("[ValidationEngine] Failed to emit agent events", {
+            logger.warn("[ValidationEngine] Failed to emit agent events", {
                 error: error instanceof Error ? error.message : String(error),
                 context,
             });
@@ -635,7 +619,7 @@ export class ValidationEngine {
                 };
 
                 // Emit for emergent agents before validation using unified event system
-                await this.publishUnifiedEvent(EventTypes.SAFETY_PRE_ACTION, {
+                await this.publishEvent(EventTypes.SAFETY_PRE_ACTION, {
                     executionId: context.executionId,
                     stepId: context.stepId,
                     routineId: context.routineId,
@@ -671,7 +655,7 @@ export class ValidationEngine {
                 const isValid = errors.length === 0;
 
                 // Emit completion event for emergent agents using unified event system
-                await this.publishUnifiedEvent(EventTypes.SAFETY_POST_ACTION, {
+                await this.publishEvent(EventTypes.SAFETY_POST_ACTION, {
                     executionId: context.executionId,
                     stepId: context.stepId,
                     routineId: context.routineId,
@@ -705,7 +689,7 @@ export class ValidationEngine {
         data: Record<string, unknown>,
     ): Promise<SecurityScanResult> {
         // Emit raw data for security agents to analyze using unified event system
-        await this.publishUnifiedEvent(EventTypes.THREAT_DETECTED, {
+        await this.publishEvent(EventTypes.THREAT_DETECTED, {
             data,
             threatType: "security_scan_required",
             scanType: "output_validation",
@@ -731,7 +715,7 @@ export class ValidationEngine {
         data: Record<string, unknown>,
     ): Promise<ValidationResult> {
         // Emit for quality agents to analyze using unified event system
-        await this.publishUnifiedEvent(EventTypes.EXECUTION_ERROR_OCCURRED, {
+        await this.publishEvent(EventTypes.EXECUTION_ERROR_OCCURRED, {
             data,
             errorType: "quality_check_required",
             checkType: "data_quality",
@@ -779,7 +763,7 @@ export class ValidationEngine {
             JSON.stringify(obj);
             return JSON.parse(JSON.stringify(obj));
         } catch (error) {
-            this.logger.warn("[ValidationEngine] Failed to deep clone object, returning original", {
+            logger.warn("[ValidationEngine] Failed to deep clone object, returning original", {
                 error: error instanceof Error ? error.message : String(error),
             });
             return obj; // Return original if cloning fails

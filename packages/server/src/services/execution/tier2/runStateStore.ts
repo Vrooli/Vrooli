@@ -5,6 +5,7 @@
 
 import {
     DAYS_1_S,
+    MINUTES_5_MS,
     RunState,
     type BranchExecution,
     type Checkpoint,
@@ -13,6 +14,7 @@ import {
 } from "@vrooli/shared";
 import { type Redis } from "ioredis";
 import { logger } from "../../../../events/logger.js";
+import { CacheService } from "../../../redisConn.js";
 import { RedisIndexManager } from "../../shared/RedisIndexManager.js";
 
 // Constants
@@ -56,8 +58,8 @@ export interface RunConfig {
  *    resource tracking, and progress management
  * 4. Maintain backward compatibility during transition via adapter patterns
  * 
- * @see RunExecutionContext in UnifiedRunStateMachine for the context structure
- * @see UnifiedRunStateMachine for the primary consumer of this interface
+ * @see RunExecutionContext in RunStateMachine for the context structure
+ * @see RunStateMachine for the primary consumer of this interface
  * @see docs/plans/context-system-final-migration.md for the complete migration plan
  */
 export interface IRunStateStore {
@@ -186,7 +188,6 @@ export class RedisRunStateStore implements IRunStateStore {
     private readonly indexPrefix = "run_index:";
     private readonly subsidiaryTtl = DEFAULT_TTL_S;
     private readonly indexManager: RedisIndexManager;
-    private redis: Redis;
 
     // In-memory cache for frequently accessed contexts (Phase 2C optimization)
     private readonly contextCache = new Map<string, {
@@ -198,7 +199,6 @@ export class RedisRunStateStore implements IRunStateStore {
     private readonly MAX_CACHE_SIZE = 100;
 
     constructor(redis: Redis) {
-        this.redis = redis;
         this.indexManager = new RedisIndexManager(redis, logger, DEFAULT_TTL_S);
     }
 
@@ -218,7 +218,7 @@ export class RedisRunStateStore implements IRunStateStore {
         const initialContext: RunExecutionContext = {
             runId,
             routineId: config.routineId,
-            navigator: null as any, // Will be set by UnifiedRunStateMachine
+            navigator: null as any, // Will be set by RunStateMachine
             currentLocation: { id: "start", nodeId: "start", stepId: "start" },
             visitedLocations: [],
             variables: config.inputs,
@@ -262,7 +262,7 @@ export class RedisRunStateStore implements IRunStateStore {
 
     async getRun(runId: string): Promise<RunConfig | null> {
         const key = this.getRunKey(runId);
-        const data = await this.redis.get(key);
+        const data = await CacheService.get().get(key);
 
         if (!data) {
             return null;
@@ -427,7 +427,7 @@ export class RedisRunStateStore implements IRunStateStore {
                     runId,
                     routineId: runConfig.routineId,
 
-                    // Navigation state - will need to be set by UnifiedRunStateMachine
+                    // Navigation state - will need to be set by RunStateMachine
                     navigator: null as any, // This will be set when the context is first used
                     currentLocation: { id: "start", nodeId: "start", stepId: "start" }, // Default location
                     visitedLocations: [],
@@ -496,7 +496,7 @@ export class RedisRunStateStore implements IRunStateStore {
             routineId: runId, // Fallback to runId if no routine info available
 
             // Navigation state - minimal defaults
-            navigator: null as any, // Will be set by UnifiedRunStateMachine
+            navigator: null as any, // Will be set by RunStateMachine
             currentLocation: { id: "start", nodeId: "start", stepId: "start" },
             visitedLocations: [],
 

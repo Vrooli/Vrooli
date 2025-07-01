@@ -1,20 +1,22 @@
 import {
     type AvailableResources,
     type ExecutionContext,
-    type ExecutionId,
     type ExecutionResult,
-    ExecutionStatus,
+    ExecutionStates,
+    type ExecutionStatus,
     type ExecutionStrategy,
     type StepExecutionInput,
     type StrategyExecutionResult,
     type StrategyType,
     StrategyType as StrategyTypeEnum,
+    type SwarmId,
     type TierCapabilities,
     type TierCommunicationInterface,
     type TierExecutionRequest,
 } from "@vrooli/shared";
-import { type Logger } from "winston";
-import { EventTypes, EventUtils, getUnifiedEventSystem, type IEventBus } from "../../../events/index.js";
+import { logger } from "../../../../events/logger.js";
+import { getEventBus } from "../../../events/eventBus.js";
+import { EventTypes, EventUtils } from "../../../events/index.js";
 import { ContextExporter } from "../context/contextExporter.js";
 import { type RunContext } from "../context/runContext.js";
 import { type IOProcessor } from "./ioProcessor.js";
@@ -46,26 +48,20 @@ export class UnifiedExecutor implements TierCommunicationInterface {
     private readonly toolOrchestrator: ToolOrchestrator;
     private readonly validationEngine: ValidationEngine;
     private readonly contextExporter: ContextExporter;
-    private readonly eventBus: IEventBus;
-    private readonly logger: Logger;
 
     constructor(
-        eventBus: IEventBus,
-        logger: Logger,
         strategySelector: SimpleStrategyProvider,
         toolOrchestrator: ToolOrchestrator,
         resourceManager: ResourceManager,
         validationEngine: ValidationEngine,
         ioProcessor: IOProcessor,
     ) {
-        this.eventBus = eventBus || getUnifiedEventSystem();
-        this.logger = logger;
         this.strategySelector = strategySelector;
         this.toolOrchestrator = toolOrchestrator;
         this.resourceManager = resourceManager;
         this.validationEngine = validationEngine;
         this.ioProcessor = ioProcessor;
-        this.contextExporter = new ContextExporter(eventBus, logger);
+        this.contextExporter = new ContextExporter();
     }
 
     /**
@@ -85,14 +81,14 @@ export class UnifiedExecutor implements TierCommunicationInterface {
         const startTime = Date.now();
         const stepId = stepContext.stepId;
 
-        this.logger.info("[UnifiedExecutor] Starting step execution", {
+        logger.info("[UnifiedExecutor] Starting step execution", {
             stepId,
             stepType: stepContext.stepType,
             routineId: runContext.routineId,
         });
 
         // Emit event for step start
-        await this.eventBus.publish({
+        await getEventBus().publish({
             ...EventUtils.createBaseEvent(
                 EventTypes.STEP_STARTED,
                 {
@@ -107,7 +103,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
             ),
             metadata: EventUtils.createEventMetadata("fire-and-forget", "medium", {
                 conversationId: runContext.conversationId,
-                userId: stepContext.userId,
+                userId: stepContext.userData.id,
             }),
         });
 
@@ -126,13 +122,13 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 strategy.setValidationEngine(this.validationEngine);
             }
 
-            this.logger.debug(`[UnifiedExecutor] Selected strategy: ${strategy.type}`, {
+            logger.debug(`[UnifiedExecutor] Selected strategy: ${strategy.type}`, {
                 stepId,
                 strategyName: strategy.name,
             });
 
             // Emit strategy selection event
-            await this.eventBus.publish({
+            await getEventBus().publish({
                 ...EventUtils.createBaseEvent(
                     EventTypes.STRATEGY_PERFORMANCE_MEASURED,
                     {
@@ -148,7 +144,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 ),
                 metadata: EventUtils.createEventMetadata("fire-and-forget", "low", {
                     conversationId: runContext.conversationId,
-                    userId: stepContext.userId,
+                    userId: stepContext.userData.id,
                 }),
             });
 
@@ -156,13 +152,13 @@ export class UnifiedExecutor implements TierCommunicationInterface {
             const budgetReservation = await this.resourceManager.reserveBudget(
                 stepContext.resources,
                 stepContext.constraints,
-                stepContext.userId,
+                stepContext.userData.id,
                 stepContext.swarmId,
             );
 
             // Emit resource allocation event
             if (budgetReservation.approved) {
-                await this.eventBus.publish({
+                await getEventBus().publish({
                     ...EventUtils.createBaseEvent(
                         EventTypes.RESOURCE_ALLOCATED,
                         {
@@ -177,14 +173,14 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                     ),
                     metadata: EventUtils.createEventMetadata("reliable", "medium", {
                         conversationId: runContext.conversationId,
-                        userId: stepContext.userId,
+                        userId: stepContext.userData.id,
                     }),
                 });
             }
 
             if (!budgetReservation.approved) {
                 const error = budgetReservation.reason || "Resource limit exceeded";
-                await this.eventBus.publish({
+                await getEventBus().publish({
                     ...EventUtils.createBaseEvent(
                         EventTypes.RESOURCE_EXHAUSTED,
                         {
@@ -198,7 +194,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                     ),
                     metadata: EventUtils.createEventMetadata("reliable", "high", {
                         conversationId: runContext.conversationId,
-                        userId: stepContext.userId,
+                        userId: stepContext.userData.id,
                     }),
                 });
                 return this.createErrorResult(error, strategy.type, startTime);
@@ -228,7 +224,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
             );
 
             // Emit output generation event  
-            await this.eventBus.publish({
+            await getEventBus().publish({
                 ...EventUtils.createBaseEvent(
                     EventTypes.STEP_COMPLETED,
                     {
@@ -243,13 +239,13 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 ),
                 metadata: EventUtils.createEventMetadata("fire-and-forget", "low", {
                     conversationId: runContext.conversationId,
-                    userId: stepContext.userId,
+                    userId: stepContext.userData.id,
                 }),
             });
 
             if (!validatedOutput.valid) {
                 const error = `Output validation failed: ${validatedOutput.errors.join(", ")}`;
-                await this.eventBus.publish({
+                await getEventBus().publish({
                     ...EventUtils.createBaseEvent(
                         EventTypes.STEP_FAILED,
                         {
@@ -263,7 +259,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                     ),
                     metadata: EventUtils.createEventMetadata("reliable", "high", {
                         conversationId: runContext.conversationId,
-                        userId: stepContext.userId,
+                        userId: stepContext.userData.id,
                     }),
                 });
                 return this.createErrorResult(error, strategy.type, startTime);
@@ -283,7 +279,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
             });
 
             // 8. Emit completion event
-            await this.eventBus.publish({
+            await getEventBus().publish({
                 ...EventUtils.createBaseEvent(
                     EventTypes.STEP_COMPLETED,
                     {
@@ -299,7 +295,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 ),
                 metadata: EventUtils.createEventMetadata("reliable", "medium", {
                     conversationId: runContext.conversationId,
-                    userId: stepContext.userId,
+                    userId: stepContext.userData.id,
                 }),
             });
 
@@ -324,12 +320,12 @@ export class UnifiedExecutor implements TierCommunicationInterface {
             };
 
         } catch (error) {
-            this.logger.error("[UnifiedExecutor] Step execution failed", {
+            logger.error("[UnifiedExecutor] Step execution failed", {
                 stepId,
                 error: error instanceof Error ? error.message : String(error),
             });
 
-            await this.eventBus.publish({
+            await getEventBus().publish({
                 ...EventUtils.createBaseEvent(
                     EventTypes.EXECUTION_ERROR_OCCURRED,
                     {
@@ -346,7 +342,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 ),
                 metadata: EventUtils.createEventMetadata("reliable", "critical", {
                     conversationId: runContext.conversationId,
-                    userId: stepContext.userId,
+                    userId: stepContext.userData.id,
                 }),
             });
 
@@ -383,7 +379,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 runId: context.runId,
                 swarmId: context.swarmId,
                 conversationId: context.conversationId,
-                user: context.userId ? { id: context.userId, languages: ["en"] } : undefined,
+                user: context.userData ? { id: context.userData.id, languages: ["en"] } : undefined,
             },
         );
 
@@ -394,7 +390,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 const toolStartTime = Date.now();
                 try {
                     const result = await originalExecuteTool(toolName, params);
-                    await this.eventBus.publish("tool.executed", {
+                    await getEventBus().publish("tool.executed", {
                         stepId: context.stepId,
                         toolName,
                         duration: Date.now() - toolStartTime,
@@ -403,7 +399,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                     });
                     return result;
                 } catch (error) {
-                    await this.eventBus.publish("tool.executed", {
+                    await getEventBus().publish("tool.executed", {
                         stepId: context.stepId,
                         toolName,
                         duration: Date.now() - toolStartTime,
@@ -501,8 +497,8 @@ export class UnifiedExecutor implements TierCommunicationInterface {
 
     // ===== TierCommunicationInterface Implementation =====
 
-    private readonly activeExecutions = new Map<ExecutionId, {
-        status: ExecutionStatus;
+    private readonly activeExecutions = new Map<SwarmId, {
+        status: ExecutionStates;
         startTime: Date;
         promise?: Promise<ExecutionResult>;
     }>();
@@ -515,25 +511,25 @@ export class UnifiedExecutor implements TierCommunicationInterface {
         request: TierExecutionRequest<TInput>,
     ): Promise<ExecutionResult<TOutput>> {
         const { context, input, allocation, options } = request;
-        const executionId = context.executionId;
+        const swarmId = context.swarmId;
 
         // Track execution
-        this.activeExecutions.set(executionId, {
-            status: ExecutionStatus.RUNNING,
+        this.activeExecutions.set(swarmId, {
+            status: ExecutionStates.RUNNING,
             startTime: new Date(),
         });
 
         try {
-            this.logger.info("[UnifiedExecutor] Starting tier execution", {
-                executionId,
+            logger.info("[UnifiedExecutor] Starting tier execution", {
+                swarmId,
                 stepId: input.stepId,
                 stepType: input.stepType,
                 strategy: input.strategy,
             });
 
             // Emit execution started event
-            await this.eventBus.publish("tier3.execution.started", {
-                executionId,
+            await getEventBus().publish("tier3.execution.started", {
+                swarmId,
                 stepId: input.stepId,
                 stepType: input.stepType,
                 strategy: input.strategy,
@@ -562,7 +558,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
             // Create a simplified run context for this execution
             const runContext: RunContext = {
                 routineId: context.routineId || "unknown",
-                executionId,
+                swarmId,
                 usageHints: {},
                 variables: new Map(),
                 state: {},
@@ -603,20 +599,20 @@ export class UnifiedExecutor implements TierCommunicationInterface {
             };
 
             // Update execution status
-            this.activeExecutions.set(executionId, {
-                status: ExecutionStatus.COMPLETED,
-                startTime: this.activeExecutions.get(executionId)!.startTime,
+            this.activeExecutions.set(swarmId, {
+                status: ExecutionStates.COMPLETED,
+                startTime: this.activeExecutions.get(swarmId)!.startTime,
             });
 
-            this.logger.info("[UnifiedExecutor] Tier execution completed", {
-                executionId,
+            logger.info("[UnifiedExecutor] Tier execution completed", {
+                swarmId,
                 success: executionResult.success,
                 duration: executionResult.duration,
             });
 
             // Emit execution completed event
-            await this.eventBus.publish("tier3.execution.completed", {
-                executionId,
+            await getEventBus().publish("tier3.execution.completed", {
+                swarmId,
                 success: executionResult.success,
                 duration: executionResult.duration,
                 resourcesUsed: executionResult.resourcesUsed,
@@ -629,19 +625,19 @@ export class UnifiedExecutor implements TierCommunicationInterface {
 
         } catch (error) {
             // Update execution status
-            this.activeExecutions.set(executionId, {
-                status: ExecutionStatus.FAILED,
-                startTime: this.activeExecutions.get(executionId)!.startTime,
+            this.activeExecutions.set(swarmId, {
+                status: ExecutionStates.FAILED,
+                startTime: this.activeExecutions.get(swarmId)!.startTime,
             });
 
-            this.logger.error("[UnifiedExecutor] Tier execution failed", {
-                executionId,
+            logger.error("[UnifiedExecutor] Tier execution failed", {
+                swarmId,
                 error: error instanceof Error ? error.message : String(error),
             });
 
             // Emit execution failed event
-            await this.eventBus.publish("tier3.execution.failed", {
-                executionId,
+            await getEventBus().publish("tier3.execution.failed", {
+                swarmId,
                 error: error instanceof Error ? error.message : String(error),
                 errorType: error instanceof Error ? error.constructor.name : "Error",
                 timestamp: new Date().toISOString(),
@@ -658,11 +654,11 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 },
                 resourcesUsed: {
                     creditsUsed: "0",
-                    durationMs: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
+                    durationMs: Date.now() - this.activeExecutions.get(swarmId)!.startTime.getTime(),
                     memoryUsedMB: 0,
                     stepsExecuted: 0,
                 },
-                duration: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
+                duration: Date.now() - this.activeExecutions.get(swarmId)!.startTime.getTime(),
                 context,
                 metadata: {
                     strategy: input.strategy,
@@ -680,23 +676,35 @@ export class UnifiedExecutor implements TierCommunicationInterface {
     /**
      * Get execution status for monitoring
      */
-    async getExecutionStatus(executionId: ExecutionId): Promise<ExecutionStatus> {
-        const execution = this.activeExecutions.get(executionId);
-        return execution?.status || ExecutionStatus.COMPLETED;
+    async getExecutionStatus(swarmId: SwarmId): Promise<ExecutionStatus> {
+        const execution = this.activeExecutions.get(swarmId);
+        const status = execution?.status || ExecutionStates.COMPLETED;
+
+        return {
+            swarmId,
+            status,
+            progress: status === ExecutionStates.COMPLETED ? 100 : status === ExecutionStates.RUNNING ? 50 : 0,
+            metadata: {
+                currentPhase: status === ExecutionStates.RUNNING ? "executing" : "idle",
+                activeRuns: status === ExecutionStates.RUNNING ? 1 : 0,
+                completedRuns: status === ExecutionStates.COMPLETED ? 1 : 0,
+                startTime: execution?.startTime?.toISOString(),
+            },
+        };
     }
 
     /**
      * Cancel a running execution
      */
-    async cancelExecution(executionId: ExecutionId): Promise<void> {
-        const execution = this.activeExecutions.get(executionId);
+    async cancelExecution(swarmId: SwarmId): Promise<void> {
+        const execution = this.activeExecutions.get(swarmId);
         if (execution) {
-            this.activeExecutions.set(executionId, {
+            this.activeExecutions.set(swarmId, {
                 ...execution,
-                status: ExecutionStatus.CANCELLED,
+                status: ExecutionStates.CANCELLED,
             });
 
-            this.logger.info("[UnifiedExecutor] Execution cancelled", { executionId });
+            logger.info("[UnifiedExecutor] Execution cancelled", { swarmId });
         }
     }
 

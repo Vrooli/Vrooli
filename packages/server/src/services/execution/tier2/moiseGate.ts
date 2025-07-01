@@ -1,4 +1,3 @@
-import { type Logger } from "winston";
 import { type RunContext, type StepInfo } from "@vrooli/shared";
 
 /**
@@ -12,7 +11,7 @@ export interface PermissionCheckResult {
 }
 
 /**
- * Deontic validation result for UnifiedRunStateMachine integration
+ * Deontic validation result for RunStateMachine integration
  */
 export interface DeonticValidationResult {
     allowed: boolean;
@@ -26,7 +25,7 @@ export interface DeonticValidationResult {
 export interface ExecutionValidationRequest {
     agent?: string;
     step: StepInfo;
-    context: any; // RunExecutionContext from UnifiedRunStateMachine
+    context: any; // RunExecutionContext from RunStateMachine
     teamId?: string;
 }
 
@@ -91,24 +90,22 @@ export interface MOISENorm {
  * authorized to perform within the organizational context.
  */
 export class MOISEGate {
-    private readonly logger: Logger;
     private orgSpec: MOISEOrgSpec;
     private roleCache: Map<string, MOISERole> = new Map();
     private permissionCache: Map<string, Set<string>> = new Map();
 
-    constructor(logger: Logger) {
-        this.logger = logger;
+    constructor() {
         this.initializeDefaultOrgSpec();
     }
 
     /**
-     * Validates execution for UnifiedRunStateMachine integration
+     * Validates execution for RunStateMachine integration
      * This is the main interface used by the tier 2 state machine
      */
     async validateExecution(request: ExecutionValidationRequest): Promise<DeonticValidationResult> {
         const { agent, step, context, teamId } = request;
-        
-        this.logger.debug("[MOISEGate] Validating execution", {
+
+        logger.debug("[MOISEGate] Validating execution", {
             agent,
             stepId: step.id,
             stepType: step.type,
@@ -149,7 +146,7 @@ export class MOISEGate {
             };
 
         } catch (error) {
-            this.logger.error("[MOISEGate] Execution validation failed", {
+            logger.error("[MOISEGate] Execution validation failed", {
                 agent,
                 stepId: step.id,
                 error: error instanceof Error ? error.message : String(error),
@@ -172,9 +169,9 @@ export class MOISEGate {
         context: RunContext,
     ): Promise<boolean> {
         const result = await this.performPermissionCheck(runId, stepId, context);
-        
+
         if (!result.permitted) {
-            this.logger.warn("[MOISEGate] Permission denied", {
+            logger.warn("[MOISEGate] Permission denied", {
                 runId,
                 stepId,
                 reason: result.reason,
@@ -197,14 +194,14 @@ export class MOISEGate {
         // Extract user role from context
         const userRole = context.variables.userRole as string || "user";
         const userMission = context.variables.userMission as string;
-        
+
         // Get step metadata from context
         const stepType = context.variables[`step_${stepId}_type`] as string || "action";
         const stepResource = context.variables[`step_${stepId}_resource`] as string || stepId;
-        
+
         // Check role permissions
         const rolePermissions = await this.getRolePermissions(userRole);
-        
+
         // Check if user has permission for this step type
         const requiredPermission = `execute:${stepType}`;
         if (!rolePermissions.has(requiredPermission)) {
@@ -236,7 +233,7 @@ export class MOISEGate {
                 stepId,
                 context,
             );
-            
+
             if (!missionCheck.permitted) {
                 return missionCheck;
             }
@@ -256,9 +253,9 @@ export class MOISEGate {
 
         const permissions = new Set<string>();
         const role = this.roleCache.get(roleId);
-        
+
         if (!role) {
-            this.logger.warn("[MOISEGate] Unknown role", { roleId });
+            logger.warn("[MOISEGate] Unknown role", { roleId });
             return permissions;
         }
 
@@ -308,7 +305,7 @@ export class MOISEGate {
             if (norm.resource !== resource && norm.resource !== "*") {
                 return false;
             }
-            
+
             if (norm.action !== action && norm.action !== "*") {
                 return false;
             }
@@ -357,7 +354,7 @@ export class MOISEGate {
         context: RunContext,
     ): Promise<PermissionCheckResult> {
         const mission = this.orgSpec.missions.find(m => m.id === missionId);
-        
+
         if (!mission) {
             return {
                 permitted: false,
@@ -377,7 +374,7 @@ export class MOISEGate {
         // Check mission constraints
         for (const [constraint, value] of Object.entries(mission.constraints)) {
             const contextValue = context.variables[constraint];
-            
+
             // Simple equality check for now
             if (contextValue !== value) {
                 return {
@@ -398,7 +395,7 @@ export class MOISEGate {
             // Simple condition evaluation
             // In production, use a proper expression evaluator
             const contextVars = { ...context.variables, ...context.blackboard };
-            
+
             // Replace variable references
             let evalCondition = condition;
             for (const [key, value] of Object.entries(contextVars)) {
@@ -411,7 +408,7 @@ export class MOISEGate {
             // Evaluate (UNSAFE - use proper parser in production)
             return eval(evalCondition) === true;
         } catch (error) {
-            this.logger.error("[MOISEGate] Condition evaluation failed", {
+            logger.error("[MOISEGate] Condition evaluation failed", {
                 condition,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -529,7 +526,7 @@ export class MOISEGate {
             this.roleCache.set(role.id, role);
         }
 
-        this.logger.info("[MOISEGate] Initialized default organization specification", {
+        logger.info("[MOISEGate] Initialized default organization specification", {
             roleCount: this.orgSpec.roles.length,
             missionCount: this.orgSpec.missions.length,
             normCount: this.orgSpec.norms.length,
@@ -541,17 +538,17 @@ export class MOISEGate {
      */
     async updateOrgSpec(orgSpec: MOISEOrgSpec): Promise<void> {
         this.orgSpec = orgSpec;
-        
+
         // Clear caches
         this.roleCache.clear();
         this.permissionCache.clear();
-        
+
         // Rebuild role cache
         for (const role of orgSpec.roles) {
             this.roleCache.set(role.id, role);
         }
 
-        this.logger.info("[MOISEGate] Updated organization specification");
+        logger.info("[MOISEGate] Updated organization specification");
     }
 
     /**
@@ -562,7 +559,7 @@ export class MOISEGate {
     }
 
     /**
-     * Helper methods for UnifiedRunStateMachine integration
+     * Helper methods for RunStateMachine integration
      */
 
     /**
@@ -602,7 +599,7 @@ export class MOISEGate {
         // Extract mission from swarm goal if available
         if (context.parentContext?.goal) {
             const goal = context.parentContext.goal as string;
-            
+
             // Simple heuristic to map goals to missions
             if (goal.toLowerCase().includes("automat")) {
                 return "automation";
@@ -621,7 +618,7 @@ export class MOISEGate {
         // Check if step has explicit goal
         if (step.description) {
             const desc = step.description.toLowerCase();
-            
+
             // Map step descriptions to goals
             if (desc.includes("discover") || desc.includes("find") || desc.includes("search")) {
                 return "discover";

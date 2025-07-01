@@ -4,15 +4,13 @@ import type {
     ToolResource,
 } from "@vrooli/shared";
 import { McpSwarmToolName, McpToolName, type SessionUser } from "@vrooli/shared";
-import { type Logger } from "winston";
-import { type ConversationStateStore } from "../../../conversation/chatStore.js";
-import { CompositeToolRunner, McpToolRunner, OpenAIToolRunner } from "../../../conversation/toolRunner.js";
-import { type ToolMeta } from "../../../conversation/types.js";
-import { type IEventBus } from "../../../events/types.js";
-import { ToolRegistry as MCPToolRegistry } from "../../../mcp/registry.js";
-import { SwarmTools } from "../../../mcp/tools.js";
-import { type Tool, type ToolResponse } from "../../../mcp/types.js";
-import { MONITORING_TOOL_DEFINITIONS, createMonitoringToolInstances } from "../tools/index.js";
+import { logger } from "../../../events/logger.js";
+import { type ConversationStateStore } from "../../conversation/chatStore.js";
+import { CompositeToolRunner, McpToolRunner, OpenAIToolRunner } from "../../conversation/toolRunner.js";
+import { type ToolMeta } from "../../conversation/types.js";
+import { ToolRegistry as MCPToolRegistry } from "../../mcp/registry.js";
+import { SwarmTools } from "../../mcp/tools.js";
+import { type Tool, type ToolResponse } from "../../mcp/types.js";
 
 /**
  * Tool approval status
@@ -35,7 +33,6 @@ export interface IntegratedToolContext {
     swarmId?: string;
     conversationId?: string;
     user: SessionUser;
-    logger: Logger;
     metadata?: Record<string, unknown>;
 }
 
@@ -61,7 +58,6 @@ export class IntegratedToolRegistry {
 
     private readonly mcpRegistry: MCPToolRegistry;
     private readonly compositeRunner: CompositeToolRunner;
-    private readonly logger: Logger;
 
     // Dynamic tool registry for runtime additions
     private readonly dynamicTools: Map<string, Tool> = new Map();
@@ -80,13 +76,12 @@ export class IntegratedToolRegistry {
     // Monitoring tool instances
     private monitoringToolInstances?: Map<string, (params: any) => Promise<ToolResponse>>;
 
-    private constructor(logger: Logger, conversationStore?: ConversationStateStore) {
-        this.logger = logger;
-        this.mcpRegistry = new MCPToolRegistry(logger);
+    private constructor(conversationStore?: ConversationStateStore) {
+        this.mcpRegistry = new MCPToolRegistry();
 
         // Initialize tool runners
-        const swarmTools = conversationStore ? new SwarmTools(logger, conversationStore) : undefined;
-        const mcpRunner = new McpToolRunner(logger, swarmTools);
+        const swarmTools = conversationStore ? new SwarmTools(conversationStore) : undefined;
+        const mcpRunner = new McpToolRunner(swarmTools);
         const openaiRunner = new OpenAIToolRunner(null); // Can be initialized with OpenAI client later
 
         this.compositeRunner = new CompositeToolRunner(mcpRunner, openaiRunner);
@@ -95,37 +90,11 @@ export class IntegratedToolRegistry {
     /**
      * Gets the singleton instance of the integrated tool registry
      */
-    static getInstance(logger: Logger, conversationStore?: ConversationStateStore): IntegratedToolRegistry {
+    static getInstance(conversationStore?: ConversationStateStore): IntegratedToolRegistry {
         if (!IntegratedToolRegistry.instance) {
-            IntegratedToolRegistry.instance = new IntegratedToolRegistry(logger, conversationStore);
+            IntegratedToolRegistry.instance = new IntegratedToolRegistry(conversationStore);
         }
         return IntegratedToolRegistry.instance;
-    }
-
-    /**
-     * Initialize monitoring tools with required dependencies
-     */
-    initializeMonitoringTools(
-        user: SessionUser,
-        eventBus: IEventBus,
-    ): void {
-        this.monitoringToolInstances = createMonitoringToolInstances(
-            user,
-            this.logger,
-            eventBus,
-        );
-
-        // Register monitoring tool definitions
-        for (const toolDef of MONITORING_TOOL_DEFINITIONS) {
-            this.registerDynamicTool(toolDef, {
-                scope: "global",
-            });
-        }
-
-        this.logger.info("[IntegratedToolRegistry] Monitoring tools initialized", {
-            toolCount: MONITORING_TOOL_DEFINITIONS.length,
-            tools: MONITORING_TOOL_DEFINITIONS.map(t => t.name),
-        });
     }
 
     /**
@@ -206,43 +175,13 @@ export class IntegratedToolRegistry {
         const startTime = Date.now();
         const { toolName, parameters } = request;
 
-        this.logger.info(`[IntegratedToolRegistry] Executing tool: ${toolName}`, {
+        logger.info(`[IntegratedToolRegistry] Executing tool: ${toolName}`, {
             stepId: context.stepId,
             runId: context.runId,
             swarmId: context.swarmId,
         });
 
         try {
-            // Check if this is a monitoring tool
-            if (this.monitoringToolInstances?.has(toolName)) {
-                const toolExecutor = this.monitoringToolInstances.get(toolName)!;
-
-                try {
-                    const toolResponse = await toolExecutor(parameters);
-
-                    // Track metrics
-                    this.updateUsageMetrics(toolName, Date.now() - startTime, !!toolResponse.isError);
-
-                    return {
-                        success: !toolResponse.isError,
-                        output: toolResponse.content?.[0]?.text || JSON.stringify(toolResponse),
-                        duration: Date.now() - startTime,
-                        retries: 0,
-                        metadata: {
-                            toolType: "monitoring",
-                        },
-                    };
-                } catch (error) {
-                    this.updateUsageMetrics(toolName, Date.now() - startTime, true);
-                    return {
-                        success: false,
-                        error: error instanceof Error ? error.message : "Monitoring tool execution failed",
-                        duration: Date.now() - startTime,
-                        retries: 0,
-                    };
-                }
-            }
-
             // Check if tool requires approval
             const approvalStatus = await this.checkApprovalRequirements(toolName, parameters, context);
             if (!approvalStatus.approved) {
@@ -291,7 +230,7 @@ export class IntegratedToolRegistry {
             }
 
         } catch (error) {
-            this.logger.error(`[IntegratedToolRegistry] Tool execution failed: ${toolName}`, {
+            logger.error(`[IntegratedToolRegistry] Tool execution failed: ${toolName}`, {
                 error: error instanceof Error ? error.message : String(error),
                 context,
             });
@@ -354,7 +293,7 @@ export class IntegratedToolRegistry {
             },
         });
 
-        this.logger.info(`[IntegratedToolRegistry] Registered dynamic tool: ${tool.name}`, {
+        logger.info(`[IntegratedToolRegistry] Registered dynamic tool: ${tool.name}`, {
             scope: context?.scope || "global",
             runId: context?.runId,
             swarmId: context?.swarmId,
@@ -373,7 +312,7 @@ export class IntegratedToolRegistry {
             : toolName;
 
         if (this.dynamicTools.delete(toolKey)) {
-            this.logger.info(`[IntegratedToolRegistry] Unregistered dynamic tool: ${toolName}`);
+            logger.info(`[IntegratedToolRegistry] Unregistered dynamic tool: ${toolName}`);
         }
     }
 
@@ -397,7 +336,7 @@ export class IntegratedToolRegistry {
 
         this.pendingApprovals.set(approvalId, approval);
 
-        this.logger.info("[IntegratedToolRegistry] Registered pending approval", {
+        logger.info("[IntegratedToolRegistry] Registered pending approval", {
             approvalId,
             toolName,
             stepId: context.stepId,
@@ -424,7 +363,7 @@ export class IntegratedToolRegistry {
         approval.approvedAt = new Date();
         approval.reason = approved ? "User approved" : "User rejected";
 
-        this.logger.info("[IntegratedToolRegistry] Processed approval", {
+        logger.info("[IntegratedToolRegistry] Processed approval", {
             approvalId,
             approved,
             toolName: approval.toolName,
@@ -453,7 +392,7 @@ export class IntegratedToolRegistry {
         }
 
         if (cleaned > 0) {
-            this.logger.debug(`[IntegratedToolRegistry] Cleaned up ${cleaned} expired approvals`);
+            logger.debug(`[IntegratedToolRegistry] Cleaned up ${cleaned} expired approvals`);
         }
     }
 

@@ -44,17 +44,17 @@
  * @see /docs/architecture/execution/swarm-state-management-redesign.md - Complete architecture
  */
 
-import { type Logger } from "winston";
+import {
+    generatePK,
+} from "@vrooli/shared";
 import { type Redis as RedisClient } from "ioredis";
-import { 
-    type ContextSubscription, 
-    type ContextUpdateEvent, 
+import { logger } from "../../../events/logger.js";
+import {
+    type ContextSubscription,
+    type ContextUpdateEvent,
     type SwarmId,
     UnifiedSwarmContextGuards,
 } from "./UnifiedSwarmContext.js";
-import { 
-    generatePK,
-} from "@vrooli/shared";
 
 /**
  * Subscription filter for fine-grained update control
@@ -62,19 +62,19 @@ import {
 export interface SubscriptionFilter {
     /** JSONPath patterns to match against change paths */
     pathPatterns: string[];
-    
+
     /** Change types to include */
     changeTypes?: ("created" | "updated" | "deleted")[];
-    
+
     /** Only include changes made by specific entities */
     updatedBy?: string[];
-    
+
     /** Only include emergent (agent-driven) changes */
     emergentOnly?: boolean;
-    
+
     /** Minimum change severity to include */
     minSeverity?: "low" | "medium" | "high" | "critical";
-    
+
     /** Rate limiting for high-frequency updates */
     rateLimit?: {
         maxNotificationsPerSecond: number;
@@ -89,19 +89,19 @@ export interface SubscriptionMetrics {
     subscriptionId: string;
     swarmId: SwarmId;
     subscriberId: string;
-    
+
     // Performance metrics
     totalNotifications: number;
     successfulNotifications: number;
     failedNotifications: number;
     averageProcessingTimeMs: number;
     lastNotificationAt?: Date;
-    
+
     // Rate limiting metrics
     notificationsInLastSecond: number;
     burstTokensUsed: number;
     rateLimitHits: number;
-    
+
     // Health indicators
     consecutiveFailures: number;
     isHealthy: boolean;
@@ -114,20 +114,20 @@ export interface SubscriptionMetrics {
 export interface ContextSubscriptionManagerConfig {
     /** Redis channel prefix for pub/sub */
     channelPrefix: string;
-    
+
     /** Default rate limiting settings */
     defaultRateLimit: {
         maxNotificationsPerSecond: number;
         burstAllowance: number;
     };
-    
+
     /** Health check settings */
     healthCheck: {
         maxConsecutiveFailures: number;
         unhealthySubscriptionTTL: number; // seconds
         cleanupInterval: number; // seconds
     };
-    
+
     /** Performance optimization settings */
     optimization: {
         batchNotifications: boolean;
@@ -135,7 +135,7 @@ export interface ContextSubscriptionManagerConfig {
         batchTimeoutMs: number;
         enableMetrics: boolean;
     };
-    
+
     /** Pub/sub settings */
     pubsub: {
         maxRetries: number;
@@ -170,26 +170,24 @@ interface RateLimiterState {
  * Provides efficient, filtered, rate-limited notifications with health monitoring.
  */
 export class ContextSubscriptionManager {
-    private readonly logger: Logger;
-    private readonly redis: RedisClient;
     private readonly config: ContextSubscriptionManagerConfig;
-    
+
     // Subscription management
     private readonly subscriptions = new Map<string, ContextSubscription & { filter?: SubscriptionFilter }>();
     private readonly subscriptionMetrics = new Map<string, SubscriptionMetrics>();
     private readonly rateLimiters = new Map<string, RateLimiterState>();
-    
+
     // Notification batching
     private readonly notificationBatches = new Map<string, NotificationBatch>();
-    
+
     // Redis pub/sub
     private subscriberClient?: RedisClient;
     private readonly subscribedChannels = new Set<string>();
-    
+
     // Health monitoring
     private healthCheckInterval?: NodeJS.Timeout;
     private cleanupInterval?: NodeJS.Timeout;
-    
+
     // Performance tracking
     private readonly globalMetrics = {
         totalSubscriptions: 0,
@@ -199,14 +197,11 @@ export class ContextSubscriptionManager {
         averageProcessingTimeMs: 0,
         rateLimitHits: 0,
     };
-    
+
     constructor(
-        logger: Logger,
         redis: RedisClient,
         config: Partial<ContextSubscriptionManagerConfig> = {},
     ) {
-        this.logger = logger;
-        this.redis = redis;
         this.config = {
             channelPrefix: "swarm_context:",
             defaultRateLimit: {
@@ -231,12 +226,12 @@ export class ContextSubscriptionManager {
             },
             ...config,
         };
-        
-        this.logger.info("[ContextSubscriptionManager] Initialized for emergent coordination", {
+
+        logger.info("[ContextSubscriptionManager] Initialized for emergent coordination", {
             config: this.config,
         });
     }
-    
+
     /**
      * Start the subscription manager and setup Redis pub/sub
      */
@@ -244,23 +239,23 @@ export class ContextSubscriptionManager {
         try {
             // Create dedicated Redis client for pub/sub
             this.subscriberClient = this.redis.duplicate();
-            
+
             // Setup message handler
             this.subscriberClient.on("message", this.handleRedisMessage.bind(this));
-            
+
             // Start health monitoring
             this.startHealthMonitoring();
-            
-            this.logger.info("[ContextSubscriptionManager] Started successfully");
-            
+
+            logger.info("[ContextSubscriptionManager] Started successfully");
+
         } catch (error) {
-            this.logger.error("[ContextSubscriptionManager] Failed to start", {
+            logger.error("[ContextSubscriptionManager] Failed to start", {
                 error: error instanceof Error ? error.message : String(error),
             });
             throw error;
         }
     }
-    
+
     /**
      * Stop the subscription manager and cleanup resources
      */
@@ -273,32 +268,32 @@ export class ContextSubscriptionManager {
             if (this.cleanupInterval) {
                 clearInterval(this.cleanupInterval);
             }
-            
+
             // Clear notification batches
             for (const batch of this.notificationBatches.values()) {
                 clearTimeout(batch.timeoutHandle);
             }
             this.notificationBatches.clear();
-            
+
             // Disconnect pub/sub client
             if (this.subscriberClient) {
                 await this.subscriberClient.quit();
             }
-            
+
             // Clear state
             this.subscriptions.clear();
             this.subscriptionMetrics.clear();
             this.rateLimiters.clear();
-            
-            this.logger.info("[ContextSubscriptionManager] Stopped successfully");
-            
+
+            logger.info("[ContextSubscriptionManager] Stopped successfully");
+
         } catch (error) {
-            this.logger.error("[ContextSubscriptionManager] Error during stop", {
+            logger.error("[ContextSubscriptionManager] Error during stop", {
                 error: error instanceof Error ? error.message : String(error),
             });
         }
     }
-    
+
     /**
      * Create a subscription for live context updates
      */
@@ -307,7 +302,7 @@ export class ContextSubscriptionManager {
         filter?: SubscriptionFilter,
     ): Promise<string> {
         const subscriptionId = generatePK();
-        
+
         const fullSubscription: ContextSubscription & { filter?: SubscriptionFilter } = {
             ...subscription,
             id: subscriptionId,
@@ -319,7 +314,7 @@ export class ContextSubscriptionManager {
                 subscriptionType: "agent", // Default for emergent capabilities
             },
         };
-        
+
         // Initialize metrics
         const metrics: SubscriptionMetrics = {
             subscriptionId,
@@ -335,7 +330,7 @@ export class ContextSubscriptionManager {
             consecutiveFailures: 0,
             isHealthy: true,
         };
-        
+
         // Initialize rate limiter
         const rateLimit = filter?.rateLimit || this.config.defaultRateLimit;
         const rateLimiter: RateLimiterState = {
@@ -343,20 +338,20 @@ export class ContextSubscriptionManager {
             lastRefill: new Date(),
             burstTokens: rateLimit.burstAllowance,
         };
-        
+
         // Store subscription and related data
         this.subscriptions.set(subscriptionId, fullSubscription);
         this.subscriptionMetrics.set(subscriptionId, metrics);
         this.rateLimiters.set(subscriptionId, rateLimiter);
-        
+
         // Subscribe to Redis channel for this swarm
         await this.subscribeToSwarmChannel(subscription.swarmId);
-        
+
         // Update global metrics
         this.globalMetrics.totalSubscriptions++;
         this.globalMetrics.activeSubscriptions++;
-        
-        this.logger.debug("[ContextSubscriptionManager] Created subscription for emergent coordination", {
+
+        logger.debug("[ContextSubscriptionManager] Created subscription for emergent coordination", {
             subscriptionId,
             swarmId: subscription.swarmId,
             subscriberId: subscription.subscriberId,
@@ -364,10 +359,10 @@ export class ContextSubscriptionManager {
             hasFilter: !!filter,
             rateLimit,
         });
-        
+
         return subscriptionId;
     }
-    
+
     /**
      * Remove a subscription
      */
@@ -376,66 +371,66 @@ export class ContextSubscriptionManager {
         if (!subscription) {
             return;
         }
-        
+
         // Remove from all maps
         this.subscriptions.delete(subscriptionId);
         this.subscriptionMetrics.delete(subscriptionId);
         this.rateLimiters.delete(subscriptionId);
-        
+
         // Clear any pending notification batch
         const batch = this.notificationBatches.get(subscriptionId);
         if (batch) {
             clearTimeout(batch.timeoutHandle);
             this.notificationBatches.delete(subscriptionId);
         }
-        
+
         // Check if we should unsubscribe from Redis channel
         await this.checkChannelUnsubscription(subscription.swarmId);
-        
+
         // Update global metrics
         this.globalMetrics.activeSubscriptions--;
-        
-        this.logger.debug("[ContextSubscriptionManager] Removed subscription", {
+
+        logger.debug("[ContextSubscriptionManager] Removed subscription", {
             subscriptionId,
             swarmId: subscription.swarmId,
             subscriberId: subscription.subscriberId,
         });
     }
-    
+
     /**
      * Publish a context update event to all relevant subscribers
      */
     async publishUpdate(event: ContextUpdateEvent): Promise<void> {
-        this.logger.debug("[ContextSubscriptionManager] Publishing context update", {
+        logger.debug("[ContextSubscriptionManager] Publishing context update", {
             swarmId: event.swarmId,
             version: event.newVersion,
             changesCount: event.changes.length,
             emergent: event.emergent,
         });
-        
+
         try {
             // Validate event
             if (!UnifiedSwarmContextGuards.isContextUpdateEvent(event)) {
                 throw new Error("Invalid context update event format");
             }
-            
+
             // Publish to Redis for cross-instance coordination
             const channel = `${this.config.channelPrefix}${event.swarmId}`;
             const message = JSON.stringify(event);
             await this.redis.publish(channel, message);
-            
+
             // Process local subscriptions immediately
             await this.processLocalSubscriptions(event);
-            
+
         } catch (error) {
-            this.logger.error("[ContextSubscriptionManager] Failed to publish update", {
+            logger.error("[ContextSubscriptionManager] Failed to publish update", {
                 swarmId: event.swarmId,
                 error: error instanceof Error ? error.message : String(error),
             });
             throw error;
         }
     }
-    
+
     /**
      * Get subscription metrics for monitoring and optimization
      */
@@ -447,17 +442,17 @@ export class ContextSubscriptionManager {
             }
             return metrics;
         }
-        
+
         return Array.from(this.subscriptionMetrics.values());
     }
-    
+
     /**
      * Get global performance metrics
      */
     getGlobalMetrics(): typeof this.globalMetrics {
         return { ...this.globalMetrics };
     }
-    
+
     /**
      * Get health status of all subscriptions
      */
@@ -470,9 +465,9 @@ export class ContextSubscriptionManager {
     } {
         const healthyCount = Array.from(this.subscriptionMetrics.values())
             .filter(m => m.isHealthy).length;
-        
+
         const unhealthyCount = this.subscriptionMetrics.size - healthyCount;
-        
+
         return {
             healthy: unhealthyCount === 0,
             totalSubscriptions: this.subscriptionMetrics.size,
@@ -485,29 +480,29 @@ export class ContextSubscriptionManager {
             })),
         };
     }
-    
+
     // Private implementation methods
-    
+
     private async subscribeToSwarmChannel(swarmId: SwarmId): Promise<void> {
         if (!this.subscriberClient) {
             throw new Error("Subscriber client not initialized");
         }
-        
+
         const channel = `${this.config.channelPrefix}${swarmId}`;
-        
+
         try {
             if (!this.subscribedChannels.has(channel)) {
                 await this.subscriberClient.subscribe(channel);
                 this.subscribedChannels.add(channel);
-                
-                this.logger.debug("[ContextSubscriptionManager] Subscribed to Redis channel", {
+
+                logger.debug("[ContextSubscriptionManager] Subscribed to Redis channel", {
                     channel,
                     swarmId,
                     totalChannels: this.subscribedChannels.size,
                 });
             }
         } catch (error) {
-            this.logger.error("[ContextSubscriptionManager] Failed to subscribe to Redis channel", {
+            logger.error("[ContextSubscriptionManager] Failed to subscribe to Redis channel", {
                 channel,
                 swarmId,
                 error: error instanceof Error ? error.message : String(error),
@@ -515,7 +510,7 @@ export class ContextSubscriptionManager {
             throw error;
         }
     }
-    
+
     private async handleRedisMessage(channel: string, message: string): Promise<void> {
         try {
             // Parse and validate the event
@@ -523,7 +518,7 @@ export class ContextSubscriptionManager {
             try {
                 const parsed = JSON.parse(message);
                 if (!UnifiedSwarmContextGuards.isContextUpdateEvent(parsed)) {
-                    this.logger.error("[ContextSubscriptionManager] Invalid event format in Redis message", {
+                    logger.error("[ContextSubscriptionManager] Invalid event format in Redis message", {
                         channel,
                         messageLength: message.length,
                         parsedKeys: Object.keys(parsed),
@@ -532,63 +527,63 @@ export class ContextSubscriptionManager {
                 }
                 event = parsed;
             } catch (parseError) {
-                this.logger.error("[ContextSubscriptionManager] Failed to parse Redis message", {
+                logger.error("[ContextSubscriptionManager] Failed to parse Redis message", {
                     channel,
                     error: parseError instanceof Error ? parseError.message : String(parseError),
                     messageLength: message.length,
                 });
                 return;
             }
-            
+
             // Extract swarm ID from channel
             const swarmId = channel.replace(this.config.channelPrefix, "");
-            
+
             if (event.swarmId !== swarmId) {
-                this.logger.warn("[ContextSubscriptionManager] Swarm ID mismatch in Redis message", {
+                logger.warn("[ContextSubscriptionManager] Swarm ID mismatch in Redis message", {
                     channelSwarmId: swarmId,
                     eventSwarmId: event.swarmId,
                 });
                 return;
             }
-            
+
             // Process local subscriptions
             await this.processLocalSubscriptions(event);
-            
+
         } catch (error) {
-            this.logger.error("[ContextSubscriptionManager] Failed to handle Redis message", {
+            logger.error("[ContextSubscriptionManager] Failed to handle Redis message", {
                 channel,
                 error: error instanceof Error ? error.message : String(error),
             });
         }
     }
-    
+
     private async processLocalSubscriptions(event: ContextUpdateEvent): Promise<void> {
         const swarmSubscriptions = Array.from(this.subscriptions.values())
             .filter(sub => sub.swarmId === event.swarmId);
-        
+
         for (const subscription of swarmSubscriptions) {
             try {
                 // Check if subscription is interested in this update
                 if (!this.isSubscriptionInterestedInEvent(subscription, event)) {
                     continue;
                 }
-                
+
                 // Apply rate limiting
                 if (!this.checkRateLimit(subscription.id)) {
                     continue;
                 }
-                
+
                 // Deliver notification (batched or immediate)
                 await this.deliverNotification(subscription, event);
-                
+
             } catch (error) {
                 await this.handleSubscriptionError(subscription.id, error);
             }
         }
-        
+
         this.globalMetrics.totalNotifications++;
     }
-    
+
     private isSubscriptionInterestedInEvent(
         subscription: ContextSubscription & { filter?: SubscriptionFilter },
         event: ContextUpdateEvent,
@@ -599,17 +594,17 @@ export class ContextSubscriptionManager {
                 this.matchesPattern(change.path, pattern),
             ),
         );
-        
+
         if (!pathMatch) {
             return false;
         }
-        
+
         // Apply additional filters if present
         const filter = subscription.filter;
         if (!filter) {
             return true;
         }
-        
+
         // Check change types
         if (filter.changeTypes && filter.changeTypes.length > 0) {
             const changeTypeMatch = event.changes.some(change =>
@@ -619,22 +614,22 @@ export class ContextSubscriptionManager {
                 return false;
             }
         }
-        
+
         // Check updatedBy filter
         if (filter.updatedBy && filter.updatedBy.length > 0) {
             if (!filter.updatedBy.includes(event.updatedBy)) {
                 return false;
             }
         }
-        
+
         // Check emergent filter
         if (filter.emergentOnly && !event.emergent) {
             return false;
         }
-        
+
         return true;
     }
-    
+
     private matchesPattern(path: string, pattern: string): boolean {
         // Simple pattern matching - supports wildcards
         const regex = new RegExp(
@@ -642,22 +637,22 @@ export class ContextSubscriptionManager {
         );
         return regex.test(path);
     }
-    
+
     private checkRateLimit(subscriptionId: string): boolean {
         const rateLimiter = this.rateLimiters.get(subscriptionId);
         const subscription = this.subscriptions.get(subscriptionId);
-        
+
         if (!rateLimiter || !subscription) {
             return false;
         }
-        
+
         const rateLimit = subscription.filter?.rateLimit || this.config.defaultRateLimit;
         const now = new Date();
-        
+
         // Refill tokens based on time elapsed
         const timeSinceLastRefill = now.getTime() - rateLimiter.lastRefill.getTime();
         const tokensToAdd = Math.floor(timeSinceLastRefill / 1000) * rateLimit.maxNotificationsPerSecond;
-        
+
         if (tokensToAdd > 0) {
             rateLimiter.tokens = Math.min(
                 rateLimit.maxNotificationsPerSecond,
@@ -665,29 +660,29 @@ export class ContextSubscriptionManager {
             );
             rateLimiter.lastRefill = now;
         }
-        
+
         // Check if we have tokens
         if (rateLimiter.tokens > 0) {
             rateLimiter.tokens--;
             return true;
         }
-        
+
         // Try burst tokens
         if (rateLimiter.burstTokens > 0) {
             rateLimiter.burstTokens--;
             return true;
         }
-        
+
         // Rate limited
         const metrics = this.subscriptionMetrics.get(subscriptionId);
         if (metrics) {
             metrics.rateLimitHits++;
         }
         this.globalMetrics.rateLimitHits++;
-        
+
         return false;
     }
-    
+
     private async deliverNotification(
         subscription: ContextSubscription,
         event: ContextUpdateEvent,
@@ -698,10 +693,10 @@ export class ContextSubscriptionManager {
             await this.deliverImmediateNotification(subscription, event);
         }
     }
-    
+
     private async addToBatch(subscriptionId: string, event: ContextUpdateEvent): Promise<void> {
         let batch = this.notificationBatches.get(subscriptionId);
-        
+
         if (!batch) {
             // Create new batch
             batch = {
@@ -720,13 +715,13 @@ export class ContextSubscriptionManager {
                 batch.events.push(event);
             } else {
                 // Force flush if batch is growing too large
-                this.logger.warn("[ContextSubscriptionManager] Forced batch flush due to size limit", {
+                logger.warn("[ContextSubscriptionManager] Forced batch flush due to size limit", {
                     subscriptionId,
                     eventCount: batch.events.length,
                 });
                 clearTimeout(batch.timeoutHandle);
                 await this.flushBatch(subscriptionId);
-                
+
                 // Start new batch with this event
                 const newBatch: NotificationBatch = {
                     subscriptionId,
@@ -740,7 +735,7 @@ export class ContextSubscriptionManager {
                 this.notificationBatches.set(subscriptionId, newBatch);
                 return;
             }
-            
+
             // Flush if batch is full
             if (batch.events.length >= this.config.optimization.batchSize) {
                 clearTimeout(batch.timeoutHandle);
@@ -748,20 +743,20 @@ export class ContextSubscriptionManager {
             }
         }
     }
-    
+
     private async flushBatch(subscriptionId: string): Promise<void> {
         const batch = this.notificationBatches.get(subscriptionId);
         if (!batch) {
             return;
         }
-        
+
         this.notificationBatches.delete(subscriptionId);
-        
+
         const subscription = this.subscriptions.get(subscriptionId);
         if (!subscription) {
             return;
         }
-        
+
         try {
             // Deliver all events in batch
             for (const event of batch.events) {
@@ -771,16 +766,16 @@ export class ContextSubscriptionManager {
             await this.handleSubscriptionError(subscriptionId, error);
         }
     }
-    
+
     private async deliverImmediateNotification(
         subscription: ContextSubscription,
         event: ContextUpdateEvent,
     ): Promise<void> {
         const startTime = Date.now();
-        
+
         try {
             await subscription.handler(event);
-            
+
             // Update metrics on success
             const metrics = this.subscriptionMetrics.get(subscription.id);
             if (metrics) {
@@ -789,39 +784,39 @@ export class ContextSubscriptionManager {
                 metrics.lastNotificationAt = new Date();
                 metrics.consecutiveFailures = 0;
                 metrics.isHealthy = true;
-                
+
                 const processingTime = Date.now() - startTime;
-                metrics.averageProcessingTimeMs = 
-                    (metrics.averageProcessingTimeMs * (metrics.totalNotifications - 1) + processingTime) / 
+                metrics.averageProcessingTimeMs =
+                    (metrics.averageProcessingTimeMs * (metrics.totalNotifications - 1) + processingTime) /
                     metrics.totalNotifications;
             }
-            
+
             // Update subscription metadata
             subscription.metadata.totalNotifications++;
             subscription.metadata.lastNotified = new Date();
-            
+
         } catch (error) {
             await this.handleSubscriptionError(subscription.id, error);
             throw error;
         }
     }
-    
+
     private async handleSubscriptionError(subscriptionId: string, error: unknown): Promise<void> {
         const metrics = this.subscriptionMetrics.get(subscriptionId);
         if (!metrics) {
             return;
         }
-        
+
         metrics.failedNotifications++;
         metrics.totalNotifications++;
         metrics.consecutiveFailures++;
         metrics.lastError = error instanceof Error ? error.message : String(error);
-        
+
         // Mark as unhealthy if too many consecutive failures
         if (metrics.consecutiveFailures >= this.config.healthCheck.maxConsecutiveFailures) {
             metrics.isHealthy = false;
-            
-            this.logger.warn("[ContextSubscriptionManager] Subscription marked unhealthy", {
+
+            logger.warn("[ContextSubscriptionManager] Subscription marked unhealthy", {
                 subscriptionId,
                 swarmId: metrics.swarmId,
                 subscriberId: metrics.subscriberId,
@@ -829,43 +824,43 @@ export class ContextSubscriptionManager {
                 lastError: metrics.lastError,
             });
         }
-        
+
         this.globalMetrics.failedNotifications++;
-        
-        this.logger.error("[ContextSubscriptionManager] Subscription notification failed", {
+
+        logger.error("[ContextSubscriptionManager] Subscription notification failed", {
             subscriptionId,
             swarmId: metrics.swarmId,
             error: metrics.lastError,
         });
     }
-    
+
     private startHealthMonitoring(): void {
         // Health check interval
         this.healthCheckInterval = setInterval(() => {
             this.performHealthCheck();
         }, this.config.healthCheck.cleanupInterval * 1000);
-        
+
         // Cleanup interval
         this.cleanupInterval = setInterval(() => {
             this.cleanupUnhealthySubscriptions();
         }, this.config.healthCheck.cleanupInterval * 1000);
     }
-    
+
     private performHealthCheck(): void {
         const now = Date.now();
         let healthyCount = 0;
         let unhealthyCount = 0;
-        
+
         for (const metrics of this.subscriptionMetrics.values()) {
             if (metrics.isHealthy) {
                 healthyCount++;
             } else {
                 unhealthyCount++;
             }
-            
+
             // Reset per-second counters
             metrics.notificationsInLastSecond = 0;
-            
+
             // Restore burst tokens only if depleted (prevent memory leak)
             const rateLimiter = this.rateLimiters.get(metrics.subscriptionId);
             if (rateLimiter && rateLimiter.burstTokens < rateLimiter.tokens) {
@@ -875,35 +870,35 @@ export class ContextSubscriptionManager {
                 rateLimiter.burstTokens = Math.min(rateLimit.burstAllowance, rateLimiter.burstTokens + 1);
             }
         }
-        
-        this.logger.debug("[ContextSubscriptionManager] Health check completed", {
+
+        logger.debug("[ContextSubscriptionManager] Health check completed", {
             totalSubscriptions: this.subscriptionMetrics.size,
             healthySubscriptions: healthyCount,
             unhealthySubscriptions: unhealthyCount,
             globalMetrics: this.globalMetrics,
         });
     }
-    
+
     private async checkChannelUnsubscription(swarmId: string): Promise<void> {
         // Check if there are any remaining subscriptions for this swarm
         const hasSubscriptionsForSwarm = Array.from(this.subscriptions.values())
             .some(sub => sub.swarmId === swarmId);
-        
+
         if (!hasSubscriptionsForSwarm && this.subscriberClient) {
             // No more subscriptions for this swarm, unsubscribe from Redis channel
             const channel = `${this.config.channelPrefix}${swarmId}`;
-            
+
             try {
                 await this.subscriberClient.unsubscribe(channel);
                 this.subscribedChannels.delete(channel);
-                
-                this.logger.debug("[ContextSubscriptionManager] Unsubscribed from Redis channel", {
+
+                logger.debug("[ContextSubscriptionManager] Unsubscribed from Redis channel", {
                     channel,
                     swarmId,
                     remainingChannels: this.subscribedChannels.size,
                 });
             } catch (error) {
-                this.logger.error("[ContextSubscriptionManager] Failed to unsubscribe from Redis channel", {
+                logger.error("[ContextSubscriptionManager] Failed to unsubscribe from Redis channel", {
                     channel,
                     swarmId,
                     error: error instanceof Error ? error.message : String(error),
@@ -911,31 +906,31 @@ export class ContextSubscriptionManager {
             }
         }
     }
-    
+
     private cleanupUnhealthySubscriptions(): void {
         const now = Date.now();
         const unhealthyThreshold = this.config.healthCheck.unhealthySubscriptionTTL * 1000;
-        
+
         const subscriptionsToRemove: string[] = [];
-        
+
         for (const [subscriptionId, metrics] of this.subscriptionMetrics.entries()) {
             if (!metrics.isHealthy && metrics.lastNotificationAt) {
                 const timeSinceLastNotification = now - metrics.lastNotificationAt.getTime();
-                
+
                 if (timeSinceLastNotification > unhealthyThreshold) {
-                    this.logger.warn("[ContextSubscriptionManager] Removing unhealthy subscription", {
+                    logger.warn("[ContextSubscriptionManager] Removing unhealthy subscription", {
                         subscriptionId,
                         swarmId: metrics.swarmId,
                         subscriberId: metrics.subscriberId,
                         timeSinceLastNotification,
                         consecutiveFailures: metrics.consecutiveFailures,
                     });
-                    
+
                     subscriptionsToRemove.push(subscriptionId);
                 }
             }
         }
-        
+
         // Remove unhealthy subscriptions after iteration to avoid modification during iteration
         for (const subscriptionId of subscriptionsToRemove) {
             this.removeSubscription(subscriptionId);

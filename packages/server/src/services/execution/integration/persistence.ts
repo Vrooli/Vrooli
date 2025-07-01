@@ -1,11 +1,11 @@
-import { type PrismaClient } from "@prisma/client";
 import {
     type ResourceUsage,
     type RunState,
     type StepStatus,
     generatePK,
 } from "@vrooli/shared";
-import { type Logger } from "winston";
+import { DbProvider } from "../../../db/provider.js";
+import { logger } from "../../../events/logger.js";
 
 /**
  * Execution status mapping between shared types and database enums
@@ -37,12 +37,9 @@ const STEP_STATUS_MAP = {
  * architecture with Vrooli's existing run tracking system.
  */
 export class RunPersistenceService {
-    private readonly prisma: PrismaClient;
-    private readonly logger: Logger;
 
-    constructor(prisma: PrismaClient, logger: Logger) {
-        this.prisma = prisma;
-        this.logger = logger;
+    constructor() {
+        // Add constructor logic here if needed
     }
 
     /**
@@ -57,7 +54,7 @@ export class RunPersistenceService {
         createdAt: Date;
         updatedAt: Date;
     }): Promise<void> {
-        this.logger.debug("[RunPersistenceService] Creating run", {
+        logger.debug("[RunPersistenceService] Creating run", {
             runId: runData.id,
             routineId: runData.routineId,
             userId: runData.userId,
@@ -65,7 +62,7 @@ export class RunPersistenceService {
 
         try {
             // Find the resource version
-            const resourceVersion = await this.prisma.resource_version.findFirst({
+            const resourceVersion = await DbProvider.get().resource_version.findFirst({
                 where: {
                     OR: [
                         { publicId: runData.routineId },
@@ -78,7 +75,7 @@ export class RunPersistenceService {
             });
 
             // Create the run record
-            await this.prisma.run.create({
+            await DbProvider.get().run.create({
                 data: {
                     id: BigInt(runData.id),
                     name: `Execution ${runData.id.slice(-8)}`,
@@ -99,7 +96,7 @@ export class RunPersistenceService {
 
             // Store inputs as run_io records
             for (const [key, value] of Object.entries(runData.inputs)) {
-                await this.prisma.run_io.create({
+                await DbProvider.get().run_io.create({
                     data: {
                         id: BigInt(generatePK()),
                         runId: BigInt(runData.id),
@@ -112,13 +109,13 @@ export class RunPersistenceService {
                 });
             }
 
-            this.logger.info("[RunPersistenceService] Run created", {
+            logger.info("[RunPersistenceService] Run created", {
                 runId: runData.id,
                 resourceVersionId: resourceVersion?.id,
             });
 
         } catch (error) {
-            this.logger.error("[RunPersistenceService] Failed to create run", {
+            logger.error("[RunPersistenceService] Failed to create run", {
                 runId: runData.id,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -130,7 +127,7 @@ export class RunPersistenceService {
      * Updates run state in the database
      */
     async updateRunState(runId: string, state: RunState): Promise<void> {
-        this.logger.debug("[RunPersistenceService] Updating run state", {
+        logger.debug("[RunPersistenceService] Updating run state", {
             runId,
             state,
         });
@@ -149,21 +146,21 @@ export class RunPersistenceService {
                 updateData.completedAt = new Date();
             }
 
-            await this.prisma.run.update({
+            await DbProvider.get().run.update({
                 where: {
                     id: BigInt(runId),
                 },
                 data: updateData,
             });
 
-            this.logger.debug("[RunPersistenceService] Run state updated", {
+            logger.debug("[RunPersistenceService] Run state updated", {
                 runId,
                 state,
                 dbStatus,
             });
 
         } catch (error) {
-            this.logger.error("[RunPersistenceService] Failed to update run state", {
+            logger.error("[RunPersistenceService] Failed to update run state", {
                 runId,
                 state,
                 error: error instanceof Error ? error.message : String(error),
@@ -184,7 +181,7 @@ export class RunPersistenceService {
         error?: string;
         resourceUsage?: ResourceUsage;
     }): Promise<void> {
-        this.logger.debug("[RunPersistenceService] Recording step execution", {
+        logger.debug("[RunPersistenceService] Recording step execution", {
             runId,
             stepId: stepData.stepId,
             state: stepData.state,
@@ -207,7 +204,7 @@ export class RunPersistenceService {
             };
 
             // Try to find existing step record
-            const existingStep = await this.prisma.run_step.findFirst({
+            const existingStep = await DbProvider.get().run_step.findFirst({
                 where: {
                     runId: BigInt(runId),
                     nodeId: stepData.stepId,
@@ -216,7 +213,7 @@ export class RunPersistenceService {
 
             if (existingStep) {
                 // Update existing step
-                await this.prisma.run_step.update({
+                await DbProvider.get().run_step.update({
                     where: {
                         id: existingStep.id,
                     },
@@ -231,7 +228,7 @@ export class RunPersistenceService {
                 });
             } else {
                 // Create new step record
-                await this.prisma.run_step.create({
+                await DbProvider.get().run_step.create({
                     data: {
                         id: BigInt(generatePK()),
                         runId: BigInt(runId),
@@ -248,7 +245,7 @@ export class RunPersistenceService {
                 });
             }
 
-            this.logger.debug("[RunPersistenceService] Step execution recorded", {
+            logger.debug("[RunPersistenceService] Step execution recorded", {
                 runId,
                 stepId: stepData.stepId,
                 dbStatus,
@@ -256,7 +253,7 @@ export class RunPersistenceService {
             });
 
         } catch (error) {
-            this.logger.error("[RunPersistenceService] Failed to record step execution", {
+            logger.error("[RunPersistenceService] Failed to record step execution", {
                 runId,
                 stepId: stepData.stepId,
                 error: error instanceof Error ? error.message : String(error),
@@ -280,10 +277,10 @@ export class RunPersistenceService {
         startedAt?: Date;
         completedAt?: Date;
     } | null> {
-        this.logger.debug("[RunPersistenceService] Loading run", { runId });
+        logger.debug("[RunPersistenceService] Loading run", { runId });
 
         try {
-            const run = await this.prisma.run.findUnique({
+            const run = await DbProvider.get().run.findUnique({
                 where: {
                     id: BigInt(runId),
                 },
@@ -307,7 +304,7 @@ export class RunPersistenceService {
             try {
                 parsedData = JSON.parse(run.data || "{}");
             } catch (error) {
-                this.logger.warn("[RunPersistenceService] Failed to parse run data", {
+                logger.warn("[RunPersistenceService] Failed to parse run data", {
                     runId,
                     error: error instanceof Error ? error.message : String(error),
                 });
@@ -336,7 +333,7 @@ export class RunPersistenceService {
                 completedAt: run.completedAt || undefined,
             };
 
-            this.logger.debug("[RunPersistenceService] Run loaded", {
+            logger.debug("[RunPersistenceService] Run loaded", {
                 runId,
                 status: result.status,
                 stepCount: run.steps.length,
@@ -345,7 +342,7 @@ export class RunPersistenceService {
             return result;
 
         } catch (error) {
-            this.logger.error("[RunPersistenceService] Failed to load run", {
+            logger.error("[RunPersistenceService] Failed to load run", {
                 runId,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -365,14 +362,14 @@ export class RunPersistenceService {
         completedAt?: Date;
         duration?: number;
     }>> {
-        this.logger.debug("[RunPersistenceService] Getting user run history", {
+        logger.debug("[RunPersistenceService] Getting user run history", {
             userId,
             limit,
             offset,
         });
 
         try {
-            const runs = await this.prisma.run.findMany({
+            const runs = await DbProvider.get().run.findMany({
                 where: {
                     userId: BigInt(userId),
                 },
@@ -416,7 +413,7 @@ export class RunPersistenceService {
                 };
             });
 
-            this.logger.debug("[RunPersistenceService] User run history loaded", {
+            logger.debug("[RunPersistenceService] User run history loaded", {
                 userId,
                 count: history.length,
             });
@@ -424,7 +421,7 @@ export class RunPersistenceService {
             return history;
 
         } catch (error) {
-            this.logger.error("[RunPersistenceService] Failed to get user run history", {
+            logger.error("[RunPersistenceService] Failed to get user run history", {
                 userId,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -436,14 +433,14 @@ export class RunPersistenceService {
      * Updates run outputs in the database
      */
     async updateRunOutputs(runId: string, outputs: Record<string, unknown>): Promise<void> {
-        this.logger.debug("[RunPersistenceService] Updating run outputs", {
+        logger.debug("[RunPersistenceService] Updating run outputs", {
             runId,
             outputKeys: Object.keys(outputs),
         });
 
         try {
             // Get current run data
-            const run = await this.prisma.run.findUnique({
+            const run = await DbProvider.get().run.findUnique({
                 where: { id: BigInt(runId) },
                 select: { data: true },
             });
@@ -454,12 +451,12 @@ export class RunPersistenceService {
 
             // Parse existing data
             const parsedData = JSON.parse(run.data || "{}");
-            
+
             // Add outputs to the data
             parsedData.outputs = outputs;
 
             // Update run with new data
-            await this.prisma.run.update({
+            await DbProvider.get().run.update({
                 where: { id: BigInt(runId) },
                 data: {
                     data: JSON.stringify(parsedData),
@@ -468,13 +465,13 @@ export class RunPersistenceService {
                 },
             });
 
-            this.logger.info("[RunPersistenceService] Run outputs updated", {
+            logger.info("[RunPersistenceService] Run outputs updated", {
                 runId,
                 outputCount: Object.keys(outputs).length,
             });
 
         } catch (error) {
-            this.logger.error("[RunPersistenceService] Failed to update run outputs", {
+            logger.error("[RunPersistenceService] Failed to update run outputs", {
                 runId,
                 error: error instanceof Error ? error.message : String(error),
             });

@@ -16,8 +16,9 @@ import {
     StrategyType as StrategyTypeEnum,
     nanoid,
 } from "@vrooli/shared";
-import { type Logger } from "winston";
-import { type IEventBus, EventTypes, EventUtils, getUnifiedEventSystem } from "../../../events/index.js";
+import { logger } from "../../../../events/logger.js";
+import { getEventBus } from "../../../events/eventBus.js";
+import { EventTypes, EventUtils } from "../../../events/index.js";
 import { ConversationalStrategy } from "../strategies/conversationalStrategy.js";
 import { DeterministicStrategy } from "../strategies/deterministicStrategy.js";
 import { ReasoningStrategy } from "../strategies/reasoningStrategy.js";
@@ -49,25 +50,18 @@ export interface UsageHints {
 export class SimpleStrategyProvider {
     private readonly strategies: Map<StrategyType, ExecutionStrategy>;
     private readonly config: StrategyFactoryConfig;
-    private readonly logger: Logger;
     private readonly toolOrchestrator?: ToolOrchestrator;
     private readonly validationEngine?: ValidationEngine;
-    private readonly unifiedEventBus: IEventBus | null;
 
     constructor(
         config: StrategyFactoryConfig,
-        logger: Logger,
         toolOrchestrator?: ToolOrchestrator,
         validationEngine?: ValidationEngine,
     ) {
         this.config = config;
-        this.logger = logger;
         this.toolOrchestrator = toolOrchestrator;
         this.validationEngine = validationEngine;
         this.strategies = new Map();
-
-        // Get unified event system for modern event publishing
-        this.unifiedEventBus = getUnifiedEventSystem();
 
         // Initialize available strategies
         this.initializeStrategies();
@@ -76,7 +70,7 @@ export class SimpleStrategyProvider {
     /**
      * Helper method for publishing events using unified event system
      */
-    private async publishUnifiedEvent(
+    private async publishEvent(
         eventType: string,
         data: any,
         options?: {
@@ -99,16 +93,10 @@ export class SimpleStrategyProvider {
                 ),
             );
 
-            await this.unifiedEventBus.publish(event);
-
-            this.logger.debug("[SimpleStrategyProvider] Published unified event", {
-                eventType,
-                deliveryGuarantee: options?.deliveryGuarantee,
-                priority: options?.priority,
-            });
+            getEventBus().publish(event);
 
         } catch (eventError) {
-            this.logger.error("[SimpleStrategyProvider] Failed to publish unified event", {
+            logger.error("[SimpleStrategyProvider] Failed to publish unified event", {
                 eventType,
                 error: eventError instanceof Error ? eventError.message : String(eventError),
             });
@@ -127,13 +115,13 @@ export class SimpleStrategyProvider {
         // 1. Get declared strategy from manifest (data-driven)
         const declaredStrategy = this.getDeclaredStrategy(context);
 
-        this.logger.debug(`[SimpleStrategyProvider] Manifest strategy: ${declaredStrategy}`, { stepId });
+        logger.debug(`[SimpleStrategyProvider] Manifest strategy: ${declaredStrategy}`, { stepId });
 
         // 2. Basic validation - only essential safety checks
         const validatedStrategy = await this.validateBasicSafety(declaredStrategy, context);
 
         // 3. Emit strategy selection event for evolution agents to analyze using unified event system
-        await this.publishUnifiedEvent(EventTypes.STRATEGY_PERFORMANCE_MEASURED, {
+        await this.publishEvent(EventTypes.STRATEGY_PERFORMANCE_MEASURED, {
             stepId,
             routineId: context.routineId,
             declaredStrategy,
@@ -142,7 +130,7 @@ export class SimpleStrategyProvider {
             context: {
                 stepType: context.stepType,
                 tier: "tier3",
-                userId: context.userId,
+                userId: context.userData.id,
                 swarmId: context.swarmId,
             },
             selectionReason: validatedStrategy === declaredStrategy ? "manifest_declared" : "safety_override",
@@ -188,13 +176,13 @@ export class SimpleStrategyProvider {
         const hasSensitiveData = context.config?.sensitiveData === true;
 
         if (strategy === StrategyTypeEnum.CONVERSATIONAL && hasSensitiveData) {
-            this.logger.warn("[SimpleStrategyProvider] Safety override: conversational not allowed for sensitive data", {
+            logger.warn("[SimpleStrategyProvider] Safety override: conversational not allowed for sensitive data", {
                 stepId: context.stepId,
                 originalStrategy: strategy,
             });
 
             // Emit safety override event for security agents using unified event system
-            await this.publishUnifiedEvent(EventTypes.THREAT_DETECTED, {
+            await this.publishEvent(EventTypes.THREAT_DETECTED, {
                 stepId: context.stepId,
                 originalStrategy: strategy,
                 overrideStrategy: StrategyTypeEnum.DETERMINISTIC,
@@ -233,17 +221,17 @@ export class SimpleStrategyProvider {
     private createStrategy(type: StrategyType): ExecutionStrategy {
         switch (type) {
             case StrategyTypeEnum.CONVERSATIONAL:
-                return new ConversationalStrategy(this.logger, this.toolOrchestrator, this.validationEngine);
+                return new ConversationalStrategy(this.toolOrchestrator, this.validationEngine);
 
             case StrategyTypeEnum.REASONING:
-                return new ReasoningStrategy(this.logger);
+                return new ReasoningStrategy(this.toolOrchestrator, this.validationEngine);
 
             case StrategyTypeEnum.DETERMINISTIC:
-                return new DeterministicStrategy(this.logger, this.toolOrchestrator, this.validationEngine);
+                return new DeterministicStrategy(this.toolOrchestrator, this.validationEngine);
 
             default:
-                this.logger.warn(`[SimpleStrategyProvider] Unknown strategy type: ${type}, falling back to conversational`);
-                return new ConversationalStrategy(this.logger, this.toolOrchestrator, this.validationEngine);
+                logger.warn(`[SimpleStrategyProvider] Unknown strategy type: ${type}, falling back to conversational`);
+                return new ConversationalStrategy(this.toolOrchestrator, this.validationEngine);
         }
     }
 
@@ -252,7 +240,7 @@ export class SimpleStrategyProvider {
      */
     private initializeStrategies(): void {
         // Strategies are created on-demand to reduce memory usage
-        this.logger.debug("[SimpleStrategyProvider] Strategy provider initialized");
+        logger.debug("[SimpleStrategyProvider] Strategy provider initialized");
     }
 
     /**
@@ -262,5 +250,3 @@ export class SimpleStrategyProvider {
         return Object.values(StrategyTypeEnum).includes(strategy as StrategyType);
     }
 }
-
-// Migration helper removed - use SimpleStrategyProvider.getStrategy() directly

@@ -7,10 +7,10 @@ import {
     type ToolExecutionResult,
     nanoid,
 } from "@vrooli/shared";
-import { type Logger } from "winston";
+import { logger } from "../../../events/logger.js";
 import { AIServiceRegistry } from "../../conversation/registry.js";
 import type { ResponseStreamOptions } from "../../conversation/types.js";
-import { type IEventBus } from "../../events/types.js";
+import { getEventBus } from "../../events/eventBus.js";
 
 // Constants for configuration
 const DEFAULT_MAX_TOKENS = 2000;
@@ -44,9 +44,7 @@ export interface ToolCallResult {
  * agent monitoring and intervention.
  */
 export class LLMIntegrationService {
-    private readonly logger: Logger;
     private readonly registry: AIServiceRegistry;
-    private readonly eventBus: IEventBus;
 
     // Current execution context for tool calls
     private currentStepId?: string;
@@ -55,10 +53,8 @@ export class LLMIntegrationService {
     private currentConversationId?: string;
     private currentUser?: { id: string; name?: string };
 
-    constructor(logger: Logger, eventBus: IEventBus) {
-        this.logger = logger;
+    constructor() {
         this.registry = AIServiceRegistry.get();
-        this.eventBus = eventBus;
     }
 
     /**
@@ -90,7 +86,7 @@ export class LLMIntegrationService {
         resources: AvailableResources,
         userData?: { id: string; name?: string },
     ): Promise<LLMResponse & { resourceUsage: ResourceUsage }> {
-        this.logger.debug("[LLMIntegrationService] Executing LLM request", {
+        logger.debug("[LLMIntegrationService] Executing LLM request", {
             model: request.model,
             messageCount: request.messages.length,
             hasTools: !!request.tools?.length,
@@ -182,7 +178,7 @@ export class LLMIntegrationService {
                 finishReason: "stop", // Would need to track actual finish reason
             };
 
-            this.logger.info("[LLMIntegrationService] LLM request completed", {
+            logger.info("[LLMIntegrationService] LLM request completed", {
                 model: request.model,
                 service: _serviceId,
                 tokensUsed: resourceUsage.tokens,
@@ -194,7 +190,7 @@ export class LLMIntegrationService {
             return { ...response, resourceUsage };
 
         } catch (error) {
-            this.logger.error("[LLMIntegrationService] LLM request failed", {
+            logger.error("[LLMIntegrationService] LLM request failed", {
                 model: request.model,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -211,7 +207,7 @@ export class LLMIntegrationService {
             const service = this.registry.getService(serviceId);
             return !!service;
         } catch (error) {
-            this.logger.debug("[LLMIntegrationService] Model availability check failed", {
+            logger.debug("[LLMIntegrationService] Model availability check failed", {
                 model: modelName,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -256,7 +252,7 @@ export class LLMIntegrationService {
 
             return models;
         } catch (error) {
-            this.logger.error("[LLMIntegrationService] Failed to get available models", {
+            logger.error("[LLMIntegrationService] Failed to get available models", {
                 error: error instanceof Error ? error.message : String(error),
             });
             return [];
@@ -283,7 +279,7 @@ export class LLMIntegrationService {
 
             return inputCost + outputCost;
         } catch (error) {
-            this.logger.warn("[LLMIntegrationService] Cost estimation failed", {
+            logger.warn("[LLMIntegrationService] Cost estimation failed", {
                 model: request.model,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -351,7 +347,7 @@ export class LLMIntegrationService {
         // Generate unique request ID for correlation across events
         const requestId = nanoid();
 
-        this.logger.debug("[LLMIntegrationService] Executing tool call via event bus", {
+        logger.debug("[LLMIntegrationService] Executing tool call via event bus", {
             toolName,
             requestId,
             hasContext: !!this.currentStepId,
@@ -392,14 +388,11 @@ export class LLMIntegrationService {
                 },
             };
 
-            // Publish the tool execution request
-            await this.eventBus.publish(requestEvent);
-
             // Wait for tool execution completion with timeout
             return await this.waitForToolCompletion(requestId, requestEvent.data.timeout);
 
         } catch (error) {
-            this.logger.error("[LLMIntegrationService] Tool execution request failed", {
+            logger.error("[LLMIntegrationService] Tool execution request failed", {
                 toolName,
                 requestId,
                 error: error instanceof Error ? error.message : String(error),
@@ -434,8 +427,8 @@ export class LLMIntegrationService {
 
             // Clean up function to remove event listeners
             const cleanup = () => {
-                this.eventBus.off("tool/execution/completed", completionHandler);
-                this.eventBus.off("tool/execution/failed", failureHandler);
+                getEventBus().off("tool/execution/completed", completionHandler);
+                getEventBus().off("tool/execution/failed", failureHandler);
             };
 
             // Set up timeout to prevent hanging
@@ -444,7 +437,7 @@ export class LLMIntegrationService {
                     completed = true;
                     cleanup();
 
-                    this.logger.warn("[LLMIntegrationService] Tool execution timeout", {
+                    logger.warn("[LLMIntegrationService] Tool execution timeout", {
                         requestId,
                         timeout,
                     });
@@ -487,8 +480,8 @@ export class LLMIntegrationService {
             };
 
             // Subscribe to completion events
-            this.eventBus.on("tool/execution/completed", completionHandler);
-            this.eventBus.on("tool/execution/failed", failureHandler);
+            getEventBus().on("tool/execution/completed", completionHandler);
+            getEventBus().on("tool/execution/failed", failureHandler);
         });
     }
 

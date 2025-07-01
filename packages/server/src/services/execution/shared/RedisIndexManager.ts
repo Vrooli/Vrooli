@@ -46,8 +46,8 @@
  * @see SwarmContextManager - Automated indexing replacement
  */
 
-import { type Logger } from "winston";
-import { type Redis as RedisClient, type ChainableCommander } from "ioredis";
+import { type ChainableCommander, type Redis as RedisClient } from "ioredis";
+import { logger } from "../../../events/logger.js";
 
 /**
  * Redis Index Manager interface
@@ -58,28 +58,28 @@ export interface IRedisIndexManager {
     removeFromSet(indexKey: string, itemId: string): Promise<void>;
     getSetMembers(indexKey: string): Promise<string[]>;
     setExists(indexKey: string, itemId: string): Promise<boolean>;
-    
+
     // List-based indexes (ordered collections)
     addToList(indexKey: string, itemId: string, position?: "head" | "tail", ttl?: number): Promise<void>;
     removeFromList(indexKey: string, itemId: string): Promise<void>;
     getListMembers(indexKey: string, start?: number, end?: number): Promise<string[]>;
-    
+
     // State transition management
     updateStateIndex<T extends string>(
-        itemId: string, 
-        oldState: T | null, 
-        newState: T, 
+        itemId: string,
+        oldState: T | null,
+        newState: T,
         stateKeyGenerator: (state: T) => string,
         allStates: T[]
     ): Promise<void>;
-    
+
     // Bulk operations for cleanup
     cleanupIndexesByPattern(pattern: string): Promise<void>;
     cleanupItemFromAllIndexes(itemId: string, indexPatterns: string[]): Promise<void>;
-    
+
     // TTL management
     refreshTTL(indexKey: string, ttl: number): Promise<void>;
-    
+
     // Validation and consistency
     validateIndexConsistency(indexKey: string, expectedItems: string[]): Promise<string[]>;
 }
@@ -90,22 +90,21 @@ export interface IRedisIndexManager {
 export class RedisIndexManager implements IRedisIndexManager {
     constructor(
         private readonly redis: RedisClient,
-        private readonly logger: Logger,
         private readonly defaultTtl?: number,
-    ) {}
+    ) { }
 
     /**
      * Execute multiple Redis operations in a pipeline for efficiency
      */
     private async executePipeline(operations: Array<(pipeline: ChainableCommander) => void>): Promise<void> {
         if (operations.length === 0) return;
-        
+
         try {
             const pipeline = this.redis.pipeline();
             operations.forEach(op => op(pipeline));
             await pipeline.exec();
         } catch (error) {
-            this.logger.error("[RedisIndexManager] Pipeline execution failed", {
+            logger.error("[RedisIndexManager] Pipeline execution failed", {
                 operationCount: operations.length,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -127,14 +126,14 @@ export class RedisIndexManager implements IRedisIndexManager {
             }
 
             await this.executePipeline(operations);
-            
-            this.logger.debug("[RedisIndexManager] Added to set", {
+
+            logger.debug("[RedisIndexManager] Added to set", {
                 indexKey,
                 itemId,
                 ttl: ttl || this.defaultTtl,
             });
         } catch (error) {
-            this.logger.error("[RedisIndexManager] Failed to add to set", {
+            logger.error("[RedisIndexManager] Failed to add to set", {
                 indexKey,
                 itemId,
                 error: error instanceof Error ? error.message : String(error),
@@ -149,13 +148,13 @@ export class RedisIndexManager implements IRedisIndexManager {
     async removeFromSet(indexKey: string, itemId: string): Promise<void> {
         try {
             await this.redis.srem(indexKey, itemId);
-            
-            this.logger.debug("[RedisIndexManager] Removed from set", {
+
+            logger.debug("[RedisIndexManager] Removed from set", {
                 indexKey,
                 itemId,
             });
         } catch (error) {
-            this.logger.error("[RedisIndexManager] Failed to remove from set", {
+            logger.error("[RedisIndexManager] Failed to remove from set", {
                 indexKey,
                 itemId,
                 error: error instanceof Error ? error.message : String(error),
@@ -170,15 +169,15 @@ export class RedisIndexManager implements IRedisIndexManager {
     async getSetMembers(indexKey: string): Promise<string[]> {
         try {
             const members = await this.redis.smembers(indexKey);
-            
-            this.logger.debug("[RedisIndexManager] Retrieved set members", {
+
+            logger.debug("[RedisIndexManager] Retrieved set members", {
                 indexKey,
                 memberCount: members.length,
             });
-            
+
             return members;
         } catch (error) {
-            this.logger.error("[RedisIndexManager] Failed to get set members", {
+            logger.error("[RedisIndexManager] Failed to get set members", {
                 indexKey,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -194,7 +193,7 @@ export class RedisIndexManager implements IRedisIndexManager {
             const exists = await this.redis.sismember(indexKey, itemId);
             return exists === 1;
         } catch (error) {
-            this.logger.error("[RedisIndexManager] Failed to check set existence", {
+            logger.error("[RedisIndexManager] Failed to check set existence", {
                 indexKey,
                 itemId,
                 error: error instanceof Error ? error.message : String(error),
@@ -223,15 +222,15 @@ export class RedisIndexManager implements IRedisIndexManager {
             }
 
             await this.executePipeline(operations);
-            
-            this.logger.debug("[RedisIndexManager] Added to list", {
+
+            logger.debug("[RedisIndexManager] Added to list", {
                 indexKey,
                 itemId,
                 position,
                 ttl: ttl || this.defaultTtl,
             });
         } catch (error) {
-            this.logger.error("[RedisIndexManager] Failed to add to list", {
+            logger.error("[RedisIndexManager] Failed to add to list", {
                 indexKey,
                 itemId,
                 position,
@@ -248,13 +247,13 @@ export class RedisIndexManager implements IRedisIndexManager {
         try {
             // Remove all occurrences of the item from the list
             await this.redis.lrem(indexKey, 0, itemId);
-            
-            this.logger.debug("[RedisIndexManager] Removed from list", {
+
+            logger.debug("[RedisIndexManager] Removed from list", {
                 indexKey,
                 itemId,
             });
         } catch (error) {
-            this.logger.error("[RedisIndexManager] Failed to remove from list", {
+            logger.error("[RedisIndexManager] Failed to remove from list", {
                 indexKey,
                 itemId,
                 error: error instanceof Error ? error.message : String(error),
@@ -269,17 +268,17 @@ export class RedisIndexManager implements IRedisIndexManager {
     async getListMembers(indexKey: string, start = 0, end = -1): Promise<string[]> {
         try {
             const members = await this.redis.lrange(indexKey, start, end);
-            
-            this.logger.debug("[RedisIndexManager] Retrieved list members", {
+
+            logger.debug("[RedisIndexManager] Retrieved list members", {
                 indexKey,
                 start,
                 end,
                 memberCount: members.length,
             });
-            
+
             return members;
         } catch (error) {
-            this.logger.error("[RedisIndexManager] Failed to get list members", {
+            logger.error("[RedisIndexManager] Failed to get list members", {
                 indexKey,
                 start,
                 end,
@@ -293,9 +292,9 @@ export class RedisIndexManager implements IRedisIndexManager {
      * Update state-based indexes atomically
      */
     async updateStateIndex<T extends string>(
-        itemId: string, 
-        oldState: T | null, 
-        newState: T, 
+        itemId: string,
+        oldState: T | null,
+        newState: T,
         stateKeyGenerator: (state: T) => string,
         allStates: T[],
     ): Promise<void> {
@@ -323,15 +322,15 @@ export class RedisIndexManager implements IRedisIndexManager {
             }
 
             await this.executePipeline(operations);
-            
-            this.logger.debug("[RedisIndexManager] Updated state index", {
+
+            logger.debug("[RedisIndexManager] Updated state index", {
                 itemId,
                 oldState,
                 newState,
                 statesProcessed: allStates.length,
             });
         } catch (error) {
-            this.logger.error("[RedisIndexManager] Failed to update state index", {
+            logger.error("[RedisIndexManager] Failed to update state index", {
                 itemId,
                 oldState,
                 newState,
@@ -347,24 +346,24 @@ export class RedisIndexManager implements IRedisIndexManager {
     async cleanupIndexesByPattern(pattern: string): Promise<void> {
         try {
             const keys = await this.redis.keys(pattern);
-            
+
             if (keys.length === 0) {
-                this.logger.debug("[RedisIndexManager] No indexes found for cleanup", { pattern });
+                logger.debug("[RedisIndexManager] No indexes found for cleanup", { pattern });
                 return;
             }
 
-            const operations: Array<(pipeline: ChainableCommander) => void> = keys.map(key => 
+            const operations: Array<(pipeline: ChainableCommander) => void> = keys.map(key =>
                 (pipeline) => pipeline.del(key),
             );
 
             await this.executePipeline(operations);
-            
-            this.logger.info("[RedisIndexManager] Cleaned up indexes", {
+
+            logger.info("[RedisIndexManager] Cleaned up indexes", {
                 pattern,
                 keysDeleted: keys.length,
             });
         } catch (error) {
-            this.logger.error("[RedisIndexManager] Failed to cleanup indexes", {
+            logger.error("[RedisIndexManager] Failed to cleanup indexes", {
                 pattern,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -381,7 +380,7 @@ export class RedisIndexManager implements IRedisIndexManager {
 
             for (const pattern of indexPatterns) {
                 const keys = await this.redis.keys(pattern);
-                
+
                 keys.forEach(key => {
                     // Remove from sets
                     operations.push((pipeline) => pipeline.srem(key, itemId));
@@ -391,14 +390,14 @@ export class RedisIndexManager implements IRedisIndexManager {
             }
 
             await this.executePipeline(operations);
-            
-            this.logger.debug("[RedisIndexManager] Cleaned up item from indexes", {
+
+            logger.debug("[RedisIndexManager] Cleaned up item from indexes", {
                 itemId,
                 patternCount: indexPatterns.length,
                 operationCount: operations.length,
             });
         } catch (error) {
-            this.logger.error("[RedisIndexManager] Failed to cleanup item from indexes", {
+            logger.error("[RedisIndexManager] Failed to cleanup item from indexes", {
                 itemId,
                 indexPatterns,
                 error: error instanceof Error ? error.message : String(error),
@@ -413,13 +412,13 @@ export class RedisIndexManager implements IRedisIndexManager {
     async refreshTTL(indexKey: string, ttl: number): Promise<void> {
         try {
             await this.redis.expire(indexKey, ttl);
-            
-            this.logger.debug("[RedisIndexManager] Refreshed TTL", {
+
+            logger.debug("[RedisIndexManager] Refreshed TTL", {
                 indexKey,
                 ttl,
             });
         } catch (error) {
-            this.logger.error("[RedisIndexManager] Failed to refresh TTL", {
+            logger.error("[RedisIndexManager] Failed to refresh TTL", {
                 indexKey,
                 ttl,
                 error: error instanceof Error ? error.message : String(error),
@@ -454,14 +453,14 @@ export class RedisIndexManager implements IRedisIndexManager {
             }
 
             if (inconsistentItems.length > 0) {
-                this.logger.warn("[RedisIndexManager] Index inconsistency detected", {
+                logger.warn("[RedisIndexManager] Index inconsistency detected", {
                     indexKey,
                     inconsistentItems,
                     actualCount: actualItems.length,
                     expectedCount: expectedItems.length,
                 });
             } else {
-                this.logger.debug("[RedisIndexManager] Index consistency validated", {
+                logger.debug("[RedisIndexManager] Index consistency validated", {
                     indexKey,
                     itemCount: expectedItems.length,
                 });
@@ -469,7 +468,7 @@ export class RedisIndexManager implements IRedisIndexManager {
 
             return inconsistentItems;
         } catch (error) {
-            this.logger.error("[RedisIndexManager] Failed to validate index consistency", {
+            logger.error("[RedisIndexManager] Failed to validate index consistency", {
                 indexKey,
                 error: error instanceof Error ? error.message : String(error),
             });

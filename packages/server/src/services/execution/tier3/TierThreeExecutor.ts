@@ -1,24 +1,26 @@
 import {
     type ExecutionContext,
-    type ExecutionId,
     type ExecutionResult,
-    ExecutionStatus,
+    ExecutionStates,
+    type ExecutionStatus,
     generatePK,
     isStepExecutionInput,
     isValidStepType,
     isValidStrategy,
     type StepExecutionInput,
     StrategyType as StrategyTypeEnum,
+    type SwarmId,
     type TierCapabilities,
     type TierCommunicationInterface,
     type TierExecutionRequest,
     type ValidStepType,
     type ValidStrategy,
 } from "@vrooli/shared";
-import { type Logger } from "winston";
-import { EventTypes, EventUtils, getUnifiedEventSystem, type IEventBus } from "../../events/index.js";
+import { EventTypes, EventUtils } from "../../events/index.js";
 import { BaseTierExecutor } from "../shared/BaseTierExecutor.js";
 // Socket events now handled through unified event system
+import { logger } from "../../../events/logger.js";
+import { getEventBus } from "../../events/eventBus.js";
 import { ContextExporter } from "./context/contextExporter.js";
 import { ExecutionRunContext } from "./context/runContext.js";
 import { IOProcessor } from "./engine/ioProcessor.js";
@@ -37,22 +39,18 @@ import { ValidationEngine } from "./engine/validationEngine.js";
 export class TierThreeExecutor extends BaseTierExecutor implements TierCommunicationInterface {
     private readonly unifiedExecutor: UnifiedExecutor;
     private readonly contextExporter: ContextExporter;
-    private readonly unifiedEventBus: IEventBus | null;
 
     // Track active executions for interface compliance
-    private readonly activeExecutions: Map<ExecutionId, { status: ExecutionStatus; startTime: Date; context: ExecutionContext }> = new Map();
+    private readonly activeExecutions: Map<SwarmId, { status: ExecutionStates; startTime: Date; context: ExecutionContext }> = new Map();
 
-    constructor(logger: Logger, eventBus: IEventBus) {
-        super(logger, eventBus, "TierThreeExecutor", "tier3");
-
-        // Get unified event system for proper event emission
-        this.unifiedEventBus = getUnifiedEventSystem();
+    constructor() {
+        super("TierThreeExecutor", "tier3");
 
         // Initialize components
-        const toolOrchestrator = new ToolOrchestrator(eventBus, logger);
-        const resourceManager = new ResourceManager(logger, eventBus);
-        const validationEngine = new ValidationEngine(logger);
-        const ioProcessor = new IOProcessor(logger);
+        const toolOrchestrator = new ToolOrchestrator();
+        const resourceManager = new ResourceManager();
+        const validationEngine = new ValidationEngine();
+        const ioProcessor = new IOProcessor();
 
         // Create simple strategy provider (enables agent-driven optimization)
         const strategyConfig = {
@@ -61,12 +59,10 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
             adaptationEnabled: true,
             learningRate: 0.1,
         };
-        const strategyProvider = new SimpleStrategyProvider(strategyConfig, logger, eventBus, toolOrchestrator, validationEngine);
+        const strategyProvider = new SimpleStrategyProvider(strategyConfig, logger, toolOrchestrator, validationEngine);
 
         // Create unified executor
         this.unifiedExecutor = new UnifiedExecutor(
-            eventBus,
-            logger,
             strategyProvider,
             toolOrchestrator,
             resourceManager,
@@ -75,19 +71,19 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
         );
 
         // Create context exporter
-        this.contextExporter = new ContextExporter(logger);
+        this.contextExporter = new ContextExporter();
 
         // Setup event handlers
         this.setupEventHandlers();
 
-        this.logger.info("[TierThreeExecutor] Initialized");
+        logger.info("[TierThreeExecutor] Initialized");
     }
 
     /**
      * Executes a single step
      */
     async executeStep(context: ExecutionContext): Promise<ExecutionResult> {
-        this.logger.info("[TierThreeExecutor] Executing step", {
+        logger.info("[TierThreeExecutor] Executing step", {
             stepId: context.stepId,
             stepType: context.stepType,
             runId: context.runId,
@@ -134,7 +130,7 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
             return result;
 
         } catch (error) {
-            this.logger.error("[TierThreeExecutor] Step execution failed", {
+            logger.error("[TierThreeExecutor] Step execution failed", {
                 stepId: context.stepId,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -177,7 +173,7 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
      * Shuts down the executor
      */
     async shutdown(): Promise<void> {
-        this.logger.info("[TierThreeExecutor] Shutting down");
+        logger.info("[TierThreeExecutor] Shutting down");
         // Currently no persistent state to clean up
     }
 
@@ -203,7 +199,7 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
         request: TierExecutionRequest<TInput>,
     ): Promise<ExecutionResult<TOutput>> {
         const { context, input, allocation, options } = request;
-        const executionId = context.executionId;
+        const swarmId = context.swarmId;
 
         // Validate input type (additional validation beyond base class)
         if (!isStepExecutionInput(input)) {
@@ -211,14 +207,14 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
         }
 
         // Track execution for interface compliance
-        this.activeExecutions.set(executionId, {
-            status: ExecutionStatus.RUNNING,
+        this.activeExecutions.set(swarmId, {
+            status: ExecutionStates.RUNNING,
             startTime: new Date(),
             context,
         });
 
-        this.logger.info("[TierThreeExecutor] Starting tier execution", {
-            executionId,
+        logger.info("[TierThreeExecutor] Starting tier execution", {
+            swarmId,
             stepId: input.stepId,
             stepType: input.stepType,
             strategy: input.strategy,
@@ -241,9 +237,9 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
             result = await this.executeStep(executionContext);
 
             // Update execution status
-            this.activeExecutions.set(executionId, {
-                status: ExecutionStatus.COMPLETED,
-                startTime: this.activeExecutions.get(executionId)?.startTime || new Date(),
+            this.activeExecutions.set(swarmId, {
+                status: ExecutionStates.COMPLETED,
+                startTime: this.activeExecutions.get(swarmId)?.startTime || new Date(),
                 context,
             });
 
@@ -262,9 +258,9 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
 
         } catch (executionError) {
             // Update execution status to failed
-            this.activeExecutions.set(executionId, {
-                status: ExecutionStatus.FAILED,
-                startTime: this.activeExecutions.get(executionId)?.startTime || new Date(),
+            this.activeExecutions.set(swarmId, {
+                status: ExecutionStates.FAILED,
+                startTime: this.activeExecutions.get(swarmId)?.startTime || new Date(),
                 context,
             });
 
@@ -286,7 +282,7 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
 
         // Emit config update through unified event system (if swarmId is available)
         if (context.swarmId) {
-            await this.publishUnifiedEvent(EventTypes.CONFIG_SWARM_UPDATED, {
+            await this.publishEvent(EventTypes.CONFIG_SWARM_UPDATED, {
                 entityType: "swarm",
                 entityId: context.swarmId,
                 config: {
@@ -296,7 +292,7 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
                         routine_name: input.toolName || `${input.stepType} execution`,
                         params: input.parameters,
                         output_resource_ids: [], // TODO: Extract from result
-                        caller_bot_id: context.userId,
+                        caller_bot_id: context.userData.id,
                         created_at: new Date().toISOString(),
                     }],
                     stats: {
@@ -352,11 +348,6 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
         data: Record<string, unknown>,
         deliveryGuarantee: "fire-and-forget" | "reliable" = "fire-and-forget",
     ): Promise<void> {
-        if (!this.unifiedEventBus) {
-            this.logger.debug("[TierThreeExecutor] Unified event bus not available, skipping event emission");
-            return;
-        }
-
         try {
             const event = EventUtils.createBaseEvent(
                 eventType,
@@ -365,24 +356,24 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
                     stepId: context.stepId,
                     stepType: context.stepType,
                     routineId: context.routineId,
-                    userId: context.userId,
+                    userId: context.userData.id,
                     ...data,
                 },
-                EventUtils.createEventSource(3, "TierThreeExecutor", context.executionId),
+                EventUtils.createEventSource(3, "TierThreeExecutor", context.swarmId),
                 EventUtils.createEventMetadata(
                     deliveryGuarantee,
                     deliveryGuarantee === "reliable" ? "high" : "medium",
                     {
                         conversationId: context.swarmId,
-                        userId: context.userId,
+                        userId: context.userData.id,
                         tags: ["tier3", "execution", context.stepType || "unknown"],
                     },
                 ),
             );
 
-            await this.unifiedEventBus.publish(event);
+            await getEventBus().publish(event);
 
-            this.logger.debug("[TierThreeExecutor] Emitted step event", {
+            logger.debug("[TierThreeExecutor] Emitted step event", {
                 eventType,
                 stepId: context.stepId,
                 runId: context.runId,
@@ -390,7 +381,7 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
             });
 
         } catch (eventError) {
-            this.logger.error("[TierThreeExecutor] Failed to emit step event", {
+            logger.error("[TierThreeExecutor] Failed to emit step event", {
                 eventType,
                 stepId: context.stepId,
                 runId: context.runId,
@@ -471,23 +462,35 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
     /**
      * Get execution status for monitoring
      */
-    async getExecutionStatus(executionId: ExecutionId): Promise<ExecutionStatus> {
-        const execution = this.activeExecutions.get(executionId);
-        return execution?.status || ExecutionStatus.COMPLETED;
+    async getExecutionStatus(swarmId: SwarmId): Promise<ExecutionStatus> {
+        const execution = this.activeExecutions.get(swarmId);
+        const status = execution?.status || ExecutionStates.COMPLETED;
+
+        return {
+            swarmId,
+            status,
+            progress: status === ExecutionStates.COMPLETED ? 100 : status === ExecutionStates.RUNNING ? 50 : 0,
+            metadata: {
+                currentPhase: status === ExecutionStates.RUNNING ? "executing" : "idle",
+                activeRuns: status === ExecutionStates.RUNNING ? 1 : 0,
+                completedRuns: status === ExecutionStates.COMPLETED ? 1 : 0,
+                startTime: execution?.startTime?.toISOString(),
+            },
+        };
     }
 
     /**
      * Cancel a running execution
      */
-    async cancelExecution(executionId: ExecutionId): Promise<void> {
-        const execution = this.activeExecutions.get(executionId);
+    async cancelExecution(swarmId: SwarmId): Promise<void> {
+        const execution = this.activeExecutions.get(swarmId);
         if (execution) {
-            this.activeExecutions.set(executionId, {
+            this.activeExecutions.set(swarmId, {
                 ...execution,
-                status: ExecutionStatus.CANCELLED,
+                status: ExecutionStates.CANCELLED,
             });
 
-            this.logger.info("[TierThreeExecutor] Execution cancelled", { executionId });
+            logger.info("[TierThreeExecutor] Execution cancelled", { swarmId });
         }
     }
 
@@ -511,19 +514,19 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
      */
     private setupEventHandlers(): void {
         // Handle tool approval requests
-        this.eventBus.on("tool.approval_required", async (event) => {
+        getEventBus().on("tool.approval_required", async (event) => {
             // Forward to appropriate handlers (e.g., UI notification service)
-            this.logger.info("[TierThreeExecutor] Tool approval required", event.data);
+            logger.info("[TierThreeExecutor] Tool approval required", event.data);
         });
 
         // Handle resource alerts
-        this.eventBus.on("resources.exhausted", async (event) => {
-            this.logger.warn("[TierThreeExecutor] Resources exhausted", event.data);
+        getEventBus().on("resources.exhausted", async (event) => {
+            logger.warn("[TierThreeExecutor] Resources exhausted", event.data);
         });
 
         // Handle validation failures
-        this.eventBus.on("validation.failed", async (event) => {
-            this.logger.error("[TierThreeExecutor] Validation failed", event.data);
+        getEventBus().on("validation.failed", async (event) => {
+            logger.error("[TierThreeExecutor] Validation failed", event.data);
         });
     }
 }

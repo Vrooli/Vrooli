@@ -5,7 +5,7 @@
  * and improve consistency.
  */
 
-import { nanoid } from "@vrooli/shared";
+import { nanoid } from "nanoid";
 import type {
   BaseEvent,
   EventSource,

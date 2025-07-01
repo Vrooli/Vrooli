@@ -168,7 +168,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, UnifiedEvent> {
                 this.state = SwarmState.IDLE;
 
                 // Emit state change to UI via unified events
-                await this.publishUnifiedEvent(
+                await this.publishEvent(
                     EventTypes.SWARM.STATE_CHANGED,
                     {
                         entityType: "swarm",
@@ -185,7 +185,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, UnifiedEvent> {
                 );
 
                 // Emit initial config via unified events
-                await this.publishUnifiedEvent(
+                await this.publishEvent(
                     EventTypes.SWARM.CONFIG_UPDATED,
                     {
                         entityType: "swarm",
@@ -210,7 +210,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, UnifiedEvent> {
                 );
 
                 // Emit swarm initialization complete event for monitoring
-                await this.publishUnifiedEvent(
+                await this.publishEvent(
                     EventTypes.SWARM.STATE_CHANGED,
                     {
                         chatId: convoId,
@@ -241,7 +241,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, UnifiedEvent> {
             this.state = SwarmState.FAILED;
 
             // Emit failure state via unified events
-            await this.publishUnifiedEvent(
+            await this.publishEvent(
                 EventTypes.SWARM.STATE_CHANGED,
                 {
                     entityType: "swarm",
@@ -387,7 +387,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, UnifiedEvent> {
         };
 
         // Emit swarm stopped event
-        await this.publishUnifiedEvent(
+        await this.publishEvent(
             EventTypes.SWARM.STATE_CHANGED,
             {
                 entityType: "swarm",
@@ -500,6 +500,123 @@ export class SwarmStateMachine extends BaseStateMachine<State, UnifiedEvent> {
         }
 
         return state;
+    }
+
+    /**
+     * Get default event-to-bot mapping for emergent coordination
+     * 
+     * This provides fallback mappings when swarm context doesn't have custom eventBotMapping.
+     * The mappings enable data-driven agent selection for different event types.
+     * 
+     * @returns Default event-bot mapping configuration
+     */
+    private getDefaultEventBotMapping(): Record<string, { respondingBots: string[]; promptTemplate?: string; priority?: "low" | "medium" | "high"; allowConcurrent?: boolean; maxResponseTimeMs?: number }> {
+        return {
+            // Coordination events - handled by leader/coordinator
+            "swarm/goal/updated": {
+                respondingBots: ["leader", "coordinator"],
+                promptTemplate: "Goal updated to: {goal}. Analyze changes and coordinate team response.",
+                priority: "high",
+                allowConcurrent: false,
+                maxResponseTimeMs: 5000,
+            },
+            "swarm/team/formed": {
+                respondingBots: ["leader", "coordinator"],
+                promptTemplate: "Team formation event. Current goal: {goal}. Coordinate team alignment.",
+                priority: "medium",
+                allowConcurrent: false,
+                maxResponseTimeMs: 10000,
+            },
+            
+            // Resource events - handled by resource-aware agents
+            "swarm/resource/allocated": {
+                respondingBots: ["coordinator", "resource_manager"],
+                promptTemplate: "Resources allocated. Monitor usage and optimize allocation strategy.",
+                priority: "medium",
+                allowConcurrent: true,
+                maxResponseTimeMs: 3000,
+            },
+            "swarm/resource/exhausted": {
+                respondingBots: ["coordinator", "resource_manager"],
+                promptTemplate: "Resource exhaustion detected. Implement emergency resource optimization.",
+                priority: "high",
+                allowConcurrent: false,
+                maxResponseTimeMs: 2000,
+            },
+            
+            // Execution events - handled by execution specialists
+            "swarm/execution/started": {
+                respondingBots: ["coordinator"],
+                promptTemplate: "Execution started for goal: {goal}. Monitor progress and coordinate agents.",
+                priority: "medium",
+                allowConcurrent: false,
+                maxResponseTimeMs: 5000,
+            },
+            "swarm/execution/completed": {
+                respondingBots: ["leader", "coordinator"],
+                promptTemplate: "Execution completed. Analyze results and plan next steps.",
+                priority: "medium",
+                allowConcurrent: false,
+                maxResponseTimeMs: 8000,
+            },
+            "swarm/execution/failed": {
+                respondingBots: ["leader", "coordinator"],
+                promptTemplate: "Execution failed. Analyze failure and implement recovery strategy.",
+                priority: "high",
+                allowConcurrent: false,
+                maxResponseTimeMs: 3000,
+            },
+            
+            // Tool events - handled by tool specialists and coordinators
+            "swarm/tool/approved": {
+                respondingBots: ["coordinator", "tool_manager"],
+                promptTemplate: "Tool {toolName} approved. Execute and monitor results.",
+                priority: "medium",
+                allowConcurrent: true,
+                maxResponseTimeMs: 2000,
+            },
+            "swarm/tool/rejected": {
+                respondingBots: ["coordinator"],
+                promptTemplate: "Tool {toolName} rejected. Find alternative approach for goal: {goal}.",
+                priority: "medium",
+                allowConcurrent: false,
+                maxResponseTimeMs: 5000,
+            },
+            
+            // Message events - handled by communication specialists
+            "swarm/message/received": {
+                respondingBots: ["coordinator", "communicator"],
+                promptTemplate: "Message received: {message}. Process and respond appropriately for goal: {goal}.",
+                priority: "medium",
+                allowConcurrent: true,
+                maxResponseTimeMs: 7000,
+            },
+            
+            // Emergency/safety events - handled by all available agents
+            "swarm/safety/violation": {
+                respondingBots: ["leader", "coordinator", "safety_monitor"],
+                promptTemplate: "Safety violation detected. Implement immediate containment and mitigation.",
+                priority: "high",
+                allowConcurrent: false,
+                maxResponseTimeMs: 1000,
+            },
+            "swarm/emergency/stop": {
+                respondingBots: ["leader", "coordinator"],
+                promptTemplate: "Emergency stop initiated. Halt all operations and ensure safe shutdown.",
+                priority: "high",
+                allowConcurrent: false,
+                maxResponseTimeMs: 500,
+            },
+            
+            // Default fallback for unknown events
+            "default": {
+                respondingBots: ["coordinator"],
+                promptTemplate: "Unknown event type: {eventType}. Analyze and respond appropriately.",
+                priority: "low",
+                allowConcurrent: false,
+                maxResponseTimeMs: 10000,
+            },
+        };
     }
 
     /**
@@ -775,7 +892,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, UnifiedEvent> {
             });
 
             // Emit response event for monitoring
-            await this.publishUnifiedEvent(
+            await this.publishEvent(
                 EventTypes.ROUTINE_STEP_COMPLETED,
                 {
                     runId: event.conversationId,
@@ -848,7 +965,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, UnifiedEvent> {
             });
 
             // Emit tool execution event
-            await this.publishUnifiedEvent(
+            await this.publishEvent(
                 EventTypes.TOOL_COMPLETED,
                 {
                     toolName: pendingToolCall.toolName,
@@ -924,7 +1041,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, UnifiedEvent> {
             });
 
             // Emit tool rejection handled event
-            await this.publishUnifiedEvent(
+            await this.publishEvent(
                 EventTypes.TOOL_APPROVAL_REJECTED,
                 {
                     toolName: pendingToolCall.toolName,
@@ -989,7 +1106,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, UnifiedEvent> {
             });
 
             // Emit task coordination event
-            await this.publishUnifiedEvent(
+            await this.publishEvent(
                 EventTypes.STATE_TASK_UPDATED,
                 {
                     entityType: "task",
@@ -1103,7 +1220,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, UnifiedEvent> {
                 metadata: event.payload,
             };
 
-            await this.publishUnifiedEvent(
+            await this.publishEvent(
                 eventType,
                 eventData,
                 {
@@ -1199,7 +1316,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, UnifiedEvent> {
 
             // If this was an emergent change (made by an agent), emit special monitoring event
             if (event.emergentCapability) {
-                await this.publishUnifiedEvent(
+                await this.publishEvent(
                     EventTypes.STATE_SWARM_UPDATED,
                     {
                         entityType: "swarm",

@@ -1,8 +1,8 @@
-import { type Logger } from "winston";
-import { 
-    type RunContext,
+import {
     type ContextScope,
+    type RunContext,
 } from "@vrooli/shared";
+import { logger } from "../../../events/logger.js";
 import { type ExecutionRunContext } from "../tier3/context/runContext.js";
 
 /**
@@ -55,7 +55,6 @@ const MAX_SCOPE_DEPTH = 10;
 const LARGE_OBJECT_WARNING_SIZE = 100000; // 100KB
 
 export class ContextValidator {
-    private readonly logger: Logger;
     private readonly maxVariableSize: number = MAX_VARIABLE_SIZE_BYTES;
     private readonly maxScopeDepth: number = MAX_SCOPE_DEPTH;
     private readonly sensitivePatterns: RegExp[] = [
@@ -66,13 +65,6 @@ export class ContextValidator {
         /api[_-]?key/i,
         /private[_-]?key/i,
     ];
-
-    constructor(logger: Logger) {
-        this.logger = logger;
-    }
-
-    // Modern context validation now handled by RunExecutionContext and ExecutionRunContext
-    // See UnifiedRunStateMachine and tier3/context for modern validation patterns
 
     /**
      * Validates ExecutionRunContext (Tier 3)
@@ -134,7 +126,7 @@ export class ContextValidator {
 
         const isValid = errors.filter(e => e.severity === "critical" || e.severity === "high").length === 0;
 
-        this.logger.debug("[ContextValidator] Validated ExecutionRunContext", {
+        logger.debug("[ContextValidator] Validated ExecutionRunContext", {
             valid: isValid,
             errorCount: errors.length,
             warningCount: warnings.length,
@@ -230,7 +222,7 @@ export class ContextValidator {
 
         const isValid = errors.filter(e => e.severity === "critical" || e.severity === "high").length === 0;
 
-        this.logger.debug("[ContextValidator] Validated RunContext", {
+        logger.debug("[ContextValidator] Validated RunContext", {
             valid: isValid,
             errorCount: errors.length,
             warningCount: warnings.length,
@@ -527,14 +519,5 @@ export class ContextValidator {
                 itemsValidated,
             },
         };
-    }
-}
-
-/**
- * Factory for creating context validators
- */
-export class ContextValidatorFactory {
-    static create(logger: Logger): ContextValidator {
-        return new ContextValidator(logger);
     }
 }

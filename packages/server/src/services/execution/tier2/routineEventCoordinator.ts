@@ -1,7 +1,7 @@
-import { type IEventBus } from "../../../events/types.js";
+import { type RoutineCompletionData, type StepResult } from "@vrooli/shared";
 import { EventTypes } from "../../../events/index.js";
+import { getEventBus } from "../../events/eventBus.js";
 import { type ISwarmContextManager } from "../../shared/SwarmContextManager.js";
-import { type StepResult, type RoutineCompletionData } from "@vrooli/shared";
 
 /**
  * RoutineEventCoordinator - Thin wrapper around EventBus for routine-specific events
@@ -25,7 +25,6 @@ export class RoutineEventCoordinator {
     private readonly contextId: string;
 
     constructor(
-        private readonly eventBus: IEventBus,
         private readonly swarmContextManager?: ISwarmContextManager,
         contextId: string,
     ) {
@@ -36,15 +35,15 @@ export class RoutineEventCoordinator {
      * Emit routine started event
      */
     async emitRoutineStarted(
-        executionId: string,
+        swarmId: string,
         routineId: string,
         userId: string,
     ): Promise<void> {
-        await this.eventBus.publish({
+        await getEventBus().publish({
             type: EventTypes.ROUTINE_STARTED,
             source: { tier: 2, component: "RoutineExecution" },
             data: {
-                executionId,
+                swarmId,
                 routineId,
                 userId,
                 startTime: new Date().toISOString(),
@@ -64,15 +63,15 @@ export class RoutineEventCoordinator {
      * Emit step started event
      */
     async emitStepStarted(
-        executionId: string,
+        swarmId: string,
         stepId: string,
         stepType: string,
     ): Promise<void> {
-        await this.eventBus.publish({
+        await getEventBus().publish({
             type: EventTypes.STEP_STARTED,
             source: { tier: 2, component: "RoutineExecution" },
             data: {
-                executionId,
+                swarmId,
                 stepId,
                 stepType,
                 startTime: new Date().toISOString(),
@@ -93,15 +92,15 @@ export class RoutineEventCoordinator {
      * Emit step completed event
      */
     async emitStepCompleted(
-        executionId: string,
+        swarmId: string,
         stepId: string,
         result: StepResult,
     ): Promise<void> {
-        await this.eventBus.publish({
+        await getEventBus().publish({
             type: EventTypes.STEP_COMPLETED,
             source: { tier: 2, component: "RoutineExecution" },
             data: {
-                executionId,
+                swarmId,
                 stepId,
                 result,
                 completionTime: new Date().toISOString(),
@@ -122,16 +121,16 @@ export class RoutineEventCoordinator {
      * Emit step failed event
      */
     async emitStepFailed(
-        executionId: string,
+        swarmId: string,
         stepId: string,
         error: string,
         details?: Record<string, unknown>,
     ): Promise<void> {
-        await this.eventBus.publish({
+        await getEventBus().publish({
             type: EventTypes.STEP_FAILED,
             source: { tier: 2, component: "RoutineExecution" },
             data: {
-                executionId,
+                swarmId,
                 stepId,
                 error,
                 details,
@@ -153,14 +152,14 @@ export class RoutineEventCoordinator {
      * Emit routine completed event
      */
     async emitRoutineCompleted(
-        executionId: string,
+        swarmId: string,
         result: RoutineCompletionData,
     ): Promise<void> {
-        await this.eventBus.publish({
+        await getEventBus().publish({
             type: EventTypes.ROUTINE_COMPLETED,
             source: { tier: 2, component: "RoutineExecution" },
             data: {
-                executionId,
+                swarmId,
                 result,
                 completionTime: new Date().toISOString(),
             },
@@ -180,15 +179,15 @@ export class RoutineEventCoordinator {
      * Emit routine failed event
      */
     async emitRoutineFailed(
-        executionId: string,
+        swarmId: string,
         error: string,
         failedAtStep?: string,
     ): Promise<void> {
-        await this.eventBus.publish({
+        await getEventBus().publish({
             type: EventTypes.ROUTINE_FAILED,
             source: { tier: 2, component: "RoutineExecution" },
             data: {
-                executionId,
+                swarmId,
                 error,
                 failedAtStep,
                 failureTime: new Date().toISOString(),
@@ -210,15 +209,15 @@ export class RoutineEventCoordinator {
      * Emit variable updated event
      */
     async emitVariableUpdated(
-        executionId: string,
+        swarmId: string,
         variableName: string,
         value: unknown,
     ): Promise<void> {
-        await this.eventBus.publish({
+        await getEventBus().publish({
             type: EventTypes.VARIABLE_UPDATED,
             source: { tier: 2, component: "RoutineExecution" },
             data: {
-                executionId,
+                swarmId,
                 variableName,
                 value,
                 updateTime: new Date().toISOString(),
@@ -238,15 +237,15 @@ export class RoutineEventCoordinator {
      * Emit resource allocated event
      */
     async emitResourceAllocated(
-        executionId: string,
+        swarmId: string,
         resourceType: string,
         amount: number,
     ): Promise<void> {
-        await this.eventBus.publish({
+        await getEventBus().publish({
             type: EventTypes.RESOURCE_ALLOCATED,
             source: { tier: 2, component: "RoutineExecution" },
             data: {
-                executionId,
+                swarmId,
                 resourceType,
                 amount,
                 allocationTime: new Date().toISOString(),
@@ -266,15 +265,15 @@ export class RoutineEventCoordinator {
      * Emit checkpoint created event
      */
     async emitCheckpointCreated(
-        executionId: string,
+        swarmId: string,
         checkpointId: string,
         stepId: string,
     ): Promise<void> {
-        await this.eventBus.publish({
+        await getEventBus().publish({
             type: EventTypes.CHECKPOINT_CREATED,
             source: { tier: 2, component: "RoutineExecution" },
             data: {
-                executionId,
+                swarmId,
                 checkpointId,
                 stepId,
                 creationTime: new Date().toISOString(),
@@ -297,16 +296,16 @@ export class RoutineEventCoordinator {
      * Emit approval requested event
      */
     async emitApprovalRequested(
-        executionId: string,
+        swarmId: string,
         stepId: string,
         approvalType: string,
         requestData: Record<string, unknown>,
     ): Promise<void> {
-        await this.eventBus.publish({
+        await getEventBus().publish({
             type: EventTypes.APPROVAL_REQUESTED,
             source: { tier: 2, component: "RoutineExecution" },
             data: {
-                executionId,
+                swarmId,
                 stepId,
                 approvalType,
                 requestData,

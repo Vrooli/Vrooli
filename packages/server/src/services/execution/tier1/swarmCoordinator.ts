@@ -18,21 +18,22 @@
  */
 
 import {
-    type ExecutionId,
     type ExecutionResult,
-    ExecutionStates,
+    type ExecutionStatus,
     type RoutineExecutionInput,
     type SessionUser,
     type SwarmCoordinationInput,
+    type SwarmId,
     type TierCapabilities,
     type TierCommunicationInterface,
     type TierExecutionRequest,
     generatePK,
     isRoutineExecutionInput,
-    isSwarmCoordinationInput,
+    isSwarmCoordinationInput
 } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
-import type { ISwarmContextManager } from "../shared/SwarmContextManager.js";
+import { SwarmContextManager } from "../shared/SwarmContextManager.js";
+import { RoutineOrchestrator } from "../tier2/routineOrchestrator.js";
 import { SwarmStateMachine } from "./swarmStateMachine.js";
 
 /**
@@ -51,9 +52,10 @@ export class SwarmCoordinator extends SwarmStateMachine implements TierCommunica
         goal: string;
     }> = new Map();
 
-    constructor(contextManager: ISwarmContextManager) {
-        super(logger, contextManager);
-        this.routineOrchestrator = new RoutineOrchestrator(logger, contextManager);
+    constructor() {
+        const contextManager = new SwarmContextManager();
+        super(contextManager);
+        this.routineOrchestrator = new RoutineOrchestrator(contextManager);
 
         logger.info("[SwarmCoordinator] Initialized with direct Tier 1 coordination", {
             hasContextManager: true,
@@ -67,11 +69,11 @@ export class SwarmCoordinator extends SwarmStateMachine implements TierCommunica
      * Handles both SwarmCoordinationInput (creating swarms) and 
      * RoutineExecutionInput (delegating to Tier 2)
      */
-    async execute<TInput, TOutput>(
-        request: TierExecutionRequest<TInput>,
-    ): Promise<ExecutionResult<TOutput>> {
+    async execute(
+        request: SwarmCoordinationInput,
+    ): Promise<ExecutionResult<null>> {
         logger.info("[SwarmCoordinator] Executing tier request", {
-            executionId: request.context.executionId,
+            swarmId: request.context.swarmId,
             inputType: request.input?.constructor?.name || typeof request.input,
         });
 
@@ -83,13 +85,13 @@ export class SwarmCoordinator extends SwarmStateMachine implements TierCommunica
                 return await this.handleSwarmCoordination(
                     request as TierExecutionRequest<SwarmCoordinationInput>,
                     startTime,
-                ) as ExecutionResult<TOutput>;
+                ) as ExecutionResult<null>;
 
             } else if (isRoutineExecutionInput(request.input)) {
                 return await this.handleRoutineExecution(
                     request as TierExecutionRequest<RoutineExecutionInput>,
                     startTime,
-                ) as ExecutionResult<TOutput>;
+                ) as ExecutionResult<null>;
 
             } else {
                 // Input type not supported by Tier 1
@@ -101,14 +103,13 @@ export class SwarmCoordinator extends SwarmStateMachine implements TierCommunica
             }
         } catch (error) {
             logger.error("[SwarmCoordinator] Execution failed", {
-                executionId: request.context.executionId,
+                swarmId: request.context.swarmId,
                 error: error instanceof Error ? error.message : String(error),
                 stack: error instanceof Error ? error.stack : undefined,
             });
 
             return {
-                executionId: request.context.executionId,
-                status: "failed",
+                success: false,
                 error: {
                     code: "TIER1_EXECUTION_FAILED",
                     message: error instanceof Error ? error.message : "Unknown error",
@@ -116,16 +117,19 @@ export class SwarmCoordinator extends SwarmStateMachine implements TierCommunica
                     type: error instanceof Error ? error.constructor.name : "Error",
                     context: {
                         inputType: request.input?.constructor?.name || typeof request.input,
-                        userId: request.context.userId,
+                        userId: request.context.userData.id,
                         swarmId: request.context.swarmId,
                     },
                 },
-                resourceUsage: {
-                    credits: 0,
-                    tokens: 0,
-                    duration: Date.now() - startTime,
+                result: null,
+                resourcesUsed: {
+                    creditsUsed: "0", // BigInt as string
+                    durationMs: Date.now() - startTime,
+                    stepsExecuted: 0,
+                    memoryUsedMB: 0,
                 },
                 duration: Date.now() - startTime,
+                context: request.context,
             };
         }
     }
@@ -134,47 +138,22 @@ export class SwarmCoordinator extends SwarmStateMachine implements TierCommunica
      * Handle swarm coordination requests
      */
     private async handleSwarmCoordination(
-        request: TierExecutionRequest<SwarmCoordinationInput>,
+        request: SwarmCoordinationInput,
         startTime: number,
-    ): Promise<ExecutionResult<any>> {
-        const swarmInput = request.input;
-        const swarmId = request.context.executionId;
+    ): Promise<ExecutionResult<null>> {
+        const swarmInput = request.input as SwarmCoordinationInput;
+        const swarmId = request.context.swarmId || generatePK().toString();
 
         // Extract resource allocation
         const maxCredits = this.parseCreditsFromString(request.allocation.maxCredits);
         const maxTime = request.allocation.maxDurationMs;
-
-        // Create swarm configuration
-        const swarmConfig = {
-            swarmId,
-            name: `Swarm: ${swarmInput.goal.substring(0, 50)}...`,
-            description: swarmInput.goal,
-            goal: swarmInput.goal,
-            resources: {
-                maxCredits,
-                maxTokens: Math.floor(maxTime / 1000), // Estimate tokens from duration
-                maxTime,
-                tools: swarmInput.availableAgents.map(agent => ({
-                    name: agent.name,
-                    description: agent.capabilities.join(", "),
-                })),
-            },
-            config: {
-                model: "gpt-4",
-                temperature: 0.7,
-                autoApproveTools: false,
-                parallelExecutionLimit: Math.min(swarmInput.availableAgents.length, 5),
-            },
-            userId: request.context.userId,
-            organizationId: request.context.organizationId,
-        };
 
         // Generate conversation ID for the swarm
         const conversationId = generatePK().toString();
 
         // Create initial swarm context through SwarmContextManager
         await this.contextManager.createContext(swarmId, {
-            updatedBy: request.context.userId,
+            updatedBy: request.context.userData.id,
             resources: {
                 total: {
                     credits: request.allocation.maxCredits,
@@ -194,13 +173,13 @@ export class SwarmCoordinator extends SwarmStateMachine implements TierCommunica
             blackboard: new Map([
                 ["conversationId", conversationId],
                 ["goal", swarmInput.goal],
-                ["userId", request.context.userId],
+                ["userId", request.context.userData.id],
             ]),
         });
 
         // Start the swarm through parent class
         const initiatingUser: SessionUser = {
-            id: request.context.userId,
+            id: request.context.userData.id,
             name: "User",
             hasPremium: false,
         } as SessionUser;
@@ -210,25 +189,28 @@ export class SwarmCoordinator extends SwarmStateMachine implements TierCommunica
         // Track active swarm
         this.activeSwarms.set(swarmId, {
             startTime: new Date(),
-            userId: request.context.userId,
+            userId: request.context.userData.id,
             goal: swarmInput.goal,
         });
 
         return {
-            executionId: request.context.executionId,
-            status: "completed",
-            result: {
+            success: true,
+            result: null,
+            outputs: {
                 swarmId,
                 swarmName: swarmConfig.name,
-                agentCount: swarmInput.availableAgents.length,
+                agentCount: swarmInput.availableTools?.length || 0,
                 conversationId,
             },
-            resourceUsage: {
-                credits: 0, // Swarm creation is free, execution will consume credits
-                tokens: 0,
-                duration: Date.now() - startTime,
+            resourcesUsed: {
+                creditsUsed: "0", // BigInt as string
+                durationMs: Date.now() - startTime,
+                stepsExecuted: 0,
+                memoryUsedMB: 0,
+                apiCalls: 0,
             },
             duration: Date.now() - startTime,
+            context: request.context,
         };
     }
 
@@ -238,14 +220,13 @@ export class SwarmCoordinator extends SwarmStateMachine implements TierCommunica
     private async handleRoutineExecution(
         request: TierExecutionRequest<RoutineExecutionInput>,
         startTime: number,
-    ): Promise<ExecutionResult<any>> {
+    ): Promise<ExecutionResult<null>> {
         const routineInput = request.input;
 
         // Create properly formatted Tier 2 request - direct delegation without protocol wrapper
         const tier2Request: TierExecutionRequest<RoutineExecutionInput> = {
             context: {
                 ...request.context,
-                parentExecutionId: request.context.executionId,
                 routineId: routineInput.routineId,
             },
             input: routineInput,
@@ -258,19 +239,19 @@ export class SwarmCoordinator extends SwarmStateMachine implements TierCommunica
 
         logger.info("[SwarmCoordinator] Routine execution delegated to Tier 2", {
             routineId: routineInput.routineId,
-            executionResult: result.status,
+            executionResult: result.success ? "completed" : "failed",
         });
 
         // Update swarm resource consumption if this is part of a swarm
-        if (request.context.swarmId && result.resourceUsage) {
+        if (request.context.swarmId && result.resourcesUsed) {
             try {
                 await this.contextManager.allocateResources(request.context.swarmId, {
-                    entityId: request.context.executionId,
+                    entityId: request.context.swarmId,
                     entityType: "run",
                     allocated: {
-                        credits: BigInt(result.resourceUsage.credits),
-                        timeoutMs: result.resourceUsage.duration,
-                        memoryMB: 0,
+                        credits: BigInt(result.resourcesUsed.creditsUsed),
+                        timeoutMs: result.resourcesUsed.durationMs,
+                        memoryMB: result.resourcesUsed.memoryUsedMB || 0,
                         concurrentExecutions: 0,
                     },
                     purpose: `Routine execution: ${routineInput.routineId}`,
@@ -293,44 +274,45 @@ export class SwarmCoordinator extends SwarmStateMachine implements TierCommunica
      * Retrieves current execution status including progress, metadata, and error information.
      * Uses SwarmContextManager to get unified context and execution state.
      * 
-     * @param executionId - The unique identifier for the swarm execution
+     * @param swarmId - The unique identifier for the swarm execution
      * @returns Promise resolving to detailed execution status information
      * @throws Error if context retrieval fails
      */
-    async getExecutionStatus(executionId: ExecutionId): Promise<ExecutionStatus> {
+    async getExecutionStatus(swarmId: SwarmId): Promise<ExecutionStatus> {
         try {
             // Try to get context from SwarmContextManager
-            const context = await this.contextManager.getContext(executionId);
+            const context = await this.contextManager.getContext(swarmId);
 
             if (!context) {
                 return {
-                    executionId,
+                    swarmId,
                     status: "failed",
                     error: {
                         code: "SWARM_NOT_FOUND",
-                        message: `Swarm ${executionId} not found`,
+                        message: `Swarm ${swarmId} not found`,
                     },
                 };
             }
 
             // Map internal state to execution status
+            // Note: Using string literals since BaseStates values are different from ExecutionStates enum
             const statusMap: Record<string, ExecutionStatus["status"]> = {
-                [ExecutionStates.UNINITIALIZED]: "pending",
-                [ExecutionStates.STARTING]: "running",
-                [ExecutionStates.RUNNING]: "running",
-                [ExecutionStates.IDLE]: "running",
-                [ExecutionStates.PAUSED]: "paused",
-                [ExecutionStates.STOPPED]: "completed",
-                [ExecutionStates.FAILED]: "failed",
-                [ExecutionStates.TERMINATED]: "cancelled",
+                "UNINITIALIZED": "pending",
+                "STARTING": "running",
+                "RUNNING": "running",
+                "IDLE": "running",
+                "PAUSED": "paused",
+                "STOPPED": "completed",
+                "FAILED": "failed",
+                "TERMINATED": "cancelled",
             };
 
-            const executionState = context.executionState?.currentStatus || ExecutionStates.UNINITIALIZED;
+            const executionState = context.executionState?.currentStatus || "UNINITIALIZED";
             const activeRuns = context.executionState?.activeRuns?.length || 0;
             const metrics = context.executionState?.metrics;
 
             return {
-                executionId,
+                swarmId,
                 status: statusMap[executionState] || "failed",
                 progress: this.calculateProgressFromContext(context),
                 metadata: {
@@ -343,12 +325,12 @@ export class SwarmCoordinator extends SwarmStateMachine implements TierCommunica
 
         } catch (error) {
             logger.error("[SwarmCoordinator] Failed to get execution status", {
-                executionId,
+                swarmId,
                 error: error instanceof Error ? error.message : String(error),
             });
 
             return {
-                executionId,
+                swarmId,
                 status: "failed",
                 error: {
                     code: "STATUS_ERROR",
@@ -364,20 +346,20 @@ export class SwarmCoordinator extends SwarmStateMachine implements TierCommunica
      * Gracefully stops a swarm execution, cleans up resources, and updates context.
      * Removes the swarm from active tracking and notifies the SwarmContextManager.
      * 
-     * @param executionId - The unique identifier for the swarm execution to cancel
+     * @param swarmId - The unique identifier for the swarm execution to cancel
      * @returns Promise that resolves when cancellation is complete
      * @throws Error if the swarm is not found or cancellation fails
      */
-    async cancelExecution(executionId: ExecutionId): Promise<void> {
+    async cancelExecution(swarmId: SwarmId): Promise<void> {
         try {
             // Stop the swarm through parent class
-            await this.stop(executionId);
+            await this.stop(swarmId);
 
             // Remove from active swarms
-            this.activeSwarms.delete(executionId);
+            this.activeSwarms.delete(swarmId);
 
             // Clean up context
-            const context = await this.contextManager.getContext(executionId);
+            const context = await this.contextManager.getContext(swarmId);
             if (context) {
                 // Release any child swarm resources
                 const childSwarmIds = context.blackboard.get("childSwarmIds") as string[] || [];
@@ -386,7 +368,7 @@ export class SwarmCoordinator extends SwarmStateMachine implements TierCommunica
                         await this.cancelExecution(childId);
                     } catch (error) {
                         logger.warn("[SwarmCoordinator] Failed to cancel child swarm", {
-                            parentSwarmId: executionId,
+                            parentSwarmId: swarmId,
                             childSwarmId: childId,
                             error: error instanceof Error ? error.message : String(error),
                         });
@@ -396,7 +378,7 @@ export class SwarmCoordinator extends SwarmStateMachine implements TierCommunica
 
         } catch (error) {
             logger.error("[SwarmCoordinator] Failed to cancel execution", {
-                executionId,
+                swarmId,
                 error: error instanceof Error ? error.message : String(error),
             });
             throw error;

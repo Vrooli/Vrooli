@@ -1,5 +1,5 @@
-import { type Logger } from "winston";
 import { type RoutineContextImpl } from "@vrooli/shared";
+import { logger } from "../../../../events/logger.js";
 
 /**
  * IOProcessor - Handles input/output processing for step execution
@@ -18,11 +18,6 @@ import { type RoutineContextImpl } from "@vrooli/shared";
  * - Efficient data serialization
  */
 export class IOProcessor {
-    private readonly logger: Logger;
-
-    constructor(logger: Logger) {
-        this.logger = logger;
-    }
 
     /**
      * Builds input payload for step execution
@@ -48,7 +43,7 @@ export class IOProcessor {
             throw new Error("RunContext must have a valid runId");
         }
 
-        this.logger.debug("[IOProcessor] Building input payload", {
+        logger.debug("[IOProcessor] Building input payload", {
             inputKeys: Object.keys(inputs),
             runId: runContext.runId,
         });
@@ -69,7 +64,7 @@ export class IOProcessor {
             // 5. Validate completeness
             this.validateInputCompleteness(resolved, runContext);
 
-            this.logger.debug("[IOProcessor] Input payload built successfully", {
+            logger.debug("[IOProcessor] Input payload built successfully", {
                 payloadKeys: Object.keys(resolved),
                 runId: runContext.runId,
             });
@@ -77,7 +72,7 @@ export class IOProcessor {
             return resolved;
 
         } catch (error) {
-            this.logger.error("[IOProcessor] Failed to build input payload", {
+            logger.error("[IOProcessor] Failed to build input payload", {
                 error: error instanceof Error ? error.message : String(error),
                 runId: runContext.runId,
             });
@@ -99,7 +94,7 @@ export class IOProcessor {
         outputSchema?: Record<string, unknown>,
         runContext?: RoutineContextImpl,
     ): Promise<Record<string, unknown>> {
-        this.logger.debug("[IOProcessor] Processing outputs", {
+        logger.debug("[IOProcessor] Processing outputs", {
             hasSchema: !!outputSchema,
             runId: runContext?.runId,
         });
@@ -109,7 +104,7 @@ export class IOProcessor {
             const normalized = this.normalizeOutputStructure(rawOutputs);
 
             // 2. Apply schema mapping if provided
-            const mapped = outputSchema 
+            const mapped = outputSchema
                 ? await this.applySchemaMapping(normalized, outputSchema)
                 : normalized;
 
@@ -124,7 +119,7 @@ export class IOProcessor {
             return transformed;
 
         } catch (error) {
-            this.logger.error("[IOProcessor] Failed to process outputs", {
+            logger.error("[IOProcessor] Failed to process outputs", {
                 error: error instanceof Error ? error.message : String(error),
                 runId: runContext?.runId,
             });
@@ -162,7 +157,7 @@ export class IOProcessor {
             try {
                 return JSON.parse(value);
             } catch {
-                this.logger.warn(`[IOProcessor] Failed to parse JSON for ${key}`);
+                logger.warn(`[IOProcessor] Failed to parse JSON for ${key}`);
                 return value;
             }
         }
@@ -310,8 +305,8 @@ export class IOProcessor {
     ): Promise<unknown> {
         // Format: stepId.outputKey
         const [stepId, ...outputPath] = ref.split(".");
-        
-        this.logger.debug(`[IOProcessor] Resolving reference: ${ref}`, {
+
+        logger.debug(`[IOProcessor] Resolving reference: ${ref}`, {
             stepId,
             outputPath: outputPath.join("."),
             runId: runContext.runId,
@@ -326,7 +321,7 @@ export class IOProcessor {
 
             // Get subroutine context to access step outputs
             const subroutineContext = runContext.getSubroutineContext();
-            
+
             // Look up step output
             const stepOutput = subroutineContext.allOutputsMap[stepId];
             if (stepOutput === undefined) {
@@ -336,18 +331,18 @@ export class IOProcessor {
             // Navigate to specific output field if path provided
             if (outputPath.length > 0) {
                 const value = this.getValueByPath(
-                    stepOutput as Record<string, unknown>, 
+                    stepOutput as Record<string, unknown>,
                     outputPath.join("."),
                 );
-                
+
                 if (value === undefined) {
                     throw new Error(`Output path '${outputPath.join(".")}' not found in step '${stepId}'`);
                 }
-                
+
                 return value;
             }
 
-            this.logger.debug(`[IOProcessor] Successfully resolved reference: ${ref}`, {
+            logger.debug(`[IOProcessor] Successfully resolved reference: ${ref}`, {
                 stepId,
                 hasValue: stepOutput !== undefined,
                 runId: runContext.runId,
@@ -356,7 +351,7 @@ export class IOProcessor {
             return stepOutput;
 
         } catch (error) {
-            this.logger.error(`[IOProcessor] Failed to resolve step reference: ${ref}`, {
+            logger.error(`[IOProcessor] Failed to resolve step reference: ${ref}`, {
                 stepId,
                 outputPath: outputPath.join("."),
                 error: error instanceof Error ? error.message : String(error),
@@ -371,39 +366,39 @@ export class IOProcessor {
         runContext: RoutineContextImpl,
     ): { valid: boolean; error?: string } {
         const [stepId, outputKey] = ref.split(".");
-        
+
         if (!stepId) {
-            return { 
-                valid: false, 
-                error: "Step reference must include stepId", 
+            return {
+                valid: false,
+                error: "Step reference must include stepId",
             };
         }
 
         // Get subroutine context to check if step exists
         const subroutineContext = runContext.getSubroutineContext();
-        
+
         // Check if step exists in context
         if (!(stepId in subroutineContext.allOutputsMap)) {
-            return { 
-                valid: false, 
-                error: `Referenced step '${stepId}' not found or not completed`, 
+            return {
+                valid: false,
+                error: `Referenced step '${stepId}' not found or not completed`,
             };
         }
-        
+
         // Check if output key exists (if specified)
         if (outputKey) {
             const stepOutput = subroutineContext.allOutputsMap[stepId];
             if (typeof stepOutput === "object" && stepOutput !== null && !Array.isArray(stepOutput)) {
                 const outputRecord = stepOutput as Record<string, unknown>;
                 if (!(outputKey in outputRecord)) {
-                    return { 
-                        valid: false, 
-                        error: `Output key '${outputKey}' not found in step '${stepId}'`, 
+                    return {
+                        valid: false,
+                        error: `Output key '${outputKey}' not found in step '${stepId}'`,
                     };
                 }
             }
         }
-        
+
         return { valid: true };
     }
 
@@ -414,7 +409,7 @@ export class IOProcessor {
         // Check for required inputs based on step configuration
         // Note: RoutineContextImpl doesn't have stepConfig directly, would need to be passed separately
         const requiredInputs: string[] = [];
-        
+
         for (const required of requiredInputs) {
             if (!(required in inputs) || inputs[required] === undefined) {
                 throw new Error(`Required input missing: ${required}`);
@@ -481,13 +476,13 @@ export class IOProcessor {
     ): Promise<void> {
         const stepId = runContext.currentLocation?.nodeId;
         if (!stepId) {
-            this.logger.warn("[IOProcessor] Cannot store outputs - no current step ID", {
+            logger.warn("[IOProcessor] Cannot store outputs - no current step ID", {
                 runId: runContext.runId,
             });
             return;
         }
 
-        this.logger.debug("[IOProcessor] Storing outputs for reference", {
+        logger.debug("[IOProcessor] Storing outputs for reference", {
             runId: runContext.runId,
             stepId,
             outputKeys: Object.keys(outputs),
@@ -496,10 +491,10 @@ export class IOProcessor {
         try {
             // Store in subroutine context for future reference
             const subroutineContext = runContext.getSubroutineContext();
-            
+
             // Store the complete output object for this step
             subroutineContext.allOutputsMap[stepId] = outputs;
-            
+
             // Update outputs list with individual key-value pairs
             for (const [key, value] of Object.entries(outputs)) {
                 // Create composite key for easy lookup
@@ -510,7 +505,7 @@ export class IOProcessor {
                 });
             }
 
-            this.logger.debug("[IOProcessor] Successfully stored outputs for reference", {
+            logger.debug("[IOProcessor] Successfully stored outputs for reference", {
                 runId: runContext.runId,
                 stepId,
                 outputCount: Object.keys(outputs).length,
@@ -518,7 +513,7 @@ export class IOProcessor {
             });
 
         } catch (error) {
-            this.logger.error("[IOProcessor] Failed to store outputs for reference", {
+            logger.error("[IOProcessor] Failed to store outputs for reference", {
                 runId: runContext.runId,
                 stepId,
                 error: error instanceof Error ? error.message : String(error),

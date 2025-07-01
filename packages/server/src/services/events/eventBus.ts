@@ -8,12 +8,19 @@
  * that enables true emergent capabilities through agent-extensible event types.
  */
 
-import { nanoid } from "nanoid";
+import { MINUTES_1_MS } from "@vrooli/shared";
 import { EventEmitter } from "events";
-import { type Logger } from "winston";
+import mqttMatch from "mqtt-match";
+import { nanoid } from "nanoid";
+import { logger } from "../../events/logger.js";
+import { SocketService } from "../../sockets/io.js";
 import {
     EVENT_BUS_CONSTANTS,
 } from "./constants.js";
+import {
+    EventBusRateLimiter,
+    type EventPublishResultWithRateLimit,
+} from "./rateLimiter.js";
 import {
     type BaseEvent,
     type EventBarrierSyncResult,
@@ -23,12 +30,8 @@ import {
     type EventSubscriptionId,
     type IEventBus,
     type SafetyEvent,
-    type SocketServiceInterface,
     type SubscriptionOptions,
 } from "./types.js";
-import {
-    type EventPatternMatcher,
-} from "./utils.js";
 
 /**
  * Pending barrier sync operation
@@ -41,6 +44,7 @@ interface PendingBarrier {
     reject: (error: Error) => void;
     timeoutId: NodeJS.Timeout;
     startTime: number;
+    isCompleted: boolean; // Track completion state to prevent double cleanup
 }
 
 /**
@@ -50,8 +54,7 @@ export class EventBus implements IEventBus {
     private readonly emitter: EventEmitter;
     private readonly subscriptions = new Map<EventSubscriptionId, EventSubscription>();
     private readonly pendingBarriers = new Map<string, PendingBarrier>();
-    private readonly eventHistory: BaseEvent[] = [];
-    private readonly patternCache = new Map<string, EventPatternMatcher>();
+    private readonly rateLimiter: EventBusRateLimiter;
     private isStarted = false;
 
     // Metrics
@@ -59,18 +62,22 @@ export class EventBus implements IEventBus {
         eventsPublished: 0,
         eventsDelivered: 0,
         eventsFailed: 0,
+        eventsRateLimited: 0,
         barrierSyncsCompleted: 0,
         barrierSyncsTimedOut: 0,
         activeSubscriptions: 0,
         lastEventTime: 0,
     };
 
-    constructor(
-        private readonly logger: Logger,
-        private readonly socketService?: SocketServiceInterface,
-    ) {
+    constructor(rateLimiter?: EventBusRateLimiter) {
         this.emitter = new EventEmitter();
         this.emitter.setMaxListeners(EVENT_BUS_CONSTANTS.MAX_EVENT_LISTENERS); // Allow many subscribers
+
+        // Initialize rate limiter
+        this.rateLimiter = rateLimiter || new EventBusRateLimiter(logger);
+
+        // Set up backpressure monitoring
+        this.setupBackpressureMonitoring();
     }
 
     /**
@@ -78,12 +85,12 @@ export class EventBus implements IEventBus {
      */
     async start(): Promise<void> {
         if (this.isStarted) {
-            this.logger.warn("[EventBus] Already started");
+            logger.warn("[EventBus] Already started");
             return;
         }
 
         this.isStarted = true;
-        this.logger.info("[EventBus] Started enhanced event bus");
+        logger.info("[EventBus] Started enhanced event bus");
     }
 
     /**
@@ -96,10 +103,13 @@ export class EventBus implements IEventBus {
 
         this.isStarted = false;
 
-        // Clear pending barriers
+        // Clear pending barriers with proper cleanup
         for (const barrier of this.pendingBarriers.values()) {
-            clearTimeout(barrier.timeoutId);
-            barrier.reject(new Error("Event bus stopped"));
+            if (!barrier.isCompleted) {
+                clearTimeout(barrier.timeoutId);
+                barrier.isCompleted = true;
+                barrier.reject(new Error("Event bus stopped"));
+            }
         }
         this.pendingBarriers.clear();
 
@@ -107,11 +117,11 @@ export class EventBus implements IEventBus {
         this.emitter.removeAllListeners();
         this.subscriptions.clear();
 
-        this.logger.info("[EventBus] Stopped event bus");
+        logger.info("[EventBus] Stopped event bus");
     }
 
     /**
-     * Publish an event with specified delivery guarantee
+     * Publish an event with specified delivery guarantee and rate limiting
      */
     async publish<T extends BaseEvent>(event: T): Promise<EventPublishResult> {
         const startTime = performance.now();
@@ -125,8 +135,31 @@ export class EventBus implements IEventBus {
         }
 
         try {
-            // Add to history
-            this.addToHistory(event);
+            // 🔥 RATE LIMITING - Check before processing event
+            const rateLimitResult = await this.rateLimiter.checkEventRateLimit(event);
+
+            if (!rateLimitResult.allowed) {
+                // Rate limit exceeded - emit rate limited event and reject original
+                this.metrics.eventsRateLimited++;
+
+                const rateLimitedEvent = this.rateLimiter.createRateLimitedEvent(event, rateLimitResult);
+
+                // Emit the rate limited event (bypasses rate limiting)
+                await this.publishBypassRateLimit(rateLimitedEvent);
+
+                logger.warn("[EventBus] Event rate limited", {
+                    eventId: event.id,
+                    eventType: event.type,
+                    limitType: rateLimitResult.limitType,
+                    retryAfterMs: rateLimitResult.retryAfterMs,
+                });
+
+                return {
+                    success: false,
+                    error: new Error(`Rate limit exceeded: ${rateLimitResult.limitType}`),
+                    duration: performance.now() - startTime,
+                } as EventPublishResultWithRateLimit;
+            }
 
             // Update metrics
             this.metrics.eventsPublished++;
@@ -151,21 +184,24 @@ export class EventBus implements IEventBus {
 
             this.metrics.eventsDelivered++;
 
-            this.logger.debug("[EventBus] Published event", {
+            logger.debug("[EventBus] Published event", {
                 eventId: event.id,
                 eventType: event.type,
                 deliveryGuarantee,
+                rateLimitStatus: "allowed",
             });
 
             return {
                 success: true,
                 duration: performance.now() - startTime,
-            };
+                remainingQuota: rateLimitResult.remainingQuota,
+                resetTime: rateLimitResult.resetTime,
+            } as EventPublishResultWithRateLimit;
 
         } catch (error) {
             this.metrics.eventsFailed++;
 
-            this.logger.error("[EventBus] Failed to publish event", {
+            logger.error("[EventBus] Failed to publish event", {
                 eventId: event.id,
                 eventType: event.type,
                 error: error instanceof Error ? error.message : String(error),
@@ -177,6 +213,30 @@ export class EventBus implements IEventBus {
                 duration: performance.now() - startTime,
             };
         }
+    }
+
+    /**
+     * Publish an event bypassing rate limits (for internal system events)
+     */
+    private async publishBypassRateLimit<T extends BaseEvent>(event: T): Promise<void> {
+        // Handle delivery without rate limiting
+        const deliveryGuarantee = event.metadata?.deliveryGuarantee || "fire-and-forget";
+
+        switch (deliveryGuarantee) {
+            case "fire-and-forget":
+                await this.publishFireAndForget(event);
+                break;
+            case "reliable":
+                await this.publishReliable(event);
+                break;
+            default:
+                await this.publishFireAndForget(event);
+        }
+
+        logger.debug("[EventBus] Published system event bypassing rate limits", {
+            eventId: event.id,
+            eventType: event.type,
+        });
     }
 
     /**
@@ -205,17 +265,15 @@ export class EventBus implements IEventBus {
                     this.handleBarrierTimeout(event.id, startTime);
                 }, barrierConfig.timeoutMs),
                 startTime,
+                isCompleted: false,
             };
 
             this.pendingBarriers.set(event.id, pendingBarrier);
 
-            // Add to history
-            this.addToHistory(event);
-
             // Emit the event for safety agents to respond
             this.emitToSubscribers(event);
 
-            this.logger.debug("[EventBus] Published barrier sync event", {
+            logger.debug("[EventBus] Published barrier sync event", {
                 eventId: event.id,
                 eventType: event.type,
                 quorum: barrierConfig.quorum,
@@ -246,7 +304,7 @@ export class EventBus implements IEventBus {
         this.subscriptions.set(subscriptionId, subscription);
         this.metrics.activeSubscriptions = this.subscriptions.size;
 
-        this.logger.info("[EventBus] Added subscription", {
+        logger.info("[EventBus] Added subscription", {
             subscriptionId,
             patterns,
         });
@@ -262,7 +320,7 @@ export class EventBus implements IEventBus {
         this.metrics.activeSubscriptions = this.subscriptions.size;
 
         if (removed) {
-            this.logger.info("[EventBus] Removed subscription", {
+            logger.info("[EventBus] Removed subscription", {
                 subscriptionId,
             });
         }
@@ -279,7 +337,7 @@ export class EventBus implements IEventBus {
     ): Promise<void> {
         const barrier = this.pendingBarriers.get(eventId);
         if (!barrier) {
-            this.logger.warn("[EventBus] Response to unknown barrier sync event", {
+            logger.warn("[EventBus] Response to unknown barrier sync event", {
                 eventId,
                 responderId,
                 response,
@@ -290,7 +348,7 @@ export class EventBus implements IEventBus {
         // Add response
         barrier.responses.push({ responderId, response, reason });
 
-        this.logger.debug("[EventBus] Received barrier sync response", {
+        logger.debug("[EventBus] Received barrier sync response", {
             eventId,
             responderId,
             response,
@@ -324,17 +382,28 @@ export class EventBus implements IEventBus {
     }
 
     /**
-     * Get event bus metrics
+     * Get event bus metrics including rate limiting statistics
      */
     getMetrics(): typeof this.metrics & {
         pendingBarriers: number;
-        historySize: number;
+        rateLimitingEnabled: boolean;
     } {
         return {
             ...this.metrics,
             pendingBarriers: this.pendingBarriers.size,
-            historySize: this.eventHistory.length,
+            rateLimitingEnabled: true,
         };
+    }
+
+    /**
+     * Get detailed rate limiting status for monitoring
+     */
+    async getRateLimitStatus(userId?: string, eventType?: string): Promise<{
+        global: { allowed: number; total: number };
+        user?: { allowed: number; total: number };
+        eventType?: { allowed: number; total: number };
+    }> {
+        return this.rateLimiter.getRateLimitStatus(userId, eventType);
     }
 
     /**
@@ -344,7 +413,7 @@ export class EventBus implements IEventBus {
     private async publishFireAndForget<T extends BaseEvent>(event: T): Promise<void> {
         // Fire and forget - emit and don't wait for delivery confirmation
         this.emitToSubscribers(event);
-        
+
         // Also emit to socket clients if socket service is configured
         this.emitToSocketClients(event);
     }
@@ -352,7 +421,7 @@ export class EventBus implements IEventBus {
     private async publishReliable<T extends BaseEvent>(event: T): Promise<void> {
         // Reliable delivery - emit and ensure delivery to all subscribers
         await this.emitToSubscribersReliably(event);
-        
+
         // Also emit to socket clients if socket service is configured
         this.emitToSocketClients(event);
     }
@@ -366,7 +435,7 @@ export class EventBus implements IEventBus {
                 this.callSubscriptionHandler(subscription, event)
                     .then(() => deliveredCount++)
                     .catch(error => {
-                        this.logger.error("[EventBus] Subscription handler error", {
+                        logger.error("[EventBus] Subscription handler error", {
                             subscriptionId: subscription.id,
                             eventId: event.id,
                             error: error instanceof Error ? error.message : String(error),
@@ -383,7 +452,7 @@ export class EventBus implements IEventBus {
             if (this.matchesSubscription(event, subscription)) {
                 promises.push(
                     this.callSubscriptionHandler(subscription, event).catch(error => {
-                        this.logger.error("[EventBus] Subscription handler error", {
+                        logger.error("[EventBus] Subscription handler error", {
                             subscriptionId: subscription.id,
                             eventId: event.id,
                             error: error instanceof Error ? error.message : String(error),
@@ -437,25 +506,9 @@ export class EventBus implements IEventBus {
     }
 
     private matchesPattern(eventType: string, pattern: string): boolean {
-        // MQTT-style pattern matching
-        if (pattern === "#") return true; // Match all
-        if (pattern === eventType) return true; // Exact match
-
-        // Wildcard patterns
-        if (pattern.includes("+") || pattern.includes("*")) {
-            const regex = pattern
-                .replace(/\+/g, "[^/]+") // + matches one level
-                .replace(/\*/g, ".*");    // * matches everything
-            return new RegExp(`^${regex}$`).test(eventType);
-        }
-
-        // Hierarchical prefix matching
-        if (pattern.endsWith("/#")) {
-            const prefix = pattern.slice(0, pattern.length - EVENT_BUS_CONSTANTS.PATTERN_SUFFIX_LENGTH);
-            return eventType.startsWith(prefix + "/") || eventType === prefix;
-        }
-
-        return false;
+        // Use mqtt-match library for proper MQTT pattern matching
+        // This handles +, #, and exact matching according to MQTT standards
+        return mqttMatch(pattern, eventType);
     }
 
     private handleBarrierTimeout(eventId: string, startTime: number): void {
@@ -473,7 +526,7 @@ export class EventBus implements IEventBus {
                 break;
             case "keep-pending":
                 // Don't complete - leave pending for manual resolution
-                this.logger.warn("[EventBus] Barrier sync timed out but keeping pending", {
+                logger.warn("[EventBus] Barrier sync timed out but keeping pending", {
                     eventId,
                     duration: performance.now() - startTime,
                 });
@@ -483,8 +536,10 @@ export class EventBus implements IEventBus {
 
     private completeBarrierSync(eventId: string, success: boolean, reason: string): void {
         const barrier = this.pendingBarriers.get(eventId);
-        if (!barrier) return;
+        if (!barrier || barrier.isCompleted) return;
 
+        // Mark as completed first to prevent double cleanup
+        barrier.isCompleted = true;
         clearTimeout(barrier.timeoutId);
         this.pendingBarriers.delete(eventId);
 
@@ -501,7 +556,7 @@ export class EventBus implements IEventBus {
             this.metrics.barrierSyncsTimedOut++;
         }
 
-        this.logger.debug("[EventBus] Completed barrier sync", {
+        logger.debug("[EventBus] Completed barrier sync", {
             eventId,
             success,
             reason,
@@ -512,28 +567,15 @@ export class EventBus implements IEventBus {
         barrier.resolve(result);
     }
 
-    private addToHistory(event: BaseEvent): void {
-        this.eventHistory.push(event);
-
-        // Keep history size manageable
-        if (this.eventHistory.length > EVENT_BUS_CONSTANTS.MAX_EVENT_HISTORY) {
-            this.eventHistory.splice(0, this.eventHistory.length - EVENT_BUS_CONSTANTS.MAX_EVENT_HISTORY);
-        }
-    }
-
     /**
      * Emit event to socket clients if socket service is configured
      */
     private emitToSocketClients<T extends BaseEvent>(event: T): void {
-        if (!this.socketService) {
-            return;
-        }
-
         try {
             // Extract the appropriate room ID from the event based on its type
             const roomId = this.extractRoomId(event);
             if (!roomId) {
-                this.logger.debug("[EventBus] No room ID found for socket emission", {
+                logger.debug("[EventBus] No room ID found for socket emission", {
                     eventType: event.type,
                     eventId: event.id,
                 });
@@ -550,15 +592,15 @@ export class EventBus implements IEventBus {
             };
 
             // Forward the event directly to Socket.IO with no transformation
-            this.socketService.emitSocketEvent(event.type, roomId, socketEvent);
+            SocketService.get().emitSocketEvent(event.type, roomId, socketEvent);
 
-            this.logger.debug("[EventBus] Emitted event to socket clients", {
+            logger.debug("[EventBus] Emitted event to socket clients", {
                 eventType: event.type,
                 roomId,
                 eventId: event.id,
             });
         } catch (error) {
-            this.logger.error("[EventBus] Failed to emit event to socket clients", {
+            logger.error("[EventBus] Failed to emit event to socket clients", {
                 eventType: event.type,
                 eventId: event.id,
                 error: error instanceof Error ? error.message : String(error),
@@ -597,7 +639,7 @@ export class EventBus implements IEventBus {
         }
 
         // Unknown event type pattern
-        this.logger.debug("[EventBus] Unknown event type pattern for socket emission", {
+        logger.debug("[EventBus] Unknown event type pattern for socket emission", {
             eventType: event.type,
             eventId: event.id,
         });
@@ -610,15 +652,52 @@ export class EventBus implements IEventBus {
     private extractChatId(event: BaseEvent): string | null {
         // Try multiple possible locations for chat ID
         const data = event.data as any;
-        return data?.chatId || 
-               data?.conversationId || 
-               null;
+        return data?.chatId ||
+            data?.conversationId ||
+            null;
+    }
+
+    /**
+     * Set up backpressure monitoring to prevent system overload
+     */
+    private setupBackpressureMonitoring(): void {
+        // Monitor subscription count and warn if too many
+        const monitoringInterval = setInterval(() => {
+            if (!this.isStarted) {
+                clearInterval(monitoringInterval);
+                return;
+            }
+
+            const subscriptionCount = this.subscriptions.size;
+            const pendingBarriers = this.pendingBarriers.size;
+
+            if (subscriptionCount > EVENT_BUS_CONSTANTS.MAX_EVENT_LISTENERS * 0.8) {
+                logger.warn("[EventBus] High subscription count detected", {
+                    subscriptionCount,
+                    maxListeners: EVENT_BUS_CONSTANTS.MAX_EVENT_LISTENERS,
+                });
+            }
+
+            if (pendingBarriers > 50) {
+                logger.warn("[EventBus] High pending barrier count detected", {
+                    pendingBarriers,
+                });
+            }
+        }, MINUTES_1_MS);
     }
 }
 
 /**
- * Create an enhanced event bus instance
+ * Singleton instance of the event bus
  */
-export function createEventBus(logger: Logger, socketService?: SocketServiceInterface): EventBus {
-    return new EventBus(logger, socketService);
+let eventBus: EventBus | null = null;
+
+/**
+ * Get the singleton instance of the event bus
+ */
+export function getEventBus(): EventBus {
+    if (!eventBus) {
+        eventBus = new EventBus();
+    }
+    return eventBus;
 }

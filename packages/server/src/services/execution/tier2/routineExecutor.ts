@@ -1,6 +1,5 @@
-import { type ExecutionResult, type RoutineExecutionInput, type RunState, type TierCommunicationInterface, type TierExecutionRequest } from "@vrooli/shared";
+import { type ExecutionResult, type RoutineExecutionInput, type TierCommunicationInterface, type TierExecutionRequest } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
-import type { IEventBus } from "../../events/types.js";
 import type { ISwarmContextManager } from "../shared/SwarmContextManager.js";
 import type { MOISEGate } from "./moiseGate.js";
 import { RoutineEventCoordinator } from "./routineEventCoordinator.js";
@@ -28,7 +27,6 @@ export class RoutineExecutor {
     private readonly runContextManager?: IRunContextManager;
 
     constructor(
-        eventBus: IEventBus,
         contextManager: ISwarmContextManager,
         moiseGate: MOISEGate,
         tier3Executor: TierCommunicationInterface,
@@ -43,12 +41,10 @@ export class RoutineExecutor {
         this.stateMachine = new RoutineStateMachine(
             contextId,
             contextManager,
-            eventBus,
             runContextManager,
         );
 
         this.eventCoordinator = new RoutineEventCoordinator(
-            eventBus,
             contextManager,
             contextId,
         );
@@ -61,11 +57,11 @@ export class RoutineExecutor {
         request: TierExecutionRequest<TInput>,
     ): Promise<ExecutionResult<TOutput>> {
         const { context, input } = request;
-        const executionId = context.executionId;
+        const swarmId = context.swarmId;
         const routineId = input.routineVersionId || input.routineId || "unknown";
 
         logger.info("[RoutineExecutor] Starting lean execution with RunContextManager", {
-            executionId,
+            swarmId,
             routineId,
             hasRunContextManager: !!this.runContextManager,
         });
@@ -73,15 +69,15 @@ export class RoutineExecutor {
         try {
             // Step 1: Initialize execution state with resource allocation
             await this.stateMachine.initializeExecution(
-                executionId,
+                swarmId,
                 routineId,
                 context.swarmId,
             );
 
             await this.eventCoordinator.emitRoutineStarted(
-                executionId,
+                swarmId,
                 routineId,
-                context.userId || "system",
+                context.userData.id || "system",
             );
 
             // Step 2: Start execution
@@ -96,7 +92,7 @@ export class RoutineExecutor {
 
             // Step 4: Execute routine steps with resource tracking
             const result = await this.executeRoutineSteps(
-                executionId,
+                swarmId,
                 input.routine,
                 startLocation,
                 context,
@@ -104,7 +100,7 @@ export class RoutineExecutor {
 
             // Step 5: Complete execution with results and resource cleanup
             await this.stateMachine.complete(result);
-            await this.eventCoordinator.emitRoutineCompleted(executionId, {
+            await this.eventCoordinator.emitRoutineCompleted(swarmId, {
                 outputs: result,
                 metrics: {
                     totalSteps: this.stateMachine.getResourceUsage().stepsExecuted,
@@ -114,8 +110,8 @@ export class RoutineExecutor {
                 },
             });
 
-            this.logger.info("[RoutineExecutor] Lean execution completed", {
-                executionId,
+            logger.info("[RoutineExecutor] Lean execution completed", {
+                swarmId,
                 resourceUsage: this.stateMachine.getResourceUsage(),
             });
 
@@ -123,7 +119,7 @@ export class RoutineExecutor {
                 success: true,
                 outputs: result,
                 metadata: {
-                    executionId,
+                    swarmId,
                     strategy: "lean",
                     componentCount: 4, // stateMachine, eventCoordinator, navigator, moiseGate
                     resourceUsage: this.stateMachine.getResourceUsage(),
@@ -133,21 +129,21 @@ export class RoutineExecutor {
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
 
-            this.logger.error("[RoutineExecutor] Lean execution failed", {
-                executionId,
+            logger.error("[RoutineExecutor] Lean execution failed", {
+                swarmId,
                 error: errorMessage,
                 resourceUsage: this.stateMachine.getResourceUsage(),
             });
 
             // Fail the state machine and emit failure event
             await this.stateMachine.fail(errorMessage);
-            await this.eventCoordinator.emitRoutineFailed(executionId, errorMessage);
+            await this.eventCoordinator.emitRoutineFailed(swarmId, errorMessage);
 
             return {
                 success: false,
                 error: errorMessage,
                 metadata: {
-                    executionId,
+                    swarmId,
                     strategy: "lean",
                     failurePoint: "execution",
                     resourceUsage: this.stateMachine.getResourceUsage(),
@@ -160,13 +156,13 @@ export class RoutineExecutor {
      * Execute routine steps using existing navigation and validation with resource tracking
      */
     private async executeRoutineSteps(
-        executionId: string,
+        swarmId: string,
         routine: any,
         startLocation: any,
         context: any,
     ): Promise<any> {
-        this.logger.info("[RoutineExecutor] Executing routine steps with resource tracking", {
-            executionId,
+        logger.info("[RoutineExecutor] Executing routine steps with resource tracking", {
+            swarmId,
             startLocation,
         });
 
@@ -176,7 +172,7 @@ export class RoutineExecutor {
         let stepAllocation;
         if (this.runContextManager) {
             try {
-                stepAllocation = await this.runContextManager.allocateForStep(executionId, {
+                stepAllocation = await this.runContextManager.allocateForStep(swarmId, {
                     stepId,
                     stepType: "llm_call",
                     estimatedRequirements: {
@@ -186,14 +182,14 @@ export class RoutineExecutor {
                     },
                 });
 
-                this.logger.info("[RoutineExecutor] Step resources allocated", {
-                    executionId,
+                logger.info("[RoutineExecutor] Step resources allocated", {
+                    swarmId,
                     stepId,
                     allocation: stepAllocation,
                 });
             } catch (error) {
-                this.logger.error("[RoutineExecutor] Failed to allocate step resources", {
-                    executionId,
+                logger.error("[RoutineExecutor] Failed to allocate step resources", {
+                    swarmId,
                     stepId,
                     error: error instanceof Error ? error.message : String(error),
                 });
@@ -204,7 +200,7 @@ export class RoutineExecutor {
         try {
             // Step 2: Validate permissions using existing MOISEGate
             const permissionCheck = await this.moiseGate.checkPermission(
-                executionId,
+                swarmId,
                 stepId,
                 {
                     variables: context.variables || {},
@@ -218,7 +214,7 @@ export class RoutineExecutor {
 
             // Step 3: Emit step started event
             await this.eventCoordinator.emitStepStarted(
-                executionId,
+                swarmId,
                 stepId,
                 "routine_execution",
             );
@@ -251,7 +247,7 @@ export class RoutineExecutor {
             // Step 8: Release step resources back to run
             if (this.runContextManager && stepAllocation) {
                 await this.runContextManager.releaseFromStep(
-                    executionId,
+                    swarmId,
                     stepId,
                     actualUsage,
                 );
@@ -259,7 +255,7 @@ export class RoutineExecutor {
 
             // Step 9: Emit step completed event
             await this.eventCoordinator.emitStepCompleted(
-                executionId,
+                swarmId,
                 stepId,
                 {
                     success: tier3Result.success,
@@ -281,7 +277,7 @@ export class RoutineExecutor {
                 };
 
                 await this.runContextManager.releaseFromStep(
-                    executionId,
+                    swarmId,
                     stepId,
                     partialUsage,
                 );
@@ -310,7 +306,7 @@ export class RoutineExecutor {
      */
     async pause(): Promise<void> {
         await this.stateMachine.pause();
-        this.logger.info("[RoutineExecutor] Execution paused");
+        logger.info("[RoutineExecutor] Execution paused");
     }
 
     /**
@@ -318,7 +314,7 @@ export class RoutineExecutor {
      */
     async resume(): Promise<void> {
         await this.stateMachine.resume();
-        this.logger.info("[RoutineExecutor] Execution resumed");
+        logger.info("[RoutineExecutor] Execution resumed");
     }
 
     /**
@@ -326,6 +322,6 @@ export class RoutineExecutor {
      */
     async stop(reason?: string): Promise<void> {
         await this.stateMachine.stop(reason);
-        this.logger.info("[RoutineExecutor] Execution stopped", { reason });
+        logger.info("[RoutineExecutor] Execution stopped", { reason });
     }
 }

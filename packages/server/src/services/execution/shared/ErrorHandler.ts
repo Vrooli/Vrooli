@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import { logger } from "../../../events/logger.js";
-import { type IEventBus, EventUtils, getUnifiedEventSystem } from "../../events/index.js";
+import { getEventBus } from "../../events/eventBus.js";
+import { EventUtils } from "../../events/index.js";
 
 export type Result<T, E = Error> =
     | { success: true; data: T }
@@ -41,12 +42,10 @@ export interface ErrorHandlerConfig {
  */
 export class ErrorHandler {
     private readonly config: Required<ErrorHandlerConfig>;
-    private readonly unifiedEventBus: IEventBus | null;
 
     constructor(
         config: ErrorHandlerConfig = {},
     ) {
-        this.unifiedEventBus = getUnifiedEventSystem();
         this.config = {
             logByDefault: config.logByDefault ?? true,
             publishByDefault: config.publishByDefault ?? true,
@@ -203,34 +202,28 @@ export class ErrorHandler {
 
         // Publish error event if enabled
         if ((context.publishError ?? this.config.publishByDefault)) {
-            // Try unified event system first, fallback to legacy
-            if (this.unifiedEventBus) {
-                try {
-                    const event = EventUtils.createBaseEvent(
-                        "component.error",
-                        {
-                            component: context.component,
-                            operation: context.operation,
-                            error: {
-                                name: errorObj.name,
-                                message: errorObj.message,
-                                stack: errorObj.stack,
-                            },
-                            ...context.metadata,
+            try {
+                const event = EventUtils.createBaseEvent(
+                    "component.error",
+                    {
+                        component: context.component,
+                        operation: context.operation,
+                        error: {
+                            name: errorObj.name,
+                            message: errorObj.message,
+                            stack: errorObj.stack,
                         },
-                        EventUtils.createEventSource("cross-cutting", "ErrorHandler", nanoid()),
-                        EventUtils.createEventMetadata("reliable", "high"),
-                    );
-                    await this.unifiedEventBus.publish(event);
-                } catch (publishError) {
-                    logger.error(`[${context.component}] Failed to publish error event to unified system`, {
-                        originalError: errorObj.message,
-                        publishError: publishError instanceof Error ? publishError.message : String(publishError),
-                    });
-                }
-            } else {
-                // No event bus available, error will only be logged
-                logger.debug("[ErrorHandler] No unified event bus available for error event publication");
+                        ...context.metadata,
+                    },
+                    EventUtils.createEventSource("cross-cutting", "ErrorHandler", nanoid()),
+                    EventUtils.createEventMetadata("reliable", "high"),
+                );
+                await getEventBus().publish(event);
+            } catch (publishError) {
+                logger.error(`[${context.component}] Failed to publish error event to unified system`, {
+                    originalError: errorObj.message,
+                    publishError: publishError instanceof Error ? publishError.message : String(publishError),
+                });
             }
         }
 
