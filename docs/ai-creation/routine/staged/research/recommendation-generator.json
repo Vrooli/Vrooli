@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849746",
+  "publicId": "recommendation-generator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847088",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847188",
+          "language": "en",
+          "description": "Research and analysis"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847097",
+      "tag": "generation",
+      "translations": [
+        {
+          "id": "7829564732190847197",
+          "language": "en",
+          "description": "Content generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849747",
+      "publicId": "recommendation-generator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Synthesizes insights into strategic recommendations",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "analysisResults",
+                "id": "analysis_results_input",
+                "label": "Analysis Results",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Complete competitive analysis findings"
+              },
+              {
+                "fieldName": "businessObjectives",
+                "id": "business_objectives_input",
+                "label": "Business Objectives",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Your strategic goals and priorities"
+              },
+              {
+                "fieldName": "implementationCapacity",
+                "id": "implementation_capacity_input",
+                "label": "Implementation Capacity",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Available resources and constraints"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "strategicRecommendations",
+                "id": "strategic_recommendations_output",
+                "label": "Strategic Recommendations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "actionPriorities",
+                "id": "action_priorities_output",
+                "label": "Action Priorities",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "competitiveAdvantage",
+                "id": "competitive_advantage_output",
+                "label": "Competitive Advantage",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849748",
+          "language": "en",
+          "name": "Recommendation Generator",
+          "description": "Synthesizes competitive analysis into actionable strategic recommendations.",
+          "instructions": "Provide analysis results and business objectives. The routine will generate recommendations."
+        }
+      ]
+    }
+  ]
+}

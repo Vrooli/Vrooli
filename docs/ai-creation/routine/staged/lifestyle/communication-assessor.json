@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849725",
+  "publicId": "communication-assessor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847057",
+      "tag": "lifestyle",
+      "translations": [
+        {
+          "id": "7829564732190847157",
+          "language": "en",
+          "description": "Lifestyle and personal"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849726",
+      "publicId": "communication-assessor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes current communication styles and relationship dynamics",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "relationshipType",
+                "id": "relationship_type_input",
+                "label": "Relationship Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "romantic",
+                  "family",
+                  "friendship",
+                  "professional",
+                  "parental"
+                ]
+              },
+              {
+                "fieldName": "communicationChallenges",
+                "id": "communication_challenges_input",
+                "label": "Communication Challenges",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Current issues and difficulties"
+              },
+              {
+                "fieldName": "relationshipHistory",
+                "id": "relationship_history_input",
+                "label": "Relationship History",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Background and context"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "communicationPatterns",
+                "id": "communication_patterns_output",
+                "label": "Communication Patterns",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "strengthsWeaknesses",
+                "id": "strengths_weaknesses_output",
+                "label": "Strengths & Weaknesses",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "improvementAreas",
+                "id": "improvement_areas_output",
+                "label": "Improvement Areas",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849727",
+          "language": "en",
+          "name": "Communication Assessor",
+          "description": "Analyzes communication styles and identifies relationship dynamics patterns.",
+          "instructions": "Provide relationship type and challenges. The routine will assess communication."
+        }
+      ]
+    }
+  ]
+}

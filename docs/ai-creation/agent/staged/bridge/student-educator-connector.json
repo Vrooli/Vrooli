@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "student-educator-connector",
+    "version": "1.0.0"
+  },
+  "goal": "Facilitates communication in educational settings",
+  "role": "bridge",
+  "subscriptions": [
+    "swarm/goal/created",
+    "step/completed",
+    "run/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/goal/created",
+        "when": "event.data.description.includes('education') || event.data.description.includes('learning') || event.data.description.includes('teaching')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Educational Bridge",
+        "inputMap": {
+          "educationalGoals": "event.data.description",
+          "learningContext": "event.data.context.learning",
+          "educationalPlatforms": "blackboard.education.platforms",
+          "learningAnalytics": "blackboard.education.analytics"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'learning_activity' || event.data.tags.includes('educational_interaction')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Bridge communication between students and educators for optimal learning outcomes and educational collaboration"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('educational_program') || event.data.tags.includes('learning_assessment')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Learning Facilitator",
+        "inputMap": {
+          "learningResults": "event.data.outputs.learning",
+          "educationalProgress": "event.data.progress",
+          "communicationTools": "blackboard.education.communication"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "facilitate-effective-learning"
+    },
+    {
+      "modality": "permission",
+      "target": "connect-educational-stakeholders"
+    },
+    {
+      "modality": "prohibition",
+      "target": "compromise-educational-privacy"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "educational-platforms",
+      "permissions": ["read"],
+      "scope": "education.platforms",
+      "description": "Educational platforms and learning management systems"
+    },
+    {
+      "type": "blackboard",
+      "label": "learning-analytics",
+      "permissions": ["read"],
+      "scope": "education.analytics",
+      "description": "Learning analytics and educational performance tracking"
+    },
+    {
+      "type": "blackboard",
+      "label": "communication-tools",
+      "permissions": ["read"],
+      "scope": "education.communication",
+      "description": "Educational communication tools and collaboration platforms"
+    },
+    {
+      "type": "routine",
+      "label": "Educational Bridge",
+      "permissions": ["read"],
+      "description": "Bridge communication between students and educators"
+    },
+    {
+      "type": "routine",
+      "label": "Learning Facilitator",
+      "permissions": ["read"],
+      "description": "Facilitate learning interactions and educational progress"
+    }
+  ]
+}

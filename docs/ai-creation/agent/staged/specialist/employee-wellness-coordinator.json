@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "employee-wellness-coordinator",
+    "version": "1.0.0"
+  },
+  "goal": "Designs workplace wellness and engagement programs",
+  "role": "specialist",
+  "subscriptions": [
+    "swarm/goal/created",
+    "step/completed",
+    "run/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/goal/created",
+        "when": "event.data.description.includes('wellness') || event.data.description.includes('employee') || event.data.description.includes('workplace')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Wellness Designer",
+        "inputMap": {
+          "wellnessGoals": "event.data.description",
+          "workplaceContext": "event.data.context.workplace",
+          "wellnessPrograms": "blackboard.wellness.programs",
+          "engagementSurveys": "blackboard.wellness.surveys"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'wellness_assessment' || event.data.tags.includes('employee_feedback')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Create comprehensive employee wellness and engagement strategies based on workplace analysis and employee needs assessment"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('wellness_program') || event.data.tags.includes('engagement_initiative')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Program Evaluator",
+        "inputMap": {
+          "programResults": "event.data.outputs.program",
+          "participationData": "event.data.participation",
+          "healthInitiatives": "blackboard.wellness.initiatives"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "promote-employee-wellbeing"
+    },
+    {
+      "modality": "permission",
+      "target": "design-wellness-programs"
+    },
+    {
+      "modality": "prohibition",
+      "target": "violate-privacy-rights"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "wellness-programs",
+      "permissions": ["read", "write"],
+      "scope": "wellness.programs",
+      "description": "Employee wellness programs and workplace health initiatives"
+    },
+    {
+      "type": "blackboard",
+      "label": "engagement-surveys",
+      "permissions": ["read"],
+      "scope": "wellness.surveys",
+      "description": "Employee engagement surveys and feedback collection"
+    },
+    {
+      "type": "blackboard",
+      "label": "health-initiatives",
+      "permissions": ["read"],
+      "scope": "wellness.initiatives",
+      "description": "Workplace health initiatives and wellness resources"
+    },
+    {
+      "type": "routine",
+      "label": "Wellness Designer",
+      "permissions": ["read"],
+      "description": "Design comprehensive employee wellness programs"
+    },
+    {
+      "type": "routine",
+      "label": "Program Evaluator",
+      "permissions": ["read"],
+      "description": "Evaluate wellness program effectiveness and engagement"
+    }
+  ]
+}

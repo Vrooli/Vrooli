@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Assess Communication Patterns",
                 "description": "Analyzes current communication styles and relationship dynamics",
-                "subroutineId": "TODO: Need communication assessment subroutine",
+                "subroutineId": "7829564732190849725",
                 "inputMap": {
                   "relationshipType": "contextType",
                   "communicationChallenges": "currentIssues",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Identify Communication Goals",
                 "description": "Defines specific objectives for relationship improvement",
-                "subroutineId": "TODO: Need goal definition subroutine",
+                "subroutineId": "7829564732190849728",
                 "inputMap": {
                   "relationshipGoals": "desiredOutcomes",
                   "currentPatterns": "communicationStyle",

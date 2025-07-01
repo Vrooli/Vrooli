@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "environmental-impact-monitor",
+    "version": "1.0.0"
+  },
+  "goal": "Tracks carbon footprint and sustainability metrics",
+  "role": "monitor",
+  "subscriptions": [
+    "step/completed",
+    "run/completed",
+    "swarm/resource/updated"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'environmental_assessment' || event.data.tags.includes('sustainability_tracking')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Impact Tracker",
+        "inputMap": {
+          "activityData": "event.data.output.activity",
+          "environmentalMetrics": "event.data.metrics",
+          "environmentalSensors": "blackboard.environment.sensors",
+          "carbonTracking": "blackboard.environment.carbon"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('sustainability_initiative') || event.data.tags.includes('carbon_assessment')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Monitor environmental impact and sustainability progress with carbon footprint tracking and resource consumption analysis"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "swarm/resource/updated",
+        "when": "event.data.resource.type == 'environmental_data' || event.data.resource.type == 'sustainability_metrics'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Sustainability Monitor",
+        "inputMap": {
+          "resourceData": "event.data.resource.data",
+          "impactMetrics": "event.data.resource.metrics",
+          "sustainabilityMetrics": "blackboard.environment.sustainability"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "track-environmental-impact"
+    },
+    {
+      "modality": "permission",
+      "target": "monitor-sustainability-progress"
+    },
+    {
+      "modality": "prohibition",
+      "target": "ignore-environmental-violations"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "environmental-sensors",
+      "permissions": ["read"],
+      "scope": "environment.sensors",
+      "description": "Environmental monitoring sensors and data collection"
+    },
+    {
+      "type": "blackboard",
+      "label": "carbon-tracking",
+      "permissions": ["read", "write"],
+      "scope": "environment.carbon",
+      "description": "Carbon footprint tracking and emissions monitoring"
+    },
+    {
+      "type": "blackboard",
+      "label": "sustainability-metrics",
+      "permissions": ["read", "write"],
+      "scope": "environment.sustainability",
+      "description": "Sustainability metrics and environmental performance indicators"
+    },
+    {
+      "type": "routine",
+      "label": "Impact Tracker",
+      "permissions": ["read"],
+      "description": "Track environmental impact and resource consumption"
+    },
+    {
+      "type": "routine",
+      "label": "Sustainability Monitor",
+      "permissions": ["read"],
+      "description": "Monitor sustainability progress and environmental goals"
+    }
+  ]
+}

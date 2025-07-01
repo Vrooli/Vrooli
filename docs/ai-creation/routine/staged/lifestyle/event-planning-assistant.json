@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Define Event Vision & Goals",
                 "description": "Clarifies event purpose, objectives, and success criteria",
-                "subroutineId": "TODO: Need event visioning subroutine",
+                "subroutineId": "7829564732190849707",
                 "inputMap": {
                   "eventPurpose": "objectives",
                   "targetAudience": "attendeeProfile",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Establish Budget & Timeline",
                 "description": "Creates financial framework and project schedule",
-                "subroutineId": "TODO: Need budget planning subroutine",
+                "subroutineId": "7829564732190849710",
                 "inputMap": {
                   "budgetConstraints": "availableResources",
                   "eventDate": "targetDate",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Select Venue & Logistics",
                 "description": "Identifies optimal location and basic infrastructure needs",
-                "subroutineId": "TODO: Need venue selection subroutine",
+                "subroutineId": "7829564732190849713",
                 "inputMap": {
                   "attendeeCount": "expectedGuests",
                   "eventVision": "clarifiedPurpose",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Plan Program & Activities",
                 "description": "Designs event agenda and engagement activities",
-                "subroutineId": "TODO: Need program planning subroutine",
+                "subroutineId": "7829564732190849716",
                 "inputMap": {
                   "eventVision": "clarifiedPurpose",
                   "audienceExpectations": "attendeeNeeds",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Coordinate Vendors & Services",
                 "description": "Manages external providers and service coordination",
-                "subroutineId": "TODO: Need vendor coordination subroutine",
+                "subroutineId": "7829564732190849719",
                 "inputMap": {
                   "serviceNeeds": "requiredServices",
                   "budgetAllocation": "spendingPlan",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Create Execution Checklist",
                 "description": "Develops comprehensive day-of-event management plan",
-                "subroutineId": "TODO: Need execution planning subroutine",
+                "subroutineId": "7829564732190849722",
                 "inputMap": {
                   "allPlanning": "comprehensivePlan",
                   "teamRoles": "staffAssignments",

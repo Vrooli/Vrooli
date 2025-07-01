@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Identify Competitors",
                 "description": "Maps direct, indirect, and potential competitors in the market",
-                "subroutineId": "TODO: Need competitor identification subroutine",
+                "subroutineId": "7829564732190849731",
                 "inputMap": {
                   "businessDescription": "companyProfile",
                   "marketSegment": "targetMarket",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Analyze Product Offerings",
                 "description": "Compares product features, pricing, and positioning",
-                "subroutineId": "TODO: Need product analysis subroutine",
+                "subroutineId": "7829564732190849734",
                 "inputMap": {
                   "competitorList": "identifiedCompetitors",
                   "productCategories": "analysisScope",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Evaluate Market Presence",
                 "description": "Assesses brand strength, marketing strategies, and market share",
-                "subroutineId": "TODO: Need market presence analysis subroutine",
+                "subroutineId": "7829564732190849737",
                 "inputMap": {
                   "competitorList": "identifiedCompetitors",
                   "marketData": "industryMetrics",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Assess Strengths & Weaknesses",
                 "description": "Identifies competitive advantages and vulnerabilities",
-                "subroutineId": "TODO: Need strengths/weaknesses analysis subroutine",
+                "subroutineId": "7829564732190849740",
                 "inputMap": {
                   "productComparison": "featureAnalysis",
                   "marketShare": "shareAnalysis",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Analyze Competitive Strategies",
                 "description": "Studies business models, go-to-market approaches, and strategic focus",
-                "subroutineId": "TODO: Need strategy analysis subroutine",
+                "subroutineId": "7829564732190849743",
                 "inputMap": {
                   "competitorList": "identifiedCompetitors",
                   "marketingTactics": "promotionalStrategies",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Strategic Recommendations",
                 "description": "Develops actionable insights and competitive positioning recommendations",
-                "subroutineId": "TODO: Need recommendation generation subroutine",
+                "subroutineId": "7829564732190849746",
                 "inputMap": {
                   "opportunityGaps": "marketOpenings",
                   "strategicPatterns": "competitiveStrategies",

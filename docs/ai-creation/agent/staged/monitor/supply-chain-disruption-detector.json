@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "supply-chain-disruption-detector",
+    "version": "1.0.0"
+  },
+  "goal": "Monitors for potential logistics issues",
+  "role": "monitor",
+  "subscriptions": [
+    "swarm/resource/updated",
+    "run/failed",
+    "step/failed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/resource/updated",
+        "when": "event.data.resource.type == 'supply_chain' || event.data.resource.type == 'logistics'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Disruption Monitor",
+        "inputMap": {
+          "supplyData": "event.data.resource.data",
+          "logisticsStatus": "event.data.resource.status",
+          "supplyChainMonitoring": "blackboard.supply.monitoring",
+          "disruptionAlerts": "blackboard.supply.alerts"
+        }
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "run/failed",
+        "when": "event.data.category == 'supply_chain' || event.data.tags.includes('logistics_failure')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Identify and alert on supply chain disruptions and logistics risks to prevent operational impact"
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "step/failed",
+        "when": "event.data.type == 'supplier_delivery' || event.data.tags.includes('logistics_step')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Risk Assessor",
+        "inputMap": {
+          "failureData": "event.data.failure",
+          "deliveryStatus": "event.data.delivery",
+          "logisticsTracking": "blackboard.supply.tracking"
+        }
+      },
+      "qos": 2
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "alert-supply-disruptions"
+    },
+    {
+      "modality": "permission",
+      "target": "monitor-logistics-chains"
+    },
+    {
+      "modality": "prohibition",
+      "target": "ignore-critical-delays"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "supply-chain-monitoring",
+      "permissions": ["read", "write"],
+      "scope": "supply.monitoring",
+      "description": "Supply chain monitoring and tracking systems"
+    },
+    {
+      "type": "blackboard",
+      "label": "disruption-alerts",
+      "permissions": ["read", "write"],
+      "scope": "supply.alerts",
+      "description": "Supply chain disruption alerts and risk notifications"
+    },
+    {
+      "type": "blackboard",
+      "label": "logistics-tracking",
+      "permissions": ["read"],
+      "scope": "supply.tracking",
+      "description": "Logistics tracking and delivery status monitoring"
+    },
+    {
+      "type": "routine",
+      "label": "Disruption Monitor",
+      "permissions": ["read"],
+      "description": "Monitor supply chain for disruptions and risks"
+    },
+    {
+      "type": "routine",
+      "label": "Risk Assessor",
+      "permissions": ["read"],
+      "description": "Assess supply chain risks and logistics failures"
+    }
+  ]
+}

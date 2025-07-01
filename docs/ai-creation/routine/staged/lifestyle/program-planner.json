@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849716",
+  "publicId": "program-planner-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847057",
+      "tag": "lifestyle",
+      "translations": [
+        {
+          "id": "7829564732190847157",
+          "language": "en",
+          "description": "Lifestyle and personal"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849717",
+      "publicId": "program-planner-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Designs event agenda and engagement activities",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "eventVision",
+                "id": "event_vision_input",
+                "label": "Event Vision",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Event purpose and objectives"
+              },
+              {
+                "fieldName": "audienceProfile",
+                "id": "audience_profile_input",
+                "label": "Audience Profile",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Attendee characteristics and interests"
+              },
+              {
+                "fieldName": "timeConstraints",
+                "id": "time_constraints_input",
+                "label": "Time Constraints",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Duration and scheduling limitations"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "eventAgenda",
+                "id": "event_agenda_output",
+                "label": "Event Agenda",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "engagementActivities",
+                "id": "engagement_activities_output",
+                "label": "Engagement Activities",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "programFlow",
+                "id": "program_flow_output",
+                "label": "Program Flow",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849718",
+          "language": "en",
+          "name": "Program Planner",
+          "description": "Designs comprehensive event agenda and engaging activities for attendees.",
+          "instructions": "Provide event vision and audience profile. The routine will plan the program."
+        }
+      ]
+    }
+  ]
+}

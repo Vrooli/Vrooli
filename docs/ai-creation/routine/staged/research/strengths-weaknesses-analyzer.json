@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849740",
+  "publicId": "strengths-weaknesses-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847088",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847188",
+          "language": "en",
+          "description": "Research and analysis"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849741",
+      "publicId": "strengths-weaknesses-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Identifies competitive advantages and vulnerabilities",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "competitorData",
+                "id": "competitor_data_input",
+                "label": "Competitor Data",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Product and market analysis results"
+              },
+              {
+                "fieldName": "evaluationCriteria",
+                "id": "evaluation_criteria_input",
+                "label": "Evaluation Criteria",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Standards for assessing strengths/weaknesses"
+              },
+              {
+                "fieldName": "comparisonBenchmarks",
+                "id": "comparison_benchmarks_input",
+                "label": "Comparison Benchmarks",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Reference points for evaluation"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "competitorStrengths",
+                "id": "competitor_strengths_output",
+                "label": "Competitor Strengths",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "competitorWeaknesses",
+                "id": "competitor_weaknesses_output",
+                "label": "Competitor Weaknesses",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "opportunityGaps",
+                "id": "opportunity_gaps_output",
+                "label": "Opportunity Gaps",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849742",
+          "language": "en",
+          "name": "Strengths/Weaknesses Analyzer",
+          "description": "Identifies competitive advantages, vulnerabilities, and market opportunities.",
+          "instructions": "Provide competitor data and evaluation criteria. The routine will analyze strengths/weaknesses."
+        }
+      ]
+    }
+  ]
+}

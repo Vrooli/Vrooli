@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849713",
+  "publicId": "venue-selector-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847057",
+      "tag": "lifestyle",
+      "translations": [
+        {
+          "id": "7829564732190847157",
+          "language": "en",
+          "description": "Lifestyle and personal"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847088",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847188",
+          "language": "en",
+          "description": "Research and analysis"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849714",
+      "publicId": "venue-selector-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Identifies optimal location and basic infrastructure needs",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "attendeeCount",
+                "id": "attendee_count_input",
+                "label": "Attendee Count",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Expected number of guests"
+              },
+              {
+                "fieldName": "eventRequirements",
+                "id": "event_requirements_input",
+                "label": "Event Requirements",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Space, equipment, and facility needs"
+              },
+              {
+                "fieldName": "locationPreferences",
+                "id": "location_preferences_input",
+                "label": "Location Preferences",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Geographic and accessibility preferences"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "venueOptions",
+                "id": "venue_options_output",
+                "label": "Venue Options",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "logisticsConsiderations",
+                "id": "logistics_considerations_output",
+                "label": "Logistics Considerations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "venueRecommendation",
+                "id": "venue_recommendation_output",
+                "label": "Venue Recommendation",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849715",
+          "language": "en",
+          "name": "Venue Selector",
+          "description": "Identifies optimal event locations and basic infrastructure requirements.",
+          "instructions": "Provide attendee count and requirements. The routine will select venues."
+        }
+      ]
+    }
+  ]
+}

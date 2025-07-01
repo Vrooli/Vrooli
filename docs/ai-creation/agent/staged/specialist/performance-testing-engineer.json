@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "performance-testing-engineer",
+    "version": "1.0.0"
+  },
+  "goal": "Optimizes system performance under various loads",
+  "role": "specialist",
+  "subscriptions": [
+    "safety/pre_action",
+    "step/completed",
+    "run/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "safety/pre_action",
+        "when": "event.data.action.type == 'system_deployment' || event.data.action.type == 'load_testing'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Performance Tester",
+        "inputMap": {
+          "systemSpecs": "event.data.action.system",
+          "loadRequirements": "event.data.action.load",
+          "loadTestingTools": "blackboard.performance.testing",
+          "performanceMonitoring": "blackboard.performance.monitoring"
+        }
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'load_test' || event.data.tags.includes('performance_analysis')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Ensure systems perform reliably under expected and peak loads through comprehensive performance testing and optimization"
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('performance_optimization') || event.data.tags.includes('stress_testing')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Optimization Specialist",
+        "inputMap": {
+          "testResults": "event.data.outputs.results",
+          "performanceMetrics": "event.data.metrics",
+          "optimizationTechniques": "blackboard.performance.optimization"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "ensure-system-reliability"
+    },
+    {
+      "modality": "permission",
+      "target": "optimize-performance-bottlenecks"
+    },
+    {
+      "modality": "prohibition",
+      "target": "compromise-system-stability"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "load-testing-tools",
+      "permissions": ["read"],
+      "scope": "performance.testing",
+      "description": "Load testing tools and stress testing frameworks"
+    },
+    {
+      "type": "blackboard",
+      "label": "performance-monitoring",
+      "permissions": ["read", "write"],
+      "scope": "performance.monitoring",
+      "description": "Performance monitoring and system metrics tracking"
+    },
+    {
+      "type": "blackboard",
+      "label": "optimization-techniques",
+      "permissions": ["read"],
+      "scope": "performance.optimization",
+      "description": "Performance optimization techniques and best practices"
+    },
+    {
+      "type": "routine",
+      "label": "Performance Tester",
+      "permissions": ["read"],
+      "description": "Execute comprehensive performance and load testing"
+    },
+    {
+      "type": "routine",
+      "label": "Optimization Specialist",
+      "permissions": ["read"],
+      "description": "Optimize system performance based on testing results"
+    }
+  ]
+}

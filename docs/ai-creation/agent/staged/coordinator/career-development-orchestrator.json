@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "career-development-orchestrator",
+    "version": "1.0.0"
+  },
+  "goal": "Manages skill building, networking, and advancement strategies",
+  "role": "coordinator",
+  "subscriptions": [
+    "swarm/goal/created",
+    "run/completed",
+    "step/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/goal/created",
+        "when": "event.data.description.includes('career') || event.data.description.includes('skill') || event.data.description.includes('professional')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Career Orchestrator",
+        "inputMap": {
+          "careerGoals": "event.data.description",
+          "professionalContext": "event.data.context.career",
+          "skillFrameworks": "blackboard.career.frameworks",
+          "networkingPlatforms": "blackboard.career.networking"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('skill_development') || event.data.tags.includes('networking') || event.data.tags.includes('professional_growth')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Orchestrate professional development by coordinating skill building, networking activities, and career advancement strategies for optimal career progression"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'learning_activity' || event.data.tags.includes('career_milestone')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Development Coordinator",
+        "inputMap": {
+          "learningProgress": "event.data.output.learning",
+          "careerMilestones": "event.data.milestones",
+          "careerPathways": "blackboard.career.pathways"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "promote-career-growth"
+    },
+    {
+      "modality": "permission",
+      "target": "coordinate-development-activities"
+    },
+    {
+      "modality": "prohibition",
+      "target": "recommend-unethical-advancement"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "skill-frameworks",
+      "permissions": ["read"],
+      "scope": "career.frameworks",
+      "description": "Professional skill frameworks and competency models"
+    },
+    {
+      "type": "blackboard",
+      "label": "networking-platforms",
+      "permissions": ["read"],
+      "scope": "career.networking",
+      "description": "Professional networking platforms and relationship building tools"
+    },
+    {
+      "type": "blackboard",
+      "label": "career-pathways",
+      "permissions": ["read", "write"],
+      "scope": "career.pathways",
+      "description": "Career pathway mapping and advancement strategy planning"
+    },
+    {
+      "type": "routine",
+      "label": "Career Orchestrator",
+      "permissions": ["read"],
+      "description": "Orchestrate career development and professional growth strategies"
+    },
+    {
+      "type": "routine",
+      "label": "Development Coordinator",
+      "permissions": ["read"],
+      "description": "Coordinate skill development and career milestone tracking"
+    }
+  ]
+}

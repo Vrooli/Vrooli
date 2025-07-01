@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849743",
+  "publicId": "strategy-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847088",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847188",
+          "language": "en",
+          "description": "Research and analysis"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849744",
+      "publicId": "strategy-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Examines competitor business strategies and approaches",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "competitorIntelligence",
+                "id": "competitor_intelligence_input",
+                "label": "Competitor Intelligence",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Comprehensive competitor information"
+              },
+              {
+                "fieldName": "strategicFramework",
+                "id": "strategic_framework_input",
+                "label": "Strategic Framework",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Framework for strategy analysis"
+              },
+              {
+                "fieldName": "industryContext",
+                "id": "industry_context_input",
+                "label": "Industry Context",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Market trends and industry dynamics"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "strategyPatterns",
+                "id": "strategy_patterns_output",
+                "label": "Strategy Patterns",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "competitivePositioning",
+                "id": "competitive_positioning_output",
+                "label": "Competitive Positioning",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "strategyEffectiveness",
+                "id": "strategy_effectiveness_output",
+                "label": "Strategy Effectiveness",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849745",
+          "language": "en",
+          "name": "Strategy Analyzer",
+          "description": "Examines competitor business strategies, positioning, and effectiveness.",
+          "instructions": "Provide competitor intelligence and strategic framework. The routine will analyze strategies."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849737",
+  "publicId": "market-presence-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847088",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847188",
+          "language": "en",
+          "description": "Research and analysis"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847068",
+      "tag": "marketing",
+      "translations": [
+        {
+          "id": "7829564732190847168",
+          "language": "en",
+          "description": "Marketing and promotion"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849738",
+      "publicId": "market-presence-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Evaluates competitor market share and brand presence",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "competitorProfiles",
+                "id": "competitor_profiles_input",
+                "label": "Competitor Profiles",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Detailed competitor information"
+              },
+              {
+                "fieldName": "marketMetrics",
+                "id": "market_metrics_input",
+                "label": "Market Metrics",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Key performance indicators to track"
+              },
+              {
+                "fieldName": "presenceChannels",
+                "id": "presence_channels_input",
+                "label": "Presence Channels",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Marketing and distribution channels"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "marketShare",
+                "id": "market_share_output",
+                "label": "Market Share",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "brandStrength",
+                "id": "brand_strength_output",
+                "label": "Brand Strength",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "channelDominance",
+                "id": "channel_dominance_output",
+                "label": "Channel Dominance",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849739",
+          "language": "en",
+          "name": "Market Presence Analyzer",
+          "description": "Evaluates competitor market share, brand strength, and channel presence.",
+          "instructions": "Provide competitor profiles and market metrics. The routine will analyze presence."
+        }
+      ]
+    }
+  ]
+}

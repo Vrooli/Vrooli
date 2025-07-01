@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "disaster-recovery-planner",
+    "version": "1.0.0"
+  },
+  "goal": "Develops business continuity and recovery strategies",
+  "role": "specialist",
+  "subscriptions": [
+    "safety/post_action",
+    "run/failed",
+    "swarm/state/changed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "safety/post_action",
+        "when": "event.data.action.severity == 'critical' || event.data.action.type == 'system_failure'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Recovery Coordinator",
+        "inputMap": {
+          "failureData": "event.data.action.failure",
+          "impactAssessment": "event.data.action.impact",
+          "recoveryProcedures": "blackboard.recovery.procedures",
+          "backupSystems": "blackboard.recovery.backup"
+        }
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "run/failed",
+        "when": "event.data.severity == 'critical' || event.data.business_impact == 'high'"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Create comprehensive disaster recovery and business continuity plans to ensure organizational resilience during emergencies"
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "swarm/state/changed",
+        "when": "event.data.state.status == 'degraded' || event.data.state.status == 'failed'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Continuity Planner",
+        "inputMap": {
+          "systemState": "event.data.state",
+          "operationalStatus": "event.data.operations",
+          "continuityPlanning": "blackboard.recovery.continuity"
+        }
+      },
+      "qos": 2
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "ensure-business-continuity"
+    },
+    {
+      "modality": "permission",
+      "target": "activate-recovery-procedures"
+    },
+    {
+      "modality": "prohibition",
+      "target": "ignore-critical-failures"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "recovery-procedures",
+      "permissions": ["read", "write"],
+      "scope": "recovery.procedures",
+      "description": "Disaster recovery procedures and emergency response protocols"
+    },
+    {
+      "type": "blackboard",
+      "label": "backup-systems",
+      "permissions": ["read"],
+      "scope": "recovery.backup",
+      "description": "Backup systems and redundant infrastructure"
+    },
+    {
+      "type": "blackboard",
+      "label": "continuity-planning",
+      "permissions": ["read", "write"],
+      "scope": "recovery.continuity",
+      "description": "Business continuity planning and operational resilience"
+    },
+    {
+      "type": "routine",
+      "label": "Recovery Coordinator",
+      "permissions": ["read"],
+      "description": "Coordinate disaster recovery and emergency response"
+    },
+    {
+      "type": "routine",
+      "label": "Continuity Planner",
+      "permissions": ["read"],
+      "description": "Plan business continuity and operational resilience"
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "market-opportunity-scanner",
+    "version": "1.0.0"
+  },
+  "goal": "Identifies emerging business opportunities",
+  "role": "monitor",
+  "subscriptions": [
+    "step/completed",
+    "run/completed",
+    "swarm/goal/updated"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'market_analysis' || event.data.tags.includes('opportunity_research')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Opportunity Scanner",
+        "inputMap": {
+          "marketData": "event.data.output.market",
+          "analysisResults": "event.data.analysis",
+          "marketIntelligence": "blackboard.opportunity.intelligence",
+          "opportunityDetection": "blackboard.opportunity.detection"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('market_research') || event.data.tags.includes('business_intelligence')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Scan market conditions for new business opportunities and emerging trends that could drive strategic advantage"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "swarm/goal/updated",
+        "when": "event.data.description.includes('market') || event.data.description.includes('opportunity') || event.data.description.includes('business')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Trend Evaluator",
+        "inputMap": {
+          "businessGoals": "event.data.description",
+          "marketContext": "event.data.context.market",
+          "trendAnalysis": "blackboard.opportunity.trends"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "identify-viable-opportunities"
+    },
+    {
+      "modality": "permission",
+      "target": "scan-market-conditions"
+    },
+    {
+      "modality": "prohibition",
+      "target": "promote-unethical-opportunities"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "market-intelligence",
+      "permissions": ["read"],
+      "scope": "opportunity.intelligence",
+      "description": "Market intelligence and business opportunity databases"
+    },
+    {
+      "type": "blackboard",
+      "label": "opportunity-detection",
+      "permissions": ["read", "write"],
+      "scope": "opportunity.detection",
+      "description": "Opportunity detection algorithms and pattern recognition"
+    },
+    {
+      "type": "blackboard",
+      "label": "trend-analysis",
+      "permissions": ["read"],
+      "scope": "opportunity.trends",
+      "description": "Market trend analysis and opportunity evaluation tools"
+    },
+    {
+      "type": "routine",
+      "label": "Opportunity Scanner",
+      "permissions": ["read"],
+      "description": "Scan markets for emerging business opportunities"
+    },
+    {
+      "type": "routine",
+      "label": "Trend Evaluator",
+      "permissions": ["read"],
+      "description": "Evaluate market trends for opportunity potential"
+    }
+  ]
+}

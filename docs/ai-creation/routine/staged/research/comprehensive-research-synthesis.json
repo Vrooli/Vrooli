@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Define Research Scope",
                 "description": "Establishes research questions, boundaries, and objectives",
-                "subroutineId": "TODO: Need scope definition subroutine",
+                "subroutineId": "7829564732190849749",
                 "inputMap": {
                   "researchQuestion": "primaryInquiry",
                   "contextualBackground": "domainContext",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Gather Source Materials",
                 "description": "Collects diverse sources from multiple channels",
-                "subroutineId": "TODO: Need source gathering subroutine",
+                "subroutineId": "7829564732190849752",
                 "inputMap": {
                   "investigationPlan": "searchStrategy",
                   "sourceChannels": "informationSources",
