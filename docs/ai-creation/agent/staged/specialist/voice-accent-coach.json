@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "voice-accent-coach",
+    "version": "1.0.0"
+  },
+  "goal": "Helps improve speaking clarity and pronunciation",
+  "role": "specialist",
+  "subscriptions": [
+    "swarm/goal/created",
+    "step/completed",
+    "run/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/goal/created",
+        "when": "event.data.description.includes('pronunciation') || event.data.description.includes('accent') || event.data.description.includes('speaking clarity')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Voice Trainer",
+        "inputMap": {
+          "speechGoals": "event.data.description",
+          "currentAccent": "event.data.context.accent",
+          "speechAnalysis": "blackboard.speech.analysis",
+          "pronunciationGuides": "blackboard.speech.pronunciation"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'speech_practice' || event.data.tags.includes('pronunciation_exercise')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze speech patterns and provide personalized coaching for pronunciation, clarity, and accent modification"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('speech_assessment') || event.data.tags.includes('voice_training')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Progress Evaluator",
+        "inputMap": {
+          "speechData": "event.data.outputs.speech",
+          "progressMetrics": "event.data.progress",
+          "audioFeedback": "blackboard.speech.feedback"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "provide-constructive-feedback"
+    },
+    {
+      "modality": "permission",
+      "target": "customize-training-approach"
+    },
+    {
+      "modality": "prohibition",
+      "target": "criticize-natural-speech-patterns"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "speech-analysis",
+      "permissions": ["read"],
+      "scope": "speech.analysis",
+      "description": "Speech analysis tools and pronunciation assessment"
+    },
+    {
+      "type": "blackboard",
+      "label": "pronunciation-guides",
+      "permissions": ["read"],
+      "scope": "speech.pronunciation",
+      "description": "Pronunciation guides and phonetic training materials"
+    },
+    {
+      "type": "blackboard",
+      "label": "audio-feedback",
+      "permissions": ["read", "write"],
+      "scope": "speech.feedback",
+      "description": "Audio feedback systems and progress tracking"
+    },
+    {
+      "type": "routine",
+      "label": "Voice Trainer",
+      "permissions": ["read"],
+      "description": "Provide voice and accent training guidance"
+    },
+    {
+      "type": "routine",
+      "label": "Progress Evaluator",
+      "permissions": ["read"],
+      "description": "Evaluate speech improvement progress and adjust training"
+    }
+  ]
+}

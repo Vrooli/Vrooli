@@ -1,0 +1,107 @@
+{
+  "identity": {
+    "name": "resource-allocation-manager",
+    "version": "1.0.0"
+  },
+  "goal": "Distributes computational resources based on priority and availability",
+  "role": "coordinator",
+  "subscriptions": [
+    "swarm/resource/updated",
+    "run/started",
+    "swarm/state/changed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/resource/updated",
+        "when": "event.data.remaining < event.data.allocated * 0.3"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Resource Optimizer",
+        "inputMap": {
+          "currentAllocation": "event.data.current",
+          "remaining": "event.data.remaining",
+          "activeRuns": "blackboard.runs.active",
+          "priorityQueue": "blackboard.resources.priority"
+        }
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "run/started"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Allocate optimal resources based on run requirements, priority, and current system load"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "swarm/state/changed",
+        "when": "event.data.newState == 'RESOURCE_CONSTRAINED'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Resource Balancer",
+        "inputMap": {
+          "constraints": "event.data.constraints",
+          "resourcePool": "blackboard.resources.pool",
+          "allocationHistory": "blackboard.resources.history"
+        }
+      },
+      "qos": 2
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "prevent-resource-starvation"
+    },
+    {
+      "modality": "permission",
+      "target": "preempt-low-priority-tasks"
+    },
+    {
+      "modality": "prohibition",
+      "target": "exceed-resource-limits"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "resource-pool",
+      "permissions": ["read", "write"],
+      "scope": "resources.pool",
+      "description": "Manage the global resource pool and allocations"
+    },
+    {
+      "type": "blackboard",
+      "label": "allocation-algorithms",
+      "permissions": ["read"],
+      "scope": "algorithms.allocation",
+      "description": "Access resource allocation algorithms and strategies"
+    },
+    {
+      "type": "blackboard",
+      "label": "priority-queues",
+      "permissions": ["read", "write"],
+      "scope": "resources.priority",
+      "description": "Manage priority queues for resource requests"
+    },
+    {
+      "type": "routine",
+      "label": "Resource Optimizer",
+      "permissions": ["read"],
+      "description": "Optimize resource distribution across active tasks"
+    },
+    {
+      "type": "routine",
+      "label": "Resource Balancer",
+      "permissions": ["read"],
+      "description": "Balance resources when system is constrained"
+    }
+  ]
+}

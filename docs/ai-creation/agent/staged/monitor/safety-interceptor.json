@@ -1,0 +1,91 @@
+{
+  "identity": {
+    "name": "safety-interceptor",
+    "version": "1.0.0"
+  },
+  "goal": "Validate all actions before execution to ensure safety and compliance",
+  "role": "monitor",
+  "subscriptions": [
+    "safety/pre_action",
+    "safety/post_action"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "safety/pre_action"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Safety Validator",
+        "inputMap": {
+          "action": "event.data.action",
+          "context": "event.data.context",
+          "policies": "blackboard.safety.policies",
+          "riskThreshold": "blackboard.safety.riskThreshold"
+        }
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "safety/post_action",
+        "when": "event.data.violations.length > 0"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze safety violations and determine corrective actions to prevent future occurrences"
+      },
+      "qos": 2
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "intercept-all-actions"
+    },
+    {
+      "modality": "prohibition",
+      "target": "allow-unsafe-operations"
+    },
+    {
+      "modality": "permission",
+      "target": "escalate-critical-violations"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "safety-rules",
+      "permissions": ["read"],
+      "scope": "safety.rules",
+      "description": "Read safety validation rules and constraints"
+    },
+    {
+      "type": "blackboard",
+      "label": "compliance-policies",
+      "permissions": ["read"],
+      "scope": "safety.policies",
+      "description": "Read compliance policies and regulatory requirements"
+    },
+    {
+      "type": "blackboard",
+      "label": "validation-frameworks",
+      "permissions": ["read"],
+      "scope": "safety.frameworks",
+      "description": "Access validation frameworks and risk assessment models"
+    },
+    {
+      "type": "blackboard",
+      "label": "violation-tracking",
+      "permissions": ["read", "write"],
+      "scope": "safety.violations",
+      "description": "Track and update safety violation records"
+    },
+    {
+      "type": "routine",
+      "label": "Safety Validator",
+      "permissions": ["read"],
+      "description": "Validate actions against safety rules and compliance policies"
+    }
+  ]
+}

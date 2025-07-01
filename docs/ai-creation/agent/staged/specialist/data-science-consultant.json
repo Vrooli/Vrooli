@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "data-science-consultant",
+    "version": "1.0.0"
+  },
+  "goal": "Performs statistical analysis and machine learning tasks",
+  "role": "specialist",
+  "subscriptions": [
+    "run/started",
+    "step/completed",
+    "swarm/goal/created"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "run/started",
+        "when": "event.data.tags.includes('data_science') || event.data.tags.includes('machine_learning')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Data Analyzer",
+        "inputMap": {
+          "dataset": "event.data.parameters.dataset",
+          "analysisType": "event.data.parameters.type",
+          "statisticalTools": "blackboard.datascience.tools",
+          "mlFrameworks": "blackboard.datascience.frameworks"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'data_preprocessing' || event.data.type == 'feature_engineering'"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze processed data and recommend appropriate machine learning models and statistical methods"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "swarm/goal/created",
+        "when": "event.data.description.includes('predict') || event.data.description.includes('analyze') || event.data.description.includes('model')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "ML Strategy Planner",
+        "inputMap": {
+          "problemType": "event.data.description",
+          "dataRequirements": "event.data.context.dataRequirements",
+          "dataPipelines": "blackboard.datascience.pipelines"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "validate-data-quality"
+    },
+    {
+      "modality": "permission",
+      "target": "recommend-ml-approaches"
+    },
+    {
+      "modality": "prohibition",
+      "target": "use-biased-datasets"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "statistical-tools",
+      "permissions": ["read"],
+      "scope": "datascience.tools",
+      "description": "Statistical analysis tools and libraries"
+    },
+    {
+      "type": "blackboard",
+      "label": "ml-frameworks",
+      "permissions": ["read"],
+      "scope": "datascience.frameworks",
+      "description": "Machine learning frameworks and model libraries"
+    },
+    {
+      "type": "blackboard",
+      "label": "data-pipelines",
+      "permissions": ["read"],
+      "scope": "datascience.pipelines",
+      "description": "Data processing pipelines and ETL workflows"
+    },
+    {
+      "type": "routine",
+      "label": "Data Analyzer",
+      "permissions": ["read"],
+      "description": "Perform statistical analysis and data exploration"
+    },
+    {
+      "type": "routine",
+      "label": "ML Strategy Planner",
+      "permissions": ["read"],
+      "description": "Plan machine learning strategies and model selection"
+    }
+  ]
+}

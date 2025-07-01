@@ -1,0 +1,109 @@
+{
+  "identity": {
+    "name": "market-research-analyst",
+    "version": "1.0.0"
+  },
+  "goal": "Deep analysis of market trends, competitors, and opportunities",
+  "role": "specialist",
+  "subscriptions": [
+    "run/started",
+    "step/completed",
+    "swarm/goal/created"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "run/started",
+        "when": "event.data.tags.includes('market_research') || event.data.tags.includes('competitive_analysis')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Market Analyzer",
+        "inputMap": {
+          "researchQuery": "event.data.parameters.query",
+          "market": "event.data.parameters.market",
+          "marketDatabases": "blackboard.market.databases",
+          "competitiveIntelligence": "blackboard.market.competitive"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'data_collection' && event.data.tags.includes('market')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze collected market data to identify trends, opportunities, and competitive positioning insights"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "swarm/goal/created",
+        "when": "event.data.description.includes('market') || event.data.description.includes('competitor')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Research Strategy Planner",
+        "inputMap": {
+          "businessGoal": "event.data.description",
+          "industry": "event.data.context.industry",
+          "researchFrameworks": "blackboard.market.frameworks",
+          "trendAnalysis": "blackboard.market.trends"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "verify-data-sources"
+    },
+    {
+      "modality": "permission",
+      "target": "synthesize-insights"
+    },
+    {
+      "modality": "prohibition",
+      "target": "use-proprietary-competitor-data"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "market-databases",
+      "permissions": ["read"],
+      "scope": "market.databases",
+      "description": "Market research databases and industry reports"
+    },
+    {
+      "type": "blackboard",
+      "label": "competitive-intelligence",
+      "permissions": ["read"],
+      "scope": "market.competitive",
+      "description": "Competitive intelligence and benchmarking data"
+    },
+    {
+      "type": "blackboard",
+      "label": "trend-analysis",
+      "permissions": ["read", "write"],
+      "scope": "market.trends",
+      "description": "Market trend analysis and forecasting tools"
+    },
+    {
+      "type": "routine",
+      "label": "Market Analyzer",
+      "permissions": ["read"],
+      "description": "Analyze market conditions and competitive landscape"
+    },
+    {
+      "type": "routine",
+      "label": "Research Strategy Planner",
+      "permissions": ["read"],
+      "description": "Plan comprehensive market research strategies"
+    }
+  ]
+}

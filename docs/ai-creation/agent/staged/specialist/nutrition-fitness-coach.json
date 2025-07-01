@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "nutrition-fitness-coach",
+    "version": "1.0.0"
+  },
+  "goal": "Provides personalized diet and exercise recommendations",
+  "role": "specialist",
+  "subscriptions": [
+    "swarm/goal/created",
+    "step/completed",
+    "run/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/goal/created",
+        "when": "event.data.description.includes('fitness') || event.data.description.includes('nutrition') || event.data.description.includes('health')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Wellness Planner",
+        "inputMap": {
+          "healthGoals": "event.data.description",
+          "userProfile": "event.data.context.profile",
+          "nutritionDatabase": "blackboard.wellness.nutrition",
+          "fitnessProtocols": "blackboard.wellness.fitness"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'health_assessment' || event.data.tags.includes('wellness_tracking')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze health metrics and adjust personalized nutrition and fitness recommendations"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('workout_completed') || event.data.tags.includes('meal_logged')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Progress Tracker",
+        "inputMap": {
+          "activityData": "event.data.outputs.activity",
+          "progressMetrics": "event.data.metrics",
+          "healthGoals": "blackboard.wellness.goals"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "personalize-recommendations"
+    },
+    {
+      "modality": "permission",
+      "target": "track-progress-metrics"
+    },
+    {
+      "modality": "prohibition",
+      "target": "provide-medical-advice"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "nutrition-database",
+      "permissions": ["read"],
+      "scope": "wellness.nutrition",
+      "description": "Nutritional databases and dietary guidelines"
+    },
+    {
+      "type": "blackboard",
+      "label": "fitness-protocols",
+      "permissions": ["read"],
+      "scope": "wellness.fitness",
+      "description": "Exercise protocols and fitness routines"
+    },
+    {
+      "type": "blackboard",
+      "label": "health-metrics",
+      "permissions": ["read", "write"],
+      "scope": "wellness.metrics",
+      "description": "Health tracking metrics and progress data"
+    },
+    {
+      "type": "routine",
+      "label": "Wellness Planner",
+      "permissions": ["read"],
+      "description": "Create personalized wellness plans"
+    },
+    {
+      "type": "routine",
+      "label": "Progress Tracker",
+      "permissions": ["read"],
+      "description": "Track fitness and nutrition progress"
+    }
+  ]
+}

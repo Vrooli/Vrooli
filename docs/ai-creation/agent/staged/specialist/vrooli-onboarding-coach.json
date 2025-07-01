@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "vrooli-onboarding-coach",
+    "version": "1.0.0"
+  },
+  "goal": "Teaches new users how to effectively use Vrooli platform",
+  "role": "specialist",
+  "subscriptions": [
+    "swarm/goal/created",
+    "run/started",
+    "step/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/goal/created",
+        "when": "event.data.context.userExperience == 'beginner' || event.data.tags.includes('onboarding')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Onboarding Guide",
+        "inputMap": {
+          "userGoal": "event.data.description",
+          "userLevel": "event.data.context.userExperience",
+          "tutorialContent": "blackboard.vrooli.tutorials",
+          "learningPathways": "blackboard.vrooli.pathways"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/started",
+        "when": "event.data.context.isFirstTime == true"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Provide personalized onboarding guidance based on user goals and current platform knowledge"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'tutorial_step' || event.data.tags.includes('learning')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Progress Evaluator",
+        "inputMap": {
+          "completedStep": "event.data.step",
+          "userProgress": "blackboard.vrooli.progress",
+          "progressTracking": "blackboard.vrooli.tracking"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "personalize-learning-experience"
+    },
+    {
+      "modality": "permission",
+      "target": "adapt-teaching-pace"
+    },
+    {
+      "modality": "prohibition",
+      "target": "overwhelm-beginners"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "tutorial-content",
+      "permissions": ["read"],
+      "scope": "vrooli.tutorials",
+      "description": "Vrooli platform tutorial content and guides"
+    },
+    {
+      "type": "blackboard",
+      "label": "learning-pathways",
+      "permissions": ["read"],
+      "scope": "vrooli.pathways",
+      "description": "Structured learning pathways for different user types"
+    },
+    {
+      "type": "blackboard",
+      "label": "progress-tracking",
+      "permissions": ["read", "write"],
+      "scope": "vrooli.progress",
+      "description": "User onboarding progress tracking and analytics"
+    },
+    {
+      "type": "routine",
+      "label": "Onboarding Guide",
+      "permissions": ["read"],
+      "description": "Provide personalized onboarding guidance"
+    },
+    {
+      "type": "routine",
+      "label": "Progress Evaluator",
+      "permissions": ["read"],
+      "description": "Evaluate onboarding progress and adjust guidance"
+    }
+  ]
+}

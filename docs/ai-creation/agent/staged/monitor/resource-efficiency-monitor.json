@@ -1,0 +1,103 @@
+{
+  "identity": {
+    "name": "resource-efficiency-monitor",
+    "version": "1.0.0"
+  },
+  "goal": "Monitor and optimize resource consumption across all swarm activities",
+  "role": "monitor",
+  "subscriptions": [
+    "swarm/resource/updated",
+    "step/completed",
+    "run/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/resource/updated"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Efficiency Analyzer",
+        "inputMap": {
+          "resourceUsage": "event.data.usage",
+          "resourceType": "event.data.type",
+          "efficiencyAlgorithms": "blackboard.efficiency.algorithms",
+          "costModels": "blackboard.efficiency.costModels"
+        }
+      },
+      "qos": 0
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.resourcesUsed.credits > blackboard.efficiency.thresholds.stepCost"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze expensive steps and recommend resource optimization strategies"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Cost Optimizer",
+        "inputMap": {
+          "runCost": "event.data.totalCost",
+          "runEfficiency": "event.data.efficiency",
+          "optimizationMetrics": "blackboard.efficiency.metrics",
+          "creditUsage": "stats.totalCredits"
+        }
+      },
+      "qos": 0
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "monitor-all-resource-usage"
+    },
+    {
+      "modality": "permission",
+      "target": "suggest-cost-optimizations"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "resource-metrics",
+      "permissions": ["read", "write"],
+      "scope": "efficiency.metrics",
+      "description": "Resource efficiency metrics and tracking data"
+    },
+    {
+      "type": "blackboard",
+      "label": "efficiency-algorithms",
+      "permissions": ["read"],
+      "scope": "efficiency.algorithms",
+      "description": "Resource efficiency optimization algorithms"
+    },
+    {
+      "type": "blackboard",
+      "label": "cost-models",
+      "permissions": ["read"],
+      "scope": "efficiency.costModels",
+      "description": "Cost modeling and optimization frameworks"
+    },
+    {
+      "type": "routine",
+      "label": "Efficiency Analyzer",
+      "permissions": ["read"],
+      "description": "Analyze resource efficiency and identify waste"
+    },
+    {
+      "type": "routine",
+      "label": "Cost Optimizer",
+      "permissions": ["read"],
+      "description": "Optimize resource costs and efficiency"
+    }
+  ]
+}

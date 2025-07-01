@@ -1,0 +1,104 @@
+{
+  "identity": {
+    "name": "code-quality-auditor",
+    "version": "1.0.0"
+  },
+  "goal": "Reviews code for best practices, security, and performance",
+  "role": "specialist",
+  "subscriptions": [
+    "safety/pre_action",
+    "step/completed",
+    "run/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "safety/pre_action",
+        "when": "event.data.action.type == 'code_execution'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Code Validator",
+        "inputMap": {
+          "code": "event.data.action.code",
+          "language": "event.data.action.language",
+          "securityRules": "blackboard.quality.security",
+          "standards": "blackboard.quality.standards"
+        }
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.outputType == 'code'"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze generated code for quality issues, security vulnerabilities, and optimization opportunities"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('development')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Quality Report Generator",
+        "inputMap": {
+          "runId": "event.data.runId",
+          "codeArtifacts": "event.data.outputs.code",
+          "qualityMetrics": "blackboard.quality.metrics"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "validate-before-execution"
+    },
+    {
+      "modality": "prohibition",
+      "target": "allow-insecure-code"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "code-analysis-tools",
+      "permissions": ["read"],
+      "scope": "tools.analysis.code",
+      "description": "Access static code analysis and linting tools"
+    },
+    {
+      "type": "blackboard",
+      "label": "security-scanners",
+      "permissions": ["read"],
+      "scope": "tools.security.scanners",
+      "description": "Use security vulnerability scanning tools"
+    },
+    {
+      "type": "blackboard",
+      "label": "quality-metrics",
+      "permissions": ["read", "write"],
+      "scope": "quality.metrics.code",
+      "description": "Track and update code quality metrics"
+    },
+    {
+      "type": "routine",
+      "label": "Code Validator",
+      "permissions": ["read"],
+      "description": "Validate code against security and quality standards"
+    },
+    {
+      "type": "routine",
+      "label": "Quality Report Generator",
+      "permissions": ["read"],
+      "description": "Generate comprehensive code quality reports"
+    }
+  ]
+}

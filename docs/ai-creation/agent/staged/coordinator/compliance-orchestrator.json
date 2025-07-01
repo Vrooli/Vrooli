@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "compliance-orchestrator",
+    "version": "1.0.0"
+  },
+  "goal": "Coordinates regulatory compliance across multiple domains",
+  "role": "coordinator",
+  "subscriptions": [
+    "safety/pre_action",
+    "safety/post_action",
+    "run/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "safety/pre_action",
+        "when": "event.data.action.compliance_required == true || event.data.action.regulatory_scope != null"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Compliance Coordinator",
+        "inputMap": {
+          "actionData": "event.data.action",
+          "complianceRequirements": "event.data.action.compliance",
+          "complianceFrameworks": "blackboard.compliance.frameworks",
+          "regulatoryDatabases": "blackboard.compliance.regulations"
+        }
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "safety/post_action",
+        "when": "event.data.action.compliance_validation == true || event.data.action.audit_required == true"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Ensure coordinated compliance across all organizational activities and regulatory domains with audit trail maintenance"
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('compliance_check') || event.data.tags.includes('regulatory_review')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Audit Manager",
+        "inputMap": {
+          "complianceData": "event.data.outputs.compliance",
+          "auditResults": "event.data.audit",
+          "auditTools": "blackboard.compliance.audit"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "maintain-regulatory-compliance"
+    },
+    {
+      "modality": "permission",
+      "target": "coordinate-compliance-activities"
+    },
+    {
+      "modality": "prohibition",
+      "target": "ignore-regulatory-requirements"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "compliance-frameworks",
+      "permissions": ["read"],
+      "scope": "compliance.frameworks",
+      "description": "Regulatory compliance frameworks and standards"
+    },
+    {
+      "type": "blackboard",
+      "label": "regulatory-databases",
+      "permissions": ["read"],
+      "scope": "compliance.regulations",
+      "description": "Regulatory databases and compliance requirements"
+    },
+    {
+      "type": "blackboard",
+      "label": "audit-tools",
+      "permissions": ["read", "write"],
+      "scope": "compliance.audit",
+      "description": "Compliance audit tools and tracking systems"
+    },
+    {
+      "type": "routine",
+      "label": "Compliance Coordinator",
+      "permissions": ["read"],
+      "description": "Coordinate regulatory compliance across domains"
+    },
+    {
+      "type": "routine",
+      "label": "Audit Manager",
+      "permissions": ["read"],
+      "description": "Manage compliance audits and verification processes"
+    }
+  ]
+}

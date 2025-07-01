@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "vendor-relationship-manager",
+    "version": "1.0.0"
+  },
+  "goal": "Facilitates communication with external suppliers",
+  "role": "bridge",
+  "subscriptions": [
+    "swarm/resource/updated",
+    "run/completed",
+    "step/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/resource/updated",
+        "when": "event.data.type == 'vendor_service' || event.data.source == 'external'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Vendor Communication Manager",
+        "inputMap": {
+          "vendorId": "event.data.vendorId",
+          "serviceUpdate": "event.data.update",
+          "communicationProtocols": "blackboard.vendors.protocols",
+          "relationshipHistory": "blackboard.vendors.history"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('vendor_integration')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Optimize vendor relationships based on service performance and manage ongoing communication channels"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'vendor_assessment' || event.data.tags.includes('supplier_evaluation')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Relationship Optimizer",
+        "inputMap": {
+          "assessmentResults": "event.data.results",
+          "vendorPerformance": "blackboard.vendors.performance",
+          "optimizationStrategies": "blackboard.vendors.optimization"
+        }
+      },
+      "qos": 0
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "maintain-vendor-relationships"
+    },
+    {
+      "modality": "permission",
+      "target": "negotiate-terms"
+    },
+    {
+      "modality": "prohibition",
+      "target": "breach-vendor-contracts"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "vendor-management",
+      "permissions": ["read", "write"],
+      "scope": "vendors.management",
+      "description": "Vendor management systems and relationship data"
+    },
+    {
+      "type": "blackboard",
+      "label": "communication-protocols",
+      "permissions": ["read"],
+      "scope": "vendors.protocols",
+      "description": "Vendor communication protocols and preferences"
+    },
+    {
+      "type": "blackboard",
+      "label": "relationship-tracking",
+      "permissions": ["read", "write"],
+      "scope": "vendors.relationships",
+      "description": "Track vendor relationship health and performance"
+    },
+    {
+      "type": "routine",
+      "label": "Vendor Communication Manager",
+      "permissions": ["read"],
+      "description": "Manage communications with external vendors"
+    },
+    {
+      "type": "routine",
+      "label": "Relationship Optimizer",
+      "permissions": ["read"],
+      "description": "Optimize vendor relationships and contracts"
+    }
+  ]
+}

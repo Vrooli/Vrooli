@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "brand-identity-designer",
+    "version": "1.0.0"
+  },
+  "goal": "Creates cohesive brand visual and messaging systems",
+  "role": "specialist",
+  "subscriptions": [
+    "swarm/goal/created",
+    "step/completed",
+    "run/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/goal/created",
+        "when": "event.data.description.includes('brand') || event.data.description.includes('identity') || event.data.description.includes('visual design')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Brand Designer",
+        "inputMap": {
+          "brandGoals": "event.data.description",
+          "targetAudience": "event.data.context.audience",
+          "designTools": "blackboard.brand.tools",
+          "brandFrameworks": "blackboard.brand.frameworks"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'brand_research' || event.data.tags.includes('design_exploration')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Develop comprehensive brand identity systems including visual elements, messaging, and guidelines for consistent application"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('brand_development') || event.data.tags.includes('identity_system')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Guidelines Creator",
+        "inputMap": {
+          "brandElements": "event.data.outputs.elements",
+          "designSystem": "event.data.system",
+          "visualGuidelines": "blackboard.brand.guidelines"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "maintain-brand-consistency"
+    },
+    {
+      "modality": "permission",
+      "target": "create-visual-systems"
+    },
+    {
+      "modality": "prohibition",
+      "target": "infringe-existing-trademarks"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "design-tools",
+      "permissions": ["read"],
+      "scope": "brand.tools",
+      "description": "Brand design tools and creative software"
+    },
+    {
+      "type": "blackboard",
+      "label": "brand-frameworks",
+      "permissions": ["read"],
+      "scope": "brand.frameworks",
+      "description": "Brand development frameworks and design principles"
+    },
+    {
+      "type": "blackboard",
+      "label": "visual-guidelines",
+      "permissions": ["read", "write"],
+      "scope": "brand.guidelines",
+      "description": "Brand guidelines and visual identity standards"
+    },
+    {
+      "type": "routine",
+      "label": "Brand Designer",
+      "permissions": ["read"],
+      "description": "Design comprehensive brand identity systems"
+    },
+    {
+      "type": "routine",
+      "label": "Guidelines Creator",
+      "permissions": ["read"],
+      "description": "Create brand guidelines and usage standards"
+    }
+  ]
+}

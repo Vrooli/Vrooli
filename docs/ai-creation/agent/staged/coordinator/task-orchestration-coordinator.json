@@ -1,0 +1,109 @@
+{
+  "identity": {
+    "name": "task-orchestration-coordinator",
+    "version": "1.0.0"
+  },
+  "goal": "Coordinate complex multi-step tasks across multiple specialist agents",
+  "role": "coordinator",
+  "subscriptions": [
+    "swarm/goal/created",
+    "run/completed",
+    "run/failed",
+    "swarm/team/updated"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/goal/created"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Action Planner",
+        "inputMap": {
+          "goalDescription": "event.data.description",
+          "goalId": "event.data.goalId",
+          "currentTasks": "subtasks.length",
+          "teamCapabilities": "blackboard.team.capabilities"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "subtasks.length > 0"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze completed run results and coordinate next task in sequence based on dependencies and outputs"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/failed",
+        "when": "event.data.error != null"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Strategy Adapter",
+        "inputMap": {
+          "failureContext": "event.data.error",
+          "runId": "event.data.runId",
+          "taskQueue": "blackboard.tasks.pending",
+          "failedAttempts": "bot.performance.tasksFailed"
+        }
+      },
+      "qos": 2
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "monitor-task-progress"
+    },
+    {
+      "modality": "prohibition",
+      "target": "duplicate-active-tasks"
+    },
+    {
+      "modality": "permission",
+      "target": "reassign-failed-tasks"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "task-queue",
+      "permissions": ["read", "write"],
+      "scope": "tasks.*",
+      "description": "Manage task queue including pending, active, and completed tasks"
+    },
+    {
+      "type": "blackboard",
+      "label": "agent-registry",
+      "permissions": ["read"],
+      "scope": "team.capabilities",
+      "description": "Read available agent capabilities and current workload"
+    },
+    {
+      "type": "blackboard",
+      "label": "performance-metrics",
+      "permissions": ["read", "write"],
+      "scope": "metrics.tasks.*",
+      "description": "Track and update task completion metrics and performance indicators"
+    },
+    {
+      "type": "routine",
+      "label": "Action Planner",
+      "permissions": ["read"],
+      "description": "Decompose complex goals into actionable task sequences"
+    },
+    {
+      "type": "routine",
+      "label": "Strategy Adapter",
+      "permissions": ["read"],
+      "description": "Adapt execution strategy based on failures and changing conditions"
+    }
+  ]
+}

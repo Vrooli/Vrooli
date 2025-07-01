@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "legal-document-analyzer",
+    "version": "1.0.0"
+  },
+  "goal": "Reviews contracts, agreements, and compliance requirements",
+  "role": "specialist",
+  "subscriptions": [
+    "safety/pre_action",
+    "run/started",
+    "step/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "safety/pre_action",
+        "when": "event.data.action.type == 'contract_review' || event.data.action.type == 'legal_analysis'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Legal Reviewer",
+        "inputMap": {
+          "document": "event.data.action.document",
+          "documentType": "event.data.action.type",
+          "legalDatabases": "blackboard.legal.databases",
+          "complianceFrameworks": "blackboard.legal.compliance"
+        }
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "run/started",
+        "when": "event.data.tags.includes('legal_review') || event.data.tags.includes('contract_analysis')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze legal documents for compliance issues, risk factors, and potential concerns"
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'legal_research' || event.data.tags.includes('compliance_check')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Risk Assessor",
+        "inputMap": {
+          "researchResults": "event.data.results",
+          "riskFrameworks": "blackboard.legal.risk",
+          "riskAssessment": "blackboard.legal.assessment"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "identify-legal-risks"
+    },
+    {
+      "modality": "permission",
+      "target": "flag-compliance-issues"
+    },
+    {
+      "modality": "prohibition",
+      "target": "provide-legal-advice"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "legal-databases",
+      "permissions": ["read"],
+      "scope": "legal.databases",
+      "description": "Legal precedents, regulations, and compliance databases"
+    },
+    {
+      "type": "blackboard",
+      "label": "compliance-frameworks",
+      "permissions": ["read"],
+      "scope": "legal.compliance",
+      "description": "Regulatory compliance frameworks and requirements"
+    },
+    {
+      "type": "blackboard",
+      "label": "risk-assessment",
+      "permissions": ["read", "write"],
+      "scope": "legal.assessment",
+      "description": "Legal risk assessment tools and methodologies"
+    },
+    {
+      "type": "routine",
+      "label": "Legal Reviewer",
+      "permissions": ["read"],
+      "description": "Review legal documents for compliance and risk"
+    },
+    {
+      "type": "routine",
+      "label": "Risk Assessor",
+      "permissions": ["read"],
+      "description": "Assess legal risks and compliance issues"
+    }
+  ]
+}

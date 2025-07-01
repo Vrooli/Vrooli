@@ -1,0 +1,109 @@
+{
+  "identity": {
+    "name": "customer-support-escalation-manager",
+    "version": "1.0.0"
+  },
+  "goal": "Routes complex issues to appropriate specialists",
+  "role": "bridge",
+  "subscriptions": [
+    "run/failed",
+    "step/failed",
+    "run/decision/requested"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "run/decision/requested",
+        "when": "event.data.context.type == 'support_request'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Issue Classifier",
+        "inputMap": {
+          "issueDescription": "event.data.description",
+          "customerTier": "event.data.context.customerTier",
+          "issueHistory": "blackboard.support.history",
+          "specialistAvailability": "blackboard.specialists.available"
+        }
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "run/failed",
+        "when": "event.data.tags.includes('customer_facing')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze customer-facing failure and determine appropriate specialist escalation path"
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "step/failed",
+        "when": "event.data.retryCount > 2 && event.data.context.customerId != null"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Escalation Router",
+        "inputMap": {
+          "failureDetails": "event.data.error",
+          "customerContext": "event.data.context",
+          "escalationRules": "blackboard.support.escalationRules",
+          "specialistSkills": "blackboard.specialists.skills"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "preserve-customer-context"
+    },
+    {
+      "modality": "permission",
+      "target": "bypass-tier-1-support"
+    },
+    {
+      "modality": "prohibition",
+      "target": "abandon-unresolved-issues"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "escalation-rules",
+      "permissions": ["read"],
+      "scope": "support.escalationRules",
+      "description": "Read support escalation rules and tier definitions"
+    },
+    {
+      "type": "blackboard",
+      "label": "specialist-routing",
+      "permissions": ["read", "write"],
+      "scope": "specialists.*",
+      "description": "Route issues to appropriate specialists"
+    },
+    {
+      "type": "blackboard",
+      "label": "issue-classification",
+      "permissions": ["read"],
+      "scope": "support.classification",
+      "description": "Access issue classification taxonomies"
+    },
+    {
+      "type": "routine",
+      "label": "Issue Classifier",
+      "permissions": ["read"],
+      "description": "Classify support issues by type and complexity"
+    },
+    {
+      "type": "routine",
+      "label": "Escalation Router",
+      "permissions": ["read"],
+      "description": "Route issues to appropriate specialist teams"
+    }
+  ]
+}

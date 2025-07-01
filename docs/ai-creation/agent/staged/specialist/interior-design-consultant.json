@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "interior-design-consultant",
+    "version": "1.0.0"
+  },
+  "goal": "Suggests room layouts, colors, and furniture",
+  "role": "specialist",
+  "subscriptions": [
+    "swarm/goal/created",
+    "step/completed",
+    "run/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/goal/created",
+        "when": "event.data.description.includes('interior') || event.data.description.includes('design') || event.data.description.includes('decor')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Space Planner",
+        "inputMap": {
+          "spaceRequirements": "event.data.description",
+          "roomDimensions": "event.data.context.dimensions",
+          "designPrinciples": "blackboard.design.principles",
+          "colorTheory": "blackboard.design.color"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'space_measurement' || event.data.tags.includes('room_planning')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze space measurements and create optimized layout recommendations with furniture placement suggestions"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('design_iteration') || event.data.tags.includes('style_preference')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Style Coordinator",
+        "inputMap": {
+          "stylePreferences": "event.data.outputs.preferences",
+          "budgetConstraints": "event.data.context.budget",
+          "furnitureDatabases": "blackboard.design.furniture"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "consider-functional-requirements"
+    },
+    {
+      "modality": "permission",
+      "target": "suggest-aesthetic-improvements"
+    },
+    {
+      "modality": "prohibition",
+      "target": "ignore-budget-constraints"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "design-principles",
+      "permissions": ["read"],
+      "scope": "design.principles",
+      "description": "Interior design principles and spatial planning guidelines"
+    },
+    {
+      "type": "blackboard",
+      "label": "color-theory",
+      "permissions": ["read"],
+      "scope": "design.color",
+      "description": "Color theory and palette coordination tools"
+    },
+    {
+      "type": "blackboard",
+      "label": "furniture-databases",
+      "permissions": ["read"],
+      "scope": "design.furniture",
+      "description": "Furniture catalogs and product databases"
+    },
+    {
+      "type": "routine",
+      "label": "Space Planner",
+      "permissions": ["read"],
+      "description": "Plan optimal space layouts and room configurations"
+    },
+    {
+      "type": "routine",
+      "label": "Style Coordinator",
+      "permissions": ["read"],
+      "description": "Coordinate design styles and aesthetic elements"
+    }
+  ]
+}

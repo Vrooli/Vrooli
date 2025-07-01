@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "code-reviewer",
+    "version": "1.0.0"
+  },
+  "goal": "Enforce style, architectural, and security guidelines on pull requests",
+  "role": "specialist",
+  "subscriptions": [
+    "safety/pre_action",
+    "step/completed",
+    "run/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "safety/pre_action",
+        "when": "event.data.action.type == 'code_submission' || event.data.action.type == 'pull_request'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Code Style Validator",
+        "inputMap": {
+          "codeChanges": "event.data.action.changes",
+          "styleGuides": "blackboard.review.styleGuides",
+          "securityChecklist": "blackboard.review.securityChecklist",
+          "architecturalPatterns": "blackboard.review.patterns"
+        }
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'code_analysis' && event.data.violations.length > 0"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Generate detailed code review feedback with specific suggestions for fixing style, security, and architectural issues"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('refactoring') && event.data.codeSize > 1000"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Refactor Quality Assessor",
+        "inputMap": {
+          "refactoredCode": "event.data.outputs.code",
+          "originalCode": "event.data.context.originalCode",
+          "qualityMetrics": "blackboard.review.qualityMetrics"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "review-all-code-submissions"
+    },
+    {
+      "modality": "permission",
+      "target": "trigger-refactor-routines"
+    },
+    {
+      "modality": "prohibition",
+      "target": "approve-insecure-code"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "review-rules",
+      "permissions": ["read"],
+      "scope": "review.rules",
+      "description": "Code review rules and quality standards"
+    },
+    {
+      "type": "blackboard",
+      "label": "style-guides",
+      "permissions": ["read"],
+      "scope": "review.styleGuides",
+      "description": "Language-specific style guides and conventions"
+    },
+    {
+      "type": "blackboard",
+      "label": "security-checklist",
+      "permissions": ["read"],
+      "scope": "review.securityChecklist",
+      "description": "Security review checklist and vulnerability patterns"
+    },
+    {
+      "type": "routine",
+      "label": "Code Style Validator",
+      "permissions": ["read"],
+      "description": "Validate code against style and security guidelines"
+    },
+    {
+      "type": "routine",
+      "label": "Refactor Quality Assessor",
+      "permissions": ["read"],
+      "description": "Assess quality improvements from refactoring"
+    }
+  ]
+}

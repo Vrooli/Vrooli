@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "customer-retention-specialist",
+    "version": "1.0.0"
+  },
+  "goal": "Develops strategies to reduce churn and increase loyalty",
+  "role": "specialist",
+  "subscriptions": [
+    "step/completed",
+    "run/completed",
+    "swarm/goal/created"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'customer_analysis' || event.data.tags.includes('churn_prediction')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Retention Analyzer",
+        "inputMap": {
+          "customerData": "event.data.output.customers",
+          "churnIndicators": "event.data.churn",
+          "retentionAnalytics": "blackboard.retention.analytics",
+          "loyaltyPrograms": "blackboard.retention.loyalty"
+        }
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('retention_campaign') || event.data.tags.includes('loyalty_program')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Create data-driven customer retention and loyalty strategies to reduce churn and increase customer lifetime value"
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "swarm/goal/created",
+        "when": "event.data.description.includes('retention') || event.data.description.includes('loyalty') || event.data.description.includes('churn')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Loyalty Strategist",
+        "inputMap": {
+          "retentionGoals": "event.data.description",
+          "customerSegments": "event.data.context.segments",
+          "churnPrediction": "blackboard.retention.prediction"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "improve-customer-experience"
+    },
+    {
+      "modality": "permission",
+      "target": "develop-retention-strategies"
+    },
+    {
+      "modality": "prohibition",
+      "target": "use-manipulative-tactics"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "retention-analytics",
+      "permissions": ["read", "write"],
+      "scope": "retention.analytics",
+      "description": "Customer retention analytics and churn analysis tools"
+    },
+    {
+      "type": "blackboard",
+      "label": "loyalty-programs",
+      "permissions": ["read"],
+      "scope": "retention.loyalty",
+      "description": "Customer loyalty programs and engagement strategies"
+    },
+    {
+      "type": "blackboard",
+      "label": "churn-prediction",
+      "permissions": ["read", "write"],
+      "scope": "retention.prediction",
+      "description": "Churn prediction models and risk assessment tools"
+    },
+    {
+      "type": "routine",
+      "label": "Retention Analyzer",
+      "permissions": ["read"],
+      "description": "Analyze customer retention patterns and churn risks"
+    },
+    {
+      "type": "routine",
+      "label": "Loyalty Strategist",
+      "permissions": ["read"],
+      "description": "Develop customer loyalty and retention strategies"
+    }
+  ]
+}

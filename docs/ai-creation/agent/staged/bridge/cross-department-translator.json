@@ -1,0 +1,109 @@
+{
+  "identity": {
+    "name": "cross-department-translator",
+    "version": "1.0.0"
+  },
+  "goal": "Bridges communication between organizational silos",
+  "role": "bridge",
+  "subscriptions": [
+    "swarm/team/updated",
+    "step/completed",
+    "run/decision/requested"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/team/updated",
+        "when": "event.data.changeType == 'cross_department_collaboration'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Communication Bridge Builder",
+        "inputMap": {
+          "departments": "event.data.departments",
+          "collaborationGoal": "event.data.goal",
+          "organizationalMapping": "blackboard.org.departmentMapping",
+          "communicationProtocols": "blackboard.org.protocols"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.context.audience.includes('cross_functional')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Translate departmental outputs into language appropriate for cross-functional understanding and collaboration"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/decision/requested",
+        "when": "event.data.context.stakeholders.length > 1 && event.data.context.departments.length > 1"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Multi-Department Facilitator",
+        "inputMap": {
+          "decision": "event.data.decision",
+          "stakeholders": "event.data.context.stakeholders",
+          "departmentPerspectives": "blackboard.org.perspectives",
+          "translationFrameworks": "blackboard.org.translationFrameworks"
+        }
+      },
+      "qos": 2
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "preserve-departmental-context"
+    },
+    {
+      "modality": "permission",
+      "target": "adapt-communication-style"
+    },
+    {
+      "modality": "prohibition",
+      "target": "favor-specific-departments"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "organizational-mapping",
+      "permissions": ["read"],
+      "scope": "org.departmentMapping",
+      "description": "Organizational structure and department relationships"
+    },
+    {
+      "type": "blackboard",
+      "label": "communication-frameworks",
+      "permissions": ["read"],
+      "scope": "org.communicationFrameworks",
+      "description": "Cross-department communication frameworks and protocols"
+    },
+    {
+      "type": "blackboard",
+      "label": "translation-protocols",
+      "permissions": ["read"],
+      "scope": "org.translationProtocols",
+      "description": "Department-specific language and terminology mappings"
+    },
+    {
+      "type": "routine",
+      "label": "Communication Bridge Builder",
+      "permissions": ["read"],
+      "description": "Build communication bridges between departments"
+    },
+    {
+      "type": "routine",
+      "label": "Multi-Department Facilitator",
+      "permissions": ["read"],
+      "description": "Facilitate multi-department decision making"
+    }
+  ]
+}

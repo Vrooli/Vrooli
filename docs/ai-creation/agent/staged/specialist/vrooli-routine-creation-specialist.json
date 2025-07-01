@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "vrooli-routine-creation-specialist",
+    "version": "1.0.0"
+  },
+  "goal": "Assists users in creating well-structured, effective routines",
+  "role": "specialist",
+  "subscriptions": [
+    "swarm/goal/created",
+    "run/started",
+    "step/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/goal/created",
+        "when": "event.data.description.includes('routine') || event.data.description.includes('workflow') || event.data.description.includes('process')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Routine Designer",
+        "inputMap": {
+          "routineGoals": "event.data.description",
+          "userRequirements": "event.data.context.requirements",
+          "routineTemplates": "blackboard.vrooli.templates",
+          "bestPractices": "blackboard.vrooli.practices"
+        }
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "run/started",
+        "when": "event.data.tags.includes('routine_creation') || event.data.tags.includes('workflow_design')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Guide users through routine creation process with templates, validation, and optimization suggestions for Vrooli platform"
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'routine_draft' || event.data.tags.includes('routine_validation')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Routine Validator",
+        "inputMap": {
+          "routineDraft": "event.data.output.routine",
+          "validationCriteria": "event.data.criteria",
+          "validationFrameworks": "blackboard.vrooli.validation"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "ensure-routine-quality"
+    },
+    {
+      "modality": "permission",
+      "target": "suggest-optimizations"
+    },
+    {
+      "modality": "prohibition",
+      "target": "create-inefficient-workflows"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "routine-templates",
+      "permissions": ["read"],
+      "scope": "vrooli.templates",
+      "description": "Vrooli routine templates and structural patterns"
+    },
+    {
+      "type": "blackboard",
+      "label": "best-practices",
+      "permissions": ["read"],
+      "scope": "vrooli.practices",
+      "description": "Routine creation best practices and design principles"
+    },
+    {
+      "type": "blackboard",
+      "label": "validation-frameworks",
+      "permissions": ["read"],
+      "scope": "vrooli.validation",
+      "description": "Routine validation frameworks and quality assessment tools"
+    },
+    {
+      "type": "routine",
+      "label": "Routine Designer",
+      "permissions": ["read"],
+      "description": "Design and structure effective Vrooli routines"
+    },
+    {
+      "type": "routine",
+      "label": "Routine Validator",
+      "permissions": ["read"],
+      "description": "Validate routine quality and effectiveness"
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "relationship-communication-coach",
+    "version": "1.0.0"
+  },
+  "goal": "Helps improve interpersonal relationships",
+  "role": "specialist",
+  "subscriptions": [
+    "swarm/goal/created",
+    "step/completed",
+    "run/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/goal/created",
+        "when": "event.data.description.includes('relationship') || event.data.description.includes('communication') || event.data.description.includes('conflict')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Relationship Advisor",
+        "inputMap": {
+          "relationshipGoals": "event.data.description",
+          "communicationContext": "event.data.context.relationship",
+          "communicationFrameworks": "blackboard.relationships.communication",
+          "relationshipPsychology": "blackboard.relationships.psychology"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'communication_practice' || event.data.tags.includes('relationship_exercise')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze communication patterns and provide guidance for improving interpersonal interactions and conflict resolution"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('relationship_assessment') || event.data.tags.includes('communication_feedback')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Interaction Analyzer",
+        "inputMap": {
+          "interactionData": "event.data.outputs.interaction",
+          "communicationPatterns": "event.data.patterns",
+          "conflictResolution": "blackboard.relationships.conflict"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "promote-healthy-communication"
+    },
+    {
+      "modality": "permission",
+      "target": "suggest-relationship-strategies"
+    },
+    {
+      "modality": "prohibition",
+      "target": "take-sides-in-conflicts"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "communication-frameworks",
+      "permissions": ["read"],
+      "scope": "relationships.communication",
+      "description": "Communication frameworks and interpersonal skills techniques"
+    },
+    {
+      "type": "blackboard",
+      "label": "relationship-psychology",
+      "permissions": ["read"],
+      "scope": "relationships.psychology",
+      "description": "Relationship psychology and behavioral insights"
+    },
+    {
+      "type": "blackboard",
+      "label": "conflict-resolution",
+      "permissions": ["read"],
+      "scope": "relationships.conflict",
+      "description": "Conflict resolution strategies and mediation techniques"
+    },
+    {
+      "type": "routine",
+      "label": "Relationship Advisor",
+      "permissions": ["read"],
+      "description": "Provide relationship guidance and communication coaching"
+    },
+    {
+      "type": "routine",
+      "label": "Interaction Analyzer",
+      "permissions": ["read"],
+      "description": "Analyze interpersonal interactions and communication patterns"
+    }
+  ]
+}

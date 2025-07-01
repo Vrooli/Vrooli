@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "content-strategy-specialist",
+    "version": "1.0.0"
+  },
+  "goal": "Develops content themes, messaging, and audience strategies",
+  "role": "specialist",
+  "subscriptions": [
+    "swarm/goal/created",
+    "run/started",
+    "step/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/goal/created",
+        "when": "event.data.tags.includes('content') || event.data.description.includes('messaging')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Strategy Developer",
+        "inputMap": {
+          "contentGoal": "event.data.description",
+          "targetAudience": "event.data.context.audience",
+          "audienceAnalytics": "blackboard.content.analytics",
+          "contentFrameworks": "blackboard.content.frameworks"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/started",
+        "when": "event.data.tags.includes('content_creation') || event.data.tags.includes('messaging')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Develop strategic content direction based on audience analysis and business objectives"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'audience_analysis' || event.data.tags.includes('content_research')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Message Optimizer",
+        "inputMap": {
+          "researchResults": "event.data.results",
+          "messagingTemplates": "blackboard.content.messaging",
+          "audienceInsights": "blackboard.content.audience"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "align-with-brand-voice"
+    },
+    {
+      "modality": "permission",
+      "target": "adapt-messaging-style"
+    },
+    {
+      "modality": "prohibition",
+      "target": "create-off-brand-content"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "audience-analytics",
+      "permissions": ["read"],
+      "scope": "content.analytics",
+      "description": "Audience analytics and engagement data"
+    },
+    {
+      "type": "blackboard",
+      "label": "content-frameworks",
+      "permissions": ["read"],
+      "scope": "content.frameworks",
+      "description": "Content strategy frameworks and methodologies"
+    },
+    {
+      "type": "blackboard",
+      "label": "messaging-templates",
+      "permissions": ["read"],
+      "scope": "content.messaging",
+      "description": "Messaging templates and brand voice guidelines"
+    },
+    {
+      "type": "routine",
+      "label": "Strategy Developer",
+      "permissions": ["read"],
+      "description": "Develop comprehensive content strategies"
+    },
+    {
+      "type": "routine",
+      "label": "Message Optimizer",
+      "permissions": ["read"],
+      "description": "Optimize messaging for target audiences"
+    }
+  ]
+}

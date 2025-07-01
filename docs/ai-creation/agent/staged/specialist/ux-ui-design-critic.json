@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "ux-ui-design-critic",
+    "version": "1.0.0"
+  },
+  "goal": "Evaluates user interfaces and experience designs",
+  "role": "specialist",
+  "subscriptions": [
+    "safety/post_action",
+    "step/completed",
+    "run/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "safety/post_action",
+        "when": "event.data.action.type == 'ui_deployment' || event.data.action.type == 'design_review'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Design Evaluator",
+        "inputMap": {
+          "designElements": "event.data.action.elements",
+          "userFlow": "event.data.action.flow",
+          "designPrinciples": "blackboard.design.principles",
+          "usabilityGuidelines": "blackboard.design.usability"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'usability_test' || event.data.tags.includes('user_testing')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze usability test results and provide specific design improvement recommendations"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('design_iteration')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Experience Optimizer",
+        "inputMap": {
+          "designIteration": "event.data.outputs.design",
+          "userFeedback": "event.data.feedback",
+          "accessibilityStandards": "blackboard.design.accessibility"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "evaluate-user-impact"
+    },
+    {
+      "modality": "permission",
+      "target": "suggest-design-improvements"
+    },
+    {
+      "modality": "prohibition",
+      "target": "compromise-accessibility"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "design-principles",
+      "permissions": ["read"],
+      "scope": "design.principles",
+      "description": "UI/UX design principles and best practices"
+    },
+    {
+      "type": "blackboard",
+      "label": "usability-guidelines",
+      "permissions": ["read"],
+      "scope": "design.usability",
+      "description": "Usability guidelines and heuristics"
+    },
+    {
+      "type": "blackboard",
+      "label": "accessibility-standards",
+      "permissions": ["read"],
+      "scope": "design.accessibility",
+      "description": "Accessibility standards and compliance requirements"
+    },
+    {
+      "type": "routine",
+      "label": "Design Evaluator",
+      "permissions": ["read"],
+      "description": "Evaluate UI/UX designs against best practices"
+    },
+    {
+      "type": "routine",
+      "label": "Experience Optimizer",
+      "permissions": ["read"],
+      "description": "Optimize user experience based on feedback and testing"
+    }
+  ]
+}

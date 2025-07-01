@@ -1,0 +1,109 @@
+{
+  "identity": {
+    "name": "data-privacy-compliance-officer",
+    "version": "1.0.0"
+  },
+  "goal": "Ensures adherence to data protection regulations",
+  "role": "specialist",
+  "subscriptions": [
+    "safety/pre_action",
+    "safety/post_action",
+    "step/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "safety/pre_action",
+        "when": "event.data.action.involves_personal_data || event.data.action.type == 'data_processing'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Privacy Validator",
+        "inputMap": {
+          "dataAction": "event.data.action",
+          "dataTypes": "event.data.dataTypes",
+          "privacyRegulations": "blackboard.privacy.regulations",
+          "consentStatus": "blackboard.privacy.consent"
+        }
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "safety/post_action",
+        "when": "event.data.output.contains_pii || event.data.action.type == 'data_export'"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Audit data processing actions for privacy compliance and identify potential regulation violations"
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.tags.includes('gdpr') || event.data.tags.includes('ccpa') || event.data.tags.includes('privacy')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Compliance Auditor",
+        "inputMap": {
+          "complianceStep": "event.data.type",
+          "auditResults": "event.data.results",
+          "regulatoryFrameworks": "blackboard.privacy.frameworks",
+          "auditTools": "blackboard.privacy.auditTools"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "validate-all-data-processing"
+    },
+    {
+      "modality": "prohibition",
+      "target": "process-data-without-consent"
+    },
+    {
+      "modality": "permission",
+      "target": "halt-non-compliant-actions"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "privacy-regulations",
+      "permissions": ["read"],
+      "scope": "privacy.regulations",
+      "description": "GDPR, CCPA, and other privacy regulation requirements"
+    },
+    {
+      "type": "blackboard",
+      "label": "compliance-frameworks",
+      "permissions": ["read"],
+      "scope": "privacy.frameworks",
+      "description": "Privacy compliance frameworks and assessment tools"
+    },
+    {
+      "type": "blackboard",
+      "label": "data-audit-tools",
+      "permissions": ["read", "write"],
+      "scope": "privacy.auditing",
+      "description": "Data privacy auditing and monitoring tools"
+    },
+    {
+      "type": "routine",
+      "label": "Privacy Validator",
+      "permissions": ["read"],
+      "description": "Validate data processing against privacy regulations"
+    },
+    {
+      "type": "routine",
+      "label": "Compliance Auditor",
+      "permissions": ["read"],
+      "description": "Audit privacy compliance across all data operations"
+    }
+  ]
+}

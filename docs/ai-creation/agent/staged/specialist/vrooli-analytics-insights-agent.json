@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "vrooli-analytics-insights-agent",
+    "version": "1.0.0"
+  },
+  "goal": "Provides usage analytics and actionable insights to users",
+  "role": "specialist",
+  "subscriptions": [
+    "step/completed",
+    "run/completed",
+    "swarm/resource/updated"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'analytics_data' || event.data.tags.includes('usage_tracking')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Analytics Processor",
+        "inputMap": {
+          "usageData": "event.data.output.usage",
+          "analyticsMetrics": "event.data.metrics",
+          "analyticsEngines": "blackboard.vrooli.analytics",
+          "insightGeneration": "blackboard.vrooli.insights"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('productivity_analysis') || event.data.tags.includes('usage_report')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze user productivity patterns and generate actionable insights for workflow optimization and platform usage improvements"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "swarm/resource/updated",
+        "when": "event.data.resource.type == 'usage_data' || event.data.resource.type == 'analytics_data'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Insight Generator",
+        "inputMap": {
+          "updatedMetrics": "event.data.resource.data",
+          "trendData": "event.data.resource.trends",
+          "visualizationTools": "blackboard.vrooli.visualization"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "protect-user-privacy"
+    },
+    {
+      "modality": "permission",
+      "target": "generate-actionable-insights"
+    },
+    {
+      "modality": "prohibition",
+      "target": "expose-sensitive-data"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "analytics-engines",
+      "permissions": ["read"],
+      "scope": "vrooli.analytics",
+      "description": "Analytics processing engines and data analysis tools"
+    },
+    {
+      "type": "blackboard",
+      "label": "insight-generation",
+      "permissions": ["read", "write"],
+      "scope": "vrooli.insights",
+      "description": "Insight generation algorithms and recommendation systems"
+    },
+    {
+      "type": "blackboard",
+      "label": "visualization-tools",
+      "permissions": ["read"],
+      "scope": "vrooli.visualization",
+      "description": "Data visualization and reporting tools"
+    },
+    {
+      "type": "routine",
+      "label": "Analytics Processor",
+      "permissions": ["read"],
+      "description": "Process usage analytics and generate performance metrics"
+    },
+    {
+      "type": "routine",
+      "label": "Insight Generator",
+      "permissions": ["read"],
+      "description": "Generate actionable insights from analytics data"
+    }
+  ]
+}

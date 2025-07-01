@@ -1,0 +1,109 @@
+{
+  "identity": {
+    "name": "api-integration-consultant",
+    "version": "1.0.0"
+  },
+  "goal": "Facilitates connections between different software systems",
+  "role": "specialist",
+  "subscriptions": [
+    "run/started",
+    "safety/pre_action",
+    "step/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "run/started",
+        "when": "event.data.tags.includes('api_integration') || event.data.tags.includes('system_integration')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Integration Designer",
+        "inputMap": {
+          "integrationGoal": "event.data.parameters.goal",
+          "sourceSystem": "event.data.parameters.source",
+          "targetSystem": "event.data.parameters.target",
+          "integrationPatterns": "blackboard.integration.patterns"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "safety/pre_action",
+        "when": "event.data.action.type == 'api_call' || event.data.action.type == 'webhook_setup'"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Validate API integration for security, compatibility, and best practices before execution"
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'api_test' || event.data.tags.includes('integration_test')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Integration Validator",
+        "inputMap": {
+          "testResults": "event.data.results",
+          "apiEndpoint": "event.data.endpoint",
+          "validationFrameworks": "blackboard.integration.validation",
+          "performanceMetrics": "event.data.metrics"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "validate-api-compatibility"
+    },
+    {
+      "modality": "permission",
+      "target": "suggest-integration-patterns"
+    },
+    {
+      "modality": "prohibition",
+      "target": "expose-sensitive-data"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "api-documentation",
+      "permissions": ["read"],
+      "scope": "integration.documentation",
+      "description": "API documentation and specification repositories"
+    },
+    {
+      "type": "blackboard",
+      "label": "integration-patterns",
+      "permissions": ["read"],
+      "scope": "integration.patterns",
+      "description": "Common integration patterns and best practices"
+    },
+    {
+      "type": "blackboard",
+      "label": "testing-frameworks",
+      "permissions": ["read"],
+      "scope": "integration.testing",
+      "description": "API testing frameworks and validation tools"
+    },
+    {
+      "type": "routine",
+      "label": "Integration Designer",
+      "permissions": ["read"],
+      "description": "Design optimal system integration architectures"
+    },
+    {
+      "type": "routine",
+      "label": "Integration Validator",
+      "permissions": ["read"],
+      "description": "Validate integration implementations and performance"
+    }
+  ]
+}

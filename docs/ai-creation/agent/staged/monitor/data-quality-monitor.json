@@ -1,0 +1,103 @@
+{
+  "identity": {
+    "name": "data-quality-monitor",
+    "version": "1.0.0"
+  },
+  "goal": "Monitor execution quality and validate outputs across all routine runs",
+  "role": "monitor",
+  "subscriptions": [
+    "safety/post_action",
+    "step/completed",
+    "run/failed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "safety/post_action"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Data Validator",
+        "inputMap": {
+          "outputData": "event.data.output",
+          "actionType": "event.data.actionType",
+          "runId": "event.data.runId",
+          "qualityRules": "blackboard.quality.rules"
+        }
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.output != null"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze step output patterns for quality issues and anomalies"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/failed",
+        "when": "event.data.error.type == 'data_quality'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Quality Report Generator",
+        "inputMap": {
+          "failureData": "event.data.error",
+          "runHistory": "records.latest",
+          "qualityMetrics": "blackboard.quality.metrics"
+        }
+      },
+      "qos": 2
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "validate-all-outputs"
+    },
+    {
+      "modality": "permission",
+      "target": "flag-quality-issues"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "data-quality-rules",
+      "permissions": ["read"],
+      "scope": "quality.rules",
+      "description": "Read data quality validation rules and thresholds"
+    },
+    {
+      "type": "blackboard",
+      "label": "quality-metrics",
+      "permissions": ["read", "write"],
+      "scope": "quality.metrics.*",
+      "description": "Track and update data quality metrics and violations"
+    },
+    {
+      "type": "blackboard",
+      "label": "alerting-channels",
+      "permissions": ["write"],
+      "scope": "alerts.quality",
+      "description": "Write quality alerts and notifications"
+    },
+    {
+      "type": "routine",
+      "label": "Data Validator",
+      "permissions": ["read"],
+      "description": "Validate data against quality rules and standards"
+    },
+    {
+      "type": "routine",
+      "label": "Quality Report Generator",
+      "permissions": ["read"],
+      "description": "Generate comprehensive quality analysis reports"
+    }
+  ]
+}

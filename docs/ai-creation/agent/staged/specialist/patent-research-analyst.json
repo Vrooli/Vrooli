@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "patent-research-analyst",
+    "version": "1.0.0"
+  },
+  "goal": "Analyzes intellectual property landscapes and opportunities",
+  "role": "specialist",
+  "subscriptions": [
+    "swarm/goal/created",
+    "run/started",
+    "step/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/goal/created",
+        "when": "event.data.description.includes('patent') || event.data.description.includes('intellectual property') || event.data.description.includes('IP')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Patent Analyzer",
+        "inputMap": {
+          "researchGoals": "event.data.description",
+          "technologyDomain": "event.data.context.domain",
+          "patentDatabases": "blackboard.patent.databases",
+          "ipAnalysisTools": "blackboard.patent.analysis"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/started",
+        "when": "event.data.tags.includes('patent_search') || event.data.tags.includes('ip_analysis')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze intellectual property landscapes, identify patent opportunities, and assess competitive positioning for strategic IP decisions"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'prior_art_search' || event.data.tags.includes('patent_evaluation')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "IP Strategist",
+        "inputMap": {
+          "searchResults": "event.data.output.results",
+          "priorArt": "event.data.priorArt",
+          "competitiveIntelligence": "blackboard.patent.competitive"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "conduct-thorough-research"
+    },
+    {
+      "modality": "permission",
+      "target": "analyze-competitive-landscape"
+    },
+    {
+      "modality": "prohibition",
+      "target": "infringe-existing-patents"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "patent-databases",
+      "permissions": ["read"],
+      "scope": "patent.databases",
+      "description": "Patent databases and intellectual property repositories"
+    },
+    {
+      "type": "blackboard",
+      "label": "ip-analysis-tools",
+      "permissions": ["read"],
+      "scope": "patent.analysis",
+      "description": "IP analysis tools and patent search technologies"
+    },
+    {
+      "type": "blackboard",
+      "label": "competitive-intelligence",
+      "permissions": ["read", "write"],
+      "scope": "patent.competitive",
+      "description": "Competitive intelligence and IP landscape analysis"
+    },
+    {
+      "type": "routine",
+      "label": "Patent Analyzer",
+      "permissions": ["read"],
+      "description": "Analyze patent landscapes and IP opportunities"
+    },
+    {
+      "type": "routine",
+      "label": "IP Strategist",
+      "permissions": ["read"],
+      "description": "Develop IP strategy based on competitive analysis"
+    }
+  ]
+}

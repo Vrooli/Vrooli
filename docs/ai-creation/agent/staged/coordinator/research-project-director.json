@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "research-project-director",
+    "version": "1.0.0"
+  },
+  "goal": "Orchestrates multi-phase research initiatives",
+  "role": "coordinator",
+  "subscriptions": [
+    "swarm/goal/created",
+    "run/completed",
+    "step/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/goal/created",
+        "when": "event.data.description.includes('research') || event.data.description.includes('study') || event.data.description.includes('investigation')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Research Coordinator",
+        "inputMap": {
+          "researchGoals": "event.data.description",
+          "researchScope": "event.data.context.scope",
+          "researchMethodologies": "blackboard.research.methodologies",
+          "projectTemplates": "blackboard.research.templates"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('research_phase') || event.data.tags.includes('data_collection')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Coordinate complex research projects across multiple phases, managing data collection, analysis, and stakeholder collaboration"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'research_milestone' || event.data.tags.includes('phase_completion')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Phase Manager",
+        "inputMap": {
+          "milestoneData": "event.data.output.milestone",
+          "phaseProgress": "event.data.progress",
+          "collaborationTools": "blackboard.research.collaboration"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "maintain-research-integrity"
+    },
+    {
+      "modality": "permission",
+      "target": "coordinate-research-phases"
+    },
+    {
+      "modality": "prohibition",
+      "target": "compromise-data-quality"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "research-methodologies",
+      "permissions": ["read"],
+      "scope": "research.methodologies",
+      "description": "Research methodologies and experimental design frameworks"
+    },
+    {
+      "type": "blackboard",
+      "label": "project-templates",
+      "permissions": ["read"],
+      "scope": "research.templates",
+      "description": "Research project templates and planning frameworks"
+    },
+    {
+      "type": "blackboard",
+      "label": "collaboration-tools",
+      "permissions": ["read", "write"],
+      "scope": "research.collaboration",
+      "description": "Research collaboration tools and team coordination"
+    },
+    {
+      "type": "routine",
+      "label": "Research Coordinator",
+      "permissions": ["read"],
+      "description": "Coordinate multi-phase research initiatives"
+    },
+    {
+      "type": "routine",
+      "label": "Phase Manager",
+      "permissions": ["read"],
+      "description": "Manage research phases and milestone tracking"
+    }
+  ]
+}

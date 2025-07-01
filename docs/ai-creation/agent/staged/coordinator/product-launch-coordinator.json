@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "product-launch-coordinator",
+    "version": "1.0.0"
+  },
+  "goal": "Manages go-to-market strategies and launch sequences",
+  "role": "coordinator",
+  "subscriptions": [
+    "swarm/goal/created",
+    "run/completed",
+    "swarm/team/updated"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/goal/created",
+        "when": "event.data.description.includes('launch') || event.data.description.includes('product') || event.data.description.includes('go-to-market')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Launch Coordinator",
+        "inputMap": {
+          "launchGoals": "event.data.description",
+          "productContext": "event.data.context.product",
+          "launchTemplates": "blackboard.launch.templates",
+          "marketingChannels": "blackboard.launch.marketing"
+        }
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('launch_preparation') || event.data.tags.includes('marketing_campaign')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Orchestrate product launches across marketing, sales, and support teams with coordinated messaging and timeline management"
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "swarm/team/updated",
+        "when": "event.data.team.activity == 'launch_preparation' || event.data.team.type == 'launch_team'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Timeline Manager",
+        "inputMap": {
+          "teamData": "event.data.team",
+          "launchProgress": "event.data.activity",
+          "timelineManagement": "blackboard.launch.timeline"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "coordinate-cross-functional-teams"
+    },
+    {
+      "modality": "permission",
+      "target": "manage-launch-timeline"
+    },
+    {
+      "modality": "prohibition",
+      "target": "launch-unprepared-products"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "launch-templates",
+      "permissions": ["read"],
+      "scope": "launch.templates",
+      "description": "Product launch templates and go-to-market frameworks"
+    },
+    {
+      "type": "blackboard",
+      "label": "marketing-channels",
+      "permissions": ["read", "write"],
+      "scope": "launch.marketing",
+      "description": "Marketing channels and promotional campaign tools"
+    },
+    {
+      "type": "blackboard",
+      "label": "timeline-management",
+      "permissions": ["read", "write"],
+      "scope": "launch.timeline",
+      "description": "Launch timeline management and milestone tracking"
+    },
+    {
+      "type": "routine",
+      "label": "Launch Coordinator",
+      "permissions": ["read"],
+      "description": "Coordinate product launch strategies and execution"
+    },
+    {
+      "type": "routine",
+      "label": "Timeline Manager",
+      "permissions": ["read"],
+      "description": "Manage launch timelines and team coordination"
+    }
+  ]
+}

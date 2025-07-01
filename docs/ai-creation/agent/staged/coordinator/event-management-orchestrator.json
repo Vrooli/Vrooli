@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "event-management-orchestrator",
+    "version": "1.0.0"
+  },
+  "goal": "Coordinates complex events from planning to execution",
+  "role": "coordinator",
+  "subscriptions": [
+    "swarm/goal/created",
+    "run/completed",
+    "swarm/team/updated"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/goal/created",
+        "when": "event.data.description.includes('event') || event.data.description.includes('conference') || event.data.description.includes('gathering')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Event Coordinator",
+        "inputMap": {
+          "eventGoals": "event.data.description",
+          "stakeholders": "event.data.context.stakeholders",
+          "eventPlanningTools": "blackboard.events.planning",
+          "vendorManagement": "blackboard.events.vendors"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('event_planning') || event.data.tags.includes('logistics')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Coordinate multi-stakeholder events with complex logistics, managing timelines, vendors, and dependencies"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "swarm/team/updated",
+        "when": "event.data.team.activity == 'event_preparation' || event.data.team.type == 'event_committee'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Logistics Manager",
+        "inputMap": {
+          "teamData": "event.data.team",
+          "preparationStatus": "event.data.activity",
+          "timelineCoordination": "blackboard.events.timeline"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "coordinate-all-stakeholders"
+    },
+    {
+      "modality": "permission",
+      "target": "manage-event-logistics"
+    },
+    {
+      "modality": "prohibition",
+      "target": "exceed-budget-constraints"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "event-planning-tools",
+      "permissions": ["read", "write"],
+      "scope": "events.planning",
+      "description": "Event planning tools and project management systems"
+    },
+    {
+      "type": "blackboard",
+      "label": "vendor-management",
+      "permissions": ["read"],
+      "scope": "events.vendors",
+      "description": "Vendor databases and supplier coordination tools"
+    },
+    {
+      "type": "blackboard",
+      "label": "timeline-coordination",
+      "permissions": ["read", "write"],
+      "scope": "events.timeline",
+      "description": "Timeline coordination and milestone tracking"
+    },
+    {
+      "type": "routine",
+      "label": "Event Coordinator",
+      "permissions": ["read"],
+      "description": "Coordinate complex event planning and execution"
+    },
+    {
+      "type": "routine",
+      "label": "Logistics Manager",
+      "permissions": ["read"],
+      "description": "Manage event logistics and stakeholder coordination"
+    }
+  ]
+}

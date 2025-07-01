@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "cross-cultural-communications-bridge",
+    "version": "1.0.0"
+  },
+  "goal": "Adapts messages across cultural contexts",
+  "role": "bridge",
+  "subscriptions": [
+    "safety/post_action",
+    "step/completed",
+    "run/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "safety/post_action",
+        "when": "event.data.action.type == 'international_communication' || event.data.action.type == 'cross_cultural_message'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Cultural Adapter",
+        "inputMap": {
+          "originalMessage": "event.data.action.message",
+          "targetCulture": "event.data.action.culture",
+          "culturalFrameworks": "blackboard.culture.frameworks",
+          "localizationRules": "blackboard.culture.localization"
+        }
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'translation' || event.data.tags.includes('cultural_adaptation')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Review cultural adaptation of messages to ensure appropriateness and avoid cultural misunderstandings"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('global_communication') || event.data.tags.includes('multicultural_team')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Context Translator",
+        "inputMap": {
+          "communicationData": "event.data.outputs.communication",
+          "culturalContext": "event.data.context.culture",
+          "communicationStyles": "blackboard.culture.communication"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "respect-cultural-sensitivities"
+    },
+    {
+      "modality": "permission",
+      "target": "adapt-communication-style"
+    },
+    {
+      "modality": "prohibition",
+      "target": "perpetuate-cultural-stereotypes"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "cultural-frameworks",
+      "permissions": ["read"],
+      "scope": "culture.frameworks",
+      "description": "Cultural frameworks and cross-cultural communication principles"
+    },
+    {
+      "type": "blackboard",
+      "label": "localization-rules",
+      "permissions": ["read"],
+      "scope": "culture.localization",
+      "description": "Localization rules and cultural adaptation guidelines"
+    },
+    {
+      "type": "blackboard",
+      "label": "communication-styles",
+      "permissions": ["read"],
+      "scope": "culture.communication",
+      "description": "Cultural communication styles and preferences"
+    },
+    {
+      "type": "routine",
+      "label": "Cultural Adapter",
+      "permissions": ["read"],
+      "description": "Adapt messages for different cultural contexts"
+    },
+    {
+      "type": "routine",
+      "label": "Context Translator",
+      "permissions": ["read"],
+      "description": "Translate cultural context and communication nuances"
+    }
+  ]
+}

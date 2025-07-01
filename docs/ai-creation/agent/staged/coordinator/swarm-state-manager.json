@@ -1,0 +1,106 @@
+{
+  "identity": {
+    "name": "swarm-state-manager",
+    "version": "1.0.0"
+  },
+  "goal": "Monitor swarm state transitions and ensure smooth execution flow",
+  "role": "coordinator",
+  "subscriptions": [
+    "swarm/state/changed",
+    "swarm/started",
+    "run/started"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/state/changed"
+      },
+      "action": {
+        "type": "routine",
+        "label": "State Validator",
+        "inputMap": {
+          "currentState": "event.data.newState",
+          "previousState": "event.data.oldState",
+          "stateMachineRules": "blackboard.swarm.stateMachine",
+          "transitionValidators": "blackboard.swarm.validators"
+        }
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "swarm/started"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Initialize swarm state management and ensure proper state transition protocols are established"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/started",
+        "when": "swarm.state == 'INVALID' || swarm.state == 'ERROR'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Recovery Coordinator",
+        "inputMap": {
+          "invalidState": "swarm.state",
+          "runContext": "event.data.context",
+          "recoveryProtocols": "blackboard.swarm.recovery"
+        }
+      },
+      "qos": 2
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "validate-all-state-transitions"
+    },
+    {
+      "modality": "permission",
+      "target": "trigger-recovery-protocols"
+    },
+    {
+      "modality": "prohibition",
+      "target": "allow-invalid-states"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "state-machine-rules",
+      "permissions": ["read"],
+      "scope": "swarm.stateMachine",
+      "description": "Swarm state machine rules and valid transitions"
+    },
+    {
+      "type": "blackboard",
+      "label": "transition-validators",
+      "permissions": ["read"],
+      "scope": "swarm.validators",
+      "description": "State transition validation logic and constraints"
+    },
+    {
+      "type": "blackboard",
+      "label": "recovery-protocols",
+      "permissions": ["read"],
+      "scope": "swarm.recovery",
+      "description": "Recovery protocols for invalid state transitions"
+    },
+    {
+      "type": "routine",
+      "label": "State Validator",
+      "permissions": ["read"],
+      "description": "Validate swarm state transitions and ensure consistency"
+    },
+    {
+      "type": "routine",
+      "label": "Recovery Coordinator",
+      "permissions": ["read"],
+      "description": "Coordinate recovery from invalid swarm states"
+    }
+  ]
+}

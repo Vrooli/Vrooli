@@ -1,0 +1,105 @@
+{
+  "identity": {
+    "name": "vrooli-resource-discovery-agent",
+    "version": "1.0.0"
+  },
+  "goal": "Specializes in finding relevant resources, routines, and content on Vrooli",
+  "role": "specialist",
+  "subscriptions": [
+    "run/started",
+    "swarm/goal/created",
+    "run/decision/requested"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "run/started",
+        "when": "event.data.tags.includes('search') || event.data.tags.includes('discovery')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Resource Searcher",
+        "inputMap": {
+          "searchQuery": "event.data.parameters.query",
+          "searchContext": "event.data.context",
+          "semanticIndex": "blackboard.vrooli.semanticIndex",
+          "userPreferences": "blackboard.user.searchPreferences"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "swarm/goal/created",
+        "when": "event.data.description.includes('find') || event.data.description.includes('search') || event.data.description.includes('discover')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze goal to identify relevant Vrooli resources and suggest existing solutions to avoid duplication"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/decision/requested",
+        "when": "event.data.options.some(opt => opt.type == 'resource_selection')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Resource Recommender",
+        "inputMap": {
+          "options": "event.data.options",
+          "context": "event.data.context",
+          "resourceClassification": "blackboard.vrooli.classification",
+          "usagePatterns": "blackboard.vrooli.usagePatterns"
+        }
+      },
+      "qos": 2
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "prevent-duplicate-creation"
+    },
+    {
+      "modality": "permission",
+      "target": "suggest-alternatives"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "vrooli-search-api",
+      "permissions": ["read"],
+      "scope": "vrooli.search",
+      "description": "Access Vrooli search API and indexing services"
+    },
+    {
+      "type": "blackboard",
+      "label": "semantic-indexing",
+      "permissions": ["read"],
+      "scope": "vrooli.semanticIndex",
+      "description": "Use semantic search and similarity matching"
+    },
+    {
+      "type": "blackboard",
+      "label": "resource-classification",
+      "permissions": ["read"],
+      "scope": "vrooli.classification",
+      "description": "Access resource classification and tagging systems"
+    },
+    {
+      "type": "routine",
+      "label": "Resource Searcher",
+      "permissions": ["read"],
+      "description": "Search for relevant Vrooli resources and content"
+    },
+    {
+      "type": "routine",
+      "label": "Resource Recommender",
+      "permissions": ["read"],
+      "description": "Recommend best-fit resources based on context"
+    }
+  ]
+}

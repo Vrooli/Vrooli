@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "climate-data-scientist",
+    "version": "1.0.0"
+  },
+  "goal": "Processes environmental data and climate projections",
+  "role": "specialist",
+  "subscriptions": [
+    "run/started",
+    "step/completed",
+    "swarm/goal/created"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "run/started",
+        "when": "event.data.tags.includes('climate_analysis') || event.data.tags.includes('environmental_data')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Climate Analyzer",
+        "inputMap": {
+          "dataSource": "event.data.parameters.source",
+          "analysisType": "event.data.parameters.type",
+          "climateDatabases": "blackboard.climate.databases",
+          "modelingTools": "blackboard.climate.modeling"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.type == 'data_processing' || event.data.tags.includes('climate_modeling')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Process environmental data and generate climate projections for sustainability planning and risk assessment"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "swarm/goal/created",
+        "when": "event.data.description.includes('climate') || event.data.description.includes('environmental') || event.data.description.includes('sustainability')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Environmental Modeler",
+        "inputMap": {
+          "environmentalGoals": "event.data.description",
+          "dataRequirements": "event.data.context.data",
+          "environmentalApis": "blackboard.climate.apis"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "use-scientific-methods"
+    },
+    {
+      "modality": "permission",
+      "target": "analyze-environmental-trends"
+    },
+    {
+      "modality": "prohibition",
+      "target": "misrepresent-climate-data"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "climate-databases",
+      "permissions": ["read"],
+      "scope": "climate.databases",
+      "description": "Climate and environmental data repositories"
+    },
+    {
+      "type": "blackboard",
+      "label": "modeling-tools",
+      "permissions": ["read"],
+      "scope": "climate.modeling",
+      "description": "Climate modeling and projection tools"
+    },
+    {
+      "type": "blackboard",
+      "label": "environmental-apis",
+      "permissions": ["read"],
+      "scope": "climate.apis",
+      "description": "Environmental data APIs and monitoring systems"
+    },
+    {
+      "type": "routine",
+      "label": "Climate Analyzer",
+      "permissions": ["read"],
+      "description": "Analyze climate data and environmental trends"
+    },
+    {
+      "type": "routine",
+      "label": "Environmental Modeler",
+      "permissions": ["read"],
+      "description": "Create environmental models and projections"
+    }
+  ]
+}

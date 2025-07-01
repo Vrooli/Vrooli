@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "name": "accessibility-compliance-expert",
+    "version": "1.0.0"
+  },
+  "goal": "Ensures digital accessibility standards compliance",
+  "role": "specialist",
+  "subscriptions": [
+    "safety/pre_action",
+    "step/completed",
+    "run/completed"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "safety/pre_action",
+        "when": "event.data.action.type == 'ui_deployment' || event.data.action.type == 'content_publication'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Accessibility Validator",
+        "inputMap": {
+          "uiElements": "event.data.action.uiElements",
+          "content": "event.data.action.content",
+          "accessibilityStandards": "blackboard.accessibility.standards",
+          "testingTools": "blackboard.accessibility.testing"
+        }
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "step/completed",
+        "when": "event.data.tags.includes('accessibility_audit') || event.data.type == 'compliance_check'"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze accessibility audit results and provide specific remediation recommendations for WCAG compliance"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed",
+        "when": "event.data.tags.includes('web_development') || event.data.tags.includes('ui_design')"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Compliance Assessor",
+        "inputMap": {
+          "webComponents": "event.data.outputs.components",
+          "complianceStandards": "blackboard.accessibility.wcag",
+          "assistiveTechnologies": "blackboard.accessibility.assistiveTech"
+        }
+      },
+      "qos": 1
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "validate-all-user-interfaces"
+    },
+    {
+      "modality": "permission",
+      "target": "block-non-compliant-deployments"
+    },
+    {
+      "modality": "prohibition",
+      "target": "compromise-accessibility-standards"
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "accessibility-testing",
+      "permissions": ["read"],
+      "scope": "accessibility.testing",
+      "description": "Automated accessibility testing tools and frameworks"
+    },
+    {
+      "type": "blackboard",
+      "label": "compliance-standards",
+      "permissions": ["read"],
+      "scope": "accessibility.standards",
+      "description": "WCAG and other accessibility compliance standards"
+    },
+    {
+      "type": "blackboard",
+      "label": "assistive-technologies",
+      "permissions": ["read"],
+      "scope": "accessibility.assistiveTech",
+      "description": "Assistive technology compatibility requirements"
+    },
+    {
+      "type": "routine",
+      "label": "Accessibility Validator",
+      "permissions": ["read"],
+      "description": "Validate interfaces against accessibility standards"
+    },
+    {
+      "type": "routine",
+      "label": "Compliance Assessor",
+      "permissions": ["read"],
+      "description": "Assess overall accessibility compliance"
+    }
+  ]
+}
