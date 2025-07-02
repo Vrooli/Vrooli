@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349550",
+  "publicId": "valid-fw-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349551",
+      "publicId": "valid-framework-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of validation framework for comprehensive data validation and quality assurance strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Quality-focused",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a validation framework expert providing comprehensive data validation strategies, quality assurance optimization, and validation rule management solutions.\n\nValidation Context: {{input.validationContext}}\nData Requirements: {{input.dataRequirements}}\nQuality Standards: {{input.qualityStandards}}\nPerformance Needs: {{input.performanceNeeds}}\n\nDesign comprehensive validation framework strategy:\n\n1. **Validation Architecture Design**:\n   - Rule engine framework\n   - Validation pipeline structure\n   - Plugin architecture support\n   - Modular validation components\n   - Extensibility mechanisms\n\n2. **Rule Definition and Management**:\n   - Declarative rule syntax\n   - Custom validation rules\n   - Rule composition strategies\n   - Version control for rules\n   - Rule testing frameworks\n\n3. **Data Type and Format Validation**:\n   - Schema validation engines\n   - Type checking mechanisms\n   - Format pattern matching\n   - Range and constraint validation\n   - Custom data type support\n\n4. **Business Logic Validation**:\n   - Complex business rule validation\n   - Cross-field validation\n   - Conditional validation logic\n   - Workflow state validation\n   - Multi-step validation processes\n\n5. **Error Handling and Reporting**:\n   - Comprehensive error messaging\n   - Error categorization systems\n   - Validation result aggregation\n   - User-friendly error reporting\n   - Error recovery suggestions\n\n6. **Performance Optimization**:\n   - Lazy validation strategies\n   - Parallel validation processing\n   - Caching mechanisms\n   - Batch validation support\n   - Resource usage optimization\n\n7. **Integration and Extensibility**:\n   - Framework integration points\n   - API validation endpoints\n   - Real-time validation support\n   - Database validation integration\n   - Third-party validator support\n\nProvide comprehensive validation framework plan with architecture design, rule management, error handling, and integration capabilities for robust data quality assurance.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "validationContext",
+                "id": "validation_context_input",
+                "label": "Validation Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Application domain, data types, validation complexity, business rules, compliance requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your validation framework context"
+                }
+              },
+              {
+                "fieldName": "dataRequirements",
+                "id": "data_requirements_input",
+                "label": "Data Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Data sources, volume complexity, validation scope, accuracy standards, processing needs",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What data requirements exist?"
+                }
+              },
+              {
+                "fieldName": "qualityStandards",
+                "id": "quality_standards_input",
+                "label": "Quality Standards",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Quality metrics, error tolerance, validation depth, compliance standards, business rules",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What quality standards are required?"
+                }
+              },
+              {
+                "fieldName": "performanceNeeds",
+                "id": "performance_needs_input",
+                "label": "Performance Needs",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "High Accuracy", "value": "accuracy" },
+                    { "label": "Performance Focus", "value": "performance" },
+                    { "label": "Flexibility Priority", "value": "flexibility" },
+                    { "label": "Ease of Use", "value": "ease_of_use" },
+                    { "label": "Scalability Focus", "value": "scalability" },
+                    { "label": "Comprehensive Validation", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary validation objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "validationFrameworkPlan",
+                "id": "validation_framework_plan",
+                "label": "Validation Framework Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349552",
+          "language": "en-US",
+          "name": "Validation Framework",
+          "description": "Provides comprehensive validation framework with architecture design, rule management, and integration capabilities for robust data quality assurance.",
+          "instructions": "Describe your validation context, data requirements, and performance needs. The framework will design a comprehensive data validation strategy."
+        }
+      ]
+    }
+  ]
+}

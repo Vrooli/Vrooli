@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349466",
+  "publicId": "log-ag-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349467",
+      "publicId": "log-agg-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of log aggregator for comprehensive log management and centralized logging strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Observability-focused",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a log aggregation expert providing comprehensive centralized logging strategies, log management optimization, and observability solutions.\n\nLogging Context: {{input.loggingContext}}\nLog Sources: {{input.logSources}}\nAnalysis Requirements: {{input.analysisRequirements}}\nRetention Needs: {{input.retentionNeeds}}\n\nDesign comprehensive log aggregation strategy:\n\n1. **Log Collection Architecture**:\n   - Multi-source log ingestion\n   - Agent-based vs agentless collection\n   - Real-time vs batch processing\n   - Log routing and distribution\n   - Format standardization\n\n2. **Data Processing and Transformation**:\n   - Log parsing and structuring\n   - Field extraction and enrichment\n   - Data normalization strategies\n   - Format conversion handling\n   - Error handling and recovery\n\n3. **Storage and Indexing**:\n   - Time-series data optimization\n   - Index strategy design\n   - Compression techniques\n   - Tiered storage implementation\n   - Partition management\n\n4. **Search and Analytics**:\n   - Full-text search optimization\n   - Complex query performance\n   - Real-time analytics\n   - Pattern recognition\n   - Correlation analysis\n\n5. **Alerting and Monitoring**:\n   - Threshold-based alerting\n   - Anomaly detection algorithms\n   - Log-based metrics generation\n   - Dashboard creation\n   - Notification strategies\n\n6. **Performance and Scalability**:\n   - High-volume ingestion handling\n   - Horizontal scaling strategies\n   - Load balancing optimization\n   - Resource utilization monitoring\n   - Throughput maximization\n\n7. **Security and Compliance**:\n   - Access control implementation\n   - Data encryption strategies\n   - Audit trail maintenance\n   - Compliance reporting\n   - Data privacy protection\n\nProvide comprehensive log aggregation plan with collection architecture, processing optimization, storage strategies, and analytics frameworks for efficient centralized logging.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "loggingContext",
+                "id": "logging_context_input",
+                "label": "Logging Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Infrastructure scale, logging volumes, compliance requirements, team expertise, operational needs",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your log aggregation context"
+                }
+              },
+              {
+                "fieldName": "logSources",
+                "id": "log_sources_input",
+                "label": "Log Sources",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Application logs, system logs, security logs, network logs, container logs, cloud service logs",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What log sources need aggregation?"
+                }
+              },
+              {
+                "fieldName": "analysisRequirements",
+                "id": "analysis_requirements_input",
+                "label": "Analysis Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Search capabilities, analytics needs, reporting requirements, alerting criteria, troubleshooting support",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What analysis requirements exist?"
+                }
+              },
+              {
+                "fieldName": "retentionNeeds",
+                "id": "retention_needs_input",
+                "label": "Retention Needs",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Short-term (Days)", "value": "short_term" },
+                    { "label": "Medium-term (Weeks)", "value": "medium_term" },
+                    { "label": "Long-term (Months)", "value": "long_term" },
+                    { "label": "Compliance-driven", "value": "compliance" },
+                    { "label": "Cost-optimized", "value": "cost_optimized" },
+                    { "label": "Flexible Retention", "value": "flexible" }
+                  ],
+                  "defaultValue": "flexible",
+                  "helperText": "Primary retention strategy"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "logAggregationPlan",
+                "id": "log_aggregation_plan",
+                "label": "Log Aggregation Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349468",
+          "language": "en-US",
+          "name": "Log Aggregator",
+          "description": "Provides comprehensive log aggregation with collection architecture, processing optimization, and analytics frameworks for efficient centralized logging.",
+          "instructions": "Describe your logging context, log sources, and retention needs. The aggregator will design a comprehensive log management strategy."
+        }
+      ]
+    }
+  ]
+}

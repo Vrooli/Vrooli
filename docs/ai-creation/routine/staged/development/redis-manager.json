@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349406",
+  "publicId": "redis-ma-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349407",
+      "publicId": "redis-mgr-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of Redis manager for comprehensive cache optimization and in-memory database management strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Performance-oriented",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a Redis management expert providing comprehensive cache optimization strategies, in-memory database configuration, and performance scaling solutions.\n\nRedis Context: {{input.redisContext}}\nUse Case Requirements: {{input.useCaseRequirements}}\nData Characteristics: {{input.dataCharacteristics}}\nPerformance Objectives: {{input.performanceObjectives}}\n\nDesign comprehensive Redis management strategy:\n\n1. **Redis Architecture Design**:\n   - Deployment topology planning\n   - Clustering vs replication strategies\n   - Sentinel configuration\n   - High availability setup\n   - Backup and recovery planning\n\n2. **Performance Optimization**:\n   - Memory optimization strategies\n   - Data structure selection\n   - Pipeline optimization\n   - Connection pooling\n   - Lua scripting optimization\n\n3. **Data Management Strategies**:\n   - Key naming conventions\n   - Expiration policies\n   - Data serialization optimization\n   - Compression strategies\n   - Memory usage optimization\n\n4. **Caching Patterns Implementation**:\n   - Cache-aside pattern\n   - Write-through caching\n   - Write-behind caching\n   - Cache warming strategies\n   - Invalidation policies\n\n5. **Scaling and Distribution**:\n   - Horizontal scaling strategies\n   - Sharding implementation\n   - Load balancing\n   - Consistent hashing\n   - Multi-region deployment\n\n6. **Monitoring and Maintenance**:\n   - Performance metrics tracking\n   - Memory usage monitoring\n   - Slow log analysis\n   - Health check implementation\n   - Alert configuration\n\n7. **Security and Operations**:\n   - Authentication setup\n   - Network security configuration\n   - Data encryption\n   - Access control policies\n   - Operational procedures\n\nProvide comprehensive Redis management plan with architecture design, performance optimization, caching strategies, and monitoring frameworks for efficient in-memory data operations.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "redisContext",
+                "id": "redis_context_input",
+                "label": "Redis Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Application type, infrastructure scale, availability requirements, integration needs, business constraints",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your Redis management context"
+                }
+              },
+              {
+                "fieldName": "useCaseRequirements",
+                "id": "use_case_requirements_input",
+                "label": "Use Case Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Caching needs, session storage, real-time features, pub/sub requirements, data persistence needs",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What use case requirements exist?"
+                }
+              },
+              {
+                "fieldName": "dataCharacteristics",
+                "id": "data_characteristics_input",
+                "label": "Data Characteristics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Data types, sizes, access patterns, TTL requirements, update frequencies, growth projections",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What data characteristics exist?"
+                }
+              },
+              {
+                "fieldName": "performanceObjectives",
+                "id": "performance_objectives_input",
+                "label": "Performance Objectives",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Ultra-Low Latency", "value": "latency" },
+                    { "label": "High Throughput", "value": "throughput" },
+                    { "label": "Memory Efficiency", "value": "memory" },
+                    { "label": "High Availability", "value": "availability" },
+                    { "label": "Cost Optimization", "value": "cost" },
+                    { "label": "Balanced Performance", "value": "balanced" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Primary performance objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "redisManagementPlan",
+                "id": "redis_management_plan",
+                "label": "Redis Management Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349408",
+          "language": "en-US",
+          "name": "Redis Manager",
+          "description": "Provides comprehensive Redis management with architecture design, performance optimization, and monitoring frameworks for efficient in-memory data operations.",
+          "instructions": "Describe your Redis context, use case requirements, and performance objectives. The manager will design a comprehensive Redis strategy."
+        }
+      ]
+    }
+  ]
+}

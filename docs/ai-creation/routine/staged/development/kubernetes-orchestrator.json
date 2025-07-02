@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349463",
+  "publicId": "k8s-or-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349464",
+      "publicId": "k8s-orch-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of Kubernetes orchestrator for comprehensive container orchestration and cluster management strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Infrastructure-focused",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a Kubernetes orchestration expert providing comprehensive container orchestration strategies, cluster management optimization, and cloud-native deployment solutions.\n\nKubernetes Context: {{input.kubernetesContext}}\nWorkload Characteristics: {{input.workloadCharacteristics}}\nScaling Requirements: {{input.scalingRequirements}}\nOperational Goals: {{input.operationalGoals}}\n\nDesign comprehensive Kubernetes orchestration strategy:\n\n1. **Cluster Architecture Design**:\n   - Multi-node cluster configuration\n   - Network topology optimization\n   - Storage architecture planning\n   - Security boundary design\n   - High availability setup\n\n2. **Workload Management**:\n   - Deployment strategy selection\n   - Pod specification optimization\n   - Resource allocation strategies\n   - Service mesh integration\n   - StatefulSet and DaemonSet usage\n\n3. **Scaling and Resource Management**:\n   - Horizontal Pod Autoscaling (HPA)\n   - Vertical Pod Autoscaling (VPA)\n   - Cluster autoscaling strategies\n   - Resource quotas and limits\n   - Quality of Service classes\n\n4. **Service Discovery and Networking**:\n   - Service configuration optimization\n   - Ingress controller setup\n   - Load balancing strategies\n   - Network policy implementation\n   - DNS and service mesh integration\n\n5. **Storage and Persistence**:\n   - Persistent Volume management\n   - Storage class optimization\n   - Data backup strategies\n   - StatefulSet storage patterns\n   - Volume snapshot policies\n\n6. **Security and Compliance**:\n   - RBAC configuration\n   - Pod Security Standards\n   - Network security policies\n   - Secret management\n   - Compliance automation\n\n7. **Monitoring and Operations**:\n   - Observability stack setup\n   - Logging aggregation\n   - Metrics collection\n   - Alert configuration\n   - Operational automation\n\nProvide comprehensive Kubernetes orchestration plan with cluster design, workload management, scaling strategies, and operational frameworks for efficient container orchestration.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "kubernetesContext",
+                "id": "kubernetes_context_input",
+                "label": "Kubernetes Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Environment type, cluster size, infrastructure provider, team expertise, business requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your Kubernetes orchestration context"
+                }
+              },
+              {
+                "fieldName": "workloadCharacteristics",
+                "id": "workload_characteristics_input",
+                "label": "Workload Characteristics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Application types, resource requirements, traffic patterns, state management, dependencies",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What workload characteristics exist?"
+                }
+              },
+              {
+                "fieldName": "scalingRequirements",
+                "id": "scaling_requirements_input",
+                "label": "Scaling Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Auto-scaling needs, load patterns, performance targets, resource constraints, growth projections",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What scaling requirements exist?"
+                }
+              },
+              {
+                "fieldName": "operationalGoals",
+                "id": "operational_goals_input",
+                "label": "Operational Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "High Availability", "value": "availability" },
+                    { "label": "Cost Optimization", "value": "cost" },
+                    { "label": "Performance Focus", "value": "performance" },
+                    { "label": "Security Priority", "value": "security" },
+                    { "label": "Operational Simplicity", "value": "simplicity" },
+                    { "label": "Comprehensive Management", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary operational objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "kubernetesOrchestrationPlan",
+                "id": "kubernetes_orchestration_plan",
+                "label": "Kubernetes Orchestration Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349465",
+          "language": "en-US",
+          "name": "Kubernetes Orchestrator",
+          "description": "Provides comprehensive Kubernetes orchestration with cluster design, workload management, and operational frameworks for efficient container orchestration.",
+          "instructions": "Describe your Kubernetes context, workload characteristics, and operational goals. The orchestrator will design a comprehensive orchestration strategy."
+        }
+      ]
+    }
+  ]
+}

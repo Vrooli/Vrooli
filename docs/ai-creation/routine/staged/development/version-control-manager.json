@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349418",
+  "publicId": "version-c-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349419",
+      "publicId": "vc-mgr-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of version control manager for comprehensive source code management and collaboration optimization strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Systematic",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a version control management expert providing comprehensive source code management strategies, collaboration workflow optimization, and repository governance solutions.\n\nVersion Control Context: {{input.versionControlContext}}\nTeam Collaboration Needs: {{input.teamCollaborationNeeds}}\nProject Characteristics: {{input.projectCharacteristics}}\nGovernance Requirements: {{input.governanceRequirements}}\n\nDesign comprehensive version control management strategy:\n\n1. **Repository Architecture and Organization**:\n   - Repository structure design\n   - Branching strategy optimization\n   - Monorepo vs multi-repo decisions\n   - Submodule and subtree management\n   - Naming conventions and standards\n\n2. **Workflow and Collaboration Patterns**:\n   - Git flow implementation\n   - Feature branch workflows\n   - Pull request processes\n   - Code review automation\n   - Conflict resolution strategies\n\n3. **Branch Management and Policies**:\n   - Branch protection rules\n   - Merge vs rebase strategies\n   - Release branch management\n   - Hotfix procedures\n   - Branch cleanup automation\n\n4. **Integration and Automation**:\n   - CI/CD pipeline integration\n   - Automated testing triggers\n   - Quality gate enforcement\n   - Deployment automation\n   - Hook configuration\n\n5. **Security and Access Control**:\n   - Repository access management\n   - Commit signing requirements\n   - Sensitive data protection\n   - Audit logging and compliance\n   - Vulnerability scanning integration\n\n6. **Performance and Optimization**:\n   - Repository size management\n   - Large file handling strategies\n   - Clone and fetch optimization\n   - History maintenance\n   - Storage optimization techniques\n\n7. **Governance and Compliance**:\n   - Commit message standards\n   - Documentation requirements\n   - License management\n   - Backup and disaster recovery\n   - Compliance validation processes\n\nProvide comprehensive version control management plan with repository organization, workflow optimization, security implementation, and governance frameworks for effective source code management.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "versionControlContext",
+                "id": "version_control_context_input",
+                "label": "Version Control Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Organization size, development methodology, infrastructure setup, tool preferences, business requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your version control context"
+                }
+              },
+              {
+                "fieldName": "teamCollaborationNeeds",
+                "id": "team_collaboration_needs_input",
+                "label": "Team Collaboration Needs",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Team size, geographic distribution, skill levels, collaboration patterns, communication requirements",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What team collaboration needs exist?"
+                }
+              },
+              {
+                "fieldName": "projectCharacteristics",
+                "id": "project_characteristics_input",
+                "label": "Project Characteristics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Project complexity, codebase size, release frequency, technology stack, external dependencies",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe your project characteristics"
+                }
+              },
+              {
+                "fieldName": "governanceRequirements",
+                "id": "governance_requirements_input",
+                "label": "Governance Requirements",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Strict Enterprise", "value": "enterprise" },
+                    { "label": "Agile Development", "value": "agile" },
+                    { "label": "Open Source", "value": "opensource" },
+                    { "label": "Regulated Industry", "value": "regulated" },
+                    { "label": "Startup Flexibility", "value": "startup" },
+                    { "label": "Balanced Governance", "value": "balanced" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Primary governance approach"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "versionControlManagementPlan",
+                "id": "version_control_management_plan",
+                "label": "Version Control Management Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349420",
+          "language": "en-US",
+          "name": "Version Control Manager",
+          "description": "Provides comprehensive version control management with repository organization, workflow optimization, and governance frameworks for effective source code management.",
+          "instructions": "Describe your version control context, team collaboration needs, and governance requirements. The manager will design a comprehensive version control strategy."
+        }
+      ]
+    }
+  ]
+}

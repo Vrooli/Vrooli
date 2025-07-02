@@ -1,6 +1,6 @@
 {
   "id": "7829564732190849644",
-  "publicId": "activity-planner-v1",
+  "publicId": "activity-planning-v1",
   "resourceType": "Routine",
   "isPrivate": false,
   "permissions": "{}",
@@ -32,7 +32,7 @@
   "versions": [
     {
       "id": "7829564732190849645",
-      "publicId": "activity-planner-v1-0",
+      "publicId": "activity-planning-v1-0",
       "versionLabel": "1.0.0",
       "versionNotes": "Initial version - Curates activities and attractions based on interests",
       "isComplete": true,
@@ -113,7 +113,7 @@
         {
           "id": "7829564732190849646",
           "language": "en",
-          "name": "Activity Planner",
+          "name": "Activity Planning",
           "description": "Curates activities, attractions, and experiences based on interests.",
           "instructions": "Provide destination and interests. The routine will plan activities."
         }

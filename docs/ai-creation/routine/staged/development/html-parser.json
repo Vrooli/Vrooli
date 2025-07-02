@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349523",
+  "publicId": "html-pa-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349524",
+      "publicId": "html-parse-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of HTML parser for comprehensive HTML processing and content extraction strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Parsing-focused",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are an HTML parsing expert providing comprehensive HTML processing strategies, content extraction optimization, and document analysis solutions.\n\nHTML Context: {{input.htmlContext}}\nParsing Requirements: {{input.parsingRequirements}}\nExtraction Goals: {{input.extractionGoals}}\nQuality Standards: {{input.qualityStandards}}\n\nDesign comprehensive HTML parsing strategy:\n\n1. **HTML Parsing Architecture**:\n   - DOM tree construction\n   - SAX parsing strategies\n   - HTML5 compliance handling\n   - Malformed HTML recovery\n   - Encoding detection and handling\n\n2. **Content Extraction Techniques**:\n   - Text content extraction\n   - Metadata harvesting\n   - Link and image extraction\n   - Table data processing\n   - Form element analysis\n\n3. **Selector and Navigation**:\n   - CSS selector implementation\n   - XPath query support\n   - Element traversal strategies\n   - Attribute filtering\n   - Content matching patterns\n\n4. **Data Cleaning and Normalization**:\n   - HTML tag stripping\n   - Text normalization\n   - Whitespace handling\n   - Character encoding conversion\n   - Content deduplication\n\n5. **Performance Optimization**:\n   - Memory-efficient parsing\n   - Streaming parser implementation\n   - Large document handling\n   - Parallel processing strategies\n   - Caching mechanisms\n\n6. **Error Handling and Validation**:\n   - Malformed HTML handling\n   - Error recovery strategies\n   - Validation frameworks\n   - Quality assessment\n   - Parsing diagnostics\n\n7. **Integration and Output**:\n   - Multiple output formats\n   - API integration capabilities\n   - Batch processing support\n   - Real-time parsing\n   - Data pipeline integration\n\nProvide comprehensive HTML parsing plan with extraction strategies, performance optimization, error handling, and integration capabilities for efficient HTML document processing.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "htmlContext",
+                "id": "html_context_input",
+                "label": "HTML Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Document sources, HTML complexity, processing volumes, use case types, quality requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your HTML parsing context"
+                }
+              },
+              {
+                "fieldName": "parsingRequirements",
+                "id": "parsing_requirements_input",
+                "label": "Parsing Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Parsing accuracy, speed requirements, memory constraints, compatibility needs, error tolerance",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What parsing requirements exist?"
+                }
+              },
+              {
+                "fieldName": "extractionGoals",
+                "id": "extraction_goals_input",
+                "label": "Extraction Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Content types, data elements, structure preservation, metadata needs, output formats",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What extraction goals exist?"
+                }
+              },
+              {
+                "fieldName": "qualityStandards",
+                "id": "quality_standards_input",
+                "label": "Quality Standards",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "High Accuracy", "value": "accuracy" },
+                    { "label": "Fast Processing", "value": "speed" },
+                    { "label": "Memory Efficient", "value": "memory" },
+                    { "label": "Error Resilient", "value": "resilient" },
+                    { "label": "Feature Complete", "value": "complete" },
+                    { "label": "Balanced Quality", "value": "balanced" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Primary quality requirement"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "htmlParsingPlan",
+                "id": "html_parsing_plan",
+                "label": "HTML Parsing Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349525",
+          "language": "en-US",
+          "name": "HTML Parser",
+          "description": "Provides comprehensive HTML parsing with extraction strategies, performance optimization, and integration capabilities for efficient HTML document processing.",
+          "instructions": "Describe your HTML context, parsing requirements, and quality standards. The parser will design a comprehensive HTML processing strategy."
+        }
+      ]
+    }
+  ]
+}

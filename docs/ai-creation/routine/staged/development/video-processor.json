@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349496",
+  "publicId": "video-pr-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349497",
+      "publicId": "video-proc-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of video processor for comprehensive video processing and streaming optimization strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Media-focused",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a video processing expert providing comprehensive video manipulation strategies, streaming optimization, and media workflow solutions.\n\nVideo Context: {{input.videoContext}}\nProcessing Requirements: {{input.processingRequirements}}\nDelivery Specifications: {{input.deliverySpecifications}}\nPerformance Needs: {{input.performanceNeeds}}\n\nDesign comprehensive video processing strategy:\n\n1. **Video Processing Pipeline**:\n   - Encoding and transcoding workflows\n   - Multi-format output generation\n   - Quality optimization algorithms\n   - Bitrate adaptation strategies\n   - Resolution scaling techniques\n\n2. **Codec and Compression Optimization**:\n   - Codec selection strategies\n   - H.264/H.265 optimization\n   - AV1 encoding integration\n   - Lossless vs lossy compression\n   - Quality-bitrate balancing\n\n3. **Streaming and Delivery**:\n   - Adaptive bitrate streaming\n   - HLS and DASH implementation\n   - CDN integration strategies\n   - Low-latency streaming\n   - Multi-device optimization\n\n4. **Advanced Processing Features**:\n   - Video enhancement algorithms\n   - Noise reduction techniques\n   - Color correction and grading\n   - Subtitle and caption handling\n   - Thumbnail generation\n\n5. **Performance and Scalability**:\n   - Hardware acceleration utilization\n   - GPU processing optimization\n   - Parallel processing strategies\n   - Cloud processing integration\n   - Resource management\n\n6. **Quality Control and Analysis**:\n   - Video quality assessment\n   - Content analysis and tagging\n   - Automated quality validation\n   - Metadata extraction\n   - Compliance checking\n\n7. **Integration and Automation**:\n   - API design and endpoints\n   - Workflow automation\n   - Event-driven processing\n   - Storage integration\n   - Monitoring and analytics\n\nProvide comprehensive video processing plan with pipeline design, optimization techniques, streaming strategies, and integration frameworks for efficient video workflow management.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "videoContext",
+                "id": "video_context_input",
+                "label": "Video Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Use case type, content sources, audience reach, quality standards, business objectives",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your video processing context"
+                }
+              },
+              {
+                "fieldName": "processingRequirements",
+                "id": "processing_requirements_input",
+                "label": "Processing Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Transformation types, format conversions, quality enhancements, automation needs, processing volumes",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What processing requirements exist?"
+                }
+              },
+              {
+                "fieldName": "deliverySpecifications",
+                "id": "delivery_specifications_input",
+                "label": "Delivery Specifications",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Output formats, streaming protocols, device targets, bandwidth requirements, delivery methods",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What delivery specifications are needed?"
+                }
+              },
+              {
+                "fieldName": "performanceNeeds",
+                "id": "performance_needs_input",
+                "label": "Performance Needs",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Processing Speed", "value": "speed" },
+                    { "label": "Video Quality", "value": "quality" },
+                    { "label": "Storage Efficiency", "value": "storage" },
+                    { "label": "Streaming Performance", "value": "streaming" },
+                    { "label": "Cost Optimization", "value": "cost" },
+                    { "label": "Balanced Performance", "value": "balanced" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Primary performance objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "videoProcessingPlan",
+                "id": "video_processing_plan",
+                "label": "Video Processing Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349498",
+          "language": "en-US",
+          "name": "Video Processor",
+          "description": "Provides comprehensive video processing with pipeline design, optimization techniques, and integration frameworks for efficient video workflow management.",
+          "instructions": "Describe your video context, processing requirements, and performance needs. The processor will design a comprehensive video processing strategy."
+        }
+      ]
+    }
+  ]
+}

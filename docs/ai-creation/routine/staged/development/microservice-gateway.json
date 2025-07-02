@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349532",
+  "publicId": "micro-gw-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349533",
+      "publicId": "micro-gateway-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of microservice gateway for comprehensive API gateway and service mesh management strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Architecture-focused",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a microservice gateway expert providing comprehensive API gateway strategies, service mesh optimization, and microservice coordination solutions.\n\nGateway Context: {{input.gatewayContext}}\nService Architecture: {{input.serviceArchitecture}}\nIntegration Requirements: {{input.integrationRequirements}}\nSecurity Standards: {{input.securityStandards}}\n\nDesign comprehensive microservice gateway strategy:\n\n1. **API Gateway Architecture**:\n   - Gateway topology design\n   - Service discovery integration\n   - Route management strategies\n   - Protocol translation layers\n   - Edge computing integration\n\n2. **Request Routing and Management**:\n   - Dynamic routing algorithms\n   - Load balancing strategies\n   - Request transformation\n   - Response aggregation\n   - Circuit breaker patterns\n\n3. **Security and Authentication**:\n   - API key management\n   - OAuth/JWT integration\n   - Rate limiting frameworks\n   - CORS policy management\n   - Security header injection\n\n4. **Service Mesh Integration**:\n   - Service-to-service communication\n   - Traffic management\n   - Observability integration\n   - Policy enforcement\n   - Sidecar proxy configuration\n\n5. **Monitoring and Observability**:\n   - Request tracing\n   - Metrics collection\n   - Log aggregation\n   - Performance monitoring\n   - Health check orchestration\n\n6. **Scalability and Performance**:\n   - Horizontal scaling strategies\n   - Caching layer integration\n   - Connection pooling\n   - Resource optimization\n   - Latency minimization\n\n7. **DevOps and Deployment**:\n   - Configuration management\n   - Blue-green deployments\n   - Canary release strategies\n   - A/B testing frameworks\n   - CI/CD pipeline integration\n\nProvide comprehensive microservice gateway plan with architecture design, security frameworks, performance optimization, and deployment strategies for efficient microservice coordination.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "gatewayContext",
+                "id": "gateway_context_input",
+                "label": "Gateway Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Microservice ecosystem, traffic volumes, client types, deployment environment, business requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your microservice gateway context"
+                }
+              },
+              {
+                "fieldName": "serviceArchitecture",
+                "id": "service_architecture_input",
+                "label": "Service Architecture",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Service count, communication patterns, data flows, dependencies, technology stack",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What service architecture exists?"
+                }
+              },
+              {
+                "fieldName": "integrationRequirements",
+                "id": "integration_requirements_input",
+                "label": "Integration Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "External APIs, legacy systems, third-party services, protocol support, data transformation needs",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What integration requirements exist?"
+                }
+              },
+              {
+                "fieldName": "securityStandards",
+                "id": "security_standards_input",
+                "label": "Security Standards",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "High Performance", "value": "performance" },
+                    { "label": "Security Priority", "value": "security" },
+                    { "label": "Developer Experience", "value": "developer_experience" },
+                    { "label": "Observability Focus", "value": "observability" },
+                    { "label": "Scalability Priority", "value": "scalability" },
+                    { "label": "Comprehensive Gateway", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary gateway objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "microserviceGatewayPlan",
+                "id": "microservice_gateway_plan",
+                "label": "Microservice Gateway Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349534",
+          "language": "en-US",
+          "name": "Microservice Gateway",
+          "description": "Provides comprehensive microservice gateway with architecture design, security frameworks, and deployment strategies for efficient microservice coordination.",
+          "instructions": "Describe your gateway context, service architecture, and security standards. The gateway will design a comprehensive microservice coordination strategy."
+        }
+      ]
+    }
+  ]
+}

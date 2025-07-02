@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349397",
+  "publicId": "nginx-co-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349398",
+      "publicId": "nginx-conf-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of NGINX configurator for comprehensive web server optimization and reverse proxy strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Infrastructure-focused",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are an NGINX configuration expert providing comprehensive web server optimization strategies, reverse proxy configuration, and performance tuning solutions.\n\nNGINX Context: {{input.nginxContext}}\nDeployment Requirements: {{input.deploymentRequirements}}\nTraffic Characteristics: {{input.trafficCharacteristics}}\nOptimization Goals: {{input.optimizationGoals}}\n\nDesign comprehensive NGINX configuration strategy:\n\n1. **Server Configuration Architecture**:\n   - Virtual host configuration\n   - Server block optimization\n   - Location block strategies\n   - Upstream configuration\n   - Module selection and loading\n\n2. **Performance Optimization**:\n   - Worker process configuration\n   - Connection handling optimization\n   - Buffer size tuning\n   - Keepalive optimization\n   - Caching strategies\n\n3. **Reverse Proxy and Load Balancing**:\n   - Upstream server configuration\n   - Load balancing algorithms\n   - Health check implementation\n   - Session persistence\n   - Failover mechanisms\n\n4. **Security Configuration**:\n   - SSL/TLS optimization\n   - Security headers implementation\n   - Rate limiting configuration\n   - Access control setup\n   - DDoS protection strategies\n\n5. **Content Delivery Optimization**:\n   - Static content serving\n   - Compression configuration\n   - Content caching strategies\n   - CDN integration\n   - Asset optimization\n\n6. **Monitoring and Logging**:\n   - Access log configuration\n   - Error log optimization\n   - Status monitoring setup\n   - Performance metrics collection\n   - Real-time monitoring integration\n\n7. **Advanced Features**:\n   - HTTP/2 configuration\n   - WebSocket support\n   - Microservices routing\n   - API gateway features\n   - Custom module integration\n\nProvide comprehensive NGINX configuration plan with server optimization, security implementation, performance tuning, and monitoring strategies for robust web service delivery.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "nginxContext",
+                "id": "nginx_context_input",
+                "label": "NGINX Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Deployment environment, infrastructure scale, application types, service architecture, business requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your NGINX configuration context"
+                }
+              },
+              {
+                "fieldName": "deploymentRequirements",
+                "id": "deployment_requirements_input",
+                "label": "Deployment Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Service types, backend applications, SSL requirements, domain configurations, compliance needs",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What deployment requirements exist?"
+                }
+              },
+              {
+                "fieldName": "trafficCharacteristics",
+                "id": "traffic_characteristics_input",
+                "label": "Traffic Characteristics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Traffic volumes, request patterns, peak loads, geographic distribution, content types",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe your traffic characteristics"
+                }
+              },
+              {
+                "fieldName": "optimizationGoals",
+                "id": "optimization_goals_input",
+                "label": "Optimization Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Maximum Performance", "value": "performance" },
+                    { "label": "Security Focus", "value": "security" },
+                    { "label": "High Availability", "value": "availability" },
+                    { "label": "Cost Efficiency", "value": "cost" },
+                    { "label": "Ease of Management", "value": "management" },
+                    { "label": "Balanced Optimization", "value": "balanced" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Primary optimization objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "nginxConfigurationPlan",
+                "id": "nginx_configuration_plan",
+                "label": "NGINX Configuration Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349399",
+          "language": "en-US",
+          "name": "NGINX Configurator",
+          "description": "Provides comprehensive NGINX configuration with server optimization, security implementation, and monitoring strategies for robust web service delivery.",
+          "instructions": "Describe your NGINX context, deployment requirements, and optimization goals. The configurator will design a comprehensive configuration strategy."
+        }
+      ]
+    }
+  ]
+}

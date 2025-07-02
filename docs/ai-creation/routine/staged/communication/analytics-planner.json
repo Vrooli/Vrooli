@@ -1,6 +1,6 @@
 {
   "id": "7829564732190849287",
-  "publicId": "analytics-planner-v1",
+  "publicId": "analytics-engines-v1",
   "resourceType": "Routine",
   "isPrivate": false,
   "permissions": "{}",
@@ -32,7 +32,7 @@
   "versions": [
     {
       "id": "7829564732190849288",
-      "publicId": "analytics-planner-v1-0",
+      "publicId": "analytics-engines-v1-0",
       "versionLabel": "1.0.0",
       "versionNotes": "Initial version - Plans metrics tracking and reporting strategies",
       "isComplete": true,
@@ -113,7 +113,7 @@
         {
           "id": "7829564732190849289",
           "language": "en",
-          "name": "Analytics Planner",
+          "name": "Analytics Engines",
           "description": "Designs comprehensive analytics and measurement strategies.",
           "instructions": "Provide content calendar and business goals. The routine will plan analytics."
         }

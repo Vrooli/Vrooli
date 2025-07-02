@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349388",
+  "publicId": "kafka-st-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349389",
+      "publicId": "kafka-stream-proc-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of Kafka stream processor for comprehensive stream processing and real-time data pipeline strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Data-oriented",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a Kafka stream processing expert providing comprehensive stream processing strategies, real-time data pipeline optimization, and event-driven architecture solutions.\n\nKafka Context: {{input.kafkaContext}}\nData Stream Characteristics: {{input.dataStreamCharacteristics}}\nProcessing Requirements: {{input.processingRequirements}}\nScaling Needs: {{input.scalingNeeds}}\n\nDesign comprehensive Kafka stream processing strategy:\n\n1. **Stream Processing Architecture**:\n   - Kafka Streams topology design\n   - State store management\n   - Stream-table joins\n   - Windowing strategies\n   - Exactly-once semantics\n\n2. **Data Transformation and Enrichment**:\n   - Stream transformation pipelines\n   - Data enrichment strategies\n   - Schema evolution handling\n   - Serialization optimization\n   - Data validation and cleansing\n\n3. **Performance Optimization**:\n   - Parallelization strategies\n   - Partitioning optimization\n   - Throughput tuning\n   - Latency minimization\n   - Resource allocation\n\n4. **Fault Tolerance and Reliability**:\n   - Error handling mechanisms\n   - Dead letter queues\n   - Reprocessing strategies\n   - State recovery procedures\n   - Monitoring and alerting\n\n5. **Scaling and Resource Management**:\n   - Horizontal scaling strategies\n   - Load balancing\n   - Resource monitoring\n   - Capacity planning\n   - Auto-scaling implementation\n\n6. **Integration and Connectivity**:\n   - External system integration\n   - Connector configuration\n   - API gateway integration\n   - Database synchronization\n   - Microservices coordination\n\n7. **Monitoring and Operations**:\n   - Stream processing metrics\n   - Performance dashboards\n   - Lag monitoring\n   - Troubleshooting procedures\n   - Operational best practices\n\nProvide comprehensive Kafka stream processing plan with architecture design, performance optimization, fault tolerance, and monitoring frameworks for robust real-time data processing.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "kafkaContext",
+                "id": "kafka_context_input",
+                "label": "Kafka Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Use case type, data volumes, cluster setup, infrastructure constraints, business requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your Kafka stream processing context"
+                }
+              },
+              {
+                "fieldName": "dataStreamCharacteristics",
+                "id": "data_stream_characteristics_input",
+                "label": "Data Stream Characteristics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Data types, message sizes, throughput rates, peak loads, data patterns, schema complexity",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What data stream characteristics exist?"
+                }
+              },
+              {
+                "fieldName": "processingRequirements",
+                "id": "processing_requirements_input",
+                "label": "Processing Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Processing logic, transformation needs, aggregation requirements, latency constraints, accuracy expectations",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What processing requirements exist?"
+                }
+              },
+              {
+                "fieldName": "scalingNeeds",
+                "id": "scaling_needs_input",
+                "label": "Scaling Needs",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "High Throughput", "value": "throughput" },
+                    { "label": "Low Latency", "value": "latency" },
+                    { "label": "Fault Tolerance", "value": "fault_tolerance" },
+                    { "label": "Cost Efficiency", "value": "cost" },
+                    { "label": "Operational Simplicity", "value": "simplicity" },
+                    { "label": "Comprehensive Scaling", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary scaling objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "kafkaStreamProcessingPlan",
+                "id": "kafka_stream_processing_plan",
+                "label": "Kafka Stream Processing Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349390",
+          "language": "en-US",
+          "name": "Kafka Stream Processor",
+          "description": "Provides comprehensive Kafka stream processing with architecture design, performance optimization, and monitoring frameworks for robust real-time data processing.",
+          "instructions": "Describe your Kafka context, data stream characteristics, and scaling needs. The processor will design a comprehensive stream processing strategy."
+        }
+      ]
+    }
+  ]
+}

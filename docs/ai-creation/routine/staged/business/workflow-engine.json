@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349499",
+  "publicId": "workflo-e-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349500",
+      "publicId": "workflow-eng-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of workflow engine for comprehensive workflow orchestration and business process automation strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Process-oriented",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a workflow engine expert providing comprehensive business process automation strategies, workflow orchestration optimization, and process management solutions.\n\nWorkflow Context: {{input.workflowContext}}\nProcess Requirements: {{input.processRequirements}}\nIntegration Needs: {{input.integrationNeeds}}\nAutomation Goals: {{input.automationGoals}}\n\nDesign comprehensive workflow engine strategy:\n\n1. **Workflow Definition and Modeling**:\n   - Business process modeling\n   - Workflow state machines\n   - Decision tree implementation\n   - Parallel process handling\n   - Conditional logic frameworks\n\n2. **Execution Engine Architecture**:\n   - Workflow runtime optimization\n   - Task orchestration strategies\n   - State persistence mechanisms\n   - Error handling frameworks\n   - Recovery and rollback procedures\n\n3. **Task and Activity Management**:\n   - Human task coordination\n   - Automated task execution\n   - Service task integration\n   - Script task optimization\n   - Timer and event handling\n\n4. **Integration and Communication**:\n   - External system coordination\n   - API integration strategies\n   - Message queue integration\n   - Database connectivity\n   - Event-driven architectures\n\n5. **Monitoring and Analytics**:\n   - Process performance tracking\n   - Bottleneck identification\n   - SLA monitoring\n   - Audit trail maintenance\n   - Business intelligence integration\n\n6. **Scalability and Performance**:\n   - High-volume processing\n   - Load balancing strategies\n   - Resource optimization\n   - Clustering and distribution\n   - Performance tuning\n\n7. **User Interface and Management**:\n   - Process designer tools\n   - Task management dashboards\n   - Administrative interfaces\n   - Reporting and visualization\n   - User experience optimization\n\nProvide comprehensive workflow engine plan with process modeling, execution optimization, integration strategies, and monitoring frameworks for efficient business process automation.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "workflowContext",
+                "id": "workflow_context_input",
+                "label": "Workflow Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Business domain, process complexity, organization size, automation maturity, compliance requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your workflow engine context"
+                }
+              },
+              {
+                "fieldName": "processRequirements",
+                "id": "process_requirements_input",
+                "label": "Process Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Process types, complexity levels, approval workflows, business rules, compliance needs",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What process requirements exist?"
+                }
+              },
+              {
+                "fieldName": "integrationNeeds",
+                "id": "integration_needs_input",
+                "label": "Integration Needs",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "System integrations, data sources, APIs, legacy systems, external services",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What integration needs exist?"
+                }
+              },
+              {
+                "fieldName": "automationGoals",
+                "id": "automation_goals_input",
+                "label": "Automation Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Process Efficiency", "value": "efficiency" },
+                    { "label": "Compliance Automation", "value": "compliance" },
+                    { "label": "Human Task Coordination", "value": "human_tasks" },
+                    { "label": "System Integration", "value": "integration" },
+                    { "label": "Process Visibility", "value": "visibility" },
+                    { "label": "Comprehensive Automation", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary automation objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "workflowEnginePlan",
+                "id": "workflow_engine_plan",
+                "label": "Workflow Engine Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349501",
+          "language": "en-US",
+          "name": "Workflow Engine",
+          "description": "Provides comprehensive workflow engine with process modeling, execution optimization, and monitoring frameworks for efficient business process automation.",
+          "instructions": "Describe your workflow context, process requirements, and automation goals. The engine will design a comprehensive workflow orchestration strategy."
+        }
+      ]
+    }
+  ]
+}

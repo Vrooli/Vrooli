@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349460",
+  "publicId": "json-tr-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349461",
+      "publicId": "json-trans-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of JSON transformer for comprehensive JSON processing and data transformation strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Data-oriented",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a JSON transformation expert providing comprehensive JSON processing strategies, data transformation optimization, and format conversion solutions.\n\nJSON Context: {{input.jsonContext}}\nTransformation Requirements: {{input.transformationRequirements}}\nData Structures: {{input.dataStructures}}\nPerformance Needs: {{input.performanceNeeds}}\n\nDesign comprehensive JSON transformation strategy:\n\n1. **JSON Processing Architecture**:\n   - Parser selection and optimization\n   - Streaming vs in-memory processing\n   - Schema validation integration\n   - Error handling mechanisms\n   - Memory management strategies\n\n2. **Transformation Engine Design**:\n   - Rule-based transformation\n   - Template-driven processing\n   - Dynamic mapping algorithms\n   - Conditional transformation logic\n   - Custom function integration\n\n3. **Data Structure Manipulation**:\n   - Object restructuring techniques\n   - Array processing optimization\n   - Nested data flattening/nesting\n   - Key-value pair transformations\n   - Data type conversions\n\n4. **Format Conversion and Integration**:\n   - JSON to XML conversion\n   - CSV and tabular data mapping\n   - Database schema translation\n   - API payload transformation\n   - Message format standardization\n\n5. **Performance Optimization**:\n   - Large dataset processing\n   - Parallel transformation\n   - Incremental processing\n   - Caching strategies\n   - Resource utilization optimization\n\n6. **Validation and Quality Control**:\n   - Schema validation enforcement\n   - Data integrity checking\n   - Transformation accuracy verification\n   - Error detection and reporting\n   - Quality metrics tracking\n\n7. **Integration and Automation**:\n   - Pipeline integration\n   - Real-time transformation\n   - Batch processing automation\n   - API endpoint design\n   - Monitoring and alerting\n\nProvide comprehensive JSON transformation plan with processing architecture, transformation engine design, performance optimization, and integration strategies for efficient JSON data handling.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "jsonContext",
+                "id": "json_context_input",
+                "label": "JSON Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Data sources, use cases, processing volumes, integration needs, business requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your JSON transformation context"
+                }
+              },
+              {
+                "fieldName": "transformationRequirements",
+                "id": "transformation_requirements_input",
+                "label": "Transformation Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Transformation types, mapping rules, format conversions, data enrichment, validation needs",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What transformation requirements exist?"
+                }
+              },
+              {
+                "fieldName": "dataStructures",
+                "id": "data_structures_input",
+                "label": "Data Structures",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "JSON schemas, complexity levels, nesting depths, array patterns, data relationships",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What data structures are involved?"
+                }
+              },
+              {
+                "fieldName": "performanceNeeds",
+                "id": "performance_needs_input",
+                "label": "Performance Needs",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "High Throughput", "value": "throughput" },
+                    { "label": "Low Latency", "value": "latency" },
+                    { "label": "Memory Efficiency", "value": "memory" },
+                    { "label": "Large Dataset Processing", "value": "large_data" },
+                    { "label": "Real-time Processing", "value": "realtime" },
+                    { "label": "Balanced Performance", "value": "balanced" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Primary performance objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "jsonTransformationPlan",
+                "id": "json_transformation_plan",
+                "label": "JSON Transformation Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349462",
+          "language": "en-US",
+          "name": "JSON Transformer",
+          "description": "Provides comprehensive JSON transformation with processing architecture, transformation engine design, and integration strategies for efficient JSON data handling.",
+          "instructions": "Describe your JSON context, transformation requirements, and performance needs. The transformer will design a comprehensive JSON processing strategy."
+        }
+      ]
+    }
+  ]
+}

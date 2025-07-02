@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349454",
+  "publicId": "health-c-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349455",
+      "publicId": "health-chk-mon-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of health check monitor for comprehensive system health monitoring and availability management strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Reliability-focused",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a health check monitoring expert providing comprehensive system health strategies, availability monitoring optimization, and proactive issue detection solutions.\n\nMonitoring Context: {{input.monitoringContext}}\nSystem Architecture: {{input.systemArchitecture}}\nHealth Criteria: {{input.healthCriteria}}\nResponse Requirements: {{input.responseRequirements}}\n\nDesign comprehensive health check monitoring strategy:\n\n1. **Health Check Framework Design**:\n   - Multi-tier health checking\n   - Check frequency optimization\n   - Health check taxonomy\n   - Dependency mapping\n   - Cascading health validation\n\n2. **Monitoring Implementation**:\n   - Active vs passive monitoring\n   - Synthetic transaction monitoring\n   - Deep health validation\n   - Performance baseline tracking\n   - Real-time status aggregation\n\n3. **Detection and Alerting**:\n   - Anomaly detection algorithms\n   - Threshold-based alerting\n   - Predictive failure detection\n   - Alert fatigue prevention\n   - Intelligent escalation\n\n4. **Data Collection and Analysis**:\n   - Metrics aggregation strategies\n   - Time-series data management\n   - Health trend analysis\n   - Root cause correlation\n   - Historical pattern recognition\n\n5. **Response and Recovery**:\n   - Automated remediation\n   - Circuit breaker integration\n   - Graceful degradation triggers\n   - Self-healing mechanisms\n   - Recovery validation\n\n6. **Integration and Coordination**:\n   - Service mesh integration\n   - Load balancer coordination\n   - Container orchestration sync\n   - External monitoring integration\n   - Cross-platform correlation\n\n7. **Reporting and Visualization**:\n   - Real-time dashboards\n   - Health status reporting\n   - SLA compliance tracking\n   - Availability metrics\n   - Stakeholder notifications\n\nProvide comprehensive health check monitoring plan with framework design, detection mechanisms, response automation, and integration strategies for robust system reliability.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "monitoringContext",
+                "id": "monitoring_context_input",
+                "label": "Monitoring Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "System criticality, infrastructure scale, availability requirements, business impact, operational constraints",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your health monitoring context"
+                }
+              },
+              {
+                "fieldName": "systemArchitecture",
+                "id": "system_architecture_input",
+                "label": "System Architecture",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Service topology, dependencies, data flows, integration points, deployment patterns",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe your system architecture"
+                }
+              },
+              {
+                "fieldName": "healthCriteria",
+                "id": "health_criteria_input",
+                "label": "Health Criteria",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Performance thresholds, availability targets, error rates, response times, resource utilization limits",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What health criteria define system wellness?"
+                }
+              },
+              {
+                "fieldName": "responseRequirements",
+                "id": "response_requirements_input",
+                "label": "Response Requirements",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Immediate Response", "value": "immediate" },
+                    { "label": "Automated Recovery", "value": "automated" },
+                    { "label": "Proactive Detection", "value": "proactive" },
+                    { "label": "Preventive Monitoring", "value": "preventive" },
+                    { "label": "Compliance Focused", "value": "compliance" },
+                    { "label": "Comprehensive Monitoring", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary response requirement"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "healthCheckMonitoringPlan",
+                "id": "health_check_monitoring_plan",
+                "label": "Health Check Monitoring Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349456",
+          "language": "en-US",
+          "name": "Health Check Monitor",
+          "description": "Provides comprehensive health check monitoring with framework design, detection mechanisms, and integration strategies for robust system reliability.",
+          "instructions": "Describe your monitoring context, system architecture, and response requirements. The monitor will design a comprehensive health checking strategy."
+        }
+      ]
+    }
+  ]
+}

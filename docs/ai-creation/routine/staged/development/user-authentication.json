@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349547",
+  "publicId": "user-au-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349548",
+      "publicId": "user-auth-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of user authentication for comprehensive identity management and access control strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Security-focused",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a user authentication expert providing comprehensive identity management strategies, access control optimization, and security protocol implementation solutions.\n\nAuthentication Context: {{input.authenticationContext}}\nSecurity Standards: {{input.securityStandards}}\nUser Experience Requirements: {{input.userExperienceRequirements}}\nIntegration Needs: {{input.integrationNeeds}}\n\nDesign comprehensive user authentication strategy:\n\n1. **Authentication Architecture**:\n   - Multi-factor authentication design\n   - Single sign-on implementation\n   - Identity provider integration\n   - Token-based authentication\n   - Biometric authentication support\n\n2. **Identity Management**:\n   - User lifecycle management\n   - Role-based access control\n   - Attribute-based permissions\n   - Identity federation strategies\n   - User provisioning automation\n\n3. **Security Protocol Implementation**:\n   - OAuth 2.0 and OpenID Connect\n   - SAML integration\n   - JWT token management\n   - Password policy enforcement\n   - Encryption and hashing strategies\n\n4. **Access Control and Authorization**:\n   - Permission management systems\n   - Resource-based access control\n   - Dynamic authorization policies\n   - API access control\n   - Fine-grained permissions\n\n5. **User Experience Optimization**:\n   - Seamless login experiences\n   - Social login integration\n   - Password recovery workflows\n   - Account management interfaces\n   - Mobile authentication support\n\n6. **Security Monitoring and Compliance**:\n   - Authentication audit logging\n   - Suspicious activity detection\n   - Compliance reporting\n   - Security breach prevention\n   - Risk assessment frameworks\n\n7. **Scalability and Performance**:\n   - High-availability authentication\n   - Load balancing strategies\n   - Session management optimization\n   - Database performance tuning\n   - Global authentication distribution\n\nProvide comprehensive user authentication plan with security architecture, identity management, access control, and compliance frameworks for robust user authentication systems.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "authenticationContext",
+                "id": "authentication_context_input",
+                "label": "Authentication Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Application type, user base size, security requirements, compliance needs, business context",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your user authentication context"
+                }
+              },
+              {
+                "fieldName": "securityStandards",
+                "id": "security_standards_input",
+                "label": "Security Standards",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Security frameworks, compliance requirements, encryption standards, audit needs, threat protection",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What security standards are required?"
+                }
+              },
+              {
+                "fieldName": "userExperienceRequirements",
+                "id": "user_experience_requirements_input",
+                "label": "User Experience Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Login flow preferences, device support, accessibility needs, social login options, user convenience",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What user experience requirements exist?"
+                }
+              },
+              {
+                "fieldName": "integrationNeeds",
+                "id": "integration_needs_input",
+                "label": "Integration Needs",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Maximum Security", "value": "security" },
+                    { "label": "User Experience Focus", "value": "user_experience" },
+                    { "label": "Enterprise Integration", "value": "enterprise" },
+                    { "label": "Scalability Priority", "value": "scalability" },
+                    { "label": "Compliance Focus", "value": "compliance" },
+                    { "label": "Comprehensive Authentication", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary authentication objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "userAuthenticationPlan",
+                "id": "user_authentication_plan",
+                "label": "User Authentication Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349549",
+          "language": "en-US",
+          "name": "User Authentication",
+          "description": "Provides comprehensive user authentication with security architecture, identity management, and compliance frameworks for robust user authentication systems.",
+          "instructions": "Describe your authentication context, security standards, and integration needs. The system will design a comprehensive identity management strategy."
+        }
+      ]
+    }
+  ]
+}

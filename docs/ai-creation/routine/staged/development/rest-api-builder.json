@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349484",
+  "publicId": "rest-ap-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349485",
+      "publicId": "rest-api-bld-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of REST API builder for comprehensive API design and development strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "API-focused",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a REST API development expert providing comprehensive API design strategies, implementation optimization, and developer experience solutions.\n\nAPI Context: {{input.apiContext}}\nResource Requirements: {{input.resourceRequirements}}\nIntegration Needs: {{input.integrationNeeds}}\nDevelopment Goals: {{input.developmentGoals}}\n\nDesign comprehensive REST API building strategy:\n\n1. **API Architecture Design**:\n   - RESTful design principles\n   - Resource modeling strategies\n   - URL structure optimization\n   - HTTP method selection\n   - Status code conventions\n\n2. **Data Model and Schema Design**:\n   - Entity relationship modeling\n   - JSON schema definition\n   - Data validation strategies\n   - Serialization optimization\n   - Version compatibility\n\n3. **Security Implementation**:\n   - Authentication mechanisms\n   - Authorization frameworks\n   - API key management\n   - Rate limiting strategies\n   - Input validation and sanitization\n\n4. **Performance Optimization**:\n   - Response caching strategies\n   - Pagination implementation\n   - Compression techniques\n   - Database query optimization\n   - CDN integration\n\n5. **Error Handling and Resilience**:\n   - Error response standardization\n   - Exception handling patterns\n   - Retry mechanisms\n   - Circuit breaker implementation\n   - Graceful degradation\n\n6. **Documentation and Developer Experience**:\n   - OpenAPI specification\n   - Interactive documentation\n   - Code generation tools\n   - SDK development\n   - Example implementations\n\n7. **Testing and Quality Assurance**:\n   - Unit testing strategies\n   - Integration testing frameworks\n   - Contract testing\n   - Performance testing\n   - Security testing protocols\n\nProvide comprehensive REST API building plan with architecture design, implementation strategies, security frameworks, and developer experience optimization for robust API development.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "apiContext",
+                "id": "api_context_input",
+                "label": "API Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Business domain, target audience, integration scope, technology stack, performance requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your REST API context"
+                }
+              },
+              {
+                "fieldName": "resourceRequirements",
+                "id": "resource_requirements_input",
+                "label": "Resource Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Data entities, operations needed, relationships, business logic, CRUD requirements",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What resource requirements exist?"
+                }
+              },
+              {
+                "fieldName": "integrationNeeds",
+                "id": "integration_needs_input",
+                "label": "Integration Needs",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "External services, database systems, third-party APIs, authentication providers, monitoring tools",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What integration needs exist?"
+                }
+              },
+              {
+                "fieldName": "developmentGoals",
+                "id": "development_goals_input",
+                "label": "Development Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Rapid Development", "value": "rapid" },
+                    { "label": "Enterprise Grade", "value": "enterprise" },
+                    { "label": "High Performance", "value": "performance" },
+                    { "label": "Developer Experience", "value": "developer_experience" },
+                    { "label": "Security Focus", "value": "security" },
+                    { "label": "Comprehensive Solution", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary development objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "restApiBuildingPlan",
+                "id": "rest_api_building_plan",
+                "label": "REST API Building Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349486",
+          "language": "en-US",
+          "name": "REST API Builder",
+          "description": "Provides comprehensive REST API building with architecture design, implementation strategies, and developer experience optimization for robust API development.",
+          "instructions": "Describe your API context, resource requirements, and development goals. The builder will design a comprehensive REST API development strategy."
+        }
+      ]
+    }
+  ]
+}

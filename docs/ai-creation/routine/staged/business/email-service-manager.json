@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349514",
+  "publicId": "email-se-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349515",
+      "publicId": "email-svc-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of email service manager for comprehensive email delivery and communication automation strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Communication-focused",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are an email service management expert providing comprehensive email delivery strategies, automation optimization, and communication workflow solutions.\n\nEmail Context: {{input.emailContext}}\nDelivery Requirements: {{input.deliveryRequirements}}\nAutomation Needs: {{input.automationNeeds}}\nCompliance Standards: {{input.complianceStandards}}\n\nDesign comprehensive email service management strategy:\n\n1. **Email Infrastructure Design**:\n   - SMTP server configuration\n   - Email queue management\n   - Delivery service integration\n   - Load balancing strategies\n   - Failover mechanisms\n\n2. **Template and Content Management**:\n   - Email template systems\n   - Dynamic content generation\n   - Personalization strategies\n   - Multi-language support\n   - Brand consistency frameworks\n\n3. **Delivery Optimization**:\n   - Delivery rate optimization\n   - Spam filter avoidance\n   - Reputation management\n   - Authentication protocols (SPF, DKIM, DMARC)\n   - Bounce handling strategies\n\n4. **Automation and Workflows**:\n   - Triggered email campaigns\n   - Drip campaign management\n   - Event-based automation\n   - Segmentation strategies\n   - A/B testing frameworks\n\n5. **Analytics and Tracking**:\n   - Open rate tracking\n   - Click-through monitoring\n   - Delivery analytics\n   - Engagement metrics\n   - Performance reporting\n\n6. **Compliance and Security**:\n   - GDPR compliance frameworks\n   - CAN-SPAM compliance\n   - Data privacy protection\n   - Encryption strategies\n   - Audit trail maintenance\n\n7. **Integration and Scalability**:\n   - API design and management\n   - Third-party integrations\n   - Scalability planning\n   - Performance monitoring\n   - Error handling systems\n\nProvide comprehensive email service management plan with infrastructure design, automation frameworks, compliance strategies, and integration capabilities for reliable email communication.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "emailContext",
+                "id": "email_context_input",
+                "label": "Email Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Business type, email volumes, audience size, communication goals, integration requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your email service context"
+                }
+              },
+              {
+                "fieldName": "deliveryRequirements",
+                "id": "delivery_requirements_input",
+                "label": "Delivery Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Delivery speeds, reliability needs, geographic reach, volume capacity, uptime requirements",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What delivery requirements exist?"
+                }
+              },
+              {
+                "fieldName": "automationNeeds",
+                "id": "automation_needs_input",
+                "label": "Automation Needs",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Campaign types, trigger events, personalization levels, workflow complexity, integration needs",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What automation needs exist?"
+                }
+              },
+              {
+                "fieldName": "complianceStandards",
+                "id": "compliance_standards_input",
+                "label": "Compliance Standards",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "High Deliverability", "value": "deliverability" },
+                    { "label": "Privacy Compliance", "value": "privacy" },
+                    { "label": "Marketing Automation", "value": "marketing" },
+                    { "label": "Transactional Focus", "value": "transactional" },
+                    { "label": "Security Priority", "value": "security" },
+                    { "label": "Comprehensive Service", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary compliance requirement"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "emailServicePlan",
+                "id": "email_service_plan",
+                "label": "Email Service Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349516",
+          "language": "en-US",
+          "name": "Email Service Manager",
+          "description": "Provides comprehensive email service management with infrastructure design, automation frameworks, and compliance strategies for reliable email communication.",
+          "instructions": "Describe your email context, delivery requirements, and compliance standards. The manager will design a comprehensive email service strategy."
+        }
+      ]
+    }
+  ]
+}

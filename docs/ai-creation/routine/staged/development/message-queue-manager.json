@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349469",
+  "publicId": "msg-qu-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349470",
+      "publicId": "msg-queue-mgr-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of message queue manager for comprehensive message queuing and asynchronous communication strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Messaging-focused",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a message queue management expert providing comprehensive message queuing strategies, asynchronous communication optimization, and distributed system coordination solutions.\n\nMessaging Context: {{input.messagingContext}}\nMessage Patterns: {{input.messagePatterns}}\nReliability Requirements: {{input.reliabilityRequirements}}\nScaling Needs: {{input.scalingNeeds}}\n\nDesign comprehensive message queue management strategy:\n\n1. **Queue Architecture Design**:\n   - Queue topology planning\n   - Exchange and routing configuration\n   - Dead letter queue strategies\n   - Priority queue implementation\n   - Message ordering guarantees\n\n2. **Message Processing Patterns**:\n   - Producer-consumer optimization\n   - Pub/sub pattern implementation\n   - Request-response messaging\n   - Event sourcing integration\n   - Saga pattern coordination\n\n3. **Reliability and Durability**:\n   - Message persistence strategies\n   - Acknowledgment mechanisms\n   - Retry logic implementation\n   - Duplicate detection\n   - Transaction support\n\n4. **Performance Optimization**:\n   - Throughput maximization\n   - Latency minimization\n   - Batch processing optimization\n   - Connection pooling\n   - Memory management\n\n5. **Scaling and Distribution**:\n   - Horizontal scaling strategies\n   - Queue partitioning\n   - Load balancing mechanisms\n   - Cross-region replication\n   - Cluster management\n\n6. **Error Handling and Recovery**:\n   - Poison message handling\n   - Circuit breaker integration\n   - Failure detection mechanisms\n   - Automatic recovery procedures\n   - Error reporting systems\n\n7. **Monitoring and Operations**:\n   - Queue metrics tracking\n   - Performance monitoring\n   - Alert configuration\n   - Capacity planning\n   - Operational dashboards\n\nProvide comprehensive message queue management plan with architecture design, processing optimization, reliability mechanisms, and monitoring frameworks for efficient asynchronous messaging.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "messagingContext",
+                "id": "messaging_context_input",
+                "label": "Messaging Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "System architecture, service integration, message volumes, business requirements, infrastructure constraints",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your message queue context"
+                }
+              },
+              {
+                "fieldName": "messagePatterns",
+                "id": "message_patterns_input",
+                "label": "Message Patterns",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Message types, communication patterns, data flows, event types, processing workflows",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What message patterns exist?"
+                }
+              },
+              {
+                "fieldName": "reliabilityRequirements",
+                "id": "reliability_requirements_input",
+                "label": "Reliability Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Delivery guarantees, durability needs, consistency requirements, recovery expectations, SLA targets",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What reliability requirements exist?"
+                }
+              },
+              {
+                "fieldName": "scalingNeeds",
+                "id": "scaling_needs_input",
+                "label": "Scaling Needs",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "High Throughput", "value": "throughput" },
+                    { "label": "Low Latency", "value": "latency" },
+                    { "label": "High Availability", "value": "availability" },
+                    { "label": "Cost Efficiency", "value": "cost" },
+                    { "label": "Operational Simplicity", "value": "simplicity" },
+                    { "label": "Comprehensive Scaling", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary scaling objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "messageQueueManagementPlan",
+                "id": "message_queue_management_plan",
+                "label": "Message Queue Management Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349471",
+          "language": "en-US",
+          "name": "Message Queue Manager",
+          "description": "Provides comprehensive message queue management with architecture design, processing optimization, and monitoring frameworks for efficient asynchronous messaging.",
+          "instructions": "Describe your messaging context, message patterns, and scaling needs. The manager will design a comprehensive message queue strategy."
+        }
+      ]
+    }
+  ]
+}

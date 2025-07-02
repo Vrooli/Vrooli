@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349535",
+  "publicId": "notif-ma-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349536",
+      "publicId": "notif-mgr-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of notification manager for comprehensive notification delivery and communication orchestration strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Communication-focused",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a notification management expert providing comprehensive notification delivery strategies, multi-channel communication optimization, and user engagement solutions.\n\nNotification Context: {{input.notificationContext}}\nDelivery Channels: {{input.deliveryChannels}}\nUser Preferences: {{input.userPreferences}}\nEngagement Goals: {{input.engagementGoals}}\n\nDesign comprehensive notification management strategy:\n\n1. **Multi-Channel Notification Architecture**:\n   - Push notification systems\n   - Email notification frameworks\n   - SMS/text messaging integration\n   - In-app notification strategies\n   - Web push notifications\n\n2. **Notification Orchestration**:\n   - Event-driven notification triggers\n   - Template management systems\n   - Personalization engines\n   - Scheduling and timing optimization\n   - Batch processing capabilities\n\n3. **User Preference Management**:\n   - Preference center design\n   - Opt-in/opt-out management\n   - Channel preference handling\n   - Frequency control mechanisms\n   - Granular subscription management\n\n4. **Delivery Optimization**:\n   - Channel selection algorithms\n   - Timing optimization strategies\n   - Rate limiting implementation\n   - Retry and fallback mechanisms\n   - Delivery confirmation tracking\n\n5. **Content and Personalization**:\n   - Dynamic content generation\n   - A/B testing frameworks\n   - Localization support\n   - Rich media handling\n   - Interactive notification design\n\n6. **Analytics and Performance**:\n   - Delivery rate tracking\n   - Engagement metrics analysis\n   - Open rate optimization\n   - Click-through monitoring\n   - Performance reporting\n\n7. **Compliance and Security**:\n   - GDPR compliance frameworks\n   - Data privacy protection\n   - Spam prevention measures\n   - Security protocols\n   - Audit trail maintenance\n\nProvide comprehensive notification management plan with multi-channel delivery, personalization strategies, analytics frameworks, and compliance measures for effective user communication.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "notificationContext",
+                "id": "notification_context_input",
+                "label": "Notification Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "User base size, notification types, business objectives, compliance requirements, integration needs",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your notification management context"
+                }
+              },
+              {
+                "fieldName": "deliveryChannels",
+                "id": "delivery_channels_input",
+                "label": "Delivery Channels",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Channel types, platform support, technical constraints, integration capabilities, delivery priorities",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What delivery channels are needed?"
+                }
+              },
+              {
+                "fieldName": "userPreferences",
+                "id": "user_preferences_input",
+                "label": "User Preferences",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Preference management, personalization levels, frequency controls, channel selection, user segmentation",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What user preference features are needed?"
+                }
+              },
+              {
+                "fieldName": "engagementGoals",
+                "id": "engagement_goals_input",
+                "label": "Engagement Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "High Delivery Rate", "value": "delivery" },
+                    { "label": "User Engagement", "value": "engagement" },
+                    { "label": "Personalization Focus", "value": "personalization" },
+                    { "label": "Multi-Channel Reach", "value": "multichannel" },
+                    { "label": "Compliance Priority", "value": "compliance" },
+                    { "label": "Comprehensive Communication", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary engagement objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "notificationManagementPlan",
+                "id": "notification_management_plan",
+                "label": "Notification Management Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349537",
+          "language": "en-US",
+          "name": "Notification Manager",
+          "description": "Provides comprehensive notification management with multi-channel delivery, personalization strategies, and compliance measures for effective user communication.",
+          "instructions": "Describe your notification context, delivery channels, and engagement goals. The manager will design a comprehensive communication strategy."
+        }
+      ]
+    }
+  ]
+}

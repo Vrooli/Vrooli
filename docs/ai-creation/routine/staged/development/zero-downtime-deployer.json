@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349430",
+  "publicId": "zero-do-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349431",
+      "publicId": "zero-down-dep-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of zero downtime deployer for comprehensive continuous deployment and service availability strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "DevOps-oriented",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a zero-downtime deployment expert providing comprehensive continuous deployment strategies, service availability optimization, and rollback management solutions.\n\nDeployment Context: {{input.deploymentContext}}\nInfrastructure Setup: {{input.infrastructureSetup}}\nApplication Characteristics: {{input.applicationCharacteristics}}\nAvailability Requirements: {{input.availabilityRequirements}}\n\nDesign comprehensive zero-downtime deployment strategy:\n\n1. **Deployment Strategy Selection**:\n   - Blue-green deployment implementation\n   - Rolling update strategies\n   - Canary release patterns\n   - A/B testing integration\n   - Feature flag coordination\n\n2. **Infrastructure Orchestration**:\n   - Load balancer configuration\n   - Service mesh integration\n   - Container orchestration\n   - Database migration handling\n   - Traffic routing strategies\n\n3. **Health Monitoring and Validation**:\n   - Health check implementation\n   - Readiness probe configuration\n   - Performance monitoring\n   - Automated testing validation\n   - Quality gate enforcement\n\n4. **Rollback and Recovery**:\n   - Automated rollback triggers\n   - State preservation strategies\n   - Database rollback procedures\n   - Traffic switching mechanisms\n   - Recovery automation\n\n5. **State Management**:\n   - Stateful service handling\n   - Session persistence\n   - Data consistency maintenance\n   - Cache warming strategies\n   - Connection management\n\n6. **Automation and Orchestration**:\n   - CI/CD pipeline integration\n   - Deployment automation\n   - Environment coordination\n   - Dependency management\n   - Approval workflows\n\n7. **Monitoring and Observability**:\n   - Deployment metrics tracking\n   - Real-time monitoring\n   - Alert configuration\n   - Performance analysis\n   - User experience monitoring\n\nProvide comprehensive zero-downtime deployment plan with strategy implementation, infrastructure coordination, health monitoring, and automation frameworks for seamless continuous deployment.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "deploymentContext",
+                "id": "deployment_context_input",
+                "label": "Deployment Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Application type, deployment frequency, team size, release patterns, business criticality",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your deployment context"
+                }
+              },
+              {
+                "fieldName": "infrastructureSetup",
+                "id": "infrastructure_setup_input",
+                "label": "Infrastructure Setup",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Cloud platforms, container orchestration, load balancers, databases, networking architecture",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "Describe your infrastructure setup"
+                }
+              },
+              {
+                "fieldName": "applicationCharacteristics",
+                "id": "application_characteristics_input",
+                "label": "Application Characteristics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Stateful vs stateless, dependencies, startup time, resource requirements, scaling patterns",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What application characteristics exist?"
+                }
+              },
+              {
+                "fieldName": "availabilityRequirements",
+                "id": "availability_requirements_input",
+                "label": "Availability Requirements",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "99.99% Uptime", "value": "four_nines" },
+                    { "label": "99.9% Uptime", "value": "three_nines" },
+                    { "label": "Business Hours Only", "value": "business_hours" },
+                    { "label": "Best Effort", "value": "best_effort" },
+                    { "label": "Mission Critical", "value": "mission_critical" },
+                    { "label": "Standard Availability", "value": "standard" }
+                  ],
+                  "defaultValue": "standard",
+                  "helperText": "Required availability level"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "zeroDowntimeDeploymentPlan",
+                "id": "zero_downtime_deployment_plan",
+                "label": "Zero Downtime Deployment Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349432",
+          "language": "en-US",
+          "name": "Zero Downtime Deployer",
+          "description": "Provides comprehensive zero-downtime deployment with strategy implementation, infrastructure coordination, and automation frameworks for seamless continuous deployment.",
+          "instructions": "Describe your deployment context, infrastructure setup, and availability requirements. The deployer will design a comprehensive zero-downtime strategy."
+        }
+      ]
+    }
+  ]
+}

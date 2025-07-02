@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349511",
+  "publicId": "db-migr-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349512",
+      "publicId": "db-migrate-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of database migration manager for comprehensive schema evolution and data transformation strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Schema-focused",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a database migration expert providing comprehensive schema evolution strategies, data transformation optimization, and migration safety solutions.\n\nMigration Context: {{input.migrationContext}}\nSchema Requirements: {{input.schemaRequirements}}\nData Constraints: {{input.dataConstraints}}\nSafety Priorities: {{input.safetyPriorities}}\n\nDesign comprehensive database migration strategy:\n\n1. **Migration Planning and Strategy**:\n   - Schema change analysis\n   - Migration path planning\n   - Risk assessment frameworks\n   - Rollback strategy design\n   - Dependency mapping\n\n2. **Schema Evolution Management**:\n   - DDL script generation\n   - Index management strategies\n   - Constraint handling\n   - Foreign key migration\n   - View and procedure updates\n\n3. **Data Transformation and Migration**:\n   - Data mapping strategies\n   - ETL pipeline design\n   - Large dataset handling\n   - Data validation frameworks\n   - Incremental migration support\n\n4. **Safety and Validation**:\n   - Pre-migration validation\n   - Post-migration verification\n   - Data integrity checking\n   - Performance impact assessment\n   - Backup and recovery planning\n\n5. **Version Control and Tracking**:\n   - Migration versioning\n   - Change tracking systems\n   - Audit trail maintenance\n   - Team collaboration tools\n   - Documentation generation\n\n6. **Performance Optimization**:\n   - Migration performance tuning\n   - Downtime minimization\n   - Resource utilization optimization\n   - Parallel processing strategies\n   - Index optimization\n\n7. **Automation and CI/CD Integration**:\n   - Automated migration execution\n   - Environment synchronization\n   - Testing framework integration\n   - Deployment pipeline integration\n   - Monitoring and alerting\n\nProvide comprehensive database migration plan with schema evolution strategies, safety frameworks, performance optimization, and automation capabilities for reliable database changes.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "migrationContext",
+                "id": "migration_context_input",
+                "label": "Migration Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Database types, application architecture, team size, deployment frequency, business criticality",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your database migration context"
+                }
+              },
+              {
+                "fieldName": "schemaRequirements",
+                "id": "schema_requirements_input",
+                "label": "Schema Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Schema complexity, change frequency, compatibility needs, versioning requirements, rollback needs",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What schema requirements exist?"
+                }
+              },
+              {
+                "fieldName": "dataConstraints",
+                "id": "data_constraints_input",
+                "label": "Data Constraints",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Data volumes, downtime limits, performance requirements, integrity constraints, compliance needs",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What data constraints exist?"
+                }
+              },
+              {
+                "fieldName": "safetyPriorities",
+                "id": "safety_priorities_input",
+                "label": "Safety Priorities",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Zero Downtime", "value": "zero_downtime" },
+                    { "label": "Data Integrity", "value": "data_integrity" },
+                    { "label": "Rollback Safety", "value": "rollback_safety" },
+                    { "label": "Performance Focus", "value": "performance" },
+                    { "label": "Automation Priority", "value": "automation" },
+                    { "label": "Comprehensive Safety", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary safety requirement"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "migrationManagementPlan",
+                "id": "migration_management_plan",
+                "label": "Migration Management Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349513",
+          "language": "en-US",
+          "name": "Database Migration Manager",
+          "description": "Provides comprehensive database migration with schema evolution strategies, safety frameworks, and automation capabilities for reliable database changes.",
+          "instructions": "Describe your migration context, schema requirements, and safety priorities. The manager will design a comprehensive database evolution strategy."
+        }
+      ]
+    }
+  ]
+}

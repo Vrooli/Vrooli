@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349436",
+  "publicId": "backup-s-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349437",
+      "publicId": "backup-sched-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of backup scheduler for comprehensive data protection and automated backup management strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Reliability-focused",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a backup scheduling expert providing comprehensive data protection strategies, automated backup management, and disaster recovery planning solutions.\n\nBackup Context: {{input.backupContext}}\nData Characteristics: {{input.dataCharacteristics}}\nRecovery Requirements: {{input.recoveryRequirements}}\nCompliance Needs: {{input.complianceNeeds}}\n\nDesign comprehensive backup scheduling strategy:\n\n1. **Backup Strategy Design**:\n   - Full vs incremental vs differential\n   - Backup frequency optimization\n   - Retention policy configuration\n   - 3-2-1 backup rule implementation\n   - Point-in-time recovery setup\n\n2. **Scheduling and Automation**:\n   - Backup window optimization\n   - Priority-based scheduling\n   - Resource usage balancing\n   - Conflict resolution strategies\n   - Automated trigger mechanisms\n\n3. **Storage Management**:\n   - Multi-tier storage strategies\n   - Cloud and on-premise coordination\n   - Storage optimization techniques\n   - Deduplication implementation\n   - Compression strategies\n\n4. **Monitoring and Verification**:\n   - Backup success validation\n   - Integrity checking protocols\n   - Recovery testing automation\n   - Performance monitoring\n   - Alert and notification systems\n\n5. **Recovery Planning**:\n   - RTO and RPO optimization\n   - Recovery procedure automation\n   - Disaster recovery coordination\n   - Failover mechanisms\n   - Business continuity planning\n\n6. **Security and Compliance**:\n   - Encryption implementation\n   - Access control management\n   - Audit logging\n   - Compliance validation\n   - Data sovereignty handling\n\n7. **Performance and Optimization**:\n   - Network bandwidth management\n   - Parallel backup processing\n   - Resource utilization optimization\n   - Cost optimization strategies\n   - Scalability planning\n\nProvide comprehensive backup scheduling plan with strategy implementation, automation frameworks, monitoring systems, and compliance measures for robust data protection.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "backupContext",
+                "id": "backup_context_input",
+                "label": "Backup Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Organization size, infrastructure type, criticality levels, budget constraints, regulatory environment",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your backup scheduling context"
+                }
+              },
+              {
+                "fieldName": "dataCharacteristics",
+                "id": "data_characteristics_input",
+                "label": "Data Characteristics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Data types, volumes, change rates, sensitivity levels, geographic distribution, access patterns",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What data characteristics exist?"
+                }
+              },
+              {
+                "fieldName": "recoveryRequirements",
+                "id": "recovery_requirements_input",
+                "label": "Recovery Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "RTO targets, RPO requirements, recovery scenarios, testing frequency, validation criteria",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What recovery requirements exist?"
+                }
+              },
+              {
+                "fieldName": "complianceNeeds",
+                "id": "compliance_needs_input",
+                "label": "Compliance Needs",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "GDPR Compliance", "value": "gdpr" },
+                    { "label": "HIPAA Requirements", "value": "hipaa" },
+                    { "label": "SOX Compliance", "value": "sox" },
+                    { "label": "Financial Services", "value": "financial" },
+                    { "label": "General Business", "value": "general" },
+                    { "label": "Custom Compliance", "value": "custom" }
+                  ],
+                  "defaultValue": "general",
+                  "helperText": "Primary compliance requirement"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "backupSchedulingPlan",
+                "id": "backup_scheduling_plan",
+                "label": "Backup Scheduling Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349438",
+          "language": "en-US",
+          "name": "Backup Scheduler",
+          "description": "Provides comprehensive backup scheduling with strategy implementation, automation frameworks, and compliance measures for robust data protection.",
+          "instructions": "Describe your backup context, data characteristics, and compliance needs. The scheduler will design a comprehensive backup strategy."
+        }
+      ]
+    }
+  ]
+}

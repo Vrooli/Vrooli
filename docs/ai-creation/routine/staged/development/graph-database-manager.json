@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349451",
+  "publicId": "graph-da-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349452",
+      "publicId": "graph-db-mgr-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of graph database manager for comprehensive graph data management and relationship optimization strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Graph-oriented",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a graph database management expert providing comprehensive graph data strategies, relationship modeling optimization, and traversal performance solutions.\n\nGraph Context: {{input.graphContext}}\nData Relationships: {{input.dataRelationships}}\nQuery Patterns: {{input.queryPatterns}}\nPerformance Goals: {{input.performanceGoals}}\n\nDesign comprehensive graph database management strategy:\n\n1. **Graph Model Design**:\n   - Node and edge schema design\n   - Relationship modeling strategies\n   - Property graph optimization\n   - Semantic modeling approaches\n   - Graph normalization techniques\n\n2. **Query Optimization**:\n   - Traversal algorithm selection\n   - Path finding optimization\n   - Query plan analysis\n   - Index strategy implementation\n   - Cypher/Gremlin optimization\n\n3. **Performance Tuning**:\n   - Memory management strategies\n   - Caching mechanisms\n   - Parallel query processing\n   - Batch operation optimization\n   - Real-time performance tuning\n\n4. **Scaling and Distribution**:\n   - Horizontal scaling strategies\n   - Graph partitioning techniques\n   - Distributed query processing\n   - Replication mechanisms\n   - Load balancing approaches\n\n5. **Data Management**:\n   - Graph data ingestion\n   - ETL pipeline optimization\n   - Data consistency maintenance\n   - Version control strategies\n   - Backup and recovery planning\n\n6. **Analytics and Algorithms**:\n   - Graph algorithm implementation\n   - Centrality analysis\n   - Community detection\n   - Machine learning integration\n   - Real-time analytics\n\n7. **Integration and Ecosystem**:\n   - Multi-database integration\n   - API design and optimization\n   - Visualization tool integration\n   - Microservices coordination\n   - Event-driven architectures\n\nProvide comprehensive graph database management plan with model design, query optimization, performance tuning, and integration strategies for efficient graph data operations.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "graphContext",
+                "id": "graph_context_input",
+                "label": "Graph Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Domain type, use cases, data complexity, infrastructure setup, business requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your graph database context"
+                }
+              },
+              {
+                "fieldName": "dataRelationships",
+                "id": "data_relationships_input",
+                "label": "Data Relationships",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Relationship types, cardinalities, complexity, hierarchies, network structures, connection patterns",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What data relationships exist?"
+                }
+              },
+              {
+                "fieldName": "queryPatterns",
+                "id": "query_patterns_input",
+                "label": "Query Patterns",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Traversal types, path queries, aggregations, pattern matching, algorithm needs, real-time requirements",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What query patterns are needed?"
+                }
+              },
+              {
+                "fieldName": "performanceGoals",
+                "id": "performance_goals_input",
+                "label": "Performance Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Query Performance", "value": "query_performance" },
+                    { "label": "Write Throughput", "value": "write_throughput" },
+                    { "label": "Graph Analytics", "value": "analytics" },
+                    { "label": "Real-time Processing", "value": "realtime" },
+                    { "label": "Storage Efficiency", "value": "storage" },
+                    { "label": "Balanced Performance", "value": "balanced" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Primary performance objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "graphDatabaseManagementPlan",
+                "id": "graph_database_management_plan",
+                "label": "Graph Database Management Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349453",
+          "language": "en-US",
+          "name": "Graph Database Manager",
+          "description": "Provides comprehensive graph database management with model design, query optimization, and integration strategies for efficient graph data operations.",
+          "instructions": "Describe your graph context, data relationships, and performance goals. The manager will design a comprehensive graph database strategy."
+        }
+      ]
+    }
+  ]
+}

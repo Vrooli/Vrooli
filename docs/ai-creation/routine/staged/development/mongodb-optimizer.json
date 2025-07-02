@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349394",
+  "publicId": "mongo-op-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349395",
+      "publicId": "mongo-opt-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of MongoDB optimizer for comprehensive database performance optimization and scaling strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Database-focused",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a MongoDB optimization expert providing comprehensive database performance strategies, scaling optimization, and data management solutions.\n\nMongoDB Context: {{input.mongodbContext}}\nData Characteristics: {{input.dataCharacteristics}}\nQuery Patterns: {{input.queryPatterns}}\nPerformance Objectives: {{input.performanceObjectives}}\n\nDesign comprehensive MongoDB optimization strategy:\n\n1. **Database Architecture Optimization**:\n   - Schema design optimization\n   - Collection structure planning\n   - Document modeling strategies\n   - Denormalization approaches\n   - Reference vs embedding decisions\n\n2. **Indexing Strategy**:\n   - Compound index optimization\n   - Text search indexes\n   - Geospatial indexing\n   - Partial and sparse indexes\n   - Index maintenance strategies\n\n3. **Query Performance Tuning**:\n   - Query optimization techniques\n   - Aggregation pipeline optimization\n   - Cursor optimization\n   - Projection strategies\n   - Query plan analysis\n\n4. **Scaling and Sharding**:\n   - Horizontal scaling strategies\n   - Shard key selection\n   - Chunk distribution optimization\n   - Replica set configuration\n   - Read preference optimization\n\n5. **Memory and Storage Management**:\n   - WiredTiger optimization\n   - Cache configuration\n   - Compression strategies\n   - Storage engine tuning\n   - Disk I/O optimization\n\n6. **Monitoring and Performance Analysis**:\n   - Performance metrics tracking\n   - Slow query analysis\n   - Resource utilization monitoring\n   - Profiling configuration\n   - Alert setup\n\n7. **Maintenance and Operations**:\n   - Backup strategies\n   - Data lifecycle management\n   - Upgrade planning\n   - Capacity planning\n   - Disaster recovery\n\nProvide comprehensive MongoDB optimization plan with architecture design, indexing strategies, query optimization, and scaling frameworks for efficient database operations.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "mongodbContext",
+                "id": "mongodb_context_input",
+                "label": "MongoDB Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Application type, data volumes, cluster setup, infrastructure constraints, business requirements",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your MongoDB context"
+                }
+              },
+              {
+                "fieldName": "dataCharacteristics",
+                "id": "data_characteristics_input",
+                "label": "Data Characteristics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Document types, sizes, structures, growth patterns, relationships, update frequencies",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What data characteristics exist?"
+                }
+              },
+              {
+                "fieldName": "queryPatterns",
+                "id": "query_patterns_input",
+                "label": "Query Patterns",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Query types, frequency patterns, aggregation needs, search requirements, performance expectations",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What query patterns need optimization?"
+                }
+              },
+              {
+                "fieldName": "performanceObjectives",
+                "id": "performance_objectives_input",
+                "label": "Performance Objectives",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Query Performance", "value": "query_performance" },
+                    { "label": "Write Throughput", "value": "write_throughput" },
+                    { "label": "Storage Efficiency", "value": "storage" },
+                    { "label": "High Availability", "value": "availability" },
+                    { "label": "Cost Optimization", "value": "cost" },
+                    { "label": "Balanced Performance", "value": "balanced" }
+                  ],
+                  "defaultValue": "balanced",
+                  "helperText": "Primary performance objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "mongodbOptimizationPlan",
+                "id": "mongodb_optimization_plan",
+                "label": "MongoDB Optimization Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349396",
+          "language": "en-US",
+          "name": "MongoDB Optimizer",
+          "description": "Provides comprehensive MongoDB optimization with architecture design, indexing strategies, and scaling frameworks for efficient database operations.",
+          "instructions": "Describe your MongoDB context, data characteristics, and performance objectives. The optimizer will design a comprehensive optimization strategy."
+        }
+      ]
+    }
+  ]
+}

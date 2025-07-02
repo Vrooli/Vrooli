@@ -1,0 +1,131 @@
+{
+  "id": "7892456378912349541",
+  "publicId": "rep-gen-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7892456378912349542",
+      "publicId": "rep-generator-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version of report generator for comprehensive report creation and business intelligence strategies",
+      "isComplete": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytics-focused",
+            "maxTokens": 900,
+            "temperature": 0.2,
+            "prompt": "You are a report generation expert providing comprehensive business intelligence strategies, data visualization optimization, and automated reporting solutions.\n\nReporting Context: {{input.reportingContext}}\nData Requirements: {{input.dataRequirements}}\nVisualization Needs: {{input.visualizationNeeds}}\nDelivery Preferences: {{input.deliveryPreferences}}\n\nDesign comprehensive report generation strategy:\n\n1. **Report Architecture and Design**:\n   - Report template frameworks\n   - Dynamic content generation\n   - Multi-format output support\n   - Layout optimization strategies\n   - Responsive design implementation\n\n2. **Data Integration and Processing**:\n   - Data source connectivity\n   - ETL pipeline integration\n   - Real-time data processing\n   - Data quality validation\n   - Aggregation and calculation engines\n\n3. **Visualization and Charts**:\n   - Chart type selection algorithms\n   - Interactive visualization design\n   - Dashboard integration\n   - Custom chart development\n   - Accessibility optimization\n\n4. **Automation and Scheduling**:\n   - Automated report generation\n   - Schedule-based delivery\n   - Trigger-based reporting\n   - Batch processing capabilities\n   - Distribution automation\n\n5. **Customization and Personalization**:\n   - User-specific report views\n   - Parameter-driven customization\n   - Role-based access control\n   - Branding and styling options\n   - Interactive filtering\n\n6. **Performance and Scalability**:\n   - Large dataset handling\n   - Report caching strategies\n   - Parallel processing optimization\n   - Resource usage optimization\n   - Load balancing implementation\n\n7. **Export and Integration**:\n   - Multiple export formats\n   - API integration capabilities\n   - Email delivery systems\n   - Cloud storage integration\n   - Third-party tool connectivity\n\nProvide comprehensive report generation plan with architecture design, data integration, visualization strategies, and automation frameworks for efficient business intelligence reporting.",
+            "retryPolicy": {
+              "maxAttempts": 2,
+              "backoffMultiplier": 1.5,
+              "initialDelay": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "reportingContext",
+                "id": "reporting_context_input",
+                "label": "Reporting Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Business domain, report types, user base, frequency requirements, compliance needs",
+                  "multiline": true,
+                  "minRows": 4,
+                  "helperText": "Describe your report generation context"
+                }
+              },
+              {
+                "fieldName": "dataRequirements",
+                "id": "data_requirements_input",
+                "label": "Data Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Data sources, volume complexity, refresh rates, quality standards, integration needs",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What data requirements exist?"
+                }
+              },
+              {
+                "fieldName": "visualizationNeeds",
+                "id": "visualization_needs_input",
+                "label": "Visualization Needs",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Chart types, interactive features, dashboard requirements, branding needs, accessibility standards",
+                  "multiline": true,
+                  "minRows": 3,
+                  "helperText": "What visualization needs exist?"
+                }
+              },
+              {
+                "fieldName": "deliveryPreferences",
+                "id": "delivery_preferences_input",
+                "label": "Delivery Preferences",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": [
+                    { "label": "Real-time Reporting", "value": "realtime" },
+                    { "label": "Automated Delivery", "value": "automated" },
+                    { "label": "Interactive Dashboards", "value": "interactive" },
+                    { "label": "Custom Formats", "value": "custom_formats" },
+                    { "label": "Performance Focus", "value": "performance" },
+                    { "label": "Comprehensive Reporting", "value": "comprehensive" }
+                  ],
+                  "defaultValue": "comprehensive",
+                  "helperText": "Primary delivery objective"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "reportGenerationPlan",
+                "id": "report_generation_plan",
+                "label": "Report Generation Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "multiline": true,
+                  "minRows": 15
+                }
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7892456378912349543",
+          "language": "en-US",
+          "name": "Report Generator",
+          "description": "Provides comprehensive report generation with architecture design, data integration, and automation frameworks for efficient business intelligence reporting.",
+          "instructions": "Describe your reporting context, data requirements, and delivery preferences. The generator will design a comprehensive business intelligence strategy."
+        }
+      ]
+    }
+  ]
+}
