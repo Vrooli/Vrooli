@@ -1,17 +1,18 @@
 {
   "name": "@vrooli/integration",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "description": "Integration tests for Vrooli - round-trip and scenario testing",
   "type": "module",
   "scripts": {
+    "pretest": "cd ../shared && pnpm run build:test && cd ../server && pnpm run build",
     "test": "vitest run",
     "test:scenarios": "vitest run src/scenarios",
     "test:form": "vitest run src/form",
     "test-watch": "vitest",
     "test-coverage": "vitest run --coverage",
     "type-check": "tsc --noEmit",
-    "lint": "eslint . --ext .ts,.tsx --fix",
+    "lint": "eslint . --ext .ts,.tsx --cache --cache-location .eslintcache --fix",
     "clean": "rimraf dist coverage .turbo"
   },
   "dependencies": {
