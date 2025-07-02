@@ -1,4 +1,6 @@
 
+// AI_CHECK: TYPE_SAFETY=improved-heic-converter-types | LAST: 2025-06-28
+
 const supportedMIMETypes = ["image/png", "image/jpeg", "image/gif"];
 
 const utils = {
@@ -9,7 +11,12 @@ const utils = {
                 reject("ERR_DOM Error on converting blob to data URL");
             };
             reader.onload = (e) => {
-                resolve((reader as any).result);
+                const result = reader.result;
+                if (typeof result === "string") {
+                    resolve(result);
+                } else {
+                    reject("ERR_DOM Expected string result from FileReader");
+                }
             };
             reader.readAsDataURL(blob);
         });
@@ -26,11 +33,9 @@ const utils = {
             }
             const blob = new Blob([ab], { type: mimeString });
             return blob;
-        } catch (e: any) {
-            return "ERR_DOM Error on converting data URI to blob " + e &&
-                e.toString
-                ? e.toString()
-                : e;
+        } catch (e: unknown) {
+            const errorMessage = e instanceof Error ? e.message : String(e);
+            return "ERR_DOM Error on converting data URI to blob " + errorMessage;
         }
     },
 
@@ -134,8 +139,8 @@ const utils = {
         if (!message) {
             message = "ERR_UNKNOWN";
         } else if (typeof message !== "string") {
-            if ((message as any).toString) {
-                message = (message as any).toString();
+            if (typeof message === "object" && message !== null && "toString" in message && typeof message.toString === "function") {
+                message = message.toString();
             } else {
                 message = JSON.stringify(message);
             }
@@ -163,20 +168,22 @@ const utils = {
 
 async function decodeBuffer(buffer: ArrayBuffer): Promise<ImageData[]> {
     // Load libheif dynamically
-    if (!(window as any).__heic2any__worker) {
+    const globalWindow = window as Window & { __heic2any__worker?: Worker }; // Global worker cache with proper typing
+    if (!globalWindow.__heic2any__worker) {
         console.info("Loading libheif.js");
-        (window as any).__heic2any__worker = new Worker("/pkg/libheif/worker.js");
-        if (!(window as any).__heic2any__worker) {
+        globalWindow.__heic2any__worker = new Worker("/pkg/libheif/worker.js");
+        if (!globalWindow.__heic2any__worker) {
             throw new Error("Failed to load libheif.js");
         }
     }
 
-    console.log("libheif.js loaded", (window as any).__heic2any__worker);
+    console.log("libheif.js loaded", globalWindow.__heic2any__worker);
     return new Promise((resolve, reject) => {
         const id = (Math.random() * new Date().getTime()).toString();
         const message = { id, buffer };
-        ((window as any).__heic2any__worker as Worker).postMessage(message);
-        ((window as any).__heic2any__worker as Worker).addEventListener(
+        const worker = globalWindow.__heic2any__worker as Worker;
+        worker.postMessage(message);
+        worker.addEventListener(
             "message",
             (message) => {
                 if (message.data.id === id) {
@@ -228,7 +235,8 @@ function heic2any({
             }
             const reader = new FileReader();
             reader.onload = (e) => {
-                const buffer = (e as any).target.result;
+                const target = e.target as FileReader;
+                const buffer = target.result as ArrayBuffer;
                 const otherImageType = utils.otherImageType(buffer);
                 if (otherImageType) {
                     return reject(

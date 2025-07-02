@@ -17,4 +17,7 @@
     "vars": {
         "ORIGIN_HOST": "do-origin.vrooli.com"
     }
+    // Note: CPU limits removed - only available on paid plans
+    // Free plan defaults: 10ms CPU time, 50 subrequests
+    // Consider upgrading if you need higher limits
 }

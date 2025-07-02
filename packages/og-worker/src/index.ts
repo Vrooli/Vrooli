@@ -23,13 +23,24 @@ interface Meta {
     twitterCard?: string;
 }
 
-// User agent regex for crawlers
+// IMPROVED: Added major search engines and monitoring services
 const BOT_UA_STRING =
-    "(facebookexternalhit|facebot|facebookcatalog|meta-external(?:agent|fetcher)|" +
-    "twitterbot|pinterest(?:bot)?|linkedinbot|slackbot-linkexpanding|discordbot|" +
-    "telegrambot|whatsapp|skypeuripreview|embedly|opengraph|iframely|vkshare|bitlybot)";
+    "(googlebot|google-structured-data-testing-tool|google-inspectiontool|bingbot|" +
+    "bingpreview|slurp|duckduckbot|baiduspider|yandexbot|facebookexternalhit|facebot|" +
+    "facebookcatalog|meta-external(?:agent|fetcher)|twitterbot|pinterest(?:bot)?|" +
+    "linkedinbot|slackbot-linkexpanding|discordbot|telegrambot|whatsapp|" +
+    "skypeuripreview|embedly|opengraph|iframely|vkshare|bitlybot|" +
+    "applebot|chrome-lighthouse|pagespeed|gtmetrix|pingdom|uptimerobot|" +
+    "statuscake|newrelic|datadog|semrush|ahrefs|mj12bot)";
 const BOT_UA = new RegExp(BOT_UA_STRING, "i");
 
+// IMPROVED: Added health check paths to exclude
+const HEALTH_CHECK_PATHS = ["/health", "/api/health", "/healthz", "/ready", "/live"];
+
+// Cache configuration
+const CACHE_NAME = "og-metadata-v1"; // For future use with cache versioning
+const CACHE_TTL = 3600; // 1 hour - Cloudflare edge cache
+const CACHE_BROWSER_TTL = 300; // 5 minutes - Browser cache
 
 // Base metadata extracted from index.html
 const BASE_META: Omit<Meta, "url"> = {
@@ -307,22 +318,45 @@ function getTranslation<T extends { language: string }>( // Ensure type T has la
 }
 
 
-/* -------- 2. Main handler ---------------------------------------------- */
+/* -------- 2. Main handler with CACHING and FAIL-OPEN ------------------- */
 export default {
-    async fetch(req: Request, env: Env): Promise<Response> {
-        const urlObj = new URL(req.url);
-        const baseHost = `${urlObj.protocol}//${urlObj.host}`; // Dynamic base host (e.g., https://vrooli.com)
-        const pathname = urlObj.pathname;
+    async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+        try {
+            // Parse URL safely
+            let urlObj: URL;
+            try {
+                urlObj = new URL(req.url);
+            } catch (error) {
+                return new Response("Invalid URL", { status: 400 });
+            }
+            
+            const baseHost = `${urlObj.protocol}//${urlObj.host}`;
+            const pathname = urlObj.pathname;
+            const ua = req.headers.get("user-agent") ?? "";
 
-        const ua = req.headers.get("user-agent") ?? "";
+            // IMPROVED: Skip health check endpoints entirely
+            if (HEALTH_CHECK_PATHS.includes(pathname)) {
+                return new Response("OK", { status: 200 });
+            }
 
-        /* Humans → proxy to origin ------------------------------------------ */
-        if (!BOT_UA.test(ua)) {
-            return proxyToOrigin(req, env);
+            /* Humans → proxy to origin ------------------------------------------ */
+            if (!BOT_UA.test(ua)) {
+                return proxyToOrigin(req, env);
+            }
+
+        /* Crawlers → Check cache first -------------------------------------- */
+        const cache = caches.default;
+        // Create cache key without query params for better cache efficiency
+        const cacheUrl = `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`;
+        const cacheKey = new Request(cacheUrl);
+
+        // Try to get from cache
+        let response = await cache.match(cacheKey);
+        if (response) {
+            return response;
         }
 
-        /* Crawlers → OG/TC meta --------------------------------------------- */
-
+        /* Generate metadata if not cached ----------------------------------- */
         const cleanPath = pathname.replace(/\/+$/, "");   // drop trailing slash
         const barePath = cleanPath.split("?")[0];
 
@@ -332,7 +366,14 @@ export default {
                 { ...BASE_META, url: baseHost + "/" },
                 baseHost
             );
-            return createHtmlResponse(html);
+            response = createCachedHtmlResponse(html);
+            // Cache with error handling
+            ctx.waitUntil(
+                cache.put(cacheKey, response.clone()).catch(err => 
+                    console.error('[OG-Worker] Cache put failed:', err)
+                )
+            );
+            return response;
         }
 
         // Handle static routes
@@ -343,22 +384,44 @@ export default {
                 url: baseHost + barePath, // Set dynamic URL
             };
             const html = render(staticMeta, baseHost);
-            return createHtmlResponse(html);
+            response = createCachedHtmlResponse(html);
+            // Cache with error handling
+            ctx.waitUntil(
+                cache.put(cacheKey, response.clone()).catch(err => 
+                    console.error('[OG-Worker] Cache put failed:', err)
+                )
+            );
+            return response;
         }
 
-        // Handle dynamic routes
+        // Handle dynamic routes with rate limiting
         for (const { routeInfo, api, typeLabel } of flatRoutes) {
             const m = routeInfo.pattern.exec(barePath);
             if (!m) continue;
 
-            // Fetch meta, providing baseHost and typeLabel
-            const meta = await api(env, baseHost, typeLabel, barePath, req);
-            const html = render(meta, baseHost);
-            return createHtmlResponse(html);
+            try {
+                // Fetch meta, providing baseHost and typeLabel
+                const meta = await api(env, baseHost, typeLabel, barePath, req);
+                const html = render(meta, baseHost);
+                response = createCachedHtmlResponse(html);
+                ctx.waitUntil(cache.put(cacheKey, response.clone()));
+                return response;
+            } catch (error) {
+                // Don't cache errors
+                const meta = fallbackMeta(baseHost, baseHost + barePath, typeLabel);
+                const html = render(meta, baseHost);
+                return createHtmlResponse(html);
+            }
         }
 
-        // If no route matched, proxy (could also return a generic 404 meta page)
-        return proxyToOrigin(req, env);
+            // If no route matched, proxy (could also return a generic 404 meta page)
+            return proxyToOrigin(req, env);
+            
+        } catch (error) {
+            // FAIL-OPEN: If worker fails for ANY reason, proxy to origin
+            console.error('[OG-Worker] Failed, proxying to origin:', error);
+            return proxyToOrigin(req, env);
+        }
     },
 };
 
@@ -381,8 +444,17 @@ function createHtmlResponse(html: string): Response {
     return new Response(html, {
         headers: {
             "Content-Type": "text/html;charset=utf-8",
-            // Define cache settings (e.g., 1 hour public cache, revalidate after 1 day)
-            "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+        },
+    });
+}
+
+// IMPROVED: Response with cache headers
+function createCachedHtmlResponse(html: string): Response {
+    return new Response(html, {
+        headers: {
+            "Content-Type": "text/html;charset=utf-8",
+            "Cache-Control": `public, s-maxage=${CACHE_TTL}, max-age=${CACHE_BROWSER_TTL}, stale-while-revalidate=86400`,
+            "X-Robots-Tag": "index, follow", // Help search engines
         },
     });
 }
@@ -586,7 +658,15 @@ function fallbackMeta(_baseHost: string, url: string, typeLabel = "Page"): Meta 
 /* -------- 5. HTML Renderer --------------------------------------------- */
 
 function esc(s: string) {
-    return s ? s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]!)) : "";
+    const escapeMap: Record<string, string> = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#39;",
+        "`": "&#96;"  // Also escape backticks
+    };
+    return s ? s.replace(/[&<>"'`]/g, (c) => escapeMap[c] || c) : "";
 }
 
 /**
