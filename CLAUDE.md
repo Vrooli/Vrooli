@@ -51,6 +51,17 @@ Key Files:
 # Start development environment
 ./scripts/main/develop.sh --target docker --detached yes
 
+# Build specific artifacts
+./scripts/main/build.sh --environment development --test no --lint no --bundles zip --artifacts docker
+./scripts/main/build.sh --environment development --test no --lint no --bundles zip --artifacts k8s --version 2.0.0
+
+# Deploy to Kubernetes
+# IMPORTANT: Deployment uses the currently active kubectl context
+# For production: Use KUBECONFIG=/root/Vrooli/k8s/kubeconfig-vrooli-prod.yaml 
+# For development: The develop.sh script sets up minikube automatically
+./scripts/main/deploy.sh --source k8s --environment dev --version 2.0.0    # Development deployment
+./scripts/main/deploy.sh --source k8s --environment prod --version 2.0.0   # Production deployment
+
 # Run tests
 # ⚠️ IMPORTANT: Tests can take 3-5+ minutes. Always use extended timeouts for test commands
 pnpm test                                            # Run all tests (shell, unit, run) - needs 5+ min timeout
@@ -83,6 +94,10 @@ cd packages/jobs && pnpm run lint --fix              # Jobs linting with auto-fi
 cd packages/server && pnpm prisma generate           # After schema changes
 cd packages/server && pnpm prisma studio             # Visual database editor
 cd packages/server && pnpm prisma migrate deploy     # Deploy migrations
+
+# Kubernetes development commands (for local development only)
+./scripts/main/develop.sh --target k8s-cluster       # Start local k8s dev environment - auto-installs kubectl, Helm, Minikube
+./scripts/main/setup.sh --target k8s-cluster         # Setup local k8s cluster only - auto-installs kubectl, Helm, Minikube
 
 # Alternative development commands
 pnpm run develop                                     # Alternative to develop script
@@ -140,20 +155,43 @@ These commands can be invoked by using the keywords listed for each:
 3. [ ] Check git status for uncommitted changes
 4. [ ] Review `/docs/scratch/` for previous session notes
 
+## 🚢 Kubernetes Deployment Notes
+
+### Local Development
+**Auto-Installation**: The project automatically installs kubectl, Helm, and Minikube when targeting k8s-cluster
+- `kubectl` - Latest stable version from Google's Kubernetes release API
+- `Helm` - Package manager for Kubernetes
+- `Minikube` - Local Kubernetes cluster for development
+
+### Production Deployment
+**Prerequisites**: Production cluster setup in DigitalOcean with required operators already installed
+- Uses existing kubeconfig at `/root/Vrooli/k8s/kubeconfig-vrooli-prod.yaml`
+- **IMPORTANT**: Deploy script uses whatever kubectl context is currently active
+- Set `KUBECONFIG=/root/Vrooli/k8s/kubeconfig-vrooli-prod.yaml` for production deployments
+
+**Required Operators** (auto-installed in dev, manual setup for prod):
+- CrunchyData PostgreSQL Operator (PGO) v5.8.2
+- Spotahome Redis Operator v1.2.4  
+- Vault Secrets Operator (VSO)
+
+**Deployment Readiness**: Use `./scripts/helpers/deploy/k8s-prerequisites.sh --check-only` to verify cluster setup
+
 ## 🔧 Quick Error Reference
 | Error | Solution |
 |-------|----------|
 | `Missing script: type-check` | No root-level type-check - use package-specific commands |
 | `cd: packages/ui: No such file or directory` | Ensure you're in project root `/root/Vrooli` first |
 | `Command timed out after 2m 0.0s` | Increase timeout for long-running commands |
+| `kubectl: command not found` | Run `./scripts/main/setup.sh --target k8s-cluster` to auto-install |
 
 ## ⏱️ Timeout Guidelines for Long-Running Commands
 **Remember to set appropriate timeouts when running:**
 - Test suites: Can take 15+ minutes in worst case scenarios (better to be safe than sorry)
 - Type checking full packages: Can take 15+ minutes
-- Building/compiling: Can take 10+ minutes
+- Building/compiling: Can take 10+ minutes (UI build alone takes 5-10 minutes due to 4444+ modules)
 - Database migrations: Can take 3+ minutes
 - Docker builds: Can take 20+ minutes
+- UI build performance issue: vite build processes 4400+ modules, causing 5-10 minute build times
 
 The default timeout is 2 minutes, which is often insufficient for these operations.
 
