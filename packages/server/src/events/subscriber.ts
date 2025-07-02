@@ -1,5 +1,5 @@
-import { type SessionUser, type SubscribableObject } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { type SessionUser, type SubscribableObject } from "@vrooli/shared";
 import { permissionsSelectHelper } from "../builders/permissionsSelectHelper.js";
 import { type PrismaDelegate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
@@ -7,18 +7,13 @@ import { ModelMap } from "../models/base/index.js";
 import { CustomError } from "./error.js";
 
 export const subscribableMapper: { [key in SubscribableObject]: keyof Prisma.notification_subscriptionUpsertArgs["create"] } = {
-    Api: "api",
-    Code: "code",
     Comment: "comment",
     Issue: "issue",
     Meeting: "meeting",
-    Note: "note",
-    Project: "project",
     PullRequest: "pullRequest",
     Report: "report",
-    Routine: "routine",
+    Resource: "resource",
     Schedule: "schedule",
-    Standard: "standard",
     Team: "team",
 };
 

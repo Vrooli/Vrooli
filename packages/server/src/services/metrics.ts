@@ -198,7 +198,7 @@ export class MetricsService {
         const socketService = SocketService.get();
         const socketDetails = socketService.getHealthDetails();
         const websockets = {
-            connections: socketDetails?.activeConnections || 0,
+            connections: socketDetails?.connectedClients || 0,
             rooms: socketDetails?.activeRooms || 0,
         };
 
@@ -238,7 +238,7 @@ export class MetricsService {
         for (const [serviceId, state] of services.entries()) {
             llmServices[serviceId] = {
                 state: state.state,
-                cooldownUntil: state.cooldownUntil,
+                cooldownUntil: state.cooldownUntil ? state.cooldownUntil.getTime() : undefined,
             };
         }
 

@@ -14,6 +14,17 @@ export enum SecurityLevel {
 }
 
 /**
+ * Data sensitivity levels for context validation and protection
+ */
+export enum DataSensitivity {
+    PUBLIC = "public",
+    INTERNAL = "internal", 
+    CONFIDENTIAL = "confidential",
+    SECRET = "secret",
+    PII = "pii"
+}
+
+/**
  * Guard rail types
  */
 export enum GuardRailType {

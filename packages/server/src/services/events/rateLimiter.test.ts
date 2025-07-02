@@ -12,7 +12,7 @@ import { type Logger } from "winston";
 import { getEventBus } from "./eventBus.js";
 import { DEFAULT_EVENT_COSTS, DEFAULT_RATE_LIMITS, EventBusRateLimiter } from "./rateLimiter.js";
 import {
-    type BaseEvent,
+    type BaseServiceEvent,
     type CoordinationEvent,
     type ExecutionEvent,
 } from "./types.js";
@@ -104,7 +104,7 @@ describe("EventBusRateLimiter", () => {
         });
 
         it("should always allow safety events", async () => {
-            const safetyEvent: BaseEvent = {
+            const safetyEvent: BaseServiceEvent = {
                 id: nanoid(),
                 type: "safety/pre_action",
                 timestamp: new Date(),
@@ -130,7 +130,7 @@ describe("EventBusRateLimiter", () => {
 
     describe("Rate Limiting Logic", () => {
         it("should rate limit when token bucket is empty", async () => {
-            const event: BaseEvent = {
+            const event: BaseServiceEvent = {
                 id: nanoid(),
                 type: "tool/called",
                 timestamp: new Date(),
@@ -149,7 +149,7 @@ describe("EventBusRateLimiter", () => {
         });
 
         it("should allow events when tokens are available", async () => {
-            const event: BaseEvent = {
+            const event: BaseServiceEvent = {
                 id: nanoid(),
                 type: "step/completed",
                 timestamp: new Date(),
@@ -167,7 +167,7 @@ describe("EventBusRateLimiter", () => {
         });
 
         it("should handle Redis failures gracefully", async () => {
-            const event: BaseEvent = {
+            const event: BaseServiceEvent = {
                 id: nanoid(),
                 type: "routine/started",
                 timestamp: new Date(),
@@ -192,7 +192,7 @@ describe("EventBusRateLimiter", () => {
         });
 
         it("should publish events when rate limits allow", async () => {
-            const event: BaseEvent = {
+            const event: BaseServiceEvent = {
                 id: nanoid(),
                 type: "state/changed",
                 timestamp: new Date(),
@@ -210,7 +210,7 @@ describe("EventBusRateLimiter", () => {
         });
 
         it("should reject events when rate limits are exceeded", async () => {
-            const event: BaseEvent = {
+            const event: BaseServiceEvent = {
                 id: nanoid(),
                 type: "tool/called",
                 timestamp: new Date(),
@@ -238,7 +238,7 @@ describe("EventBusRateLimiter", () => {
             // Subscribe to rate limited events
             await getEventBus().subscribe("resource/rate_limited", subscriptionHandler);
 
-            const event: BaseEvent = {
+            const event: BaseServiceEvent = {
                 id: nanoid(),
                 type: "tool/called",
                 timestamp: new Date(),
@@ -291,7 +291,7 @@ describe("EventBusRateLimiter", () => {
 
     describe("User and Conversation Context", () => {
         it("should extract user ID from event metadata", async () => {
-            const event: BaseEvent = {
+            const event: BaseServiceEvent = {
                 id: nanoid(),
                 type: "swarm/goal/created",
                 timestamp: new Date(),
@@ -322,7 +322,7 @@ describe("EventBusRateLimiter", () => {
         });
 
         it("should extract conversation ID from event data", async () => {
-            const event: BaseEvent = {
+            const event: BaseServiceEvent = {
                 id: nanoid(),
                 type: "routine/started",
                 timestamp: new Date(),

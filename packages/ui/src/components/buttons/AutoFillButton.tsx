@@ -1,5 +1,5 @@
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
+import { IconButton } from "./IconButton.js";
+import { Tooltip } from "../Tooltip/Tooltip.js";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../contexts/session.js";
@@ -26,6 +26,8 @@ export function AutoFillButton({
     return (
         <Tooltip title={t("AutoFill")} placement="top">
             <IconButton
+                variant="transparent"
+                size="md"
                 disabled={isAutoFillLoading}
                 onClick={handleClick}
             >

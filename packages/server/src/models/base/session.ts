@@ -33,7 +33,7 @@ export const SessionModel: SessionModelLogic = ({
             own: function getOwn(data) {
                 return {
                     OR: [
-                        { user: { id: data.userId } },
+                        { user: { id: BigInt(data.userId) } },
                     ],
                 };
             },

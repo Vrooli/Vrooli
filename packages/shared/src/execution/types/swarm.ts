@@ -1,28 +1,15 @@
+// AI_CHECK: TYPE_SAFETY=2 | LAST: 2025-06-26
 /**
  * Core type definitions for Tier 1: Coordination Intelligence
  * These types define the swarm coordination and metacognitive capabilities
  */
 
+import type { SessionUser } from "../../api/types.js";
 import type { ChatConfigObject } from "../../shape/configs/chat.js";
-import type { SwarmEventType } from "./events.js";
+import type { ExecutionStates } from "./core.js";
 
-/**
- * Execution states used by all state machines
- * These are the actual operational states - complex behaviors like
- * team formation, planning, etc. emerge from AI decisions within RUNNING state
- */
-export const ExecutionStates = {
-    UNINITIALIZED: "UNINITIALIZED",
-    STARTING: "STARTING",
-    RUNNING: "RUNNING",
-    IDLE: "IDLE",
-    PAUSED: "PAUSED",
-    STOPPED: "STOPPED",
-    FAILED: "FAILED",
-    TERMINATED: "TERMINATED",
-} as const;
-
-export type ExecutionState = typeof ExecutionStates[keyof typeof ExecutionStates];
+// ExecutionStates moved to core.ts to avoid duplication
+// Import from core.ts when needed
 
 // SwarmEventType moved to events.ts to avoid duplication
 // Import from events.ts when needed
@@ -32,13 +19,13 @@ export type ExecutionState = typeof ExecutionStates[keyof typeof ExecutionStates
  * Complex event data is passed through flexible payloads
  */
 export interface SwarmEvent {
-    type: string;  // Any string, not limited to SwarmEventType
+    type: string;  // Any string, not limited to SwarmEventTypeValues
     timestamp?: Date;
     metadata?: Record<string, unknown>;
     conversationId?: string;
-    sessionUser?: any;  // SessionUser type
+    sessionUser?: SessionUser;
     goal?: string;
-    payload?: any;
+    payload?: Record<string, unknown>;
 }
 
 /**
@@ -50,13 +37,13 @@ export interface AgentRole {
     description: string;
     capabilities: string[];
     responsibilities: string[];
-    norms: AgentNorm[];
+    norms: SwarmAgentNorm[];
 }
 
 /**
  * Agent norm definition (MOISE+ compatible)
  */
-export interface AgentNorm {
+export interface SwarmAgentNorm {
     type: "obligation" | "permission" | "prohibition";
     target: string; // Action or resource
     condition?: string;
@@ -121,7 +108,7 @@ export interface SwarmConfiguration {
     id: string;
     chatConfig: ChatConfigObject;
     teams: SwarmTeam[];
-    state: ExecutionState;
+    state: ExecutionStates;
     metadata: SwarmMetadata;
 }
 
@@ -306,18 +293,18 @@ export interface Swarm {
     id: string;
     name: string;
     description: string;
-    state: ExecutionState;
+    state: ExecutionStates;
     config: SwarmConfig;
     team?: TeamFormation;
     metadata: Record<string, unknown>;
     createdAt: Date;
     updatedAt?: Date;
     completedAt?: Date;
-    
+
     // Parent-child relationship fields
     parentSwarmId?: string;
     childSwarmIds: string[];
-    
+
     // Resource management for hierarchical swarms
     resources: {
         allocated: SwarmResourceAllocation;
@@ -326,7 +313,7 @@ export interface Swarm {
         reservedByChildren: SwarmResourceAllocation;
         childReservations: ChildSwarmReservation[];
     };
-    
+
     // Swarm performance metrics
     metrics: {
         tasksCompleted: number;
@@ -334,7 +321,7 @@ export interface Swarm {
         avgTaskDuration: number;
         resourceEfficiency: number;
     };
-    
+
     // Error tracking
     errors?: string[];
 }

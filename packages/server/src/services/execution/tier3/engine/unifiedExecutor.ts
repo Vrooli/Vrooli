@@ -7,8 +7,6 @@ import {
     type ExecutionStrategy,
     type StepExecutionInput,
     type StrategyExecutionResult,
-    type StrategyType,
-    StrategyType as StrategyTypeEnum,
     type SwarmId,
     type TierCapabilities,
     type TierCommunicationInterface,
@@ -17,8 +15,6 @@ import {
 import { logger } from "../../../../events/logger.js";
 import { getEventBus } from "../../../events/eventBus.js";
 import { EventTypes, EventUtils } from "../../../events/index.js";
-import { ContextExporter } from "../context/contextExporter.js";
-import { type RunContext } from "../context/runContext.js";
 import { type IOProcessor } from "./ioProcessor.js";
 import { type ResourceManager } from "./resourceManager.js";
 import { type SimpleStrategyProvider } from "./simpleStrategyProvider.js";
@@ -94,7 +90,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 {
                     stepId,
                     stepType: stepContext.stepType,
-                    strategy: stepContext.config?.strategy || StrategyTypeEnum.CONVERSATIONAL,
+                    strategy: stepContext.config?.strategy || "conversational",
                     estimatedResources: stepContext.resources,
                     runId: runContext.runId,
                     routineId: runContext.routineId,
@@ -133,7 +129,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                     EventTypes.STRATEGY_PERFORMANCE_MEASURED,
                     {
                         stepId,
-                        declared: stepContext.config?.strategy || StrategyTypeEnum.CONVERSATIONAL,
+                        declared: stepContext.config?.strategy || "conversational",
                         selected: strategy.type,
                         reason: "Based on context and usage hints",
                         strategyType: strategy.type,
@@ -348,7 +344,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
 
             return this.createErrorResult(
                 error instanceof Error ? error.message : "Unknown execution error",
-                StrategyTypeEnum.CONVERSATIONAL, // Default fallback
+                "conversational", // Default fallback
                 startTime,
             );
         }
@@ -431,7 +427,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
      */
     private createErrorResult(
         error: string,
-        strategyType: StrategyType,
+        strategyType: ExecutionStrategy,
         startTime: number,
     ): StrategyExecutionResult {
         return {

@@ -1,6 +1,6 @@
 import { ChatParticipantSortBy, chatParticipantValidation, MaxObjects } from "@vrooli/shared";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { defaultPermissions } from "../../validators/permissions.js";
 import { ChatParticipantFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
 import { type ChatModelInfo, type ChatModelLogic, type ChatParticipantModelLogic, type UserModelInfo, type UserModelLogic } from "./types.js";

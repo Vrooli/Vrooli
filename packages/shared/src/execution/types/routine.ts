@@ -103,13 +103,52 @@ export interface Navigator {
     // Core navigation methods
     canNavigate(routine: unknown): boolean;
     getStartLocation(routine: unknown): Location;
+    getAllStartLocations(routine: unknown): Location[]; // Support for multiple start locations
     getNextLocations(current: Location, context: Record<string, unknown>): Location[];
     isEndLocation(location: Location): boolean;
+    
+    // Event-driven navigation
+    getLocationTriggers(location: Location): NavigationTrigger[];
+    getLocationTimeouts(location: Location): NavigationTimeout[];
+    canTriggerEvent(location: Location, event: NavigationEvent): boolean;
     
     // Metadata extraction
     getStepInfo(location: Location): StepInfo;
     getDependencies(location: Location): string[];
     getParallelBranches(location: Location): Location[][];
+}
+
+/**
+ * Navigation trigger for event-driven execution
+ */
+export interface NavigationTrigger {
+    id: string;
+    type: "message" | "timer" | "signal" | "condition" | "webhook" | "custom";
+    name?: string;
+    config: Record<string, unknown>;
+    targetLocation?: Location;
+}
+
+/**
+ * Navigation timeout for time-based execution control
+ */
+export interface NavigationTimeout {
+    id: string;
+    duration: number; // milliseconds
+    onTimeout: "continue" | "fail" | "retry" | "custom";
+    targetLocation?: Location;
+    config?: Record<string, unknown>;
+}
+
+/**
+ * Navigation event for triggering flow transitions
+ */
+export interface NavigationEvent {
+    id: string;
+    type: "message" | "timer" | "signal" | "condition" | "webhook" | "custom";
+    payload?: Record<string, unknown>;
+    timestamp: Date;
+    source?: string;
 }
 
 /**

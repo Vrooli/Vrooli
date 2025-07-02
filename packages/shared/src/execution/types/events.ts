@@ -7,7 +7,6 @@
  * simple event types with flexible payloads instead of prescriptive enums.
  */
 
-import type { ResourceUsage } from "./core.js";
 
 /**
  * Base event interface matching actual implementation
@@ -18,7 +17,7 @@ export interface ExecutionEvent {
     type: string;
     timestamp: Date;
     source?: {  // Optional in implementation
-        tier: string;  // Actually uses strings like "tier1.swarm", "cross-cutting"
+        tier: string;  // Actually uses strings like "tier1.swarm"
         component: string;
         instanceId: string;
     };
@@ -32,7 +31,7 @@ export interface ExecutionEvent {
  * Event channel patterns actually used in the implementation
  * These follow hierarchical dot notation or slash notation
  */
-export type EventChannel = 
+export type EventChannel =
     | `execution.metrics.${string}`
     | `execution.events.type.${string}`
     | "strategy/performance/completed"
@@ -44,20 +43,39 @@ export type EventChannel =
     | `step.${string}`;
 
 /**
- * Tier 1 event types as actually implemented
+ * Swarm event constants for runtime usage
+ * These provide the actual string values that can be used at runtime
  */
-export type SwarmEventType = 
-    | "swarm_started"
-    | "external_message_created"
-    | "tool_approval_response"
-    | "ApprovedToolExecutionRequest"
-    | "RejectedToolExecutionRequest"
-    | "internal_task_assignment"
-    | "internal_status_update"
-    | "swarm.started"  // Event bus format
-    | "swarm.state.changed"
-    | "team.formed"
-    | "team.updated";
+export const SwarmEventType = {
+    // Swarm lifecycle events
+    SWARM_STARTED: "swarm_started",
+    SWARM_DISSOLVED: "swarm.dissolved",
+
+    // Team management events
+    TEAM_FORMED: "team.formed",
+    TEAM_UPDATED: "team.updated",
+    TEAM_DISSOLVED: "team.dissolved",
+    TEAM_MANAGER_SHUTDOWN: "team.manager.shutdown",
+
+    // External interactions
+    EXTERNAL_MESSAGE_CREATED: "external_message_created",
+    TOOL_APPROVAL_RESPONSE: "tool_approval_response",
+    APPROVED_TOOL_EXECUTION_REQUEST: "ApprovedToolExecutionRequest",
+    REJECTED_TOOL_EXECUTION_REQUEST: "RejectedToolExecutionRequest",
+
+    // Internal coordination
+    INTERNAL_TASK_ASSIGNMENT: "internal_task_assignment",
+    INTERNAL_STATUS_UPDATE: "internal_status_update",
+
+    // State changes
+    SWARM_STATE_CHANGED: "swarm.state.changed",
+} as const;
+
+/**
+ * Tier 1 event types as actually implemented
+ * Derived from the runtime constants for type safety
+ */
+export type SwarmEventTypeValues = typeof SwarmEventType[keyof typeof SwarmEventType];
 
 /**
  * Tier 2 event types as actually implemented
@@ -91,16 +109,6 @@ export type SystemEventType =
     | "error.occurred"
     | "resource.tracked"
     | "security.alert";
-
-/**
- * Simplified event interface for internal use
- * Matches BaseStateMachine implementation
- */
-export interface BaseEvent {
-    type: string;
-    timestamp?: Date;
-    metadata?: Record<string, unknown>;
-}
 
 /**
  * Event subscription as implemented
@@ -156,13 +164,13 @@ export interface StepEventData {
 export const EMERGENT_EVENT_PATTERNS = {
     // Monitoring agents subscribe to these
     PERFORMANCE: ["*.completed", "*.failed", "metric.recorded"],
-    
+
     // Security agents subscribe to these
     SECURITY: ["*.failed", "security.*", "tool.executed"],
-    
+
     // Optimization agents subscribe to these
     OPTIMIZATION: ["step.completed", "resource.tracked", "strategy/performance/*"],
-    
+
     // Learning agents subscribe to these
     LEARNING: ["*.completed", "adaptation.*", "pattern.discovered"],
 } as const;

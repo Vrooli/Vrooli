@@ -1,9 +1,6 @@
 // AI_CHECK: STARTUP_ERRORS=4 | LAST: 2025-06-25 | FIXED: Import/export mismatch causing module not found error
 import { BaseComponent } from "../shared/BaseComponent.js";
 // Socket events now handled through unified event system
-import { EventTypes } from "../../events/index.js";
-import { RoutineExecutor } from "./routineExecutor.js";
-// Legacy components removed - functionality consolidated in UnifiedRunStateMachine
 import {
     type ExecutionResult,
     type RoutineExecutionInput,
@@ -13,8 +10,10 @@ import {
 } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
 import { getEventBus } from "../../events/eventBus.js";
+import { EventTypes } from "../../events/index.js";
 import { type ISwarmContextManager } from "../shared/SwarmContextManager.js";
 import { MOISEGate } from "./moiseGate.js";
+import { RoutineExecutor } from "./routineExecutor.js";
 
 /**
  * Tier Two Orchestrator - Main Entry Point for Tier 2 Process Intelligence

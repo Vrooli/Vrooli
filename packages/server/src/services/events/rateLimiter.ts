@@ -9,18 +9,18 @@
  * ensures fair usage across the three-tier execution architecture.
  */
 
-import { type Redis, type Cluster } from "ioredis";
-import { type Logger } from "winston";
 import fs from "fs";
+import { type Cluster, type Redis } from "ioredis";
 import path from "path";
 import { fileURLToPath } from "url";
-import { CacheService } from "../../redisConn.js";
+import { type Logger } from "winston";
 import { CustomError } from "../../events/error.js";
+import { CacheService } from "../../redisConn.js";
 import {
-    type BaseEvent,
+    type BaseServiceEvent,
     type CoordinationEvent,
-    type ProcessEvent,
     type ExecutionEvent,
+    type ProcessEvent,
     type SafetyEvent,
 } from "./types.js";
 
@@ -94,28 +94,28 @@ export const DEFAULT_EVENT_COSTS: EventCostConfig = {
     coordination: 1,    // Tier 1: Planning and goal events
     process: 5,        // Tier 2: Routine execution events  
     execution: 10,     // Tier 3: Tool calls and step execution
-    
+
     // Event type multipliers
     eventTypeMultipliers: {
         // High-cost operations
         "tool/called": 10,           // Tool execution is expensive
         "swarm/goal/created": 5,     // Creating swarms has overhead
         "routine/started": 3,        // Starting routines has setup cost
-        
+
         // Medium-cost operations
         "step/completed": 2,         // Step completion has processing cost
         "context/updated": 2,        // Context updates require sync
-        
+
         // Low-cost operations
         "state/changed": 1,          // State changes are cheap
         "tool/approval_required": 1, // Approval requests are cheap
-        
+
         // Zero-cost monitoring events
         "resource/allocated": 0,     // Resource tracking is free
         "resource/usage": 0,         // Usage monitoring is free
         "performance/measured": 0,   // Performance metrics are free
     },
-    
+
     // External API events with specific credit costs
     externalApiEvents: {
         "tool/openai_completion": 100,    // OpenAI API calls
@@ -145,7 +145,7 @@ export const DEFAULT_RATE_LIMITS: Record<string, EventRateLimit> = {
         burstCapacity: 50,
         creditCost: 10,
     },
-    
+
     // Safety events never rate limited
     "safety": {
         eventsPerSecond: Infinity,
@@ -153,21 +153,21 @@ export const DEFAULT_RATE_LIMITS: Record<string, EventRateLimit> = {
         creditCost: 0,
         bypass: true,
     },
-    
+
     // Specific high-cost events
     "tool/called": {
         eventsPerSecond: 5,     // Limit tool calls aggressively
         burstCapacity: 20,
         creditCost: 100,
     },
-    
+
     // External API events
     "external_api": {
         eventsPerSecond: 2,     // Very conservative for external APIs
         burstCapacity: 10,
         creditCost: 150,
     },
-    
+
     // Global fallback
     "default": {
         eventsPerSecond: 20,
@@ -212,7 +212,7 @@ export class EventBusRateLimiter {
      * This is the main entry point called by the event bus before publishing events.
      * It checks multiple rate limit dimensions and returns comprehensive result.
      */
-    async checkEventRateLimit<T extends BaseEvent>(event: T): Promise<RateLimitResult> {
+    async checkEventRateLimit<T extends BaseServiceEvent>(event: T): Promise<RateLimitResult> {
         try {
             const client = await CacheService.get().raw();
             if (!client) {
@@ -223,7 +223,7 @@ export class EventBusRateLimiter {
 
             // Determine rate limit configuration for this event
             const config = this.getEventRateLimitConfig(event);
-            
+
             // Safety events always bypass rate limits
             if (config.bypass) {
                 return { allowed: true };
@@ -231,7 +231,7 @@ export class EventBusRateLimiter {
 
             // Extract rate limiting keys for this event
             const rateLimitKeys = this.buildRateLimitKeys(event);
-            
+
             // Check all applicable rate limits
             const results = await this.checkMultipleRateLimits(
                 client,
@@ -271,7 +271,7 @@ export class EventBusRateLimiter {
     /**
      * Get rate limit configuration for a specific event
      */
-    private getEventRateLimitConfig<T extends BaseEvent>(event: T): EventRateLimit {
+    private getEventRateLimitConfig<T extends BaseServiceEvent>(event: T): EventRateLimit {
         // Check for specific event type limits first
         if (this.rateLimits[event.type]) {
             return this.rateLimits[event.type];
@@ -296,20 +296,20 @@ export class EventBusRateLimiter {
     /**
      * Get the tier for an event (coordination, process, execution)
      */
-    private getEventTier<T extends BaseEvent>(event: T): string | null {
+    private getEventTier<T extends BaseServiceEvent>(event: T): string | null {
         // Type guards for different event types
         if (this.isCoordinationEvent(event)) return "coordination";
         if (this.isProcessEvent(event)) return "process";
         if (this.isExecutionEvent(event)) return "execution";
         if (this.isSafetyEvent(event)) return "safety";
-        
+
         return null;
     }
 
     /**
      * Get the category for an event (e.g., "external_api", "tool")
      */
-    private getEventCategory<T extends BaseEvent>(event: T): string | null {
+    private getEventCategory<T extends BaseServiceEvent>(event: T): string | null {
         // External API events
         if (this.eventCosts.externalApiEvents[event.type]) {
             return "external_api";
@@ -336,7 +336,7 @@ export class EventBusRateLimiter {
      * - Per event type
      * - Global system limits
      */
-    private buildRateLimitKeys<T extends BaseEvent>(event: T): string[] {
+    private buildRateLimitKeys<T extends BaseServiceEvent>(event: T): string[] {
         const keys: string[] = [];
         const baseKey = "event-rate-limit";
 
@@ -356,7 +356,7 @@ export class EventBusRateLimiter {
         const userId = this.extractUserId(event);
         if (userId) {
             keys.push(`${baseKey}:user:${userId}`);
-            
+
             // Per-user-per-event-type rate limit for expensive events
             if (this.isExpensiveEvent(event)) {
                 keys.push(`${baseKey}:user:${userId}:event-type:${event.type}`);
@@ -461,35 +461,35 @@ export class EventBusRateLimiter {
     /**
      * Extract user ID from event context
      */
-    private extractUserId<T extends BaseEvent>(event: T): string | null {
+    private extractUserId<T extends BaseServiceEvent>(event: T): string | null {
         const metadata = event.metadata;
         const data = event.data as any;
-        
-        return metadata?.userId || 
-               data?.userId || 
-               data?.initiatingUser || 
-               data?.sessionUser?.id ||
-               null;
+
+        return metadata?.userId ||
+            data?.userId ||
+            data?.initiatingUser ||
+            data?.sessionUser?.id ||
+            null;
     }
 
     /**
      * Extract conversation ID from event context  
      */
-    private extractConversationId<T extends BaseEvent>(event: T): string | null {
+    private extractConversationId<T extends BaseServiceEvent>(event: T): string | null {
         const metadata = event.metadata;
         const data = event.data as any;
-        
+
         return metadata?.conversationId ||
-               data?.conversationId ||
-               data?.chatId ||
-               data?.swarmId ||
-               null;
+            data?.conversationId ||
+            data?.chatId ||
+            data?.swarmId ||
+            null;
     }
 
     /**
      * Check if an event is expensive (requires stricter rate limiting)
      */
-    private isExpensiveEvent<T extends BaseEvent>(event: T): boolean {
+    private isExpensiveEvent<T extends BaseServiceEvent>(event: T): boolean {
         // External API events are always expensive
         if (this.eventCosts.externalApiEvents[event.type]) {
             return true;
@@ -511,19 +511,19 @@ export class EventBusRateLimiter {
     /**
      * Type guards for different event types
      */
-    private isCoordinationEvent(event: BaseEvent): event is CoordinationEvent {
+    private isCoordinationEvent(event: BaseServiceEvent): event is CoordinationEvent {
         return event.source?.tier === 1;
     }
 
-    private isProcessEvent(event: BaseEvent): event is ProcessEvent {
+    private isProcessEvent(event: BaseServiceEvent): event is ProcessEvent {
         return event.source?.tier === 2;
     }
 
-    private isExecutionEvent(event: BaseEvent): event is ExecutionEvent {
+    private isExecutionEvent(event: BaseServiceEvent): event is ExecutionEvent {
         return event.source?.tier === 3;
     }
 
-    private isSafetyEvent(event: BaseEvent): event is SafetyEvent {
+    private isSafetyEvent(event: BaseServiceEvent): event is SafetyEvent {
         return event.source?.tier === "safety" || event.type.startsWith("safety/");
     }
 
@@ -591,10 +591,10 @@ export class EventBusRateLimiter {
     /**
      * Create a rate limited event that gets emitted when rate limits are exceeded
      */
-    createRateLimitedEvent<T extends BaseEvent>(
+    createRateLimitedEvent<T extends BaseServiceEvent>(
         originalEvent: T,
         rateLimitResult: RateLimitResult,
-    ): BaseEvent {
+    ): BaseServiceEvent {
         return {
             id: `rate-limited-${originalEvent.id}`,
             type: "resource/rate_limited",

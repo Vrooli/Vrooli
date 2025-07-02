@@ -4,7 +4,7 @@
  * This module provides utilities that are shared across all three tiers
  * of the execution architecture, ensuring consistency and proper data flow.
  */
-export { BaseStateMachine, BaseStates, type BaseEvent, type BaseState, type ManagedTaskStateMachine } from "./BaseStateMachine.js";
+export { BaseStateMachine, BaseStates, type BaseState, type ManagedTaskStateMachine } from "./BaseStateMachine.js";
 export { BaseTierExecutor, TierResourceUtils, type ExecutionMetrics, type TierErrorContext } from "./BaseTierExecutor.js";
 export { ContextSubscriptionManager, type SubscriptionFilter } from "./ContextSubscriptionManager.js";
 export { ContextValidationError, ContextValidator, type ValidationError, type ValidationResult, type ValidationWarning } from "./contextValidator.js";

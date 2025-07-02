@@ -8,7 +8,7 @@ import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { Trigger } from "../../events/trigger.js";
 import { SocketService } from "../../sockets/io.js";
-import { type PrismaDelegate } from "../../types.js";
+import { type PrismaDelegate } from "../../builders/types.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { calculatePermissions, defaultPermissions } from "../../validators/permissions.js";
 import { ReactionFormat } from "../formats.js";

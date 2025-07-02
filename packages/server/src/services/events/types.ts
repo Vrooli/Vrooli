@@ -19,7 +19,7 @@ export interface SocketServiceInterface {
  * Base event interface that all Vrooli events must implement.
  * Provides essential metadata for routing, correlation, and tracking.
  */
-export interface BaseEvent {
+export interface BaseServiceEvent {
     /** Unique event identifier */
     id: string;
 
@@ -115,7 +115,7 @@ export interface BarrierSyncConfig {
  *   }
  * }
  */
-export interface SafetyEvent extends BaseEvent {
+export interface SafetyEvent extends BaseServiceEvent {
     source: EventSource & { tier: "safety" };
     type: `safety/${string}` | `emergency/${string}` | `threat/${string}`;
     metadata: EventMetadata & {
@@ -140,7 +140,7 @@ export interface SafetyEvent extends BaseEvent {
  *   }
  * }
  */
-export interface CoordinationEvent extends BaseEvent {
+export interface CoordinationEvent extends BaseServiceEvent {
     source: EventSource & { tier: 1 };
     type: `swarm/${string}` | `goal/${string}` | `team/${string}` | `resource/${string}`;
 }
@@ -163,7 +163,7 @@ export interface CoordinationEvent extends BaseEvent {
  *   metadata: { deliveryGuarantee: "reliable" }
  * }
  */
-export interface ProcessEvent extends BaseEvent {
+export interface ProcessEvent extends BaseServiceEvent {
     source: EventSource & { tier: 2 };
     type: `routine/${string}` | `state/${string}` | `context/${string}`;
 }
@@ -185,7 +185,7 @@ export interface ProcessEvent extends BaseEvent {
  *   }
  * }
  */
-export interface ExecutionEvent extends BaseEvent {
+export interface ExecutionEvent extends BaseServiceEvent {
     source: EventSource & { tier: 3 };
     type: `step/${string}` | `tool/${string}` | `strategy/${string}`;
 }
@@ -275,7 +275,7 @@ export interface PreActionEventData {
  * Resource rate limiting events for monitoring and control.
  * Emitted when rate limits are exceeded or quotas are approached.
  */
-export interface ResourceRateLimitEvent extends BaseEvent {
+export interface ResourceRateLimitEvent extends BaseServiceEvent {
     type: "resource/rate_limited" | "resource/quota_warning" | "resource/quota_exhausted";
     source: EventSource & { tier: "cross-cutting" };
     data: ResourceRateLimitEventData;
@@ -297,14 +297,14 @@ export interface ResourceRateLimitEventData {
 /**
  * Event handler function type
  */
-export type EventHandler<T extends BaseEvent = BaseEvent> = (event: T) => Promise<void>;
+export type EventHandler<T extends BaseServiceEvent = BaseServiceEvent> = (event: T) => Promise<void>;
 
 /**
  * Event subscription options
  */
 export interface SubscriptionOptions {
     /** Filter events before calling handler */
-    filter?: (event: BaseEvent) => boolean;
+    filter?: (event: BaseServiceEvent) => boolean;
     /** Maximum number of events to process per batch */
     batchSize?: number;
     /** Maximum number of retries on handler failure */
@@ -378,12 +378,12 @@ export interface IEventBus {
     /**
      * Publish an event with specified delivery guarantee
      */
-    publish<T extends BaseEvent>(event: T): Promise<EventPublishResult>;
+    publish<T extends BaseServiceEvent>(event: T): Promise<EventPublishResult>;
 
     /**
      * Subscribe to event patterns with optional filtering
      */
-    subscribe<T extends BaseEvent>(
+    subscribe<T extends BaseServiceEvent>(
         pattern: string | string[],
         handler: EventHandler<T>,
         options?: SubscriptionOptions

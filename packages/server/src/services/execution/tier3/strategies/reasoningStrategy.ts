@@ -1,103 +1,154 @@
 import {
-    StrategyType,
     type ExecutionContext,
+    type IExecutionStrategy,
     type ResourceUsage,
     type StrategyExecutionResult,
+    generatePK,
+    toBotId,
+    toSwarmId,
+    type ResponseContext,
+    type SessionUser,
 } from "@vrooli/shared";
 import { logger } from "../../../../events/logger.js";
-import { LLMIntegrationService } from "../../integration/response.js";
+import type { ResponseService } from "../../../response/responseService.js";
+import type { ToolOrchestrator } from "../engine/toolOrchestrator.js";
+import type { ValidationEngine } from "../engine/validationEngine.js";
 
 /**
- * MINIMAL REASONING STRATEGY
+ * REASONING STRATEGY (Single-Turn Response)
  * 
- * This strategy provides ONLY the basic infrastructure for reasoning execution.
- * All intelligence, optimization, validation, and improvement comes from emergent agents.
+ * This strategy provides single-turn, single-bot reasoning execution using ResponseService.
+ * It's designed for tasks where ONE bot should handle the entire reasoning process,
+ * similar to OpenAI's o3 model - performing multiple reasoning steps, responses, and
+ * tool calls within a single turn.
  * 
  * WHAT THIS DOES:
- * - Execute basic LLM calls with reasoning prompts
- * - Emit reasoning events for agents to analyze
- * - Track basic resource usage
+ * - Execute single-turn reasoning via ResponseService
+ * - Support multi-step reasoning within one response
+ * - Track resource usage for the complete reasoning turn
  * 
- * WHAT THIS DOES NOT DO (EMERGENT CAPABILITIES):
- * - Complex reasoning frameworks (agents develop these)
- * - Validation logic (quality agents handle this) 
- * - Confidence scoring (assessment agents provide this)
- * - Bias detection (safety agents monitor this)
- * - Performance optimization (optimization agents improve this)
- * - Multi-phase execution patterns (reasoning agents evolve these)
+ * WHEN TO USE THIS:
+ * - Single bot should handle the entire task
+ * - Multi-step reasoning needed but within one response
+ * - Tool calls and reasoning should be in one coherent flow
+ * 
+ * WHEN TO USE ConversationalStrategy INSTEAD:
+ * - Multiple team members need to collaborate
+ * - Task requires back-and-forth between different specialized bots
+ * - Complex coordination between multiple AI agents
  */
-export class ReasoningStrategy extends MinimalStrategyBase {
-    readonly type = StrategyType.REASONING;
+export class ReasoningStrategy implements IExecutionStrategy {
+    readonly type = "reasoning";
     readonly name = "ReasoningStrategy";
-    readonly version = "3.0.0-minimal";
+    readonly version = "4.0.0-response-service";
 
-    private readonly llmService: LLMIntegrationService;
-
-    constructor() {
-        super();
-        this.llmService = new LLMIntegrationService();
+    constructor(
+        private readonly responseService: ResponseService,
+        private readonly toolOrchestrator?: ToolOrchestrator,
+        private readonly validationEngine?: ValidationEngine,
+    ) {
+        logger.info("[ReasoningStrategy] Initialized with ResponseService for single-turn reasoning");
     }
 
     /**
-     * MINIMAL EXECUTION: Basic reasoning with event emission
+     * Main execution method for IExecutionStrategy interface
+     */
+    async execute(context: ExecutionContext): Promise<StrategyExecutionResult> {
+        return this.executeStrategy(context, context);
+    }
+
+    /**
+     * Strategy-specific methods required by IExecutionStrategy
+     */
+    canHandle(stepType: string, config?: Record<string, unknown>): boolean {
+        return this.isApplicable({ stepType } as ExecutionContext);
+    }
+
+    estimateResources(context: ExecutionContext): ResourceUsage {
+        // Basic estimation - agents can improve this
+        return {
+            credits: 2000, // Reasoning typically uses more tokens
+            tokens: 2000,
+            duration: 10000, // 10 seconds
+        };
+    }
+
+    getPerformanceMetrics(): any {
+        // Basic metrics - agents can enhance this
+        return {
+            totalExecutions: 0,
+            successCount: 0,
+            failureCount: 0,
+            averageExecutionTime: 0,
+            averageResourceUsage: { credits: 0, tokens: 0, duration: 0 },
+            averageConfidence: 0.7,
+            evolutionScore: 0.5,
+        };
+    }
+
+    /**
+     * SINGLE-TURN REASONING EXECUTION
      * 
-     * Performs simple LLM-based reasoning and emits events for agents to analyze.
-     * No hard-coded intelligence, frameworks, or optimization logic.
+     * Uses ResponseService to perform reasoning in a single turn.
+     * The bot can perform multiple reasoning steps, tool calls, and refinements
+     * within this single response - similar to how o3 works.
      */
     protected async executeStrategy(
         context: ExecutionContext,
-        metadata: MinimalExecutionMetadata,
     ): Promise<StrategyExecutionResult> {
         const startTime = Date.now();
-        const stepId = context.stepId;
+        const stepId = context.stepId || generatePK().toString();
 
-        logger.info("[ReasoningStrategy] Starting minimal reasoning execution", {
+        logger.info("[ReasoningStrategy] Starting single-turn reasoning execution", {
             stepId,
             stepType: context.stepType,
         });
 
         try {
-            // Base class handles event emission
+            // Build ResponseContext for ResponseService
+            const responseContext = this.buildResponseContext(context);
 
-            // Basic reasoning prompt construction
-            const reasoningPrompt = this.buildBasicReasoningPrompt(context);
-
-            // Simple LLM call with reasoning
-            const response = await this.llmService.generate({
-                messages: [{ role: "user", content: reasoningPrompt }],
-                temperature: 0.7,
-                maxTokens: 2000,
+            // Execute reasoning via ResponseService
+            const response = await this.responseService.generateResponse({
+                context: responseContext,
+                abortSignal: undefined, // Could add timeout support here
             });
 
             const executionTime = Date.now() - startTime;
-            const resourceUsage: ResourceUsage = {
-                credits: response.usage?.total_tokens || 0,
-                tokens: response.usage?.total_tokens || 0,
-                duration: executionTime,
-            };
 
-            // Basic result structure
-            const result: StrategyExecutionResult = {
-                success: true,
-                outputs: this.parseBasicOutputs(response.content, context),
-                resourceUsage,
-                metadata: {
-                    strategy: this.type,
+            if (response.success) {
+                // Extract outputs from the reasoning response
+                const outputs = this.parseReasoningOutputs(response.message, context);
+
+                const result: StrategyExecutionResult = {
+                    success: true,
+                    outputs,
+                    resourceUsage: {
+                        credits: parseInt(response.resourcesUsed.creditsUsed),
+                        tokens: parseInt(response.resourcesUsed.creditsUsed), // Approximate
+                        duration: executionTime,
+                    },
+                    metadata: {
+                        strategy: this.type,
+                        executionTime,
+                        reasoning: response.message.config?.text || "",
+                        toolCallsExecuted: response.toolCalls?.length || 0,
+                        confidence: response.confidence,
+                    },
+                };
+
+                logger.info("[ReasoningStrategy] Reasoning execution completed", {
+                    stepId,
+                    success: true,
                     executionTime,
-                    reasoning: response.content,
-                },
-            };
+                    creditsUsed: response.resourcesUsed.creditsUsed,
+                    toolCalls: response.toolCalls?.length || 0,
+                });
 
-            // Base class handles event emission
-
-            logger.info("[ReasoningStrategy] Reasoning execution completed", {
-                stepId,
-                success: true,
-                executionTime,
-                creditsUsed: resourceUsage.credits,
-            });
-
-            return result;
+                return result;
+            } else {
+                throw new Error(response.error?.message || "Reasoning failed");
+            }
 
         } catch (error) {
             const executionTime = Date.now() - startTime;
@@ -108,8 +159,6 @@ export class ReasoningStrategy extends MinimalStrategyBase {
                 error: errorMessage,
                 executionTime,
             });
-
-            // Base class handles event emission
 
             return {
                 success: false,
@@ -128,9 +177,63 @@ export class ReasoningStrategy extends MinimalStrategyBase {
     }
 
     /**
-     * Build basic reasoning prompt without complex frameworks
+     * Build ResponseContext for ResponseService
+     * Converts ExecutionContext to the format expected by ResponseService
      */
-    private buildBasicReasoningPrompt(context: ExecutionContext): string {
+    private buildResponseContext(context: ExecutionContext): ResponseContext {
+        // Create a reasoning-focused bot configuration
+        const reasoningBotConfig = {
+            id: "reasoning_bot",
+            name: "Reasoning Specialist",
+            model: context.config?.model || "gpt-4",
+            temperature: context.config?.temperature || 0.7,
+            maxTokens: context.config?.maxTokens || 2000,
+            systemPrompt: this.buildReasoningSystemPrompt(context),
+        };
+
+        // Build conversation history with the reasoning task
+        const conversationHistory = [
+            {
+                id: generatePK().toString(),
+                createdAt: new Date(),
+                config: {
+                    role: "user" as const,
+                    text: this.buildReasoningPrompt(context),
+                },
+            },
+        ];
+
+        return {
+            swarmId: toSwarmId(context.swarmId || generatePK().toString()),
+            userData: context.userData || { id: "system", name: "Reasoning System" } as SessionUser,
+            timestamp: new Date(),
+            botId: toBotId("reasoning_bot"),
+            botConfig: reasoningBotConfig,
+            conversationHistory,
+            availableTools: context.resources?.tools || [],
+            strategy: "reasoning",
+            constraints: {
+                maxTokens: context.config?.maxTokens || 2000,
+                temperature: context.config?.temperature || 0.7,
+                timeoutMs: context.config?.timeoutMs || 120000, // 2 minutes
+            },
+        };
+    }
+
+    /**
+     * Build system prompt for reasoning tasks
+     */
+    private buildReasoningSystemPrompt(context: ExecutionContext): string {
+        return `You are a reasoning specialist designed to work through complex problems step-by-step.
+Your approach should be thorough, logical, and transparent in your reasoning process.
+You can use available tools to gather information and validate your reasoning.
+Always structure your response clearly and provide the requested outputs.`;
+    }
+
+    /**
+     * Build reasoning prompt from execution context
+     */
+    private buildReasoningPrompt(context: ExecutionContext): string {
         const stepData = context.stepData || {};
         const inputs = stepData.inputs || {};
         const outputs = stepData.outputs || {};
@@ -138,6 +241,7 @@ export class ReasoningStrategy extends MinimalStrategyBase {
         return `Please reason through this task step-by-step:
 
 Task: ${context.stepType}
+${context.config?.description ? `\nDescription: ${context.config.description}` : ""}
 
 Inputs available:
 ${Object.entries(inputs).map(([key, value]) => `- ${key}: ${JSON.stringify(value)}`).join("\n")}
@@ -149,24 +253,25 @@ Please provide your reasoning and the required outputs in a clear, structured fo
     }
 
     /**
-     * Parse basic outputs without complex validation
+     * Parse reasoning outputs from ResponseService message
      */
-    private parseBasicOutputs(response: string, context: ExecutionContext): Record<string, unknown> {
+    private parseReasoningOutputs(message: any, context: ExecutionContext): Record<string, unknown> {
         // Simple output extraction - agents can develop sophisticated parsing
         const outputs: Record<string, unknown> = {};
         const expectedOutputs = Object.keys(context.stepData?.outputs || {});
+        const responseText = message.config?.text || "";
 
         // Basic attempt to extract outputs from response
         for (const outputKey of expectedOutputs) {
             // Simple pattern matching - agents can improve this
             const pattern = new RegExp(`${outputKey}[:\\s]*(.+?)(?=\\n|$)`, "i");
-            const match = response.match(pattern);
+            const match = responseText.match(pattern);
 
             if (match && match[1]) {
                 outputs[outputKey] = match[1].trim();
             } else {
                 // Fallback: use the full response if no specific pattern found
-                outputs[outputKey] = response;
+                outputs[outputKey] = responseText;
             }
         }
 
@@ -182,6 +287,4 @@ Please provide your reasoning and the required outputs in a clear, structured fo
             context.stepType === "analysis" ||
             context.stepType === "decision";
     }
-
-    // Feedback is handled by MinimalStrategyBase
 }

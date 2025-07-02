@@ -13,9 +13,9 @@ import {
     type StepExecution,
 } from "@vrooli/shared";
 import { type Redis } from "ioredis";
-import { logger } from "../../../../events/logger.js";
+import { logger } from "../../../events/logger.js";
 import { CacheService } from "../../../redisConn.js";
-import { RedisIndexManager } from "../../shared/RedisIndexManager.js";
+import { RedisIndexManager } from "../shared/RedisIndexManager.js";
 
 // Constants
 const DEFAULT_TTL_S = DAYS_1_S; // 24 hours
@@ -199,7 +199,7 @@ export class RedisRunStateStore implements IRunStateStore {
     private readonly MAX_CACHE_SIZE = 100;
 
     constructor(redis: Redis) {
-        this.indexManager = new RedisIndexManager(redis, logger, DEFAULT_TTL_S);
+        this.indexManager = new RedisIndexManager(redis, DEFAULT_TTL_S);
     }
 
     async initialize(): Promise<void> {
@@ -348,8 +348,6 @@ export class RedisRunStateStore implements IRunStateStore {
         }
     }
 
-    // Legacy ProcessRunContext methods have been removed - use modern context methods instead
-
     /**
      * Modern context management methods - Phase 2A implementation
      * 
@@ -366,12 +364,10 @@ export class RedisRunStateStore implements IRunStateStore {
      * 
      * ## Implementation Strategy:
      * 1. First checks for modern RunExecutionContext in storage
-     * 2. Falls back to legacy ProcessRunContext and transforms it if needed
-     * 3. Creates a default context if none exists
+     * 2. Creates a default context if none exists
      * 
      * ## Storage Key:
-     * Uses `${runId}:run_execution_context` for modern context storage,
-     * separate from the legacy `${runId}:context` key.
+     * Uses `${runId}:run_execution_context` for modern context storage
      */
     async getRunContext(runId: string): Promise<RunExecutionContext> {
         // Check in-memory cache first
@@ -409,83 +405,6 @@ export class RedisRunStateStore implements IRunStateStore {
                     error: error instanceof Error ? error.message : String(error),
                 });
             }
-        }
-
-        // Fallback: Try to migrate from legacy ProcessRunContext
-        try {
-            // Try to load from legacy context storage for migration
-            const legacyKey = this.getContextKey(runId);
-            const legacyData = await this.redis.get(legacyKey);
-            const legacyContext = legacyData ? JSON.parse(legacyData) : null;
-            const runConfig = await this.get(runId);
-
-            if (runConfig) {
-                logger.info("[RedisRunStateStore] Migrating legacy context to RunExecutionContext", { runId });
-
-                // Create a basic RunExecutionContext from legacy data
-                const migratedContext: RunExecutionContext = {
-                    runId,
-                    routineId: runConfig.routineId,
-
-                    // Navigation state - will need to be set by RunStateMachine
-                    navigator: null as any, // This will be set when the context is first used
-                    currentLocation: { id: "start", nodeId: "start", stepId: "start" }, // Default location
-                    visitedLocations: [],
-
-                    // Execution state from legacy context
-                    variables: legacyContext.variables || {},
-                    outputs: {},
-                    completedSteps: [],
-                    parallelBranches: [],
-
-                    // Context management (ProcessRunContext compatibility)
-                    blackboard: legacyContext.blackboard || {},
-                    scopes: legacyContext.scopes || [{
-                        id: "global",
-                        name: "Global Scope",
-                        variables: legacyContext.variables || {},
-                    }],
-
-                    // Resource tracking - initialize with defaults
-                    resourceLimits: {
-                        maxCredits: "1000",
-                        maxDurationMs: 300000,
-                        maxMemoryMB: 512,
-                        maxSteps: 50,
-                    },
-                    resourceUsage: {
-                        creditsUsed: "0",
-                        durationMs: 0,
-                        memoryUsedMB: 0,
-                        stepsExecuted: 0,
-                        startTime: new Date(),
-                    },
-
-                    // Progress tracking - initialize
-                    progress: {
-                        currentStepId: null,
-                        completedSteps: [],
-                        totalSteps: 0,
-                        percentComplete: 0,
-                    },
-
-                    // Error handling
-                    retryCount: 0,
-                };
-
-                // Store the migrated context for future use
-                await this.updateRunContext(runId, migratedContext);
-
-                // Cache the migrated context
-                this.setCachedContext(runId, migratedContext);
-
-                return migratedContext;
-            }
-        } catch (error) {
-            logger.debug("[RedisRunStateStore] Could not migrate legacy context", {
-                runId,
-                error: error instanceof Error ? error.message : String(error),
-            });
         }
 
         // Final fallback: Create minimal default context
@@ -556,7 +475,6 @@ export class RedisRunStateStore implements IRunStateStore {
      * 
      * ## Implementation Details:
      * - Stores context as JSON in Redis with proper TTL
-     * - Uses a separate key from legacy ProcessRunContext
      * - Handles serialization of complex nested objects
      * - Maintains atomic updates to prevent corruption
      * 

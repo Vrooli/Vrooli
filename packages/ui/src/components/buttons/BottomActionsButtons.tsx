@@ -84,18 +84,19 @@ export function BottomActionsButtons({
     }, [onCancel]);
 
     return (
-        <BottomActionsGrid display={display}>
+        <BottomActionsGrid display={display} data-testid="bottom-actions-grid">
             <Popover />
             {/* Side action buttons displayed above grid options */}
             {sideActionButtons ? <SideActionsBox
                 hideButtons={hideButtons}
                 isKeyboardOpen={isKeyboardOpen}
+                data-testid="side-actions-box"
             >
                 {sideActionButtons}
             </SideActionsBox> : null}
             {/* Create/Save button. On hover or press, displays formik errors if disabled */}
             {!hideButtons ? <Grid item xs={6}>
-                <Box onClick={handleSubmit}>
+                <Box onClick={handleSubmit} data-testid="submit-button-wrapper">
                     <Button
                         aria-label={t(isCreate ? "Create" : "Save")}
                         disabled={isSubmitDisabled}
@@ -107,6 +108,7 @@ export function BottomActionsButtons({
                         style={buttonStyle}
                         variant="primary"
                         fullWidth
+                        data-testid="submit-button"
                     >{hideTextOnMobile && isMobile ? "" : t(isCreate ? "Create" : "Save")}</Button>
                 </Box>
             </Grid> : null}
@@ -123,6 +125,7 @@ export function BottomActionsButtons({
                     />}
                     variant="outline"
                     style={buttonStyle}
+                    data-testid="cancel-button"
                 >{hideTextOnMobile && isMobile ? "" : t("Cancel")}</Button>
             </Grid> : null}
         </BottomActionsGrid>

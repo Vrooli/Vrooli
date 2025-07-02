@@ -4,25 +4,38 @@ import { type Job } from "bullmq";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type LLMCompletionTask, QueueTaskType, type SwarmExecutionTask } from "../taskTypes.js";
 
-// TODO: Remove these mocks once the swarm execution modules are optimized for test loading.
-// The swarm execution components are too heavy for test environments and cause worker memory issues.
-// These mocks should be replaced with proper integration tests that use lightweight test doubles
-// or actual swarm implementations in a test-specific configuration.
-vi.mock("../../services/execution/swarmExecutionService.js", () => ({
-    SwarmExecutionService: vi.fn().mockImplementation(() => ({
-        startSwarm: vi.fn().mockResolvedValue({ swarmId: "swarm-123", success: true }),
-        cancelSwarm: vi.fn().mockResolvedValue({ success: true }),
-    })),
-}));
-
-vi.mock("../../services/execution/tier1/coordination/swarmStateMachine.js", () => ({
-    SwarmStateMachine: vi.fn().mockImplementation(() => ({})),
+// Mock the simplified swarm coordinator factory
+vi.mock("../../services/execution/swarmCoordinatorFactory.js", () => ({
+    getSwarmCoordinator: vi.fn().mockReturnValue({
+        execute: vi.fn().mockResolvedValue({
+            executionId: "swarm-123",
+            status: "completed",
+            result: {
+                swarmId: "swarm-123",
+                swarmName: "Test Swarm",
+                agentCount: 2,
+                conversationId: "conv-456",
+            },
+            resourceUsage: {
+                credits: 0,
+                tokens: 0,
+                duration: 100,
+            },
+            duration: 100,
+        }),
+        getTaskId: vi.fn().mockReturnValue("swarm-123"),
+        getCurrentSagaStatus: vi.fn().mockReturnValue("RUNNING"),
+        requestPause: vi.fn().mockResolvedValue(true),
+        requestStop: vi.fn().mockResolvedValue(true),
+        getAssociatedUserId: vi.fn().mockReturnValue("user-123"),
+    }),
+    resetSwarmCoordinator: vi.fn(),
+    isSwarmCoordinatorInitialized: vi.fn().mockReturnValue(false),
 }));
 
 // Import after mocking to avoid loading the heavy dependencies
 let llmProcess: any;
 let activeSwarmRegistry: any;
-let NewSwarmStateMachineAdapter: any;
 
 describe("llmProcess", () => {
     beforeEach(async () => {
@@ -35,7 +48,6 @@ describe("llmProcess", () => {
         const processModule = await import("./process.js");
         llmProcess = processModule.llmProcess;
         activeSwarmRegistry = processModule.activeSwarmRegistry;
-        NewSwarmStateMachineAdapter = processModule.NewSwarmStateMachineAdapter;
 
         // Clear the active swarm registry
         if (activeSwarmRegistry && activeSwarmRegistry.clear) {
@@ -55,7 +67,6 @@ describe("llmProcess", () => {
         const userId = generatePK().toString();
 
         return {
-            taskType: QueueTaskType.SWARM_EXECUTION,
             type: QueueTaskType.SWARM_EXECUTION,
             swarmId,
             config: {
@@ -68,7 +79,7 @@ describe("llmProcess", () => {
                     maxTime: MINUTES_5_MS,
                     tools: [
                         { name: "calculator", description: "Perform mathematical calculations" },
-                        { name: "web_search", description: "Search the web for information" },
+                        { name: "researcher", description: "Research and gather information" },
                     ],
                 },
                 config: {
@@ -144,7 +155,7 @@ describe("llmProcess", () => {
 
             const result = await llmProcess(job);
 
-            expect(result).toEqual({ swarmId: "swarm-123", success: true });
+            expect(result).toEqual({ swarmId: swarmTask.swarmId });
 
             // Verify swarm was added to active registry
             const activeSwarms = activeSwarmRegistry.listActive();
@@ -179,7 +190,7 @@ describe("llmProcess", () => {
             const job = createMockSwarmJob(swarmTask);
 
             const result = await llmProcess(job);
-            expect(result).toEqual({ swarmId: "swarm-123", success: true });
+            expect(result).toEqual({ swarmId: swarmTask.swarmId });
         });
 
         it("should respect premium user configurations", async () => {
@@ -218,7 +229,7 @@ describe("llmProcess", () => {
             const job = createMockSwarmJob(swarmTask);
 
             const result = await llmProcess(job);
-            expect(result).toEqual({ swarmId: "swarm-123", success: true });
+            expect(result).toEqual({ swarmId: swarmTask.swarmId });
 
             // Verify premium user tracking
             const activeSwarms = activeSwarmRegistry.listActive();
@@ -254,7 +265,7 @@ describe("llmProcess", () => {
             const job = createMockSwarmJob(swarmTask);
 
             const result = await llmProcess(job);
-            expect(result).toEqual({ swarmId: "swarm-123", success: true });
+            expect(result).toEqual({ swarmId: swarmTask.swarmId });
         });
     });
 
@@ -294,7 +305,7 @@ describe("llmProcess", () => {
             const job = createMockSwarmJob(swarmTask);
 
             const result = await llmProcess(job);
-            expect(result).toEqual({ swarmId: "swarm-123", success: true });
+            expect(result).toEqual({ swarmId: swarmTask.swarmId });
 
             const activeSwarms = activeSwarmRegistry.listActive();
             expect(activeSwarms[0].hasPremium).toBe(false);
@@ -335,8 +346,8 @@ describe("llmProcess", () => {
                 llmProcess(job2),
             ]);
 
-            expect(result1).toEqual({ swarmId: "swarm-123", success: true });
-            expect(result2).toEqual({ swarmId: "swarm-123", success: true });
+            expect(result1).toEqual({ swarmId: swarmTask1.swarmId });
+            expect(result2).toEqual({ swarmId: swarmTask2.swarmId });
 
             const activeSwarms = activeSwarmRegistry.listActive();
             expect(activeSwarms).toHaveLength(2);
@@ -406,7 +417,7 @@ describe("llmProcess", () => {
 
             // Should still process but service might handle validation
             const result = await llmProcess(job);
-            expect(result).toEqual({ swarmId: "swarm-123", success: true });
+            expect(result).toEqual({ swarmId: swarmTask.swarmId });
         });
     });
 
@@ -500,7 +511,7 @@ describe("llmProcess", () => {
             const job = createMockSwarmJob(swarmTask);
 
             const result = await llmProcess(job);
-            expect(result).toEqual({ swarmId: "swarm-123", success: true });
+            expect(result).toEqual({ swarmId: swarmTask.swarmId });
         });
 
         it("should handle manual tool approval flow", async () => {
@@ -530,7 +541,7 @@ describe("llmProcess", () => {
             const job = createMockSwarmJob(swarmTask);
 
             const result = await llmProcess(job);
-            expect(result).toEqual({ swarmId: "swarm-123", success: true });
+            expect(result).toEqual({ swarmId: swarmTask.swarmId });
         });
 
         it("should handle different parallel execution limits", async () => {
@@ -560,30 +571,76 @@ describe("llmProcess", () => {
             const job = createMockSwarmJob(swarmTask);
 
             const result = await llmProcess(job);
-            expect(result).toEqual({ swarmId: "swarm-123", success: true });
+            expect(result).toEqual({ swarmId: swarmTask.swarmId });
         });
     });
 
-    describe("NewSwarmStateMachineAdapter", () => {
-        it("should provide correct task ID", () => {
-            const adapter = new NewSwarmStateMachineAdapter("swarm-123", {} as any, "user-123");
-            expect(adapter.getTaskId()).toBe("swarm-123");
+    describe("SwarmCoordinator Integration", () => {
+        it("should use SwarmCoordinator directly without adapter", async () => {
+            const swarmTask = createTestSwarmExecutionTask();
+            const job = createMockSwarmJob(swarmTask);
+
+            const result = await llmProcess(job);
+
+            expect(result).toEqual({ swarmId: swarmTask.swarmId });
+
+            // Verify that getSwarmCoordinator was called
+            const { getSwarmCoordinator } = await import("../../services/execution/swarmCoordinatorFactory.js");
+            expect(getSwarmCoordinator).toHaveBeenCalled();
         });
 
-        it("should provide user ID", () => {
-            const adapter = new NewSwarmStateMachineAdapter("swarm-123", {} as any, "user-123");
-            expect(adapter.getAssociatedUserId?.()).toBe("user-123");
+        it("should add SwarmCoordinator directly to registry", async () => {
+            const swarmTask = createTestSwarmExecutionTask();
+            const job = createMockSwarmJob(swarmTask);
+
+            await llmProcess(job);
+
+            // Verify swarm was added to registry
+            const activeSwarms = activeSwarmRegistry.listActive();
+            expect(activeSwarms).toHaveLength(1);
+            expect(activeSwarms[0].id).toBe(swarmTask.swarmId);
+
+            // Verify the coordinator is stored in the registry (not an adapter)
+            const coordinatorInRegistry = activeSwarmRegistry.get(swarmTask.swarmId);
+            expect(coordinatorInRegistry).toBeDefined();
+            expect(coordinatorInRegistry.getTaskId).toBeDefined();
+            expect(coordinatorInRegistry.getCurrentSagaStatus).toBeDefined();
+            expect(coordinatorInRegistry.requestPause).toBeDefined();
+            expect(coordinatorInRegistry.requestStop).toBeDefined();
         });
 
-        it("should return default status", () => {
-            const adapter = new NewSwarmStateMachineAdapter("swarm-123", {} as any, "user-123");
-            expect(adapter.getCurrentSagaStatus()).toBe("RUNNING");
+        it("should handle coordinator execution errors", async () => {
+            // Mock coordinator to return error
+            const { getSwarmCoordinator } = await import("../../services/execution/swarmCoordinatorFactory.js");
+            vi.mocked(getSwarmCoordinator).mockReturnValueOnce({
+                execute: vi.fn().mockResolvedValue({
+                    status: "failed",
+                    error: { message: "Test execution error" },
+                }),
+            } as any);
+
+            const swarmTask = createTestSwarmExecutionTask();
+            const job = createMockSwarmJob(swarmTask);
+
+            await expect(llmProcess(job)).rejects.toThrow("Test execution error");
         });
 
-        it("should handle pause requests", async () => {
-            const adapter = new NewSwarmStateMachineAdapter("swarm-123", {} as any, "user-123");
-            const result = await adapter.requestPause();
-            expect(result).toBe(false); // Pause not currently supported
+        it("should use singleton pattern for coordinator", async () => {
+            const swarmTask1 = createTestSwarmExecutionTask();
+            const swarmTask2 = createTestSwarmExecutionTask();
+            const job1 = createMockSwarmJob(swarmTask1);
+            const job2 = createMockSwarmJob(swarmTask2);
+
+            await llmProcess(job1);
+            await llmProcess(job2);
+
+            // Verify getSwarmCoordinator was called but returns same instance
+            const { getSwarmCoordinator } = await import("../../services/execution/swarmCoordinatorFactory.js");
+            expect(getSwarmCoordinator).toHaveBeenCalledTimes(2);
+            
+            // Both swarms should be in registry
+            const activeSwarms = activeSwarmRegistry.listActive();
+            expect(activeSwarms).toHaveLength(2);
         });
     });
 });

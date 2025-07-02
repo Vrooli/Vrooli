@@ -1,5 +1,5 @@
 import {
-    StrategyType,
+    type IExecutionStrategy,
     type ResourceUsage,
     type ExecutionContext as StrategyExecutionContext,
     type StrategyExecutionResult,
@@ -7,7 +7,6 @@ import {
 import { logger } from "../../../../events/logger.js";
 import { ToolOrchestrator } from "../engine/toolOrchestrator.js";
 import { ValidationEngine } from "../engine/validationEngine.js";
-import { MinimalStrategyBase, type MinimalExecutionMetadata } from "./shared/strategyBase.js";
 
 /**
  * Deterministic execution plan
@@ -66,8 +65,8 @@ interface ExecutionMetrics {
  * All performance tracking and optimization emerges from agents
  * monitoring the execution events.
  */
-export class DeterministicStrategy extends MinimalStrategyBase {
-    readonly type = StrategyType.DETERMINISTIC;
+export class DeterministicStrategy implements IExecutionStrategy {
+    readonly type = "deterministic";
     readonly name = "DeterministicStrategy";
     readonly version = "3.0.0-minimal";
 

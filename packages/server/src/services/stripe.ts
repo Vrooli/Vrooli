@@ -1,5 +1,5 @@
-import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, type CheckCreditsPaymentParams, type CheckCreditsPaymentResponse, type CheckSubscriptionParams, type CheckSubscriptionResponse, type CheckoutSessionMetadata, type CreateCheckoutSessionParams, type CreateCheckoutSessionResponse, type CreatePortalSessionParams, DAYS_180_MS, DAYS_1_S, HttpStatus, LINKS, PaymentStatus, PaymentType, SECONDS_1_MS, StripeEndpoint, type SubscriptionPricesResponse, generatePK } from "@vrooli/shared";
 import { CreditEntryType, CreditSourceSystem } from "@prisma/client";
+import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, type CheckCreditsPaymentParams, type CheckCreditsPaymentResponse, type CheckSubscriptionParams, type CheckSubscriptionResponse, type CheckoutSessionMetadata, type CreateCheckoutSessionParams, type CreateCheckoutSessionResponse, type CreatePortalSessionParams, DAYS_180_MS, DAYS_1_S, EventTypes, HttpStatus, LINKS, PaymentStatus, PaymentType, SECONDS_1_MS, StripeEndpoint, type SubscriptionPricesResponse, generatePK } from "@vrooli/shared";
 import express, { type Express, type Request, type Response } from "express";
 import Stripe from "stripe";
 import { DbProvider } from "../db/provider.js";
@@ -417,7 +417,7 @@ async function handleCreditsAward(
         await tx.credit_account.update({ where: { id: acct.id }, data: { currentBalance: acct.currentBalance + creditsToAward } });
     });
     // Notify clients of new credits
-    SocketService.get().emitSocketEvent("apiCredits", user.id.toString(), { credits: creditsToAward + "" });
+    SocketService.get().emitSocketEvent(EventTypes.USER.CREDITS_UPDATED, user.id.toString(), { userId: user.id.toString(), credits: creditsToAward + "" });
 }
 
 /**
@@ -449,9 +449,9 @@ async function handleSubscriptionAward(
     // Upsert plan
     const enabledAt = new Date().toISOString();
     const expiresAt = new Date(knownSubscription.current_period_end * SECONDS_1_MS).toISOString();
-    const plans = await DbProvider.get().plan.findMany({ where: { user: { id: user.id } } });
+    const plans = await DbProvider.get().plan.findMany({ where: { userId: user.id } });
     if (plans.length === 0) {
-        await DbProvider.get().plan.create({ data: { id: generatePK(), enabledAt, expiresAt, user: { connect: { id: user.id } } } });
+        await DbProvider.get().plan.create({ data: { id: generatePK(), enabledAt, expiresAt, userId: user.id } });
     } else {
         await DbProvider.get().plan.update({ where: { id: plans[0].id }, data: { enabledAt: plans[0].enabledAt ?? enabledAt, expiresAt } });
     }
@@ -468,7 +468,7 @@ async function handleSubscriptionAward(
         await tx.credit_account.update({ where: { id: acct.id }, data: { currentBalance: acct.currentBalance + subscriptionCredits } });
     });
     // Notify clients of new credits
-    SocketService.get().emitSocketEvent("apiCredits", user.id.toString(), { credits: API_CREDITS_PREMIUM + "" });
+    SocketService.get().emitSocketEvent(EventTypes.USER.CREDITS_UPDATED, user.id.toString(), { userId: user.id.toString(), credits: API_CREDITS_PREMIUM + "" });
 }
 
 /**

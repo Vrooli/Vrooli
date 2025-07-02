@@ -1,30 +1,35 @@
 # 🚀 Execution Architecture: Living Documentation
 
-> **Status**: 🔴 **CRITICAL DOCUMENTATION-REALITY MISMATCH DETECTED** - Previous claims of "100% implementation" are false. Major discrepancies found between documented architecture and actual codebase (2025-07-01).
+> **Status**: 🟡 **ARCHITECTURE IN TRANSITION** - Recent refactoring (June 27 - July 1, 2025) removed several components. Core three-tier structure remains but implementation details have changed significantly.
 
-> **Last Updated**: 2025-07-01 (CRITICAL REALITY CHECK - Documentation vs Implementation Audit)
+> **Last Updated**: 2025-07-02 (Architecture Reality Check & Swarm State Machine Deep Dive)
 > 
-> **This Update**: 🔴 **DOCUMENTATION OVERHAUL REQUIRED** - Investigation revealed major gaps between claimed implementation status and actual codebase. Many referenced files don't exist, architectural claims are unsubstantiated, and the living document was providing false confidence in system readiness.
+> **This Update**: 🔄 **ACCURATE ASSESSMENT** - Investigation confirms major architectural refactoring removed swarmExecutionService, swarmCoordinatorFactory, executionArchitecture, and tierTwoOrchestrator. The three-tier vision remains intact but implementation has been simplified.
 
 ## 📋 Executive Summary
 
-**🔴 CRITICAL REALITY CHECK** - The three-tier execution architecture has significant implementation gaps despite previous claims:
-- ✅ **SwarmContextManager**: Actually implemented (1,184 lines) and appears functional
-- 🔴 **SwarmExecutionService**: Referenced extensively but **DOES NOT EXIST** in codebase
-- 🔴 **SwarmCoordinatorFactory**: Referenced as "operational" but **DOES NOT EXIST** in codebase
-- 🔴 **TierTwoOrchestrator**: Referenced in diagrams but **DOES NOT EXIST** - only RoutineOrchestrator exists
-- 🔴 **ExecutionArchitecture**: Referenced as "factory" but **DOES NOT EXIST** in codebase
-- ✅ **Event-Driven Architecture**: EventBus and BaseStateMachine exist and appear functional
-- ✅ **Tier 3 Components**: TierThreeExecutor, UnifiedExecutor, and strategy classes exist
-- 🔴 **Architecture Integration**: Major integration points reference non-existent services
+**🟡 ARCHITECTURE REALITY CHECK** - The three-tier execution architecture underwent major refactoring (June 27 - July 1, 2025):
 
-### 🆕 Key Findings from 2025-07-01 Reality Check:
-1. **Documentation Fabrication**: Claims of "SwarmExecutionService removed" are false - service **never existed** 🔴
-2. **Non-Existent Factory**: "SwarmCoordinatorFactory operational" but **file doesn't exist** 🔴
-3. **SwarmCoordinator Exists**: Actually implemented (464 lines) extending SwarmStateMachine ✅  
-4. **Method Implementation Valid**: `getDefaultEventBotMapping()` is indeed implemented at lines 513-620 ✅
-5. **Mixed Reality**: Some components exist (SwarmStateMachine, Tier 3), others are completely fictional 🔴
-6. **Integration Impossible**: Can't have working integrations between existing and non-existent components 🔴
+### 🆕 Key Findings from 2025-07-02 Investigation:
+1. **Major Refactoring Completed**: Critical components removed in recent commits:
+   - `swarmExecutionService.ts` - Deleted in commit `965cd4aa` (July 1, 2025)
+   - `swarmCoordinatorFactory.ts` - Deleted in commit `965cd4aa` (July 1, 2025)
+   - `executionArchitecture.ts` - Deleted in commit `8f1714d58` (June 30, 2025)
+   - `tierTwoOrchestrator.ts` - Deleted in commit `8f1714d58` (June 30, 2025)
+
+2. **Current Implementation Status**:
+   - ✅ **SwarmStateMachine**: Implemented (980 lines, not 1600+ as previously stated)
+   - ✅ **SwarmContextManager**: Fully implemented (1,184 lines) with live update capabilities
+   - ✅ **Event System**: EventBus and BaseStateMachine provide event-driven foundation
+   - ✅ **Tier 2 Components**: RoutineOrchestrator replaced tierTwoOrchestrator
+   - ✅ **Tier 3 Components**: TierThreeExecutor, UnifiedExecutor, and strategies operational
+   - 🔴 **Missing Integration Layer**: No coordinating factory or service currently exists
+
+3. **Documentation Inaccuracies Identified**:
+   - SwarmStateMachine is 980 lines, not 1600+
+   - No `getDefaultEventBotMapping()` method exists in current implementation
+   - SwarmCoordinator referenced but doesn't exist in current codebase
+   - Architecture has been simplified from original documentation
 
 ### 🆕 **Actual Implementation Status** (2025-07-01 - Reality Check Investigation)
 - 🔴 **Architecture Status: PARTIALLY IMPLEMENTED** with major integration gaps:
@@ -65,51 +70,52 @@
   - ✅ **Dependency Injection**: Proper service creation order prevents circular dependencies
   - **Code Quality**: Battle-tested patterns from conversation/responseEngine.ts successfully adapted
 
-## 🏗️ Current Architecture (ACTUAL Implementation Status)
+## 🏗️ Current Architecture (As-Is) - Post-Refactoring State
 
-> **🔴 WARNING**: Previous diagram showed fictional components. This reflects **ACTUAL** existing files.
+> **Last Updated**: 2025-07-02
+> **Note**: This diagram reflects the ACTUAL current implementation after major refactoring
 
 ```mermaid
 graph TB
-    subgraph "🌐 External Layer - MISSING"
-        Factory[🔴 SwarmCoordinatorFactory<br/>❌ DOES NOT EXIST<br/>Referenced but missing]
-        UnifiedEvents[🔴 UnifiedEventSystemService<br/>❌ UNKNOWN STATUS<br/>Not verified]
-    end
-
-    subgraph "🧠 Tier 1: Coordination Intelligence - PARTIAL"
-        SwarmCoord[✅ SwarmCoordinator<br/>📁 tier1/swarmCoordinator.ts<br/>✅ Actually exists (464 lines)]
-        SwarmSM[✅ SwarmStateMachine<br/>📁 tier1/swarmStateMachine.ts<br/>✅ Confirmed (1,600+ lines)]
-        ConvBridge[✅ ConversationBridge<br/>📁 tier1/intelligence/conversationBridge.ts<br/>✅ Exists]
+    subgraph "🧠 Tier 1: Coordination Intelligence"
+        SwarmSM[✅ SwarmStateMachine<br/>📁 tier1/swarmStateMachine.ts<br/>980 lines | Event-driven coordination]
+        AgentGraph[✅ AgentGraph<br/>📁 tier1/agentGraph.ts<br/>Agent relationship management]
+        SwarmStateMapper[✅ SwarmStateMapper<br/>📁 tier1/swarmStateMapper.ts<br/>State transformation logic]
         
-        SwarmCoord --> SwarmSM
-        SwarmSM --> ConvBridge
+        SwarmSM --> AgentGraph
+        SwarmSM --> SwarmStateMapper
     end
 
-    subgraph "⚙️ Tier 2: Process Intelligence - MIXED"
-        RoutineOrch[✅ RoutineOrchestrator<br/>📁 tier2/routineOrchestrator.ts<br/>✅ Actually exists]
-        T2Orch[🔴 TierTwoOrchestrator<br/>❌ DOES NOT EXIST<br/>Only RoutineOrchestrator exists]
-        RoutineSM[✅ RoutineStateMachine<br/>📁 tier2/routineStateMachine.ts<br/>✅ Exists]
-        NavigatorFact[✅ NavigatorFactory<br/>📁 tier2/navigators/navigatorFactory.ts<br/>✅ Exists]
-        Navigators[✅ Navigator Classes<br/>📁 BaseNavigator, BpmnNavigator<br/>📁 SequentialNavigator<br/>✅ All exist]
-        MOISEGate[✅ MOISEGate<br/>📁 tier2/moiseGate.ts<br/>✅ Exists]
-        RunStateStore[✅ RunStateStore<br/>📁 tier2/runStateStore.ts<br/>✅ Exists]
+    subgraph "⚙️ Tier 2: Process Intelligence"
+        RoutineOrch[✅ RoutineOrchestrator<br/>📁 tier2/routineOrchestrator.ts<br/>Main process coordinator]
+        RoutineSM[✅ RoutineStateMachine<br/>📁 tier2/routineStateMachine.ts<br/>Routine state management]
+        RoutineExec[✅ RoutineExecutor<br/>📁 tier2/routineExecutor.ts<br/>Routine execution logic]
+        RoutineEventCoord[✅ RoutineEventCoordinator<br/>📁 tier2/routineEventCoordinator.ts<br/>Event coordination]
+        NavigatorFact[✅ NavigatorFactory<br/>📁 tier2/navigators/navigatorFactory.ts<br/>Navigator creation]
+        Navigators[✅ Navigator Classes<br/>📁 BaseNavigator, BpmnNavigator<br/>📁 SequentialNavigator<br/>All workflow formats]
+        MOISEGate[✅ MOISEGate<br/>📁 tier2/moiseGate.ts<br/>Organization model enforcement]
+        RunStateStore[✅ RunStateStore<br/>📁 tier2/runStateStore.ts<br/>Run state persistence]
+        RunCtxMgr[✅ RunContextManager<br/>📁 tier2/runContextManager.ts<br/>Context management]
         
         RoutineOrch --> RoutineSM
+        RoutineOrch --> RoutineExec
+        RoutineOrch --> RoutineEventCoord
         RoutineOrch --> NavigatorFact
         RoutineOrch --> MOISEGate
         RoutineOrch --> RunStateStore
-        RoutineSM --> Navigators
+        RoutineOrch --> RunCtxMgr
+        NavigatorFact --> Navigators
     end
 
-    subgraph "🛠️ Tier 3: Execution Intelligence - COMPLETE"
-        T3Exec[✅ TierThreeExecutor<br/>📁 tier3/TierThreeExecutor.ts<br/>✅ Exists]
-        UnifiedExec[✅ UnifiedExecutor<br/>📁 tier3/engine/unifiedExecutor.ts<br/>✅ Exists]
-        SimpleStratProv[✅ SimpleStrategyProvider<br/>📁 tier3/engine/simpleStrategyProvider.ts<br/>✅ Exists]
-        Strategies[✅ Strategy Implementations<br/>📁 tier3/strategies/*<br/>✅ All strategy files exist]
-        ToolOrch[✅ ToolOrchestrator<br/>📁 tier3/engine/toolOrchestrator.ts<br/>✅ Exists]
-        T3Resource[✅ ResourceManager<br/>📁 tier3/engine/resourceManager.ts<br/>✅ Exists]
-        ValidationEng[✅ ValidationEngine<br/>📁 tier3/engine/validationEngine.ts<br/>✅ Exists]
-        IOProcessor[✅ IOProcessor<br/>📁 tier3/engine/ioProcessor.ts<br/>✅ Exists]
+    subgraph "🛠️ Tier 3: Execution Intelligence"
+        T3Exec[✅ TierThreeExecutor<br/>📁 tier3/TierThreeExecutor.ts<br/>Main execution coordinator]
+        UnifiedExec[✅ UnifiedExecutor<br/>📁 tier3/engine/unifiedExecutor.ts<br/>Strategy-aware execution]
+        SimpleStratProv[✅ SimpleStrategyProvider<br/>📁 tier3/engine/simpleStrategyProvider.ts<br/>Strategy selection]
+        Strategies[✅ Strategy Implementations<br/>📁 conversationalStrategy.ts<br/>📁 deterministicStrategy.ts<br/>📁 reasoningStrategy.ts]
+        ToolOrch[✅ ToolOrchestrator<br/>📁 tier3/engine/toolOrchestrator.ts<br/>Tool coordination]
+        T3Resource[✅ ResourceManager<br/>📁 tier3/engine/resourceManager.ts<br/>Resource allocation]
+        ValidationEng[✅ ValidationEngine<br/>📁 tier3/engine/validationEngine.ts<br/>Input/output validation]
+        IOProcessor[✅ IOProcessor<br/>📁 tier3/engine/ioProcessor.ts<br/>I/O processing]
         
         T3Exec --> UnifiedExec
         UnifiedExec --> SimpleStratProv
@@ -120,22 +126,29 @@ graph TB
         SimpleStratProv --> Strategies
     end
 
-    subgraph "🌊 Cross-Cutting Concerns - VERIFIED"
-        EventBus[✅ EventBus<br/>📁 /services/events/eventBus.ts<br/>✅ Exists]
-        SwarmCtxMgr[✅ SwarmContextManager<br/>📁 shared/SwarmContextManager.ts<br/>✅ IMPLEMENTED (1,184 lines)]
-        CtxSubscriptionMgr[✅ ContextSubscriptionManager<br/>📁 shared/ContextSubscriptionManager.ts<br/>✅ Exists]
-        BaseComp[✅ BaseComponent<br/>📁 shared/BaseComponent.ts<br/>✅ Exists]
-        BaseSM[✅ BaseStateMachine<br/>📁 shared/BaseStateMachine.ts<br/>✅ Exists]
+    subgraph "🌊 Shared Infrastructure"
+        EventBus[✅ EventBus<br/>📁 /services/events/eventBus.ts<br/>Central event coordination]
+        SwarmCtxMgr[✅ SwarmContextManager<br/>📁 shared/SwarmContextManager.ts<br/>1,184 lines | Unified state]
+        CtxSubscriptionMgr[✅ ContextSubscriptionManager<br/>📁 shared/ContextSubscriptionManager.ts<br/>863 lines | Live updates]
+        UnifiedSwarmCtx[✅ UnifiedSwarmContext<br/>📁 shared/UnifiedSwarmContext.ts<br/>632 lines | Type definitions]
+        BaseComp[✅ BaseComponent<br/>📁 shared/BaseComponent.ts<br/>Component foundation]
+        BaseSM[✅ BaseStateMachine<br/>📁 shared/BaseStateMachine.ts<br/>Event queue management]
+        BaseTierExec[✅ BaseTierExecutor<br/>📁 shared/BaseTierExecutor.ts<br/>Tier execution base]
+        ErrorHandler[✅ ErrorHandler<br/>📁 shared/ErrorHandler.ts<br/>Error management]
+        RedisIndexMgr[✅ RedisIndexManager<br/>📁 shared/RedisIndexManager.ts<br/>Redis indexing]
         
         SwarmCtxMgr --> CtxSubscriptionMgr
+        SwarmCtxMgr --> UnifiedSwarmCtx
     end
 
-    subgraph "🔴 MISSING Integration Services"
-        IntegArch[🔴 ExecutionArchitecture<br/>❌ DOES NOT EXIST<br/>Referenced but missing]
-        RunPersist[🔴 RunPersistenceService<br/>❌ DOES NOT EXIST<br/>Referenced but missing]
-        RoutineStorage[🔴 RoutineStorageService<br/>❌ DOES NOT EXIST<br/>Referenced but missing]
-        AuthInteg[🔴 AuthIntegrationService<br/>❌ DOES NOT EXIST<br/>Referenced but missing]
-        ToolReg[🔴 IntegratedToolRegistry<br/>❌ DOES NOT EXIST<br/>Referenced but missing]
+    subgraph "🔌 Integration Layer"
+        MCPInteg[✅ MCP Integration<br/>📁 integration/mcp.ts<br/>Tool integration]
+        PersistInteg[✅ Persistence Integration<br/>📁 integration/persistence.ts<br/>Data persistence]
+    end
+
+    subgraph "💾 Data Layer"
+        Redis[Redis<br/>🔄 State & Events]
+        PostgreSQL[PostgreSQL<br/>💾 Persistent Data]
     end
 
     subgraph "🤖 Emergent Capabilities (Event-Driven)"
@@ -198,41 +211,79 @@ graph TB
     
     classDef tier1 fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
     classDef tier2 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef tier1 fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef tier2 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
     classDef tier3 fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef external fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef integration fill:#fafafa,stroke:#424242,stroke-width:2px
-    classDef crossCutting fill:#e0f2f1,stroke:#00796b,stroke-width:2px
+    classDef shared fill:#e0f2f1,stroke:#00796b,stroke-width:2px
+    classDef integration fill:#fff3e0,stroke:#f57c00,stroke-width:2px
     classDef data fill:#e8eaf6,stroke:#3f51b5,stroke-width:2px
     classDef emergent fill:#ffebee,stroke:#c62828,stroke-width:2px
 
-    class API,UnifiedEvents external
-    class SwarmSM,T1State,ConvBridge tier1
-    class T2Orch,UnifiedSM,NavReg,Navigators,MOISEGate,T2State tier2
-    class T3Exec,UnifiedExec,SimpleStratProv,Strategies,ToolOrch,T3Resource,ValidationEng,IOProcessor,ContextExp tier3
-    class IntegArch,RunPersist,RoutineStorage,AuthInteg,ToolReg integration
-    class EventBus,UnifiedEventAdapter,BaseComp,BaseSM crossCutting
-    class Redis,PostgreSQL,ChatStore data
+    class SwarmSM,AgentGraph,SwarmStateMapper tier1
+    class RoutineOrch,RoutineSM,RoutineExec,RoutineEventCoord,NavigatorFact,Navigators,MOISEGate,RunStateStore,RunCtxMgr tier2
+    class T3Exec,UnifiedExec,SimpleStratProv,Strategies,ToolOrch,T3Resource,ValidationEng,IOProcessor tier3
+    class EventBus,SwarmCtxMgr,CtxSubscriptionMgr,UnifiedSwarmCtx,BaseComp,BaseSM,BaseTierExec,ErrorHandler,RedisIndexMgr shared
+    class MCPInteg,PersistInteg integration
+    class Redis,PostgreSQL data
     class EmergentAgent,AgentTemplates,SwarmTemplates emergent
 ```
 
+## 🚨 Critical Issues Identified
+
+> **Last Updated**: 2025-07-02
+
+### **1. Missing Integration Layer** 🔴
+The recent refactoring removed the coordinating services that connect the three tiers:
+- **Impact**: No clear entry point for execution requests
+- **Missing**: swarmExecutionService, swarmCoordinatorFactory, executionArchitecture
+- **Current State**: Tiers exist independently without orchestration
+- **Path Forward**: Need to create a lightweight coordination service or use event-driven coordination
+
+### **2. Incomplete Tier 1 Implementation** 🟡
+- **SwarmStateMachine**: Exists but lacks clear integration points with other tiers
+- **No Event→Bot Mapping**: Referenced getDefaultEventBotMapping() method doesn't exist
+- **Missing Delegation**: No clear mechanism to delegate work to Tier 2
+- **Path Forward**: Implement event-based delegation or direct tier communication
+
+### **3. Documentation-Reality Mismatch** 🔴
+- **Line Count Discrepancies**: SwarmStateMachine is 980 lines, not 1600+
+- **Non-existent Methods**: Documentation references methods that don't exist
+- **Fictional Components**: Many referenced files were removed in refactoring
+- **Path Forward**: Complete documentation overhaul to match actual implementation
+
+### **4. Event System Disconnection** 🟡
+- **EventBus Exists**: Fully functional but not integrated with execution flow
+- **No Event Adapters**: Missing unified event adapter layer
+- **Emergent Agents**: Infrastructure ready but no agent implementations
+- **Path Forward**: Connect EventBus to tier components for event-driven coordination
+
+### **5. State Management Fragmentation** 🟡
+- **SwarmContextManager**: Fully implemented (1,184 lines) but not integrated
+- **Multiple State Stores**: Unclear separation between different state stores
+- **No Live Updates**: Context subscription system not connected to tiers
+- **Path Forward**: Migrate to SwarmContextManager as single source of truth
+
 ## 📊 Current Implementation Metrics
 
-> **Analysis Date**: 2025-06-29
-> **Source**: Comprehensive codebase analysis and architecture verification
+> **Analysis Date**: 2025-07-02
+> **Source**: Direct file system investigation and line count verification
 
 ### **Architecture Implementation Status**
 
-| Component | Lines of Code | Implementation Status | Key Features |
-|-----------|---------------|----------------------|-------------|
-| **SwarmCoordinatorFactory** | 30 | ✅ Production Ready | Singleton pattern, Bull queue integration, lazy initialization |
-| **SwarmCoordinator** | 464 | ✅ Production Ready | Extends SwarmStateMachine, adds TierCommunicationInterface |
-| **SwarmStateMachine** | 1,600+ | 🟡 Nearly Complete | Event-driven coordination, missing `getDefaultEventBotMapping()` |
-| **SwarmContextManager** | 1,184 | ✅ Production Ready | Unified state management, live updates, resource allocation |
-| **ContextSubscriptionManager** | 863 | ✅ Production Ready | Redis pub/sub, filtered subscriptions, health monitoring |
-| **UnifiedSwarmContext Types** | 632 | ✅ Production Ready | Complete type system, runtime validation |
-| **ResourceFlowProtocol** | 418 | ✅ Production Ready | Cross-tier allocation, hierarchical tracking |
-| **EventBus (Enhanced)** | ~500 | ✅ Production Ready | Rate limiting, barrier sync, metrics, pattern caching |
-| **Total Core Implementation** | **5,885+** | **95% Complete** | **Only missing 1 method implementation** |
+| Component | Status | Lines of Code | Notes |
+|-----------|--------|---------------|-------|
+| **SwarmExecutionService** | ❌ DELETED | 0 | Removed in commit 965cd4aa (July 1, 2025) |
+| **SwarmCoordinatorFactory** | ❌ DELETED | 0 | Removed in commit 965cd4aa (July 1, 2025) |
+| **ExecutionArchitecture** | ❌ DELETED | 0 | Removed in commit 8f1714d58 (June 30, 2025) |
+| **TierTwoOrchestrator** | ❌ DELETED | 0 | Removed in commit 8f1714d58 (June 30, 2025) |
+| **SwarmStateMachine** | ✅ EXISTS | 980 | Event-driven coordination (not 1600+ as claimed) |
+| **SwarmContextManager** | ✅ EXISTS | 1,184 | Unified state management with live updates |
+| **ContextSubscriptionManager** | ✅ EXISTS | 863 | Redis pub/sub for context updates |
+| **UnifiedSwarmContext** | ✅ EXISTS | 632 | Type definitions for unified context |
+| **RoutineOrchestrator** | ✅ EXISTS | TBD | Replaced TierTwoOrchestrator |
+| **TierThreeExecutor** | ✅ EXISTS | TBD | Main tier 3 coordinator |
+| **EventBus** | ✅ EXISTS | ~500 | Central event system |
+| **BaseStateMachine** | ✅ EXISTS | TBD | Event queue foundation |
 
 ### **Architecture Achievement Verification**
 
@@ -1549,16 +1600,16 @@ graph TB
     class EventCore event
 ```
 
-## 🛠️ Architecture Evolution Roadmap
+## 🛠️ Refactoring Roadmap
 
-> **Final Update**: 2025-01-27 - **Emergent Architecture Achieved** 🎉
+> **Last Updated**: 2025-07-02 - Post-refactoring assessment
 
-### Phase 1: **Event System Unification** ✅ *Production Complete*
-- ✅ **Production-grade BaseStateMachine**: Sophisticated event patterns with autonomous queuing
-- ✅ **Battle-tested SwarmStateMachine**: Elegant coordination with error recovery and saga patterns
-- ✅ **Complete Migration**: All tiers using `UnifiedEventSystem` with comprehensive fallback
-- ✅ **Event Enrichment**: Priority, delivery guarantees, contextual metadata, and reliable delivery
-- ✅ **Performance Optimized**: Event queuing, batching, and efficient draining algorithms
+### Phase 1: **Architecture Reconstruction** 🔴 *URGENT*
+- [ ] **Create Integration Service**: Build lightweight coordinator to connect three tiers
+- [ ] **Implement Tier Communication**: Define clear interfaces between tiers
+- [ ] **Wire Event System**: Connect EventBus to all tier components
+- [ ] **Test End-to-End Flow**: Verify execution requests flow through all tiers
+- [ ] **Document Integration Points**: Clear API documentation for tier boundaries
 
 ### Phase 2: **Emergent Intelligence Transition** ✅ *Production Complete*
 - ✅ **EmergentAgent Infrastructure**: Goal-driven agents with pattern learning and improvement proposals
@@ -1660,214 +1711,223 @@ graph TB
 
 ## 🐝 Swarm State Machine Deep Dive
 
-> **Last Updated**: 2025-07-01 (Deep Dive Analysis)
-> **Purpose**: Comprehensive analysis of SwarmStateMachine - the cornerstone of Tier 1 coordination intelligence
+> **Last Updated**: 2025-07-02 (Accurate Analysis Based on Actual Implementation)
+> **Purpose**: Comprehensive analysis of SwarmStateMachine - the current Tier 1 implementation
 
-The SwarmStateMachine represents the **autonomous coordination brain** of Vrooli's execution architecture. It manages swarm lifecycles, coordinates goals, forms teams, and orchestrates emergent behaviors through data-driven event processing.
+The SwarmStateMachine represents the **event-driven coordination engine** of Vrooli's execution architecture. Based on the battle-tested implementation from conversation/responseEngine.ts, it provides elegant swarm coordination without overly complex state transitions.
 
 ### **🎯 Core Architecture Philosophy**
 
-The SwarmStateMachine embodies Vrooli's emergent principles:
+The SwarmStateMachine embodies simplified emergent principles:
 
 1. **Minimal State Complexity**: Simple operational states (UNINITIALIZED → STARTING → RUNNING/IDLE → STOPPED/FAILED)
-2. **Data-Driven Coordination**: All swarm behaviors emerge from configuration data, not hardcoded logic
-3. **Event-Driven Intelligence**: Agents coordinate through events, enabling emergent team formation
-4. **Context-Aware Decision Making**: SwarmContextManager integration provides live policy updates
+2. **Event-Driven Coordination**: Uses BaseStateMachine for autonomous event queue processing
+3. **Conversation Engine Integration**: Delegates to ConversationEngine for bot orchestration
+4. **Context-Aware Updates**: Integrates with SwarmContextManager for state management
 
 ### **🏗️ State Machine Architecture**
 
 ```mermaid
 graph TB
-    subgraph "🧠 SwarmStateMachine Core (1,600+ lines)"
-        SM[SwarmStateMachine<br/>📋 Autonomous coordination<br/>Data-driven bot selection<br/>Event queue processing]
+    subgraph "🧠 SwarmStateMachine Core (980 lines)"
+        SM[SwarmStateMachine<br/>📋 Event-driven coordination<br/>Conversation orchestration<br/>Context management]
         
-        ECM[Event Context Manager<br/>📡 getDefaultEventBotMapping()<br/>11 event types with priorities<br/>Emergency/safety protocols]
+        CE[ConversationEngine<br/>🤖 Bot orchestration<br/>Response generation<br/>Strategy selection]
         
-        BSM[BaseStateMachine<br/>🔄 Event queuing foundation<br/>Autonomous draining<br/>Graceful error recovery]
+        BSM[BaseStateMachine<br/>🔄 Event queuing foundation<br/>Autonomous draining<br/>Error recovery]
     end
     
     subgraph "📊 Context Management"
-        SCM[SwarmContextManager<br/>🎯 Unified state authority<br/>Live updates, subscriptions<br/>Resource allocation]
+        SCM[SwarmContextManager<br/>🎯 Unified state<br/>1,184 lines implemented<br/>Live updates]
         
-        CSM[ContextSubscriptionManager<br/>📡 Live update distribution<br/>Redis pub/sub coordination<br/>Policy change propagation]
+        ConvContext[Conversation Context<br/>📝 Chat configuration<br/>Bot participants<br/>Message history]
     end
     
     subgraph "🔄 Event Processing"
-        EventQueue[Event Queue<br/>📥 Ordered processing<br/>Priority management<br/>Backpressure handling]
+        EventQueue[Event Queue<br/>📥 Autonomous processing<br/>Error recovery<br/>State transitions]
         
-        EventMapping[Event → Bot Mapping<br/>🤖 Data-driven selection<br/>Role-based coordination<br/>Emergent team formation]
+        EventHandlers[Event Handlers<br/>🎯 handleExternalMessage<br/>handleToolApproval<br/>handleStatusUpdate]
         
-        PromptGen[Template Prompting<br/>💬 Context-aware generation<br/>Variable substitution<br/>Simple bot coordination]
+        ResponseService[ResponseService<br/>💬 Message generation<br/>Bot responses<br/>User communication]
     end
     
-    subgraph "🎭 Bot Coordination Types"
-        Emergency[Emergency Events<br/>🚨 Safety violations<br/>Emergency stops<br/>All-agent response]
+    subgraph "🎭 State Transitions"
+        States[Operational States<br/>🔵 UNINITIALIZED<br/>🟢 STARTING/RUNNING<br/>🟡 IDLE/PAUSED<br/>🔴 STOPPED/FAILED]
         
-        Coordination[Coordination Events<br/>🎯 Goal updates<br/>Team formation<br/>Leader coordination]
-        
-        Resource[Resource Events<br/>💰 Allocation updates<br/>Exhaustion handling<br/>Resource optimization]
-        
-        Tool[Tool Events<br/>🔧 Approvals/rejections<br/>Alternative approaches<br/>Tool coordination]
+        Transitions[State Transitions<br/>➡️ start() → STARTING<br/>➡️ Events → RUNNING<br/>➡️ stop() → STOPPED<br/>➡️ Error → FAILED]
     end
     
-    SM --> ECM
+    SM --> CE
     SM --> BSM
-    SM -.->|"Uses"| SCM
-    SCM --> CSM
+    SM -.->|"Required"| SCM
+    SCM --> ConvContext
     
     BSM --> EventQueue
-    EventQueue --> EventMapping
-    EventMapping --> PromptGen
+    EventQueue --> EventHandlers
+    EventHandlers --> ResponseService
     
-    ECM --> Emergency
-    ECM --> Coordination
-    ECM --> Resource
-    ECM --> Tool
+    SM --> States
+    States --> Transitions
     
     classDef core fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
     classDef context fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
     classDef processing fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef coordination fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef states fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
     
-    class SM,ECM,BSM core
-    class SCM,CSM context
-    class EventQueue,EventMapping,PromptGen processing
-    class Emergency,Coordination,Resource,Tool coordination
+    class SM,CE,BSM core
+    class SCM,ConvContext context
+    class EventQueue,EventHandlers,ResponseService processing
+    class States,Transitions states
 ```
 
 ### **🚀 Key Implementation Features**
 
-#### **1. Data-Driven Event-Bot Mapping (Lines 513-620)**
-The `getDefaultEventBotMapping()` method provides comprehensive event coordination:
+#### **1. Event-Driven Architecture**
+The SwarmStateMachine extends BaseStateMachine to inherit autonomous event processing:
 
 ```typescript
-// Emergency/safety events - handled by all available agents
-"swarm/safety/violation": {
-    respondingBots: ["leader", "coordinator", "safety_monitor"],
-    promptTemplate: "Safety violation detected. Implement immediate containment and mitigation.",
-    priority: "high",
-    allowConcurrent: false,
-    maxResponseTimeMs: 1000,
-},
+export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent> {
+    private conversationId: string | null = null;
+    private initiatingUser: SessionUser | null = null;
+    private swarmId: string | null = null;
+    private contextSubscription: ContextSubscription | null = null;
+    private swarmContext: UnifiedSwarmContext | null = null;
 
-// Coordination events - handled by leader/coordinator
-"swarm/goal/updated": {
-    respondingBots: ["leader", "coordinator"],
-    promptTemplate: "Goal updated to: {goal}. Analyze changes and coordinate team response.",
-    priority: "high",
-    allowConcurrent: false,
-    maxResponseTimeMs: 5000,
-},
-
-// Resource events - handled by resource-aware agents
-"swarm/resource/exhausted": {
-    respondingBots: ["coordinator", "resource_manager"],
-    promptTemplate: "Resource exhaustion detected. Implement emergency resource optimization.",
-    priority: "high",
-    allowConcurrent: false,
-    maxResponseTimeMs: 2000,
+    constructor(
+        private readonly contextManager: ISwarmContextManager, // Required for state management
+        private readonly conversationEngine: ConversationEngine, // For conversation orchestration
+        private readonly responseService: ResponseService, // For bot responses
+        private readonly eventBus: EventBus, // For event communication
+    ) {
+        super(SwarmState.UNINITIALIZED, "SwarmStateMachine");
+    }
 }
 ```
 
-#### **2. Emergent Team Formation**
-Agents coordinate through **tools and events**, not hardcoded states:
-- `update_swarm_shared_state`: Agents modify team composition based on goal analysis
-- `resource_manage`: Dynamic resource allocation and team optimization
-- `spawn_swarm`: Child swarm creation for complex multi-faceted goals
-- `run_routine`: Execute discovered routines with proper resource tracking
-
-#### **3. Context-Aware Decision Making**
-Integration with SwarmContextManager enables live behavioral updates:
-- **Policy Updates**: Real-time changes to coordination strategies
-- **Resource Reallocation**: Dynamic resource strategy optimization
-- **Team Restructuring**: Emergent organizational changes based on performance
-- **Goal Evolution**: Adaptive goal refinement through agent collaboration
-
-#### **4. Simple Prompting with Template Substitution**
-The `promptBot()` method (lines 694-741) provides elegant agent coordination:
+#### **2. Conversation Engine Integration**
+Instead of managing bot selection directly, the SwarmStateMachine delegates to ConversationEngine:
 
 ```typescript
-private async promptBot(bot: ChatParticipant, event: UnifiedEvent, context: UnifiedSwarmContext): Promise<void> {
-    // Get event mapping and prompt template
-    const mapping = context.configuration?.eventBotMapping || this.getDefaultEventBotMapping();
-    const eventConfig = mapping[event.type];
-    
-    // Build prompt from template with variable substitution
-    const prompt = this.buildPrompt(
-        eventConfig?.promptTemplate || "Process event: {eventType}",
-        {
-            eventType: event.type,
-            goal: event.data?.goal || context.execution?.goal || "undefined",
-            toolName: event.data?.pendingToolCall?.toolName || "undefined",
-            reason: event.data?.reason || "undefined",
-        }
+private async handleExternalMessage(event: BaseServiceEvent<SocketEventPayloads[typeof EventTypes.CHAT.MESSAGE_ADDED]>): Promise<void> {
+    // Get context from contextManager
+    const context = await this.contextManager.getContext(this.swarmId);
+    const conversationContext = await this.transformToConversationContext(context);
+
+    // Create trigger from the external message
+    const trigger: ConversationTrigger = {
+        type: "user_message",
+        message: event.data.message as ChatMessage,
+    };
+
+    // Orchestrate conversation - let ConversationEngine handle bot selection
+    const result = await this.conversationEngine.orchestrateConversation({
+        context: conversationContext,
+        trigger,
+        strategy: "conversation",
+    });
+}
+```
+
+#### **3. Context Management Integration**
+The SwarmStateMachine requires SwarmContextManager in its constructor and uses it for all state updates:
+
+```typescript
+private async updateSwarmContext(updates: Partial<ChatConfigObject>): Promise<void> {
+    const currentContext = await this.contextManager.getContext(this.swarmId);
+    const contextUpdates: Partial<UnifiedSwarmContext> = {};
+
+    // Transform ChatConfigObject updates to UnifiedSwarmContext format
+    if (updates.goal !== undefined) {
+        contextUpdates.execution = {
+            ...currentContext.execution,
+            goal: updates.goal,
+        };
+    }
+
+    // Update context with merged changes
+    await this.contextManager.updateContext(
+        this.swarmId,
+        contextUpdates,
+        `Swarm configuration updated: ${Object.keys(updates).join(", ")}`,
     );
-    
-    // Simple bot prompting - let the bot decide what to do
-    await this.conversationBridge.generateResponse({
-        conversationId: event.data?.chatId,
-        sessionUser: event.data?.sessionUser
-    }, prompt);
 }
 ```
 
-### **⚡ Performance Characteristics**
+#### **4. Simple State Model**
+Unlike complex state machines, this implementation focuses on operational states only:
 
-| Operation | Target Latency | Implementation | Status |
-|-----------|---------------|----------------|---------|
-| **Event Processing** | <100ms P95 | Autonomous queue draining | ✅ Operational |
-| **Bot Selection** | <50ms P95 | Data-driven role mapping | ✅ Operational |
-| **Context Updates** | <200ms P95 | SwarmContextManager integration | ✅ Operational |
-| **Template Generation** | <20ms P95 | Simple variable substitution | ✅ Operational |
-| **State Transitions** | <10ms P95 | Minimal state complexity | ✅ Operational |
+- **UNINITIALIZED**: Not yet started
+- **STARTING**: Initializing swarm with goal and leader
+- **RUNNING**: Actively processing events
+- **IDLE**: Waiting for events but monitoring for work
+- **PAUSED**: Temporarily suspended
+- **STOPPED**: Gracefully ended
+- **FAILED**: Error occurred
+- **TERMINATED**: Force shutdown
 
-### **🌱 Emergent Capabilities Enabled**
+Complex behaviors like goal setting, team formation, and task decomposition emerge from AI agent decisions rather than being hard-coded as states.
 
-The SwarmStateMachine's data-driven design enables powerful emergent behaviors:
+### **🔍 Key Findings from Deep Dive**
 
-1. **Adaptive Team Formation**: Agents analyze goals and form optimal teams
-2. **Dynamic Resource Optimization**: Resource strategies evolve based on usage patterns
-3. **Intelligent Goal Decomposition**: Complex goals split into manageable subtasks
-4. **Self-Improving Coordination**: Successful patterns reinforced through context updates
-5. **Emergency Response Protocols**: Automated safety measures triggered by event patterns
+1. **No getDefaultEventBotMapping()**: Despite documentation claims, this method doesn't exist in the current implementation
+2. **Conversation Engine Delegation**: Bot selection is handled by ConversationEngine, not SwarmStateMachine
+3. **Simple Architecture**: The implementation is much simpler than documented - 980 lines vs claimed 1600+
+4. **Missing Tier Integration**: No clear mechanism for delegating work to Tier 2 (Process Intelligence)
+5. **Event Queue Works**: BaseStateMachine provides solid event processing foundation
 
-### **🔧 Integration Points**
+### **🚀 Opportunities for Enhancement**
 
-#### **SwarmContextManager Integration**
-- **Required Dependency**: SwarmContextManager injected in constructor
-- **Live Updates**: Context subscriptions enable real-time policy changes
-- **Resource Coordination**: Unified resource allocation across all tiers
-- **Historical Analysis**: Context history enables pattern learning
+1. **Implement Event→Bot Mapping**: Add configurable event-to-bot role mapping for emergent coordination
+2. **Connect to Tier 2**: Implement delegation mechanism to RoutineOrchestrator
+3. **Add Live Configuration**: Leverage SwarmContextManager for dynamic behavior updates
+4. **Create Agent Templates**: Build emergent agents that subscribe to swarm events
+5. **Document Integration Points**: Clear API boundaries between tiers
 
-#### **Event System Integration**
-- **BaseStateMachine Foundation**: Autonomous event processing with error recovery
-- **Typed Event Handling**: Full TypeScript type safety with UnifiedEvent system
-- **Cross-Tier Communication**: Events coordinate with Tier 2 and Tier 3
-- **Agent Subscriptions**: External agents subscribe to swarm events for monitoring
+---
 
-#### **Conversation Bridge Integration**
-- **Agent Coordination**: Direct integration with ConversationBridge for bot prompting
-- **Context Propagation**: Swarm context available to all agent interactions
-- **Tool Approval Flows**: Integrated approval/rejection handling
-- **Response Generation**: Simple prompting enables emergent agent behaviors
+## 📝 Summary and Next Steps
 
-### **📊 Production Status**
+> **Last Updated**: 2025-07-02
 
-**✅ Fully Operational Components**:
-- Event-driven coordination with 11 event types
-- Data-driven bot selection with role mapping
-- Template-based prompting with variable substitution
-- SwarmContextManager integration for live updates
-- Emergency response protocols with priority handling
-- Resource exhaustion handling with optimization triggers
+### **Current State Assessment**
 
-**🟡 Ready for Enhancement**:
-- Production EmergentAgent classes (infrastructure complete)
-- Advanced pattern recognition for team optimization
-- Historical performance analysis for strategy refinement
-- Cross-swarm coordination patterns
+The Vrooli execution architecture is in a **transitional state** following major refactoring:
 
-**Conclusion**: The SwarmStateMachine represents a mature, battle-tested implementation that successfully bridges the gap between deterministic coordination and emergent intelligence. Its data-driven design enables true emergent capabilities while maintaining production reliability.
+1. **✅ Strong Foundation**: Core components (SwarmStateMachine, EventBus, SwarmContextManager) are well-implemented
+2. **🔴 Missing Integration**: Key orchestration services were removed without replacement
+3. **🟡 Incomplete Vision**: Three-tier architecture exists but lacks coordination
+4. **✅ Emergent Ready**: Infrastructure supports emergent capabilities but needs agent implementations
+
+### **Immediate Priorities**
+
+1. **Restore Integration Layer** (Critical)
+   - Create lightweight coordination service
+   - Connect three tiers through events or direct interfaces
+   - Test end-to-end execution flow
+
+2. **Complete Tier 1 Implementation**
+   - Add event→bot mapping capabilities
+   - Implement delegation to Tier 2
+   - Connect to EventBus for coordination
+
+3. **Deploy Emergent Agents**
+   - Create production agent templates
+   - Implement monitoring/optimization agents
+   - Enable live configuration updates
+
+### **Long-term Vision Alignment**
+
+Despite current gaps, the architecture maintains alignment with core principles:
+- **Minimal Infrastructure**: Simplified after refactoring
+- **Event-Driven Design**: EventBus ready for integration
+- **Emergent Capabilities**: Infrastructure supports data-driven behavior
+- **Self-Improvement**: SwarmContextManager enables live updates
+
+The path forward is clear: rebuild the integration layer while preserving the emergent, data-driven vision that makes Vrooli's architecture revolutionary.
+
+---
+
+> **Note**: This living document will continue to evolve as the architecture is rebuilt and enhanced. Each update should verify actual implementation against documented claims.
 
 ---
 

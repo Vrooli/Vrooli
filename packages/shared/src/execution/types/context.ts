@@ -1,295 +1,203 @@
 /**
- * Core type definitions for context and memory management
- * These types are shared across all three tiers
+ * Unified Context Types for Clean Data Flow
+ * 
+ * These context types provide a clean hierarchy for passing data through
+ * the execution system without transformation. Each level adds more specific
+ * context while maintaining compatibility with the base types.
+ * 
+ * Design Principles:
+ * - Clean inheritance hierarchy
+ * - No transformation between levels
+ * - Rich context flows down the stack
+ * - Compile-time type safety
  */
 
+import type { ChatMessage, SessionUser } from "../../api/types.js";
+import type { BotConfigObject } from "../../shape/configs/bot.js";
+import type { TeamConfigObject } from "../../shape/configs/team.js";
+import type { Tool } from "./conversation.js";
+import type { ExecutionStrategy } from "./core.js";
+import type { BotId, SwarmId } from "./ids.js";
+
 /**
- * Context scope for hierarchical variable management
+ * Base execution context shared across all tiers
+ * Contains the minimal information needed for any execution operation
+ */
+export interface BaseExecutionContext {
+    /** Unique identifier for the swarm this execution belongs to */
+    readonly swarmId: SwarmId;
+
+    /** User who initiated or owns this execution */
+    readonly userData: SessionUser;
+
+    /** When this execution context was created */
+    readonly timestamp: Date;
+}
+
+/**
+ * Response context for individual bot response generation
+ * Extends base context with everything needed for a single bot to generate a response
+ */
+export interface ResponseContext extends BaseExecutionContext {
+    /** The specific bot that should generate a response */
+    readonly botId: BotId;
+
+    /** Configuration for the responding bot */
+    readonly botConfig: BotConfigObject;
+
+    /** Full conversation history for context */
+    readonly conversationHistory: ChatMessage[];
+
+    /** Tools available to this bot during response generation */
+    readonly availableTools: Tool[];
+
+    /** Execution strategy (conversation, reasoning, deterministic) */
+    readonly strategy: ExecutionStrategy;
+
+    /** Optional constraints on response generation */
+    readonly constraints?: {
+        /** Maximum tokens for this response */
+        maxTokens?: number;
+
+        /** Temperature for LLM sampling */
+        temperature?: number;
+
+        /** Maximum time allowed for response generation */
+        timeoutMs?: number;
+
+        /** Maximum cost allowed for this response */
+        maxCredits?: string;
+    };
+}
+
+/**
+ * Conversation context for multi-bot conversation orchestration
+ * Extends base context with everything needed to orchestrate a conversation
+ */
+export interface ConversationContext extends BaseExecutionContext {
+    /** All bots that could participate in this conversation */
+    readonly participants: BotParticipant[];
+
+    /** Full conversation history for context */
+    readonly conversationHistory: ChatMessage[];
+
+    /** Tools available during this conversation */
+    readonly availableTools: Tool[];
+
+    /** Team configuration if this is a team conversation */
+    readonly teamConfig?: TeamConfigObject;
+
+    /** Shared state accessible to all participants */
+    readonly sharedState?: Record<string, unknown>;
+
+    /** Conversation-level constraints */
+    readonly constraints?: ConversationConstraints;
+}
+
+/**
+ * Bot participant information for conversation orchestration
+ */
+export interface BotParticipant {
+    /** Unique identifier for this bot */
+    readonly id: BotId;
+
+    /** Bot configuration */
+    readonly config: BotConfigObject;
+
+    /** Current state of this bot in the conversation */
+    readonly state: BotParticipantState;
+
+    /** Role this bot plays in the conversation */
+    readonly role?: string;
+
+    /** Priority level for bot selection (higher = more likely to be selected) */
+    readonly priority?: number;
+
+    /** Whether this bot is currently available to respond */
+    readonly isAvailable: boolean;
+
+    /** Last time this bot participated in the conversation */
+    readonly lastActive?: Date;
+
+    /** Tools specifically available to this bot */
+    readonly tools?: Tool[];
+}
+
+/**
+ * State of a bot participant in a conversation
+ */
+export interface BotParticipantState {
+    /** Whether this bot is currently thinking/processing */
+    readonly isProcessing: boolean;
+
+    /** Whether this bot is waiting for input */
+    readonly isWaiting: boolean;
+
+    /** Whether this bot has completed its turn */
+    readonly hasResponded: boolean;
+
+    /** Any error state for this bot */
+    readonly error?: string;
+
+    /** Bot-specific context or memory */
+    readonly memory?: Record<string, unknown>;
+}
+
+/**
+ * Constraints for conversation orchestration
+ */
+export interface ConversationConstraints {
+    /** Maximum number of turns in this conversation */
+    maxTurns?: number;
+
+    /** Maximum time for the entire conversation */
+    timeoutMs?: number;
+
+    /** Maximum number of bots that can participate */
+    maxParticipants?: number;
+
+    /** Resource limits for the conversation */
+    resourceLimits?: {
+        /** Maximum credits that can be spent */
+        maxCredits?: string;
+
+        /** Maximum memory usage */
+        maxMemoryMB?: number;
+
+        /** Maximum concurrent operations */
+        maxConcurrentOps?: number;
+    };
+
+    /** Whether bots can call tools */
+    allowToolUse?: boolean;
+
+    /** Whether bots can modify shared state */
+    allowStateModification?: boolean;
+}
+
+/**
+ * Context scope for variable management in routine execution
+ * Provides hierarchical variable scoping and isolation
  */
 export interface ContextScope {
-    id: string;
-    name: string;
-    parentId?: string;
+    /** Unique identifier for this scope */
+    readonly id: string;
+
+    /** Type of scope determining its lifecycle and access patterns */
+    readonly type: "global" | "step" | "branch" | "loop" | "function";
+
+    /** Parent scope ID for hierarchy management */
+    readonly parentScopeId?: string;
+
+    /** Variables specific to this scope */
     variables: Record<string, unknown>;
-}
 
-/**
- * Base context interface for all tiers
- */
-export interface BaseContext {
-    id: string;
-    tier: 1 | 2 | 3;
-    timestamp: Date;
-    metadata: ContextMetadata;
-}
+    /** Whether variables in this scope can be modified */
+    readonly readOnly?: boolean;
 
-/**
- * Context metadata
- */
-export interface ContextMetadata {
-    userId: string;
-    sessionId: string;
-    requestId: string;
-    parentContextId?: string;
-    tags: string[];
-}
+    /** When this scope was created */
+    readonly createdAt: Date;
 
-/**
- * Tier 1 Coordination Context
- */
-export interface CoordinationContext extends BaseContext {
-    tier: 1;
-    swarmId: string;
-    conversationId: string;
-    teams: string[]; // Team IDs
-    sharedMemory: SharedMemory;
-    coordinationState: CoordinationState;
-}
-
-/**
- * Shared memory for swarm coordination
- */
-export interface SharedMemory {
-    blackboard: Record<string, unknown>;
-    decisions: DecisionRecord[];
-    consensus: ConsensusRecord[];
-    conflicts: ConflictRecord[];
-}
-
-/**
- * Decision record
- */
-export interface DecisionRecord {
-    id: string;
-    timestamp: Date;
-    agentId: string;
-    decision: string;
-    rationale: string;
-    confidence: number;
-}
-
-/**
- * Consensus record
- */
-export interface ConsensusRecord {
-    id: string;
-    timestamp: Date;
-    topic: string;
-    participants: string[];
-    result: string;
-    agreement: number; // 0-1
-}
-
-/**
- * Conflict record
- */
-export interface ConflictRecord {
-    id: string;
-    timestamp: Date;
-    type: "goal" | "resource" | "strategy" | "priority";
-    parties: string[];
-    description: string;
-    resolution?: string;
-    resolved: boolean;
-}
-
-/**
- * Coordination state
- */
-export interface CoordinationState {
-    phase: "planning" | "executing" | "monitoring" | "adapting";
-    activeGoals: string[];
-    completedGoals: string[];
-    blockedGoals: string[];
-}
-
-/**
- * Tier 2 Process Context
- */
-export interface ProcessContext extends BaseContext {
-    tier: 2;
-    runId: string;
-    routineId: string;
-    navigationState: NavigationState;
-    processMemory: ProcessMemory;
-    orchestrationState: OrchestrationState;
-}
-
-/**
- * Navigation state for process execution
- */
-export interface NavigationState {
-    currentLocation: string;
-    locationStack: string[];
-    visitedLocations: Set<string>;
-    branchStates: Record<string, BranchState>;
-}
-
-/**
- * Branch state tracking
- */
-export interface BranchState {
-    id: string;
-    status: "pending" | "active" | "completed" | "failed";
-    parallel: boolean;
-    startedAt?: Date;
-    completedAt?: Date;
-}
-
-/**
- * Process memory
- */
-export interface ProcessMemory {
-    variables: Record<string, unknown>;
-    checkpoints: string[]; // Checkpoint IDs
-    optimizations: string[]; // Applied optimization IDs
-    performanceData: PerformanceData;
-}
-
-/**
- * Performance data
- */
-export interface PerformanceData {
-    stepDurations: Record<string, number>;
-    resourceUsage: Record<string, number>;
-    bottlenecks: string[];
-    efficiencyScore: number;
-}
-
-/**
- * Orchestration state
- */
-export interface OrchestrationState {
-    phase: "initializing" | "running" | "optimizing" | "completing";
-    activeSteps: string[];
-    pendingSteps: string[];
-    completedSteps: string[];
-    failedSteps: string[];
-}
-
-/**
- * Tier 3 Execution Context
- */
-export interface TierExecutionContext extends BaseContext {
-    tier: 3;
-    stepId: string;
-    strategyType: string;
-    executionMemory: ExecutionMemory;
-    adaptationState: AdaptationState;
-}
-
-/**
- * Execution memory
- */
-export interface ExecutionMemory {
-    inputs: Record<string, unknown>;
-    outputs: Record<string, unknown>;
-    toolCalls: ToolCallRecord[];
-    strategyData: Record<string, unknown>;
-    learningData: LearningData;
-}
-
-/**
- * Tool call record
- */
-export interface ToolCallRecord {
-    id: string;
-    timestamp: Date;
-    toolName: string;
-    parameters: Record<string, unknown>;
-    result?: unknown;
-    error?: string;
-    duration: number;
-}
-
-/**
- * Learning data
- */
-export interface LearningData {
-    patterns: Pattern[];
-    feedback: FeedbackRecord[];
-    adaptations: Adaptation[];
-}
-
-/**
- * Pattern definition
- */
-export interface Pattern {
-    id: string;
-    type: "success" | "failure" | "optimization";
-    description: string;
-    frequency: number;
-    impact: number;
-}
-
-/**
- * Feedback record
- */
-export interface FeedbackRecord {
-    id: string;
-    timestamp: Date;
-    type: "user" | "system" | "automated";
-    rating: number; // 0-1
-    comment?: string;
-}
-
-/**
- * Adaptation record
- */
-export interface Adaptation {
-    id: string;
-    timestamp: Date;
-    type: "parameter" | "strategy" | "resource";
-    before: unknown;
-    after: unknown;
-    reason: string;
-    impact: number; // -1 to 1
-}
-
-/**
- * Adaptation state
- */
-export interface AdaptationState {
-    mode: "learning" | "optimizing" | "stable";
-    currentStrategy: string;
-    alternativeStrategies: string[];
-    confidenceThreshold: number;
-    adaptationRate: number;
-}
-
-/**
- * Cross-tier context for communication
- */
-export interface CrossTierContext {
-    requestId: string;
-    userId: string;
-    sessionId: string;
-    tier1Context?: CoordinationContext;
-    tier2Context?: ProcessContext;
-    tier3Context?: TierExecutionContext;
-    sharedData: Record<string, unknown>;
-    constraints: ContextConstraints;
-}
-
-/**
- * Context constraints
- */
-export interface ContextConstraints {
-    maxMemorySize: number;
-    maxExecutionTime: number;
-    maxCost: number;
-    securityLevel: "public" | "private" | "restricted";
-    allowedOperations: string[];
-}
-
-/**
- * Context persistence
- */
-export interface ContextSnapshot {
-    id: string;
-    contextType: "coordination" | "process" | "execution" | "crossTier";
-    context: BaseContext | CrossTierContext;
-    timestamp: Date;
-    size: number;
-    compressed: boolean;
+    /** When this scope should be cleaned up (optional) */
+    readonly expiresAt?: Date;
 }

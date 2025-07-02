@@ -1,11 +1,11 @@
 /* eslint-disable no-magic-numbers */
 
-import type { MessageConfigObject } from "@vrooli/shared";
+import type { BotParticipant, MessageConfigObject } from "@vrooli/shared";
 import type OpenAI from "openai";
 import { DbProvider } from "../../db/provider.js";
 import { ChatContextCache, TokenCounter } from "./messageStore.js";
 import { AIServiceRegistry } from "./registry.js";
-import type { BotParticipant, MessageState } from "./types.js";
+import type { MessageState } from "./types.js";
 
 /**
  * Represents a single message entry in the per-chat history map.

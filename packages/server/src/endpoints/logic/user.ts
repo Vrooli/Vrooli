@@ -152,8 +152,8 @@ export const user: EndpointsUser = createStandardCrudEndpoints({
                     try {
                         const scheduleCreateInput: ScheduleCreateInput = {
                             id: scheduleInput.id,
-                            startTime: scheduleInput.startTime,
-                            endTime: scheduleInput.endTime,
+                            startTime: scheduleInput.startTime.toISOString(),
+                            endTime: scheduleInput.endTime.toISOString(),
                             timezone: scheduleInput.timezone,
                             recurrencesCreate: scheduleInput.recurrences?.map(rec => ({
                                 id: rec.id,
@@ -162,7 +162,7 @@ export const user: EndpointsUser = createStandardCrudEndpoints({
                                 dayOfWeek: rec.dayOfWeek,
                                 dayOfMonth: rec.dayOfMonth,
                                 month: rec.month,
-                                endDate: rec.endDate,
+                                endDate: rec.endDate ? rec.endDate.toISOString() : undefined,
                                 duration: rec.duration,
                             })),
                         };
@@ -255,7 +255,10 @@ export const user: EndpointsUser = createStandardCrudEndpoints({
 
                 // Convert schedules to the format expected by createICalFromSchedules
                 const scheduleData = schedules.edges.map((edge: any) => ({
-                    schedule: edge.node,
+                    schedule: {
+                        ...edge.node,
+                        __typename: "Schedule" as const,
+                    },
                     meeting: edge.node.meetings && edge.node.meetings.length > 0 ? edge.node.meetings[0] : undefined,
                     run: edge.node.runs && edge.node.runs.length > 0 ? edge.node.runs[0] : undefined,
                 }));

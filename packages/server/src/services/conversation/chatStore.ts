@@ -1,9 +1,9 @@
-import { BotConfig, ChatConfig, LRUCache, MINUTES_1_S, type ChatConfigObject, type TeamConfigObject, type User } from "@vrooli/shared";
 import { type Prisma, type user } from "@prisma/client";
+import { BotConfig, ChatConfig, LRUCache, MINUTES_1_S, type BotParticipant, type ChatConfigObject, type TeamConfigObject, type User } from "@vrooli/shared";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { CacheService } from "../../redisConn.js";
-import { type BotParticipant, type ConversationState } from "./types.js";
+import { type ConversationState } from "./types.js";
 
 /* ------------------------------------------------------------------
  * Config & helper types                                              

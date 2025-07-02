@@ -4,34 +4,25 @@
  * This module defines the fundamental types and interfaces used across
  * all three tiers of Vrooli's execution architecture.
  */
+import type { SessionUser } from "../../api/types.js";
+import type { SwarmId } from "./ids.js";
 
 /**
- * Unique identifier types for execution tracking
+ * Execution strategy types for conversation and reasoning
+ * Simple string union for strategy selection
  */
-export type ExecutionId = string;
-export type StepId = string;
-export type RoutineId = string;
-export type SwarmId = string;
+export type ExecutionStrategy = "conversation" | "reasoning" | "deterministic";
 
 /**
  * Execution context shared across all tiers
  * This provides the common execution environment and metadata
  */
 export interface ExecutionContext {
-    readonly executionId: ExecutionId;
-    readonly parentExecutionId?: ExecutionId;
     readonly swarmId: SwarmId;
-    readonly userId: string;
+    readonly userData: SessionUser;
     readonly timestamp: Date;
-    readonly correlationId: string;
-    readonly stepId?: StepId;
-    readonly routineId?: RoutineId;
-    readonly stepType?: string;
-    readonly inputs?: Record<string, unknown>;
-    readonly config?: Record<string, unknown>;
     readonly resources?: AvailableResources;
     readonly history?: ExecutionHistory;
-    readonly constraints?: ExecutionConstraints;
 }
 
 /**
@@ -95,23 +86,16 @@ export interface StepExecution {
 }
 
 /**
- * Execution constraints
- */
-export interface ExecutionConstraints {
-    maxTokens?: number;
-    maxTime?: number;
-    maxCost?: number;
-    requiredConfidence?: number;
-    maxExecutionTime?: number;
-}
-
-/**
  * Resource allocation for execution
  */
 export interface CoreResourceAllocation {
-    maxCredits: string; // BigInt as string
+    /** Maximum number of credits that can be used by the swarm, as a stringified BigInt */
+    maxCredits: string;
+    /** Maximum duration of the swarm in milliseconds */
     maxDurationMs: number;
+    /** Maximum memory allocation in MB */
     maxMemoryMB: number;
+    /** Maximum number of concurrent steps */
     maxConcurrentSteps: number;
 }
 
@@ -120,18 +104,17 @@ export interface CoreResourceAllocation {
  * Used for tracking resource consumption during execution
  */
 export interface ExecutionResourceUsage {
-    creditsUsed: string; // BigInt as string
+    /** Credits consumed (as string to match existing BigInt handling) */
+    creditsUsed: string;
+    /** Execution duration in milliseconds */
     durationMs: number;
-    memoryUsedMB: number;
+    /** Number of steps executed (optional) */
     stepsExecuted: number;
-    tokens?: number;
-    apiCalls?: number;
-    computeTime?: number;
-    cost?: number;
+    /** Memory used in megabytes (optional) */
+    memoryUsedMB: number;
+    /** Number of tool calls made */
+    toolCalls: number;
 }
-
-// Alias for backward compatibility (deprecated)
-export type ResourceUsage = ExecutionResourceUsage;
 
 /**
  * Execution result returned by each tier
@@ -141,7 +124,7 @@ export interface ExecutionResult<T = unknown> {
     result?: T;
     outputs?: Record<string, unknown>;
     error?: ExecutionError;
-    resourcesUsed: ResourceUsage;
+    resourcesUsed: ExecutionResourceUsage;
     duration: number;
     context: ExecutionContext;
     metadata?: ExecutionMetadata;
@@ -178,12 +161,33 @@ export interface ExecutionError {
 /**
  * Execution status enumeration
  */
-export enum ExecutionStatus {
+export enum ExecutionStates {
     PENDING = "pending",
     RUNNING = "running",
     COMPLETED = "completed",
     FAILED = "failed",
-    CANCELLED = "cancelled"
+    CANCELLED = "cancelled",
+    PAUSED = "paused"
+}
+
+/**
+ * Execution status response for monitoring
+ */
+export interface ExecutionStatus {
+    swarmId: SwarmId;
+    status: ExecutionStates;
+    progress?: number;
+    metadata?: {
+        currentPhase?: string;
+        activeRuns?: number;
+        completedRuns?: number;
+        [key: string]: unknown;
+    };
+    error?: {
+        code: string;
+        message: string;
+        [key: string]: unknown;
+    };
 }
 
 /**
@@ -203,6 +207,5 @@ export interface ExecutionOptions {
     timeout?: number;
     priority?: "low" | "medium" | "high";
     retryPolicy?: RetryPolicy;
-    strategy?: string;
     debugMode?: boolean;
 }

@@ -1,5 +1,5 @@
 export const SuppFields = {
-    ApiKey: ["key"],
+    ApiKey: [],
     ApiKeyExternal: [],
     Award: ["title", "description"],
     Bookmark: [],
@@ -19,7 +19,6 @@ export const SuppFields = {
     NotificationSubscription: [],
     Payment: [],
     Phone: [],
-    Premium: [],
     PullRequest: ["you"],
     PushDevice: [],
     Reaction: [],
@@ -29,7 +28,7 @@ export const SuppFields = {
     ReminderList: [],
     Report: ["you"],
     ReportResponse: ["you"],
-    Resource: ["you", "translatedName"],
+    Resource: [],
     ResourceVersion: ["you"],
     ResourceVersionRelation: [],
     Role: [],

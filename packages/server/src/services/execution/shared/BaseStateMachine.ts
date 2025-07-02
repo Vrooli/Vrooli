@@ -9,7 +9,6 @@
  * - SwarmContextManager integration for distributed state coordination
  * - Unified event system integration for emergent agent communication
  * - Redis-based distributed locking replaces manual processingLock
- * - Graceful fallback to legacy patterns when event system unavailable
  * 
  * **Emergent Capabilities Enabled:**
  * - Agents can subscribe to state machine events to learn optimal coordination patterns
@@ -20,8 +19,7 @@
  * **Migration Approach:**
  * Rather than breaking existing implementations, this provides a smooth transition:
  * 1. Event-driven coordination is used when available (modern deployments)
- * 2. Legacy manual synchronization is preserved as fallback (existing deployments)
- * 3. Subclasses can opt-in to advanced coordination through configuration
+ * 2. Subclasses can opt-in to advanced coordination through configuration
  * 
  * Abstract base class for all state machines in the execution architecture.
  * Provides common functionality for state management, event queuing, and lifecycle control.
@@ -30,10 +28,10 @@
  * Subclasses implement specific state transitions and event handling logic.
  */
 
-import { generatePK, type UnifiedEvent } from "@vrooli/shared";
+import { generatePK } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
 import { getEventBus } from "../../events/eventBus.js";
-import { EventUtils, type BaseEvent } from "../../events/index.js";
+import { EventUtils } from "../../events/index.js";
 import { ErrorHandler, type ComponentErrorHandler } from "./ErrorHandler.js";
 
 /**
@@ -63,8 +61,6 @@ export interface StateMachineCoordinationConfig {
     enableEventDriven?: boolean;
     /** Enable distributed locking via SwarmContextManager (default: true if available) */
     enableDistributedLocking?: boolean;
-    /** Fallback to legacy coordination when event system unavailable (default: true) */
-    enableLegacyFallback?: boolean;
     /** Swarm ID for distributed coordination (required for distributed locking) */
     swarmId?: string;
     /** Lock timeout for distributed operations (default: 30000ms) */
@@ -87,13 +83,10 @@ export interface ManagedTaskStateMachine {
  */
 export abstract class BaseStateMachine<
     TState extends string = BaseState,
-    TEvent extends UnifiedEvent = UnifiedEvent,
+    TEvent extends BaseServiceEvent = BaseServiceEvent,
 > implements ManagedTaskStateMachine {
     protected state: TState;
     protected readonly eventQueue: TEvent[] = [];
-
-    // Legacy coordination (deprecated but maintained for compatibility)
-    protected processingLock = false; // @deprecated Use event-driven coordination instead
 
     protected disposed = false;
     protected pendingDrainTimeout: NodeJS.Timeout | null = null;
@@ -105,7 +98,6 @@ export abstract class BaseStateMachine<
     protected readonly coordinationConfig: StateMachineCoordinationConfig;
     protected readonly swarmContextManager: any | null = null; // Lazy-loaded
     protected currentDistributedLock: string | null = null;
-    protected readonly eventDrivenCoordinationEnabled: boolean;
 
     constructor(
         initialState: TState = BaseStates.UNINITIALIZED as TState,
@@ -117,20 +109,14 @@ export abstract class BaseStateMachine<
         this.coordinationConfig = {
             enableEventDriven: true,
             enableDistributedLocking: true,
-            enableLegacyFallback: true,
             lockTimeoutMs: 30000,
             ...coordinationConfig,
         };
 
-        // Determine if event-driven coordination is available and enabled
-        this.eventDrivenCoordinationEnabled =
-            this.coordinationConfig.enableEventDriven !== false;
-
         // Create error handler for consistent error management
         this.errorHandler = new ErrorHandler().createComponentHandler(this.componentName);
 
-        logger.info(`[${this.componentName}] Initialized with ${this.eventDrivenCoordinationEnabled ? "event-driven" : "legacy"} coordination`, {
-            coordinationMode: this.eventDrivenCoordinationEnabled ? "event-driven" : "legacy",
+        logger.info(`[${this.componentName}] Initialized`, {
             swarmId: this.coordinationConfig.swarmId,
         });
     }
@@ -274,11 +260,7 @@ export abstract class BaseStateMachine<
                 this.clearPendingDrainTimeout();
 
                 // Clean up coordination resources
-                if (this.eventDrivenCoordinationEnabled) {
-                    await this.releaseDistributedProcessingLock();
-                } else {
-                    this.processingLock = false; // Legacy cleanup
-                }
+                await this.releaseDistributedProcessingLock();
 
                 // Let subclass handle cleanup
                 const finalState = await this.onStop(mode, reason);
@@ -326,12 +308,7 @@ export abstract class BaseStateMachine<
             return;
         }
 
-        // Use event-driven coordination if available, otherwise fall back to legacy
-        if (this.eventDrivenCoordinationEnabled) {
-            await this.drainWithEventDrivenCoordination();
-        } else {
-            await this.drainWithLegacyCoordination();
-        }
+        await this.drainWithEventDrivenCoordination();
     }
 
     /**
@@ -409,51 +386,6 @@ export abstract class BaseStateMachine<
         } finally {
             // Always release the distributed lock
             await this.releaseDistributedProcessingLock();
-        }
-    }
-
-    /**
-     * Legacy drain implementation - preserved for backwards compatibility
-     * @deprecated Use event-driven coordination instead
-     */
-    private async drainWithLegacyCoordination(): Promise<void> {
-        if (this.processingLock) {
-            logger.debug(`[${this.constructor.name}] Legacy drain already in progress`);
-            return;
-        }
-
-        this.processingLock = true;
-        this.state = BaseStates.RUNNING as TState;
-
-        try {
-            while (this.eventQueue.length > 0 && !this.disposed) {
-                const event = this.eventQueue.shift()!;
-
-                const result = await this.errorHandler.wrap(
-                    () => this.processEvent(event),
-                    "processEvent",
-                    { eventType: event.type },
-                );
-
-                if (!result.success) {
-                    const errorResult = result as { success: false; error: Error };
-                    // Let subclass decide if error is fatal
-                    if (await this.isErrorFatal(errorResult.error, event)) {
-                        this.state = BaseStates.FAILED as TState;
-                        return;
-                    }
-                }
-            }
-
-            if (!this.disposed && this.eventQueue.length === 0) {
-                this.state = BaseStates.IDLE as TState;
-                await this.onIdle();
-            } else {
-                // More events arrived while processing
-                this.scheduleDrain();
-            }
-        } finally {
-            this.processingLock = false;
         }
     }
 
@@ -537,7 +469,7 @@ export abstract class BaseStateMachine<
     }
 
     /**
-     * Emit an event to the event bus using UnifiedEventSystem
+     * Emit an event to the event bus using BaseServiceEventSystem
      */
     protected async emitEvent(type: string, data: unknown): Promise<void> {
         await this.publishEvent(
@@ -666,12 +598,6 @@ export abstract class BaseStateMachine<
                 swarmId: this.coordinationConfig.swarmId,
             });
 
-            // Fall back gracefully - allow processing to continue
-            if (this.coordinationConfig.enableLegacyFallback) {
-                logger.debug(`[${this.componentName}] Falling back to legacy coordination due to lock failure`);
-                return true;
-            }
-
             return false;
         }
     }
@@ -708,19 +634,14 @@ export abstract class BaseStateMachine<
      * Get coordination status for monitoring and debugging
      */
     public getCoordinationStatus(): {
-        mode: "event-driven" | "legacy";
         distributedLockingEnabled: boolean;
         currentLock: string | null;
         swarmId?: string;
     } {
         return {
-            mode: this.eventDrivenCoordinationEnabled ? "event-driven" : "legacy",
             distributedLockingEnabled: this.coordinationConfig.enableDistributedLocking || false,
             currentLock: this.currentDistributedLock,
             swarmId: this.coordinationConfig.swarmId,
         };
     }
 }
-
-// Re-export BaseEvent for compatibility with tests and legacy code
-export type { BaseEvent };

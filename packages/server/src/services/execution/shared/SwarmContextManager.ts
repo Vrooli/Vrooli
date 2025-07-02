@@ -19,7 +19,7 @@
  * ```
  * SwarmContextManager (This Class - Central Authority)
  *         ↓ provides unified state to
- * Tier 1: SwarmStateMachine + SwarmCoordinator  
+ * Tier 1: SwarmStateMachine  
  * Tier 2: RunStateMachine + RunOrchestrator
  * Tier 3: TierThreeExecutor + ValidationEngine
  *         ↓ all subscribe to live updates via

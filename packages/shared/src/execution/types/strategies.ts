@@ -3,19 +3,7 @@
  * These types define the strategy-based execution capabilities
  */
 
-import type { ResourceUsage } from "./core.js";
-
-/**
- * Execution strategy types
- * Maintains compatibility with existing strategy system
- */
-export enum StrategyType {
-    CONVERSATIONAL = "CONVERSATIONAL",
-    REASONING = "REASONING",
-    DETERMINISTIC = "DETERMINISTIC",
-    HYBRID = "HYBRID",
-    CUSTOM = "CUSTOM"
-}
+import type { ExecutionResourceUsage, ExecutionStrategy } from "./core.js";
 
 /**
  * Strategy execution result
@@ -32,23 +20,11 @@ export interface StrategyExecutionResult {
  * Strategy metadata
  */
 export interface StrategyMetadata {
-    strategyType: StrategyType;
+    strategyType: ExecutionStrategy;
     executionTime: number;
-    resourceUsage: ResourceUsage;
+    resourceUsage: ExecutionResourceUsage;
     confidence: number;
     fallbackUsed: boolean;
-}
-
-/**
- * Strategy-specific resource usage
- * Used by execution strategies for lightweight resource tracking
- */
-export interface StrategyResourceUsage {
-    tokens?: number;
-    apiCalls?: number;
-    computeTime?: number;
-    memory?: number;
-    cost?: number;
 }
 
 /**
@@ -66,18 +42,18 @@ export interface StrategyFeedback {
  * Base execution strategy interface
  * Compatible with existing ExecutionStrategy
  */
-export interface ExecutionStrategy {
-    type: StrategyType;
+export interface IExecutionStrategy {
+    type: ExecutionStrategy;
     name: string;
     version: string;
-    
+
     // Core execution method
     execute(context: StrategyExecutionContext): Promise<StrategyExecutionResult>;
-    
+
     // Strategy capabilities
     canHandle(stepType: string, config?: Record<string, unknown>): boolean;
-    estimateResources(context: StrategyExecutionContext): ResourceUsage;
-    
+    estimateResources(context: StrategyExecutionContext): ExecutionResourceUsage;
+
     // Performance metrics
     getPerformanceMetrics(): StrategyPerformance;
 }
@@ -146,7 +122,7 @@ export interface StrategyApiResource {
 export interface StrategyExecutionHistory {
     recentSteps: Array<{
         stepId: string;
-        strategy: StrategyType;
+        strategy: ExecutionStrategy;
         result: "success" | "failure";
         duration: number;
     }>;
@@ -163,7 +139,7 @@ export interface StrategyExecutionConstraints {
     maxCost?: number;
     maxRetries?: number;
     requiredConfidence?: number;
-    allowedStrategies?: StrategyType[];
+    allowedStrategies?: ExecutionStrategy[];
 }
 
 /**
@@ -174,7 +150,7 @@ export interface StrategyPerformance {
     successCount: number;
     failureCount: number;
     averageExecutionTime: number;
-    averageResourceUsage: ResourceUsage;
+    averageResourceUsage: ExecutionResourceUsage;
     averageConfidence: number;
     evolutionScore: number; // 0-1, how much the strategy has improved
 }
@@ -183,7 +159,7 @@ export interface StrategyPerformance {
  * Strategy evolution tracking
  */
 export interface StrategyEvolution {
-    strategyType: StrategyType;
+    strategyType: ExecutionStrategy;
     version: number;
     improvements: Array<{
         timestamp: Date;
@@ -229,8 +205,8 @@ export interface ToolExecutionResult {
  * Strategy factory configuration
  */
 export interface StrategyFactoryConfig {
-    defaultStrategy: StrategyType;
-    fallbackChain: StrategyType[];
+    defaultStrategy: ExecutionStrategy;
+    fallbackChain: ExecutionStrategy[];
     adaptationEnabled: boolean;
     learningRate: number;
 }
@@ -240,7 +216,7 @@ export interface StrategyFactoryConfig {
  */
 export interface UnifiedExecutorConfig {
     strategyFactory: StrategyFactoryConfig;
-    resourceLimits: ResourceUsage;
+    resourceLimits: ExecutionResourceUsage;
     sandboxEnabled: boolean;
     telemetryEnabled: boolean;
 }

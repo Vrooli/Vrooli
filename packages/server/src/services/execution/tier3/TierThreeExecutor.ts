@@ -8,7 +8,6 @@ import {
     isValidStepType,
     isValidStrategy,
     type StepExecutionInput,
-    StrategyType as StrategyTypeEnum,
     type SwarmId,
     type TierCapabilities,
     type TierCommunicationInterface,
@@ -29,6 +28,8 @@ import { SimpleStrategyProvider } from "./engine/simpleStrategyProvider.js";
 import { ToolOrchestrator } from "./engine/toolOrchestrator.js";
 import { UnifiedExecutor } from "./engine/unifiedExecutor.js";
 import { ValidationEngine } from "./engine/validationEngine.js";
+import type { ConversationEngine } from "../../conversation/conversationEngine.js";
+import type { ResponseService } from "../../response/responseService.js";
 
 /**
  * Tier Three Executor
@@ -43,7 +44,7 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
     // Track active executions for interface compliance
     private readonly activeExecutions: Map<SwarmId, { status: ExecutionStates; startTime: Date; context: ExecutionContext }> = new Map();
 
-    constructor() {
+    constructor(conversationEngine?: ConversationEngine, responseService?: ResponseService) {
         super("TierThreeExecutor", "tier3");
 
         // Initialize components
@@ -54,12 +55,12 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
 
         // Create simple strategy provider (enables agent-driven optimization)
         const strategyConfig = {
-            defaultStrategy: StrategyTypeEnum.CONVERSATIONAL,
-            fallbackChain: [StrategyTypeEnum.CONVERSATIONAL, StrategyTypeEnum.REASONING, StrategyTypeEnum.DETERMINISTIC],
+            defaultStrategy: "conversational" as const,
+            fallbackChain: ["conversational", "reasoning", "deterministic"] as const,
             adaptationEnabled: true,
             learningRate: 0.1,
         };
-        const strategyProvider = new SimpleStrategyProvider(strategyConfig, logger, toolOrchestrator, validationEngine);
+        const strategyProvider = new SimpleStrategyProvider(strategyConfig, toolOrchestrator, validationEngine, conversationEngine, responseService);
 
         // Create unified executor
         this.unifiedExecutor = new UnifiedExecutor(

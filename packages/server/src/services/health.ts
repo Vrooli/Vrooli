@@ -19,6 +19,7 @@ import { SocketService } from "../sockets/io.js";
 import { QueueStatus } from "../tasks/queueFactory.js";
 import { QueueService } from "../tasks/queues.js";
 import { checkNSFW, getS3Client } from "../utils/fileStorage.js";
+import { getImageProcessingStatus } from "../utils/sharpWrapper.js";
 import { BusService, type RedisStreamBus } from "./bus.js";
 import { AIServiceRegistry, AIServiceState } from "./conversation/registry.js";
 import { EmbeddingService } from "./embedding.js";
@@ -902,12 +903,15 @@ export class HealthService {
             return cachedHealth;
         }
         try {
-            // Check if i18next is initialized
-            if (!i18next.isInitialized) {
+            // Check if i18next is initialized by attempting to use it
+            // Modern i18next doesn't expose isInitialized property directly
+            const hasCommonNamespace = i18next.hasLoadedNamespace("common");
+            
+            if (!hasCommonNamespace) {
                 this.i18nHealthCache = this.createServiceCache(
                     ServiceStatus.Down,
                     DEFAULT_SERVICE_CACHE_MS,
-                    { error: "i18next is not initialized" },
+                    { error: "i18next is not initialized - common namespace not loaded" },
                 );
                 return this.i18nHealthCache.health;
             }
@@ -926,10 +930,29 @@ export class HealthService {
                     return this.i18nHealthCache.health;
                 }
 
+                // Access language properties safely using type assertion
+                // These properties exist at runtime but TypeScript doesn't know about them
+                const i18nInstance = i18next as any;
+                const language = i18nInstance.language || "unknown";
+                const languages = i18nInstance.languages || [];
+                
+                // Try to get namespaces from options if available
+                let namespaces: string[] = [];
+                if (i18nInstance.options && i18nInstance.options.ns) {
+                    namespaces = Array.isArray(i18nInstance.options.ns) 
+                        ? i18nInstance.options.ns 
+                        : [i18nInstance.options.ns];
+                }
+
                 this.i18nHealthCache = this.createServiceCache(
                     ServiceStatus.Operational,
                     DEFAULT_SERVICE_CACHE_MS,
-                    { language: i18next.language, languages: i18next.languages, namespaces: i18next.options.ns },
+                    { 
+                        language, 
+                        languages, 
+                        namespaces,
+                        hasCommonNamespace,
+                    },
                 );
                 return this.i18nHealthCache.health;
             } catch (error) {
@@ -960,8 +983,10 @@ export class HealthService {
         }
         let s3Healthy = false;
         let nsfwDetectionHealthy = false;
+        let imageProcessingHealthy = false;
         let s3Details: Record<string, unknown> = {};
         let nsfwDetails: Record<string, unknown> = {};
+        let imageProcessingDetails: Record<string, unknown> = {};
         let s3Client: S3Client | undefined;
 
         // 1. Check S3 Client and Bucket Access
@@ -1027,15 +1052,35 @@ export class HealthService {
             logger.warning("NSFW detection health check failed", { trace: "health-nsfw-fail", details: nsfwDetails });
         }
 
+        // 3. Check image processing capabilities (Sharp)
+        try {
+            const imageProcessingStatus = getImageProcessingStatus();
+            imageProcessingHealthy = imageProcessingStatus.available;
+            imageProcessingDetails = {
+                available: imageProcessingStatus.available,
+                features: imageProcessingStatus.features,
+                error: imageProcessingStatus.error,
+            };
+        } catch (error) {
+            imageProcessingHealthy = false;
+            imageProcessingDetails = {
+                available: false,
+                error: `Image processing check failed: ${(error as Error).message}`,
+            };
+        }
+
         // Determine overall status
         let overallStatus: ServiceStatus;
-        if (s3Healthy && nsfwDetectionHealthy) {
+        if (s3Healthy && nsfwDetectionHealthy && imageProcessingHealthy) {
             overallStatus = ServiceStatus.Operational;
-        } else if (s3Healthy || nsfwDetectionHealthy) {
-            // If only one is down, consider it degraded
+        } else if (s3Healthy && (nsfwDetectionHealthy || imageProcessingHealthy)) {
+            // S3 is critical, but image processing can be degraded
             overallStatus = ServiceStatus.Degraded;
-        } else {
+        } else if (!s3Healthy) {
+            // S3 down means the whole service is down
             overallStatus = ServiceStatus.Down;
+        } else {
+            overallStatus = ServiceStatus.Degraded;
         }
 
         this.imageStorageHealthCache = this.createServiceCache(
@@ -1044,6 +1089,7 @@ export class HealthService {
             {
                 s3: { healthy: s3Healthy, ...s3Details },
                 nsfwDetection: { healthy: nsfwDetectionHealthy, ...nsfwDetails },
+                imageProcessing: { healthy: imageProcessingHealthy, ...imageProcessingDetails },
             },
         );
         return this.imageStorageHealthCache.health;
