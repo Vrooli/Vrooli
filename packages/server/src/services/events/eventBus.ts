@@ -22,7 +22,7 @@ import {
     type EventPublishResultWithRateLimit,
 } from "./rateLimiter.js";
 import {
-    type BaseEvent,
+    type BaseServiceEvent,
     type EventBarrierSyncResult,
     type EventHandler,
     type EventPublishResult,
@@ -32,6 +32,9 @@ import {
     type SafetyEvent,
     type SubscriptionOptions,
 } from "./types.js";
+
+/** High pending barrier count threshold for backpressure monitoring */
+const HIGH_PENDING_BARRIER_THRESHOLD = 50;
 
 /**
  * Pending barrier sync operation
@@ -123,7 +126,7 @@ export class EventBus implements IEventBus {
     /**
      * Publish an event with specified delivery guarantee and rate limiting
      */
-    async publish<T extends BaseEvent>(event: T): Promise<EventPublishResult> {
+    async publish<T extends BaseServiceEvent>(event: T): Promise<EventPublishResult> {
         const startTime = performance.now();
 
         if (!this.isStarted) {
@@ -218,7 +221,7 @@ export class EventBus implements IEventBus {
     /**
      * Publish an event bypassing rate limits (for internal system events)
      */
-    private async publishBypassRateLimit<T extends BaseEvent>(event: T): Promise<void> {
+    private async publishBypassRateLimit<T extends BaseServiceEvent>(event: T): Promise<void> {
         // Handle delivery without rate limiting
         const deliveryGuarantee = event.metadata?.deliveryGuarantee || "fire-and-forget";
 
@@ -285,7 +288,7 @@ export class EventBus implements IEventBus {
     /**
      * Subscribe to event patterns with optional filtering
      */
-    async subscribe<T extends BaseEvent>(
+    async subscribe<T extends BaseServiceEvent>(
         pattern: string | string[],
         handler: EventHandler<T>,
         options: SubscriptionOptions = {},
@@ -410,7 +413,7 @@ export class EventBus implements IEventBus {
      * Private methods
      */
 
-    private async publishFireAndForget<T extends BaseEvent>(event: T): Promise<void> {
+    private async publishFireAndForget<T extends BaseServiceEvent>(event: T): Promise<void> {
         // Fire and forget - emit and don't wait for delivery confirmation
         this.emitToSubscribers(event);
 
@@ -418,7 +421,7 @@ export class EventBus implements IEventBus {
         this.emitToSocketClients(event);
     }
 
-    private async publishReliable<T extends BaseEvent>(event: T): Promise<void> {
+    private async publishReliable<T extends BaseServiceEvent>(event: T): Promise<void> {
         // Reliable delivery - emit and ensure delivery to all subscribers
         await this.emitToSubscribersReliably(event);
 
@@ -426,7 +429,7 @@ export class EventBus implements IEventBus {
         this.emitToSocketClients(event);
     }
 
-    private emitToSubscribers<T extends BaseEvent>(event: T): void {
+    private emitToSubscribers<T extends BaseServiceEvent>(event: T): void {
         let deliveredCount = 0;
 
         for (const subscription of this.subscriptions.values()) {
@@ -445,7 +448,7 @@ export class EventBus implements IEventBus {
         }
     }
 
-    private async emitToSubscribersReliably<T extends BaseEvent>(event: T): Promise<void> {
+    private async emitToSubscribersReliably<T extends BaseServiceEvent>(event: T): Promise<void> {
         const promises: Promise<void>[] = [];
 
         for (const subscription of this.subscriptions.values()) {
@@ -470,7 +473,7 @@ export class EventBus implements IEventBus {
 
     private async callSubscriptionHandler(
         subscription: EventSubscription,
-        event: BaseEvent,
+        event: BaseServiceEvent,
     ): Promise<void> {
         // Apply filter if provided
         if (subscription.options.filter && !subscription.options.filter(event)) {
@@ -501,7 +504,7 @@ export class EventBus implements IEventBus {
         }
     }
 
-    private matchesSubscription(event: BaseEvent, subscription: EventSubscription): boolean {
+    private matchesSubscription(event: BaseServiceEvent, subscription: EventSubscription): boolean {
         return subscription.patterns.some(pattern => this.matchesPattern(event.type, pattern));
     }
 
@@ -570,7 +573,7 @@ export class EventBus implements IEventBus {
     /**
      * Emit event to socket clients if socket service is configured
      */
-    private emitToSocketClients<T extends BaseEvent>(event: T): void {
+    private emitToSocketClients<T extends BaseServiceEvent>(event: T): void {
         try {
             // Extract the appropriate room ID from the event based on its type
             const roomId = this.extractRoomId(event);
@@ -611,7 +614,7 @@ export class EventBus implements IEventBus {
     /**
      * Extract the appropriate room ID from an event based on its type and data
      */
-    private extractRoomId(event: BaseEvent): string | null {
+    private extractRoomId(event: BaseServiceEvent): string | null {
         // For chat, swarm, bot, tool, response, reasoning, and cancellation events - use chat room
         if (event.type.startsWith("chat/") ||
             event.type.startsWith("swarm/") ||
@@ -649,7 +652,7 @@ export class EventBus implements IEventBus {
     /**
      * Extract chat ID from event data
      */
-    private extractChatId(event: BaseEvent): string | null {
+    private extractChatId(event: BaseServiceEvent): string | null {
         // Try multiple possible locations for chat ID
         const data = event.data as any;
         return data?.chatId ||
@@ -678,7 +681,7 @@ export class EventBus implements IEventBus {
                 });
             }
 
-            if (pendingBarriers > 50) {
+            if (pendingBarriers > HIGH_PENDING_BARRIER_THRESHOLD) {
                 logger.warn("[EventBus] High pending barrier count detected", {
                     pendingBarriers,
                 });

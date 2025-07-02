@@ -6,8 +6,9 @@
  * the unified event system with barrier synchronization.
  */
 
+import { type ApprovalResult, type UserApprovalResponse } from "@vrooli/shared";
 import { nanoid } from "nanoid";
-import { type Logger } from "winston";
+import { logger } from "../../events/logger.js";
 import { getEventBus } from "./eventBus.js";
 import {
     type EventMetadata,
@@ -31,26 +32,7 @@ export interface ToolCallRequest {
     riskLevel: "low" | "medium" | "high" | "critical";
 }
 
-/**
- * Result of approval processing
- */
-export interface ApprovalResult {
-    approved: boolean;
-    reason?: string;
-    approvalDuration?: number;
-    approvedBy?: string;
-    rejectedBy?: string;
-}
-
-/**
- * User approval response
- */
-export interface UserApprovalResponse {
-    pendingId: string;
-    approved: boolean;
-    userId: string;
-    reason?: string;
-}
+// ApprovalResult and UserApprovalResponse are now imported from @vrooli/shared
 
 /**
  * Tool approval system integrated with event architecture.
@@ -66,10 +48,6 @@ export class ApprovalSystem {
         reject: (error: Error) => void;
     }>();
 
-    constructor(
-        private readonly logger: Logger,
-    ) { }
-
     /**
      * Process tool approval request as blocking event
      */
@@ -77,7 +55,7 @@ export class ApprovalSystem {
         const pendingId = nanoid();
         const startTime = Date.now();
 
-        this.logger.info("[ApprovalSystem] Processing tool approval request", {
+        logger.info("[ApprovalSystem] Processing tool approval request", {
             toolCallId: toolCall.id,
             toolName: toolCall.name,
             pendingId,
@@ -135,7 +113,7 @@ export class ApprovalSystem {
     async handleUserApprovalResponse(response: UserApprovalResponse): Promise<void> {
         const pending = this.pendingApprovals.get(response.pendingId);
         if (!pending) {
-            this.logger.warn("[ApprovalSystem] Received response for unknown pending approval", {
+            logger.warn("[ApprovalSystem] Received response for unknown pending approval", {
                 pendingId: response.pendingId,
                 userId: response.userId,
             });
@@ -144,7 +122,7 @@ export class ApprovalSystem {
 
         const approvalDuration = Date.now() - pending.requestedAt.getTime();
 
-        this.logger.info("[ApprovalSystem] Received user approval response", {
+        logger.info("[ApprovalSystem] Received user approval response", {
             pendingId: response.pendingId,
             approved: response.approved,
             userId: response.userId,
@@ -230,14 +208,14 @@ export class ApprovalSystem {
     async cancelPendingApproval(pendingId: string, reason: string): Promise<void> {
         const pending = this.pendingApprovals.get(pendingId);
         if (!pending) {
-            this.logger.warn("[ApprovalSystem] Tried to cancel unknown pending approval", {
+            logger.warn("[ApprovalSystem] Tried to cancel unknown pending approval", {
                 pendingId,
                 reason,
             });
             return;
         }
 
-        this.logger.info("[ApprovalSystem] Cancelling pending approval", {
+        logger.info("[ApprovalSystem] Cancelling pending approval", {
             pendingId,
             reason,
             toolName: pending.toolCall.name,
@@ -301,7 +279,7 @@ export class ApprovalSystem {
 
         const timeoutDuration = Date.now() - startTime;
 
-        this.logger.warn("[ApprovalSystem] Tool approval timed out", {
+        logger.warn("[ApprovalSystem] Tool approval timed out", {
             pendingId,
             toolName: pending.toolCall.name,
             timeoutDuration,
@@ -331,7 +309,7 @@ export class ApprovalSystem {
         };
 
         getEventBus().publish(timeoutEvent).catch(error => {
-            this.logger.error("[ApprovalSystem] Failed to emit timeout event", {
+            logger.error("[ApprovalSystem] Failed to emit timeout event", {
                 pendingId,
                 error: error instanceof Error ? error.message : String(error),
             });

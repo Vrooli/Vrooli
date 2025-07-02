@@ -5,11 +5,11 @@
  * Using discriminated union types to ensure tasks are properly shaped based on their type.
  */
 
-import { type RunConfig, type RunProgress, type RunTriggeredFrom, type SessionUser, type TaskContextInfo, type TaskStatus } from "@vrooli/shared";
+import { type RunExecutionInput, type SessionUser, type SwarmExecutionInput, type TaskContextInfo } from "@vrooli/shared";
 import { type ExportConfig, type ImportConfig, type ImportData } from "../builders/importExport.js";
 import { type BaseTaskData } from "./queueFactory.js";
 
-// --------- Task Type Enum ---------
+// --------- Task Type Enum --------- 
 
 /**
  * Enum of all supported task types in the system.
@@ -99,28 +99,8 @@ export interface LLMCompletionTask extends Task {
 /**
  * New three-tier swarm execution task
  */
-export interface SwarmExecutionTask extends Task {
+export interface SwarmExecutionTask extends Task, SwarmExecutionInput {
     type: QueueTaskType.SWARM_EXECUTION;
-    swarmId: string;
-    config: {
-        name: string;
-        description: string;
-        goal: string;
-        resources: {
-            maxCredits: number;
-            maxTokens: number;
-            maxTime: number;
-            tools: Array<{ name: string; description: string }>;
-        };
-        config: {
-            model: string;
-            temperature: number;
-            autoApproveTools: boolean;
-            parallelExecutionLimit: number;
-        };
-        organizationId?: string;
-    };
-    userData: SessionUser;
 }
 
 // All swarm-related task types
@@ -150,38 +130,13 @@ export interface PushNotificationTask extends Task {
 // --------- Run Tasks ---------
 
 /**
- * Base object for requesting a run from the server
+ * Task for executing a routine/run through the three-tier architecture
+ * 
+ * This follows the same pattern as SwarmExecutionTask, extending both Task and RunExecutionInput
+ * to ensure proper type safety and consistency with the three-tier execution architecture.
  */
-export interface RunTask extends Task, Pick<RunProgress, "runId"> {
-    type: QueueTaskType.RUN_START,
-    /**
-     * The configuration for the run.
-     * 
-     * Should be provided if the run is new, but can be omitted if the run is being resumed.
-     */
-    config?: RunConfig;
-    /** Inputs and outputs to use on current step, if not already in run object */
-    formValues?: Record<string, unknown>;
-    /**
-     * Indicates if the run is new.
-     */
-    isNewRun: boolean;
-    /** The run ID */
-    resourceVersionId: string;
-    /**
-     * What triggered the run. This is a factor in determining
-     * the queue priority of the task.
-     */
-    runFrom: RunTriggeredFrom;
-    /**
-     * ID of the user who started the run. Either a human if it matches the 
-     * session user, or a bot if it doesn't.
-     */
-    startedById: string;
-    /** The latest status of the command. */
-    status: TaskStatus | `${TaskStatus}`;
-    /** The user who's running the command (not the bot) */
-    userData: SessionUser;
+export interface RunTask extends Task, RunExecutionInput {
+    type: QueueTaskType.RUN_START;
 }
 
 export interface SandboxTask extends Task {
@@ -257,5 +212,3 @@ export type AnyTask =
     | SandboxTask
     | SMSTask
     | NotificationCreateTask;
-
-//TODO update these types to be the actual shapes

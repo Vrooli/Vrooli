@@ -3,7 +3,7 @@ import { BotConfig, ChatConfig, LRUCache, MINUTES_1_S, type BotParticipant, type
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { CacheService } from "../../redisConn.js";
-import { type ConversationState } from "./types.js";
+import { type ConversationState } from "../conversation/types.js";
 
 /* ------------------------------------------------------------------
  * Config & helper types                                              

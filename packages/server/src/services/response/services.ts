@@ -1,12 +1,12 @@
-import { LlmServiceId, type ModelInfo, OpenAIModel, openAIServiceInfo, type SessionUser, type ToolFunctionCall } from "@vrooli/shared";
+import { LlmServiceId, OpenAIModel, openAIServiceInfo, type ModelInfo, type SessionUser, type ToolFunctionCall } from "@vrooli/shared";
 import OpenAI from "openai";
 import { type Tool as OpenAITool } from "openai/resources/responses/responses.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
+import { type MessageState, type Tool } from "../conversation/types.js";
 import { AIServiceErrorType, AIServiceRegistry } from "./registry.js";
 import { TokenEstimationRegistry } from "./tokens.js";
-import { type MessageState, type Tool } from "./types.js";
-import { TokenEstimatorType, type EstimateTokensParams, type EstimateTokensResult } from "./types/tokenTypes.js";
+import { TokenEstimatorType, type EstimateTokensParams, type EstimateTokensResult } from "./tokenTypes.js";
 
 export type ResponseStreamOptions = {
     /** 

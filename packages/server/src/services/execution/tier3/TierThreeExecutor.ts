@@ -15,21 +15,19 @@ import {
     type ValidStepType,
     type ValidStrategy,
 } from "@vrooli/shared";
-import { EventTypes, EventUtils } from "../../events/index.js";
 import { BaseTierExecutor } from "../shared/BaseTierExecutor.js";
 // Socket events now handled through unified event system
 import { logger } from "../../../events/logger.js";
+import type { ConversationEngine } from "../../conversation/conversationEngine.js";
 import { getEventBus } from "../../events/eventBus.js";
-import { ContextExporter } from "./context/contextExporter.js";
-import { ExecutionRunContext } from "./context/runContext.js";
+import { EventUtils } from "../../events/utils.js";
+import type { ResponseService } from "../../response/responseService.js";
 import { IOProcessor } from "./engine/ioProcessor.js";
 import { ResourceManager } from "./engine/resourceManager.js";
 import { SimpleStrategyProvider } from "./engine/simpleStrategyProvider.js";
 import { ToolOrchestrator } from "./engine/toolOrchestrator.js";
 import { UnifiedExecutor } from "./engine/unifiedExecutor.js";
 import { ValidationEngine } from "./engine/validationEngine.js";
-import type { ConversationEngine } from "../../conversation/conversationEngine.js";
-import type { ResponseService } from "../../response/responseService.js";
 
 /**
  * Tier Three Executor
@@ -39,7 +37,6 @@ import type { ResponseService } from "../../response/responseService.js";
  */
 export class TierThreeExecutor extends BaseTierExecutor implements TierCommunicationInterface {
     private readonly unifiedExecutor: UnifiedExecutor;
-    private readonly contextExporter: ContextExporter;
 
     // Track active executions for interface compliance
     private readonly activeExecutions: Map<SwarmId, { status: ExecutionStates; startTime: Date; context: ExecutionContext }> = new Map();
@@ -70,9 +67,6 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
             validationEngine,
             ioProcessor,
         );
-
-        // Create context exporter
-        this.contextExporter = new ContextExporter();
 
         // Setup event handlers
         this.setupEventHandlers();

@@ -3,7 +3,6 @@ import { DEFAULT_LANGUAGE, DeleteType, InputGenerationStrategy, McpToolName, Mod
 import fs from "fs";
 import { fileURLToPath } from "node:url";
 import path from "path";
-import type { Logger } from "winston";
 import { createOneHelper } from "../../actions/creates.js";
 import { deleteOneHelper } from "../../actions/deletes.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
@@ -11,16 +10,17 @@ import { updateOneHelper } from "../../actions/updates.js";
 import type { RequestService } from "../../auth/request.js";
 import type { PartialApiInfo } from "../../builders/types.js";
 import { DbProvider } from "../../db/provider.js";
+import { logger } from "../../events/logger.js";
 import { activeSwarmRegistry } from "../../tasks/swarm/process.js";
 import { type RunTask } from "../../tasks/taskTypes.js";
-import { type ConversationStateStore } from "../conversation/chatStore.js";
+import { type ConversationStateStore } from "../response/chatStore.js";
+import type { BotAddAttributes, BotUpdateAttributes, NoteAddAttributes, NoteUpdateAttributes, ProjectAddAttributes, ProjectUpdateAttributes, RoutineApiAddAttributes, RoutineApiUpdateAttributes, RoutineCodeAddAttributes, RoutineCodeUpdateAttributes, RoutineDataAddAttributes, RoutineDataUpdateAttributes, RoutineGenerateAddAttributes, RoutineGenerateUpdateAttributes, RoutineInformationalAddAttributes, RoutineInformationalUpdateAttributes, RoutineMultiStepAddAttributes, RoutineMultiStepUpdateAttributes, RoutineSmartContractAddAttributes, RoutineSmartContractUpdateAttributes, RoutineWebAddAttributes, RoutineWebUpdateAttributes, StandardDataStructureAddAttributes, StandardDataStructureUpdateAttributes, StandardPromptAddAttributes, StandardPromptUpdateAttributes, TeamAddAttributes, TeamUpdateAttributes } from "../types/resources.js";
+import { type DefineToolParams, type EndSwarmParams, type Recipient, type ResourceManageParams, type RunRoutineParams, type SendMessageParams, type SpawnSwarmParams, type UpdateSwarmSharedStateParams } from "../types/tools.js";
 import { loadSchema } from "./schemaLoader.js";
+import { type ToolResponse } from "./types.js";
 
 // Load schema using the schema loader utility
 const defineToolSchema = loadSchema("DefineTool/schema.json");
-import type { BotAddAttributes, BotUpdateAttributes, NoteAddAttributes, NoteUpdateAttributes, ProjectAddAttributes, ProjectUpdateAttributes, RoutineApiAddAttributes, RoutineApiUpdateAttributes, RoutineCodeAddAttributes, RoutineCodeUpdateAttributes, RoutineDataAddAttributes, RoutineDataUpdateAttributes, RoutineGenerateAddAttributes, RoutineGenerateUpdateAttributes, RoutineInformationalAddAttributes, RoutineInformationalUpdateAttributes, RoutineMultiStepAddAttributes, RoutineMultiStepUpdateAttributes, RoutineSmartContractAddAttributes, RoutineSmartContractUpdateAttributes, RoutineWebAddAttributes, RoutineWebUpdateAttributes, StandardDataStructureAddAttributes, StandardDataStructureUpdateAttributes, StandardPromptAddAttributes, StandardPromptUpdateAttributes, TeamAddAttributes, TeamUpdateAttributes } from "../types/resources.js";
-import { type DefineToolParams, type EndSwarmParams, type Recipient, type ResourceManageParams, type RunRoutineParams, type SendMessageParams, type SpawnSwarmParams, type UpdateSwarmSharedStateParams } from "../types/tools.js";
-import { type ToolResponse } from "./types.js";
 
 // Type definitions for schema structures
 interface SchemaProperty {
@@ -333,12 +333,10 @@ function createDefaultMessageConfig(): MessageConfigObject {
  */
 export class BuiltInTools {
     private readonly user: SessionUser;
-    private readonly logger: Logger;
     private readonly req: Parameters<typeof RequestService.assertRequestFrom>[0];
 
-    constructor(user: SessionUser, logger: Logger, req?: Parameters<typeof RequestService.assertRequestFrom>[0]) {
+    constructor(user: SessionUser, req?: Parameters<typeof RequestService.assertRequestFrom>[0]) {
         this.user = user;
-        this.logger = logger;
         this.req = req ?? {
             session: {
                 fromSafeOrigin: true,
@@ -364,7 +362,7 @@ export class BuiltInTools {
         const supportedToolNames = [McpToolName.ResourceManage];
         if (!supportedToolNames.includes(toolName)) {
             const errorMsg = `Error: defineTool only supports ${supportedToolNames.join(", ")}, but received ${toolName}.`;
-            this.logger.warn(errorMsg);
+            logger.warn(errorMsg);
             return {
                 isError: true,
                 content: [{ type: "text", text: errorMsg }],
@@ -384,7 +382,7 @@ export class BuiltInTools {
 
         if (!toolDef?.inputSchema?.anyOf && !toolDef?.inputSchema?.oneOf) {
             const errorMsg = `Error: Could not retrieve base schema for ${toolName}.`;
-            this.logger.error(errorMsg);
+            logger.error(errorMsg);
             return {
                 isError: true,
                 content: [{ type: "text", text: errorMsg }],
@@ -404,7 +402,7 @@ export class BuiltInTools {
                 .map((s: SchemaDefinition) => s.properties?.op?.const)
                 .filter(Boolean);
             const errorMsg = `Error: Could not find schema for operation '${op}' in ${toolName}. Available operations: ${availableOps.join(", ")}.`;
-            this.logger.error(errorMsg);
+            logger.error(errorMsg);
             return {
                 isError: true,
                 content: [{ type: "text", text: errorMsg }],
@@ -439,7 +437,7 @@ export class BuiltInTools {
                 break;
             }
             default: {
-                this.logger.warn(`DefineTool received an unhandled op: ${op} for variant ${variant}. Returning base schema for op.`);
+                logger.warn(`DefineTool received an unhandled op: ${op} for variant ${variant}. Returning base schema for op.`);
                 break;
             }
         }
@@ -470,10 +468,10 @@ export class BuiltInTools {
                     delete filterProperties.required; // Remove 'required' if it was part of the properties block itself
                 }
             } else {
-                this.logger.warn(`Loaded schema from ${schemaFilePath} is not a valid object.`);
+                logger.warn(`Loaded schema from ${schemaFilePath} is not a valid object.`);
             }
         } catch (error) {
-            this.logger.warn(`Filter schema file not found or failed to parse for ${variant} at ${schemaFilePath}: ${(error as Error).message}`);
+            logger.warn(`Filter schema file not found or failed to parse for ${variant} at ${schemaFilePath}: ${(error as Error).message}`);
         }
 
         if (finalSchema.properties) {
@@ -502,10 +500,10 @@ export class BuiltInTools {
                     delete attributeProperties.required; // Remove 'required' if it was part of the properties block itself
                 }
             } else {
-                this.logger.warn(`Loaded schema from ${schemaFilePath} is not a valid object.`);
+                logger.warn(`Loaded schema from ${schemaFilePath} is not a valid object.`);
             }
         } catch (error) {
-            this.logger.warn(`Attributes schema file not found or failed to parse for ${variant} (${operation}) at ${schemaFilePath}: ${(error as Error).message}`);
+            logger.warn(`Attributes schema file not found or failed to parse for ${variant} (${operation}) at ${schemaFilePath}: ${(error as Error).message}`);
         }
 
         if (finalSchema.properties) {
@@ -526,7 +524,7 @@ export class BuiltInTools {
      * @returns A ToolResponse indicating the result of the sendMessage operation.
      */
     async sendMessage(args: SendMessageParams): Promise<ToolResponse> {
-        this.logger.info(`sendMessage called with new params: ${JSON.stringify(args)}`);
+        logger.info(`sendMessage called with new params: ${JSON.stringify(args)}`);
 
         try {
             const agentSenderId = this.user.id;
@@ -538,27 +536,27 @@ export class BuiltInTools {
             } else if (isRecipientBot(args.recipient)) {
                 // TODO: Implement logic to find/create DM chat with bot
                 const errorMsg = `Error: Recipient kind 'bot' resolution to a chat ID is not yet implemented. Bot ID: ${args.recipient.botId}`;
-                this.logger.error(errorMsg, { recipient: args.recipient });
+                logger.error(errorMsg, { recipient: args.recipient });
                 return { isError: true, content: [{ type: "text", text: errorMsg }] };
             } else if (isRecipientUser(args.recipient)) {
                 // TODO: Implement logic to find/create DM chat with user
                 const errorMsg = `Error: Recipient kind 'user' resolution to a chat ID is not yet implemented. User ID: ${args.recipient.userId}`;
-                this.logger.error(errorMsg, { recipient: args.recipient });
+                logger.error(errorMsg, { recipient: args.recipient });
                 return { isError: true, content: [{ type: "text", text: errorMsg }] };
             } else if (isRecipientTopic(args.recipient)) {
                 // TODO: Implement MQTT/topic-based messaging
                 const errorMsg = `Error: Recipient kind 'topic' is not yet implemented. Topic: ${args.recipient.topic}`;
-                this.logger.error(errorMsg, { recipient: args.recipient });
+                logger.error(errorMsg, { recipient: args.recipient });
                 return { isError: true, content: [{ type: "text", text: errorMsg }] };
             } else {
                 const errorMsg = `Error: Unknown recipient kind in: ${JSON.stringify(args.recipient)}`;
-                this.logger.error(errorMsg);
+                logger.error(errorMsg);
                 return { isError: true, content: [{ type: "text", text: errorMsg }] };
             }
 
             if (!chatId) {
                 const errorMsg = `Error: Invalid or missing chat ID from recipient: ${JSON.stringify(args.recipient)}.`;
-                this.logger.error(errorMsg);
+                logger.error(errorMsg);
                 return { isError: true, content: [{ type: "text", text: errorMsg }] };
             }
 
@@ -581,10 +579,10 @@ export class BuiltInTools {
             };
 
             if (!additionalDataForHelper.model) {
-                this.logger.warn(`sendMessage: 'mcpLlmModel' was not found in metadata for chat ${chatId}. Bot responses might not be triggered or use a default model.`);
+                logger.warn(`sendMessage: 'mcpLlmModel' was not found in metadata for chat ${chatId}. Bot responses might not be triggered or use a default model.`);
             }
 
-            this.logger.info(`Attempting to create chat message via createOneHelper. ChatID: ${chatId}, SenderID: ${agentSenderId}, RecipientKind: ${args.recipient.kind}`);
+            logger.info(`Attempting to create chat message via createOneHelper. ChatID: ${chatId}, SenderID: ${agentSenderId}, RecipientKind: ${args.recipient.kind}`);
 
             const result = await createOneHelper({
                 input: chatMessageInput,
@@ -594,14 +592,14 @@ export class BuiltInTools {
                 info: { GQLResolveInfo: {} } as PartialApiInfo,
             }) as Partial<ChatMessage> & { id: string };
 
-            this.logger.info(`Chat message created: ${result.id} in chat ${chatId}`);
+            logger.info(`Chat message created: ${result.id} in chat ${chatId}`);
             return {
                 isError: false,
                 content: [{ type: "text", text: `Message sent to chat ${chatId} (recipient kind: ${args.recipient.kind}). Message ID: ${result.id}` }],
             };
 
         } catch (error) {
-            this.logger.error("Error in sendMessage:", error);
+            logger.error("Error in sendMessage:", error);
             const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
             return { isError: true, content: [{ type: "text", text: errorMessage }] };
         }
@@ -614,7 +612,7 @@ export class BuiltInTools {
      * @returns A ToolResponse indicating the result of the operation.
      */
     async resourceManage(args: ResourceManageParams): Promise<ToolResponse> {
-        this.logger.info(`resourceManage called with args: ${JSON.stringify(args)}`);
+        logger.info(`resourceManage called with args: ${JSON.stringify(args)}`);
         let result;
         try {
             if (isResourceManageFindParams(args)) {
@@ -649,13 +647,13 @@ export class BuiltInTools {
             } else {
                 // This should never happen with proper TypeScript discriminated unions
                 const errorMsg = "Unhandled resource manage operation";
-                this.logger.error(errorMsg, args);
+                logger.error(errorMsg, args);
                 return { isError: true, content: [{ type: "text", text: errorMsg }] };
             }
 
             return { isError: false, content: [{ type: "text", text: JSON.stringify(result) }] };
         } catch (error) {
-            this.logger.error("Error in resourceManage:", error);
+            logger.error("Error in resourceManage:", error);
             return { isError: true, content: [{ type: "text", text: (error as Error).message }] };
         }
     }
@@ -667,7 +665,7 @@ export class BuiltInTools {
      * @returns A ToolResponse indicating the result of the runRoutine operation.
      */
     async runRoutine(args: RunRoutineParams): Promise<ToolResponse> {
-        this.logger.info(`runRoutine called with args: ${JSON.stringify(args)}`);
+        logger.info(`runRoutine called with args: ${JSON.stringify(args)}`);
 
         try {
             if (isRunRoutineStart(args)) {
@@ -678,7 +676,7 @@ export class BuiltInTools {
                 return await this._handleRunRoutineManage(args);
             }
         } catch (error) {
-            this.logger.error("Error in runRoutine:", error);
+            logger.error("Error in runRoutine:", error);
             return { isError: true, content: [{ type: "text", text: (error as Error).message }] };
         }
     }
@@ -699,6 +697,7 @@ export class BuiltInTools {
 
             // Create the RunTask for the queue
             const runTask: Omit<RunTask, "type" | "status"> = {
+                id: generatePK().toString(), // Required for BaseTaskData
                 runId,
                 resourceVersionId: routineId,
                 isNewRun: true,
@@ -726,7 +725,34 @@ export class BuiltInTools {
             // Lazy import to avoid circular dependency
             const { processRun } = await import("../../tasks/run/queue.js");
             const { QueueService } = await import("../../tasks/queues.js");
-            const result = await processRun(runTask, QueueService.get());
+            const { RunTask } = await import("../../tasks/taskTypes.js");
+            
+            // Create proper RunTask structure
+            const runTaskForQueue: Omit<RunTask, "type"> = {
+                context: {
+                    swarmId: `swarm-${runTask.runId}`,
+                    userData: runTask.userData,
+                    timestamp: new Date(),
+                },
+                input: {
+                    runId: runTask.runId,
+                    resourceVersionId: runTask.resourceVersionId,
+                    config: runTask.config,
+                    formValues: runTask.formValues,
+                    isNewRun: runTask.isNewRun,
+                    runFrom: runTask.runFrom,
+                    startedById: runTask.startedById,
+                    status: "Scheduled",
+                },
+                allocation: {
+                    maxCredits: "10000",
+                    maxDurationMs: 3600000, // 1 hour
+                    maxMemoryMB: 512,
+                    maxConcurrentSteps: 5,
+                },
+            };
+            
+            const result = await processRun(runTaskForQueue, QueueService.get());
 
             if (result.success) {
                 if (mode === "sync") {
@@ -751,7 +777,7 @@ export class BuiltInTools {
             }
         } catch (error) {
             const errorMsg = `Failed to start routine ${routineId}: ${(error as Error).message}`;
-            this.logger.error(errorMsg, error);
+            logger.error(errorMsg, error);
             return { isError: true, content: [{ type: "text", text: errorMsg }] };
         }
     }
@@ -763,15 +789,9 @@ export class BuiltInTools {
         const { runId, action } = args;
 
         try {
-            // TODO: Import and use activeRunRegistry when implemented
-            // const stateMachine = activeRunRegistry.get(runId);
-            
-            // Placeholder implementation
-            const stateMachine: { 
-                getCurrentSagaStatus(): string;
-                requestPause(): Promise<boolean>;
-                requestStop(reason?: string): Promise<boolean>;
-            } | null = null;
+            // Lazy import to avoid circular dependency
+            const { activeRunRegistry } = await import("../../tasks/run/process.js");
+            const stateMachine = activeRunRegistry.get(runId);
 
             if (!stateMachine) {
                 return {
@@ -782,7 +802,7 @@ export class BuiltInTools {
 
             switch (action) {
                 case "status": {
-                    const status = stateMachine.getCurrentSagaStatus();
+                    const status = stateMachine.getState();
                     return {
                         isError: false,
                         content: [{
@@ -793,8 +813,8 @@ export class BuiltInTools {
                 }
 
                 case "pause": {
-                    const success = await stateMachine.requestPause();
-                    if (success) {
+                    try {
+                        await stateMachine.pause();
                         return {
                             isError: false,
                             content: [{
@@ -802,12 +822,12 @@ export class BuiltInTools {
                                 text: `Run ${runId} pause request initiated successfully`,
                             }],
                         };
-                    } else {
+                    } catch (error) {
                         return {
                             isError: true,
                             content: [{
                                 type: "text",
-                                text: `Failed to pause run ${runId}`,
+                                text: `Failed to pause run ${runId}: ${error instanceof Error ? error.message : String(error)}`,
                             }],
                         };
                     }
@@ -842,8 +862,8 @@ export class BuiltInTools {
                 }
 
                 case "cancel": {
-                    const success = await stateMachine.requestStop("Cancelled by user via MCP tool");
-                    if (success) {
+                    try {
+                        await stateMachine.stop("Cancelled by user via MCP tool");
                         return {
                             isError: false,
                             content: [{
@@ -851,12 +871,12 @@ export class BuiltInTools {
                                 text: `Run ${runId} cancellation request initiated successfully`,
                             }],
                         };
-                    } else {
+                    } catch (error) {
                         return {
                             isError: true,
                             content: [{
                                 type: "text",
-                                text: `Failed to cancel run ${runId}`,
+                                text: `Failed to cancel run ${runId}: ${error instanceof Error ? error.message : String(error)}`,
                             }],
                         };
                     }
@@ -870,7 +890,7 @@ export class BuiltInTools {
             }
         } catch (error) {
             const errorMsg = `Error managing run ${runId} with action ${action}: ${(error as Error).message}`;
-            this.logger.error(errorMsg, error);
+            logger.error(errorMsg, error);
             return { isError: true, content: [{ type: "text", text: errorMsg }] };
         }
     }
@@ -882,7 +902,7 @@ export class BuiltInTools {
      * @returns A ToolResponse indicating the result of the spawnSwarm operation.
      */
     async spawnSwarm(args: SpawnSwarmParams, parentSwarmId?: string): Promise<ToolResponse> {
-        this.logger.info(`spawnSwarm called with args: ${JSON.stringify(args)}`);
+        logger.info(`spawnSwarm called with args: ${JSON.stringify(args)}`);
 
         try {
             // Get parent swarm ID from active swarm registry if not provided
@@ -897,7 +917,7 @@ export class BuiltInTools {
                         const associatedUserId = swarmInstance.getAssociatedUserId();
                         if (associatedUserId === this.user.id) {
                             actualParentSwarmId = record.id;
-                            this.logger.info(`[spawnSwarm] Found parent swarm context: ${record.id}`);
+                            logger.info(`[spawnSwarm] Found parent swarm context: ${record.id}`);
                             break;
                         }
                     }
@@ -937,59 +957,64 @@ export class BuiltInTools {
 
             if (isSpawnSwarmSimple(args)) {
                 // Handle simple child swarm
-                const childSwarmConfig = {
+                const childSwarmTask: Omit<SwarmExecutionTask, "type" | "status"> = {
+                    id: generatePK().toString(),
                     swarmId: childSwarmId,
-                    name: `Child of ${actualParentSwarmId}`,
-                    description: `Child swarm spawned to accomplish: ${args.goal}`,
-                    goal: args.goal,
-                    resources: childResources,
-                    config: {
-                        model: "claude-3-haiku-20240307", // Default model for child swarms
-                        temperature: 0.7,
-                        autoApproveTools: false, // Child swarms should be more conservative
-                        parallelExecutionLimit: 2,
+                    context: {
+                        swarmId: childSwarmId,
+                        conversationId: childSwarmId,
+                        userData: this.user,
+                        goal: args.goal,
+                        parentSwarmId: actualParentSwarmId,
+                        resources: childResources,
+                        config: {
+                            model: "claude-3-haiku-20240307", // Default model for child swarms
+                            temperature: 0.7,
+                            autoApproveTools: false, // Child swarms should be more conservative
+                            parallelExecutionLimit: 2,
+                        },
                     },
-                    userId: this.user.id,
-                    parentSwarmId: actualParentSwarmId, // NEW: Set parent relationship
                 };
 
-                // Use existing swarm execution infrastructure
-                const { SwarmExecutionService } = await import("../execution/swarmExecutionService.js");
-                const swarmService = new SwarmExecutionService(this.logger);
-
-                const result = await swarmService.startSwarm(childSwarmConfig);
+                // Use queue system to spawn child swarm
+                const { processNewSwarmExecution } = await import("../../tasks/swarm/queue.js");
+                const { QueueService } = await import("../../tasks/queues.js");
+                const result = await processNewSwarmExecution(childSwarmTask, QueueService.get());
 
                 return {
                     isError: false,
                     content: [{
                         type: "text",
-                        text: `Child swarm ${result.swarmId} spawned successfully with goal: "${args.goal}". Leader: ${args.swarmLeader}. Reserved resources: ${JSON.stringify(reservation)}.`,
+                        text: `Child swarm ${childSwarmId} spawned successfully with goal: "${args.goal}". Leader: ${args.swarmLeader}. Reserved resources: ${JSON.stringify(reservation)}.`,
                     }],
                 };
 
             } else {
                 // Handle rich child swarm with team
-                const childSwarmConfig = {
+                const childSwarmTask: Omit<SwarmExecutionTask, "type" | "status"> = {
+                    id: generatePK().toString(),
                     swarmId: childSwarmId,
-                    name: `Team ${args.teamId} Child Swarm`,
-                    description: `Rich child swarm with team ${args.teamId} for: ${args.goal}`,
-                    goal: args.goal,
-                    resources: childResources,
-                    config: {
-                        model: "claude-3-sonnet-20240229", // Rich swarms get better model
-                        temperature: 0.5,
-                        autoApproveTools: false,
-                        parallelExecutionLimit: 5,
+                    context: {
+                        swarmId: childSwarmId,
+                        conversationId: childSwarmId,
+                        userData: this.user,
+                        goal: args.goal,
+                        parentSwarmId: actualParentSwarmId,
+                        teamId: args.teamId,
+                        resources: childResources,
+                        config: {
+                            model: "claude-3-sonnet-20240229", // Rich swarms get better model
+                            temperature: 0.5,
+                            autoApproveTools: false,
+                            parallelExecutionLimit: 5,
+                        },
                     },
-                    userId: this.user.id,
-                    parentSwarmId: actualParentSwarmId, // NEW: Set parent relationship
                 };
 
-                // Use existing swarm execution infrastructure
-                const { SwarmExecutionService } = await import("../execution/swarmExecutionService.js");
-                const swarmService = new SwarmExecutionService(this.logger);
-
-                const result = await swarmService.startSwarm(childSwarmConfig);
+                // Use queue system to spawn child swarm
+                const { processNewSwarmExecution } = await import("../../tasks/swarm/queue.js");
+                const { QueueService } = await import("../../tasks/queues.js");
+                const result = await processNewSwarmExecution(childSwarmTask, QueueService.get());
 
                 // TODO: Handle additional rich swarm features
                 // - Team assignment (args.teamId)
@@ -1001,13 +1026,13 @@ export class BuiltInTools {
                     isError: false,
                     content: [{
                         type: "text",
-                        text: `Rich child swarm ${result.swarmId} spawned successfully with team ${args.teamId} and goal: "${args.goal}". Reserved resources: ${JSON.stringify(reservation)}.`,
+                        text: `Rich child swarm ${childSwarmId} spawned successfully with team ${args.teamId} and goal: "${args.goal}". Reserved resources: ${JSON.stringify(reservation)}.`,
                     }],
                 };
             }
 
         } catch (error) {
-            this.logger.error("Error in spawnSwarm:", error);
+            logger.error("Error in spawnSwarm:", error);
             return {
                 isError: true,
                 content: [{
@@ -1020,7 +1045,7 @@ export class BuiltInTools {
 
     // -- Mapping layer: convert MCP shapes to GraphQL action-helper inputs --
     _mapFindToInput(resourceType: string, filters: Record<string, unknown>): Record<string, unknown> {
-        this.logger.info(`Mapping find input for resourceType: ${resourceType} with filters: ${JSON.stringify(filters)}`);
+        logger.info(`Mapping find input for resourceType: ${resourceType} with filters: ${JSON.stringify(filters)}`);
 
         // Spread filters into a new object (read helper function will validate/filter out any invalid filters)
         const mappedFilters = { ...filters };
@@ -1475,11 +1500,9 @@ export class BuiltInTools {
  * Holds all swarm-specific MCP tools.
  */
 export class SwarmTools {
-    private logger: Logger;
     private conversationStore: ConversationStateStore;
 
-    constructor(logger: Logger, conversationStore: ConversationStateStore) {
-        this.logger = logger;
+    constructor(conversationStore: ConversationStateStore) {
         this.conversationStore = conversationStore;
     }
 
@@ -1503,7 +1526,7 @@ export class SwarmTools {
         updatedTeamConfig?: TeamConfigObject;
         error?: string; // For error codes/types
     }> {
-        this.logger.info(
+        logger.info(
             `SwarmTools.updateSwarmSharedState called for convo ${conversationId}`,
             args,
         );
@@ -1511,13 +1534,13 @@ export class SwarmTools {
 
         if (!convoState) {
             const errorMsg = `Conversation state not found for conversation ${conversationId}.`;
-            this.logger.error(errorMsg);
+            logger.error(errorMsg);
             return { success: false, message: errorMsg, error: "CONVERSATION_STATE_NOT_FOUND" };
         }
 
         if (!convoState.config) {
             const errorMsg = `Conversation config not found for conversation ${conversationId}.`;
-            this.logger.error(errorMsg);
+            logger.error(errorMsg);
             return { success: false, message: errorMsg, error: "CONVERSATION_CONFIG_NOT_FOUND" };
         }
 
@@ -1538,7 +1561,7 @@ export class SwarmTools {
         if (args.teamConfig && convoState.config.teamId) {
             if (!user) {
                 const errorMsg = "User session required for team config updates.";
-                this.logger.error(errorMsg);
+                logger.error(errorMsg);
                 return { success: false, message: errorMsg, error: "SESSION_USER_REQUIRED" };
             }
 
@@ -1564,12 +1587,12 @@ export class SwarmTools {
 
                 if (!currentTeam || !currentTeam.config) {
                     const errorMsg = `Team ${convoState.config.teamId} not found or user lacks access.`;
-                    this.logger.error(errorMsg);
+                    logger.error(errorMsg);
                     return { success: false, message: errorMsg, error: "TEAM_NOT_FOUND_OR_ACCESS_DENIED" };
                 }
 
                 // Parse current team config
-                const currentTeamConfig = TeamConfig.parse({ config: currentTeam.config }, this.logger, { useFallbacks: true });
+                const currentTeamConfig = TeamConfig.parse({ config: currentTeam.config }, logger, { useFallbacks: true });
 
                 // Apply updates to the team config
                 if (args.teamConfig.structure) {
@@ -1604,25 +1627,25 @@ export class SwarmTools {
                 });
 
                 updatedTeamConfig = currentTeamConfig.export();
-                this.logger.info(`Updated team config for team ${convoState.config.teamId}`);
+                logger.info(`Updated team config for team ${convoState.config.teamId}`);
 
                 // Update the conversation state with the new team config
                 try {
                     await this.conversationStore.updateTeamConfig(conversationId, updatedTeamConfig);
-                    this.logger.debug(`Refreshed team config in conversation state for ${conversationId}`);
+                    logger.debug(`Refreshed team config in conversation state for ${conversationId}`);
                 } catch (updateError) {
-                    this.logger.warn(`Failed to update team config in conversation state cache for ${conversationId}:`, updateError);
+                    logger.warn(`Failed to update team config in conversation state cache for ${conversationId}:`, updateError);
                     // Continue anyway - the team config was updated in the database and will be available on next fetch
                 }
 
             } catch (error) {
                 const errorMsg = `Failed to update team config: ${error instanceof Error ? error.message : "Unknown error"}`;
-                this.logger.error(errorMsg, { error });
+                logger.error(errorMsg, { error });
                 return { success: false, message: errorMsg, error: "TEAM_CONFIG_UPDATE_FAILED" };
             }
         } else if (args.teamConfig && !convoState.config.teamId) {
             const errorMsg = "Cannot update team config: no team assigned to this swarm.";
-            this.logger.warn(errorMsg);
+            logger.warn(errorMsg);
             return { success: false, message: errorMsg, error: "NO_TEAM_ASSIGNED" };
         }
 
@@ -1673,7 +1696,7 @@ export class SwarmTools {
             }
         }
 
-        this.logger.info(
+        logger.info(
             `Swarm state updated for convo ${conversationId}. SubTasks count: ${currentSubTasks.length}, Scratchpad keys: ${Object.keys(currentScratchpad).length}`,
         );
 
@@ -1711,12 +1734,12 @@ export class SwarmTools {
         };
         error?: string;
     }> {
-        this.logger.info(`SwarmTools.endSwarm called for convo ${conversationId} by user ${user.id}`, args);
+        logger.info(`SwarmTools.endSwarm called for convo ${conversationId} by user ${user.id}`, args);
 
         // Validate user authentication
         if (!user?.id) {
             const errorMsg = "User authentication required to end swarm.";
-            this.logger.error(errorMsg);
+            logger.error(errorMsg);
             return { success: false, message: errorMsg, error: "AUTHENTICATION_REQUIRED" };
         }
 
@@ -1724,13 +1747,13 @@ export class SwarmTools {
         const convoState = await this.conversationStore.get(conversationId);
         if (!convoState) {
             const errorMsg = `Conversation state not found for conversation ${conversationId}.`;
-            this.logger.error(errorMsg);
+            logger.error(errorMsg);
             return { success: false, message: errorMsg, error: "CONVERSATION_STATE_NOT_FOUND" };
         }
 
         if (!convoState.config) {
             const errorMsg = `Conversation config not found for conversation ${conversationId}.`;
-            this.logger.error(errorMsg);
+            logger.error(errorMsg);
             return { success: false, message: errorMsg, error: "CONVERSATION_CONFIG_NOT_FOUND" };
         }
 
@@ -1745,13 +1768,13 @@ export class SwarmTools {
                 const adminId = await DbProvider.getAdminId();
                 isAdmin = user.id === adminId;
             } catch (error) {
-                this.logger.error("Failed to get admin ID for swarm end authorization:", error);
+                logger.error("Failed to get admin ID for swarm end authorization:", error);
                 // Continue without admin check if DbProvider.getAdminId() fails
             }
 
             if (!isSwarmInitiator && !isAdmin) {
                 const errorMsg = `User ${user.id} is not authorized to end swarm ${conversationId}. Only the swarm initiator (${swarmInitiatorId}) or an admin can end a swarm.`;
-                this.logger.warn(errorMsg);
+                logger.warn(errorMsg);
                 return {
                     success: false,
                     message: "You are not authorized to end this swarm. Only the swarm creator or an admin can end a swarm.",
@@ -1759,13 +1782,13 @@ export class SwarmTools {
                 };
             }
 
-            this.logger.info(`User ${user.id} authorized to end swarm ${conversationId}. Delegating to SwarmStateMachine.`);
+            logger.info(`User ${user.id} authorized to end swarm ${conversationId}. Delegating to SwarmStateMachine.`);
             try {
                 const result = await activeSwarmInstance.stop(args.mode || "graceful", args.reason, user);
                 return result;
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : "Unknown error in SwarmStateMachine.stop()";
-                this.logger.error(`Error delegating to SwarmStateMachine.stop() for conversation ${conversationId}:`, error);
+                logger.error(`Error delegating to SwarmStateMachine.stop() for conversation ${conversationId}:`, error);
                 return {
                     success: false,
                     message: `Failed to end swarm via SwarmStateMachine: ${errorMessage}`,
@@ -1775,7 +1798,7 @@ export class SwarmTools {
         }
 
         // Fallback: If no active swarm instance, we can't properly validate or end the swarm
-        this.logger.warn(`No active SwarmStateMachine found for conversation ${conversationId}. Cannot end swarm properly without state machine.`);
+        logger.warn(`No active SwarmStateMachine found for conversation ${conversationId}. Cannot end swarm properly without state machine.`);
 
         return {
             success: false,

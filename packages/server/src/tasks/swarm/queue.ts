@@ -4,7 +4,7 @@ import { type Success, type TaskStatus, type TaskStatusInfo } from "@vrooli/shar
 
 // Import QueueService type only to avoid circular dependency
 type QueueServiceType = import("../queues.js").QueueService;
-import { type SwarmTask, type SwarmExecutionTask } from "../taskTypes.js";
+import { type LLMCompletionTask, type SwarmTask, type SwarmExecutionTask } from "../taskTypes.js";
 
 // Re-export the limits from the separate file to maintain backward compatibility
 export { SWARM_QUEUE_LIMITS } from "./limits.js";

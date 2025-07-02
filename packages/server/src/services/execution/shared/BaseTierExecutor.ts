@@ -388,19 +388,18 @@ export class TierResourceUtils {
     static createChildAllocation(
         parentAllocation: CoreResourceAllocation,
         childRatio: number, // 0.0 to 1.0
-        strategy: "strict" | "elastic" | "best_effort" = "strict",
     ): CoreResourceAllocation {
         if (childRatio <= 0 || childRatio > 1) {
             throw new Error(`Invalid child allocation ratio: ${childRatio}. Must be between 0 and 1.`);
         }
 
-        const parseCredits = (credits: string): bigint => {
+        function parseCredits(credits: string): bigint {
             return credits === "unlimited" ? BigInt(Number.MAX_SAFE_INTEGER) : BigInt(credits);
-        };
+        }
 
-        const formatCredits = (credits: bigint): string => {
+        function formatCredits(credits: bigint): string {
             return credits === BigInt(Number.MAX_SAFE_INTEGER) ? "unlimited" : credits.toString();
-        };
+        }
 
         return {
             maxCredits: formatCredits(parseCredits(parentAllocation.maxCredits) * BigInt(Math.floor(childRatio * 100)) / 100n),

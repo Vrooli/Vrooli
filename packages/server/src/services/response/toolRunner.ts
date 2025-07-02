@@ -1,10 +1,10 @@
 import { McpSwarmToolName, McpToolName } from "@vrooli/shared";
 import type OpenAI from "openai";
-import type { Logger } from "winston";
+import { logger } from "../../events/logger.js";
+import { type OkErr, type ToolMeta } from "../conversation/types.js";
 import { BuiltInTools, type SwarmTools } from "../mcp/tools.js";
 import { type ToolResponse } from "../mcp/types.js";
 import { type DefineToolParams, type EndSwarmParams, type ResourceManageParams, type RunRoutineParams, type SendMessageParams, type SpawnSwarmParams, type UpdateSwarmSharedStateParams } from "../types/tools.js";
-import { type OkErr, type ToolMeta } from "./types.js";
 
 /**
  * The result of a tool call, including the output and the number of credits used.
@@ -110,16 +110,14 @@ export class OpenAIToolRunner extends ToolRunner {
  * Validates arguments, dispatches to the correct handler, and returns a structured result.
  */
 export class McpToolRunner extends ToolRunner {
-    private readonly logger: Logger;
     private readonly swarmTools?: SwarmTools;
 
     /**
      * @param logger - A logger instance.
      * @param swarmTools - An optional instance of SwarmTools for handling swarm-specific MCP tools.
      */
-    constructor(logger: Logger, swarmTools?: SwarmTools) {
+    constructor(swarmTools?: SwarmTools) {
         super();
-        this.logger = logger;
         this.swarmTools = swarmTools;
     }
 
@@ -137,10 +135,10 @@ export class McpToolRunner extends ToolRunner {
         try {
             if (Object.values(McpToolName).includes(name as McpToolName)) {
                 if (!meta.sessionUser) {
-                    this.logger.error(`McpToolRunner: sessionUser is required in meta for McpToolName: ${name}`);
+                    logger.error(`McpToolRunner: sessionUser is required in meta for McpToolName: ${name}`);
                     return { ok: false, error: { code: "MISSING_SESSION_USER_FOR_MCP_TOOL", message: `SessionUser missing for MCP tool ${name}.`, creditsUsed: "0" } };
                 }
-                const builtInTools = new BuiltInTools(meta.sessionUser, this.logger, undefined /* req */);
+                const builtInTools = new BuiltInTools(meta.sessionUser, logger, undefined /* req */);
                 switch (name as McpToolName) {
                     case McpToolName.DefineTool: {
                         toolExecuteResponse = await builtInTools.defineTool(args as DefineToolParams);
@@ -163,16 +161,16 @@ export class McpToolRunner extends ToolRunner {
                         break;
                     }
                     default:
-                        this.logger.error(`McpToolRunner: Unhandled McpToolName: ${name}`);
+                        logger.error(`McpToolRunner: Unhandled McpToolName: ${name}`);
                         return { ok: false, error: { code: "UNHANDLED_MCP_TOOL", message: `Tool ${name} not handled.`, creditsUsed: "0" } };
                 }
             } else if (this.swarmTools && Object.values(McpSwarmToolName).includes(name as McpSwarmToolName)) {
                 if (!meta.conversationId) {
-                    this.logger.error(`McpToolRunner: conversationId is required for SwarmTool: ${name}`);
+                    logger.error(`McpToolRunner: conversationId is required for SwarmTool: ${name}`);
                     return { ok: false, error: { code: "MISSING_CONVERSATION_ID_FOR_SWARM_TOOL", message: `ConversationId missing for swarm tool ${name}.`, creditsUsed: "0" } };
                 }
                 if (!meta.sessionUser) {
-                    this.logger.error(`McpToolRunner: sessionUser is required for SwarmTool: ${name}`);
+                    logger.error(`McpToolRunner: sessionUser is required for SwarmTool: ${name}`);
                     return { ok: false, error: { code: "MISSING_SESSION_USER_FOR_SWARM_TOOL", message: `SessionUser missing for swarm tool ${name}.`, creditsUsed: "0" } };
                 }
                 switch (name as McpSwarmToolName) {
@@ -192,7 +190,7 @@ export class McpToolRunner extends ToolRunner {
                         break;
                     }
                     default:
-                        this.logger.error(`McpToolRunner: Unhandled McpSwarmToolName: ${name}`);
+                        logger.error(`McpToolRunner: Unhandled McpSwarmToolName: ${name}`);
                         return { ok: false, error: { code: "UNHANDLED_SWARM_TOOL", message: `Swarm tool ${name} not handled.`, creditsUsed: "0" } };
                 }
                 // Convert swarmToolInternalResult to toolExecuteResponse structure
@@ -209,7 +207,7 @@ export class McpToolRunner extends ToolRunner {
             }
 
             if (!toolExecuteResponse) {
-                this.logger.error(`McpToolRunner: toolExecuteResponse is null after processing tool ${name}`);
+                logger.error(`McpToolRunner: toolExecuteResponse is null after processing tool ${name}`);
                 return { ok: false, error: { code: "INTERNAL_TOOL_RUNNER_ERROR", message: "Tool response was not generated.", creditsUsed: "0" } };
             }
 
@@ -228,7 +226,7 @@ export class McpToolRunner extends ToolRunner {
             return { ok: true, data: { output: outputForLlm, creditsUsed: actualCreditsUsed } };
 
         } catch (error) {
-            this.logger.error(`McpToolRunner: Exception executing tool ${name}:`, error);
+            logger.error(`McpToolRunner: Exception executing tool ${name}:`, error);
             return { ok: false, error: { code: "TOOL_RUNNER_EXCEPTION", message: `Exception for tool "${name}": ${(error as Error).message}`, creditsUsed: "0" } };
         }
     }

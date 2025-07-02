@@ -7,7 +7,6 @@ import {
 } from "@vrooli/shared";
 import { logger } from "../../../../events/logger.js";
 import { getEventBus } from "../../../events/eventBus.js";
-import { EventTypes, EventUtils } from "../../../events/index.js";
 import { type Tool } from "../../../mcp/types.js";
 import {
     IntegratedToolRegistry,
@@ -176,7 +175,6 @@ export class ToolOrchestrator {
                     swarmId: this.currentSwarmId,
                     conversationId: this.currentConversationId,
                     user: this.currentUser || { id: "system", languages: ["en"] },
-                    logger,
                     metadata: {
                         timeout,
                         retryPolicy,

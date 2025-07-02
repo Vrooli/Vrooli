@@ -1,5 +1,4 @@
-import { type RoutineCompletionData, type StepResult } from "@vrooli/shared";
-import { EventTypes } from "../../../events/index.js";
+import { EventTypes, type RoutineCompletionData, type StepResult } from "@vrooli/shared";
 import { getEventBus } from "../../events/eventBus.js";
 import { type ISwarmContextManager } from "../../shared/SwarmContextManager.js";
 
@@ -40,7 +39,7 @@ export class RoutineEventCoordinator {
         userId: string,
     ): Promise<void> {
         await getEventBus().publish({
-            type: EventTypes.ROUTINE_STARTED,
+            type: EventTypes.ROUTINE.STARTED,
             source: { tier: 2, component: "RoutineExecution" },
             data: {
                 swarmId,
@@ -68,7 +67,7 @@ export class RoutineEventCoordinator {
         stepType: string,
     ): Promise<void> {
         await getEventBus().publish({
-            type: EventTypes.STEP_STARTED,
+            type: EventTypes.ROUTINE.STEP_STARTED,
             source: { tier: 2, component: "RoutineExecution" },
             data: {
                 swarmId,
@@ -97,7 +96,7 @@ export class RoutineEventCoordinator {
         result: StepResult,
     ): Promise<void> {
         await getEventBus().publish({
-            type: EventTypes.STEP_COMPLETED,
+            type: EventTypes.ROUTINE.STEP_COMPLETED,
             source: { tier: 2, component: "RoutineExecution" },
             data: {
                 swarmId,
@@ -127,7 +126,7 @@ export class RoutineEventCoordinator {
         details?: Record<string, unknown>,
     ): Promise<void> {
         await getEventBus().publish({
-            type: EventTypes.STEP_FAILED,
+            type: EventTypes.ROUTINE.STEP_FAILED,
             source: { tier: 2, component: "RoutineExecution" },
             data: {
                 swarmId,
@@ -156,7 +155,7 @@ export class RoutineEventCoordinator {
         result: RoutineCompletionData,
     ): Promise<void> {
         await getEventBus().publish({
-            type: EventTypes.ROUTINE_COMPLETED,
+            type: EventTypes.ROUTINE.COMPLETED,
             source: { tier: 2, component: "RoutineExecution" },
             data: {
                 swarmId,
@@ -184,7 +183,7 @@ export class RoutineEventCoordinator {
         failedAtStep?: string,
     ): Promise<void> {
         await getEventBus().publish({
-            type: EventTypes.ROUTINE_FAILED,
+            type: EventTypes.ROUTINE.FAILED,
             source: { tier: 2, component: "RoutineExecution" },
             data: {
                 swarmId,
@@ -214,7 +213,7 @@ export class RoutineEventCoordinator {
         value: unknown,
     ): Promise<void> {
         await getEventBus().publish({
-            type: EventTypes.VARIABLE_UPDATED,
+            type: EventTypes.ROUTINE.VARIABLE_UPDATED,
             source: { tier: 2, component: "RoutineExecution" },
             data: {
                 swarmId,
@@ -302,7 +301,7 @@ export class RoutineEventCoordinator {
         requestData: Record<string, unknown>,
     ): Promise<void> {
         await getEventBus().publish({
-            type: EventTypes.APPROVAL_REQUESTED,
+            type: EventTypes.CHAT.TOOL_APPROVAL_REQUESTED,
             source: { tier: 2, component: "RoutineExecution" },
             data: {
                 swarmId,

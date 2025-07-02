@@ -1,10 +1,10 @@
 import { McpToolName } from "@vrooli/shared";
-import type { Logger } from "winston";
 import { RequestService } from "../../auth/request.js";
-import { loadSchema } from "./schemaLoader.js";
+import { logger } from "../../events/logger.js";
 import type { ResourceManageParams, RunRoutineParams } from "../types/tools.js";
 import { type DefineToolParams, type SendMessageParams, type SpawnSwarmParams } from "../types/tools.js";
 import { getCurrentMcpContext } from "./context.js";
+import { loadSchema } from "./schemaLoader.js";
 import { BuiltInTools } from "./tools.js";
 import { type ToolResponse } from "./types.js";
 
@@ -45,11 +45,6 @@ const SWARM_TOOL_DEFINITIONS = [
  * ---------------------------------------------------------------------------
  */
 export class ToolRegistry {
-    private logger: Logger;
-
-    constructor(logger: Logger) {
-        this.logger = logger;
-    }
 
     /**
      * Get built-in tool definitions as an array of JSON objects.
@@ -83,7 +78,7 @@ export class ToolRegistry {
      * @returns Tool execution response
      */
     async execute<T extends McpToolName>(name: T, args: ToolArgsMap[T]): Promise<ToolResponse> {
-        this.logger.info(`Executing tool: ${name} with args: ${JSON.stringify(args)}`);
+        logger.info(`Executing tool: ${name} with args: ${JSON.stringify(args)}`);
 
         try {
             const { req } = getCurrentMcpContext();
@@ -92,27 +87,27 @@ export class ToolRegistry {
             switch (name) {
                 case McpToolName.DefineTool: {
                     const user = RequestService.assertRequestFrom(req, { hasReadPublicPermissions: true, isUser: true });
-                    return (new BuiltInTools(user, this.logger, req)).defineTool(args as DefineToolParams);
+                    return (new BuiltInTools(user, req)).defineTool(args as DefineToolParams);
                 }
                 case McpToolName.SendMessage: {
                     const user = RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
-                    return (new BuiltInTools(user, this.logger, req)).sendMessage(args as SendMessageParams);
+                    return (new BuiltInTools(user, req)).sendMessage(args as SendMessageParams);
                 }
                 case McpToolName.ResourceManage: {
                     const user = RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
-                    return (new BuiltInTools(user, this.logger, req)).resourceManage(args as ResourceManageParams);
+                    return (new BuiltInTools(user, req)).resourceManage(args as ResourceManageParams);
                 }
                 case McpToolName.RunRoutine: {
                     const user = RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
-                    return (new BuiltInTools(user, this.logger, req)).runRoutine(args as RunRoutineParams);
+                    return (new BuiltInTools(user, req)).runRoutine(args as RunRoutineParams);
                 }
                 case McpToolName.SpawnSwarm: {
                     const user = RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
-                    return (new BuiltInTools(user, this.logger, req)).spawnSwarm(args as SpawnSwarmParams);
+                    return (new BuiltInTools(user, req)).spawnSwarm(args as SpawnSwarmParams);
                 }
                 default: {
                     const exhaustiveCheck: never = name;
-                    this.logger.error(`Tool handler not found or not implemented in BuiltInTools: ${exhaustiveCheck}`);
+                    logger.error(`Tool handler not found or not implemented in BuiltInTools: ${exhaustiveCheck}`);
                     return {
                         isError: true,
                         content: [
@@ -125,7 +120,7 @@ export class ToolRegistry {
                 }
             }
         } catch (error) {
-            this.logger.error(`Error executing tool ${name}:`, error);
+            logger.error(`Error executing tool ${name}:`, error);
             // Check if the error is from context retrieval (e.g., outside runWithMcpContext)
             if (error instanceof Error && error.message.includes("No MCP HTTP context is set")) {
                 return {

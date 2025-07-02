@@ -1,10 +1,12 @@
 import {
     type AvailableResources,
+    EventTypes,
     type ExecutionContext,
     type ExecutionResult,
     ExecutionStates,
     type ExecutionStatus,
     type ExecutionStrategy,
+    type RunContext,
     type StepExecutionInput,
     type StrategyExecutionResult,
     type SwarmId,
@@ -14,7 +16,7 @@ import {
 } from "@vrooli/shared";
 import { logger } from "../../../../events/logger.js";
 import { getEventBus } from "../../../events/eventBus.js";
-import { EventTypes, EventUtils } from "../../../events/index.js";
+import { EventUtils } from "../../../events/utils.js";
 import { type IOProcessor } from "./ioProcessor.js";
 import { type ResourceManager } from "./resourceManager.js";
 import { type SimpleStrategyProvider } from "./simpleStrategyProvider.js";
@@ -43,7 +45,6 @@ export class UnifiedExecutor implements TierCommunicationInterface {
     private readonly ioProcessor: IOProcessor;
     private readonly toolOrchestrator: ToolOrchestrator;
     private readonly validationEngine: ValidationEngine;
-    private readonly contextExporter: ContextExporter;
 
     constructor(
         strategySelector: SimpleStrategyProvider,
@@ -57,7 +58,6 @@ export class UnifiedExecutor implements TierCommunicationInterface {
         this.resourceManager = resourceManager;
         this.validationEngine = validationEngine;
         this.ioProcessor = ioProcessor;
-        this.contextExporter = new ContextExporter();
     }
 
     /**
@@ -117,32 +117,6 @@ export class UnifiedExecutor implements TierCommunicationInterface {
             if ("setValidationEngine" in strategy && typeof strategy.setValidationEngine === "function") {
                 strategy.setValidationEngine(this.validationEngine);
             }
-
-            logger.debug(`[UnifiedExecutor] Selected strategy: ${strategy.type}`, {
-                stepId,
-                strategyName: strategy.name,
-            });
-
-            // Emit strategy selection event
-            await getEventBus().publish({
-                ...EventUtils.createBaseEvent(
-                    EventTypes.STRATEGY_PERFORMANCE_MEASURED,
-                    {
-                        stepId,
-                        declared: stepContext.config?.strategy || "conversational",
-                        selected: strategy.type,
-                        reason: "Based on context and usage hints",
-                        strategyType: strategy.type,
-                        duration: 0, // Strategy selection is instantaneous
-                        success: true,
-                    },
-                    EventUtils.createEventSource(3, "strategy-selector"),
-                ),
-                metadata: EventUtils.createEventMetadata("fire-and-forget", "low", {
-                    conversationId: runContext.conversationId,
-                    userId: stepContext.userData.id,
-                }),
-            });
 
             // 2. Reserve budget for this step
             const budgetReservation = await this.resourceManager.reserveBudget(

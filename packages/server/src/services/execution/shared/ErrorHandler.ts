@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
 import { logger } from "../../../events/logger.js";
 import { getEventBus } from "../../events/eventBus.js";
-import { EventUtils } from "../../events/index.js";
+import { EventUtils } from "../../events/utils.js";
 
 export type Result<T, E = Error> =
     | { success: true; data: T }

@@ -16,15 +16,14 @@ import {
     nanoid,
 } from "@vrooli/shared";
 import { logger } from "../../../../events/logger.js";
+import type { ConversationEngine } from "../../../conversation/conversationEngine.js";
 import { getEventBus } from "../../../events/eventBus.js";
-import { EventTypes, EventUtils } from "../../../events/index.js";
+import type { ResponseService } from "../../../response/responseService.js";
 import { ConversationalStrategy } from "../strategies/conversationalStrategy.js";
 import { DeterministicStrategy } from "../strategies/deterministicStrategy.js";
 import { ReasoningStrategy } from "../strategies/reasoningStrategy.js";
 import { type ToolOrchestrator } from "./toolOrchestrator.js";
 import { type ValidationEngine } from "./validationEngine.js";
-import type { ConversationEngine } from "../../../conversation/conversationEngine.js";
-import type { ResponseService } from "../../../response/responseService.js";
 
 /**
  * Usage hints provided by Tier 2 for agent analysis

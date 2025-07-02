@@ -16,15 +16,16 @@ let vapidCriticalSetupFailed = false;
 export function setVapidDetails() {
     const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
     const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
-    const letsEncryptEmail = process.env.LETSENCRYPT_EMAIL;
+    // Use site email variables as fallback chain
+    const contactEmail = process.env.SITE_EMAIL_ALIAS || process.env.SITE_EMAIL_USERNAME;
 
-    // Check for missing VAPID keys or LETSENCRYPT_EMAIL
-    if (!vapidPublicKey || !vapidPrivateKey || !letsEncryptEmail) {
+    // Check for missing VAPID keys or contact email
+    if (!vapidPublicKey || !vapidPrivateKey || !contactEmail) {
         if (!vapidCriticalSetupFailed) { // Log detailed error only on first detection
             const missingVars: string[] = [];
             if (!vapidPublicKey) missingVars.push("VAPID_PUBLIC_KEY");
             if (!vapidPrivateKey) missingVars.push("VAPID_PRIVATE_KEY");
-            if (!letsEncryptEmail) missingVars.push("LETSENCRYPT_EMAIL");
+            if (!contactEmail) missingVars.push("SITE_EMAIL_ALIAS or SITE_EMAIL_USERNAME");
             logger.error(
                 `VAPID setup failed: ${missingVars.join(", ")} is not defined in environment variables. Push notifications cannot be configured.`,
                 { trace: "push.vapid.initFailedKeysMissing" },
@@ -35,7 +36,7 @@ export function setVapidDetails() {
         return;
     }
 
-    // VAPID keys AND LETSENCRYPT_EMAIL ARE present.
+    // VAPID keys AND contact email are present.
     // If criticalSetupFailed was true, it means keys were missing but are now available.
     if (vapidCriticalSetupFailed) {
         logger.info(
@@ -53,7 +54,7 @@ export function setVapidDetails() {
 
     try {
         webpush.setVapidDetails(
-            `mailto:${letsEncryptEmail}`, // Use the validated variable
+            `mailto:${contactEmail}`, // Use the validated contact email
             vapidPublicKey,
             vapidPrivateKey,
         );

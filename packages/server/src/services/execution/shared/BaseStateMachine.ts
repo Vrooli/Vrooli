@@ -1,26 +1,6 @@
 /**
  * Base State Machine - Emergent-Capable Event-Driven State Management
  * 
- * **Deprecation Status: RESOLVED** ✅
- * The manual synchronization anti-patterns have been replaced with event-driven coordination
- * that enables emergent capabilities while maintaining backwards compatibility.
- * 
- * **New Event-Driven Architecture:**
- * - SwarmContextManager integration for distributed state coordination
- * - Unified event system integration for emergent agent communication
- * - Redis-based distributed locking replaces manual processingLock
- * 
- * **Emergent Capabilities Enabled:**
- * - Agents can subscribe to state machine events to learn optimal coordination patterns
- * - Resource optimization agents can monitor processing patterns
- * - Security agents can track state transitions for threat detection
- * - Performance agents can analyze and optimize state machine efficiency
- * 
- * **Migration Approach:**
- * Rather than breaking existing implementations, this provides a smooth transition:
- * 1. Event-driven coordination is used when available (modern deployments)
- * 2. Subclasses can opt-in to advanced coordination through configuration
- * 
  * Abstract base class for all state machines in the execution architecture.
  * Provides common functionality for state management, event queuing, and lifecycle control.
  * 
@@ -30,8 +10,10 @@
 
 import { generatePK } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
+import type { ManagedTaskStateMachine } from "../../../tasks/activeTaskRegistry.js";
 import { getEventBus } from "../../events/eventBus.js";
-import { EventUtils } from "../../events/index.js";
+import type { BaseServiceEvent } from "../../events/types.js";
+import { EventUtils } from "../../events/utils.js";
 import { ErrorHandler, type ComponentErrorHandler } from "./ErrorHandler.js";
 
 /**
@@ -57,25 +39,7 @@ export type BaseState = (typeof BaseStates)[keyof typeof BaseStates];
  * Configuration for event-driven coordination
  */
 export interface StateMachineCoordinationConfig {
-    /** Enable event-driven coordination (default: true if event system available) */
-    enableEventDriven?: boolean;
-    /** Enable distributed locking via SwarmContextManager (default: true if available) */
-    enableDistributedLocking?: boolean;
-    /** Swarm ID for distributed coordination (required for distributed locking) */
     swarmId?: string;
-    /** Lock timeout for distributed operations (default: 30000ms) */
-    lockTimeoutMs?: number;
-}
-
-/**
- * Interface for managed task state machines (used by task registries)
- */
-export interface ManagedTaskStateMachine {
-    getTaskId(): string;
-    getCurrentSagaStatus(): string;
-    requestPause(): Promise<boolean>;
-    requestStop(reason: string): Promise<boolean>;
-    getAssociatedUserId?(): string | undefined;
 }
 
 /**
@@ -107,9 +71,6 @@ export abstract class BaseStateMachine<
         this.state = initialState;
         this.componentName = componentName || this.constructor.name;
         this.coordinationConfig = {
-            enableEventDriven: true,
-            enableDistributedLocking: true,
-            lockTimeoutMs: 30000,
             ...coordinationConfig,
         };
 
@@ -125,13 +86,6 @@ export abstract class BaseStateMachine<
      * Get the current state
      */
     public getState(): TState {
-        return this.state;
-    }
-
-    /**
-     * Get the current saga status (for compatibility with ManagedTaskStateMachine)
-     */
-    public getCurrentSagaStatus(): string {
         return this.state;
     }
 
@@ -572,11 +526,6 @@ export abstract class BaseStateMachine<
      * Falls back to immediate success if distributed locking unavailable.
      */
     private async acquireDistributedProcessingLock(): Promise<boolean> {
-        if (!this.coordinationConfig.enableDistributedLocking || !this.coordinationConfig.swarmId) {
-            // No distributed locking configured, proceed immediately
-            return true;
-        }
-
         try {
             // Generate a unique lock ID for this processing cycle
             const lockId = `${this.componentName}:processing:${generatePK()}`;
@@ -587,7 +536,6 @@ export abstract class BaseStateMachine<
             logger.debug(`[${this.componentName}] Acquired distributed processing lock`, {
                 lockId,
                 swarmId: this.coordinationConfig.swarmId,
-                timeout: this.coordinationConfig.lockTimeoutMs,
             });
 
             return true;
@@ -634,12 +582,10 @@ export abstract class BaseStateMachine<
      * Get coordination status for monitoring and debugging
      */
     public getCoordinationStatus(): {
-        distributedLockingEnabled: boolean;
         currentLock: string | null;
         swarmId?: string;
     } {
         return {
-            distributedLockingEnabled: this.coordinationConfig.enableDistributedLocking || false,
             currentLock: this.currentDistributedLock,
             swarmId: this.coordinationConfig.swarmId,
         };

@@ -14,7 +14,7 @@
 import { nanoid } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
 import { getEventBus } from "../../events/eventBus.js";
-import { EventUtils } from "../../events/index.js";
+import { EventUtils } from "../../events/utils.js";
 import { ErrorHandler, type ComponentErrorHandler } from "./ErrorHandler.js";
 
 /**
@@ -85,11 +85,7 @@ export abstract class BaseComponent implements IBaseComponent {
         operationName: string,
         context?: Record<string, any>,
     ): Promise<T> {
-        return this.errorHandler.execute(operation, {
-            operation: operationName,
-            component: this.getComponentName(),
-            metadata: context,
-        });
+        return this.errorHandler.execute(operation, operationName, context);
     }
 
     /**

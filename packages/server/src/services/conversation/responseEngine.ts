@@ -1,6 +1,7 @@
 /* eslint-disable func-style */
 import { CreditEntryType, CreditSourceSystem } from "@prisma/client";
-import { ChatConfig, DEFAULT_LANGUAGE, MINUTES_5_MS, McpSwarmToolName, McpToolName, MessageConfig, PendingToolCallStatus, SECONDS_1_MS, TeamConfig, generatePK, nanoid, type ChatConfigObject, type PendingToolCallEntry, type SessionUser, type TeamConfigObject, type ToolFunctionCall } from "@vrooli/shared";
+import type { BotParticipant, ChatMessage, ConversationParams, ConversationResult, ResponseContext, ResponseResult } from "@vrooli/shared";
+import { ChatConfig, DEFAULT_LANGUAGE, EventTypes, MINUTES_5_MS, McpSwarmToolName, McpToolName, MessageConfig, PendingToolCallStatus, SECONDS_1_MS, TeamConfig, generatePK, nanoid, toBotId, toSwarmId, type ChatConfigObject, type PendingToolCallEntry, type SessionUser, type TeamConfigObject, type ToolFunctionCall } from "@vrooli/shared";
 import * as fs from "fs/promises";
 import type OpenAI from "openai";
 import * as path from "path";
@@ -13,18 +14,21 @@ import { SocketService } from "../../sockets/io.js"; // Still needed for roomHas
 import { type LLMCompletionTask } from "../../tasks/taskTypes.js";
 import { BusService } from "../bus.js";
 import { getEventBus } from "../events/eventBus.js";
-import { EventTypes, EventUtils } from "../events/index.js";
-import { CompositeGraph, type AgentGraph } from "../execution/tier1/agentGraph.js";
+import { EventUtils } from "../events/utils.js";
+import { SwarmContextManager } from "../execution/shared/SwarmContextManager.js";
 import { ToolRegistry } from "../mcp/registry.js";
 import { SwarmTools } from "../mcp/tools.js";
 import { type Tool } from "../mcp/types.js";
-import { CachedConversationStateStore, PrismaChatStore, type ConversationStateStore } from "./chatStore.js";
+import { CachedConversationStateStore, PrismaChatStore, type ConversationStateStore } from "../response/chatStore.js";
+import { RedisMessageStore, type MessageStore } from "../response/messageStore.js";
+import { ResponseService } from "../response/responseService.js";
+import type { FunctionCallStreamEvent } from "../response/router.js";
+import { FallbackRouter, type LlmRouter } from "../response/router.js";
+import { CompositeToolRunner, McpToolRunner, type ToolRunner } from "../response/toolRunner.js";
+import { CompositeGraph, type AgentGraph } from "./agentGraph.js";
 import { RedisContextBuilder, type ContextBuilder } from "./contextBuilder.js";
-import { RedisMessageStore, type MessageStore } from "./messageStore.js";
-import type { FunctionCallStreamEvent } from "./router.js";
-import { FallbackRouter, type LlmRouter } from "./router.js";
-import { CompositeToolRunner, McpToolRunner, type ToolRunner } from "./toolRunner.js";
-import { type BotParticipant, type ConversationState, type MessageState, type ResponseStats, type SwarmEvent, type SwarmStartedEvent } from "./types.js";
+import { ConversationEngine } from "./conversationEngine.js";
+import { type ConversationState, type MessageState, type ResponseStats, type SwarmEvent, type SwarmStartedEvent } from "./types.js";
 
 /**
  * Standardized error codes for response engine failures
@@ -47,12 +51,6 @@ enum ResponseErrorCode {
     /** Temporary failure that may resolve */
     TEMPORARY_FAILURE = "TEMPORARY_FAILURE",
 }
-
-//TODO handle message updates (branching conversation)
-// TODO: Fully implement backend execution for SCHEDULED_FOR_EXECUTION tool calls (e.g., via a job queue). Also, evaluate if general "resource mutations" beyond tool calls need a similar scheduling mechanism.
-// TODO swarm world model should suggest starting a metacognition loop to best complete the goal, and adding to to the chat context. Can search for existing prompts.
-//TODO conversation context should be able to store recommended routines to call for certain scenarios, pulled from the team config if available.
-//TODO make sure all SwarmEvents are being used
 
 const DEFAULT_GOAL = "Process current event.";
 
@@ -993,7 +991,7 @@ export class ReasoningEngine {
         // Emit tool approval required event
         await getEventBus().publish(
             EventUtils.createBaseEvent(
-                EventTypes.TOOL_APPROVAL_REQUIRED,
+                EventTypes.CHAT.TOOL_APPROVAL_REQUIRED,
                 {
                     pendingId,
                     toolCallId: ev.callId,
@@ -1031,7 +1029,7 @@ export class ReasoningEngine {
         // Emit bot status update
         await getEventBus().publish(
             EventUtils.createBaseEvent(
-                EventTypes.BOT_STATUS_UPDATED,
+                EventTypes.CHAT.BOT_STATUS_UPDATED,
                 {
                     chatId: conversationId,
                     botId: callerBot.id,
@@ -1072,7 +1070,7 @@ export class ReasoningEngine {
 
             getEventBus().publish(
                 EventUtils.createBaseEvent(
-                    EventTypes.BOT_STATUS_UPDATED,
+                    EventTypes.CHAT.BOT_STATUS_UPDATED,
                     {
                         chatId: conversationId,
                         botId: callerBot.id,
@@ -1126,7 +1124,7 @@ export class ReasoningEngine {
 
                 getEventBus().publish(
                     EventUtils.createBaseEvent(
-                        EventTypes.BOT_STATUS_UPDATED,
+                        EventTypes.CHAT.BOT_STATUS_UPDATED,
                         {
                             chatId: conversationId,
                             botId: callerBot.id,
@@ -1155,7 +1153,7 @@ export class ReasoningEngine {
 
                 getEventBus().publish(
                     EventUtils.createBaseEvent(
-                        EventTypes.BOT_STATUS_UPDATED,
+                        EventTypes.CHAT.BOT_STATUS_UPDATED,
                         {
                             chatId: conversationId,
                             botId: callerBot.id,
@@ -1237,6 +1235,7 @@ export class ReasoningEngine {
  */
 export class CompletionService {
     private readonly activeControllers = new Map<string, AbortController>();
+    private readonly responseService: ResponseService;
 
     /**
      * @param reasoningEngine    Low-level engine for generating responses.
@@ -1244,6 +1243,7 @@ export class CompletionService {
      * @param conversationStore  Efficient storage and retrieval of conversation state
      * @param messageStore       Efficient storage and retrieval of message state
      * @param toolRegistry       Tool registry for managing tools and their definitions
+     * @param responseService    New clean response service (optional, for migration)
      */
     constructor(
         private readonly reasoningEngine: ReasoningEngine,
@@ -1251,7 +1251,12 @@ export class CompletionService {
         private readonly conversationStore: ConversationStateStore,
         private readonly messageStore: MessageStore,
         private readonly toolRegistry: ToolRegistry,
-    ) { }
+        responseService?: ResponseService,
+    ) {
+        // Initialize ResponseService if provided, otherwise it will be created later
+        // We'll set it up in the service instantiation section
+        this.responseService = responseService!;
+    }
 
     public async getConversationState(conversationId: string): Promise<ConversationState | null> {
         return this.conversationStore.get(conversationId);
@@ -1273,6 +1278,162 @@ export class CompletionService {
      */
     public getToolRegistry(): ToolRegistry {
         return this.toolRegistry;
+    }
+
+    /**
+     * Gets the response service for direct integration
+     */
+    public getResponseService(): ResponseService {
+        return this.responseService;
+    }
+
+    /**
+     * 🆕 NEW CLEAN INTERFACE: Generate response using ResponseService
+     * 
+     * This method provides a clean interface using unified types that delegates
+     * to the new ResponseService. It demonstrates zero-transformation integration.
+     */
+    async generateResponseWithCleanInterface(
+        conversationId: string,
+        botParticipant: BotParticipant,
+        conversationHistory: ChatMessage[],
+        availableTools: Tool[],
+        userData: SessionUser,
+        strategy = "conversation",
+    ): Promise<ResponseResult> {
+        // Convert existing types to unified ResponseContext (zero transformation)
+        const context: ResponseContext = {
+            swarmId: toSwarmId(conversationId),
+            userData,
+            timestamp: new Date(),
+            botId: toBotId(botParticipant.id),
+            botConfig: botParticipant.config,
+            conversationHistory,
+            availableTools,
+            strategy: strategy as ConversationParams["strategy"],
+        };
+
+        // Delegate to ResponseService (clean interface)
+        return await this.responseService.generateResponse({ context });
+    }
+
+    /**
+     * 🔄 CONVERSION UTILITY: Convert ResponseResult to MessageState
+     * 
+     * This allows the new ResponseService results to be used with existing
+     * code that expects MessageState objects.
+     */
+    convertResponseResultToMessageState(result: ResponseResult): MessageState {
+        return {
+            id: result.message.id,
+            createdAt: result.message.createdAt,
+            config: result.message.config,
+            user: result.message.user,
+            parent: null, // Will be set by caller if needed
+        };
+    }
+
+    /**
+     * 🔄 CONVERSION UTILITY: Convert ResponseResult to ResponseStats
+     * 
+     * This allows the new ResponseService results to be used with existing
+     * code that expects ResponseStats objects.
+     */
+    convertResponseResultToResponseStats(result: ResponseResult): ResponseStats {
+        return {
+            creditsUsed: BigInt(result.resourcesUsed.creditsUsed),
+            toolCalls: result.resourcesUsed.toolCalls || 0,
+        };
+    }
+
+    /**
+     * 🆕 CONVERSATION ENGINE INTEGRATION: Add ConversationEngine dependency
+     * 
+     * This will be set during the Phase 2 migration to enable conversation orchestration
+     */
+    private conversationEngine?: ConversationEngine;
+
+    /**
+     * 🆕 CONVERSATION ENGINE INTEGRATION: Set ConversationEngine dependency
+     * 
+     * This method allows injecting the ConversationEngine for conversation orchestration
+     */
+    setConversationEngine(conversationEngine: ConversationEngine): void {
+        this.conversationEngine = conversationEngine;
+    }
+
+    /**
+     * 🆕 CONVERSATION ENGINE INTEGRATION: Orchestrate Multi-Bot Conversation
+     * 
+     * This method provides intelligent conversation orchestration using the ConversationEngine.
+     * It replaces manual bot selection and response coordination with AI-powered orchestration.
+     */
+    async orchestrateConversation(
+        conversationId: string,
+        participants: BotParticipant[],
+        conversationHistory: ChatMessage[],
+        availableTools: Tool[],
+        userData: SessionUser,
+        trigger: { type: string; message?: unknown;[key: string]: unknown },
+        strategy = "conversation",
+    ): Promise<ConversationResult> {
+        if (!this.conversationEngine) {
+            throw new Error("ConversationEngine not initialized. Call setConversationEngine() first.");
+        }
+
+        // Convert existing types to unified ConversationParams (zero transformation)
+        const conversationParams = {
+            context: {
+                swarmId: toSwarmId(conversationId),
+                userData,
+                timestamp: new Date(),
+                participants,
+                conversationHistory,
+                availableTools,
+                teamConfig: undefined, // Will be populated if team conversation
+                sharedState: {},
+            },
+            trigger,
+            strategy: strategy as ConversationParams["strategy"],
+            constraints: {
+                maxTurns: 10,
+                timeoutMs: 300000, // 5 minutes
+                maxParticipants: participants.length,
+            },
+        };
+
+        // Delegate to ConversationEngine (clean interface)
+        return await this.conversationEngine.orchestrateConversation(conversationParams);
+    }
+
+    /**
+     * 🔄 CONVERSATION ENGINE INTEGRATION: Convert ConversationResult to existing types
+     * 
+     * This allows the new ConversationEngine results to be used with existing
+     * code that expects MessageState[] or other legacy types.
+     */
+    convertConversationResultToMessageStates(result: ConversationResult): MessageState[] {
+        // Convert ConversationResult.messages to MessageState[]
+        return result.messages.map((message) => ({
+            id: message.id,
+            createdAt: message.createdAt,
+            config: message.config,
+            user: message.user,
+            parent: null, // Will be set by caller if needed
+        }));
+    }
+
+    /**
+     * 🔄 CONVERSATION ENGINE INTEGRATION: Convert ConversationResult to ResponseStats
+     * 
+     * This allows the new ConversationEngine results to be used with existing
+     * code that expects ResponseStats objects.
+     */
+    convertConversationResultToResponseStats(result: ConversationResult): ResponseStats {
+        return {
+            creditsUsed: BigInt(result.resourcesUsed.creditsUsed),
+            toolCalls: result.resourcesUsed.toolCalls || 0,
+        };
     }
 
     /**
@@ -2126,12 +2287,47 @@ const reasoningEngine = new ReasoningEngine(
     toolRunner,
 );
 
+// Instantiate new ResponseService with proper dependencies
+const responseService = ResponseService.create({
+    llmRouter,
+    toolRunner,
+    contextBuilder,
+    config: {
+        enableDetailedLogging: true, // Enable for development
+    },
+});
+
+// Create SwarmContextManager instance
+const swarmContextManager = new SwarmContextManager({
+    enableValidation: true,
+    enableCompression: false, // Keep disabled for debugging
+});
+
+// Create ConversationEngine instance
+const conversationEngine = new ConversationEngine(
+    responseService,
+    swarmContextManager,
+    getEventBus(),
+    {
+        defaultStrategy: "conversation",
+        maxConcurrentTurns: 5,
+        defaultTimeoutMs: 300000, // 5 minutes
+        enableBotSelection: true,
+        enableMetrics: true,
+        fallbackBehavior: "most_capable",
+    },
+);
+
+// Export services for use in other modules
+export { conversationEngine, responseService, swarmContextManager };
+
 export const completionService = new CompletionService(
     reasoningEngine,
     agentGraphInstance,
     conversationStateStore,
     messageStore,
     toolRegistry,
+    responseService, // Add the ResponseService
 );
 
 /**

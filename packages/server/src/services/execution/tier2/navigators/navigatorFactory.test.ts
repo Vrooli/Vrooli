@@ -1,3 +1,4 @@
+import { describe, expect, test } from "vitest";
 import { getNavigator, getNavigatorByType, getSupportedTypes } from "./navigatorFactory.js";
 
 describe("navigatorFactory", () => {

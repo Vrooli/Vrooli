@@ -24,7 +24,7 @@ vi.mock("../../services/execution/swarmCoordinatorFactory.js", () => ({
             duration: 100,
         }),
         getTaskId: vi.fn().mockReturnValue("swarm-123"),
-        getCurrentSagaStatus: vi.fn().mockReturnValue("RUNNING"),
+        getState: vi.fn().mockReturnValue("RUNNING"),
         requestPause: vi.fn().mockResolvedValue(true),
         requestStop: vi.fn().mockResolvedValue(true),
         getAssociatedUserId: vi.fn().mockReturnValue("user-123"),
@@ -155,7 +155,7 @@ describe("llmProcess", () => {
 
             const result = await llmProcess(job);
 
-            expect(result).toEqual({ swarmId: swarmTask.swarmId });
+            expect(result).toEqual({ swarmId: swarmTask.context.swarmId });
 
             // Verify swarm was added to active registry
             const activeSwarms = activeSwarmRegistry.listActive();
@@ -190,7 +190,7 @@ describe("llmProcess", () => {
             const job = createMockSwarmJob(swarmTask);
 
             const result = await llmProcess(job);
-            expect(result).toEqual({ swarmId: swarmTask.swarmId });
+            expect(result).toEqual({ swarmId: swarmTask.context.swarmId });
         });
 
         it("should respect premium user configurations", async () => {
@@ -229,7 +229,7 @@ describe("llmProcess", () => {
             const job = createMockSwarmJob(swarmTask);
 
             const result = await llmProcess(job);
-            expect(result).toEqual({ swarmId: swarmTask.swarmId });
+            expect(result).toEqual({ swarmId: swarmTask.context.swarmId });
 
             // Verify premium user tracking
             const activeSwarms = activeSwarmRegistry.listActive();
@@ -238,74 +238,76 @@ describe("llmProcess", () => {
 
         it("should handle organization-based swarms", async () => {
             const swarmTask = createTestSwarmExecutionTask({
-                config: {
-                    name: "Organization Swarm",
-                    description: "Swarm for organization use",
+                input: {
+                    ...createTestSwarmExecutionTask().input,
                     goal: "Handle organization-specific tasks",
-                    resources: {
-                        maxCredits: 5000,
-                        maxTokens: 200000,
-                        maxTime: MINUTES_5_MS * 6,
-                        tools: [
-                            { name: "team_coordination", description: "Coordinate team activities" },
-                            { name: "project_management", description: "Manage project tasks" },
-                        ],
+                    teamConfiguration: {
+                        leaderAgentId: generatePK().toString(),
+                        preferredTeamSize: 5,
+                        requiredSkills: ["team_coordination", "project_management"],
                     },
-                    config: {
+                    availableTools: [
+                        { name: "team_coordination", description: "Coordinate team activities" },
+                        { name: "project_management", description: "Manage project tasks" },
+                    ],
+                    executionConfig: {
                         model: "gpt-4",
                         temperature: 0.5,
-                        autoApproveTools: true,
                         parallelExecutionLimit: 8,
                     },
-                    organizationId: generatePK().toString(),
-                    leaderBotId: generatePK().toString(),
+                },
+                allocation: {
+                    maxCredits: "5000",
+                    maxTokens: 200000,
+                    maxTime: MINUTES_5_MS * 6,
                 },
             });
 
             const job = createMockSwarmJob(swarmTask);
 
             const result = await llmProcess(job);
-            expect(result).toEqual({ swarmId: swarmTask.swarmId });
+            expect(result).toEqual({ swarmId: swarmTask.context.swarmId });
         });
     });
 
     describe("resource and rate limiting", () => {
         it("should track free user swarms with lower limits", async () => {
             const swarmTask = createTestSwarmExecutionTask({
-                userData: {
-                    id: generatePK().toString(),
-                    name: "freeUser",
-                    hasPremium: false,
-                    languages: ["en"],
-                    roles: [],
-                    wallets: [],
-                    theme: "light",
-                },
-                config: {
-                    name: "Free Tier Swarm",
-                    description: "Limited swarm for free users",
-                    goal: "Basic task completion",
-                    resources: {
-                        maxCredits: 100,
-                        maxTokens: 10000,
-                        maxTime: MINUTES_1_MS * 5,
-                        tools: [
-                            { name: "basic_search", description: "Basic search functionality" },
-                        ],
+                context: {
+                    ...createTestSwarmExecutionTask().context,
+                    userData: {
+                        id: generatePK().toString(),
+                        name: "freeUser",
+                        hasPremium: false,
+                        languages: ["en"],
+                        roles: [],
+                        wallets: [],
+                        theme: "light",
                     },
-                    config: {
+                },
+                input: {
+                    ...createTestSwarmExecutionTask().input,
+                    goal: "Basic task completion",
+                    availableTools: [
+                        { name: "basic_search", description: "Basic search functionality" },
+                    ],
+                    executionConfig: {
                         model: "gpt-3.5-turbo",
                         temperature: 0.7,
-                        autoApproveTools: false,
                         parallelExecutionLimit: 1,
                     },
+                },
+                allocation: {
+                    maxCredits: "100",
+                    maxTokens: 10000,
+                    maxTime: MINUTES_1_MS * 5,
                 },
             });
 
             const job = createMockSwarmJob(swarmTask);
 
             const result = await llmProcess(job);
-            expect(result).toEqual({ swarmId: swarmTask.swarmId });
+            expect(result).toEqual({ swarmId: swarmTask.context.swarmId });
 
             const activeSwarms = activeSwarmRegistry.listActive();
             expect(activeSwarms[0].hasPremium).toBe(false);
@@ -315,26 +317,32 @@ describe("llmProcess", () => {
             const userId = generatePK().toString();
 
             const swarmTask1 = createTestSwarmExecutionTask({
-                userData: {
-                    id: userId,
-                    name: "testUser",
-                    hasPremium: true,
-                    languages: ["en"],
-                    roles: [],
-                    wallets: [],
-                    theme: "light",
+                context: {
+                    ...createTestSwarmExecutionTask().context,
+                    userData: {
+                        id: userId,
+                        name: "testUser",
+                        hasPremium: true,
+                        languages: ["en"],
+                        roles: [],
+                        wallets: [],
+                        theme: "light",
+                    },
                 },
             });
 
             const swarmTask2 = createTestSwarmExecutionTask({
-                userData: {
-                    id: userId,
-                    name: "testUser",
-                    hasPremium: true,
-                    languages: ["en"],
-                    roles: [],
-                    wallets: [],
-                    theme: "light",
+                context: {
+                    ...createTestSwarmExecutionTask().context,
+                    userData: {
+                        id: userId,
+                        name: "testUser",
+                        hasPremium: true,
+                        languages: ["en"],
+                        roles: [],
+                        wallets: [],
+                        theme: "light",
+                    },
                 },
             });
 
@@ -382,18 +390,12 @@ describe("llmProcess", () => {
             expect(activeSwarms).toHaveLength(0);
         });
 
-        it("should handle swarm execution service failures", async () => {
-            // Mock the service to throw an error
-            const processModule = await import("./process.js");
-            const mockSwarmService = {
-                startSwarm: vi.fn().mockRejectedValue(new Error("Service unavailable")),
-                cancelSwarm: vi.fn(),
-            };
-
-            // Temporarily replace the service
-            vi.doMock("../../services/execution/swarmExecutionService.js", () => ({
-                SwarmExecutionService: vi.fn().mockImplementation(() => mockSwarmService),
-            }));
+        it("should handle swarm state machine failures", async () => {
+            // Mock SwarmStateMachine to throw an error
+            const { SwarmStateMachine } = await import("../../services/execution/tier1/swarmStateMachine.js");
+            vi.mocked(SwarmStateMachine).mockImplementationOnce(() => {
+                throw new Error("Service unavailable");
+            });
 
             const swarmTask = createTestSwarmExecutionTask();
             const job = createMockSwarmJob(swarmTask);
@@ -407,9 +409,9 @@ describe("llmProcess", () => {
 
         it("should handle missing swarm configuration", async () => {
             const swarmTask = createTestSwarmExecutionTask({
-                config: {
-                    ...createTestSwarmExecutionTask().config,
-                    name: "", // Invalid empty name
+                input: {
+                    ...createTestSwarmExecutionTask().input,
+                    goal: "", // Invalid empty goal
                 },
             });
 
@@ -417,7 +419,7 @@ describe("llmProcess", () => {
 
             // Should still process but service might handle validation
             const result = await llmProcess(job);
-            expect(result).toEqual({ swarmId: swarmTask.swarmId });
+            expect(result).toEqual({ swarmId: swarmTask.context.swarmId });
         });
     });
 
@@ -441,14 +443,17 @@ describe("llmProcess", () => {
 
         it("should create proper state machine adapter", async () => {
             const swarmTask = createTestSwarmExecutionTask({
-                userData: {
-                    id: generatePK().toString(),
-                    name: "premiumUser",
-                    hasPremium: true,
-                    languages: ["en"],
-                    roles: [],
-                    wallets: [],
-                    theme: "light",
+                context: {
+                    ...createTestSwarmExecutionTask().context,
+                    userData: {
+                        id: generatePK().toString(),
+                        name: "premiumUser",
+                        hasPremium: true,
+                        languages: ["en"],
+                        roles: [],
+                        wallets: [],
+                        theme: "light",
+                    },
                 },
             });
 
@@ -486,23 +491,16 @@ describe("llmProcess", () => {
     describe("tool and configuration handling", () => {
         it("should handle auto-approved tools", async () => {
             const swarmTask = createTestSwarmExecutionTask({
-                config: {
-                    name: "Auto-Approve Swarm",
-                    description: "Swarm with auto-approved tools",
+                input: {
+                    ...createTestSwarmExecutionTask().input,
                     goal: "Complete tasks without manual approval",
-                    resources: {
-                        maxCredits: 1000,
-                        maxTokens: 50000,
-                        maxTime: MINUTES_5_MS,
-                        tools: [
-                            { name: "safe_calculator", description: "Safe mathematical operations" },
-                            { name: "text_processor", description: "Process text safely" },
-                        ],
-                    },
-                    config: {
+                    availableTools: [
+                        { name: "safe_calculator", description: "Safe mathematical operations" },
+                        { name: "text_processor", description: "Process text safely" },
+                    ],
+                    executionConfig: {
                         model: "gpt-4",
                         temperature: 0.5,
-                        autoApproveTools: true, // Auto-approve enabled
                         parallelExecutionLimit: 3,
                     },
                 },
@@ -511,67 +509,63 @@ describe("llmProcess", () => {
             const job = createMockSwarmJob(swarmTask);
 
             const result = await llmProcess(job);
-            expect(result).toEqual({ swarmId: swarmTask.swarmId });
+            expect(result).toEqual({ swarmId: swarmTask.context.swarmId });
         });
 
         it("should handle manual tool approval flow", async () => {
             const swarmTask = createTestSwarmExecutionTask({
-                config: {
-                    name: "Manual Approval Swarm",
-                    description: "Swarm requiring manual tool approval",
+                input: {
+                    ...createTestSwarmExecutionTask().input,
                     goal: "Complete tasks with manual oversight",
-                    resources: {
-                        maxCredits: 2000,
-                        maxTokens: 75000,
-                        maxTime: MINUTES_5_MS * 2,
-                        tools: [
-                            { name: "external_api", description: "Call external APIs" },
-                            { name: "file_operations", description: "Perform file operations" },
-                        ],
-                    },
-                    config: {
+                    availableTools: [
+                        { name: "external_api", description: "Call external APIs" },
+                        { name: "file_operations", description: "Perform file operations" },
+                    ],
+                    executionConfig: {
                         model: "gpt-4",
                         temperature: 0.3,
-                        autoApproveTools: false, // Manual approval required
                         parallelExecutionLimit: 2,
                     },
+                },
+                allocation: {
+                    maxCredits: "2000",
+                    maxTokens: 75000,
+                    maxTime: MINUTES_5_MS * 2,
                 },
             });
 
             const job = createMockSwarmJob(swarmTask);
 
             const result = await llmProcess(job);
-            expect(result).toEqual({ swarmId: swarmTask.swarmId });
+            expect(result).toEqual({ swarmId: swarmTask.context.swarmId });
         });
 
         it("should handle different parallel execution limits", async () => {
             const swarmTask = createTestSwarmExecutionTask({
-                config: {
-                    name: "High Concurrency Swarm",
-                    description: "Swarm with high parallel execution",
+                input: {
+                    ...createTestSwarmExecutionTask().input,
                     goal: "Handle multiple tasks simultaneously",
-                    resources: {
-                        maxCredits: 5000,
-                        maxTokens: 200000,
-                        maxTime: MINUTES_5_MS * 4,
-                        tools: [
-                            { name: "parallel_processor", description: "Process multiple items" },
-                            { name: "batch_analyzer", description: "Analyze data in batches" },
-                        ],
-                    },
-                    config: {
+                    availableTools: [
+                        { name: "parallel_processor", description: "Process multiple items" },
+                        { name: "batch_analyzer", description: "Analyze data in batches" },
+                    ],
+                    executionConfig: {
                         model: "gpt-4",
                         temperature: 0.6,
-                        autoApproveTools: true,
                         parallelExecutionLimit: 15, // High concurrency
                     },
+                },
+                allocation: {
+                    maxCredits: "5000",
+                    maxTokens: 200000,
+                    maxTime: MINUTES_5_MS * 4,
                 },
             });
 
             const job = createMockSwarmJob(swarmTask);
 
             const result = await llmProcess(job);
-            expect(result).toEqual({ swarmId: swarmTask.swarmId });
+            expect(result).toEqual({ swarmId: swarmTask.context.swarmId });
         });
     });
 
@@ -582,7 +576,7 @@ describe("llmProcess", () => {
 
             const result = await llmProcess(job);
 
-            expect(result).toEqual({ swarmId: swarmTask.swarmId });
+            expect(result).toEqual({ swarmId: swarmTask.context.swarmId });
 
             // Verify that getSwarmCoordinator was called
             const { getSwarmCoordinator } = await import("../../services/execution/swarmCoordinatorFactory.js");
@@ -604,7 +598,7 @@ describe("llmProcess", () => {
             const coordinatorInRegistry = activeSwarmRegistry.get(swarmTask.swarmId);
             expect(coordinatorInRegistry).toBeDefined();
             expect(coordinatorInRegistry.getTaskId).toBeDefined();
-            expect(coordinatorInRegistry.getCurrentSagaStatus).toBeDefined();
+            expect(coordinatorInRegistry.getState).toBeDefined();
             expect(coordinatorInRegistry.requestPause).toBeDefined();
             expect(coordinatorInRegistry.requestStop).toBeDefined();
         });
@@ -637,7 +631,7 @@ describe("llmProcess", () => {
             // Verify getSwarmCoordinator was called but returns same instance
             const { getSwarmCoordinator } = await import("../../services/execution/swarmCoordinatorFactory.js");
             expect(getSwarmCoordinator).toHaveBeenCalledTimes(2);
-            
+
             // Both swarms should be in registry
             const activeSwarms = activeSwarmRegistry.listActive();
             expect(activeSwarms).toHaveLength(2);

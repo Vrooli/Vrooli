@@ -1,6 +1,6 @@
 import { type Tiktoken, type TiktokenEncoding, type TiktokenModel } from "tiktoken";
 import { logger } from "../../events/logger.js";
-import { TokenEstimatorType, type EstimateTokensParams, type EstimateTokensResult } from "./types/tokenTypes.js";
+import { TokenEstimatorType, type EstimateTokensParams, type EstimateTokensResult } from "./tokenTypes.js";
 
 /** Interface for token estimators */
 interface TokenEstimator {

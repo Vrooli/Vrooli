@@ -355,8 +355,6 @@ describe("EventBusRateLimiter", () => {
 
 describe("Event Bus Rate Limiter Integration", () => {
     it("should demonstrate complete rate limiting workflow", async () => {
-        const logger = mockLogger;
-        const rateLimiter = new EventBusRateLimiter(logger);
         const eventBus = getEventBus();
 
         await eventBus.start();

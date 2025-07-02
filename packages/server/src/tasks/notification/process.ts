@@ -1,4 +1,5 @@
 import { type Job } from "bullmq";
+import { EventTypes } from "@vrooli/shared";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { SocketService } from "../../sockets/io.js";
@@ -26,17 +27,34 @@ export async function notificationCreateProcess({ data }: Job<NotificationCreate
         logger.error("[notificationCreate] DB create error", { error: err, notificationId: id });
     }
     // Emit via WebSocket if user is connected
-    if (sendWebSocketEvent && SocketService.get().roomHasOpenConnections(userId)) {
-        SocketService.get().emitSocketEvent("notification", userId, {
-            category,
-            description,
-            id,
-            imgLink,
-            link,
-            title,
-            __typename: "Notification",
-            createdAt: new Date().toISOString(),
-            isRead: false,
-        });
+    if (sendWebSocketEvent) {
+        try {
+            const socketService = SocketService.get();
+            if (socketService.roomHasOpenConnections(userId)) {
+                socketService.emitSocketEvent(EventTypes.USER.NOTIFICATION_RECEIVED, userId, {
+                    userId,
+                    notification: {
+                        id,
+                        category,
+                        description,
+                        imgLink,
+                        link,
+                        title,
+                        __typename: "Notification" as const,
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                        isRead: false,
+                        count: 1,
+                        user: { id: userId },
+                    },
+                });
+            }
+        } catch (socketError) {
+            logger.warn("[notificationCreate] SocketService not available or failed", { 
+                error: socketError, 
+                notificationId: id,
+                userId, 
+            });
+        }
     }
 } 

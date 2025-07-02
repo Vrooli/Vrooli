@@ -1,8 +1,8 @@
-import { HttpStatus } from "@vrooli/shared";
 import { type Server as McpServer } from "@modelcontextprotocol/sdk/server/index.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { HttpStatus } from "@vrooli/shared";
 import type * as http from "http";
-import type { Logger } from "winston";
+import { logger } from "../../events/logger.js";
 
 /**
  * Manages all transport connections for the MCP server
@@ -10,7 +10,6 @@ import type { Logger } from "winston";
 export class TransportManager {
     private transports = new Map<http.ServerResponse, SSEServerTransport>();
     private connections = new Set<http.ServerResponse>();
-    private logger: Logger;
     private heartbeatIntervals = new Map<http.ServerResponse, NodeJS.Timeout>();
     private heartbeatIntervalMs: number;
     private messagePath: string;
@@ -18,14 +17,12 @@ export class TransportManager {
 
     constructor(
         mcpServer: McpServer,
-        logger: Logger,
         options: {
             heartbeatInterval: number,
             messagePath: string
         },
     ) {
         this.mcpServer = mcpServer;
-        this.logger = logger;
         this.heartbeatIntervalMs = options.heartbeatInterval;
         this.messagePath = options.messagePath;
     }
@@ -36,11 +33,11 @@ export class TransportManager {
      * @param res HTTP response object
      */
     async handleSseConnection(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
-        this.logger.info("SSE connection requested.");
+        logger.info("SSE connection requested.");
 
         // Store the response object for tracking
         this.connections.add(res);
-        this.logger.info(`Client connected. Total clients: ${this.connections.size}`);
+        logger.info(`Client connected. Total clients: ${this.connections.size}`);
 
         // Set up heartbeat
         const heartbeatInterval = setInterval(() => {
@@ -48,12 +45,12 @@ export class TransportManager {
                 try {
                     res.write(": heartbeat\n\n");
                 } catch (error) {
-                    this.logger.error("Error sending heartbeat:", error);
+                    logger.error("Error sending heartbeat:", error);
                     this.cleanupConnection(res);
                 }
             } else {
                 clearInterval(heartbeatInterval);
-                this.logger.debug("Heartbeat stopped for disconnected client.");
+                logger.debug("Heartbeat stopped for disconnected client.");
             }
         }, this.heartbeatIntervalMs);
 
@@ -65,26 +62,26 @@ export class TransportManager {
 
         try {
             await this.mcpServer.connect(newTransport);
-            this.logger.info("McpServer connected to transport for a client.", {
+            logger.info("McpServer connected to transport for a client.", {
                 endpoint: newTransport["_endpoint"],
             });
             // Handshake is sent automatically by SSEServerTransport
         } catch (error) {
-            this.logger.error("Error connecting McpServer to transport for a client:", error);
+            logger.error("Error connecting McpServer to transport for a client:", error);
             this.cleanupConnection(res);
         }
 
         // Set up connection cleanup on close and error
         req.on("close", () => {
-            this.logger.info("Client disconnected.");
+            logger.info("Client disconnected.");
             this.cleanupConnection(res);
-            this.logger.info(`Client connection closed. Total clients: ${this.connections.size}`);
+            logger.info(`Client connection closed. Total clients: ${this.connections.size}`);
         });
 
         res.on("error", (error) => {
-            this.logger.error("Error on response stream for a client:", error);
+            logger.error("Error on response stream for a client:", error);
             this.cleanupConnection(res);
-            this.logger.info(`Removed client due to stream error. Total clients: ${this.connections.size}`);
+            logger.info(`Removed client due to stream error. Total clients: ${this.connections.size}`);
         });
     }
 
@@ -94,7 +91,7 @@ export class TransportManager {
      * @param res HTTP response object
      */
     handlePostMessage(req: http.IncomingMessage, res: http.ServerResponse): void {
-        this.logger.info(`Received POST on ${this.messagePath}`);
+        logger.info(`Received POST on ${this.messagePath}`);
 
         // Find an active transport to handle the message
         const firstTransport = [...this.transports.values()][0];
@@ -102,13 +99,13 @@ export class TransportManager {
         if (firstTransport) {
             try {
                 firstTransport.handlePostMessage(req, res);
-                this.logger.info("Handed POST request to an SSEServerTransport instance.");
+                logger.info("Handed POST request to an SSEServerTransport instance.");
             } catch (error) {
-                this.logger.error("Error handling POST request in SSEServerTransport:", error);
+                logger.error("Error handling POST request in SSEServerTransport:", error);
                 this.sendJsonRpcError(res, -32000, "Internal server error handling POST");
             }
         } else {
-            this.logger.error(`Received POST on ${this.messagePath} but no active SSE transports found.`);
+            logger.error(`Received POST on ${this.messagePath} but no active SSE transports found.`);
             this.sendJsonRpcError(res, -32000, "Server not ready or no active transports", 503);
         }
     }
@@ -147,7 +144,7 @@ export class TransportManager {
      * Closes all connections for clean shutdown
      */
     async shutdown(): Promise<void> {
-        this.logger.info("Closing all connections...");
+        logger.info("Closing all connections...");
 
         // Clear all heartbeat intervals
         for (const interval of this.heartbeatIntervals.values()) {
@@ -165,7 +162,7 @@ export class TransportManager {
         this.connections.clear();
         this.transports.clear();
 
-        this.logger.info("All connections closed.");
+        logger.info("All connections closed.");
     }
 
     /**

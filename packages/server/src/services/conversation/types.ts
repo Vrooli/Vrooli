@@ -1,23 +1,7 @@
-import { type BotConfigObject, type ChatConfigObject, type ChatMessage, type PendingToolCallEntry, type SessionUser, type SwarmResource, type SwarmSubTask, type TeamConfigObject, type ChatToolCallRecord } from "@vrooli/shared";
+import { type BotParticipant, type ChatConfigObject, type ChatMessage, type ChatToolCallRecord, type PendingToolCallEntry, type SessionUser, type SwarmResource, type SwarmSubTask, type TeamConfigObject } from "@vrooli/shared";
 import type OpenAI from "openai";
 import { type ConversationEvent } from "../bus.js";
 import type { Tool } from "../mcp/types.js";
-
-/** A participant in a conversation – human or bot. */
-export interface BotParticipant {
-    /** Stable unique identifier (Snowflake, UUID, etc.) */
-    id: string;
-    config: BotConfigObject;
-    /** Display name (for mentions/UX) */
-    name: string;
-    /** Arbitrary metadata (roles, capabilities, preferences) */
-    meta?: {
-        role?: string;
-        extraTools?: JsonSchema[];   // bot-specific
-        disabledTools?: string[];    // names to hide
-        systemPrompt?: string;       // override / append
-    };
-}
 
 /** 
  * A single chat message. 
@@ -231,21 +215,3 @@ export interface SwarmStateUpdateEvent {
         updatedState: Partial<Pick<ChatConfigObject, "subtasks" | "blackboard" | "resources" | "records" | "eventSubscriptions" | "subtaskLeaders">>;
     };
 }
-
-/**
- * Union type for all swarm events.
- * These events are typically handled by the SwarmStateMachine and CompletionService.
- */
-export type SwarmEvent =
-    | SwarmStartedEvent
-    | SwarmExternalMessageCreatedEvent
-    | SwarmSubTaskCreatedEvent
-    | SwarmStatusChangedEvent
-    | SwarmProgressUpdatedEvent
-    | SwarmResourceAddedEvent
-    | SwarmToolCallFinishedEvent
-    | SwarmApprovedToolExecutionRequestEvent
-    | SwarmRejectedToolExecutionRequestEvent
-    | SwarmStateUpdateEvent;
-
-

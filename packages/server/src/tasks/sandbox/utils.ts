@@ -1,8 +1,8 @@
-// Import CustomTransformer type directly from superjson
-import type { SuperJSONValue } from "superjson";
+// Define custom transformer type locally since superjson types are not available
+type SuperJSONValue = any; // Fallback type
 
-// Define CustomTransformer type locally if needed
-type CustomTransfomer<T = any> = {
+// Define CustomTransformer type locally
+type CustomTransformer<T = any> = {
     name: string;
     isApplicable: (v: any) => v is T;
     serialize: (v: T) => SuperJSONValue;
@@ -86,7 +86,7 @@ export function bufferWrapper(data: string, encoding?: BufferEncoding) {
 /**
  * Custom register to handle URL objects in the isolate.
  */
-export const urlRegister: Omit<CustomTransfomer<URL, string>, "name"> = {
+export const urlRegister: Omit<CustomTransformer<URL>, "name"> = {
     isApplicable(value: unknown): value is URL {
         return value instanceof URL;
     },
@@ -97,7 +97,7 @@ export const urlRegister: Omit<CustomTransfomer<URL, string>, "name"> = {
 /**
  * Custom register to handle Buffer objects in the isolate.
  */
-export const bufferRegister: Omit<CustomTransfomer<Buffer, string>, "name"> = {
+export const bufferRegister: Omit<CustomTransformer<Buffer>, "name"> = {
     isApplicable(value: unknown): value is Buffer {
         return value instanceof Buffer;
     },

@@ -46,13 +46,13 @@
 
 import {
     generatePK,
+    type SwarmId,
 } from "@vrooli/shared";
 import { type Redis as RedisClient } from "ioredis";
 import { logger } from "../../../events/logger.js";
 import {
     type ContextSubscription,
     type ContextUpdateEvent,
-    type SwarmId,
     UnifiedSwarmContextGuards,
 } from "./UnifiedSwarmContext.js";
 

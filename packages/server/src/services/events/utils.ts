@@ -5,6 +5,7 @@
  * and improve consistency.
  */
 
+import { SECONDS_1_MS } from "@vrooli/shared";
 import { nanoid } from "nanoid";
 import {
     DELIVERY_GUARANTEES,
@@ -32,7 +33,7 @@ export interface RetryStrategy {
  */
 export const DEFAULT_RETRY_STRATEGIES = {
     /** Linear backoff with fixed delay */
-    linear: (delayMs = 1000): RetryStrategy => ({
+    linear: (delayMs = SECONDS_1_MS): RetryStrategy => ({
         maxAttempts: 3,
         backoffMs: () => delayMs,
     }),
@@ -348,3 +349,63 @@ export function calculatePriorityScore(event: BaseServiceEvent): number {
 
     return basePriority + barrierBoost + safetyBoost;
 }
+
+export const EventUtils = {
+    /**
+     * Create a basic event source
+     */
+    createEventSource(
+        tier: 1 | 2 | 3 | "cross-cutting" | "safety",
+        component: string,
+        instanceId?: string,
+    ): EventSource {
+        return {
+            tier,
+            component,
+            instanceId: instanceId || nanoid(),
+        } as EventSource;
+    },
+
+    /**
+     * Create basic event metadata
+     */
+    createEventMetadata(
+        deliveryGuarantee: "fire-and-forget" | "reliable" | "barrier-sync" = "fire-and-forget",
+        priority: "low" | "medium" | "high" | "critical" = "medium",
+        options?: {
+            tags?: string[];
+            userId?: string;
+            conversationId?: string;
+            barrierConfig?: BarrierSyncConfig;
+        },
+    ): EventMetadata {
+        return {
+            deliveryGuarantee,
+            priority,
+            tags: options?.tags,
+            userId: options?.userId,
+            conversationId: options?.conversationId,
+            barrierConfig: options?.barrierConfig,
+        };
+    },
+
+    /**
+     * Create a complete base event
+     */
+    createBaseEvent<T = unknown>(
+        type: string,
+        data: T,
+        source: EventSource,
+        metadata?: EventMetadata,
+    ): BaseServiceEvent {
+        return {
+            id: nanoid(),
+            type,
+            timestamp: new Date(),
+            source,
+            correlationId: nanoid(),
+            data,
+            metadata,
+        };
+    },
+};

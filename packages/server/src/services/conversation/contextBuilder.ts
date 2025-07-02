@@ -3,8 +3,8 @@
 import type { BotParticipant, MessageConfigObject } from "@vrooli/shared";
 import type OpenAI from "openai";
 import { DbProvider } from "../../db/provider.js";
-import { ChatContextCache, TokenCounter } from "./messageStore.js";
-import { AIServiceRegistry } from "./registry.js";
+import { ChatContextCache, TokenCounter } from "../response/messageStore.js";
+import { AIServiceRegistry } from "../response/registry.js";
 import type { MessageState } from "./types.js";
 
 /**

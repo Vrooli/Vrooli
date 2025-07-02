@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, vi } from "vitest";
-import { GenericContainer, type StartedTestContainer } from "testcontainers";
-import IORedis from "ioredis";
+import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from "vitest";
+import type IORedis from "ioredis";
 import { Job } from "bullmq";
 import { QueueService } from "./queues.js";
 import { ManagedQueue, buildRedis, type BaseQueueConfig } from "./queueFactory.js";
 import { QueueTaskType, type EmailTask, type RunTask, type SwarmTask } from "./taskTypes.js";
 import { logger } from "../events/logger.js";
+import "../__test/setup.js";
 
 // Test task data types
 interface TestTaskData extends EmailTask {
@@ -14,25 +14,14 @@ interface TestTaskData extends EmailTask {
 }
 
 describe("Task Status Operations", () => {
-    let redisContainer: StartedTestContainer;
-    let redisUrl: string;
     let queueService: QueueService;
     let redisClient: IORedis;
-
-    beforeAll(async () => {
-        // Start Redis container
-        redisContainer = await new GenericContainer("redis:7-alpine")
-            .withExposedPorts(6379)
-            .start();
-
-        const redisHost = redisContainer.getHost();
-        const redisPort = redisContainer.getMappedPort(6379);
-        redisUrl = `redis://${redisHost}:${redisPort}`;
-    }, 60000);
+    const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 
     afterAll(async () => {
-        if (redisContainer) {
-            await redisContainer.stop();
+        // Cleanup any connections created in this test file
+        if (redisClient && redisClient.status !== "end") {
+            await redisClient.quit();
         }
     });
 
@@ -47,6 +36,14 @@ describe("Task Status Operations", () => {
         // Clean up
         await queueService.shutdown();
         (QueueService as any).instance = null;
+        
+        // Close the redis client created in beforeEach
+        if (redisClient && redisClient.status !== "end") {
+            await redisClient.quit();
+        }
+        
+        // Add delay to ensure all Redis operations and worker threads complete
+        await new Promise(resolve => setTimeout(resolve, 200));
     });
 
     describe("QueueService.getTaskStatuses", () => {
@@ -154,7 +151,7 @@ describe("Task Status Operations", () => {
                 job.id!,
                 "processing",
                 userId,
-                "email-send"
+                "email-send",
             );
 
             expect(result).toEqual({ __typename: "Success", success: true });
@@ -181,13 +178,13 @@ describe("Task Status Operations", () => {
                 job.id!,
                 "processing",
                 otherId,
-                "email-send"
+                "email-send",
             );
 
             expect(result).toEqual({ __typename: "Success", success: false });
             expect(errorSpy).toHaveBeenCalledWith(
                 expect.stringContaining("not allowed to update"),
-                expect.any(Object)
+                expect.any(Object),
             );
 
             errorSpy.mockRestore();
@@ -208,13 +205,13 @@ describe("Task Status Operations", () => {
                 job.id!,
                 "processing",
                 "any-user",
-                "email-send"
+                "email-send",
             );
 
             expect(result).toEqual({ __typename: "Success", success: false });
             expect(errorSpy).toHaveBeenCalledWith(
                 expect.stringContaining("does not have an owner"),
-                expect.any(Object)
+                expect.any(Object),
             );
 
             errorSpy.mockRestore();
@@ -235,7 +232,7 @@ describe("Task Status Operations", () => {
             const result = await queueService.changeTaskStatus(
                 job.id!,
                 "completed",
-                userId
+                userId,
             );
 
             expect(result).toEqual({ __typename: "Success", success: true });
@@ -246,7 +243,7 @@ describe("Task Status Operations", () => {
             const result = await queueService.changeTaskStatus(
                 "non-existent-task",
                 "completed",
-                "user-123"
+                "user-123",
             );
 
             expect(result).toEqual({ __typename: "Success", success: true });
@@ -256,7 +253,7 @@ describe("Task Status Operations", () => {
             const result = await queueService.changeTaskStatus(
                 "non-existent-task",
                 "processing",
-                "user-123"
+                "user-123",
             );
 
             expect(result).toEqual({ __typename: "Success", success: false });
@@ -276,7 +273,7 @@ describe("Task Status Operations", () => {
                 job.id!,
                 "PROCESSING",
                 userId,
-                "email-send"
+                "email-send",
             );
 
             expect(result.success).toBe(true);
@@ -289,8 +286,12 @@ describe("Task Status Operations", () => {
 
     describe("ManagedQueue task status operations", () => {
         let testQueue: ManagedQueue<TestTaskData>;
+        let testQueueRedisClient: IORedis;
 
         beforeEach(async () => {
+            // Create a separate Redis connection for this test queue
+            testQueueRedisClient = await buildRedis(redisUrl);
+            
             const processorMock = vi.fn().mockResolvedValue({ processed: true });
             
             const config: BaseQueueConfig<TestTaskData> = {
@@ -298,14 +299,19 @@ describe("Task Status Operations", () => {
                 processor: processorMock,
             };
 
-            testQueue = new ManagedQueue(config, redisClient);
+            testQueue = new ManagedQueue(config, testQueueRedisClient);
             await testQueue.ready;
         });
 
         afterEach(async () => {
-            await testQueue.worker.close();
-            await testQueue.events.close();
-            await testQueue.queue.close();
+            // Use the proper close method which handles cleanup with timeouts
+            await testQueue.close();
+            // Close the separate Redis connection
+            if (testQueueRedisClient && testQueueRedisClient.status !== "end") {
+                await testQueueRedisClient.quit();
+            }
+            // Add a small delay to ensure all Redis operations complete
+            await new Promise(resolve => setTimeout(resolve, 100));
         });
 
         describe("getTaskStatuses", () => {
@@ -383,7 +389,7 @@ describe("Task Status Operations", () => {
                 const result = await testQueue.changeTaskStatus(
                     job.id!,
                     "processing",
-                    userId
+                    userId,
                 );
 
                 expect(result).toEqual({ __typename: "Success", success: true });
@@ -414,13 +420,13 @@ describe("Task Status Operations", () => {
                 const result = await testQueue.changeTaskStatus(
                     job.id!,
                     "processing",
-                    userId
+                    userId,
                 );
 
                 expect(result).toEqual({ __typename: "Success", success: false });
                 expect(errorSpy).toHaveBeenCalledWith(
                     expect.stringContaining("Failed to change status"),
-                    expect.any(Object)
+                    expect.any(Object),
                 );
 
                 errorSpy.mockRestore();
@@ -428,10 +434,12 @@ describe("Task Status Operations", () => {
 
             it("should check ownership for different task types", async () => {
                 // Test with RunTask that uses startedById
+                // Create a separate Redis connection for this queue to avoid connection conflicts
+                const runRedisClient = await buildRedis(redisUrl);
                 const runQueue = new ManagedQueue<RunTask>({
                     name: "test-run-queue",
                     processor: vi.fn(),
-                }, redisClient);
+                }, runRedisClient);
 
                 const startedById = "starter-123";
                 const job = await runQueue.add({
@@ -444,7 +452,7 @@ describe("Task Status Operations", () => {
                 const result = await runQueue.changeTaskStatus(
                     job.id!,
                     "completed",
-                    startedById
+                    startedById,
                 );
 
                 expect(result.success).toBe(true);
@@ -453,14 +461,19 @@ describe("Task Status Operations", () => {
                 const wrongResult = await runQueue.changeTaskStatus(
                     job.id!,
                     "failed",
-                    "wrong-user"
+                    "wrong-user",
                 );
 
                 expect(wrongResult.success).toBe(false);
 
-                await runQueue.worker.close();
-                await runQueue.events.close();
-                await runQueue.queue.close();
+                // Use the proper close method which handles cleanup with timeouts
+                await runQueue.close();
+                // Close the separate Redis connection
+                if (runRedisClient && runRedisClient.status !== "end") {
+                    await runRedisClient.quit();
+                }
+                // Add a small delay to ensure all Redis operations complete
+                await new Promise(resolve => setTimeout(resolve, 100));
             });
         });
 

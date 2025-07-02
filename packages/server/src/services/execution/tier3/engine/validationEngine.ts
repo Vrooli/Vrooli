@@ -1,8 +1,8 @@
-import { nanoid } from "@vrooli/shared";
+import { EventTypes, nanoid } from "@vrooli/shared";
 import * as yup from "yup";
 import { logger } from "../../../../events/logger.js";
 import { getEventBus } from "../../../events/eventBus.js";
-import { EventTypes, EventUtils } from "../../../events/index.js";
+import { EventUtils } from "../../../events/utils.js";
 import { type ComponentErrorHandler } from "../../shared/ErrorHandler.js";
 
 /**

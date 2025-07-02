@@ -1,9 +1,9 @@
 import {
+    MB_1_BYTES,
     type ContextScope,
     type RunContext,
 } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
-import { type ExecutionRunContext } from "../tier3/context/runContext.js";
 
 /**
  * Context validation rules and error types
@@ -49,8 +49,7 @@ export interface ValidationWarning {
  * Context Validator - Validates different context types for consistency and safety
  */
 // Constants for validation limits
-const BYTES_PER_MB = 1024 * 1024;
-const MAX_VARIABLE_SIZE_BYTES = BYTES_PER_MB; // 1MB
+const MAX_VARIABLE_SIZE_BYTES = MB_1_BYTES;
 const MAX_SCOPE_DEPTH = 10;
 const LARGE_OBJECT_WARNING_SIZE = 100000; // 100KB
 

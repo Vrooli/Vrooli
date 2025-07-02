@@ -1,6 +1,6 @@
 import { type BotParticipant } from "@vrooli/shared";
 import match from "mqtt-match";
-import { type ConversationState, type MessageState } from "../../conversation/types.js";
+import { type ConversationState, type MessageState } from "./types.js";
 
 // Helper type guard to correctly narrow down the trigger type
 function isMessageState(t: MessageState | { type: "system"; content: string }): t is MessageState {

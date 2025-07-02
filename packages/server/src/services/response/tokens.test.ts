@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeAll, vi } from "vitest";
-import { TokenEstimationRegistry, type DefaultTokenEstimator } from "./tokens.js";
-import { TokenEstimatorType } from "./types/tokenTypes.js";
+import { beforeAll, describe, expect, it } from "vitest";
+import { TokenEstimationRegistry } from "./tokens.js";
+import { TokenEstimatorType } from "./tokenTypes.js";
 
 describe("Token Estimation System", () => {
     describe("DefaultTokenEstimator", () => {
@@ -34,7 +34,7 @@ describe("Token Estimation System", () => {
 
             it("should handle single character", () => {
                 const result = registry.estimateTokens(TokenEstimatorType.Default, {
-                    aiModel: "gpt-4", 
+                    aiModel: "gpt-4",
                     text: "a",
                 });
 
@@ -117,14 +117,14 @@ describe("Token Estimation System", () => {
 
             it("should be consistent with repeated calls", () => {
                 const text = "Consistency test";
-                
+
                 const result1 = registry.estimateTokens(TokenEstimatorType.Default, {
                     aiModel: "gpt-4",
                     text,
                 });
 
                 const result2 = registry.estimateTokens(TokenEstimatorType.Default, {
-                    aiModel: "gpt-4", 
+                    aiModel: "gpt-4",
                     text,
                 });
 
@@ -174,7 +174,7 @@ describe("Token Estimation System", () => {
 
         it("should fall back to default estimator for uninitialized estimators", () => {
             const registry = TokenEstimationRegistry.get();
-            
+
             // Request Tiktoken but it may not be initialized
             const result = registry.estimateTokens(TokenEstimatorType.Tiktoken, {
                 aiModel: "gpt-4",
@@ -188,7 +188,7 @@ describe("Token Estimation System", () => {
 
         it("should return estimation info without estimating tokens", () => {
             const registry = TokenEstimationRegistry.get();
-            
+
             const info = registry.getEstimationInfo(TokenEstimatorType.Default);
 
             expect(info.estimationModel).toBe(TokenEstimatorType.Default);
@@ -218,7 +218,7 @@ describe("Token Estimation System", () => {
     describe("TiktokenWasmEstimator integration", () => {
         it("should handle uninitialized Tiktoken gracefully", () => {
             const registry = TokenEstimationRegistry.get();
-            
+
             // This should fall back to default since Tiktoken may not be initialized
             const result = registry.estimateTokens(TokenEstimatorType.Tiktoken, {
                 aiModel: "gpt-4",
@@ -234,7 +234,7 @@ describe("Token Estimation System", () => {
     describe("Mathematical properties", () => {
         it("should satisfy basic mathematical properties", () => {
             const registry = TokenEstimationRegistry.get();
-            
+
             const shortText = "Hi";
             const longText = "Hi there, this is a much longer text";
 
@@ -254,7 +254,7 @@ describe("Token Estimation System", () => {
 
         it("should give reasonable estimates for typical use cases", () => {
             const registry = TokenEstimationRegistry.get();
-            
+
             const typicalSentence = "This is a typical English sentence with some common words.";
             const result = registry.estimateTokens(TokenEstimatorType.Default, {
                 aiModel: "gpt-4",

@@ -10,7 +10,6 @@ import {
 } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
 import { getEventBus } from "../../events/eventBus.js";
-import { EventTypes } from "../../events/index.js";
 import { type ISwarmContextManager } from "../shared/SwarmContextManager.js";
 import { MOISEGate } from "./moiseGate.js";
 import { RoutineExecutor } from "./routineExecutor.js";

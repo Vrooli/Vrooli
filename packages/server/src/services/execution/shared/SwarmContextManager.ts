@@ -22,8 +22,8 @@
  * Tier 1: SwarmStateMachine  
  * Tier 2: RunStateMachine + RunOrchestrator
  * Tier 3: TierThreeExecutor + ValidationEngine
- *         ↓ all subscribe to live updates via
- * Redis Pub/Sub + ContextSubscriptionManager
+ *         ↓ all receive updates via
+ * EventBus (unified event publishing)
  * ```
  * 
  * ## Emergent Capabilities Enabled:
@@ -47,21 +47,23 @@
  * not by changing code.
  * 
  * @see UnifiedSwarmContext - The unified context type system
- * @see ContextSubscriptionManager - Live update propagation system
+ * @see EventBus - Unified event publishing system
  * @see SwarmContextManager - Centralized resource allocation and state management
  * @see /docs/architecture/execution/swarm-state-management-redesign.md - Complete architecture
  */
 
 import {
+    type BaseTierExecutionRequest,
+    EventTypes,
     generatePK,
+    SECONDS_30_MS,
     type SwarmId,
 } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
 import { getEventBus } from "../../events/eventBus.js";
-import { EventTypes, EventUtils } from "../../events/index.js";
+import { EventUtils } from "../../events/utils.js";
 import {
     type ContextQuery,
-    type ContextSubscription,
     type ContextUpdateEvent,
     type ContextValidationResult,
     type ResourceAllocation,
@@ -70,11 +72,7 @@ import {
     UnifiedSwarmContextGuards,
 } from "./UnifiedSwarmContext.js";
 
-// SwarmContextManager constants
-const THIRTY_SECONDS_MS = 30_000;
-const SEVEN_DAYS = 7;
 const BASE64_CHECKSUM_LENGTH = 16;
-const SECONDS_PER_DAY = 86400;
 
 /**
  * Context management operations interface
@@ -85,10 +83,6 @@ export interface ISwarmContextManager {
     getContext(swarmId: SwarmId): Promise<UnifiedSwarmContext | null>;
     updateContext(swarmId: SwarmId, updates: Partial<UnifiedSwarmContext>, reason?: string): Promise<UnifiedSwarmContext>;
     deleteContext(swarmId: SwarmId): Promise<void>;
-
-    // Live updates and subscriptions
-    subscribe(subscription: Omit<ContextSubscription, "id" | "metadata">): Promise<string>;
-    unsubscribe(subscriptionId: string): Promise<void>;
 
     // Resource management
     allocateResources(swarmId: SwarmId, request: Omit<ResourceAllocation, "id" | "allocatedAt">): Promise<ResourceAllocation>;
@@ -102,32 +96,6 @@ export interface ISwarmContextManager {
     // System management
     healthCheck(): Promise<{ healthy: boolean; details: Record<string, any> }>;
     getMetrics(): Promise<Record<string, number>>;
-}
-
-/**
- * Configuration for SwarmContextManager
- */
-export interface SwarmContextManagerConfig {
-    /** Redis TTL for context data (seconds) */
-    contextTTL: number;
-
-    /** Redis TTL for subscription data (seconds) */
-    subscriptionTTL: number;
-
-    /** Maximum number of versions to keep per context */
-    maxVersionHistory: number;
-
-    /** Batch size for bulk operations */
-    batchSize: number;
-
-    /** Enable/disable context validation */
-    enableValidation: boolean;
-
-    /** Enable/disable context compression */
-    enableCompression: boolean;
-
-    /** Pub/sub channel prefix */
-    pubsubChannelPrefix: string;
 }
 
 /**
@@ -155,15 +123,10 @@ interface ContextStorageRecord {
  * - Performance optimization and caching
  */
 export class SwarmContextManager implements ISwarmContextManager {
-    private static readonly DEFAULT_CACHE_TTL_MS = THIRTY_SECONDS_MS;
-    private static readonly DEFAULT_CONTEXT_TTL_DAYS = SEVEN_DAYS;
+    private static readonly DEFAULT_CACHE_TTL_MS = SECONDS_30_MS;
     private static readonly CHECKSUM_LENGTH = BASE64_CHECKSUM_LENGTH;
 
-    private readonly config: SwarmContextManagerConfig;
-
-    // Subscription management
-    private readonly subscriptions = new Map<string, ContextSubscription>();
-    private subscriptionHandler?: (channel: string, message: string) => void;
+    private readonly config: BaseTierExecutionRequest;
 
     // Caching and performance
     private readonly contextCache = new Map<SwarmId, ContextStorageRecord>();
@@ -174,8 +137,7 @@ export class SwarmContextManager implements ISwarmContextManager {
         contextsCreated: 0,
         contextsUpdated: 0,
         contextsDeleted: 0,
-        subscriptionsCreated: 0,
-        subscriptionsNotified: 0,
+        eventBusPublications: 0,
         resourceAllocations: 0,
         cacheHits: 0,
         cacheMisses: 0,
@@ -183,48 +145,17 @@ export class SwarmContextManager implements ISwarmContextManager {
     };
 
     constructor(
-        config: Partial<SwarmContextManagerConfig> = {},
+        config: BaseTierExecutionRequest = {},
     ) {
-        this.config = {
-            contextTTL: SECONDS_PER_DAY * SwarmContextManager.DEFAULT_CONTEXT_TTL_DAYS,
-            subscriptionTTL: SECONDS_PER_DAY, // 1 day
-            maxVersionHistory: 10,
-            batchSize: 50,
-            enableValidation: true,
-            enableCompression: false, // Disabled initially for debugging
-            pubsubChannelPrefix: "swarm_context:",
-            ...config,
-        };
-
-        // Redis connection provided via constructor
-
-        logger.info("[SwarmContextManager] Initialized with emergent capabilities", {
-            config: this.config,
-        });
-    }
-
-    /**
-     * Initialize the context manager (alias for start() for backward compatibility)
-     */
-    async initialize(): Promise<void> {
-        return this.start();
+        this.config = config;
+        logger.info("[SwarmContextManager] Initialized", config);
     }
 
     /**
      * Start the context manager and setup pub/sub handlers
      */
     async start(): Promise<void> {
-        try {
-            // Setup pub/sub subscription handler for live updates
-            await this.setupPubSubHandler();
-
-            logger.info("[SwarmContextManager] Started successfully");
-        } catch (error) {
-            logger.error("[SwarmContextManager] Failed to start", {
-                error: error instanceof Error ? error.message : String(error),
-            });
-            throw error;
-        }
+        // Add any initialization logic here
     }
 
     /**
@@ -232,9 +163,6 @@ export class SwarmContextManager implements ISwarmContextManager {
      */
     async stop(): Promise<void> {
         try {
-            // Cleanup subscriptions
-            this.subscriptions.clear();
-
             // Clear cache
             this.contextCache.clear();
 
@@ -485,20 +413,11 @@ export class SwarmContextManager implements ISwarmContextManager {
                 await redis.del(...historyKeys);
             }
 
-            // Cleanup subscriptions for this swarm
-            const swarmSubscriptions = Array.from(this.subscriptions.values())
-                .filter(sub => sub.swarmId === swarmId);
-
-            for (const subscription of swarmSubscriptions) {
-                await this.unsubscribe(subscription.id);
-            }
-
             // Update metrics
             this.metrics.contextsDeleted++;
 
             logger.info("[SwarmContextManager] Deleted swarm context and cleanup completed", {
                 swarmId,
-                cleanupSubscriptions: swarmSubscriptions.length,
                 cleanupVersions: historyKeys.length,
             });
 
@@ -511,54 +430,9 @@ export class SwarmContextManager implements ISwarmContextManager {
         }
     }
 
-    /**
-     * Subscribe to live context updates for emergent coordination
-     */
-    async subscribe(
-        subscriptionRequest: Omit<ContextSubscription, "id" | "metadata">,
-    ): Promise<string> {
-        const subscriptionId = generatePK();
-
-        const subscription: ContextSubscription = {
-            ...subscriptionRequest,
-            id: subscriptionId,
-            metadata: {
-                createdAt: new Date(),
-                lastNotified: new Date(),
-                totalNotifications: 0,
-                subscriptionType: "state_machine", // Default type
-            },
-        };
-
-        this.subscriptions.set(subscriptionId, subscription);
-        this.metrics.subscriptionsCreated++;
-
-        logger.debug("[SwarmContextManager] Created context subscription", {
-            subscriptionId,
-            swarmId: subscription.swarmId,
-            subscriberId: subscription.subscriberId,
-            watchPaths: subscription.watchPaths,
-        });
-
-        return subscriptionId;
-    }
-
-    /**
-     * Unsubscribe from context updates
-     */
-    async unsubscribe(subscriptionId: string): Promise<void> {
-        const subscription = this.subscriptions.get(subscriptionId);
-        if (subscription) {
-            this.subscriptions.delete(subscriptionId);
-
-            logger.debug("[SwarmContextManager] Removed context subscription", {
-                subscriptionId,
-                swarmId: subscription.swarmId,
-                subscriberId: subscription.subscriberId,
-                totalNotifications: subscription.metadata.totalNotifications,
-            });
-        }
-    }
+    // Note: Live updates are handled through EventBus publishing.
+    // Components that need context updates should subscribe to EventBus directly
+    // using patterns like EventTypes.SWARM.STATE_CHANGED, etc.
 
     /**
      * Allocate resources with hierarchical tracking for emergent optimization
@@ -780,7 +654,7 @@ export class SwarmContextManager implements ISwarmContextManager {
                 details: {
                     redis: "connected",
                     cacheSize: this.contextCache.size,
-                    subscriptions: this.subscriptions.size,
+                    eventBusIntegration: "active",
                     metrics: this.metrics,
                 },
             };
@@ -1098,8 +972,7 @@ export class SwarmContextManager implements ISwarmContextManager {
             await this.emitUnifiedSwarmStateEvent(event);
             await this.emitDirectSocketEvents(event);
 
-            // Notify local subscriptions (maintained for local state management)
-            await this.notifySubscriptions(event);
+            // All subscriptions handled by EventBus - no local notifications needed
 
         } catch (error) {
             logger.error("[SwarmContextManager] Failed to publish update event", {
@@ -1109,35 +982,6 @@ export class SwarmContextManager implements ISwarmContextManager {
         }
     }
 
-    private async notifySubscriptions(event: ContextUpdateEvent): Promise<void> {
-        const swarmSubscriptions = Array.from(this.subscriptions.values())
-            .filter(sub => sub.swarmId === event.swarmId);
-
-        for (const subscription of swarmSubscriptions) {
-            try {
-                // Check if subscription is interested in these changes
-                const isInterestedInChanges = event.changes.some(change =>
-                    subscription.watchPaths.some(pattern =>
-                        this.matchesPath(change.path, pattern),
-                    ),
-                );
-
-                if (isInterestedInChanges) {
-                    await subscription.handler(event);
-                    subscription.metadata.lastNotified = new Date();
-                    subscription.metadata.totalNotifications++;
-                    this.metrics.subscriptionsNotified++;
-                }
-
-            } catch (error) {
-                logger.error("[SwarmContextManager] Subscription handler failed", {
-                    subscriptionId: subscription.id,
-                    swarmId: event.swarmId,
-                    error: error instanceof Error ? error.message : String(error),
-                });
-            }
-        }
-    }
 
     /**
      * Emit unified events directly (Phase 2: replaces ExecutionEventBusAdapter)
@@ -1149,7 +993,7 @@ export class SwarmContextManager implements ISwarmContextManager {
         try {
             // Emit swarm state update event
             const swarmStateEvent = EventUtils.createBaseEvent(
-                EventTypes.STATE_SWARM_UPDATED,
+                EventTypes.SWARM.STATE_CHANGED,
                 {
                     entityType: "swarm",
                     entityId: contextEvent.swarmId,
@@ -1178,6 +1022,7 @@ export class SwarmContextManager implements ISwarmContextManager {
             );
 
             await getEventBus().publish(swarmStateEvent);
+            this.metrics.eventBusPublications++;
 
             // Also emit specific change events for fine-grained subscriptions
             for (const change of contextEvent.changes) {
@@ -1186,7 +1031,7 @@ export class SwarmContextManager implements ISwarmContextManager {
 
             logger.debug("[SwarmContextManager] Emitted unified swarm state events", {
                 swarmId: contextEvent.swarmId,
-                eventType: EventTypes.STATE_SWARM_UPDATED,
+                eventType: EventTypes.SWARM.STATE_CHANGED,
                 changesCount: contextEvent.changes.length,
                 emergent: contextEvent.emergent,
             });
@@ -1205,13 +1050,13 @@ export class SwarmContextManager implements ISwarmContextManager {
      */
     private async emitChangeSpecificEvent(contextEvent: ContextUpdateEvent, change: any): Promise<void> {
         // Determine event type based on change path
-        let eventType = EventTypes.STATE_SWARM_UPDATED;
+        let eventType = EventTypes.SWARM.STATE_CHANGED;
         if (change.path.startsWith("resources.")) {
-            eventType = EventTypes.RESOURCE_SWARM_UPDATED;
+            eventType = EventTypes.SWARM.RESOURCE_UPDATED;
         } else if (change.path.startsWith("policy.")) {
-            eventType = EventTypes.CONFIG_SWARM_UPDATED;
+            eventType = EventTypes.SWARM.CONFIG_UPDATED;
         } else if (change.path.startsWith("executionState.")) {
-            eventType = EventTypes.STATE_RUN_UPDATED;
+            eventType = EventTypes.RUN.RUN_UPDATED;
         }
 
         const changeEvent = EventUtils.createBaseEvent(
@@ -1366,7 +1211,7 @@ export class SwarmContextManager implements ISwarmContextManager {
 
         await getEventBus().publish(
             EventUtils.createBaseEvent(
-                EventTypes.RESOURCE_SWARM_UPDATED,
+                EventTypes.SWARM.RESOURCE_UPDATED,
                 {
                     conversationId,
                     swarmId,
@@ -1395,7 +1240,7 @@ export class SwarmContextManager implements ISwarmContextManager {
 
         await getEventBus().publish(
             EventUtils.createBaseEvent(
-                EventTypes.TEAM_SWARM_UPDATED,
+                EventTypes.SWARM.TEAM_UPDATED,
                 {
                     conversationId,
                     swarmId,
@@ -1426,7 +1271,7 @@ export class SwarmContextManager implements ISwarmContextManager {
 
         await getEventBus().publish(
             EventUtils.createBaseEvent(
-                EventTypes.CONFIG_SWARM_UPDATED,
+                EventTypes.SWARM.CONFIG_UPDATED,
                 {
                     conversationId,
                     swarmId,
@@ -1482,12 +1327,6 @@ export class SwarmContextManager implements ISwarmContextManager {
     private matchesPath(path: string, pattern: string): boolean {
         // Simple pattern matching - in production, use proper JSONPath matching
         return path.startsWith(pattern.replace("*", ""));
-    }
-
-    private async setupPubSubHandler(): Promise<void> {
-        // Redis pub/sub setup would go here
-        // For now, just log that it's ready
-        logger.debug("[SwarmContextManager] Pub/sub handler ready for live updates");
     }
 
     private validateResourceAllocation(

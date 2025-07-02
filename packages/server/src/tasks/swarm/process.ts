@@ -1,13 +1,11 @@
-import { generatePK, type SwarmCoordinationInput } from "@vrooli/shared";
+import { generatePK } from "@vrooli/shared";
 import { type Job } from "bullmq";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
-import { SwarmCoordinator } from "../../services/execution/tier1/swarmCoordinator.js";
-import type { SwarmStateMachine } from "../../services/execution/tier1/swarmStateMachine.js";
+import { conversationEngine, responseService, swarmContextManager } from "../../services/conversation/responseEngine.js";
+import { SwarmStateMachine } from "../../services/execution/tier1/swarmStateMachine.js";
 import { BaseActiveTaskRegistry, type BaseActiveTaskRecord } from "../activeTaskRegistry.js";
 import { QueueTaskType, type LLMCompletionTask, type SwarmExecutionTask } from "../taskTypes.js";
-import { conversationEngine, responseService, swarmContextManager } from "../../services/conversation/responseEngine.js";
-import { getEventBus } from "../../services/events/eventBus.js";
 
 
 export type ActiveSwarmRecord = BaseActiveTaskRecord;
@@ -23,10 +21,10 @@ export async function llmProcessBotMessage(payload: LLMCompletionTask) {
 }
 
 /**
- * Process swarm execution directly through SwarmCoordinator
+ * Process swarm execution directly through SwarmStateMachine
  * 
- * This eliminates the SwarmExecutionService + NewSwarmStateMachineAdapter overhead
- * by using SwarmCoordinator directly, which already implements ManagedTaskStateMachine.
+ * This uses SwarmStateMachine directly with SwarmExecutionTask structure
+ * for clean integration with the three-tier architecture.
  */
 async function processSwarmExecution(payload: SwarmExecutionTask) {
     logger.info("[processSwarmExecution] Starting swarm execution", {
@@ -38,16 +36,15 @@ async function processSwarmExecution(payload: SwarmExecutionTask) {
         // Extract swarm ID or generate new one if not provided
         const swarmId = payload.context.swarmId || generatePK().toString();
 
-        const request: SwarmCoordinationInput = payload;
-        
         // Use the existing service instances from responseEngine
-        const coordinator = new SwarmCoordinator(
+        const coordinator = new SwarmStateMachine(
             swarmContextManager,
             conversationEngine,
             responseService,
-            getEventBus(),
         );
-        const result = await coordinator.execute(request);
+
+        // Start swarm with SwarmExecutionTask directly
+        const result = await coordinator.start(payload);
         if (!result.success) {
             throw new Error(result.error?.message || "Failed to start swarm");
         }

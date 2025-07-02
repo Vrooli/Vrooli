@@ -13,8 +13,8 @@ import fs from "fs";
 import { type Cluster, type Redis } from "ioredis";
 import path from "path";
 import { fileURLToPath } from "url";
-import { type Logger } from "winston";
 import { CustomError } from "../../events/error.js";
+import { logger } from "../../events/logger.js";
 import { CacheService } from "../../redisConn.js";
 import {
     type BaseServiceEvent,
@@ -188,7 +188,6 @@ export class EventBusRateLimiter {
     private static scriptLoading: Promise<string> | null = null;
 
     constructor(
-        private readonly logger: Logger,
         private readonly eventCosts: EventCostConfig = DEFAULT_EVENT_COSTS,
         private readonly rateLimits: Record<string, EventRateLimit> = DEFAULT_RATE_LIMITS,
     ) {
@@ -198,7 +197,7 @@ export class EventBusRateLimiter {
                 EventBusRateLimiter.tokenBucketScript = fs.readFileSync(tokenBucketScriptFile, "utf8");
             }
         } catch (error) {
-            this.logger.error("[EventBusRateLimiter] Could not load token bucket script", {
+            logger.error("[EventBusRateLimiter] Could not load token bucket script", {
                 scriptPath: tokenBucketScriptFile,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -217,7 +216,7 @@ export class EventBusRateLimiter {
             const client = await CacheService.get().raw();
             if (!client) {
                 // If Redis is unavailable, allow events but log warning
-                this.logger.warn("[EventBusRateLimiter] Redis unavailable, bypassing rate limits");
+                logger.warn("[EventBusRateLimiter] Redis unavailable, bypassing rate limits");
                 return { allowed: true };
             }
 
@@ -242,7 +241,7 @@ export class EventBusRateLimiter {
             // Determine overall result
             const overallResult = this.evaluateRateLimitResults(results, config);
 
-            this.logger.debug("[EventBusRateLimiter] Rate limit check completed", {
+            logger.debug("[EventBusRateLimiter] Rate limit check completed", {
                 eventType: event.type,
                 eventId: event.id,
                 allowed: overallResult.allowed,
@@ -253,7 +252,7 @@ export class EventBusRateLimiter {
             return overallResult;
 
         } catch (error) {
-            this.logger.error("[EventBusRateLimiter] Rate limit check failed", {
+            logger.error("[EventBusRateLimiter] Rate limit check failed", {
                 eventType: event.type,
                 eventId: event.id,
                 error: error instanceof Error ? error.message : String(error),
@@ -583,7 +582,7 @@ export class EventBusRateLimiter {
                 eventType: eventType ? { allowed: 50, total: 50 } : undefined,
             };
         } catch (error) {
-            this.logger.error("[EventBusRateLimiter] Failed to get rate limit status", { error });
+            logger.error("[EventBusRateLimiter] Failed to get rate limit status", { error });
             return { global: { allowed: 0, total: 0 } };
         }
     }

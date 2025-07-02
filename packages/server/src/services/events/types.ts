@@ -8,6 +8,7 @@
  * true emergent capabilities through agent-extensible event types.
  */
 
+
 /**
  * Interface for SocketService to avoid circular dependencies
  */
@@ -421,4 +422,32 @@ export interface EventSubscription {
     handler: EventHandler;
     options: SubscriptionOptions;
     createdAt: Date;
+}
+
+
+/**
+ * Unified Event System Configuration
+ */
+export interface UnifiedEventSystemConfig {
+    /** Backend type */
+    backend: "redis" | "memory" | "hybrid";
+
+    /** Redis configuration (if using Redis backend) */
+    redis?: {
+        url?: string;
+        streamName?: string;
+        maxHistorySize?: number;
+        eventTtl?: number;
+    };
+
+    /** Performance settings */
+    batchSize?: number;
+    maxEventHistory?: number;
+
+    /** Integration settings */
+    enableMetrics?: boolean;
+    enableReplay?: boolean;
+
+    /** Socket service for automatic socket event emission */
+    socketService?: SocketServiceInterface;
 }

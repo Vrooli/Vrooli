@@ -1,9 +1,9 @@
 import { API_CREDITS_MULTIPLIER, nanoid } from "@vrooli/shared";
 import { CustomError } from "../../events/error.js";
+import { type JsonSchema } from "../conversation/types.js";
 import { calculateMaxCredits } from "./credits.js";
 import { AIServiceRegistry } from "./registry.js";
 import { type ResponseStreamOptions } from "./services.js";
-import { type JsonSchema } from "./types.js";
 
 export type MessageStreamEvent = {
     type: "message";

@@ -23,7 +23,6 @@ import {
     toBotId,
     toSwarmId,
     type BotParticipant,
-    type ChatConfigObject,
     type ChatMessage,
     type ConversationContext,
     type ConversationTrigger,
@@ -32,13 +31,14 @@ import {
     type SwarmSubTask,
 } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
+import type { SwarmExecutionTask } from "../../../tasks/taskTypes.js";
 import type { ConversationEngine } from "../../conversation/conversationEngine.js";
-import type { EventBus } from "../../events/eventBus.js";
+import { getEventBus } from "../../events/eventBus.js";
 import type { BaseServiceEvent } from "../../events/types.js";
 import type { ResponseService } from "../../response/responseService.js";
 import { BaseStateMachine, BaseStates, type BaseState } from "../shared/BaseStateMachine.js";
 import type { ISwarmContextManager } from "../shared/SwarmContextManager.js";
-import type { ContextSubscription, ContextUpdateEvent, UnifiedSwarmContext } from "../shared/UnifiedSwarmContext.js";
+import type { UnifiedSwarmContext } from "../shared/UnifiedSwarmContext.js";
 
 export const SwarmState = BaseStates;
 export type State = BaseState;
@@ -70,14 +70,11 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
     private conversationId: string | null = null;
     private initiatingUser: SessionUser | null = null;
     private swarmId: string | null = null;
-    private contextSubscription: ContextSubscription | null = null;
-    private swarmContext: UnifiedSwarmContext | null = null;
 
     constructor(
         private readonly contextManager: ISwarmContextManager, // REQUIRED: SwarmContextManager for unified state management
         private readonly conversationEngine: ConversationEngine, // NEW: For conversation orchestration
         private readonly responseService: ResponseService, // NEW: For individual bot responses
-        private readonly eventBus: EventBus, // NEW: For event communication
     ) {
         super(SwarmState.UNINITIALIZED, "SwarmStateMachine");
     }
@@ -97,19 +94,25 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
     }
 
     /**
-     * Starts the swarm with a goal and initial configuration
+     * Starts the swarm with a SwarmExecutionTask
      */
-    async start(convoId: string, goal: string, initiatingUser: SessionUser, swarmId?: string): Promise<void> {
+    async start(request: SwarmExecutionTask): Promise<{ success: boolean; error?: any }> {
         if (this.state !== SwarmState.UNINITIALIZED) {
-            logger.warn(`SwarmStateMachine for ${convoId} already started. Current state: ${this.state}`);
-            return;
+            logger.warn(`SwarmStateMachine already started. Current state: ${this.state}`);
+            return { success: false, error: `Already started. Current state: ${this.state}` };
         }
 
-        this.conversationId = convoId;
-        this.initiatingUser = initiatingUser;
-        this.swarmId = swarmId || convoId;
+        // Extract data from unified request structure
+        const { context, input } = request;
+        const swarmId = input.swarmId || context.swarmId || generatePK().toString();
+        const goal = input.goal;
+        const userData = context.userData;
+
+        this.conversationId = swarmId; // Use swarmId as conversation ID
+        this.initiatingUser = userData;
+        this.swarmId = swarmId;
         this.state = SwarmState.STARTING;
-        logger.info(`Starting SwarmStateMachine for ${convoId} with goal: "${goal}", swarmId: ${this.swarmId}`);
+        logger.info(`Starting SwarmStateMachine for swarmId: ${swarmId} with goal: "${goal}"`);
 
         try {
             // Initialize context with SwarmContextManager
@@ -124,8 +127,8 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
                 participants: {
                     bots: {},
                     users: {
-                        [initiatingUser.id]: {
-                            id: initiatingUser.id,
+                        [userData.id]: {
+                            id: userData.id,
                             role: "initiator",
                             joinedAt: new Date(),
                             active: true,
@@ -140,14 +143,6 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
 
             await this.contextManager.createContext(this.swarmId, initialContext);
 
-            // Subscribe to context changes
-            this.contextSubscription = await this.contextManager.subscribe(
-                this.swarmId,
-                async (context) => {
-                    this.swarmContext = context;
-                },
-            );
-
             // Use ConversationEngine to initiate the swarm with an AI leader
             const trigger: ConversationTrigger = {
                 type: "swarm_event",
@@ -156,9 +151,9 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
                     type: EventTypes.SWARM.STARTED,
                     timestamp: new Date(),
                     data: {
-                        chatId: convoId,
+                        chatId: swarmId,
                         goal,
-                        initiatingUser: initiatingUser.id,
+                        initiatingUser: userData.id,
                     },
                 },
             };
@@ -177,7 +172,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
             this.state = result.success ? SwarmState.IDLE : SwarmState.FAILED;
 
             // Emit state change event
-            await this.eventBus.publish({
+            await getEventBus().publish({
                 id: generatePK().toString(),
                 type: EventTypes.SWARM.STATE_CHANGED,
                 timestamp: new Date(),
@@ -194,14 +189,17 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
             // Process any queued events
             if (this.eventQueue.length > 0) {
                 this.drain().catch(err =>
-                    logger.error("Error draining initial event queue", { error: err, conversationId: convoId }),
+                    logger.error("Error draining initial event queue", { error: err, swarmId }),
                 );
             }
+
+            // Return success result
+            return { success: result.success };
 
         } catch (error) {
             this.state = SwarmState.FAILED;
 
-            await this.eventBus.publish({
+            await getEventBus().publish({
                 id: generatePK().toString(),
                 type: EventTypes.SWARM.STATE_CHANGED,
                 timestamp: new Date(),
@@ -220,7 +218,14 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
                 },
             });
 
-            throw error;
+            return {
+                success: false,
+                error: {
+                    message: error instanceof Error ? error.message : String(error),
+                    name: error instanceof Error ? error.name : "UnknownError",
+                    stack: error instanceof Error ? error.stack : undefined,
+                },
+            };
         }
     }
 
@@ -276,8 +281,6 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
         }
     }
 
-
-
     /**
      * Override stop to add requesting user parameter
      */
@@ -304,23 +307,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
             throw new Error("SwarmStateMachine: onStop() called before conversationId was set.");
         }
 
-        // Cleanup context subscription
-        if (this.contextSubscription) {
-            try {
-                await this.contextManager.unsubscribe(this.contextSubscription.id);
-                this.contextSubscription = null;
-                logger.debug("[SwarmStateMachine] Cleaned up context subscription", {
-                    conversationId: this.conversationId,
-                    swarmId: this.swarmId,
-                });
-            } catch (error) {
-                logger.warn("[SwarmStateMachine] Failed to cleanup context subscription", {
-                    conversationId: this.conversationId,
-                    swarmId: this.swarmId,
-                    error: error instanceof Error ? error.message : String(error),
-                });
-            }
-        }
+        // Context is managed by SwarmContextManager - no local cleanup needed
 
         // Get final statistics from context
         let finalState;
@@ -373,7 +360,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
         }
 
         // Emit swarm stopped event
-        await this.eventBus.publish({
+        await getEventBus().publish({
             id: generatePK().toString(),
             type: EventTypes.SWARM.STATE_CHANGED,
             timestamp: new Date(),
@@ -481,113 +468,6 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
         return false;
     }
 
-    private async updateConversationConfig(
-        conversationId: string,
-        updates: Partial<ChatConfigObject>,
-    ): Promise<void> {
-        if (!this.swarmId) {
-            logger.error("[SwarmStateMachine] Cannot update config without swarmId", { conversationId });
-            return;
-        }
-
-        try {
-            // Get current context to merge updates
-            const currentContext = await this.contextManager.getContext(this.swarmId);
-
-            // Transform conversation config updates to unified context format
-            const contextUpdates: Partial<UnifiedSwarmContext> = {};
-
-            // Only update fields that are actually provided
-            if (updates.goal !== undefined) {
-                contextUpdates.execution = {
-                    ...currentContext.execution,
-                    goal: updates.goal,
-                };
-            }
-
-            if (updates.blackboard) {
-                // Transform blackboard items to unified format
-                const blackboardItems = (updates.blackboard || []).reduce((acc, item) => {
-                    const itemId = item.id || generatePK();
-                    acc[itemId] = {
-                        id: itemId,
-                        type: item.type || "data",
-                        content: item.content,
-                        metadata: item.metadata || {},
-                        createdAt: new Date(),
-                        updatedAt: new Date(),
-                    };
-                    return acc;
-                }, {} as Record<string, any>);
-
-                contextUpdates.blackboard = {
-                    subscriptions: {},
-                    items: {
-                        ...currentContext.blackboard.items,
-                        ...blackboardItems,
-                    },
-                };
-            }
-
-            if (updates.subtasks) {
-                // Store subtasks in blackboard for now
-                contextUpdates.blackboard = {
-                    subscriptions: {},
-                    items: {
-                        ...currentContext.blackboard?.items,
-                        swarm_subtasks: {
-                            id: "swarm_subtasks",
-                            type: "data" as const,
-                            content: updates.subtasks,
-                            metadata: { systemGenerated: true },
-                            createdAt: new Date(),
-                            updatedAt: new Date(),
-                        },
-                    },
-                };
-            }
-
-            if (updates.stats) {
-                // Store stats in blackboard for now
-                contextUpdates.blackboard = {
-                    subscriptions: {},
-                    items: {
-                        ...currentContext.blackboard?.items,
-                        swarm_stats: {
-                            id: "swarm_stats",
-                            type: "data" as const,
-                            content: updates.stats,
-                            metadata: { systemGenerated: true },
-                            createdAt: new Date(),
-                            updatedAt: new Date(),
-                        },
-                    },
-                };
-            }
-
-            // Update context with merged changes
-            await this.contextManager.updateContext(
-                this.swarmId,
-                contextUpdates,
-                `Swarm configuration updated: ${Object.keys(updates).join(", ")}`,
-            );
-
-            logger.info("[SwarmStateMachine] Updated swarm context via SwarmContextManager", {
-                swarmId: this.swarmId,
-                conversationId,
-                updatedFields: Object.keys(updates),
-                emergentCapabilitiesEnabled: true,
-            });
-
-        } catch (error) {
-            logger.error("[SwarmStateMachine] Failed to update context via SwarmContextManager", {
-                swarmId: this.swarmId,
-                conversationId,
-                error: error instanceof Error ? error.message : String(error),
-            });
-            throw error;
-        }
-    }
 
     private async handleExternalMessage(event: BaseServiceEvent<SocketEventPayloads[typeof EventTypes.CHAT.MESSAGE_ADDED]>): Promise<void> {
         logger.info("[SwarmStateMachine] Handling external message", {
@@ -648,7 +528,8 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
     private async handleApprovedTool(event: BaseServiceEvent<SocketEventPayloads[typeof EventTypes.CHAT.TOOL_APPROVAL_GRANTED]>): Promise<void> {
         logger.info("[SwarmStateMachine] Handling approved tool", {
             conversationId: this.conversationId,
-            tool: event.data.pendingToolCall?.toolName,
+            toolName: event.data.toolName,
+            pendingId: event.data.pendingId,
         });
 
         try {
@@ -657,9 +538,13 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
                 return;
             }
 
-            const pendingToolCall = event.data.pendingToolCall;
-            if (!pendingToolCall) {
-                logger.error("[SwarmStateMachine] No pending tool call in approved tool event");
+            const { toolName, toolCallId, pendingId, callerBotId } = event.data;
+            if (!toolName || !toolCallId) {
+                logger.error("[SwarmStateMachine] Missing required tool data in approved tool event", {
+                    toolName,
+                    toolCallId,
+                    pendingId,
+                });
                 return;
             }
 
@@ -674,16 +559,16 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
                     success: true,
                     output: { approved: true },
                     toolCall: {
-                        id: pendingToolCall.id || generatePK().toString(),
+                        id: toolCallId,
                         function: {
-                            name: pendingToolCall.toolName,
-                            arguments: pendingToolCall.params,
+                            name: toolName,
+                            arguments: {}, // Tool arguments are not available in approval event
                         },
                     },
                     executionTime: 0,
                     creditsUsed: "0",
                 },
-                requester: toBotId("system"), // Let ConversationEngine determine the bot
+                requester: toBotId(callerBotId || "system"),
             };
 
             // Orchestrate conversation for tool execution
@@ -695,22 +580,29 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
 
             logger.info("[SwarmStateMachine] Executed approved tool", {
                 conversationId: this.conversationId,
-                toolName: pendingToolCall.toolName,
+                toolName,
                 success: result.success,
             });
 
             // Emit tool execution event
-            await this.eventBus.publish({
+            await getEventBus().publish({
                 id: generatePK().toString(),
-                type: EventTypes.TOOL_COMPLETED,
+                type: EventTypes.CHAT.TOOL_COMPLETED,
                 timestamp: new Date(),
+                source: { tier: 1, component: "SwarmStateMachine" },
                 data: {
-                    toolName: pendingToolCall.toolName,
-                    toolCallId: pendingToolCall.id || generatePK().toString(),
-                    parameters: pendingToolCall.params,
+                    chatId: this.conversationId || "unknown",
+                    toolCallId,
+                    toolName,
                     result: { approved: true, executed: result.success },
                     duration: result.duration,
-                    creditsUsed: result.resourcesUsed.creditsUsed,
+                    creditsUsed: result.resourcesUsed?.creditsUsed || "0",
+                    callerBotId: callerBotId || "system",
+                },
+                metadata: {
+                    deliveryGuarantee: "fire-and-forget",
+                    priority: "medium",
+                    conversationId: this.conversationId,
                 },
             });
 
@@ -725,7 +617,8 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
     private async handleRejectedTool(event: BaseServiceEvent<SocketEventPayloads[typeof EventTypes.CHAT.TOOL_APPROVAL_REJECTED]>): Promise<void> {
         logger.info("[SwarmStateMachine] Handling rejected tool", {
             conversationId: this.conversationId,
-            tool: event.data.pendingToolCall?.toolName,
+            toolName: event.data.toolName,
+            pendingId: event.data.pendingId,
             reason: event.data.reason,
         });
 
@@ -735,11 +628,15 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
                 return;
             }
 
-            const pendingToolCall = event.data.pendingToolCall;
-            const rejectionReason = event.data.reason || "Tool use was rejected";
+            const { toolName, toolCallId, pendingId, callerBotId, reason } = event.data;
+            const rejectionReason = reason || "Tool use was rejected";
 
-            if (!pendingToolCall) {
-                logger.error("[SwarmStateMachine] No pending tool call in rejected tool event");
+            if (!toolName || !toolCallId) {
+                logger.error("[SwarmStateMachine] Missing required tool data in rejected tool event", {
+                    toolName,
+                    toolCallId,
+                    pendingId,
+                });
                 return;
             }
 
@@ -759,16 +656,16 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
                         type: "ToolRejectionError",
                     },
                     toolCall: {
-                        id: pendingToolCall.id || generatePK().toString(),
+                        id: toolCallId,
                         function: {
-                            name: pendingToolCall.toolName,
-                            arguments: pendingToolCall.params,
+                            name: toolName,
+                            arguments: {}, // Tool arguments are not available in approval event
                         },
                     },
                     executionTime: 0,
                     creditsUsed: "0",
                 },
-                requester: toBotId("system"), // Let ConversationEngine determine the bot
+                requester: toBotId(callerBotId || "system"),
             };
 
             // Orchestrate conversation for fallback strategy
@@ -780,7 +677,8 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
 
             logger.info("[SwarmStateMachine] Generated fallback strategy for rejected tool", {
                 conversationId: this.conversationId,
-                toolName: pendingToolCall.toolName,
+                toolName,
+                rejectionReason,
                 success: result.success,
             });
 
@@ -885,96 +783,5 @@ export class SwarmStateMachine extends BaseStateMachine<State, BaseServiceEvent>
         }
     }
 
-    /**
-     * Process individual context changes and trigger appropriate state machine reactions
-     */
-    private async processContextChange(path: string, event: ContextUpdateEvent): Promise<void> {
-        // React to execution status changes
-        if (path.startsWith("execution.status")) {
-            const newStatus = this.swarmContext?.execution?.status;
-            logger.info("[SwarmStateMachine] Swarm execution status changed via context", {
-                newStatus,
-                conversationId: this.conversationId,
-                swarmId: event.swarmId,
-            });
-
-            // Could trigger state transitions here if needed
-            // For now, just log the change
-        }
-
-        // React to security policy changes
-        if (path.startsWith("policy.security")) {
-            logger.info("[SwarmStateMachine] Security policy updated via context", {
-                path,
-                conversationId: this.conversationId,
-            });
-
-            // Emit event for security policy changes
-            await this.eventBus.publish({
-                id: generatePK().toString(),
-                type: EventTypes.SWARM.POLICY_UPDATED,
-                timestamp: new Date(),
-                data: {
-                    policyType: "security",
-                    path,
-                    change: event.changes?.[path],
-                    emergent: event.emergentCapability,
-                },
-            });
-        }
-
-        // React to resource policy changes
-        if (path.startsWith("policy.resource")) {
-            logger.info("[SwarmStateMachine] Resource policy updated via context", {
-                path,
-                conversationId: this.conversationId,
-            });
-
-            // Emit event for resource policy changes
-            await this.eventBus.publish({
-                id: generatePK().toString(),
-                type: EventTypes.SWARM.POLICY_UPDATED,
-                timestamp: new Date(),
-                data: {
-                    policyType: "resource",
-                    path,
-                    change: event.changes?.[path],
-                    emergent: event.emergentCapability,
-                },
-            });
-        }
-
-        // React to organizational changes
-        if (path.startsWith("policy.organizational")) {
-            logger.info("[SwarmStateMachine] Organizational structure updated via context", {
-                path,
-                conversationId: this.conversationId,
-            });
-
-            // Emit event for organizational changes
-            await this.eventBus.publish({
-                id: generatePK().toString(),
-                type: EventTypes.SWARM.POLICY_UPDATED,
-                timestamp: new Date(),
-                data: {
-                    policyType: "organizational",
-                    path,
-                    change: event.changes?.[path],
-                    emergent: event.emergentCapability,
-                },
-            });
-        }
-
-        // React to blackboard changes (shared state updates)
-        if (path.startsWith("blackboard.items")) {
-            logger.debug("[SwarmStateMachine] Blackboard state updated via context", {
-                path,
-                conversationId: this.conversationId,
-            });
-
-            // Blackboard changes are frequent, so only log at debug level
-            // Agents can react to these through their own subscriptions
-        }
-    }
 
 }

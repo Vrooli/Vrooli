@@ -1,9 +1,60 @@
 // AI_CHECK: TEST_QUALITY=1, TEST_COVERAGE=1 | LAST: 2025-06-18
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createIsolatedQueueTestHarness } from "../../__test/helpers/queueTestUtils.js";
 import { clearRedisCache } from "../queueFactory.js";
 import { QueueService } from "../queues.js";
 import { QueueTaskType, type SwarmExecutionTask, type SwarmTask } from "../taskTypes.js";
 import { changeSwarmTaskStatus, getSwarmTaskStatuses, processNewSwarmExecution, processSwarm } from "./queue.js";
+
+// Mock the execution tier components to prevent initialization errors in tests
+vi.mock("../../services/execution/tier2/tierTwoOrchestrator.js", () => ({
+    TierTwoOrchestrator: vi.fn().mockImplementation(() => ({
+        startRun: vi.fn().mockResolvedValue(undefined),
+        cancelRun: vi.fn().mockResolvedValue(undefined),
+        handleSwarmRequest: vi.fn().mockResolvedValue({ success: true }),
+    })),
+}));
+
+vi.mock("../../services/execution/tier1/coordination/swarmCoordinator.js", () => ({
+    SwarmCoordinator: vi.fn().mockImplementation(() => ({
+        execute: vi.fn().mockResolvedValue({
+            status: "completed",
+            result: { success: true },
+        }),
+        getExecutionStatus: vi.fn().mockResolvedValue({
+            swarmId: "mock-swarm-id",
+            status: "completed",
+            progress: 100,
+            metadata: {
+                currentPhase: "idle",
+                activeRuns: 0,
+                completedRuns: 1,
+            },
+        }),
+        cancelExecution: vi.fn().mockResolvedValue(undefined),
+    })),
+}));
+
+vi.mock("../../services/events/eventBus.js", () => ({
+    EventBus: vi.fn().mockImplementation(() => ({})),
+}));
+
+vi.mock("../../services/execution/tier3/TierThreeExecutor.js", () => ({
+    TierThreeExecutor: vi.fn().mockImplementation(() => ({})),
+}));
+
+// Mock state store to avoid initialization errors
+vi.mock("../../services/execution/tier2/state/runStateStore.js", () => ({
+    getRunStateStore: vi.fn().mockResolvedValue({
+        initialize: vi.fn().mockResolvedValue(undefined),
+        createRun: vi.fn().mockResolvedValue(undefined),
+        getRun: vi.fn().mockResolvedValue(null),
+        updateRun: vi.fn().mockResolvedValue(undefined),
+        deleteRun: vi.fn().mockResolvedValue(undefined),
+        getRunState: vi.fn().mockResolvedValue("PENDING"),
+        updateRunState: vi.fn().mockResolvedValue(undefined),
+    }),
+}));
 
 describe("Swarm Queue", () => {
     let queueService: QueueService;
@@ -16,15 +67,25 @@ describe("Swarm Queue", () => {
     });
 
     afterEach(async () => {
-        // Clean shutdown
+        // Ensure clean shutdown after each test
         try {
             await queueService.shutdown();
         } catch (error) {
+            // Ignore shutdown errors in tests
             console.log("Shutdown error (ignored):", error);
         }
-        clearRedisCache();
-        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // Wait for shutdown to fully complete and event handlers to detach
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Clear singleton instance before Redis cache to prevent access during cleanup
         (QueueService as any).instance = null;
+
+        // Clear Redis cache last to avoid disconnecting connections still in use
+        clearRedisCache();
+
+        // Final delay to ensure all async operations complete
+        await new Promise(resolve => setTimeout(resolve, 50));
     });
 
     describe("processSwarm", () => {
@@ -284,101 +345,146 @@ describe("Swarm Queue", () => {
 
     describe("Integration with QueueService", () => {
         it("should process swarm task through worker", async () => {
-            // Mock the swarm process function
-            const processSwarmMock = vi.fn().mockResolvedValue(undefined);
-            vi.doMock("./process.js", () => ({
-                swarmProcess: processSwarmMock,
-            }));
+            // Use isolated harness to prevent job processing from corrupting connections
+            const isolatedHarness = await createIsolatedQueueTestHarness(redisUrl);
 
-            const swarmData = {
-                type: QueueTaskType.SWARM_RUN,
-                swarmId: "test-swarm-integration",
-                routineVersionId: "version-456",
-                runId: "run-integration",
-                userData: { id: "user-123", hasPremium: false },
-                inputs: { test: true },
-                model: "gpt-4",
-                teamId: "team-456",
-            };
+            try {
+                // Create fresh QueueService instance for this test
+                (QueueService as any).instance = null;
+                const isolatedQueueService = QueueService.get();
+                await isolatedQueueService.init(redisUrl);
 
-            const result = await processSwarm(swarmData, queueService);
-            expect(result.success).toBe(true);
+                // Mock the swarm process function
+                const processSwarmMock = vi.fn().mockResolvedValue(undefined);
+                vi.doMock("./process.js", () => ({
+                    swarmProcess: processSwarmMock,
+                }));
 
-            // Wait for processing
-            await new Promise(resolve => setTimeout(resolve, 1000));
+                const swarmData = {
+                    type: QueueTaskType.SWARM_RUN,
+                    swarmId: "test-swarm-integration",
+                    routineVersionId: "version-456",
+                    runId: "run-integration",
+                    userData: { id: "user-123", hasPremium: false },
+                    inputs: { test: true },
+                    model: "gpt-4",
+                    teamId: "team-456",
+                };
 
-            // Verify job exists
-            const job = await queueService.swarm.queue.getJob(result.data!.id);
-            expect(job).toBeDefined();
+                const result = await processSwarm(swarmData, isolatedQueueService);
+                expect(result.success).toBe(true);
+
+                // Wait for processing
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Verify job exists
+                const job = await isolatedQueueService.swarm.queue.getJob(result.data!.id);
+                expect(job).toBeDefined();
+
+                // Clean shutdown
+                await isolatedQueueService.shutdown();
+
+                // Reset the instance to ensure clean state
+                (QueueService as any).instance = null;
+            } finally {
+                // Force cleanup of isolated harness
+                await isolatedHarness.forceCleanup();
+            }
         });
 
         it("should handle job failure and retry", async () => {
-            // Mock process to fail first time
-            let callCount = 0;
-            const processSwarmMock = vi.fn().mockImplementation(() => {
-                callCount++;
-                if (callCount === 1) {
-                    throw new Error("Simulated swarm failure");
-                }
-                return Promise.resolve();
-            });
+            // Use isolated harness to prevent job failure from corrupting connections
+            const isolatedHarness = await createIsolatedQueueTestHarness(redisUrl);
 
-            vi.doMock("./process.js", () => ({
-                swarmProcess: processSwarmMock,
-            }));
+            try {
+                // Create fresh QueueService instance for this test
+                (QueueService as any).instance = null;
+                const isolatedQueueService = QueueService.get();
+                await isolatedQueueService.init(redisUrl);
 
-            const swarmData = {
-                type: QueueTaskType.SWARM_RUN,
-                swarmId: "test-swarm-fail",
-                routineVersionId: "version-456",
-                runId: "run-fail",
-                userData: { id: "user-123", hasPremium: false },
-                inputs: {},
-                model: "gpt-4",
-                teamId: "team-456",
-            };
+                // Mock process to fail first time
+                let callCount = 0;
+                const processSwarmMock = vi.fn().mockImplementation(() => {
+                    callCount++;
+                    if (callCount === 1) {
+                        throw new Error("Simulated swarm failure");
+                    }
+                    return Promise.resolve();
+                });
 
-            const result = await processSwarm(swarmData, queueService);
-            const job = await queueService.swarm.queue.getJob(result.data!.id);
+                vi.doMock("./process.js", () => ({
+                    swarmProcess: processSwarmMock,
+                }));
 
-            expect(job).toBeDefined();
-            expect(job?.attemptsMade).toBeGreaterThanOrEqual(0);
+                const swarmData = {
+                    type: QueueTaskType.SWARM_RUN,
+                    swarmId: "test-swarm-fail",
+                    routineVersionId: "version-456",
+                    runId: "run-fail",
+                    userData: { id: "user-123", hasPremium: false },
+                    inputs: {},
+                    model: "gpt-4",
+                    teamId: "team-456",
+                };
+
+                const result = await processSwarm(swarmData, isolatedQueueService);
+                const job = await isolatedQueueService.swarm.queue.getJob(result.data!.id);
+
+                expect(job).toBeDefined();
+                expect(job?.attemptsMade).toBeGreaterThanOrEqual(0);
+
+                // Clean shutdown
+                await isolatedQueueService.shutdown();
+
+                // Reset the instance to ensure clean state
+                (QueueService as any).instance = null;
+            } finally {
+                // Force cleanup of isolated harness
+                await isolatedHarness.forceCleanup();
+            }
         });
 
         it("should handle three-tier execution flow", async () => {
-            // Mock the three-tier coordinator
-            const coordinatorMock = vi.fn().mockResolvedValue({
-                status: "completed",
-                result: { success: true },
-            });
+            // Use isolated harness to prevent tier execution from corrupting connections
+            const isolatedHarness = await createIsolatedQueueTestHarness(redisUrl);
 
-            vi.doMock("../services/execution/tier1/tierOneCoordinator.js", () => ({
-                TierOneCoordinator: {
-                    getInstance: () => ({
-                        executeSwarm: coordinatorMock,
-                    }),
-                },
-            }));
+            try {
+                // Create fresh QueueService instance for this test
+                (QueueService as any).instance = null;
+                const isolatedQueueService = QueueService.get();
+                await isolatedQueueService.init(redisUrl);
 
-            const executionData = {
-                type: QueueTaskType.SWARM_EXECUTION,
-                swarmId: "exec-three-tier",
-                executionId: "execution-three-tier",
-                userId: "user-789",
-                userData: { id: "user-789", hasPremium: true },
-                config: {
-                    model: "gpt-4",
-                    temperature: 0.7,
-                    maxIterations: 10,
-                },
-            };
+                // The three-tier coordinator is already mocked globally
 
-            const result = await processNewSwarmExecution(executionData, queueService);
-            expect(result.success).toBe(true);
+                const executionData = {
+                    type: QueueTaskType.SWARM_EXECUTION,
+                    swarmId: "exec-three-tier",
+                    executionId: "execution-three-tier",
+                    userId: "user-789",
+                    userData: { id: "user-789", hasPremium: true },
+                    config: {
+                        model: "gpt-4",
+                        temperature: 0.7,
+                        maxIterations: 10,
+                    },
+                };
 
-            // Verify execution task was created with proper priority
-            const job = await queueService.swarm.queue.getJob(result.data!.id);
-            expect(job?.opts.priority).toBe(80); // Premium user priority
+                const result = await processNewSwarmExecution(executionData, isolatedQueueService);
+                expect(result.success).toBe(true);
+
+                // Verify execution task was created with proper priority
+                const job = await isolatedQueueService.swarm.queue.getJob(result.data!.id);
+                expect(job?.opts.priority).toBe(80); // Premium user priority
+
+                // Clean shutdown
+                await isolatedQueueService.shutdown();
+
+                // Reset the instance to ensure clean state
+                (QueueService as any).instance = null;
+            } finally {
+                // Force cleanup of isolated harness
+                await isolatedHarness.forceCleanup();
+            }
         });
     });
 
@@ -448,38 +554,50 @@ describe("Swarm Queue", () => {
 
     describe("Three-tier execution edge cases", () => {
         it("should handle tier coordination failures", async () => {
-            // Mock tier coordinator to fail
-            const coordinatorMock = vi.fn().mockRejectedValue(
-                new Error("Tier coordination failed"),
-            );
+            // Use isolated harness to prevent tier failure from corrupting connections
+            const isolatedHarness = await createIsolatedQueueTestHarness(redisUrl);
 
-            vi.doMock("../../services/execution/tier1/tierOneCoordinator.js", () => ({
-                TierOneCoordinator: {
-                    getInstance: () => ({
-                        executeSwarm: coordinatorMock,
-                    }),
-                },
-            }));
+            try {
+                // Create fresh QueueService instance for this test
+                (QueueService as any).instance = null;
+                const isolatedQueueService = QueueService.get();
+                await isolatedQueueService.init(redisUrl);
 
-            const executionData = {
-                type: QueueTaskType.SWARM_EXECUTION,
-                swarmId: "exec-fail-tier",
-                executionId: "execution-fail-tier",
-                userId: "user-789",
-                userData: { id: "user-789", hasPremium: false },
-                config: {
-                    model: "gpt-4",
-                    temperature: 0.7,
-                },
-            };
+                // Override the global mock to simulate failure
+                const SwarmCoordinator = await import("../../services/execution/tier1/coordination/swarmCoordinator.js");
+                vi.mocked(SwarmCoordinator.SwarmCoordinator.getInstance).mockReturnValueOnce({
+                    executeSwarm: vi.fn().mockRejectedValue(new Error("Tier coordination failed")),
+                });
 
-            // Job should be added successfully
-            const result = await processNewSwarmExecution(executionData, queueService);
-            expect(result.success).toBe(true);
+                const executionData = {
+                    type: QueueTaskType.SWARM_EXECUTION,
+                    swarmId: "exec-fail-tier",
+                    executionId: "execution-fail-tier",
+                    userId: "user-789",
+                    userData: { id: "user-789", hasPremium: false },
+                    config: {
+                        model: "gpt-4",
+                        temperature: 0.7,
+                    },
+                };
 
-            // But processing will fail (handled by worker)
-            const job = await queueService.swarm.queue.getJob(result.data!.id);
-            expect(job).toBeDefined();
+                // Job should be added successfully
+                const result = await processNewSwarmExecution(executionData, isolatedQueueService);
+                expect(result.success).toBe(true);
+
+                // But processing will fail (handled by worker)
+                const job = await isolatedQueueService.swarm.queue.getJob(result.data!.id);
+                expect(job).toBeDefined();
+
+                // Clean shutdown
+                await isolatedQueueService.shutdown();
+
+                // Reset the instance to ensure clean state
+                (QueueService as any).instance = null;
+            } finally {
+                // Force cleanup of isolated harness
+                await isolatedHarness.forceCleanup();
+            }
         });
 
         it("should handle swarm state transitions", async () => {
@@ -524,32 +642,51 @@ describe("Swarm Queue", () => {
         });
 
         it("should enforce resource limits", async () => {
-            // Test with various resource configurations
-            const resourceConfigs = [
-                { maxIterations: 1, maxTokens: 100 },
-                { maxIterations: 100, maxTokens: 10000 },
-                { maxIterations: 1000, maxTokens: 100000 },
-            ];
+            // Use isolated harness to prevent resource testing from corrupting connections
+            const isolatedHarness = await createIsolatedQueueTestHarness(redisUrl);
 
-            for (const config of resourceConfigs) {
-                const executionData = {
-                    type: QueueTaskType.SWARM_EXECUTION,
-                    swarmId: `exec-resource-${config.maxIterations}`,
-                    executionId: `execution-resource-${config.maxIterations}`,
-                    userId: "user-789",
-                    userData: { id: "user-789", hasPremium: false },
-                    config: {
-                        model: "gpt-4",
-                        ...config,
-                    },
-                };
+            try {
+                // Create fresh QueueService instance for this test
+                (QueueService as any).instance = null;
+                const isolatedQueueService = QueueService.get();
+                await isolatedQueueService.init(redisUrl);
 
-                const result = await processNewSwarmExecution(executionData, queueService);
-                expect(result.success).toBe(true);
+                // Test with various resource configurations
+                const resourceConfigs = [
+                    { maxIterations: 1, maxTokens: 100 },
+                    { maxIterations: 100, maxTokens: 10000 },
+                    { maxIterations: 1000, maxTokens: 100000 },
+                ];
 
-                const job = await queueService.swarm.queue.getJob(result.data!.id);
-                expect(job?.data.config.maxIterations).toBe(config.maxIterations);
-                expect(job?.data.config.maxTokens).toBe(config.maxTokens);
+                for (const config of resourceConfigs) {
+                    const executionData = {
+                        type: QueueTaskType.SWARM_EXECUTION,
+                        swarmId: `exec-resource-${config.maxIterations}`,
+                        executionId: `execution-resource-${config.maxIterations}`,
+                        userId: "user-789",
+                        userData: { id: "user-789", hasPremium: false },
+                        config: {
+                            model: "gpt-4",
+                            ...config,
+                        },
+                    };
+
+                    const result = await processNewSwarmExecution(executionData, isolatedQueueService);
+                    expect(result.success).toBe(true);
+
+                    const job = await isolatedQueueService.swarm.queue.getJob(result.data!.id);
+                    expect(job?.data.config.maxIterations).toBe(config.maxIterations);
+                    expect(job?.data.config.maxTokens).toBe(config.maxTokens);
+                }
+
+                // Clean shutdown
+                await isolatedQueueService.shutdown();
+
+                // Reset the instance to ensure clean state
+                (QueueService as any).instance = null;
+            } finally {
+                // Force cleanup of isolated harness
+                await isolatedHarness.forceCleanup();
             }
         });
     });
@@ -580,20 +717,39 @@ describe("Swarm Queue", () => {
         });
 
         it("should handle missing required swarm data", async () => {
-            const incompleteData = {
-                type: QueueTaskType.SWARM_RUN,
-                // Missing swarmId
-                routineVersionId: "version-456",
-                runId: "run-incomplete",
-                userData: { id: "user-123", hasPremium: false },
-                inputs: {},
-                model: "gpt-4",
-                teamId: "team-456",
-            } as any;
+            // Use isolated harness to prevent validation errors from corrupting connections
+            const isolatedHarness = await createIsolatedQueueTestHarness(redisUrl);
 
-            // Should still add (validation in processor)
-            const result = await processSwarm(incompleteData, queueService);
-            expect(result.success).toBe(true);
+            try {
+                // Create fresh QueueService instance for this test
+                (QueueService as any).instance = null;
+                const isolatedQueueService = QueueService.get();
+                await isolatedQueueService.init(redisUrl);
+
+                const incompleteData = {
+                    type: QueueTaskType.SWARM_RUN,
+                    // Missing swarmId
+                    routineVersionId: "version-456",
+                    runId: "run-incomplete",
+                    userData: { id: "user-123", hasPremium: false },
+                    inputs: {},
+                    model: "gpt-4",
+                    teamId: "team-456",
+                } as any;
+
+                // Should still add (validation in processor)
+                const result = await processSwarm(incompleteData, isolatedQueueService);
+                expect(result.success).toBe(true);
+
+                // Clean shutdown
+                await isolatedQueueService.shutdown();
+
+                // Reset the instance to ensure clean state
+                (QueueService as any).instance = null;
+            } finally {
+                // Force cleanup of isolated harness
+                await isolatedHarness.forceCleanup();
+            }
         });
 
         it("should handle queue overload scenarios", async () => {
