@@ -308,3 +308,6 @@ export function asMockObject(objectType: ModelType | `${ModelType}`, objectId: s
         ...(rootObjectId ? { root: { __typename: objectType.replace("Version", ""), id: rootObjectId } } : {}),
     };
 }
+
+// Export the new standard upsert form hook
+export { useStandardUpsertForm, type StandardUpsertFormConfig, type UseStandardUpsertFormProps } from "./useStandardUpsertForm.js";
