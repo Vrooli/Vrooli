@@ -11,7 +11,7 @@ import { SocketService } from "../io.js";
 export function runSocketRoomHandlers(socket: Socket) {
     SocketService.get().onSocketEvent(socket, "joinRunRoom", async ({ runId }, callback) => {
         try {
-            if (AuthTokensService.isAccessTokenExpired(socket.session)) {
+            if (!("session" in socket) || !socket.session || AuthTokensService.isAccessTokenExpired(socket.session)) {
                 callback({ success: false, error: JOIN_RUN_ROOM_ERRORS.SessionExpired });
                 return;
             }
@@ -33,7 +33,7 @@ export function runSocketRoomHandlers(socket: Socket) {
             // Otherwise, join the room
             socket.join(runId);
             callback({ success: true });
-        } catch (error) {
+        } catch (error: unknown) {
             const message = JOIN_RUN_ROOM_ERRORS.ErrorUnknown;
             logger.error(message, { trace: "0491", error, runId });
             callback({ success: false, error: message });
@@ -44,7 +44,7 @@ export function runSocketRoomHandlers(socket: Socket) {
         try {
             socket.leave(runId);
             callback({ success: true });
-        } catch (error) {
+        } catch (error: unknown) {
             const message = LEAVE_RUN_ROOM_ERRORS.ErrorUnknown;
             logger.error(message, { trace: "0582", error, runId });
             callback({ success: false, error: message });

@@ -1,4 +1,4 @@
-import { ModelType, type SessionUser } from "@vrooli/shared";
+import { type ModelType, type SessionUser } from "@vrooli/shared";
 import { type PrismaDelegate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
@@ -135,14 +135,14 @@ export async function versionsCheck({
         const versionLabels = root.versions.filter(x => !deleteIds.includes(x.id)).map(x => x.versionLabel);
         // New versions cannot have the same label as existing versions
         const createLabels = create.filter(x => x.rootId === root.id).map(x => x.versionLabel);
-        if (createLabels.some(x => versionLabels.includes(x))) {
+        if (createLabels.some(x => x != null && versionLabels.includes(x))) {
             throw new CustomError("0379", "ErrorUnknown");
         }
         // Updating versions cannot have the same label as existing versions
         const updateLabels = update.filter(x => versionIds.includes(x.id)).map(x => x.versionLabel);
         // We must filter out updating labels from the existing labels, to support swapping
         const versionLabelsWithoutUpdate = root.versions.filter(x => !deleteIds.includes(x.id) && !updateIds.includes(x.id)).map(x => x.versionLabel);
-        if (updateLabels.some(x => versionLabelsWithoutUpdate.includes(x))) {
+        if (updateLabels.some(x => x != null && versionLabelsWithoutUpdate.includes(x))) {
             throw new CustomError("0380", "ErrorUnknown");
         }
         // Check 3

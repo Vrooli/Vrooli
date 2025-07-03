@@ -1,235 +1,15 @@
-/*
- * queueFactory.ts
- *
- * This module provides a factory for creating and managing BullMQ queues, workers, and event listeners in a standardized, scalable way.
- *
- * Purpose:
- *   - Centralizes queue creation and configuration for the Vrooli backend.
- *   - Ensures consistent job options, worker options, and Redis connection reuse.
- *   - Supports horizontal scaling by allowing multiple Node.js processes to run workers for the same queue, leveraging Redis as a distributed backend.
- *   - Provides hooks for custom queue initialization logic (e.g., cron scheduling, state machines).
- *
- * Usage:
- *   - Import this module to define new queues for background processing tasks (e.g., email, agent runs).
- *   - Use the ManagedQueue class to instantiate a queue with business logic and configuration.
- *   - Add jobs to the queue using the `add` helper method, which abstracts away direct BullMQ usage.
- *   - Extend or override job and worker options as needed for specific queues.
- *
- * Horizontal Scaling:f
- *   - By using Redis as the central broker, multiple Node.js processes (across servers/containers) can run workers for the same queue.
- *   - Each worker instance will compete for jobs, enabling true distributed processing and high availability.
- *   - Graceful shutdown and event handling are built-in for robust operation in production environments.
- *
- * Best Practices:
- *   - Keep queue business logic (the processor) stateless and idempotent for safe retries and scaling.
- *   - Use the provided defaults for most queues, but override options for special cases (e.g., high-priority or long-running jobs).
- *   - Monitor queue events and failures using the built-in event listeners and logging.
- *
- * For more on documentation best practices, see:
- *   - https://guides.lib.berkeley.edu/how-to-write-good-documentation
- *   - https://github.com/resources/articles/software-development/tools-and-techniques-for-effective-code-documentation
- */
-import { DAYS_1_S, MINUTES_1_MS, SECONDS_10_MS, type Success } from "@vrooli/shared";
-import { type Job, type JobsOptions, Queue, QueueEvents, Worker, type WorkerOptions } from "bullmq";
-import IORedis from "ioredis";
-import { logger } from "../events/logger.js";
-import type { AnyTask, LLMCompletionTask, RunTask, SandboxTask } from "./taskTypes.js";
-
-// Cache Redis connections by URL to reuse a single connection per process.
-const redisClients: Record<string, IORedis> = {};
-const connectionEstablishmentPromises: Record<string, Promise<IORedis>> = {};
-
 /**
- * Creates and returns a shared Redis connection for BullMQ queues and workers.
- *
- * @param url - The Redis connection URL.
- * @returns An IORedis instance for use with BullMQ.
- *
- * @remarks
- *   - Reuses a single Redis connection per Node.js process to reduce overhead.
- *   - Pass this connection to all queues and workers in the process.
- *   - This function is async to properly handle cleanup of stale connections and prevent race conditions.
+ * Production-ready queue factory implementation
+ * Addresses connection isolation issues while maintaining efficiency
  */
-export async function buildRedis(url: string): Promise<IORedis> {
-    // Check 1: Existing ready client in the primary cache
-    if (redisClients[url]?.status === "ready") {
-        return redisClients[url];
-    }
 
-    // Check 2: Existing client in primary cache, but not ready (stale)
-    // This might happen if a client disconnected and its 'end'/'close' handler hasn't removed it yet,
-    // or if a previous attempt failed to become ready.
-    if (redisClients[url]) {
-        const staleClient = redisClients[url];
-        logger.info(`Stale Redis client found for ${url} (status: ${staleClient.status}). Attempting to quit.`);
-        try {
-            await staleClient.quit();
-        } catch (error) {
-            logger.error(`Error quitting stale Redis client for ${url}. Proceeding to replace.`, { error });
-        }
-        delete redisClients[url]; // Remove from cache regardless of quit success
-    }
-
-    // Check 3: Is a connection already being established by another concurrent call?
-    // If so, await that existing promise.
-    if (connectionEstablishmentPromises[url] !== undefined) {
-        logger.info(`Connection establishment already in progress for ${url}. Reusing promise.`);
-        return connectionEstablishmentPromises[url];
-    }
-
-    // Check 4: No ready client and no connection establishment in progress. Create a new one.
-    const newConnectionPromise = (async (): Promise<IORedis> => {
-        logger.info(`Creating new Redis client for ${url}.`);
-        
-        // In test mode, reduce timeout for faster failure
-        const connectTimeout = process.env.NODE_ENV === 'test' ? 5000 : 30000;
-        
-        const client = new IORedis(url, {
-            maxRetriesPerRequest: null, // BullMQ requires this to be null
-            // Enable lazy connect to allow event listeners to be attached before connection.
-            // This is the default, but explicit for clarity.
-            lazyConnect: true,
-            // In tests, set a shorter connection timeout for invalid URLs
-            connectTimeout: connectTimeout,
-            retryStrategy: (times) => {
-                // In tests, fail fast after a few retries
-                if (process.env.NODE_ENV === 'test') {
-                    if (times > 2) {
-                        return null; // Stop retrying after 2 attempts in tests
-                    }
-                    return times * 100; // Shorter retry delay in tests
-                }
-                // Otherwise use exponential backoff
-                return Math.min(times * 50, 2000);
-            },
-        });
-
-        // Track if we're cleaning up to avoid duplicate cleanup
-        let isCleaningUp = false;
-        
-        const cleanup = () => {
-            if (isCleaningUp) return;
-            isCleaningUp = true;
-            
-            // Remove from caches
-            if (redisClients[url] === client) {
-                delete redisClients[url];
-            }
-            
-            // Remove all listeners to prevent memory leaks
-            client.removeAllListeners();
-            
-            // Force disconnect if still connected
-            if (client.status !== "end") {
-                try {
-                    client.disconnect();
-                } catch (e) {
-                    // Ignore disconnect errors
-                }
-            }
-        };
-
-        // Use a single error handler that logs only non-test errors
-        const errorHandler = (error: any) => {
-            // In tests, only log non-connection errors
-            if (process.env.NODE_ENV === 'test') {
-                if (!error.message?.includes('ETIMEDOUT') && 
-                    !error.message?.includes('ENOTFOUND') &&
-                    !error.message?.includes('connect')) {
-                    logger.error(`Redis client error for ${url}`, { error, clientStatus: client.status });
-                }
-            } else {
-                logger.error(`Redis client error for ${url}`, { error, clientStatus: client.status });
-            }
-        };
-        
-        client.on("error", errorHandler);
-
-        client.on("end", () => {
-            logger.info(`Redis connection ended for ${url}. Removing from primary cache.`);
-            cleanup();
-        });
-
-        client.on("close", () => {
-            logger.info(`Redis connection closed for ${url}. Removing from primary cache.`);
-            cleanup();
-        });
-
-        // Explicitly wait for the client to be 'ready'.
-        // IORedis connects lazily, so we must wait for 'ready' before considering it usable.
-        try {
-            await new Promise<void>((resolve, reject) => {
-                const READY_TIMEOUT_MS = connectTimeout;
-
-                const timeoutId = setTimeout(() => {
-                    client.removeListener("ready", onReady);
-                    const timeoutError = new Error(`Timeout (${READY_TIMEOUT_MS}ms) waiting for Redis client to be ready for ${url}`);
-                    cleanup();
-                    reject(timeoutError);
-                }, READY_TIMEOUT_MS);
-
-                function onReady() {
-                    clearTimeout(timeoutId);
-                    logger.info(`Redis client connected and ready for ${url}.`);
-                    resolve();
-                }
-
-                client.once("ready", onReady);
-
-                // Start the connection attempt
-                client.connect().catch(connectError => {
-                    clearTimeout(timeoutId);
-                    client.removeListener("ready", onReady);
-                    if (process.env.NODE_ENV !== 'test' || 
-                        (!connectError.message?.includes('ETIMEDOUT') && 
-                         !connectError.message?.includes('ENOTFOUND'))) {
-                        logger.error(`Redis client failed to connect for ${url}.`, { error: connectError });
-                    }
-                    cleanup();
-                    reject(connectError);
-                });
-            });
-
-            // Once ready, store in the primary cache.
-            redisClients[url] = client;
-            return client;
-        } catch (error) {
-            // Make sure we clean up on any error
-            cleanup();
-            throw error;
-        }
-    })();
-
-    // Store the promise in the map so other concurrent calls can await it.
-    connectionEstablishmentPromises[url] = newConnectionPromise;
-
-    try {
-        // Await the promise for this current call.
-        const establishedClient = await newConnectionPromise;
-        return establishedClient;
-    } catch (error) {
-        // If client creation/connection failed, the promise was rejected.
-        if (process.env.NODE_ENV !== 'test') {
-            logger.error(`Failed to establish Redis connection for ${url} during buildRedis.`, { error });
-        }
-        // The 'finally' block will clean up connectionEstablishmentPromises[url].
-        throw error; // Re-throw to the caller of buildRedis.
-    } finally {
-        // Once this specific attempt's promise is settled (resolved or rejected),
-        // remove it from the establishment map. Subsequent calls will either:
-        // 1. Find the client in redisClients (if successful).
-        // 2. Or start a fresh connection attempt (if this one failed and was removed from redisClients by handlers).
-        delete connectionEstablishmentPromises[url];
-    }
-}
+import { DAYS_1_S, MINUTES_1_MS, SECONDS_10_MS } from "@vrooli/shared";
+import { Queue, Worker, QueueEvents, type Job, type WorkerOptions, type JobsOptions, type ConnectionOptions } from "bullmq";
+import IORedis, { type RedisOptions } from "ioredis";
+import { logger } from "../events/logger.js";
 
 /**
  * Default job options for all queues unless overridden.
- *
- * @remarks
- *   - Jobs are removed after completion or failure (with age and count limits).
- *   - Retries failed jobs up to 5 times with exponential backoff.
- *   - These defaults are suitable for most background tasks.
  */
 export const DEFAULT_JOB_OPTIONS: JobsOptions = {
     removeOnComplete: { age: DAYS_1_S, count: 5_000 },
@@ -240,11 +20,6 @@ export const DEFAULT_JOB_OPTIONS: JobsOptions = {
 
 /**
  * Base worker options for all queues unless overridden.
- *
- * @remarks
- *   - lockDuration: Maximum time (ms) a job is locked for processing.
- *   - concurrency: Number of jobs processed in parallel by each worker instance.
- *   - These can be overridden per queue for custom needs.
  */
 export const BASE_WORKER_OPTS: Partial<WorkerOptions> = {
     lockDuration: MINUTES_1_MS,
@@ -316,198 +91,303 @@ export async function getQueueHealth(
     return { status, jobCounts, activeJobs };
 }
 
-// ---------- base task type --------------------------------------------------
-
 /**
  * Base interface for all task data types in the system.
- * Every job added to any queue should at minimum include this information.
  */
 export interface BaseTaskData {
-    /** The type of task being processed */
     type: string;
-    /** Unique identifier for the task */
     id: string;
-    /** User ID of the user who created/owns the task (optional for system tasks) */
     userId?: string;
-    /** Current status of the task */
     status?: string;
 }
 
-// ---------- abstract queue class -------------------------------------------
+// Production-ready connection configuration
+export function getRedisConnectionConfig(): RedisOptions {
+    const url = process.env.REDIS_URL;
+    if (url) {
+        // Parse Redis URL properly
+        const urlObj = new URL(url);
+        const options: RedisOptions = {
+            host: urlObj.hostname,
+            port: parseInt(urlObj.port) || 6379,
+            maxRetriesPerRequest: null, // BullMQ requires this to be null
+            enableReadyCheck: true,
+            lazyConnect: false,
+        };
+        
+        if (urlObj.password) {
+            options.password = urlObj.password;
+        }
+        
+        if (urlObj.pathname && urlObj.pathname.length > 1) {
+            options.db = parseInt(urlObj.pathname.slice(1)) || 0;
+        }
+        
+        // Add test-specific settings
+        if (process.env.NODE_ENV === "test") {
+            options.connectTimeout = 5000;
+            options.lazyConnect = true;
+            options.retryStrategy = (times) => {
+                if (times > 2) return null; // Stop retrying after 2 attempts in tests
+                return times * 100;
+            };
+            options.enableOfflineQueue = false; // Don't queue commands when disconnected
+            options.reconnectOnError = () => false; // Don't reconnect on errors in tests
+        } else {
+            options.reconnectOnError = (err) => {
+                logger.error("Redis reconnect error", { error: err });
+                return true; // Always try to reconnect in production
+            };
+            options.retryStrategy = (times) => {
+                const delay = Math.min(times * 50, 2000);
+                logger.warn(`Redis retry attempt ${times}, waiting ${delay}ms`);
+                return delay;
+            };
+        }
+        
+        return options;
+    }
+    
+    return {
+        host: process.env.REDIS_HOST || "localhost",
+        port: parseInt(process.env.REDIS_PORT || "6379"),
+        password: process.env.REDIS_PASSWORD,
+        db: parseInt(process.env.REDIS_DB || "0"),
+        maxRetriesPerRequest: null, // BullMQ requires this to be null
+        enableReadyCheck: true,
+        lazyConnect: process.env.NODE_ENV === "test",
+    };
+}
 
-/**
- * Configuration object for creating a managed queue.
- *
- * @template Data - The type of job data handled by the queue.
- */
+// Convert Redis options to BullMQ connection options
+export function toBullMQConnectionOptions(redisOptions: RedisOptions): ConnectionOptions {
+    return {
+        ...redisOptions,
+        // BullMQ-specific options - make sure these are preserved
+        maxRetriesPerRequest: null, // BullMQ requires this to be null
+        enableReadyCheck: redisOptions.enableReadyCheck ?? true,
+        lazyConnect: redisOptions.lazyConnect ?? false,
+    } as ConnectionOptions;
+}
+
 export interface BaseQueueConfig<Data> {
-    /** queue name, e.g. "email" or "run"  */
     name: string;
-    /** actual business logic – usually imported from ./<queue>/process */
     processor: (job: Job<Data>) => Promise<unknown>;
-    /** optional tweaks */
     jobOpts?: Partial<JobsOptions>;
     workerOpts?: Partial<WorkerOptions>;
-    /** custom init hook (e.g. schedule cron, register state-machine) */
     onReady?(): Promise<void> | void;
-    /** optional validator function for tasks */
     validator?: (data: Data) => { valid: boolean; errors?: string[] };
+    // Optional: Override connection config for specific queues
+    connectionOptions?: RedisOptions;
 }
 
 /**
- * ManagedQueue encapsulates a BullMQ queue, worker, and event listeners for a given task type.
- *
- * @template Data - The type of job data handled by the queue.
- *
- * @example
- *   const redis = buildRedis(process.env.REDIS_URL!);
- *   const emailQueue = new ManagedQueue({
- *     name: "email",
- *     processor: processEmailJob,
- *   }, redis);
- *
- *   // Add a job:
- *   await emailQueue.add({ to: "user@example.com", subject: "Welcome!" });
- *
- * @remarks
- *   - Each ManagedQueue instance owns its own queue, worker, and event listeners.
- *   - Designed for use in horizontally scaled environments (multiple processes/containers).
- *   - Handles graceful shutdown and error logging automatically.
+ * ManagedQueue implementation with connection isolation
+ * Each BullMQ component gets its own Redis connection for isolation
  */
 export class ManagedQueue<Data> {
-    /** Internal queue implementation */
-    private readonly _queue: Queue;
-    /** The BullMQ worker instance for processing jobs. */
+    public readonly queue: Queue;
     public readonly worker: Worker<Data>;
-    /** The BullMQ event listener for queue events (e.g., failures). */
     public readonly events: QueueEvents;
-    /** Promise that resolves when the onReady hook has completed. */
     public readonly ready: Promise<void>;
-    /** The name of this queue */
+    
     private readonly queueName: string;
-    /** Optional validator function for tasks */
     private readonly validator?: (data: Data) => { valid: boolean; errors?: string[] };
-
-    /**
-     * Constructs a new managed queue with the given configuration and Redis connection.
-     *
-     * @param cfg - The queue configuration (name, processor, options, hooks).
-     * @param connection - The shared Redis connection.
-     */
-    constructor(
-        cfg: BaseQueueConfig<Data>,
-        connection: IORedis,
-    ) {
+    private readonly connectionMonitor: NodeJS.Timer;
+    private isClosing = false;
+    
+    constructor(cfg: BaseQueueConfig<Data>) {
         this.queueName = cfg.name;
         this.validator = cfg.validator;
-
-        // 1. Queue: Handles job enqueuing and storage in Redis - using untyped Queue to avoid type issues
-        this._queue = new Queue(cfg.name, {
-            connection,
+        
+        // Get connection configuration (not an instance!)
+        const redisOptions = cfg.connectionOptions || getRedisConnectionConfig();
+        
+        // Create separate configuration objects for each BullMQ component
+        // This ensures BullMQ doesn't try to share connections between components
+        const queueConnectionOptions = toBullMQConnectionOptions({ 
+            ...redisOptions,
+            // Add unique identifier to prevent connection pooling
+            connectionName: `queue_${cfg.name}_${Date.now()}_${Math.random()}`,
+        });
+        const workerConnectionOptions = toBullMQConnectionOptions({ 
+            ...redisOptions,
+            // Add unique identifier to prevent connection pooling
+            connectionName: `worker_${cfg.name}_${Date.now()}_${Math.random()}`,
+        });
+        const eventsConnectionOptions = toBullMQConnectionOptions({ 
+            ...redisOptions,
+            // Add unique identifier to prevent connection pooling
+            connectionName: `events_${cfg.name}_${Date.now()}_${Math.random()}`,
+        });
+        
+        // Each component creates its own connection
+        this.queue = new Queue(cfg.name, {
+            connection: queueConnectionOptions,
             defaultJobOptions: { ...DEFAULT_JOB_OPTIONS, ...cfg.jobOpts },
         });
-
-        // 2. Worker: Processes jobs from the queue using the provided processor
+        
         this.worker = new Worker<Data>(
             cfg.name,
             cfg.processor,
-            { ...BASE_WORKER_OPTS, ...cfg.workerOpts, connection },
+            {
+                ...BASE_WORKER_OPTS,
+                ...cfg.workerOpts,
+                connection: workerConnectionOptions,
+            },
         );
-        // Add error listener to catch uncaught 'error' events and prevent the process from crashing
-        this.worker.on("error", (error) =>
-            logger.error(`Worker for queue ${cfg.name} encountered an error`, { error }),
-        );
-
-        // 3. Metrics & failures: Listen for job failures and log them
-        this.events = new QueueEvents(cfg.name, { connection });
-        this.events.on("failed", ({ jobId, failedReason }) =>
-            logger.error(`${cfg.name} job failed`, { jobId, failedReason }),
-        );
-
-        // 4. Optional post-setup logic (e.g., cron jobs, state machines)
-        if (cfg.onReady) {
-            // Promise that resolves when onReady hook has completed, catching any errors
-            const onReadyFn = cfg.onReady;
-            this.ready = Promise.resolve()
-                .then(() => onReadyFn())
-                .catch(error => {
-                    const queueName = this.queueName; // Capture for the new error
-                    logger.error(`onReady hook error for queue ${queueName}`, { originalError: error });
-                    // Ensure we throw an actual Error object
-                    if (error instanceof Error) {
-                        // Optionally augment the error message if needed, or rethrow as is.
-                        // For example: error.message = `Queue ${queueName} onReady hook failed: ${error.message}`;
-                        throw error;
-                    } else {
-                        // Wrap non-Error rejections in a new Error object for consistency
-                        throw new Error(`Queue ${queueName} onReady hook failed with non-Error value: ${String(error)}`);
-                    }
+        
+        this.events = new QueueEvents(cfg.name, {
+            connection: eventsConnectionOptions,
+        });
+        
+        // Set up comprehensive error handling
+        this.setupErrorHandlers();
+        
+        // Monitor connection health
+        this.connectionMonitor = setInterval(() => {
+            this.checkConnectionHealth();
+        }, 30000); // Every 30 seconds
+        
+        // Handle onReady
+        this.ready = this.setupOnReady(cfg.onReady);
+    }
+    
+    private setupErrorHandlers(): void {
+        // Worker errors
+        this.worker.on("error", (error) => {
+            // Ignore errors if we're closing
+            if (this.isClosing) return;
+            
+            logger.error(`Worker error in queue ${this.queueName}`, { 
+                error,
+                queue: this.queueName,
+                component: "worker",
+            });
+        });
+        
+        // Queue events errors
+        this.events.on("error", (error) => {
+            // Ignore errors if we're closing
+            if (this.isClosing) return;
+            
+            logger.error(`QueueEvents error in queue ${this.queueName}`, { 
+                error,
+                queue: this.queueName,
+                component: "events",
+            });
+        });
+        
+        // Job failures
+        this.events.on("failed", ({ jobId, failedReason, prev }) => {
+            // Ignore errors if we're closing
+            if (this.isClosing) return;
+            
+            logger.error(`Job failed in queue ${this.queueName}`, { 
+                jobId,
+                failedReason,
+                previousState: prev,
+                queue: this.queueName,
+            });
+        });
+        
+        // Stalled jobs (important for production monitoring)
+        this.events.on("stalled", ({ jobId }) => {
+            // Ignore errors if we're closing
+            if (this.isClosing) return;
+            
+            logger.warn(`Job stalled in queue ${this.queueName}`, { 
+                jobId,
+                queue: this.queueName,
+            });
+        });
+    }
+    
+    private async setupOnReady(onReady?: () => Promise<void> | void): Promise<void> {
+        if (!onReady) return;
+        
+        return new Promise((resolve, reject) => {
+            this.worker.once("ready", async () => {
+                try {
+                    await Promise.resolve(onReady());
+                    resolve();
+                } catch (error) {
+                    logger.error(`onReady hook failed for queue ${this.queueName}`, { error });
+                    reject(error);
+                }
+            });
+        });
+    }
+    
+    private async checkConnectionHealth(): Promise<void> {
+        // Skip health check if we're closing
+        if (this.isClosing) return;
+        
+        try {
+            // Check queue health
+            const queueClient = await this.queue.client;
+            if (queueClient.status !== "ready") {
+                logger.warn(`Queue Redis connection not ready for ${this.queueName}`, {
+                    status: queueClient.status,
+                    queue: this.queueName,
                 });
-        } else {
-            this.ready = Promise.resolve();
+            }
+            
+            // Get queue metrics for monitoring
+            const jobCounts = await this.queue.getJobCounts();
+            const workerInfo = await this.worker.client.then(c => c.ping());
+            
+            logger.debug(`Queue ${this.queueName} health check`, {
+                queue: this.queueName,
+                jobCounts,
+                workerPing: workerInfo,
+                connections: {
+                    queue: queueClient.status,
+                    // Note: worker and events clients are internal to BullMQ
+                },
+            });
+        } catch (error) {
+            logger.error(`Health check failed for queue ${this.queueName}`, { error });
         }
     }
-
+    
     /**
-     * Access the underlying BullMQ queue.
-     * For operations not covered by the ManagedQueue API.
-     */
-    get queue(): Queue {
-        return this._queue;
-    }
-
-    /**
-     * Adds a job to the queue.
-     *
-     * @param data - The job data payload.
-     * @param opts - Optional job options (overrides defaults for this job).
-     * @returns A promise resolving to the created job.
-     *
-     * @remarks
-     *   - Use this helper to enqueue jobs without importing BullMQ directly.
-     *   - The job name is set to the queue's name for consistency.
+     * Add a job to the queue (compatibility method).
      */
     add(data: Data, opts: Partial<JobsOptions> = {}) {
-        return this._queue.add(this.queueName, data, opts);
+        return this.queue.add(this.queueName, data, opts);
     }
-
+    
     /**
      * Helper function to add a task job to a queue with standardized error handling.
-     * 
-     * @param data The task data payload, which should extend BaseTaskData.
-     * @param opts Optional job options like delays, priority, etc.
-     * @returns A Success type with __typename indicator for GraphQL.
+     * Compatible with ManagedQueue interface.
      */
-    async addTask<T extends BaseTaskData & Data>(
+    async addTask<T extends Data & { id?: string; type: string; userId?: string }>(
         data: T,
         opts: Partial<JobsOptions> = {},
-    ): Promise<Success> {
+    ): Promise<{ __typename: "Success"; success: boolean }> {
         try {
-            // Validate the task data if a validator is provided
+            // Validate if validator provided
             if (this.validator) {
-                const validationResult = this.validator(data);
-                if (!validationResult.valid) {
-                    const errors = validationResult.errors || ["Task validation failed"];
+                const validation = this.validator(data);
+                if (!validation.valid) {
                     logger.error(`Task validation failed for ${this.queueName}`, {
-                        errors,
+                        errors: validation.errors,
                         data,
                     });
                     return { __typename: "Success" as const, success: false };
                 }
             }
-
+            
             // Use the task ID as the job ID if available
             const jobOpts: Partial<JobsOptions> = { ...opts };
-
             if (jobOpts.jobId == null && data.id) {
                 jobOpts.jobId = data.id;
             }
-
-            // this.add is expected to return a Job object or throw an error.
-            // If it resolves, the job was successfully added.
+            
             await this.add(data, jobOpts);
             return { __typename: "Success" as const, success: true };
-
+            
         } catch (error) {
             logger.error("Error adding task to queue", {
                 queueName: this.queueName,
@@ -517,82 +397,107 @@ export class ManagedQueue<Data> {
             return { __typename: "Success" as const, success: false };
         }
     }
-
+    
+    async close(): Promise<void> {
+        // Prevent multiple close attempts
+        if (this.isClosing) {
+            return;
+        }
+        this.isClosing = true;
+        
+        // Clear health monitor first
+        clearInterval(this.connectionMonitor);
+        
+        try {
+            // 1. Pause the queue to stop accepting new jobs
+            await this.queue.pause().catch(() => {
+                // Ignore pause errors - queue might already be paused
+            });
+            
+            // 2. Remove event listeners to stop processing events
+            this.worker.removeAllListeners();
+            this.events.removeAllListeners();
+            this.queue.removeAllListeners();
+            
+            // 3. Close worker first (stops processing jobs)
+            await this.worker.close().catch(error => {
+                logger.debug(`Worker close error for ${this.queueName}:`, error);
+            });
+            
+            // 4. Small delay to allow worker to finish cleanup
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
+            // 5. Close events (stops listening for job events)
+            await this.events.close().catch(error => {
+                logger.debug(`Events close error for ${this.queueName}:`, error);
+            });
+            
+            // 6. Close queue last (closes the main connection)
+            await this.queue.close().catch(error => {
+                logger.debug(`Queue close error for ${this.queueName}:`, error);
+            });
+            
+            // 7. Final delay to ensure all connections are fully closed
+            if (process.env.NODE_ENV === "test") {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+        } catch (error) {
+            logger.error(`Error during graceful close of queue ${this.queueName}`, { error });
+        }
+    }
+    
     /**
      * Get the statuses of multiple tasks from this queue.
-     * 
-     * @param taskIds - Array of task IDs for which to fetch the statuses.
-     * @returns Promise that resolves to an array of objects with task ID and status.
+     * Compatible with ManagedQueue interface.
      */
     async getTaskStatuses(taskIds: string[]): Promise<Array<{ id: string, status: string | null }>> {
         return Promise.all(taskIds.map(async (taskId) => {
             try {
-                const job = await this._queue.getJob(taskId);
+                const job = await this.queue.getJob(taskId);
                 if (job) {
                     const state = await job.getState();
                     return {
                         id: taskId,
-                        // Use the state stored in the data, or fallback to the state from BullMQ. 
-                        // This is useful for tasks like runs that may have more specific statuses.
-                        status: (job.data as RunTask).status ?? state ?? null,
+                        status: (job.data as any).status ?? state ?? null,
                     };
                 } else {
-                    return { id: taskId, status: null };  // Task not found
+                    return { id: taskId, status: null };
                 }
             } catch (error) {
                 logger.error(`Failed to retrieve task ${taskId}`, { error });
-                return { id: taskId, status: null };  // Error fetching the job
+                return { id: taskId, status: null };
             }
         }));
     }
-
-    /**
-     * Determine the owner of a task (supports userId, startedById, or userData.id).
-     */
-    static getTaskOwner(task: AnyTask): string | undefined {
-        const baseTask = task as BaseTaskData;
-        return baseTask.userId ?? (task as RunTask).startedById ?? (task as LLMCompletionTask | SandboxTask | RunTask).userData?.id;
-    }
-
+    
     /**
      * Update a task's status with authentication check.
-     * Tasks without a userId cannot have their status updated.
-     * 
-     * @param taskId - The task ID to update
-     * @param status - The new status to set
-     * @param userId - The user ID of the requester (for authorization)
-     * @returns Promise resolving to a Success type with __typename
+     * Compatible with ManagedQueue interface.
      */
-    async changeTaskStatus<T extends BaseTaskData>(
+    async changeTaskStatus<T extends { id?: string; type: string; userId?: string; status?: string }>(
         taskId: string,
         status: string,
         userId: string,
-    ): Promise<Success> {
+    ): Promise<{ __typename: "Success"; success: boolean }> {
         try {
-            // Normalize status for consistent comparisons
             const normalizedStatus = status.trim().toLowerCase();
-            const job = await this._queue.getJob(taskId);
-
+            const job = await this.queue.getJob(taskId);
+            
             if (!job) {
-                // If job isn't found but we're changing to a conventionally terminal state,
-                // consider it a success. This handles cases where the job might have been
-                // auto-removed by BullMQ due to removeOnComplete/removeOnFail settings.
                 const trulyTerminalStates = ["completed", "failed"];
                 if (trulyTerminalStates.includes(normalizedStatus)) {
                     logger.info(`Task with id ${taskId} not found, but considered a success as status is being changed to a terminal state '${normalizedStatus}'.`);
                     return { __typename: "Success" as const, success: true };
                 }
-
-                // For other statuses (like "suggested" or any active/pending state),
-                // not finding the job is an error.
                 logger.error(`Task with id ${taskId} not found. Cannot change status to '${normalizedStatus}'.`);
                 return { __typename: "Success" as const, success: false };
             }
-
+            
             const data = job.data as T;
-
-            // Determine the real owner using shared helper
-            const ownerId = ManagedQueue.getTaskOwner(data as unknown as AnyTask);
+            
+            // Check ownership
+            const ownerId = data.userId ?? (data as any).startedById ?? (data as any).userData?.id;
             if (!ownerId) {
                 logger.error(`Task ${taskId} does not have an owner and cannot have its status updated`);
                 return { __typename: "Success" as const, success: false };
@@ -601,68 +506,124 @@ export class ManagedQueue<Data> {
                 logger.error(`User ${userId} not authorized to change status of task ${taskId} (owner=${ownerId}).`);
                 return { __typename: "Success" as const, success: false };
             }
-
+            
             // Update the job data with the new status
             await job.update({
                 ...data,
                 status: normalizedStatus,
             });
-
+            
             return { __typename: "Success" as const, success: true };
         } catch (error) {
             logger.error(`Failed to change status for task ${taskId}`, { error });
             return { __typename: "Success" as const, success: false };
         }
     }
-
+    
     /**
      * Check the health of the queue.
-     * 
-     * @returns Promise resolving to a QueueHealth object
+     * Compatible with ManagedQueue interface.
      */
     async checkHealth() {
-        return getQueueHealth(this._queue);
+        try {
+            const jobCounts = await this.queue.getJobCounts(
+                "waiting",
+                "delayed",
+                "active",
+                "failed",
+                "completed",
+                "paused",
+            );
+            
+            const backlog = jobCounts.waiting + jobCounts.delayed;
+            const failed = jobCounts.failed;
+            
+            let status = "healthy";
+            if (failed > 25 || backlog > 1000) {
+                status = "down";
+            } else if (failed > 0 || backlog > 500) {
+                status = "degraded";
+            }
+            
+            const activeJobsRaw = await this.queue.getJobs(["active"], 0, 9, true);
+            const activeJobs = activeJobsRaw.map(j => ({
+                id: j.id as string,
+                name: j.name,
+                duration: (Date.now() - (j.processedOn ?? Date.now())),
+                processedOn: j.processedOn,
+            }));
+            
+            return { status, jobCounts, activeJobs };
+        } catch (error) {
+            logger.error(`Health check failed for queue ${this.queueName}`, { error });
+            return {
+                status: "down",
+                jobCounts: {},
+                activeJobs: [],
+            };
+        }
     }
-
-    /**
-     * Gracefully closes the queue, worker, and event listeners.
-     * This supports proper application shutdown by releasing Redis connections.
-     */
-    async close(): Promise<void> {
-        await Promise.all([
-            this.worker.close(),
-            this.events.close(),
-            this._queue.close(),
+    
+    // Production monitoring methods
+    async getMetrics() {
+        const [jobCounts, workers] = await Promise.all([
+            this.queue.getJobCounts(),
+            this.queue.getWorkers(),
         ]);
+        
+        return {
+            queue: this.queueName,
+            jobs: jobCounts,
+            workers: workers.length,
+            isPaused: await this.queue.isPaused(),
+        };
     }
 }
 
 /**
- * Closes all shared Redis connections created by buildRedis.
- * Should be called on application shutdown to clean up resources.
- */
-export async function closeRedisConnections(): Promise<void> {
-    const clients = Object.values(redisClients);
-    // Gracefully quit each Redis client
-    await Promise.all(clients.map(client => client.quit()));
-    // Clear the client cache
-    for (const url in redisClients) {
-        delete redisClients[url];
-    }
-}
-
-/**
- * Clears the Redis connection cache without closing connections.
- * This is primarily for testing purposes to prevent invalid URLs from polluting the cache.
- * @internal
+ * Clears any cached Redis connections for test cleanup.
+ * 
+ * In the new isolated connection architecture, this function primarily
+ * serves as a compatibility layer for existing test code.
+ * 
+ * @internal Test utility function
  */
 export function clearRedisCache(): void {
-    // Clear all cached clients
-    for (const url in redisClients) {
-        delete redisClients[url];
+    if (process.env.NODE_ENV === "test") {
+        logger.debug("clearRedisCache called - no cached connections to clear in isolated architecture");
+        
+        // Force garbage collection to clean up any lingering connection references
+        if (global.gc) {
+            global.gc();
+        }
     }
-    // Clear any pending connection promises
-    for (const url in connectionEstablishmentPromises) {
-        delete connectionEstablishmentPromises[url];
+}
+
+// Singleton for connection monitoring across all queues
+export class QueueConnectionMonitor {
+    private static instance: QueueConnectionMonitor;
+    private queues: Map<string, ManagedQueue<any>> = new Map();
+    
+    static getInstance(): QueueConnectionMonitor {
+        if (!this.instance) {
+            this.instance = new QueueConnectionMonitor();
+        }
+        return this.instance;
+    }
+    
+    registerQueue(queue: ManagedQueue<any>): void {
+        this.queues.set(queue.queue.name, queue);
+    }
+    
+    async getSystemMetrics() {
+        const metrics = await Promise.all(
+            Array.from(this.queues.values()).map(q => q.getMetrics()),
+        );
+        
+        return {
+            totalQueues: this.queues.size,
+            queues: metrics,
+            timestamp: new Date(),
+        };
     }
 }

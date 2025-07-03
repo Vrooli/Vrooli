@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=server-type-safety-fixes | LAST: 2025-07-01 - Fixed any types to proper Record/unknown types
 import { type ModelType, pascalCase, validatePK } from "@vrooli/shared";
 import { isRelationshipObject } from "../builders/isOfType.js";
 import { type PrismaDelegate } from "../builders/types.js";
@@ -67,7 +68,7 @@ export async function fetchAndMapPlaceholder(
     const { dbTable, format: _format } = ModelMap.getLogic(["dbTable", "format"], pascalCase(objectType) as ModelType, true, "fetchAndMapPlaceholder 1");
 
     // Construct the select object to query nested relations
-    const select: Record<string, any> = {};
+    const select: Record<string, unknown> = {};
     let currentSelect = select;
     parts.forEach((part, index) => {
         if (index === 0) {
@@ -139,7 +140,7 @@ export async function replacePlaceholdersInInputsById(
 ): Promise<void> {
     for (const [maybePlaceholder, value] of Object.entries(inputsById)) {
         if (!maybePlaceholder.includes("|")) continue;
-        let id: string | null = maybePlaceholder;
+        let id: string | bigint | null = maybePlaceholder;
         if (placeholderToIdMap[maybePlaceholder]) {
             id = placeholderToIdMap[maybePlaceholder];
         } else {
@@ -290,7 +291,7 @@ export function initializeInputMaps(
  * @param relation - The relation name, if not the root object (so we can update the path if no ID is found at this level).
  * @returns The updated closestWithId object or null.
  */
-export function updateClosestWithId<T extends { [key: string]: any }>(
+export function updateClosestWithId<T extends Record<string, unknown>>(
     action: QueryAction,
     input: string | boolean | T,
     idField: string,
@@ -339,7 +340,7 @@ export function determineModelType<
     field: string,
     fieldName: string,
     input: ApiModel,
-    format: MinimumFormatter<any>,
+    format: MinimumFormatter<ModelLogicType>,
 ): `${ModelType}` | null {
     // Check if the field exists in the relMap (the standard case)
     const __typename: `${ModelType}` = format.apiRelMap[fieldName] as `${ModelType}`;
@@ -505,8 +506,8 @@ export function processConnectDisconnectOrDelete(
     // We'll skip this for isToOne Disconnects and Deletes, since they don't have an ID 
     // (they use a boolean instead)
     if (!(isToOne && ["Disconnect", "Delete"].includes(action))) {
-        idsByAction[action]?.push(id);
-        idsByType[__typename]?.push(id);
+        idsByAction[action]?.push(id.toString());
+        idsByType[__typename]?.push(id.toString());
         const node = new InputNode(__typename, id, action);
         node.parent = parentNode;
         parentNode.children.push(node);
@@ -539,7 +540,7 @@ export function processInputObjectField<
     idsByType: IdsByType,
     inputsById: InputsById,
     inputsByType: InputsByType,
-    inputInfo: { node: InputNode, input: string | Record<string, any> },
+    inputInfo: { node: InputNode, input: string | Record<string, unknown> },
 ): void {
     const action = getActionFromFieldName(field);
     const isToOne = !(input[field] instanceof Array);
@@ -632,14 +633,14 @@ export function inputToMaps<
     initializeInputMaps(action, format.apiRelMap.__typename, idsByAction, idsByType, inputsByType);
 
     // Add the current ID to idsByAction and idsByType
-    idsByAction[action]?.push(id);
-    idsByType[format.apiRelMap.__typename]?.push(id);
+    idsByAction[action]?.push(id.toString());
+    idsByType[format.apiRelMap.__typename]?.push(id.toString());
 
     // Update closestWithId for generating placeholders
     closestWithId = updateClosestWithId(action, input, idField, format.apiRelMap.__typename, closestWithId);
 
     // Initialize object to store processed input info
-    const inputInfo: { node: InputNode, input: any } = { node: rootNode, input: {} };
+    const inputInfo: { node: InputNode, input: Record<string, unknown> } = { node: rootNode, input: {} };
 
     // If input is not an object (i.e. an ID)
     if (!isRelationshipObject(input)) {
@@ -700,7 +701,7 @@ export async function cudInputsToMaps({
         inputToMaps(
             action,
             input,
-            format as MinimumFormatter<any>,
+            format as MinimumFormatter<ModelLogicType>,
             idField,
             null,
             idsByAction,
@@ -738,10 +739,10 @@ export async function cudInputsToMaps({
             inputInfo.input = connectId;
             inputsByType[type].Connect.push(inputInfo);
             // Remove from idsByAction.Create and add to idsByAction.Connect
-            const idIndex = idsByAction.Create?.indexOf(createId);
+            const idIndex = idsByAction.Create?.indexOf(createId.toString());
             if (idIndex === undefined || idIndex === -1 || !idsByAction.Create) continue;
             idsByAction.Create.splice(idIndex, 1);
-            idsByAction.Connect = (idsByAction.Connect || []).concat(connectId);
+            idsByAction.Connect = (idsByAction.Connect || []).concat(connectId.toString());
         }
     }
 

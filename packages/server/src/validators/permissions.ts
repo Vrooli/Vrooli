@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-02
 import { DUMMY_ID, type ModelType, type SessionUser } from "@vrooli/shared";
 import { permissionsSelectHelper } from "../builders/permissionsSelectHelper.js";
 import { type PrismaDelegate } from "../builders/types.js";
@@ -8,7 +9,6 @@ import { ModelMap } from "../models/base/index.js";
 import { type Validator } from "../models/types.js";
 import { type AuthDataById, type AuthDataItem } from "../utils/getAuthenticatedData.js";
 import { type InputsById, type QueryAction } from "../utils/types.js";
-import { isOwnerAdminCheck } from "./isOwnerAdminCheck.js";
 
 /**
  * Handles setting and interpreting permission policies for teams and their objects. Permissions are stored as stringified JSON 
@@ -223,10 +223,76 @@ type ResolvedPermissions = { [x in Exclude<QueryAction, "Create"> as `can${x}`]:
 * @param inputsById Map of all input data, keyed by ID
 * @returns Input data for parent object, or undefined if parent doesn't exist or doesn't match typename
 */
-export function getParentInfo(id: string, typename: `${ModelType}`, inputsById: InputsById): any | undefined {
+export function getParentInfo(id: string, typename: `${ModelType}`, inputsById: InputsById): unknown | undefined {
     const node = inputsById[id]?.node;
     if (node?.__typename !== typename) return undefined;
     return node?.parent ? inputsById[node.parent.id]?.input : undefined;
+}
+
+/**
+ * Type for owner object structure
+ */
+export interface OwnerData {
+    Team?: {
+        id: string;
+        members?: Array<{
+            userId: string;
+            isAdmin: boolean;
+        }>;
+    } | null;
+    User?: {
+        id: string;
+    } | null;
+}
+
+/**
+ * Checks if the user has admin privileges on an object's creator/owner
+ */
+export function isOwnerAdminCheck(
+    owner: OwnerData,
+    userId: string | null | undefined,
+): boolean {
+    // Can't be an admin if not logged in
+    if (userId === null || userId === undefined) return false;
+    // If the owner is a user, check id
+    if (owner.User) return owner.User.id.toString() === userId;
+    // If the owner is a team, check if you're a member with "isAdmin" set to true
+    if (owner.Team) {
+        return owner.Team.members ?
+            owner.Team.members.some((member) => member.userId.toString() === userId && member.isAdmin) :
+            false;
+    }
+    // If the owner is neither a user nor a team, return false
+    return false;
+}
+
+/**
+ * Holds common permission resolvers, which can apply to most models. 
+ * Some models may have custom resolvers, which can easily be set in 
+ * their ModelLogic object.
+ */
+export function defaultPermissions({
+    isAdmin,
+    isDeleted,
+    isLoggedIn,
+    isPublic,
+}: { isAdmin: boolean, isDeleted: boolean, isLoggedIn: boolean, isPublic: boolean }) {
+    return {
+        canBookmark: () => isLoggedIn && !isDeleted && (isAdmin || isPublic),
+        canComment: () => isLoggedIn && !isDeleted && (isAdmin || isPublic),
+        canConnect: () => isLoggedIn && !isDeleted && (isAdmin || isPublic),
+        canCopy: () => isLoggedIn && !isDeleted && (isAdmin || isPublic),
+        canDelete: () => isLoggedIn && !isDeleted && isAdmin,
+        canDisconnect: () => isLoggedIn,
+        canRead: () => !isDeleted && (isPublic || isAdmin),
+        canReport: () => isLoggedIn && !isAdmin && !isDeleted && isPublic,
+        canRun: () => !isDeleted && (isAdmin || isPublic),
+        canShare: () => !isDeleted && (isAdmin || isPublic),
+        canTransfer: () => isLoggedIn && isAdmin && !isDeleted,
+        canUpdate: () => isLoggedIn && !isDeleted && isAdmin,
+        canUse: () => isLoggedIn && !isDeleted && (isAdmin || isPublic),
+        canReact: () => isLoggedIn && !isDeleted && (isAdmin || isPublic),
+    };
 }
 
 /**
@@ -237,12 +303,13 @@ export function getParentInfo(id: string, typename: `${ModelType}`, inputsById: 
  * @param inputsById Optional data for additional permission logic context.
  * @returns A promise that resolves to an object with permission keys and boolean values.
  */
-export async function calculatePermissions(
-    authData: AuthDataItem,
+export async function calculatePermissions<T extends AuthDataItem>(
+    authData: T,
     userData: Pick<SessionUser, "id"> | null,
-    validator: ReturnType<Validator<any>>,
+    validator: ReturnType<Validator<T>>,
     inputsById?: InputsById,
 ): Promise<ResolvedPermissions> {
+    // If the user is an admin in relation to the object (i.e. they can do anything to it). This DOES NOT mean they're a site admin!
     const isAdmin = userData?.id ? isOwnerAdminCheck(validator.owner(authData, userData.id), userData.id) : false;
     const isDeleted = validator.isDeleted(authData);
     const isLoggedIn = !!userData?.id;
@@ -259,9 +326,15 @@ export async function calculatePermissions(
 }
 
 /**
+ * Type for permissions result object
+ */
+type PermissionsById = Record<string, ResolvedPermissions>;
+
+/**
  * Using queried permissions data, calculates permissions for multiple objects. These are used to let a user know ahead of time if they're allowed to 
  * perform an action, and indicate that in the UX
  * @param authDataById Map of all queried data required to validate permissions, keyed by ID.
+ * @param inputsById Map of all input data, keyed by ID
  * @param userData Data about the user performing the action
  * @returns Map of permissions objects, keyed by ID
  */
@@ -269,9 +342,9 @@ export async function getMultiTypePermissions(
     authDataById: AuthDataById,
     inputsById: InputsById,
     userData: Pick<SessionUser, "id"> | null,
-): Promise<{ [id: string]: { [x: string]: any } }> {
+): Promise<PermissionsById> {
     // Initialize result
-    const permissionsById: { [id: string]: { [key in QueryAction as `can${key}`]?: boolean } } = {};
+    const permissionsById: PermissionsById = {};
     // Loop through each ID and calculate permissions
     for (const [id, authData] of Object.entries(authDataById)) {
         // Get permissions object for this ID
@@ -289,7 +362,7 @@ export async function getMultiTypePermissions(
  * @returns Permissions object, where each field is a permission and each value is an array
  * of that permission's value for each object (in the same order as the IDs)
  */
-export async function getSingleTypePermissions<Permissions extends { [x: string]: any }>(
+export async function getSingleTypePermissions<Permissions extends Record<string, boolean>>(
     type: `${ModelType}`,
     ids: string[],
     userData: Pick<SessionUser, "id" | "languages"> | null,
@@ -300,7 +373,7 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
     const { dbTable, validate } = ModelMap.getLogic(["dbTable", "validate"], type);
     const validator = validate();
     // Get auth data for all objects
-    let select: any;
+    let select: unknown;
     let dataById: Record<string, object>;
     try {
         select = permissionsSelectHelper(validator.permissionsSelect, userData?.id ?? null);
@@ -325,16 +398,22 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
 }
 
 /**
+ * Type for auth data objects with typename
+ */
+type TypedAuthData = AuthDataItem & { __typename: `${ModelType}` };
+
+/**
  * Validates that the user has permission to perform one or more actions on the given objects. Throws 
  * an error if the user does not have permission.
  * @param authDataById Map of all queried data required to validate permissions, keyed by ID.
  * @param idsByAction Map of object IDs to validate permissions for, keyed by action. We store actions this way (instead of keyed by ID) 
  * in case one ID is used for multiple actions.
- * @param userId ID of user requesting permissions
+ * @param inputsById Map of all input data, keyed by ID
+ * @param userData Data about the user performing the action
  * @param throwsOnError Whether to throw an error if the user does not have permission, or return a boolean
  */
 export async function permissionsCheck(
-    authDataById: { [id: string]: { __typename: `${ModelType}`, [x: string]: any } },
+    authDataById: Record<string, TypedAuthData>,
     idsByAction: { [key in QueryAction]?: string[] },
     inputsById: InputsById,
     userData: Pick<SessionUser, "id"> | null,

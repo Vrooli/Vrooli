@@ -1,13 +1,14 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { HttpStatus, type SessionUser, nanoid } from "@vrooli/shared";
 import http from "http"; // Import http for internal service call
-import sharp from "sharp";
 import { type UploadConfig } from "../endpoints/rest.js";
 import { CustomError } from "../events/error.js";
 import { logger } from "../events/logger.js";
 import { type RequestFile } from "../types.js";
 // Import FormData for multipart request
 import FormData from "form-data";
+// Import Sharp wrapper for graceful degradation
+import { safeResizeImage, isSharpAvailable, getImageProcessingStatus } from "./sharpWrapper.js";
 
 // Global S3 client variable
 let s3: S3Client | undefined;
@@ -152,25 +153,37 @@ interface SafeContentAIResponse {
 }
 
 async function resizeImage(buffer: Buffer, width: number, height: number, format: "jpeg" | "png" | "webp" = "jpeg") {
-    return await sharp(buffer)
-        // Don't enlarge the image if it's already smaller than the requested size.
-        .resize(width, height, { withoutEnlargement: true })
-        // Replace transparent pixels with white.
-        .flatten({ background: { r: 255, g: 255, b: 255 } })
-        // Convert to the requested format.
-        .toFormat(format)
-        // Convert to a buffer.
-        .toBuffer();
+    // Use the safe wrapper that handles Sharp failures gracefully
+    const result = await safeResizeImage(buffer, width, height, format);
+    
+    if (!result.resized) {
+        logger.warn("[FileStorage] Image resize skipped - Sharp not available", {
+            error: result.error,
+            width,
+            height,
+            format,
+        });
+    }
+    
+    return result.buffer;
 }
 
-async function convertHeicToJpeg(buffer: Buffer): Promise<Buffer> {
-    const convert = await getHeicConvert();
-    const outputBuffer = await convert({
-        buffer,  // the HEIC file buffer
-        format: "JPEG", // output format
-        quality: 1, // the jpeg compression quality, between 0 and 1
-    });
-    return Buffer.from(outputBuffer);
+async function convertHeicToJpeg(buffer: Buffer): Promise<Buffer | null> {
+    try {
+        const convert = await getHeicConvert();
+        const outputBuffer = await convert({
+            buffer,  // the HEIC file buffer
+            format: "JPEG", // output format
+            quality: 1, // the jpeg compression quality, between 0 and 1
+        });
+        return Buffer.from(outputBuffer);
+    } catch (error) {
+        logger.error("[FileStorage] HEIC conversion failed", {
+            error: error instanceof Error ? error.message : String(error),
+        });
+        // Return null to indicate conversion failed
+        return null;
+    }
 }
 
 /** Supported image types/extensions */
@@ -228,6 +241,23 @@ async function uploadFile(
             logger.error("Failed to upload file to S3", { trace: "s3-upload-fail", key, mimetype, error });
         }
         throw error; // Re-throw the error after logging or timeout
+    }
+}
+
+/**
+ * Checks and logs the image processing capabilities at startup
+ */
+export async function checkImageProcessingCapabilities(): Promise<void> {
+    const isAvailable = await isSharpAvailable();
+    const status = getImageProcessingStatus();
+    
+    if (!isAvailable) {
+        logger.warn("[FileStorage] Image processing capabilities limited", {
+            status,
+            message: "Sharp module failed to load. Image resizing and HEIC conversion will be disabled.",
+        });
+    } else {
+        logger.info("[FileStorage] Image processing fully available", { status });
     }
 }
 
@@ -290,9 +320,23 @@ export async function processAndStoreFiles<TInput>(
 
         // If the image is in HEIC or HEIF format, convert it to JPEG
         if (["heic", "heif"].includes(extension.toLowerCase())) {
-            buffer = await convertHeicToJpeg(buffer);
-            mimetype = "image/jpeg";
-            extension = "jpg";
+            const convertedBuffer = await convertHeicToJpeg(buffer);
+            if (convertedBuffer) {
+                buffer = convertedBuffer;
+                mimetype = "image/jpeg";
+                extension = "jpg";
+            } else {
+                // HEIC conversion failed - check if Sharp is available for fallback
+                const sharpStatus = getImageProcessingStatus();
+                if (!sharpStatus.available) {
+                    throw new CustomError("0527", "ActionFailed", { 
+                        reason: "Image processing unavailable - HEIC/HEIF files cannot be converted", 
+                        file: file.originalname, 
+                    });
+                }
+                // If we get here, HEIC conversion failed for another reason
+                logger.warn("[FileStorage] HEIC conversion failed, using original file", { file: file.originalname });
+            }
         }
 
         // If the file is an image, we must check for NSFW content and upload various sizes
@@ -302,20 +346,41 @@ export async function processAndStoreFiles<TInput>(
             if (isNsfw) {
                 throw new CustomError("0526", "ActionFailed", { reason: "NSFW content detected", file: file.originalname });
             }
-            // Upload image in various sizes, specified in fileConfig
-            for (let i = 0; i < fileConfig.imageSizes.length; i++) {
-                const { width, height } = fileConfig.imageSizes[i];
-                const resizedImage = await resizeImage(buffer, width, height);
-
-                // Construct a unique key using hash, extension, and size
-                const resizedKey = `${filenameBase}_${width}x${height}.${extension}`;
-
+            
+            // Check if image processing is available
+            const sharpStatus = getImageProcessingStatus();
+            if (!sharpStatus.available) {
+                // Sharp not available - upload only the original size
+                logger.warn("[FileStorage] Image resizing unavailable, uploading original size only", {
+                    file: file.originalname,
+                    requestedSizes: fileConfig.imageSizes.length,
+                });
+                
+                // Upload original image with a size suffix for consistency
+                const originalKey = `${filenameBase}_original.${extension}`;
                 try {
-                    const url = await uploadFile(s3, resizedKey, resizedImage, mimetype);
+                    const url = await uploadFile(s3, originalKey, buffer, mimetype);
                     urls.push(url);
                 } catch (error) {
-                    logger.error("Failed to upload file", { trace: "0504", error, fileName: file.originalname, resizedFileName: resizedKey });
+                    logger.error("Failed to upload file", { trace: "0504", error, fileName: file.originalname });
                     throw error;
+                }
+            } else {
+                // Sharp available - upload image in various sizes, specified in fileConfig
+                for (let i = 0; i < fileConfig.imageSizes.length; i++) {
+                    const { width, height } = fileConfig.imageSizes[i];
+                    const resizedImage = await resizeImage(buffer, width, height);
+
+                    // Construct a unique key using hash, extension, and size
+                    const resizedKey = `${filenameBase}_${width}x${height}.${extension}`;
+
+                    try {
+                        const url = await uploadFile(s3, resizedKey, resizedImage, mimetype);
+                        urls.push(url);
+                    } catch (error) {
+                        logger.error("Failed to upload file", { trace: "0504", error, fileName: file.originalname, resizedFileName: resizedKey });
+                        throw error;
+                    }
                 }
             }
         } else {

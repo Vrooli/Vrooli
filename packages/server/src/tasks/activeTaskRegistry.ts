@@ -1,6 +1,5 @@
 import { SECONDS_1_MS } from "@vrooli/shared";
 import { logger } from "../events/logger.js";
-import { Notify } from "../notify/notify.js";
 
 /**
  * Interface for a managed task state machine.
@@ -11,7 +10,7 @@ export interface ManagedTaskStateMachine {
     /** Returns the unique ID of the task it manages */
     getTaskId(): string;
     /** Returns the current status of the task */
-    getCurrentSagaStatus(): string;
+    getState(): string;
     /** Returns true if pause was initiated successfully */
     requestPause(): Promise<boolean>;
     /** Returns true if stop was initiated successfully */
@@ -246,10 +245,9 @@ export async function checkLongRunningTasksInRegistry(
             // Action 1: Send notification to user
             if (taskInfo.userId) {
                 try {
-                    // Assuming Notify service instance is available or can be instantiated/accessed.
-                    // For now, passing undefined for languages, which should default to system language.
-                    // The deliveryMode "default" will be used implicitly by toUser if not specified,
-                    // or we can specify it explicitly.
+                    // Use lazy loading to avoid circular dependency with notify/queues
+                    const { Notify } = await import("../notify/notify.js");
+
                     Notify(undefined) // Pass undefined for languages, or retrieve user languages if possible
                         .pushLongRunningTaskWarning(
                             taskInfo.id,
@@ -271,7 +269,7 @@ export async function checkLongRunningTasksInRegistry(
 
             const sm = registry.get(taskInfo.id);
             if (sm) {
-                const status = sm.getCurrentSagaStatus();
+                const status = sm.getState();
                 const pausableStoppableStates = ["RUNNING", "IDLE", "STARTING"]; // These are examples, adjust based on actual state machine logic
 
                 if (pausableStoppableStates.includes(status)) {

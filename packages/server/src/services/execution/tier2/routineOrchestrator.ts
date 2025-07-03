@@ -63,9 +63,12 @@ export class RoutineOrchestrator extends BaseComponent implements TierCommunicat
     private readonly activeExecutions = new Map<string, RoutineExecutor>();
 
 
-    constructor(contextManager?: ISwarmContextManager) {
+    constructor(
+        contextManager?: ISwarmContextManager,
+        tier3Executor?: TierCommunicationInterface,
+    ) {
         super("RoutineOrchestrator");
-        this.tier3Executor = tier3Executor;
+        this.tier3Executor = tier3Executor || this.createDefaultTier3Executor();
         this.contextManager = contextManager;
 
         // Initialize shared dependencies for creating RoutineExecutors
@@ -499,6 +502,17 @@ export class RoutineOrchestrator extends BaseComponent implements TierCommunicat
             codeReduction: "75%", // vs UnifiedRunStateMachine
             lastUpdated: new Date().toISOString(),
         };
+    }
+
+    /**
+     * Create default Tier 3 executor if none provided
+     */
+    private createDefaultTier3Executor(): TierCommunicationInterface {
+        logger.warn("[RoutineOrchestrator] Creating default StepExecutor - consider providing explicit tier3Executor");
+        
+        // Import dynamically to avoid circular dependencies
+        const { StepExecutor } = require("../tier3/stepExecutor.js");
+        return new StepExecutor();
     }
 
 }

@@ -11,6 +11,7 @@
  * We want objects to be owned by teams rather than users, as this means the objects are tied to 
  * the team's governance structure.
  */
+// AI_CHECK: TYPE_SAFETY=server-type-safety-fixes | LAST: 2025-06-29 - Fixed undefined index access
 import { type ModelType, type ObjectLimit, type ObjectLimitOwner, type ObjectLimitPremium, type ObjectLimitPrivacy, type SessionUser } from "@vrooli/shared";
 import { type PrismaDelegate } from "../builders/types.js";
 import { getVisibilityFunc } from "../builders/visibilityBuilder.js";
@@ -146,7 +147,7 @@ export async function maxObjectsCheck(
             // Find owner and object type
             const owners = validator.owner(combinedData, userData.id);
             // Increment count for owner. We can assume we're the owner if no owner was provided
-            const ownerId: string | undefined = owners.Team?.id?.toString() ?? owners.User?.id?.toString() ?? userData.id;
+            const ownerId: string = owners.Team?.id?.toString() ?? owners.User?.id?.toString() ?? userData.id;
             // Initialize shape of counts for this owner
             counts[typename] = counts[typename] || {};
             counts[typename]![ownerId] = counts[typename]![ownerId] || { private: 0, public: 0 };

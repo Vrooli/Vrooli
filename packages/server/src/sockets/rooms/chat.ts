@@ -11,7 +11,7 @@ import { SocketService } from "../io.js";
 export function chatSocketRoomHandlers(socket: Socket) {
     SocketService.get().onSocketEvent(socket, "joinChatRoom", async ({ chatId }, callback) => {
         try {
-            if (AuthTokensService.isAccessTokenExpired(socket.session)) {
+            if (!("session" in socket) || !socket.session || AuthTokensService.isAccessTokenExpired(socket.session)) {
                 callback({ success: false, error: JOIN_CHAT_ROOM_ERRORS.SessionExpired });
                 return;
             }
@@ -64,7 +64,7 @@ export function chatSocketRoomHandlers(socket: Socket) {
     SocketService.get().onSocketEvent(socket, "requestCancellation", async (data: { chatId: string }, callback) => {
         const { chatId } = data;
         try {
-            if (AuthTokensService.isAccessTokenExpired(socket.session)) {
+            if (!("session" in socket) || !socket.session || AuthTokensService.isAccessTokenExpired(socket.session)) {
                 callback({ success: false, error: "SessionExpired" });
                 return;
             }
@@ -114,3 +114,5 @@ export function chatSocketRoomHandlers(socket: Socket) {
         }
     });
 }
+
+// AI_CHECK: TYPE_SAFETY=server-socket-safety-fixes | LAST: 2025-07-01 - Fixed unsafe session property access with proper null checks

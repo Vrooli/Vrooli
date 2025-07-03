@@ -120,7 +120,7 @@ describe("EndpointsReportResponse", () => {
             
             const input: ReportResponseSearchInput = { 
                 take: 10, 
-                reportId: reports[0].id 
+                reportId: reports[0].id, 
             };
             const result = await reportResponse.findMany({ input }, { req, res }, reportResponse_findMany);
             
@@ -138,7 +138,7 @@ describe("EndpointsReportResponse", () => {
             
             const input: ReportResponseSearchInput = { 
                 take: 10, 
-                reportId: reports[0].id 
+                reportId: reports[0].id, 
             };
             
             await expect(async () => {
