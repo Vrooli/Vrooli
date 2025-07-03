@@ -1,5 +1,5 @@
 import { generatePK } from "@vrooli/shared";
-import { type Prisma } from "@prisma/client";
+import { type Prisma, ScheduleRecurrenceType } from "@prisma/client";
 
 /**
  * Database fixtures for ScheduleRecurrence model - used for seeding test data
@@ -23,7 +23,7 @@ export const scheduleRecurrenceDbIds = {
  */
 export const minimalScheduleRecurrenceDb: Prisma.schedule_recurrenceCreateInput = {
     id: scheduleRecurrenceDbIds.recurrence1,
-    recurrenceType: "Daily",
+    recurrenceType: ScheduleRecurrenceType.Daily,
     interval: 1,
     schedule: { connect: { id: scheduleRecurrenceDbIds.schedule1 } },
 };
@@ -33,7 +33,7 @@ export const minimalScheduleRecurrenceDb: Prisma.schedule_recurrenceCreateInput 
  */
 export const weeklyScheduleRecurrenceDb: Prisma.schedule_recurrenceCreateInput = {
     id: scheduleRecurrenceDbIds.recurrence2,
-    recurrenceType: "Weekly",
+    recurrenceType: ScheduleRecurrenceType.Weekly,
     interval: 1,
     dayOfWeek: 3, // Wednesday (1-7, where 1 is Monday)
     duration: 60, // 60 minutes
@@ -45,7 +45,7 @@ export const weeklyScheduleRecurrenceDb: Prisma.schedule_recurrenceCreateInput =
  */
 export const monthlyScheduleRecurrenceDb: Prisma.schedule_recurrenceCreateInput = {
     id: scheduleRecurrenceDbIds.recurrence3,
-    recurrenceType: "Monthly",
+    recurrenceType: ScheduleRecurrenceType.Monthly,
     interval: 1,
     dayOfMonth: 15, // 15th of each month
     duration: 90, // 90 minutes
@@ -58,7 +58,7 @@ export const monthlyScheduleRecurrenceDb: Prisma.schedule_recurrenceCreateInput 
  */
 export const completeScheduleRecurrenceDb: Prisma.schedule_recurrenceCreateInput = {
     id: scheduleRecurrenceDbIds.recurrence4,
-    recurrenceType: "Yearly",
+    recurrenceType: ScheduleRecurrenceType.Yearly,
     interval: 1,
     month: 6, // June
     dayOfMonth: 15, // June 15th
@@ -77,7 +77,7 @@ export class ScheduleRecurrenceDbFactory {
     ): Prisma.schedule_recurrenceCreateInput {
         return {
             id: generatePK(),
-            recurrenceType: "Daily",
+            recurrenceType: ScheduleRecurrenceType.Daily,
             interval: 1,
             schedule: { connect: { id: scheduleId } },
             ...overrides,
@@ -91,7 +91,7 @@ export class ScheduleRecurrenceDbFactory {
     ): Prisma.schedule_recurrenceCreateInput {
         return {
             ...this.createMinimal(scheduleId, overrides),
-            recurrenceType: "Daily",
+            recurrenceType: ScheduleRecurrenceType.Daily,
             interval,
         };
     }
@@ -104,7 +104,7 @@ export class ScheduleRecurrenceDbFactory {
     ): Prisma.schedule_recurrenceCreateInput {
         return {
             ...this.createMinimal(scheduleId, overrides),
-            recurrenceType: "Weekly",
+            recurrenceType: ScheduleRecurrenceType.Weekly,
             interval,
             dayOfWeek,
         };
@@ -118,7 +118,7 @@ export class ScheduleRecurrenceDbFactory {
     ): Prisma.schedule_recurrenceCreateInput {
         return {
             ...this.createMinimal(scheduleId, overrides),
-            recurrenceType: "Monthly",
+            recurrenceType: ScheduleRecurrenceType.Monthly,
             interval,
             dayOfMonth,
         };
@@ -133,7 +133,7 @@ export class ScheduleRecurrenceDbFactory {
     ): Prisma.schedule_recurrenceCreateInput {
         return {
             ...this.createMinimal(scheduleId, overrides),
-            recurrenceType: "Yearly",
+            recurrenceType: ScheduleRecurrenceType.Yearly,
             interval,
             month,
             dayOfMonth,

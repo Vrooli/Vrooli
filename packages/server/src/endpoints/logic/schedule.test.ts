@@ -1,4 +1,5 @@
-import { type FindVersionInput, type ScheduleCreateInput, ScheduleRecurrenceType, type ScheduleSearchInput, type ScheduleUpdateInput } from "@vrooli/shared";
+import { type FindVersionInput, type ScheduleCreateInput, type ScheduleSearchInput, type ScheduleUpdateInput } from "@vrooli/shared";
+import { ScheduleRecurrenceType } from "@prisma/client";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
@@ -173,9 +174,20 @@ describe("EndpointsSchedule", () => {
     });
 
     afterAll(async () => {
-        // Clean up
+        // Clean up tables used in tests
+        const prisma = DbProvider.get();
+        await prisma.schedule_recurrence.deleteMany();
+        await prisma.schedule_exception.deleteMany();
+        await prisma.schedule.deleteMany();
+        await prisma.meeting_translation.deleteMany();
+        await prisma.meeting.deleteMany();
+        await prisma.team_translation.deleteMany();
+        await prisma.team.deleteMany();
+        await prisma.user_auth.deleteMany();
+        await prisma.user.deleteMany();
+        
+        // Clear Redis cache
         await CacheService.get().flushAll();
-        await DbProvider.deleteAll();
 
         // Restore all mocks
         vi.restoreAllMocks();
