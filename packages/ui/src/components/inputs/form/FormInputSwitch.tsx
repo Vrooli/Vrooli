@@ -7,7 +7,7 @@ import { useTheme } from "@mui/material/styles";
 import { Switch } from "../Switch/Switch.js";
 import { getFormikFieldName, type SwitchFormInput, type SwitchFormInputProps } from "@vrooli/shared";
 import { useField } from "formik";
-import { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useEditableLabel } from "../../../hooks/useEditableLabel.js";
 import { SelectorBase } from "../Selector/Selector.js";
 import { TextInput } from "../TextInput/TextInput.js";
@@ -23,7 +23,14 @@ export function FormInputSwitch({
 }: FormInputProps<SwitchFormInput>) {
     const { palette, typography } = useTheme();
 
-    const props = useMemo(() => fieldData.props, [fieldData.props]);
+    const props = useMemo(() => {
+        const rawProps = fieldData.props || {};
+        // Ensure label is a string or undefined, not an object
+        if (rawProps.label && typeof rawProps.label === 'object' && !React.isValidElement(rawProps.label)) {
+            return { ...rawProps, label: fieldData.label || "" };
+        }
+        return rawProps;
+    }, [fieldData.props, fieldData.label]);
 
     const [field, meta, helpers] = useField(getFormikFieldName(fieldData.fieldName, fieldNamePrefix));
     const handleChange = useCallback((checked: boolean) => {
@@ -62,10 +69,11 @@ export function FormInputSwitch({
     } = useEditableLabel({
         isEditable: isEditing,
         isMultiline: false,
-        label: props.label ?? "",
+        label: props.label ?? fieldData.label ?? "",
         onUpdate: updateLabel,
     });
 
+    const labelText = props.label || fieldData.label || "";
     const SwitchElement = useMemo(() => (
         <Switch
             disabled={disabled}
@@ -74,7 +82,7 @@ export function FormInputSwitch({
             label={isEditingLabel ?
                 <TextField
                     ref={labelEditRef}
-                    InputProps={{ style: (typography["body1"] as object || {}) }}
+                    InputProps={{ style: typography["body1"] as React.CSSProperties }}
                     onBlur={submitLabelChange}
                     onChange={handleLabelChange}
                     onKeyDown={handleLabelKeyDown}
@@ -87,18 +95,18 @@ export function FormInputSwitch({
                             padding: 0,
                         },
                     }}
-                /> : <Typography
+                /> : labelText ? <Typography
                     onClick={startEditingLabel}
                     sx={{ cursor: isEditing ? "pointer" : "default" }}
                     variant="body1"
                 >
-                    {props.label}
-                </Typography>}
+                    {labelText}
+                </Typography> : undefined}
             size={props.size === "small" ? "sm" : props.size === "medium" ? "md" : "md"}
             variant={props.color === "custom" ? "custom" : "default"}
             color={props.color === "custom" ? customColor : undefined}
         />
-    ), [disabled, isEditing, props.defaultValue, props.size, props.color, props.label, field.value, handleChange, customColor, isEditingLabel, labelEditRef, typography, submitLabelChange, handleLabelChange, handleLabelKeyDown, editedLabel, startEditingLabel]);
+    ), [disabled, isEditing, props.defaultValue, props.size, props.color, labelText, field.value, handleChange, customColor, isEditingLabel, labelEditRef, typography, submitLabelChange, handleLabelChange, handleLabelKeyDown, editedLabel, startEditingLabel]);
 
     const moreButtonStyle = useMemo(function moreButtonStyleMemo() {
         return propButtonWithSectionStyle(showMore);
@@ -138,7 +146,7 @@ export function FormInputSwitch({
                         fullWidth
                         label="Label"
                         onChange={(event) => { updateProp({ label: event.target.value }); }}
-                        value={props.label ?? ""}
+                        value={props.label ?? fieldData.label ?? ""}
                     />
                     <SelectorBase
                         fullWidth

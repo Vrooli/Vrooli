@@ -1,14 +1,14 @@
 import { IconButton } from "../../buttons/IconButton.js";
 import { useTheme } from "@mui/material";
 import { useField } from "formik";
-import { useCallback, useMemo, useEffect } from "react";
+import React, { forwardRef, useCallback, useMemo, useEffect } from "react";
 import { IconCommon } from "../../../icons/Icons.js";
-import { TextInput } from "../TextInput/TextInput.js";
-import { type DateInputProps } from "../types.js";
+import { TextInput, TextInputBase } from "../TextInput/TextInput.js";
+import { type DateInputProps, type DateInputBaseProps, type DateInputFormikProps } from "../types.js";
 
 const DATE_FORMAT_CHARACTERS = 2;
 
-function formatForDateTimeLocal(dateStr, type) {
+function formatForDateTimeLocal(dateStr: string, type: "date" | "datetime-local") {
     // Return empty string if no dateStr is provided
     if (!dateStr) {
         return "";
@@ -43,15 +43,27 @@ function formatForDateTimeLocal(dateStr, type) {
 
 const dateInputClassName = "tw-date-input";
 
-export function DateInput({
+/**
+ * Base date input component without Formik integration.
+ * This is the pure visual component that handles all styling and interaction logic.
+ */
+export const DateInputBase = forwardRef<HTMLInputElement, DateInputBaseProps>(({
     isRequired,
     label,
     name,
     type = "datetime-local",
-}: DateInputProps) {
+    value,
+    onChange,
+    onBlur,
+    error,
+    helperText,
+    className,
+    sx,
+    disabled,
+    "data-testid": dataTestId,
+    ...props
+}, ref) => {
     const { palette } = useTheme();
-
-    const [field, , helpers] = useField(name);
 
     // Apply dark mode styles for calendar picker indicator
     useEffect(() => {
@@ -76,11 +88,15 @@ export function DateInput({
     }, [palette.mode]);
 
     const clearDate = useCallback(function clearDateCallback() {
-        helpers.setValue("");
-    }, [helpers]);
+        onChange("");
+    }, [onChange]);
+
+    const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        onChange(e.target.value);
+    }, [onChange]);
 
     const endAdornment = useMemo(function endAdornmentMemo() {
-        if (typeof field.value === "string" && field.value.length > 0) {
+        if (typeof value === "string" && value.length > 0) {
             return (
                 <IconButton 
                     edge="end" 
@@ -89,6 +105,7 @@ export function DateInput({
                     onClick={clearDate}
                     aria-label="Clear date"
                     data-testid="date-input-clear"
+                    disabled={disabled}
                 >
                     <IconCommon
                         decorative
@@ -100,19 +117,74 @@ export function DateInput({
             );
         }
         return null;
-    }, [clearDate, field.value, palette.background.textPrimary]);
+    }, [clearDate, value, palette.background.textPrimary, disabled]);
 
     return (
-        <TextInput
+        <TextInputBase
+            ref={ref}
             isRequired={isRequired}
             label={label}
+            name={name}
             type={type}
             endAdornment={endAdornment}
-            {...field}
-            value={formatForDateTimeLocal(field.value, type)}
-            className={dateInputClassName}
-            data-testid="date-input"
+            value={formatForDateTimeLocal(value, type)}
+            onChange={handleChange}
+            onBlur={onBlur}
+            error={error}
+            helperText={helperText}
+            className={`${dateInputClassName} ${className || ""}`}
+            sx={sx}
+            disabled={disabled}
+            data-testid={dataTestId || "date-input"}
             data-type={type}
+            {...props}
         />
     );
-}
+});
+
+DateInputBase.displayName = "DateInputBase";
+
+/**
+ * Formik-integrated date input component.
+ * Automatically connects to Formik context using the field name.
+ * 
+ * @example
+ * ```tsx
+ * // Inside a Formik form
+ * <DateInput name="birthDate" label="Birth Date" type="date" />
+ * 
+ * // With validation
+ * <DateInput 
+ *   name="meetingTime" 
+ *   label="Meeting Time"
+ *   type="datetime-local"
+ *   validate={(value) => !value ? "Required" : undefined}
+ * />
+ * ```
+ */
+export const DateInput = forwardRef<HTMLInputElement, DateInputFormikProps>(({
+    name,
+    validate,
+    ...props
+}, ref) => {
+    const [field, meta, helpers] = useField({ name, validate });
+
+    const handleChange = useCallback((value: string) => {
+        helpers.setValue(value);
+    }, [helpers]);
+
+    return (
+        <DateInputBase
+            {...props}
+            ref={ref}
+            name={name}
+            value={field.value || ""}
+            onChange={handleChange}
+            onBlur={field.onBlur}
+            error={meta.touched && Boolean(meta.error)}
+            helperText={meta.touched && meta.error}
+        />
+    );
+});
+
+DateInput.displayName = "DateInput";

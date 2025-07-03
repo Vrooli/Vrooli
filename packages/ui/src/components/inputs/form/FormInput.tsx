@@ -1,4 +1,5 @@
 // AI_CHECK: REACT_PERF=1 | LAST: 2024-12-26
+// AI_CHECK: TYPE_SAFETY=eliminated-any-types-in-forminput | LAST: 2025-06-28
 import Box from "@mui/material/Box";
 import { IconButton } from "../../buttons/IconButton.js";
 import Stack from "@mui/material/Stack";
@@ -38,7 +39,7 @@ const { FormInputDropzone } = lazily(() => import("./FormInputDropzone.js"));
 /**
  * Maps a data input type string to its corresponding component generator function
  */
-const typeMap: { [key in InputType]: ComponentType<FormInputProps<any>> } = {
+const typeMap: { [key in InputType]: ComponentType<FormInputProps<unknown>> } = {
     [InputType.Checkbox]: FormInputCheckbox,
     [InputType.ColorPicker]: FormInputColorPicker,
     [InputType.Dropzone]: FormInputDropzone,
@@ -132,7 +133,7 @@ const TitleStack = memo(({
     isRequired?: boolean;
     isEditingLabel: boolean;
     labelEditRef: React.RefObject<HTMLInputElement>;
-    textFieldInputProps: object;
+    textFieldInputProps: React.ComponentProps<typeof TextField>["InputProps"];
     submitLabelChange: () => void;
     handleLabelChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     handleLabelKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
@@ -140,13 +141,13 @@ const TitleStack = memo(({
     disabled?: boolean;
     fieldName: string;
     startEditingLabel: () => void;
-    labelStyle: object;
+    labelStyle: React.CSSProperties;
     index?: number;
     inputType: InputType;
     copyToClipboard: () => void;
     helpText?: string | null;
     onMarkdownChange?: (text: string) => void;
-    palette: any;
+    palette: import("@mui/material/styles").Palette;
     t: (key: string, options?: object) => string;
 }) => (
     <Stack direction="row" spacing={0} alignItems="center">
@@ -272,7 +273,7 @@ export const FormInput = memo(function FormInput({
     }, [isEditing, fieldData, onConfigUpdate]);
 
     const textFieldInputProps = useMemo(function textFieldInputPropsMemo() {
-        return { style: (typography["h6"] as object || {}) };
+        return { style: (typography["h6"] as React.CSSProperties || {}) };
     }, [typography]);
     const labelStyle = useMemo(function labelStyleMemo() {
         return {

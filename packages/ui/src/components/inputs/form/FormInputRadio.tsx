@@ -9,7 +9,7 @@ import TextField from "@mui/material/TextField";
 import { Tooltip } from "../../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { styled, useTheme } from "@mui/material/styles";
-import { Radio } from "../Radio.js";
+import { RadioBase } from "../Radio.js";
 import { getFormikFieldName, type RadioFormInput, type RadioFormInputProps } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
@@ -155,7 +155,7 @@ export function FormInputRadio({
                                 ref={providedDrop.innerRef}
                                 aria-labelledby={`label-${fieldData.fieldName}`}
                                 name={fieldData.fieldName}
-                                value={isEditing ? props.defaultValue : field.value}
+                                value={field.value}
                                 row={props.row === true}
                             >
                                 {props.options.map((option, index) => {
@@ -183,7 +183,11 @@ export function FormInputRadio({
                                                     <FormControlLabel
                                                         key={option.value}
                                                         value={option.value}
-                                                        control={<Radio value={option.value} onClick={() => handleChange(option.value)} />}
+                                                        control={<RadioBase 
+                                                            checked={field.value === option.value} 
+                                                            value={option.value} 
+                                                            onClick={() => handleChange(option.value)} 
+                                                        />}
                                                         label={(
                                                             <>
                                                                 {isEditing && editingOptionIndex === index ? (

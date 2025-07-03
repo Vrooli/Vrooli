@@ -241,7 +241,7 @@ export const DateInputShowcase: Story = {
                                             borderRadius: 1, 
                                             bgcolor: "grey.50",
                                             border: "1px solid",
-                                            borderColor: "grey.200"
+                                            borderColor: "grey.200",
                                         }}>
                                             <Typography variant="h6" sx={{ mb: 1, color: "primary.main" }}>
                                                 type="date"
@@ -267,7 +267,7 @@ export const DateInputShowcase: Story = {
                                             borderRadius: 1, 
                                             bgcolor: "grey.50",
                                             border: "1px solid",
-                                            borderColor: "grey.200"
+                                            borderColor: "grey.200",
                                         }}>
                                             <Typography variant="h6" sx={{ mb: 1, color: "secondary.main" }}>
                                                 type="datetime-local"

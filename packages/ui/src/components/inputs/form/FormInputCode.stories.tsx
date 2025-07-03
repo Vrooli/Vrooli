@@ -35,7 +35,7 @@ export const Showcase: Story = {
             helperText: "Enter valid JSON code",
             isRequired: false,
             yup: "",
-            defaultValue: '{\n  "example": "value",\n  "number": 42\n}',
+            defaultValue: "{\n  \"example\": \"value\",\n  \"number\": 42\n}",
         });
 
         const handleConfigUpdate = (newFieldData: JSONFormInput) => {
@@ -138,7 +138,7 @@ export const Showcase: Story = {
                         
                         <Box sx={{ p: 2, border: "1px dashed #ccc", borderRadius: 1 }}>
                             <Formik
-                                initialValues={{ codeField: '{\n  "example": "value",\n  "number": 42\n}' }}
+                                initialValues={{ codeField: "{\n  \"example\": \"value\",\n  \"number\": 42\n}" }}
                                 onSubmit={() => {}}
                             >
                                 <FormInputCode

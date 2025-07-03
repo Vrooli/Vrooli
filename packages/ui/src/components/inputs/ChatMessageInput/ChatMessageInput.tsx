@@ -563,7 +563,7 @@ export function ChatMessageInput({
                 onSubmit={handleSubmit}
                 name="newMessage"
                 placeholder={placeholder}
-                tools={[]}
+                tasks={[]}
                 value={message}
             />
         </Outer>

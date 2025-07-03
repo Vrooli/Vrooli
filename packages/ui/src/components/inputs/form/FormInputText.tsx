@@ -116,9 +116,7 @@ export function FormInputText({
             return (
                 <AdvancedInputBase
                     disableAssistant={isEditing}
-                    maxChars={props.maxChars}
-                    maxRows={props.maxRows}
-                    minRows={props.minRows}
+                    features={{ maxChars: props.maxChars, minRowsCollapsed: props.minRows, maxRowsCollapsed: props.maxRows }}
                     onChange={handleChange}
                     {...commonProps}
                 />

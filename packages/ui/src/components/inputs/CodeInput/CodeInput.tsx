@@ -19,7 +19,7 @@ import { useDebounce } from "../../../hooks/useDebounce.js";
 import { Icon, IconCommon, IconText, type IconInfo } from "../../../icons/Icons.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { PubSub } from "../../../utils/pubsub.js";
-import { type CodeInputBaseProps, type CodeInputProps } from "../types.js";
+import { type CodeInputBaseProps, type CodeInputFormikProps } from "../types.js";
 
 const ICON_SIZE_PX = 20;
 
@@ -80,7 +80,7 @@ async function loadDecorations() {
     const underlineMarkOptional = Decoration.mark({ class: "optional-decoration" });
     const underlineMarkWildcard = Decoration.mark({ class: "wildcard-decoration" });
 
-    function underlineVariables(doc) {
+    function underlineVariables(doc: { sliceString: (start: number, end?: number) => string; length: number }) {
         const decorations: Range<typeof underlineMarkVariable>[] = [];
         // Regexes for each type of variable
         const variableRegex = /"<[a-zA-Z0-9_]+>"/g;
@@ -134,16 +134,16 @@ async function loadDecorations() {
         provide: f => EditorView.decorations.from(f),
     });
 
-    function getCursorTooltips(state) {
-        const tooltips: any[] = [];
+    function getCursorTooltips(state: EditorState) {
+        const tooltips: Array<{ pos: number; end: number; above: boolean; create: () => { dom: HTMLElement } }> = [];
         const docText = state.doc.sliceString(0, state.doc.length);
         const regex = /("<[a-zA-Z0-9_]+>")|("\?[a-zA-Z0-9_]+":)|("\[[a-zA-Z0-9_]+\]")/g;
 
         for (const r of state.selection.ranges) {
             if (!r.empty) continue;
 
-            let match;
-            while (match = regex.exec(docText)) {
+            let match: RegExpExecArray | null;
+            while ((match = regex.exec(docText)) !== null) {
                 const variableText = match[0].slice(1, match[0].includes("?") ? -2 : -1); // Remove the quotes
                 const start = match.index + 1; // Ignore the first quote
                 const end = start + variableText.length; // We already ignored the quotes
@@ -511,7 +511,7 @@ export function CodeInputBase({
     const availableLanguages = Array.isArray(limitTo) && limitTo.length > 0 ? limitTo : Object.values(CodeLanguage);
 
     const codeMirrorRef = useRef<ReactCodeMirrorRef | null>(null);
-    const commandFunctionsRef = useRef<{ undo: ((view: EditorView) => unknown) | null, redo: ((view: EditorView) => unknown) | null }>({ undo: null, redo: null });
+    const commandFunctionsRef = useRef<{ undo: ((view: EditorView) => boolean) | null, redo: ((view: EditorView) => boolean) | null }>({ undo: null, redo: null });
 
     // Add state for expand/collapse and word wrap
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -520,8 +520,8 @@ export function CodeInputBase({
     async function loadCommandFunctions() {
         if (!commandFunctionsRef.current.undo || !commandFunctionsRef.current.redo) {
             const commands = await import("@codemirror/commands");
-            commandFunctionsRef.current.undo = commands.undo as unknown as ((view: EditorView) => unknown);
-            commandFunctionsRef.current.redo = commands.redo as unknown as ((view: EditorView) => unknown);
+            commandFunctionsRef.current.undo = commands.undo as (view: EditorView) => boolean;
+            commandFunctionsRef.current.redo = commands.redo as (view: EditorView) => boolean;
         }
     }
 
@@ -537,7 +537,7 @@ export function CodeInputBase({
 
     // Track errors
     const [errors, setErrors] = useState<Diagnostic[]>([]);
-    const wrappedLinter = useCallback(async (nextLinter) => {
+    const wrappedLinter = useCallback(async (nextLinter: (view: EditorView) => Diagnostic[]) => {
         const { linter } = await import("@codemirror/lint");
         return linter(view => {
             // Run the existing linter and get its diagnostics.
@@ -621,7 +621,7 @@ export function CodeInputBase({
                     const { main, linter } = await languageMap[codeLanguage]();
                     updatedExtensions.push(main as Extension);
                     if (linter) {
-                        const linterExtension = await wrappedLinter(linter);
+                        const linterExtension = await wrappedLinter(linter as (view: EditorView) => Diagnostic[]);
                         updatedExtensions.push(linterExtension as Extension);
                         if (isMounted) setSupportsValidation(true);
                     } else if (isMounted) {
@@ -787,8 +787,8 @@ export function CodeInputBase({
 
     return (
         <>
-            <Stack direction="column" spacing={0} sx={outerStackStyle}>
-                <InfoBar>
+            <Stack direction="column" spacing={0} sx={outerStackStyle} data-testid={`code-input-${name}`}>
+                <InfoBar data-testid="code-input-toolbar">
                     {/* Display language - either as selector or label */}
                     {availableLanguages.length > 1 && !disabled ?
                         <SelectorBase
@@ -801,8 +801,9 @@ export function CodeInputBase({
                             fullWidth
                             inputAriaLabel="select language"
                             sxs={{ root: { width: "fit-content" } }}
+                            data-testid="language-selector"
                         /> :
-                        <LanguageLabel variant="body2">
+                        <LanguageLabel variant="body2" data-testid="language-label">
                             {t(languageDisplayMap[codeLanguage][0], { ns: "langs" })}
                         </LanguageLabel>
                     }
@@ -815,6 +816,7 @@ export function CodeInputBase({
                                 aria-label={isWrapped ? t("WordWrapDisable") : t("WordWrapEnable")}
                                 size="small"
                                 onClick={toggleWrap}
+                                data-testid="word-wrap-toggle"
                             >
                                 {isWrapped ?
                                     <IconText decorative name="List" size={ICON_SIZE_PX} /> :
@@ -829,6 +831,7 @@ export function CodeInputBase({
                                 aria-label={t("Copy")}
                                 size="small"
                                 onClick={handleCopy}
+                                data-testid="copy-button"
                             >
                                 <IconCommon decorative name="Copy" size={ICON_SIZE_PX} />
                             </InfoBarButton>
@@ -840,6 +843,7 @@ export function CodeInputBase({
                                 aria-label={isCollapsed ? t("Expand") : t("Collapse")}
                                 size="small"
                                 onClick={toggleCollapse}
+                                data-testid="collapse-toggle"
                             >
                                 {isCollapsed ?
                                     <IconCommon decorative name="ExpandMore" size={ICON_SIZE_PX} /> :
@@ -889,7 +893,8 @@ export function CodeInputBase({
                     background: palette.mode === "dark" ? "#282c34" : "#ffffff",
                     overflow: "hidden",
                     transition: "max-height 0.3s ease-in-out, height 0.3s ease-in-out",
-                }}>
+                }} data-testid="code-editor-container"
+                data-collapsed={isCollapsed}>
                     <Suspense fallback={
                         <Typography variant="body1" sx={{
                             color: palette.background.textSecondary,
@@ -898,21 +903,23 @@ export function CodeInputBase({
                             Loading editor...
                         </Typography>
                     }>
-                        <LazyCodeMirror
-                            key={`code-editor-${editorKey}`}
-                            id={id}
-                            readOnly={disabled}
-                            ref={codeMirrorRef as any}
-                            value={content}
-                            theme={palette.mode === "dark" ? "dark" : "light"}
-                            extensions={extensions}
-                            onChange={updateContent}
-                            height={"400px"}
-                            style={{
-                                ...lazyCodeMirrorStyle,
-                                whiteSpace: isWrapped ? "pre-wrap" : "pre",
-                            }}
-                        />
+                        <Box data-testid={`input-${name}`} sx={{ height: "400px", position: "relative" }}>
+                            <LazyCodeMirror
+                                key={`code-editor-${editorKey}`}
+                                id={id}
+                                readOnly={disabled}
+                                ref={codeMirrorRef as React.Ref<ReactCodeMirrorRef>}
+                                value={content}
+                                theme={palette.mode === "dark" ? "dark" : "light"}
+                                extensions={extensions}
+                                onChange={updateContent}
+                                height={"400px"}
+                                style={{
+                                    ...lazyCodeMirrorStyle,
+                                    whiteSpace: isWrapped ? "pre-wrap" : "pre",
+                                }}
+                            />
+                        </Box>
                     </Suspense>
                     {showRefresh && <IconButton
                         onClick={refreshEditor}
@@ -947,30 +954,60 @@ const DEFAULT_CODE_LANGUAGE_FIELD = "codeLanguage";
 const DEFAULT_CONTENT = "";
 const DEFAULT_NAME = "content";
 
+/**
+ * Formik-integrated code input component.
+ * Automatically connects to Formik context using the field names.
+ * 
+ * @example
+ * ```tsx
+ * // Simple usage with just content field
+ * <CodeInput name="codeContent" />
+ * 
+ * // With language field and limits
+ * <CodeInput 
+ *   name="content"
+ *   codeLanguageField="language"
+ *   limitTo={[CodeLanguage.Javascript, CodeLanguage.Typescript]}
+ * />
+ * 
+ * // Full usage with all fields
+ * <CodeInput
+ *   name="content"
+ *   codeLanguageField="codeLanguage"
+ *   defaultValueField="defaultValue"
+ *   formatField="format"
+ *   variablesField="variables"
+ *   disabled={isReadOnly}
+ * />
+ * ```
+ */
 export function CodeInput({
-    codeLanguageField,
-    name,
-    ...props
-}: CodeInputProps) {
-    const [languageField, , codeLanguageHelpers] = useField<CodeInputBaseProps["codeLanguage"]>(codeLanguageField ?? DEFAULT_CODE_LANGUAGE_FIELD);
-    const [contentField, , contentHelpers] = useField<CodeInputBaseProps["content"]>(name ?? DEFAULT_NAME);
-    const [defaultValueField] = useField<CodeInputBaseProps["defaultValue"]>("defaultValue");
-    const [formatField] = useField<CodeInputBaseProps["format"]>("format");
-    const [variablesField] = useField<CodeInputBaseProps["variables"]>("variables");
-
-    console.log("in CodeInput", languageField.value, contentField.value);
+    name = DEFAULT_NAME,
+    codeLanguageField = DEFAULT_CODE_LANGUAGE_FIELD,
+    defaultValueField = "defaultValue",
+    formatField = "format",
+    variablesField = "variables",
+    disabled,
+    limitTo,
+}: CodeInputFormikProps) {
+    const [languageField, , codeLanguageHelpers] = useField<CodeLanguage>(codeLanguageField);
+    const [contentField, , contentHelpers] = useField<string>(name);
+    const [defaultField] = useField<string | undefined>(defaultValueField);
+    const [formatFieldValue] = useField<string | undefined>(formatField);
+    const [variablesFieldValue] = useField<{ [x: string]: JSONVariable } | undefined>(variablesField);
 
     return (
         <CodeInputBase
-            {...props}
             codeLanguage={languageField.value ?? DEFAULT_CODE_LANGUAGE}
             content={contentField.value ?? DEFAULT_CONTENT}
-            defaultValue={defaultValueField.value}
-            format={formatField.value}
+            defaultValue={defaultField.value}
+            disabled={disabled}
+            format={formatFieldValue.value}
             handleCodeLanguageChange={codeLanguageHelpers.setValue}
             handleContentChange={contentHelpers.setValue}
-            name={name ?? DEFAULT_NAME}
-            variables={variablesField.value}
+            limitTo={limitTo}
+            name={name}
+            variables={variablesFieldValue.value}
         />
     );
 }

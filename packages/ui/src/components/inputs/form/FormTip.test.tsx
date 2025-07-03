@@ -128,7 +128,7 @@ describe("FormTip", () => {
 
             iconTypes.forEach((icon) => {
                 const { unmount } = render(
-                    <FormTip {...defaultProps} element={{ ...defaultElement, icon }} />
+                    <FormTip {...defaultProps} element={{ ...defaultElement, icon }} />,
                 );
 
                 const tip = screen.getByTestId("form-tip");
@@ -157,7 +157,7 @@ describe("FormTip", () => {
 
             expect(mockPublish).toHaveBeenCalledTimes(1);
             expect(mockPublish).toHaveBeenCalledWith("popupVideo", { 
-                src: "https://www.youtube.com/watch?v=abc123" 
+                src: "https://www.youtube.com/watch?v=abc123", 
             });
         });
 
@@ -383,7 +383,7 @@ describe("FormTip", () => {
             };
 
             const { rerender } = render(
-                <FormTip {...defaultProps} element={complexElement} />
+                <FormTip {...defaultProps} element={complexElement} />,
             );
 
             // Check initial state
