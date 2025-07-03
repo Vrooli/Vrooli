@@ -4,6 +4,13 @@ import { batch, BusService, logger, type BillingEvent, CacheService } from "@vro
 import { API_CREDITS_PREMIUM, CreditConfig, type CreditConfigObject, generatePK } from "@vrooli/shared";
 import { calculateFreeCreditsBalance } from "@vrooli/server";
 
+// Time constants
+const SECONDS_PER_MINUTE = 60;
+const MINUTES_PER_HOUR = 60;
+const HOURS_PER_DAY = 24;
+const DAYS_FOR_ROLLOVER_KEY_EXPIRY = 45;
+const ROLLOVER_KEY_EXPIRY_SECONDS = SECONDS_PER_MINUTE * MINUTES_PER_HOUR * HOURS_PER_DAY * DAYS_FOR_ROLLOVER_KEY_EXPIRY;
+
 /**
  * Processes credit rollovers and donations for premium users
  * Runs monthly after free credits are awarded
@@ -66,7 +73,7 @@ export async function creditRollover(): Promise<void> {
         
         // Mark this month as processed (idempotency protection)
         if (redis) {
-            await redis.set(rolloverKey, "1", "EX", 60 * 60 * 24 * 45); // Expire after 45 days
+            await redis.set(rolloverKey, "1", "EX", ROLLOVER_KEY_EXPIRY_SECONDS);
         }
         
         // Update Redis with job completion status
@@ -200,7 +207,7 @@ async function processUserCreditRollover(
 }
 
 async function processCreditDonation(
-    user: any,
+    user: CreditSettingsPayload,
     creditConfig: CreditConfig,
     currentBalance: bigint,
     currentMonth: string,
@@ -210,7 +217,7 @@ async function processCreditDonation(
     }
 
     // Calculate actual free credits balance
-    const freeCreditsBalance = await calculateFreeCreditsBalance(user.creditAccount.id);
+    const freeCreditsBalance = await calculateFreeCreditsBalance(user.creditAccount!.id);
     
     // Skip if no free credits to donate
     if (freeCreditsBalance <= BigInt(0)) {
@@ -242,7 +249,7 @@ async function processCreditDonation(
         const billingEvent: BillingEvent = {
             type: "billing:event",
             id: billingEventId,
-            accountId: user.creditAccount.id.toString(),
+            accountId: user.creditAccount!.id.toString(),
             delta: (-donationAmountBigInt).toString(), // Negative for outgoing
             entryType: CreditEntryType.DonationGiven,
             source: CreditSourceSystem.Scheduler,
@@ -282,7 +289,7 @@ async function processCreditDonation(
 }
 
 async function processCreditRolloverExpiration(
-    user: any,
+    user: CreditSettingsPayload,
     creditConfig: CreditConfig,
     currentBalance: bigint,
     currentMonth: string,
@@ -300,7 +307,7 @@ async function processCreditRolloverExpiration(
         const billingEvent: BillingEvent = {
             type: "billing:event",
             id: billingEventId,
-            accountId: user.creditAccount.id.toString(),
+            accountId: user.creditAccount!.id.toString(),
             delta: (-excessCredits).toString(), // Negative for outgoing
             entryType: CreditEntryType.Expire,
             source: CreditSourceSystem.Scheduler,
@@ -360,7 +367,7 @@ async function updateCreditSettingsProcessedMonth(
                         throw new Error("User or credit settings not found");
                     }
                     
-                    const creditConfig = new CreditConfig(user.creditSettings as any);
+                    const creditConfig = new CreditConfig(user.creditSettings as Partial<CreditConfigObject>);
                     
                     if (settingsType === "donation") {
                         creditConfig.updateDonationSettings({ lastProcessedMonth: currentMonth });

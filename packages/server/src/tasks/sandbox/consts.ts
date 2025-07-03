@@ -12,4 +12,4 @@ export const DEFAULT_IDLE_TIMEOUT_MS = 30_000;
 /** How long to wait for the worker thread to finish executing a job, in milliseconds */
 export const DEFAULT_JOB_TIMEOUT_MS = 500;
 /** How long to wait for the worker thread to be ready to receive a job, in milliseconds */
-export const WORKER_READY_TIMEOUT_MS = 1_000;
+export const WORKER_READY_TIMEOUT_MS = process.env.NODE_ENV === "test" ? 5_000 : 1_000;

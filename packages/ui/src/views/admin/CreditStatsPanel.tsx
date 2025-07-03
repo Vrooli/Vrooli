@@ -65,7 +65,7 @@ function CreditStatCard({ title, value, subtitle, icon, trend, loading }: Credit
 }
 
 interface JobStatusBannerProps {
-    status: 'success' | 'partial' | 'failed' | 'never_run';
+    status: "success" | "partial" | "failed" | "never_run";
     lastRunTime: string | null;
     nextRunTime: string;
 }
@@ -178,11 +178,11 @@ export function CreditStatsPanel() {
             return data.creditStats.donationsByMonth.map(item => {
                 let monthDisplay: string;
                 try {
-                    const date = new Date(item.month + '-01');
+                    const date = new Date(item.month + "-01");
                     if (isNaN(date.getTime())) {
                         throw new Error("Invalid date");
                     }
-                    monthDisplay = date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+                    monthDisplay = date.toLocaleDateString(undefined, { month: "short", year: "numeric" });
                 } catch (error) {
                     console.error("Error parsing month:", item.month, error);
                     monthDisplay = item.month; // Fallback to raw month string

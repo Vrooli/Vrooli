@@ -80,19 +80,6 @@ const nonVersionedObjectQuery = {
     },
 } as const;
 
-/**
- * Partial query for non-versioned objects that don't use 
- * "ownedBy" prefix for the owner field
- */
-const nonVersionedObjectQuery2 = {
-    id: true,
-    team: {
-        select: { id: true },
-    },
-    user: {
-        select: { id: true },
-    },
-} as const;
 
 /**
  * Partial query for non-versioned objects that only have a 
@@ -381,7 +368,7 @@ async function moderateReport(report: ReportPayload): Promise<void> {
             // How delete works:
             // If the object is a version, delete the version. DO NOT delete the root object.
             // If the object can be soft-deleted, soft-delete it.
-            case ReportSuggestedAction.Delete:
+            case ReportSuggestedAction.Delete: {
                 const dbModelForDelete = DbProvider.get()[dbTable];
                 if (!isPrismaDelegate(dbModelForDelete)) {
                     logger.error("Invalid database model for delete operation", {
@@ -413,10 +400,11 @@ async function moderateReport(report: ReportPayload): Promise<void> {
                     await dbModelForDelete.delete({ where: { id: objectData.id } });
                 }
                 break;
+            }
             case ReportSuggestedAction.FalseReport:
                 // Do nothing
                 break;
-            case ReportSuggestedAction.HideUntilFixed:
+            case ReportSuggestedAction.HideUntilFixed: {
                 // Make sure the object can be hidden
                 if (nonHideableTypes.includes(objectType)) {
                     logger.error("Failed to complete report moderation. Object cannot be hidden", { trace: "0411", reportId: report.id, objectType, objectData });
@@ -439,6 +427,7 @@ async function moderateReport(report: ReportPayload): Promise<void> {
                     data: { isPrivate: true },
                 });
                 break;
+            }
             case ReportSuggestedAction.NonIssue:
                 // Do nothing
                 break;

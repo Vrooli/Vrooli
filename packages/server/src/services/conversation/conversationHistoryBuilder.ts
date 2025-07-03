@@ -50,9 +50,9 @@ export interface ContextBuildResult {
 }
 
 /**
- * Abstract interface for context builders.
+ * Abstract interface for conversation history builders.
  */
-export abstract class ContextBuilder {
+export abstract class ConversationHistoryBuilder {
     /**
      * Build a context window for a given chat, starting from an optional message
      * @param chatId - The chat identifier to build context for
@@ -76,9 +76,9 @@ export abstract class ContextBuilder {
 }
 
 /**
- * Concrete ContextBuilder using a flattened JSON history map in Redis.
+ * Concrete ConversationHistoryBuilder using a flattened JSON history map in Redis.
  */
-export class RedisContextBuilder extends ContextBuilder {
+export class RedisConversationHistoryBuilder extends ConversationHistoryBuilder {
     /**
      * Builds the conversation context by loading or seeding a flat history map,
      * ensuring token sizes, then walking backwards via parentId until token budget.

@@ -2,7 +2,7 @@
 // AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { Job } from "bullmq";
+import { type Job } from "bullmq";
 import { initIdGenerator, generatePK, CodeLanguage } from "@vrooli/shared";
 import { sandboxProcess, runUserCode, doSandbox } from "./process.js";
 import { QueueTaskType, type SandboxTask } from "../taskTypes.js";

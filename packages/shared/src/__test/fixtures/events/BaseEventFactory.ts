@@ -4,7 +4,7 @@
  */
 
 import {
-    type BaseEvent,
+    type BaseFixtureEvent,
     type CorrelatedEvent,
     type EventEffect,
     type EventFactoryOptions,
@@ -17,7 +17,7 @@ import {
     type TimedEvent,
 } from "./types.js";
 
-export abstract class BaseEventFactory<TEvent extends BaseEvent, TData = unknown>
+export abstract class BaseEventFactory<TEvent extends BaseFixtureEvent, TData = unknown>
     implements EventFixtureFactory<TEvent, TData> {
 
     protected options: EventFactoryOptions<TData>;
@@ -393,7 +393,7 @@ export abstract class BaseEventFactory<TEvent extends BaseEvent, TData = unknown
     // Protected helper methods
 
     protected extractData(event: TEvent | TimedEvent<TData> | CorrelatedEvent<TData>): TData {
-        return (event as BaseEvent).data as TData;
+        return (event as BaseFixtureEvent).data as TData;
     }
 
     protected mergeData(base: TData, overrides?: Partial<TData>): TData {

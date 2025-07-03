@@ -34,7 +34,7 @@ describe("censor utilities", () => {
             
             expect(mockFs.readFileSync).toHaveBeenCalledWith(
                 expect.stringContaining("censorDictionary.txt"),
-                "utf8"
+                "utf8",
             );
         });
 
@@ -123,7 +123,7 @@ describe("censor utilities", () => {
         it("should handle nested objects", () => {
             const obj = {
                 user: { name: "john", email: "john@test.com" },
-                content: "hello world"
+                content: "hello world",
             };
             const result = toStringArray(obj, null);
             expect(result).toEqual(["john", "john@test.com", "hello world"]);
@@ -133,7 +133,7 @@ describe("censor utilities", () => {
             const obj = {
                 user: { name: "john", email: "john@test.com" },
                 content: "hello world",
-                other: "ignored field"
+                other: "ignored field",
             };
             // When specifying fields, only those fields' values are processed
             const result = toStringArray(obj, ["content"]);
@@ -155,7 +155,7 @@ describe("censor utilities", () => {
                 date: new Date(),
                 bool: true,
                 nullable: null,
-                undefined: undefined
+                undefined,
             };
             const result = toStringArray(obj, null);
             expect(result).toEqual(["hello"]);
@@ -183,9 +183,9 @@ describe("censor utilities", () => {
             const complex = {
                 users: [
                     { name: "john", profile: { bio: "developer" } },
-                    { name: "jane", profile: { bio: "designer" } }
+                    { name: "jane", profile: { bio: "designer" } },
                 ],
-                title: "test project"
+                title: "test project",
             };
             const result = toStringArray(complex, null);
             expect(result).toEqual(["john", "developer", "jane", "designer", "test project"]);
@@ -262,8 +262,8 @@ describe("censor utilities", () => {
                 body: "This contains badword1 content",
                 comments: [
                     { text: "Nice post!" },
-                    { text: "This has badword2 in it" }
-                ]
+                    { text: "This has badword2 in it" },
+                ],
             };
 
             // Extract all text for checking
@@ -283,13 +283,13 @@ describe("censor utilities", () => {
                 posts: [
                     {
                         content: "Clean content here",
-                        author: { name: "John", bio: "Nice person" }
+                        author: { name: "John", bio: "Nice person" },
                     },
                     {
                         content: "This has badword1",
-                        author: { name: "Jane", bio: "Contains badword2" }
-                    }
-                ]
+                        author: { name: "Jane", bio: "Contains badword2" },
+                    },
+                ],
             };
 
             const textArray = toStringArray(nestedData, null);

@@ -21,7 +21,10 @@ describe("creditRollover integration tests", () => {
         vi.spyOn(logger, "error").mockImplementation(() => undefined);
         
         // Mock BusService
-        vi.spyOn(BusService, "get").mockReturnValue({ getBus: () => mockBus } as any);
+        vi.spyOn(BusService, "get").mockReturnValue({ 
+            getBus: () => mockBus,
+            reset: vi.fn(),
+        });
     });
 
     afterAll(async () => {
@@ -141,10 +144,10 @@ describe("creditRollover integration tests", () => {
 
         // Verify that billing events were published instead of direct ledger entries
         expect(mockBus.publish).toHaveBeenCalled();
-        const publishCalls = (mockBus.publish as any).mock.calls;
+        const publishCalls = vi.mocked(mockBus.publish).mock.calls;
         
         // Check that a donation billing event was published
-        const donationEvent = publishCalls.find((call: any) => 
+        const donationEvent = publishCalls.find((call) => 
             call[0].entryType === CreditEntryType.DonationGiven,
         );
         expect(donationEvent).toBeTruthy();
@@ -236,7 +239,7 @@ describe("creditRollover integration tests", () => {
                     connect: { id: creditAccount.id },
                 },
                 // Use non-object type that will trigger type check warning
-                creditSettings: "invalid_string_type" as any,
+                creditSettings: "invalid_string_type" as unknown as Prisma.InputJsonValue,
             },
         });
         testUserIds.push(user.id);
@@ -261,8 +264,8 @@ describe("creditRollover integration tests", () => {
 
         // Should log warning for invalid settings (string type instead of object)
         expect(warnSpy).toHaveBeenCalled();
-        const warnCalls = (logger.warn as any).mock.calls;
-        const invalidSettingsCall = warnCalls.find((call: any) => 
+        const warnCalls = vi.mocked(logger.warn).mock.calls;
+        const invalidSettingsCall = warnCalls.find((call) => 
             call[0].includes("Invalid credit settings type") && call[0].includes(user.id.toString()),
         );
         expect(invalidSettingsCall).toBeTruthy();

@@ -23,8 +23,8 @@ import type {
 } from "./types.js";
 // Import the unified form configuration from shared package
 import { commentFormConfig } from "@vrooli/shared";
-// Import test fixtures from local copy
-import { commentFormFixtures } from "../fixtures/comment.js";
+// Import test fixtures from shared package test build  
+import { commentFormFixtures } from "@vrooli/shared/test-fixtures";
 import { DbProvider } from "@vrooli/server";
 
 /**
@@ -248,6 +248,7 @@ export const commentIntegrationConfig: StandardIntegrationConfig<
  * Comment Integration Factory - uses the existing IntegrationEngine
  */
 import { createIntegrationEngine } from "../engine/integrationEngine.js";
+
 export const commentFormIntegrationFactory = createIntegrationEngine(commentIntegrationConfig);
 
 // Export for individual use

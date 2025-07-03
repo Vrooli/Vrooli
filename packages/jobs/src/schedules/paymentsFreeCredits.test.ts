@@ -1,6 +1,6 @@
 // AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-24
 import { CreditEntryType, CreditSourceSystem } from "@prisma/client";
-import { API_CREDITS_PREMIUM, generatePK, generatePublicId } from "@vrooli/shared";
+import { API_CREDITS_PREMIUM, generatePK, generatePublicId, EventTypes } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock the services at module level
@@ -138,9 +138,9 @@ describe("paymentsCreditsFreePremium integration tests", () => {
 
         // Check that socket event was emitted
         expect(mockSocketEmit).toHaveBeenCalledWith(
-            "apiCredits",
+            EventTypes.USER.CREDITS_UPDATED,
             user.id.toString(),
-            { credits: (BigInt(100) + API_CREDITS_PREMIUM).toString() },
+            { userId: user.id.toString(), credits: (BigInt(100) + API_CREDITS_PREMIUM).toString() },
         );
     });
 
@@ -195,9 +195,9 @@ describe("paymentsCreditsFreePremium integration tests", () => {
 
         // Check socket event shows max balance
         expect(mockSocketEmit).toHaveBeenCalledWith(
-            "apiCredits",
+            EventTypes.USER.CREDITS_UPDATED,
             user.id.toString(),
-            { credits: MAX_FREE_CREDITS.toString() },
+            { userId: user.id.toString(), credits: MAX_FREE_CREDITS.toString() },
         );
     });
 
@@ -250,9 +250,9 @@ describe("paymentsCreditsFreePremium integration tests", () => {
 
         // Check that socket event still emitted with current balance
         expect(mockSocketEmit).toHaveBeenCalledWith(
-            "apiCredits",
+            EventTypes.USER.CREDITS_UPDATED,
             user.id.toString(),
-            { credits: MAX_FREE_CREDITS.toString() },
+            { userId: user.id.toString(), credits: MAX_FREE_CREDITS.toString() },
         );
     });
 
@@ -514,7 +514,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
         expect(mockBusPublish).toHaveBeenCalled();
         
         // Verify each call has proper structure
-        mockBusPublish.mock.calls.forEach((call: any) => {
+        mockBusPublish.mock.calls.forEach((call: unknown[]) => {
             expect(call[0]).toMatchObject({
                 type: "billing:event",
                 entryType: CreditEntryType.Bonus,

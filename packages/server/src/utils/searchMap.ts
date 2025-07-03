@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=server-type-safety-fixes | LAST: 2025-07-01 - Fixed any type in searchInput to Record<string, unknown>
 import { type ModelType, type ResourceSubType, type ResourceType, type ScheduleFor, type TimeFrame, VisibilityType, lowercaseFirstLetter } from "@vrooli/shared";
 import { type PeriodType } from "@prisma/client";
 import { type RequestService } from "../auth/request.js";
@@ -50,7 +51,7 @@ type RequestData = {
     /** The current request */
     req: Parameters<typeof RequestService.assertRequestFrom>[0],
     /** Full search input query */
-    searchInput: { [x: string]: any };
+    searchInput: Record<string, unknown>;
     /** The visibility of the query */
     visibility: VisibilityType;
 };

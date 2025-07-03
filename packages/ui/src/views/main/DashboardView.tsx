@@ -1,37 +1,28 @@
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../components/buttons/IconButton.js";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
-import { DAYS_30_MS, DUMMY_ID, calculateOccurrences, endpointsFeed, generatePK, getObjectUrl, type CalendarEvent, type ChatParticipantShape, type HomeResult, type Reminder, type ReminderList as ReminderListShape, type Resource, type ResourceList as ResourceListType, type Schedule } from "@vrooli/shared";
+import { DAYS_30_MS, DUMMY_ID, calculateOccurrences, endpointsFeed, generatePK, type CalendarEvent, type HomeResult, type Reminder, type ReminderList as ReminderListShape, type Resource, type ResourceList as ResourceListType, type Schedule } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getAvailableModels, getExistingAIConfig, getPreferredAvailableModel, type AvailableModel } from "../../api/ai.js";
-import { ChatBubbleTree } from "../../components/ChatBubbleTree/ChatBubbleTree.js";
-import { ChatSettingsMenu, type IntegrationSettings, type ModelConfig, type ShareSettings } from "../../components/ChatSettingsMenu/ChatSettingsMenu.js";
-import { ModelSelectionErrorBoundary } from "../../components/errors/ModelSelectionErrorBoundary.js";
-import { ChatMessageInput } from "../../components/inputs/ChatMessageInput/ChatMessageInput.js";
+import { ChatInterface } from "../../components/ChatInterface/ChatInterface.js";
 import { EventList } from "../../components/lists/EventList/EventList.js";
 import { ReminderList } from "../../components/lists/ReminderList/ReminderList.js";
 import { ResourceList } from "../../components/lists/ResourceList/ResourceList.js";
 import { NavListBox, NavListInboxButton, NavListNewChatButton, NavListProfileButton, NavbarInner, SiteNavigatorButton } from "../../components/navigation/Navbar.js";
 import { SessionContext } from "../../contexts/session.js";
-import { useMessageInput } from "../../hooks/messages.js";
 import { useIsLeftHanded } from "../../hooks/subscriptions.js";
 import { useLazyFetch } from "../../hooks/useFetch.js";
-import { useHistoryState } from "../../hooks/useHistoryState.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useActiveChat } from "../../stores/activeChatStore.js";
-import { useModelPreferencesStore } from "../../stores/modelPreferencesStore.js";
 import { ScrollBox } from "../../styles.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS, MAX_CHAT_INPUT_WIDTH } from "../../utils/consts.js";
 import { getDisplay } from "../../utils/display/listTools.js";
 import { getUserLanguages } from "../../utils/display/translationTools.js";
-import { VALYXA_INFO } from "../objects/chat/ChatCrud.js";
 import { type DashboardViewProps } from "./types.js";
 
 const MAX_EVENTS_SHOWN = 10;
-const MESSAGE_LIST_ID = "dashboardMessage";
 
 const DashboardBox = styled(Box)(({ theme }) => ({
     display: "flex",
@@ -88,107 +79,8 @@ export function DashboardView({
     const [schedules, setSchedules] = useState<Schedule[]>([]);
     const feedSchedulesRef = useRef<Schedule[]>([]);
 
-    // State for the ChatSettingsMenu
+    // State for the ChatSettingsMenu - kept for external settings button
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-    // Get available models for default config
-    const availableModels = useMemo(() => {
-        const config = getExistingAIConfig()?.service?.config;
-        return config ? getAvailableModels(config) : [];
-    }, []);
-
-    // Default model config state - will be initialized after availableModels loads
-    const [modelConfigs, setModelConfigs] = useState<ModelConfig[]>([]);
-    const [isModelConfigsInitialized, setIsModelConfigsInitialized] = useState(false);
-
-    // Participants for dashboard context (e.g., just Valyxa)
-    const [participants, setParticipants] = useState<ChatParticipantShape[]>([
-        {
-            __typename: "ChatParticipant",
-            id: generatePK(),
-            user: { ...VALYXA_INFO, __typename: "User" },
-            // chat property is usually added by the backend or context
-        } as ChatParticipantShape, // Type assertion needed as 'chat' is missing
-    ]);
-
-    // Default share settings for dashboard
-    const [shareSettings, setShareSettings] = useState<ShareSettings>({ enabled: false });
-
-    // Default integration settings for dashboard
-    const [integrationSettings, setIntegrationSettings] = useState<IntegrationSettings>({ projects: [] });
-
-    // Placeholder chat object for the menu props
-    const settingsChat = useMemo(() => ({
-        __typename: "Chat" as const,
-        id: DUMMY_ID,
-        translations: [{
-            __typename: "ChatTranslation" as const,
-            id: DUMMY_ID,
-            language: getUserLanguages(session)[0],
-            name: "Dashboard Settings",
-            description: "Configure default model settings for new chats.",
-        }],
-    }), [session]);
-
-    // Initialize model configs when available models are loaded
-    useEffect(() => {
-        if (!isModelConfigsInitialized) {
-            if (availableModels.length > 0) {
-                try {
-                    const preferredModel = getPreferredAvailableModel(availableModels);
-                    const modelToUse = preferredModel || availableModels[0];
-                    
-                    setModelConfigs([{
-                        model: modelToUse,
-                        toolSettings: { siteActions: true, webSearch: true, fileRetrieval: true },
-                        requireConfirmation: false,
-                    }]);
-                    setIsModelConfigsInitialized(true);
-                } catch (error) {
-                    // Fallback to first available model without preferences
-                    if (availableModels.length > 0) {
-                        setModelConfigs([{
-                            model: availableModels[0],
-                            toolSettings: { siteActions: true, webSearch: true, fileRetrieval: true },
-                            requireConfirmation: false,
-                        }]);
-                        setIsModelConfigsInitialized(true);
-                    }
-                }
-            } else {
-                // No models available - set as initialized to prevent infinite loop
-                setIsModelConfigsInitialized(true);
-            }
-        }
-    }, [availableModels, isModelConfigsInitialized]);
-
-    // Update local state when model config changes
-    const handleModelConfigChange = useCallback((newConfigs: ModelConfig[]) => {
-        setModelConfigs(newConfigs);
-        
-        // Save the model preference if a model is selected
-        if (newConfigs.length > 0 && newConfigs[0].model) {
-            useModelPreferencesStore.getState().setPreferredModel(newConfigs[0].model.value);
-        }
-    }, []);
-
-    // Placeholder callbacks (remain the same)
-    const handleAddParticipant = useCallback((id: string) => { /* Placeholder for add participant */ }, []);
-    const handleRemoveParticipant = useCallback((id: string) => { /* Placeholder for remove participant */ }, []);
-    const handleUpdateDetails = useCallback((data: { name: string; description?: string }) => { /* Placeholder for update details */ }, []);
-    const handleToggleShare = useCallback((enabled: boolean) => {
-        // Generate invite link when enabled, clear on disable
-        const link = enabled ? getObjectUrl(settingsChat) : undefined;
-        setShareSettings({ enabled, link });
-    }, [settingsChat.id]);
-    const handleIntegrationSettingsChange = useCallback((newSettings: IntegrationSettings) => {
-        // TODO: Persist integration settings
-        setIntegrationSettings(newSettings);
-    }, []);
-    // Placeholder for delete chat - not applicable on dashboard
-    const handleDeleteChat = useCallback(() => {
-        // No-op for dashboard view
-    }, []);
 
     useEffect(function parseFeedData() {
         const feedResources = feedData?.resources;
@@ -257,38 +149,69 @@ export function DashboardView({
         };
     }, [schedules, session]);
 
-    const [message, setMessage] = useHistoryState<string>(`${MESSAGE_LIST_ID}-message`, "");
-    const {
-        chat,
-        isBotOnlyChat,
-        isLoading: isChatLoading,
-        messageActions,
-        messageStream,
-        messageTree,
-        usersTyping: participantsTyping,
-        resetActiveChat,
-        taskInfo,
-    } = useActiveChat({ setMessage });
-    const messageInput = useMessageInput({
-        id: MESSAGE_LIST_ID,
-        languages: getUserLanguages(session),
-        message,
-        postMessage: messageActions.postMessage,
-        putMessage: messageActions.putMessage,
-        replyToMessage: messageActions.replyToMessage,
-        setMessage,
-    });
-    const hasMessages = useMemo(function hasMessagesMemo() {
-        return messageTree.tree.getMessagesCount() > 0;
-    }, [messageTree]);
+    const { resetActiveChat } = useActiveChat({ setMessage: () => {} });
+
+    // Create the dashboard content that appears when no messages exist
+    const dashboardContent = useMemo(() => (
+        <Box
+            display="flex"
+            flexDirection="column"
+            gap={4}
+            width="100%"
+            maxWidth={MAX_CHAT_INPUT_WIDTH}
+            margin="auto"
+        >
+            <Typography
+                variant="h4"
+                textAlign="center"
+                color="textPrimary"
+                sx={greetingStyle}
+            >
+                {t(getTimeOfDayGreeting())}{getCurrentUser(session)?.name || getCurrentUser(session)?.handle ? `, ${getCurrentUser(session)?.name || getCurrentUser(session)?.handle}` : ""}
+            </Typography>
+            <ResourceList
+                id={ELEMENT_IDS.DashboardResourceList}
+                list={resourceList}
+                canUpdate={true}
+                handleUpdate={setResourceList}
+                horizontal
+                loading={isFeedLoading}
+                mutate={true}
+                sx={resourceListStyle}
+            />
+            <EventList
+                id={ELEMENT_IDS.DashboardEventList}
+                list={upcomingEvents}
+                canUpdate={true}
+                handleUpdate={setUpcomingEvents}
+                loading={isFeedLoading}
+                mutate={true}
+            />
+            <ReminderList
+                id={ELEMENT_IDS.DashboardReminderList}
+                list={{
+                    __typename: "ReminderList",
+                    id: DUMMY_ID,
+                    reminders,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                } as ReminderListShape}
+                canUpdate={true}
+                handleUpdate={(updatedList: ReminderListShape) => setReminders(updatedList.reminders)}
+                loading={isFeedLoading}
+                mutate={true}
+                parent={{ id: DUMMY_ID }}
+            />
+        </Box>
+    ), [resourceList, upcomingEvents, reminders, isFeedLoading, t, session]);
 
     return (
         <DashboardBox>
             <ScrollBox>
                 <NavbarInner>
                     <SiteNavigatorButton />
-                    {/* Button to open settings menu */}
-                    <IconButton onClick={() => setIsSettingsOpen(true)} aria-label={t("Settings")}>
+                    {/* Button to open chat settings menu */}
+                    <IconButton onClick={() => setIsSettingsOpen(true)} aria-label={t("Settings")} variant="transparent">
                         <IconCommon name="Settings" />
                     </IconButton>
                     <NavListBox isLeftHanded={isLeftHanded}>
@@ -297,107 +220,16 @@ export function DashboardView({
                         <NavListProfileButton />
                     </NavListBox>
                 </NavbarInner>
-                {/* TODO for morning: work on changes needed for a chat to track active and inactive tasks. Might need to link them to their own reminder list */}
-                {!hasMessages && <Box
-                    display="flex"
-                    flexDirection="column"
-                    gap={4}
-                    width="100%"
-                    maxWidth={MAX_CHAT_INPUT_WIDTH}
-                    margin="auto"
-                >
-                    <Typography
-                        variant="h4"
-                        textAlign="center"
-                        color="textPrimary"
-                        sx={greetingStyle}
-                    >
-                        {t(getTimeOfDayGreeting())}{getCurrentUser(session)?.name || getCurrentUser(session)?.handle ? `, ${getCurrentUser(session)?.name || getCurrentUser(session)?.handle}` : ""}
-                    </Typography>
-                    <ResourceList
-                        id={ELEMENT_IDS.DashboardResourceList}
-                        list={resourceList}
-                        canUpdate={true}
-                        handleUpdate={setResourceList}
-                        horizontal
-                        loading={isFeedLoading}
-                        mutate={true}
-                        sx={resourceListStyle}
-                    />
-                    <EventList
-                        id={ELEMENT_IDS.DashboardEventList}
-                        list={upcomingEvents}
-                        canUpdate={true}
-                        handleUpdate={setUpcomingEvents}
-                        loading={isFeedLoading}
-                        mutate={true}
-                    />
-                    <ReminderList
-                        id={ELEMENT_IDS.DashboardReminderList}
-                        list={{
-                            __typename: "ReminderList",
-                            id: DUMMY_ID,
-                            reminders,
-                            createdAt: Date.now(),
-                            updatedAt: Date.now(),
-                        } as ReminderListShape}
-                        canUpdate={true}
-                        handleUpdate={(updatedList: ReminderListShape) => setReminders(updatedList.reminders)}
-                        loading={isFeedLoading}
-                        mutate={true}
-                        parent={{ id: DUMMY_ID }}
-                    />
-                </Box>}
-                {hasMessages && <ChatBubbleTree
-                    branches={messageTree.branches}
-                    handleEdit={messageInput.startEditingMessage}
-                    handleRegenerateResponse={messageActions.regenerateResponse}
-                    handleReply={messageInput.startReplyingToMessage}
-                    handleRetry={messageActions.retryPostMessage}
-                    isBotOnlyChat={isBotOnlyChat}
-                    isEditingMessage={Boolean(messageInput.messageBeingEdited)}
-                    isReplyingToMessage={Boolean(messageInput.messageBeingRepliedTo)}
-                    messageStream={messageStream}
-                    removeMessages={messageTree.removeMessages}
-                    setBranches={messageTree.setBranches}
-                    tree={messageTree.tree}
-                />}
             </ScrollBox>
-            <ChatMessageInput
-                disabled={!chat}
+            
+            <ChatInterface
                 display={display}
-                isLoading={isChatLoading}
-                message={message}
-                messageBeingEdited={messageInput.messageBeingEdited}
-                messageBeingRepliedTo={messageInput.messageBeingRepliedTo}
-                participantsTyping={participantsTyping}
                 placeholder={t("WhatWouldYouLikeToDo")}
-                setMessage={setMessage}
-                stopEditingMessage={messageInput.stopEditingMessage}
-                stopReplyingToMessage={messageInput.stopReplyingToMessage}
-                submitMessage={messageInput.submitMessage}
-                taskInfo={taskInfo}
+                noMessagesContent={dashboardContent}
+                showSettingsButton={false} // We handle settings in the navbar
+                onSettingsOpen={() => setIsSettingsOpen(true)}
+                onSettingsClose={() => setIsSettingsOpen(false)}
             />
-
-            {/* Render the settings menu dialog */}
-            <ModelSelectionErrorBoundary onRetry={refetch}>
-                <ChatSettingsMenu
-                    open={isSettingsOpen}
-                    onClose={() => setIsSettingsOpen(false)}
-                    chat={settingsChat}
-                    participants={participants}
-                    modelConfigs={modelConfigs}
-                    shareSettings={shareSettings}
-                    integrationSettings={integrationSettings}
-                    onModelConfigChange={handleModelConfigChange}
-                    onAddParticipant={handleAddParticipant}
-                    onRemoveParticipant={handleRemoveParticipant}
-                    onUpdateDetails={handleUpdateDetails}
-                    onToggleShare={handleToggleShare}
-                    onIntegrationSettingsChange={handleIntegrationSettingsChange}
-                    onDeleteChat={handleDeleteChat}
-                />
-            </ModelSelectionErrorBoundary>
         </DashboardBox>
     );
 }

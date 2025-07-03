@@ -1,7 +1,6 @@
 // queues/index.ts
 import { type Success } from "@vrooli/shared";
 import { type Job, type JobsOptions } from "bullmq";
-import type IORedis from "ioredis";
 import { logger } from "../events/logger.js";
 import { checkLongRunningTasksInRegistry } from "./activeTaskRegistry.js";
 import { emailProcess } from "./email/process.js";
@@ -9,8 +8,8 @@ import { exportProcess } from "./export/process.js";
 import { importProcess } from "./import/process.js";
 import { notificationCreateProcess } from "./notification/process.js";
 import { pushProcess } from "./push/process.js";
-import type { BaseTaskData } from "./queueFactory.js";
-import { buildRedis, ManagedQueue } from "./queueFactory.js";
+import type { BaseTaskData, BaseQueueConfig } from "./queueFactory.js";
+import { ManagedQueue } from "./queueFactory.js";
 import { sandboxProcess } from "./sandbox/process.js";
 import { smsProcess } from "./sms/process.js";
 
@@ -130,15 +129,12 @@ export interface SuccessResponse {
  * things like the Redis URL during testing.
  */
 export class QueueService {
-    private static instance: QueueService;
-    private redisUrl: string | null = null;
-    private connection: IORedis | null = null;
+    private static instance: QueueService | null = null;
     private queueInstances: Record<string, ManagedQueue<any>> = {};
     private runMonitorInterval: ReturnType<typeof setInterval> | null = null;
     private swarmMonitorInterval: ReturnType<typeof setInterval> | null = null;
     private allQueuesInitialized = false;
-    private isInitializingConnection = false; // Prevent re-entrancy for async init
-    private connectionPromise: Promise<IORedis | null> | null = null; // To store the promise of init
+    private processListeners: { signal: string; handler: () => void }[] = []; // Track process listeners
 
     private constructor() {
         // Graceful shutdown: ensure all queues are cleaned up on SIGTERM and SIGINT
@@ -152,8 +148,18 @@ export class QueueService {
                 process.exit(0);
             }
         };
-        process.once("SIGTERM", () => shutdownHandler("SIGTERM"));
-        process.once("SIGINT", () => shutdownHandler("SIGINT"));
+        
+        const sigtermHandler = () => shutdownHandler("SIGTERM");
+        const sigintHandler = () => shutdownHandler("SIGINT");
+        
+        process.once("SIGTERM", sigtermHandler);
+        process.once("SIGINT", sigintHandler);
+        
+        // Store references for cleanup
+        this.processListeners.push(
+            { signal: "SIGTERM", handler: sigtermHandler },
+            { signal: "SIGINT", handler: sigintHandler },
+        );
     }
 
     /**
@@ -179,174 +185,61 @@ export class QueueService {
 
     /**
      * Initialize the queue manager with a Redis URL.
-     * This method is idempotent and handles concurrent calls.
-     * @param redisUrl - Redis connection URL
+     * @param redisUrl - Redis connection URL (for reference, queues create their own connections)
      */
     public async init(redisUrl: string): Promise<void> {
-        // If already connected and ready, do nothing.
-        if (this.connection && this.connection.status === "ready") {
-            logger.info("QueueService Redis connection already initialized and ready.");
-            return;
+        // Set Redis URL in environment for queues to use
+        if (!process.env.REDIS_URL) {
+            process.env.REDIS_URL = redisUrl;
         }
-
-        // If initialization is already in progress by another call, await that promise.
-        if (this.isInitializingConnection && this.connectionPromise) {
-            logger.info("QueueService Redis connection initialization already in progress, awaiting existing promise.");
-            try {
-                await this.connectionPromise;
-                // After awaiting, check status again. If successful, this.connection will be set.
-                if (this.connection && this.connection.status === "ready") {
-                    logger.info("QueueService: Existing initialization promise resolved successfully.");
-                    return;
-                }
-                logger.warn("QueueService: Existing initialization promise resolved, but connection not ready. Proceeding with new init.");
-            } catch (error) {
-                logger.warn("QueueService: Awaiting existing initialization promise failed. Proceeding with new init.", { error });
-                // Fall through to re-attempt initialization by this call.
-            }
-            // Ensure isInitializingConnection is false if we are falling through to retry
-            this.isInitializingConnection = false;
-            this.connectionPromise = null; // Clear the promise as we are retrying
-        }
-
-        if (this.isInitializingConnection) {
-            // Should ideally not happen if the logic above is correct, but as a safeguard.
-            logger.warn("QueueService: Init called while isInitializingConnection is true but no connectionPromise to await. This indicates a potential race or logic error.");
-            // Depending on desired behavior, could throw, or wait a bit, or proceed cautiously.
-            // For now, let it proceed to re-attempt creating a promise.
-        }
-
-        this.isInitializingConnection = true;
-        this.redisUrl = redisUrl; // Set or update the redisUrl
-
-        const doInit = async (): Promise<IORedis | null> => {
-            try {
-                // Gracefully shut down existing resources before creating new ones.
-                // This is a simplified shutdown for the connection part;
-                // full queue/worker shutdown should be handled by a more explicit shutdown() call if needed here.
-                if (this.connection) {
-                    try {
-                        await this.connection.quit();
-                        logger.info("QueueService (doInit): Successfully quit previous Redis connection.");
-                    } catch (quitError) {
-                        logger.error("QueueService (doInit): Error quitting previous Redis connection. Proceeding anyway.", { quitError });
-                    }
-                    this.connection = null;
-                }
-
-                if (!this.redisUrl) {
-                    // This should not happen if init was called with a valid redisUrl, but as a safeguard.
-                    logger.error("QueueService (doInit): redisUrl is not set. Cannot build Redis connection.");
-                    throw new Error("QueueService: redisUrl not set during connection build.");
-                }
-                logger.info(`QueueService: Attempting to build new Redis connection to ${this.redisUrl}`);
-                this.connection = await buildRedis(this.redisUrl); // buildRedis returns a connected client or throws
-                logger.info("QueueService: New Redis connection established successfully.");
-                return this.connection;
-            } catch (error) {
-                logger.error("QueueService: Failed to initialize Redis connection in doInit.", { error });
-                this.connection = null; // Ensure connection is null on failure
-                throw error; // Re-throw to signal failure
-            }
-        };
-
-        this.connectionPromise = doInit();
-
-        try {
-            await this.connectionPromise;
-        } catch (error) {
-            // Error is already logged by doInit.
-            // The goal here is to ensure isInitializingConnection is reset.
-        } finally {
-            this.isInitializingConnection = false;
-            // Keep connectionPromise to reflect the outcome of the last attempt until a new init starts
-            // Or clear it: this.connectionPromise = null; -- choosing to clear for simplicity on next attempt.
-            this.connectionPromise = null;
-        }
-
-        // After init, if connection is still null, it means it failed.
-        if (!this.connection) {
-            throw new Error("QueueService: Redis connection initialization failed.");
-        }
+        logger.info("QueueService: Initialized with isolated queue connections");
     }
 
     /**
      * Reset all queue connections - useful for testing.
-     * This will shut down current connections/workers and re-initialize the connection.
      */
     public async reset(): Promise<void> {
-        logger.info("QueueService: Resetting queues and Redis connection.");
-        await this.shutdown(); // Full shutdown of queues and current connection
-
-        if (this.redisUrl) {
-            logger.info(`QueueService: Re-initializing Redis connection to ${this.redisUrl} after reset.`);
-            // Call init to re-establish the connection. init itself handles previous connection cleanup.
-            await this.init(this.redisUrl);
-        } else {
-            logger.warn("QueueService: Cannot re-initialize Redis connection after reset as redisUrl is not set.");
-            this.connection = null; // Ensure connection is null if no URL
+        logger.info("QueueService: Resetting all queues.");
+        await this.shutdown(); // Full shutdown of all queues
+        
+        // Also clean up test Redis connections if in test environment
+        if (process.env.NODE_ENV === "test") {
+            try {
+                const { closeRedisConnections, clearRedisCache } = await import("./queueFactory.js");
+                await closeRedisConnections();
+                clearRedisCache();
+                logger.debug("QueueService: Test Redis connections cleaned up");
+            } catch (error) {
+                logger.debug("QueueService: Error cleaning up test Redis connections:", error);
+            }
         }
     }
 
     /**
-     * Gracefully shut down all queue workers, event listeners, and Redis connection.
-     * Use this for clean application shutdown or when tearing down unit tests.
+     * Gracefully shut down all queue workers, event listeners, and connections.
      * @returns Promise that resolves when all resources have been closed
      */
     public async shutdown(): Promise<void> {
         logger.info("QueueService: Starting shutdown process.");
 
-        if (this.isInitializingConnection && this.connectionPromise) {
-            logger.info("QueueService: Shutdown called while connection initialization was in progress. Awaiting its completion.");
-            try {
-                await this.connectionPromise;
-            } catch (e) {
-                logger.info("QueueService: Connection initialization during shutdown attempt failed or was already in a failed state.", { error: e });
-            }
-        }
-        this.isInitializingConnection = false;
-        this.connectionPromise = null;
-
-        // Close all queue workers, event listeners, and client connections
+        // Close all queue instances
         const closePromises = Object.entries(this.queueInstances).map(async ([queueName, queueInstance]) => {
             try {
-                if (queueInstance.worker) await queueInstance.worker.close();
-            } catch (e) { logger.error("Error closing worker", { queueName, error: e }); }
-            try {
-                if (queueInstance.events) await queueInstance.events.close();
-            } catch (e) { logger.error("Error closing queue events", { queueName, error: e }); }
-            try {
-                if (queueInstance.queue) await queueInstance.queue.close();
-            } catch (e) { logger.error("Error closing BullMQ queue", { queueName, error: e }); }
+                await queueInstance.close();
+                logger.debug(`QueueService: Closed queue ${queueName}`);
+            } catch (e) { 
+                logger.error("Error closing queue", { queueName, error: e }); 
+            }
         });
 
         try {
             await Promise.all(closePromises);
-            logger.info("QueueService: All BullMQ queue resources closed.");
+            logger.info("QueueService: All queue resources closed.");
         } catch (error) {
-            logger.error("QueueService: Error during bulk closure of BullMQ queue resources.", { error });
+            logger.error("QueueService: Error during queue closure.", { error });
         }
 
-        // Disconnect Redis connection if it exists
-        if (this.connection) {
-            try {
-                logger.info("QueueService: Quitting main Redis connection.");
-                await this.connection.quit(); // Use quit for graceful shutdown
-                logger.info("QueueService: Main Redis connection quit successfully.");
-            } catch (error) {
-                logger.error("QueueService: Error quitting main Redis connection.", { error });
-                // As a fallback, attempt to disconnect if quit fails for some reason
-                try {
-                    this.connection.disconnect();
-                    logger.info("QueueService: Main Redis connection disconnected (fallback after quit failed).");
-                } catch (disconnectError) {
-                    logger.error("QueueService: Error disconnecting main Redis connection (fallback).", { disconnectError });
-                }
-            }
-            this.connection = null;
-        }
-
-        // Always clear the run-monitoring interval to avoid orphaned intervals
+        // Clear monitoring intervals
         if (this.runMonitorInterval) {
             clearInterval(this.runMonitorInterval);
             this.runMonitorInterval = null;
@@ -356,10 +249,39 @@ export class QueueService {
             this.swarmMonitorInterval = null;
         }
 
+        // Remove process event listeners to prevent memory leaks
+        this.removeProcessListeners();
+
         // Clear queue instances
         this.queueInstances = {};
-        // Reset initialization flag
         this.allQueuesInitialized = false;
+
+        // Also shutdown SocketService if it was initialized by queue operations
+        try {
+            const { SocketService } = await import("../sockets/io.js");
+            if (SocketService) {
+                await SocketService.shutdown();
+                logger.debug("QueueService: SocketService shutdown completed during queue shutdown");
+            }
+        } catch (e) {
+            logger.debug("QueueService: SocketService not available or failed to shutdown", { error: e });
+        }
+    }
+
+    /**
+     * Remove process event listeners to prevent memory leaks
+     * This is especially important in testing environments
+     */
+    private removeProcessListeners(): void {
+        for (const { signal, handler } of this.processListeners) {
+            try {
+                process.removeListener(signal as NodeJS.Signals, handler);
+                logger.debug(`QueueService: Removed ${signal} listener`);
+            } catch (error) {
+                logger.warn(`QueueService: Failed to remove ${signal} listener`, { error });
+            }
+        }
+        this.processListeners = [];
     }
 
     /**
@@ -373,9 +295,7 @@ export class QueueService {
         if (this.allQueuesInitialized) {
             return this.queueInstances;
         }
-        // Ensure connection is ready before trying to init queues.
-        // getConnection() will throw if not ready.
-        this.getConnection();
+        // Queues now use isolated connections, no need for shared connection check
 
         // Access each getter to trigger initialization
         this.email;
@@ -392,20 +312,6 @@ export class QueueService {
         return this.queueInstances;
     }
 
-    /**
-     * Get the Redis connection, initializing with environment value if not already set
-     */
-    private getConnection(): IORedis {
-        if (!this.connection || this.connection.status !== "ready") {
-            logger.error(
-                "QueueService: getConnection() called but Redis connection is not ready or not initialized. " +
-                "This indicates a critical issue, possibly init() was not called or failed.",
-                { currentStatus: this.connection?.status },
-            );
-            throw new Error("QueueService: Redis connection not available or not ready. Ensure init() was called and succeeded at application startup.");
-        }
-        return this.connection;
-    }
 
     /**
      * Get a queue instance, creating it if it doesn't exist
@@ -418,17 +324,16 @@ export class QueueService {
     }): ManagedQueue<T> {
         // If queue doesn't exist, create it
         if (!this.queueInstances[name]) {
-            this.queueInstances[name] = new ManagedQueue<T>(
-                {
-                    name,
-                    processor,
-                    validator: options?.validator, // Ensure validator is passed
-                    jobOpts: options?.jobOpts,     // Ensure jobOpts is passed
-                    workerOpts: options?.workerOpts, // Ensure workerOpts is passed
-                    onReady: options?.onReady,     // Ensure onReady is passed
-                },
-                this.getConnection(), // This will now throw if connection not ready
-            );
+            const config: BaseQueueConfig<T> = {
+                name,
+                processor,
+                validator: options?.validator,
+                jobOpts: options?.jobOpts,
+                workerOpts: options?.workerOpts,
+                onReady: options?.onReady,
+            };
+            this.queueInstances[name] = new ManagedQueue<T>(config);
+            logger.debug(`Created ManagedQueue for ${name} with isolated connections`);
         }
         return this.queueInstances[name] as ManagedQueue<T>;
     }
@@ -453,6 +358,7 @@ export class QueueService {
             case QueueTaskType.IMPORT_USER_DATA:
                 return this.import.addTask(data as ImportUserDataTask, opts);
             case QueueTaskType.LLM_COMPLETION:
+            case QueueTaskType.SWARM_EXECUTION:
                 return this.swarm.addTask(data as SwarmTask, opts);
             case QueueTaskType.PUSH_NOTIFICATION:
                 return this.push.addTask(data as PushNotificationTask, opts);
@@ -687,7 +593,7 @@ export class QueueService {
     get run(): ManagedQueue<RunTask> {
         // Use synchronous limits (defaults if not loaded yet)
         const limits = getRunQueueLimitsSync();
-        const runQueue = this.getQueue(QueueTaskType.RUN_START, async (job) => {
+        const runQueue = this.getQueue<RunTask>(QueueTaskType.RUN_START, async (job: Job<RunTask>) => {
             const { runProcess } = await getRunDependencies();
             return runProcess(job);
         }, {

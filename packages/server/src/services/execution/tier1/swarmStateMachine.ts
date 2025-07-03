@@ -1,10 +1,6 @@
 /**
  * SwarmStateMachine - Autonomous Swarm Coordination
  * 
- * This is the battle-tested implementation from conversation/responseEngine.ts,
- * adapted for the tier1 execution architecture. It provides elegant, event-driven
- * swarm coordination without overly complex state transitions.
- * 
  * Key features:
  * - Simple, proven state model (UNINITIALIZED → STARTING → RUNNING/IDLE → STOPPED/FAILED)
  * - Event queue with autonomous draining

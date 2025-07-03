@@ -24,15 +24,20 @@ describe("Email Queue Tests (BullMQ)", () => {
         // Restore env variable
         process.env.SITE_EMAIL_USERNAME = originalSiteEmailUsername;
 
-        // Clean shutdown
+        // Clean shutdown - order is critical to prevent "Connection is closed" errors
         try {
             await queueService.shutdown();
+            // Wait for shutdown to fully complete and event handlers to detach
+            await new Promise(resolve => setTimeout(resolve, 100));
         } catch (error) {
             console.log("Shutdown error (ignored):", error);
         }
-        clearRedisCache();
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // Clear singleton before clearing cache to prevent any access during cleanup
         (QueueService as any).instance = null;
+        // Clear Redis cache last to avoid disconnecting connections still in use
+        clearRedisCache();
+        // Final delay to ensure all async operations complete
+        await new Promise(resolve => setTimeout(resolve, 50));
     });
 
     /**

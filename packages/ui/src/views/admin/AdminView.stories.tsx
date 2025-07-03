@@ -2,6 +2,7 @@ import { HttpResponse, http } from "msw";
 import { SEEDED_PUBLIC_IDS } from "@vrooli/shared";
 import type { Session, SessionUser } from "@vrooli/shared";
 import { API_URL, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
+import { getMockApiUrl } from "../../__test/helpers/storybookMocking.js";
 import { AdminView } from "./AdminView.js";
 
 export default {
@@ -11,7 +12,7 @@ export default {
         msw: {
             handlers: [
                 // Site statistics endpoint
-                http.get(`${API_URL}/v2/stats/site*`, ({ request }) => {
+                http.get(`${getMockApiUrl("/stats/site")}*`, ({ request }) => {
                     const url = new URL(request.url);
                     const params = new URLSearchParams(url.search);
                     
@@ -61,7 +62,7 @@ export default {
                 }),
 
                 // Admin site stats endpoint (used by CreditStatsPanel)
-                http.get(`${API_URL}/v2/admin/siteStats`, () => {
+                http.get(getMockApiUrl("/admin/siteStats"), () => {
                     return HttpResponse.json({
                         data: {
                             totalCreditsEarned: 1234567,
@@ -80,7 +81,7 @@ export default {
                 }),
 
                 // User management endpoints
-                http.get(`${API_URL}/v2/admin/users*`, () => {
+                http.get(`${getMockApiUrl("/admin/users")}*`, () => {
                     return HttpResponse.json({
                         data: {
                             edges: Array.from({ length: 10 }, (_, i) => ({
@@ -111,7 +112,7 @@ export default {
                 }),
 
                 // Reports endpoint
-                http.get(`${API_URL}/v2/reports*`, () => {
+                http.get(`${getMockApiUrl("/reports")}*`, () => {
                     return HttpResponse.json({
                         data: {
                             edges: Array.from({ length: 5 }, (_, i) => ({
@@ -142,7 +143,7 @@ export default {
                 }),
 
                 // Admin user management endpoints
-                http.put(`${API_URL}/v2/admin/user/status`, async ({ request }) => {
+                http.put(getMockApiUrl("/admin/user/status"), async ({ request }) => {
                     const body = await request.json();
                     return HttpResponse.json({
                         data: {
@@ -152,7 +153,7 @@ export default {
                     });
                 }),
 
-                http.post(`${API_URL}/v2/admin/user/resetPassword`, async ({ request }) => {
+                http.post(getMockApiUrl("/admin/user/resetPassword"), async ({ request }) => {
                     const body = await request.json();
                     return HttpResponse.json({
                         data: {
@@ -163,7 +164,7 @@ export default {
                 }),
 
                 // General user update endpoint
-                http.put(`${API_URL}/v2/users/:id`, async ({ params, request }) => {
+                http.put(getMockApiUrl("/users/:id"), async ({ params, request }) => {
                     const body = await request.json();
                     return HttpResponse.json({
                         data: {
@@ -175,7 +176,7 @@ export default {
                 }),
 
                 // System settings endpoints
-                http.get(`${API_URL}/v2/admin/settings`, () => {
+                http.get(getMockApiUrl("/admin/settings"), () => {
                     return HttpResponse.json({
                         data: {
                             maintenanceMode: false,
@@ -187,10 +188,127 @@ export default {
                     });
                 }),
 
-                http.put(`${API_URL}/v2/admin/settings`, async ({ request }) => {
+                http.put(getMockApiUrl("/admin/settings"), async ({ request }) => {
                     const body = await request.json();
                     return HttpResponse.json({
                         data: body,
+                    });
+                }),
+
+                // Health check endpoint
+                http.get(`${getMockApiUrl("")}/healthcheck`, () => {
+                    return HttpResponse.json({
+                        status: "Operational",
+                        version: "1.0.0",
+                        services: {
+                            api: { healthy: true, status: "Operational", lastChecked: Date.now() },
+                            bus: { healthy: true, status: "Operational", lastChecked: Date.now() },
+                            cronJobs: { healthy: true, status: "Operational", lastChecked: Date.now() },
+                            database: { healthy: true, status: "Operational", lastChecked: Date.now() },
+                            i18n: { healthy: true, status: "Operational", lastChecked: Date.now() },
+                            llm: {
+                                "openai": { healthy: true, status: "Operational", lastChecked: Date.now() },
+                                "anthropic": { healthy: false, status: "Degraded", lastChecked: Date.now() },
+                            },
+                            mcp: { healthy: true, status: "Operational", lastChecked: Date.now() },
+                            memory: { healthy: true, status: "Operational", lastChecked: Date.now() },
+                            queues: {
+                                "email": { healthy: true, status: "Operational", lastChecked: Date.now() },
+                                "jobs": { healthy: true, status: "Operational", lastChecked: Date.now() },
+                            },
+                            redis: { healthy: true, status: "Operational", lastChecked: Date.now() },
+                            ssl: { healthy: true, status: "Operational", lastChecked: Date.now() },
+                            stripe: { healthy: true, status: "Operational", lastChecked: Date.now() },
+                            system: { healthy: true, status: "Operational", lastChecked: Date.now() },
+                            websocket: { healthy: true, status: "Operational", lastChecked: Date.now() },
+                            imageStorage: { healthy: true, status: "Operational", lastChecked: Date.now() },
+                            embeddingService: { healthy: true, status: "Operational", lastChecked: Date.now() },
+                        },
+                        timestamp: Date.now(),
+                    });
+                }),
+
+                // Metrics endpoint
+                http.get(`${getMockApiUrl("")}/metrics`, () => {
+                    return HttpResponse.json({
+                        timestamp: Date.now(),
+                        uptime: 3600, // 1 hour
+                        system: {
+                            cpu: {
+                                usage: Math.floor(Math.random() * 50) + 20, // 20-70%
+                                cores: 4,
+                                loadAvg: [0.5, 0.7, 0.9],
+                            },
+                            memory: {
+                                heapUsed: 256 * 1024 * 1024, // 256MB
+                                heapTotal: 512 * 1024 * 1024, // 512MB
+                                heapUsedPercent: 50,
+                                rss: 300 * 1024 * 1024,
+                                external: 10 * 1024 * 1024,
+                                arrayBuffers: 5 * 1024 * 1024,
+                            },
+                            disk: {
+                                total: 100 * 1024 * 1024 * 1024, // 100GB
+                                used: 45 * 1024 * 1024 * 1024, // 45GB
+                                usagePercent: 45,
+                            },
+                        },
+                        application: {
+                            nodeVersion: "v18.17.0",
+                            pid: 12345,
+                            platform: "linux",
+                            environment: "development",
+                            websockets: {
+                                connections: Math.floor(Math.random() * 100),
+                                rooms: Math.floor(Math.random() * 20),
+                            },
+                            queues: {
+                                email: {
+                                    waiting: Math.floor(Math.random() * 10),
+                                    active: Math.floor(Math.random() * 5),
+                                    completed: Math.floor(Math.random() * 1000),
+                                    failed: Math.floor(Math.random() * 10),
+                                    delayed: Math.floor(Math.random() * 5),
+                                    total: 1050,
+                                },
+                                jobs: {
+                                    waiting: Math.floor(Math.random() * 20),
+                                    active: Math.floor(Math.random() * 10),
+                                    completed: Math.floor(Math.random() * 500),
+                                    failed: Math.floor(Math.random() * 5),
+                                    delayed: Math.floor(Math.random() * 2),
+                                    total: 537,
+                                },
+                            },
+                            llmServices: {
+                                "openai": { state: "Active" },
+                                "anthropic": { state: "Cooldown", cooldownUntil: Date.now() + 300000 },
+                                "local": { state: "Active" },
+                            },
+                        },
+                        database: {
+                            connected: true,
+                            poolSize: 10,
+                        },
+                        redis: {
+                            connected: true,
+                            memory: {
+                                used: 64 * 1024 * 1024, // 64MB
+                                peak: 128 * 1024 * 1024, // 128MB
+                            },
+                            stats: {
+                                connections: 25,
+                                commands: 10000,
+                            },
+                        },
+                        api: {
+                            requestsTotal: 5000,
+                            responseTimes: {
+                                min: 10,
+                                max: 500,
+                                avg: 85,
+                            },
+                        },
                     });
                 }),
             ],

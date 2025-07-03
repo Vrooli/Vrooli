@@ -1,4 +1,4 @@
-// AI_CHECK: TYPE_SAFETY=server-type-safety-fixes | LAST: 2025-06-29 - Fixed missing import path
+// AI_CHECK: TYPE_SAFETY=server-phase2-1 | LAST: 2025-07-03
 import { i18nConfig } from "@vrooli/shared";
 import i18next from "i18next";
 import { ModelMap } from "../models/base/index.js";
@@ -9,7 +9,7 @@ import { initializeProfanity } from "./censor.js";
 
 const debug = process.env.NODE_ENV === "development";
 
-export async function initSingletons() {
+export async function initSingletons(): Promise<void> {
     // Initialize translations
     await i18next.init(i18nConfig(debug));
 

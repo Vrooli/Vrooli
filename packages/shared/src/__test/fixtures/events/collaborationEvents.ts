@@ -9,13 +9,13 @@ import { BranchStatus } from "../../../run/enums.js";
 import { type DeferredDecisionData, RunStatusChangeReason, type RunTaskInfo } from "../../../run/types.js";
 import { testValues } from "../../../validation/models/__test/validationTestUtils.js";
 import { BaseEventFactory } from "./BaseEventFactory.js";
-import { type BaseEvent } from "./types.js";
+import { type BaseFixtureEvent } from "./types.js";
 
 // ========================================
 // Core Event Types
 // ========================================
 
-interface CollaborationEvent<T> extends BaseEvent {
+interface CollaborationEvent<T> extends BaseFixtureEvent {
     event: keyof RunSocketEventPayloads;
     data: T;
 }

@@ -18,6 +18,9 @@ export * from "./events/index.js";
 // Export API response fixtures
 export * from "./api-responses/index.js";
 
+// Export form fixtures
+export * from "./forms/index.js";
+
 // Namespace exports for better organization
 export * as apiFixtures from "./api-inputs/index.js";
 export * as configFixtures from "./config/index.js";

@@ -44,12 +44,12 @@ import { logger } from "../../events/logger.js";
 import type { EventBus } from "../events/eventBus.js";
 import type { SwarmContextManager } from "../execution/shared/SwarmContextManager.js";
 import type { ResponseService } from "../response/responseService.js";
+import { PromptService, type PromptContext } from "./promptService.js";
 
 /**
  * Default configuration for ConversationEngine
  */
 const DEFAULT_CONFIG: ConversationEngineConfig = {
-    defaultStrategy: "conversation",
     maxConcurrentTurns: 5,
     defaultTimeoutMs: 300000, // 5 minutes
     enableBotSelection: true,
@@ -220,13 +220,14 @@ export class ConversationEngine {
             });
 
             // Create AI-powered bot selection using ResponseService
+            const botSelectionPrompt = await this.buildBotSelectionPrompt(context);
             const selectionContext: ResponseContext = {
                 swarmId: toSwarmId("bot_selector"),
                 userData: { id: "system", name: "Bot Selector" } as SessionUser,
                 timestamp: new Date(),
                 botId: toBotId("bot_selector"),
                 botConfig: this.createBotSelectorConfig(),
-                conversationHistory: this.buildBotSelectionPrompt(context),
+                conversationHistory: botSelectionPrompt,
                 availableTools: [this.createBotSelectionTool()],
                 strategy: "reasoning",
                 constraints: {
@@ -610,35 +611,171 @@ export class ConversationEngine {
         };
     }
 
-    private buildBotSelectionPrompt(context: BotSelectionContext): ChatMessage[] {
-        const promptText = `
-You need to select the most appropriate bots for this conversation task.
+    /**
+     * Enhanced bot selection prompt using PromptService with proper bot configuration
+     * This uses the enhanced PromptService to properly handle bot configuration and swarm context
+     */
+    private async buildBotSelectionPrompt(context: BotSelectionContext): Promise<ChatMessage[]> {
+        try {
+            // Create a bot selector bot configuration
+            const botSelectorBot = {
+                id: "bot_selector",
+                name: "Bot Selector",
+                config: {
+                    ...this.createBotSelectorConfig(),
+                    agentSpec: {
+                        goal: "Select the most appropriate bots for conversation tasks",
+                        role: "coordinator",
+                        prompt: {
+                            mode: "direct" as const,
+                            source: "direct" as const,
+                            content: this.createBotSelectionDirectPrompt(context),
+                            variables: {
+                                "trigger.type": "context.trigger.type",
+                                "available.bots": "context.availableParticipants",
+                                "conversation.history": "context.conversationHistory",
+                            },
+                        },
+                    },
+                },
+                meta: {
+                    role: "coordinator",
+                },
+                capabilities: ["bot_selection", "context_analysis"],
+                specializations: ["conversation_orchestration"],
+            };
 
-TRIGGER: ${context.trigger.type}
-${context.trigger.type === "user_message" ? `User Message: "${(context.trigger as { type: "user_message"; message: ChatMessage }).message?.text || "N/A"}"` : ""}
+            // Create PromptContext for bot selection
+            const promptContext: PromptContext = {
+                goal: "Select appropriate bots for the current conversation task",
+                bot: botSelectorBot,
+                convoConfig: {
+                    teamId: "bot_selection_team",
+                    swarmLeader: "bot_selector",
+                    subtasks: [],
+                    subtaskLeaders: {},
+                    eventSubscriptions: {},
+                    blackboard: [],
+                    resources: [],
+                    records: [],
+                    stats: {},
+                    limits: {},
+                    pendingToolCalls: [],
+                },
+                swarmId: "bot_selection_swarm",
+                userId: "system",
+                // Pass context data for variable resolution
+                input: {
+                    trigger: context.trigger,
+                    availableParticipants: context.availableParticipants,
+                    conversationHistory: context.conversationHistory,
+                    sharedState: context.sharedState,
+                    constraints: context.constraints,
+                },
+            };
 
-AVAILABLE BOTS:
-${context.availableParticipants.map(bot =>
-            `- ${bot.name} (${bot.id}): ${bot.config.description || "No description"}
-      Capabilities: ${bot.capabilities?.join(", ") || "None specified"}
-      Specializations: ${bot.specializations?.join(", ") || "None specified"}`,
-        ).join("\n")}
+            // Use PromptService to build the system message
+            const systemPrompt = await PromptService.buildSystemMessage(promptContext);
 
-CONVERSATION HISTORY: ${context.conversationHistory.length} messages
+            return [{
+                id: generatePK().toString(),
+                createdAt: new Date(),
+                config: {
+                    role: "user",
+                    text: systemPrompt,
+                },
+                user: { id: "system" },
+            }];
+        } catch (error) {
+            logger.warn("[ConversationEngine] Failed to use PromptService for bot selection, falling back to basic prompt", { error });
+            return this.createFallbackBotSelectionPrompt(context);
+        }
+    }
 
-Please analyze the context and select 1-3 bots that would be most effective for this conversation.
-Use the select_bots tool to make your selection with reasoning.
-        `.trim();
+    /**
+     * Create direct prompt content for bot selection
+     */
+    private createBotSelectionDirectPrompt(context: BotSelectionContext): string {
+        return `You are an expert bot selector. Analyze the conversation context and select the most appropriate bots.
+
+CONTEXT:
+Trigger Type: {{input.trigger.type}}
+Available Participants: {{input.availableParticipants.length}} bots
+Conversation History: {{input.conversationHistory.length}} messages
+
+Your task is to select the best bot(s) for this situation. Consider:
+- Bot capabilities and specializations  
+- Context requirements and complexity
+- Conversation flow and user needs
+- Resource efficiency and response quality
+
+Use the select_bots tool to make your selection with reasoning.`;
+    }
+
+    /**
+     * Create fallback bot selection prompt when PromptService fails
+     */
+    private createFallbackBotSelectionPrompt(context: BotSelectionContext): ChatMessage[] {
+        const contextSummary = this.buildContextSummary(context);
+        const availableBotsSummary = this.buildAvailableBotsSummary(context.availableParticipants);
+        
+        const fallbackPrompt = `Select appropriate bots for conversation task.
+
+Context: ${contextSummary}
+Available Bots: ${availableBotsSummary}
+Conversation: ${context.conversationHistory.length} messages
+
+Use select_bots tool to choose the best bot(s) with reasoning.`;
 
         return [{
             id: generatePK().toString(),
             createdAt: new Date(),
             config: {
                 role: "user",
-                text: promptText,
+                text: fallbackPrompt,
             },
             user: { id: "system" },
         }];
+    }
+
+    /**
+     * Build context summary for bot selection template
+     */
+    private buildContextSummary(context: BotSelectionContext): string {
+        const MAX_MESSAGE_PREVIEW_LENGTH = 200;
+        let summary = `Trigger: ${context.trigger.type}`;
+
+        if (context.trigger.type === "user_message") {
+            const message = (context.trigger as { type: "user_message"; message: ChatMessage }).message;
+            if (message?.text) {
+                summary += `\nUser Message: "${message.text.substring(0, MAX_MESSAGE_PREVIEW_LENGTH)}${message.text.length > MAX_MESSAGE_PREVIEW_LENGTH ? "..." : ""}"`;
+            }
+        }
+
+        if (Object.keys(context.sharedState || {}).length > 0) {
+            summary += `\nShared State: Active with ${Object.keys(context.sharedState || {}).length} entries`;
+        }
+
+        if (Object.keys(context.constraints || {}).length > 0) {
+            summary += `\nConstraints: ${Object.keys(context.constraints || {}).length} active constraints`;
+        }
+
+        return summary;
+    }
+
+    /**
+     * Build available bots summary for bot selection template
+     */
+    private buildAvailableBotsSummary(participants: BotParticipant[]): string {
+        return participants.map(bot => {
+            const capabilities = bot.capabilities?.join(", ") || "None specified";
+            const specializations = bot.specializations?.join(", ") || "None specified";
+            const description = bot.config.description || "No description";
+
+            return `- ${bot.name} (${bot.id}): ${description}
+  Capabilities: ${capabilities}
+  Specializations: ${specializations}`;
+        }).join("\n");
     }
 
     private createBotSelectionTool(): Tool {

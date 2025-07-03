@@ -6,7 +6,7 @@ import {
     Paper,
     Alert,
     Chip,
-    Stack
+    Stack,
 } from "@mui/material";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,6 +18,7 @@ import { UserManagementPanel } from "./components/UserManagementPanel.js";
 import { ExternalServicesPanel } from "./components/ExternalServicesPanel.js";
 import { ReportsPanel } from "./components/ReportsPanel.js";
 import { SystemSettingsPanel } from "./components/SystemSettingsPanel.js";
+import { HealthAndMetricsPanel } from "./components/HealthAndMetricsPanel.js";
 import { CreditStatsPanel } from "./CreditStatsPanel.js";
 import { ErrorBoundary } from "../../components/ErrorBoundary/ErrorBoundary.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
@@ -38,11 +39,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ display = "Page" }) => {
     
     const tabOptions = [
         { key: "statistics", label: t("SiteStats"), index: 0, iconInfo: { name: "Stats" as const, type: "Common" as const } },
-        { key: "users", label: t("User", { count: 2 }), index: 1, iconInfo: { name: "Team" as const, type: "Common" as const } },
-        { key: "services", label: t("ExternalServices"), index: 2, iconInfo: { name: "Link" as const, type: "Common" as const } },
-        { key: "reports", label: t("Report", { count: 2 }), index: 3, iconInfo: { name: "Report" as const, type: "Common" as const } },
-        { key: "settings", label: t("Settings"), index: 4, iconInfo: { name: "Settings" as const, type: "Common" as const } },
-        { key: "credits", label: t("CreditsAndDonations"), index: 5, iconInfo: { name: "Wallet" as const, type: "Common" as const } },
+        { key: "health", label: "Health & Metrics", index: 1, iconInfo: { name: "Activity" as const, type: "Common" as const } },
+        { key: "users", label: t("User", { count: 2 }), index: 2, iconInfo: { name: "Team" as const, type: "Common" as const } },
+        { key: "services", label: t("ExternalServices"), index: 3, iconInfo: { name: "Link" as const, type: "Common" as const } },
+        { key: "reports", label: t("Report", { count: 2 }), index: 4, iconInfo: { name: "Report" as const, type: "Common" as const } },
+        { key: "settings", label: t("Settings"), index: 5, iconInfo: { name: "Settings" as const, type: "Common" as const } },
+        { key: "credits", label: t("CreditsAndDonations"), index: 6, iconInfo: { name: "Wallet" as const, type: "Common" as const } },
     ];
     const [currTab, setCurrTab] = useState(tabOptions[0]);
 
@@ -106,11 +108,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ display = "Page" }) => {
                     <Box sx={{ py: 3 }}>
                         <ErrorBoundary>
                             {currTab.index === 0 && <SiteStatisticsPanel />}
-                            {currTab.index === 1 && <UserManagementPanel />}
-                            {currTab.index === 2 && <ExternalServicesPanel />}
-                            {currTab.index === 3 && <ReportsPanel />}
-                            {currTab.index === 4 && <SystemSettingsPanel />}
-                            {currTab.index === 5 && <CreditStatsPanel />}
+                            {currTab.index === 1 && <HealthAndMetricsPanel />}
+                            {currTab.index === 2 && <UserManagementPanel />}
+                            {currTab.index === 3 && <ExternalServicesPanel />}
+                            {currTab.index === 4 && <ReportsPanel />}
+                            {currTab.index === 5 && <SystemSettingsPanel />}
+                            {currTab.index === 6 && <CreditStatsPanel />}
                         </ErrorBoundary>
                     </Box>
                 </Paper>

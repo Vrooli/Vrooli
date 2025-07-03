@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
-import { Job } from "bullmq";
+import { type Job } from "bullmq";
 import nodemailer from "nodemailer";
 import { emailProcess, setupTransporter } from "./process.js";
-import { EmailTask, QueueTaskType } from "../taskTypes.js";
+import { type EmailTask, QueueTaskType } from "../taskTypes.js";
 import { logger } from "../../events/logger.js";
 
 // Mock nodemailer
@@ -105,7 +105,7 @@ describe("emailProcess", () => {
             expect(result.success).toBe(true);
             expect(result.info).toBeDefined();
             expect(mockSendMail).toHaveBeenCalledWith({
-                from: '"Test Site" <noreply@example.com>',
+                from: "\"Test Site\" <noreply@example.com>",
                 to: "recipient@example.com",
                 subject: "Test Subject",
                 text: "Test email body",
@@ -113,7 +113,7 @@ describe("emailProcess", () => {
             });
             expect(loggerInfoSpy).toHaveBeenCalledWith(
                 "Email transporter initialized successfully.",
-                expect.any(Object)
+                expect.any(Object),
             );
         });
 
@@ -128,7 +128,7 @@ describe("emailProcess", () => {
             expect(mockSendMail).toHaveBeenCalledWith(
                 expect.objectContaining({
                     to: "user1@example.com, user2@example.com, user3@example.com",
-                })
+                }),
             );
         });
 
@@ -144,7 +144,7 @@ describe("emailProcess", () => {
                 expect.objectContaining({
                     text: "Test email body",
                     html: undefined,
-                })
+                }),
             );
         });
 
@@ -157,8 +157,8 @@ describe("emailProcess", () => {
             expect(result.success).toBe(true);
             expect(mockSendMail).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    from: '"Test Site" <test@example.com>',
-                })
+                    from: "\"Test Site\" <test@example.com>",
+                }),
             );
         });
 
@@ -210,7 +210,7 @@ describe("emailProcess", () => {
                     errorDetails: expect.objectContaining({
                         message: "SMTP connection failed",
                     }),
-                })
+                }),
             );
         });
 
@@ -230,7 +230,7 @@ describe("emailProcess", () => {
                         message: "Connection timeout",
                         code: "ETIMEDOUT",
                     }),
-                })
+                }),
             );
         });
     });
@@ -245,7 +245,7 @@ describe("emailProcess", () => {
             expect(result.success).toBe(false);
             expect(loggerErrorSpy).toHaveBeenCalledWith(
                 expect.stringContaining("SITE_EMAIL_USERNAME or SITE_EMAIL_PASSWORD is not defined"),
-                expect.any(Object)
+                expect.any(Object),
             );
             expect(mockSendMail).not.toHaveBeenCalled();
         });
@@ -259,7 +259,7 @@ describe("emailProcess", () => {
             expect(result.success).toBe(false);
             expect(loggerErrorSpy).toHaveBeenCalledWith(
                 expect.stringContaining("SITE_EMAIL_USERNAME or SITE_EMAIL_PASSWORD is not defined"),
-                expect.any(Object)
+                expect.any(Object),
             );
         });
 
@@ -272,7 +272,7 @@ describe("emailProcess", () => {
             expect(result.success).toBe(false);
             expect(loggerErrorSpy).toHaveBeenCalledWith(
                 expect.stringContaining("SITE_EMAIL_FROM is not defined"),
-                expect.any(Object)
+                expect.any(Object),
             );
         });
 
@@ -287,7 +287,7 @@ describe("emailProcess", () => {
             expect(result.success).toBe(false);
             expect(loggerErrorSpy).toHaveBeenCalledWith(
                 expect.stringContaining("SITE_EMAIL_USERNAME or SITE_EMAIL_PASSWORD is not defined"),
-                expect.any(Object)
+                expect.any(Object),
             );
         });
     });
@@ -307,7 +307,7 @@ describe("emailProcess", () => {
                 expect.stringContaining("Email transporter setup failed during nodemailer.createTransport"),
                 expect.objectContaining({
                     error: "Invalid auth credentials",
-                })
+                }),
             );
         });
 
@@ -320,7 +320,7 @@ describe("emailProcess", () => {
             expect(result.success).toBe(false);
             expect(loggerErrorSpy).toHaveBeenCalledWith(
                 expect.stringContaining("SITE_EMAIL_USERNAME or SITE_EMAIL_PASSWORD is not defined"),
-                expect.any(Object)
+                expect.any(Object),
             );
             
             // Second attempt without credentials (should log warning)
@@ -330,7 +330,7 @@ describe("emailProcess", () => {
             expect(result.success).toBe(false);
             expect(loggerWarnSpy).toHaveBeenCalledWith(
                 expect.stringContaining("Email transporter setup skipped: critical credential issue persists"),
-                expect.any(Object)
+                expect.any(Object),
             );
             
             // Restore credentials
@@ -344,7 +344,7 @@ describe("emailProcess", () => {
             expect(result.success).toBe(true);
             expect(loggerInfoSpy).toHaveBeenCalledWith(
                 "Email credentials are now available. Attempting to initialize or reinitialize transporter.",
-                expect.any(Object)
+                expect.any(Object),
             );
         });
     });
@@ -364,7 +364,7 @@ describe("emailProcess", () => {
                         message: "Custom error object",
                         code: "CUSTOM",
                     }),
-                })
+                }),
             );
         });
 
@@ -381,7 +381,7 @@ describe("emailProcess", () => {
                     errorDetails: expect.objectContaining({
                         message: "String error message",
                     }),
-                })
+                }),
             );
         });
 
@@ -398,7 +398,7 @@ describe("emailProcess", () => {
                     errorDetails: expect.objectContaining({
                         message: "An unknown error occurred during email transport.",
                     }),
-                })
+                }),
             );
         });
     });

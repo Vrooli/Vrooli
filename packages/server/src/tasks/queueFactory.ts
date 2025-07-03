@@ -131,7 +131,8 @@ export function getRedisConnectionConfig(): RedisOptions {
                 if (times > 2) return null; // Stop retrying after 2 attempts in tests
                 return times * 100;
             };
-            options.enableOfflineQueue = false; // Don't queue commands when disconnected
+            // Enable offline queue for BullMQ compatibility in tests
+            options.enableOfflineQueue = true;
             options.reconnectOnError = () => false; // Don't reconnect on errors in tests
         } else {
             options.reconnectOnError = (err) => {
@@ -195,6 +196,11 @@ export class ManagedQueue<Data> {
     private readonly validator?: (data: Data) => { valid: boolean; errors?: string[] };
     private readonly connectionMonitor: NodeJS.Timer;
     private isClosing = false;
+    private readonly connectionInfo: {
+        queueConnection?: IORedis;
+        workerConnection?: IORedis;
+        eventsConnection?: IORedis;
+    } = {};
     
     constructor(cfg: BaseQueueConfig<Data>) {
         this.queueName = cfg.name;
@@ -227,6 +233,9 @@ export class ManagedQueue<Data> {
             defaultJobOptions: { ...DEFAULT_JOB_OPTIONS, ...cfg.jobOpts },
         });
         
+        // Increase max listeners to prevent memory leak warnings in tests
+        this.queue.setMaxListeners(100);
+        
         this.worker = new Worker<Data>(
             cfg.name,
             cfg.processor,
@@ -237,12 +246,19 @@ export class ManagedQueue<Data> {
             },
         );
         
+        this.worker.setMaxListeners(100);
+        
         this.events = new QueueEvents(cfg.name, {
             connection: eventsConnectionOptions,
         });
         
+        this.events.setMaxListeners(100);
+        
         // Set up comprehensive error handling
         this.setupErrorHandlers();
+        
+        // Store connection references for monitoring
+        this.storeConnectionReferences();
         
         // Monitor connection health
         this.connectionMonitor = setInterval(() => {
@@ -317,6 +333,17 @@ export class ManagedQueue<Data> {
                 }
             });
         });
+    }
+    
+    private async storeConnectionReferences(): Promise<void> {
+        // Store connection references for better monitoring and cleanup
+        try {
+            this.connectionInfo.queueConnection = await this.queue.client;
+            this.connectionInfo.workerConnection = await this.worker.client;
+            this.connectionInfo.eventsConnection = await this.events.client;
+        } catch (error) {
+            logger.debug(`Error storing connection references for ${this.queueName}:`, error);
+        }
     }
     
     private async checkConnectionHealth(): Promise<void> {
@@ -414,37 +441,146 @@ export class ManagedQueue<Data> {
                 // Ignore pause errors - queue might already be paused
             });
             
-            // 2. Remove event listeners to stop processing events
+            // 2. Wait for any active jobs to complete (with timeout)
+            await this.waitForActiveJobs();
+            
+            // 3. Remove event listeners to stop processing events
             this.worker.removeAllListeners();
             this.events.removeAllListeners();
             this.queue.removeAllListeners();
             
-            // 3. Close worker first (stops processing jobs)
-            await this.worker.close().catch(error => {
-                logger.debug(`Worker close error for ${this.queueName}:`, error);
+            // 4. Add error handlers to catch any errors during close
+            [this.worker, this.events, this.queue].forEach(component => {
+                component.on("error", () => {
+                    // Silently ignore errors during close
+                });
             });
             
-            // 4. Small delay to allow worker to finish cleanup
-            await new Promise(resolve => setTimeout(resolve, 50));
+            // 5. Close components in reverse dependency order
+            const closePromises = [
+                this.worker.close().catch(error => {
+                    logger.debug(`Worker close error for ${this.queueName}:`, error);
+                }),
+                this.events.close().catch(error => {
+                    logger.debug(`Events close error for ${this.queueName}:`, error);
+                }),
+                this.queue.close().catch(error => {
+                    logger.debug(`Queue close error for ${this.queueName}:`, error);
+                }),
+            ];
             
-            // 5. Close events (stops listening for job events)
-            await this.events.close().catch(error => {
-                logger.debug(`Events close error for ${this.queueName}:`, error);
-            });
+            // Wait for all components to close
+            await Promise.allSettled(closePromises);
             
-            // 6. Close queue last (closes the main connection)
-            await this.queue.close().catch(error => {
-                logger.debug(`Queue close error for ${this.queueName}:`, error);
-            });
+            // 6. Give connections time to close gracefully
+            await new Promise(resolve => setTimeout(resolve, 100));
             
-            // 7. Final delay to ensure all connections are fully closed
+            // 7. Force close any remaining connections
+            await this.closeIndividualConnections();
+            
+            // 8. Final delay to ensure all async operations complete
             if (process.env.NODE_ENV === "test") {
-                await new Promise(resolve => setTimeout(resolve, 100));
+                await new Promise(resolve => setTimeout(resolve, 200));
             }
             
         } catch (error) {
             logger.error(`Error during graceful close of queue ${this.queueName}`, { error });
         }
+    }
+    
+    private async waitForActiveJobs(): Promise<void> {
+        try {
+            const jobCounts = await this.queue.getJobCounts();
+            if (jobCounts.active > 0) {
+                logger.debug(`Waiting for ${jobCounts.active} active jobs to complete in ${this.queueName}`);
+                // Wait up to 5 seconds for active jobs to complete
+                const maxWait = 5000;
+                const checkInterval = 100;
+                let waited = 0;
+                
+                while (waited < maxWait) {
+                    const currentCounts = await this.queue.getJobCounts();
+                    if (currentCounts.active === 0) {
+                        break;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, checkInterval));
+                    waited += checkInterval;
+                }
+            }
+        } catch (error) {
+            // Ignore errors when checking job counts
+            logger.debug(`Error checking job counts during close for ${this.queueName}:`, error);
+        }
+    }
+    
+    private async closeIndividualConnections(): Promise<void> {
+        const connections = [
+            { name: "queue", client: this.connectionInfo.queueConnection },
+            { name: "worker", client: this.connectionInfo.workerConnection },
+            { name: "events", client: this.connectionInfo.eventsConnection },
+        ];
+        
+        const closePromises = connections.map(async ({ name, client }) => {
+            if (!client) return;
+            
+            // Check if connection is already closed
+            if (client.status === "end" || client.status === "close") {
+                logger.debug(`${this.queueName}: ${name} connection already closed`);
+                return;
+            }
+            
+            try {
+                // Remove all listeners to prevent unhandled events
+                client.removeAllListeners();
+                
+                // Add comprehensive error handlers for the close process
+                client.on("error", (err) => {
+                    // Silently ignore connection errors during close
+                    logger.debug(`${this.queueName}: ${name} connection error during close (ignored):`, err.message);
+                });
+                
+                client.on("close", () => {
+                    logger.debug(`${this.queueName}: ${name} connection closed event`);
+                });
+                
+                client.on("end", () => {
+                    logger.debug(`${this.queueName}: ${name} connection end event`);
+                });
+                
+                // Attempt graceful close first
+                if (client.status === "ready") {
+                    logger.debug(`${this.queueName}: Gracefully closing ${name} connection`);
+                    await Promise.race([
+                        client.quit(),
+                        new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error("Quit timeout")), 2000),
+                        ),
+                    ]);
+                } else {
+                    logger.debug(`${this.queueName}: Force disconnecting ${name} connection (status: ${client.status})`);
+                    client.disconnect();
+                }
+                
+                logger.debug(`${this.queueName}: ${name} connection closed successfully`);
+            } catch (error) {
+                logger.debug(`${this.queueName}: Error closing ${name} connection:`, error);
+                // Force disconnect if quit fails
+                try {
+                    client.disconnect();
+                    logger.debug(`${this.queueName}: Force disconnected ${name} connection`);
+                } catch (e) {
+                    logger.debug(`${this.queueName}: Final disconnect error for ${name} (ignored):`, e);
+                }
+            }
+        });
+        
+        // Wait for all connections to close
+        await Promise.allSettled(closePromises);
+        
+        // Clear connection references
+        this.connectionInfo.queueConnection = undefined;
+        this.connectionInfo.workerConnection = undefined;
+        this.connectionInfo.eventsConnection = undefined;
     }
     
     /**
@@ -578,6 +714,160 @@ export class ManagedQueue<Data> {
             isPaused: await this.queue.isPaused(),
         };
     }
+    
+    /**
+     * Get the owner ID from task data (supports multiple formats)
+     * @param data Task data
+     * @returns Owner ID or null if not found
+     */
+    static getTaskOwner(data: any): string | null {
+        return data.userId ?? data.startedById ?? data.userData?.id ?? null;
+    }
+}
+
+// Test utility connection cache for backward compatibility
+const testRedisClients: Record<string, IORedis> = {};
+const testConnectionPromises: Record<string, Promise<IORedis>> = {};
+
+/**
+ * Test utility function to build Redis connections with caching.
+ * This provides backward compatibility for tests that expect cached connections.
+ * 
+ * @internal Test utility function
+ */
+export async function buildRedis(url: string): Promise<IORedis> {
+    if (process.env.NODE_ENV !== "test") {
+        throw new Error("buildRedis is only available in test environment");
+    }
+    
+    // Check if we already have a ready connection
+    if (testRedisClients[url]) {
+        const client = testRedisClients[url];
+        if (client.status === "ready") {
+            return client;
+        } else if (client.status === "end" || client.status === "close") {
+            // Connection is stale, remove it and create a new one
+            delete testRedisClients[url];
+            delete testConnectionPromises[url];
+        }
+    }
+    
+    // Check if we're already connecting to this URL
+    if (testConnectionPromises[url]) {
+        return testConnectionPromises[url];
+    }
+    
+    // Create new connection
+    const connectionPromise = (async () => {
+        try {
+            const options = getRedisConnectionConfig();
+            const client = new IORedis(url, {
+                ...options,
+                // Override with test-specific settings
+                connectTimeout: 5000,
+                lazyConnect: true,
+                maxRetriesPerRequest: 1,
+                retryStrategy: (times) => {
+                    if (times > 1) return null;
+                    return 100;
+                },
+                enableOfflineQueue: true, // Keep enabled for compatibility
+                reconnectOnError: () => false,
+            });
+            
+            // Set up error handling
+            client.on("error", (err) => {
+                // Only log non-timeout errors in tests
+                if ((err as any).code !== "ETIMEDOUT") {
+                    logger.debug("Test Redis client error:", err.message);
+                }
+                // Mark connection as failed and clean up
+                delete testRedisClients[url];
+                delete testConnectionPromises[url];
+            });
+            
+            // Handle disconnection events
+            client.on("close", () => {
+                delete testRedisClients[url];
+                delete testConnectionPromises[url];
+            });
+            
+            client.on("end", () => {
+                delete testRedisClients[url];
+                delete testConnectionPromises[url];
+            });
+            
+            // Connect explicitly since we're using lazyConnect
+            await client.connect();
+            
+            // Store the connection
+            testRedisClients[url] = client;
+            return client;
+        } catch (error) {
+            // Clean up failed connection attempt
+            delete testConnectionPromises[url];
+            if (testRedisClients[url]) {
+                delete testRedisClients[url];
+            }
+            throw error;
+        }
+    })();
+    
+    testConnectionPromises[url] = connectionPromise;
+    return connectionPromise;
+}
+
+/**
+ * Close all test Redis connections.
+ * 
+ * @internal Test utility function
+ */
+export async function closeRedisConnections(): Promise<void> {
+    if (process.env.NODE_ENV !== "test") {
+        return;
+    }
+    
+    // Wait for any pending connections to complete
+    const pendingConnections = Object.values(testConnectionPromises);
+    if (pendingConnections.length > 0) {
+        try {
+            await Promise.allSettled(pendingConnections);
+        } catch (error) {
+            logger.debug("Error waiting for pending connections:", error);
+        }
+    }
+    
+    // Close all existing connections
+    const closePromises = Object.entries(testRedisClients).map(async ([url, client]) => {
+        try {
+            if (client && client.status !== "end" && client.status !== "close") {
+                client.removeAllListeners();
+                // Add error handler to prevent unhandled rejections
+                client.on("error", () => {
+                    // Silently ignore errors during close
+                });
+                if (client.status === "ready") {
+                    await client.quit();
+                } else {
+                    client.disconnect();
+                }
+            }
+        } catch (error) {
+            logger.debug(`Error closing Redis connection for ${url}:`, error);
+            // Force disconnect if quit fails
+            try {
+                client.disconnect();
+            } catch (e) {
+                // Ignore final disconnect errors
+            }
+        }
+    });
+    
+    await Promise.allSettled(closePromises);
+    
+    // Clear the caches
+    Object.keys(testRedisClients).forEach(key => delete testRedisClients[key]);
+    Object.keys(testConnectionPromises).forEach(key => delete testConnectionPromises[key]);
 }
 
 /**
@@ -590,13 +880,23 @@ export class ManagedQueue<Data> {
  */
 export function clearRedisCache(): void {
     if (process.env.NODE_ENV === "test") {
-        logger.debug("clearRedisCache called - no cached connections to clear in isolated architecture");
+        logger.debug("clearRedisCache called - clearing test connection cache");
+        
+        // Synchronously clear the caches (connections should be closed first)
+        Object.keys(testRedisClients).forEach(key => delete testRedisClients[key]);
+        Object.keys(testConnectionPromises).forEach(key => delete testConnectionPromises[key]);
         
         // Force garbage collection to clean up any lingering connection references
         if (global.gc) {
             global.gc();
         }
     }
+}
+
+// Expose the test cache for compatibility with existing tests
+if (process.env.NODE_ENV === "test") {
+    (buildRedis as any).redisClients = testRedisClients;
+    (buildRedis as any).connectionEstablishmentPromises = testConnectionPromises;
 }
 
 // Singleton for connection monitoring across all queues

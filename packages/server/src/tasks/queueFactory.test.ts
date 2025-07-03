@@ -200,14 +200,21 @@ describe("queueFactory - Cache Management (Isolated)", () => {
 
         it("should handle connection timeout gracefully", async () => {
             const originalConnect = IORedis.prototype.connect;
-            IORedis.prototype.connect = vi.fn().mockImplementation(() => {
-                return new Promise((resolve) => {
-                    setTimeout(resolve, 30000);
-                });
+            const timeoutUrl = "redis://timeout-test:6379";
+            
+            IORedis.prototype.connect = vi.fn().mockImplementation(function(this: any) {
+                // Only fail for our specific timeout test URL
+                if (this.options?.host === "timeout-test") {
+                    return new Promise((_, reject) => {
+                        setTimeout(() => reject(new Error("Connection timeout")), 50);
+                    });
+                }
+                // Let other connections proceed normally
+                return originalConnect.call(this);
             });
 
             try {
-                await expect(buildRedis(redisUrl)).rejects.toThrow();
+                await expect(buildRedis(timeoutUrl)).rejects.toThrow("Connection timeout");
             } finally {
                 IORedis.prototype.connect = originalConnect;
             }
@@ -242,13 +249,28 @@ describe("queueFactory - Queue Functionality (Mocked)", () => {
         try {
             // Remove all listeners before quitting to prevent connection errors
             mockRedisClient.removeAllListeners();
-            await mockRedisClient.quit();
+            
+            // Add error handler to ignore close errors
+            mockRedisClient.on("error", () => {
+                // Ignore errors during close
+            });
+            
+            if (mockRedisClient.status === "ready") {
+                await mockRedisClient.quit();
+            } else {
+                mockRedisClient.disconnect();
+            }
         } catch (error) {
             // Ignore cleanup errors
+            try {
+                mockRedisClient.disconnect();
+            } catch (e) {
+                // Ignore final disconnect errors
+            }
         }
         vi.restoreAllMocks();
-        // Small delay to allow Redis cleanup to complete
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // Longer delay to allow Redis cleanup to complete
+        await new Promise(resolve => setTimeout(resolve, 200));
     });
 
     describe("ManagedQueue", () => {
@@ -293,14 +315,20 @@ describe("queueFactory - Queue Functionality (Mocked)", () => {
             if (testQueue) {
                 // Use the proper close method which handles cleanup with timeouts
                 try {
-                    await testQueue.close();
+                    // Wait longer for cleanup in tests
+                    await Promise.race([
+                        testQueue.close(),
+                        new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error("Queue close timeout")), 10000),
+                        ),
+                    ]);
                 } catch (e) {
                     // Ignore close errors during cleanup
                     console.log("Queue close error (ignored):", e);
                 }
                 
-                // Add delay to ensure all Redis operations and worker threads complete
-                await new Promise(resolve => setTimeout(resolve, 100));
+                // Add longer delay to ensure all Redis operations and worker threads complete
+                await new Promise(resolve => setTimeout(resolve, 300));
             }
         });
 
@@ -469,10 +497,11 @@ describe("queueFactory - Queue Functionality (Mocked)", () => {
 
                     // Check that error was logged
                     expect(errorSpy).toHaveBeenCalledWith(
-                        expect.stringContaining("job failed"),
+                        "Job failed in queue fail-test-queue",
                         expect.objectContaining({
                             jobId: "failing-job",
-                            failedReason: expect.stringContaining("Test error"),
+                            failedReason: "Test error: Job configured to fail",
+                            queue: "fail-test-queue",
                         }),
                     );
                 } finally {
@@ -702,8 +731,10 @@ describe("queueFactory - Queue Functionality (Mocked)", () => {
                 try {
                     await expect(failingHookQueue.ready).rejects.toThrow("onReady failed");
                     expect(errorSpy).toHaveBeenCalledWith(
-                        expect.stringContaining("onReady hook error"),
-                        expect.any(Object),
+                        "onReady hook failed for queue failing-hook-queue",
+                        expect.objectContaining({
+                            error: expect.any(Error),
+                        }),
                     );
                 } finally {
                     errorSpy.mockRestore();

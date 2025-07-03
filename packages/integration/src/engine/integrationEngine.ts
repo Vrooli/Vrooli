@@ -469,14 +469,14 @@ export class IntegrationEngine<
         }> = [];
 
         // Get all fixture scenarios
-        const fixtureCategories = ['valid', 'invalid', 'edge'];
+        const fixtureCategories = ["valid", "invalid", "edge"];
         
         for (const category of fixtureCategories) {
             const categoryFixtures = this.config.fixtures[category];
             if (!categoryFixtures) continue;
 
             for (const [scenarioName, _] of Object.entries(categoryFixtures)) {
-                const shouldSucceed = category === 'valid';
+                const shouldSucceed = category === "valid";
                 const fullScenarioName = `${category}.${scenarioName}`;
 
                 // Generate create test case
@@ -622,12 +622,12 @@ export class IntegrationEngine<
             let formData: TShape | undefined;
             
             // Check if scenario contains a dot, indicating category.name format
-            if (scenario.includes('.')) {
-                const [category, name] = scenario.split('.');
+            if (scenario.includes(".")) {
+                const [category, name] = scenario.split(".");
                 formData = this.config.fixtures[category]?.[name];
             } else {
                 // Try to find in any category
-                for (const category of ['valid', 'invalid', 'edge']) {
+                for (const category of ["valid", "invalid", "edge"]) {
                     if (this.config.fixtures[category]?.[scenario]) {
                         formData = this.config.fixtures[category][scenario];
                         break;
@@ -680,7 +680,7 @@ export class IntegrationEngine<
                 // Use the form config's shapeToInput.create method
                 if (this.config.formConfig.transformations.shapeToInput.create) {
                     result.dataFlow.apiInput = this.config.formConfig.transformations.shapeToInput.create(
-                        result.dataFlow.shapeData
+                        result.dataFlow.shapeData,
                     );
                 } else {
                     throw new Error("No transformation method available for create operation");
@@ -693,7 +693,7 @@ export class IntegrationEngine<
                 if (this.config.formConfig.transformations.shapeToInput.update) {
                     result.dataFlow.apiInput = this.config.formConfig.transformations.shapeToInput.update(
                         existingData as unknown as TShape,
-                        result.dataFlow.shapeData
+                        result.dataFlow.shapeData,
                     );
                 } else {
                     throw new Error("No transformation method available for update operation");
@@ -905,7 +905,7 @@ export class IntegrationEngine<
             try {
                 // Convert API response back to shape using apiResultToShape
                 const backToShape = this.config.formConfig.transformations.apiResultToShape(
-                    result.dataFlow.apiResponse
+                    result.dataFlow.apiResponse,
                 );
                 
                 // Then try to transform it back to input to verify round-trip capability

@@ -3,7 +3,7 @@ import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import Divider from "@mui/material/Divider";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../components/buttons/IconButton.js";
 import Stack from "@mui/material/Stack";
 import { useTheme } from "@mui/material";
 import { validatePK, type ListObject } from "@vrooli/shared";
@@ -12,7 +12,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
 import { SideActionsButtons } from "../../components/buttons/SideActionsButtons.js";
-import { MaybeLargeDialog } from "../../components/dialogs/LargeDialog/LargeDialog.js";
+import { Dialog } from "../../components/dialogs/Dialog/Dialog.js";
+import { UpTransition } from "../../components/transitions/UpTransition/UpTransition.js";
+import { useIsMobile } from "../../hooks/useIsMobile.js";
 import { SearchList, SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
 import { TopBar } from "../../components/navigation/TopBar.js";
 import { useFindMany } from "../../hooks/useFindMany.js";
@@ -23,12 +25,6 @@ import { memberTabParams } from "../../utils/search/objectToSearch.js";
 import { type MemberManageViewProps } from "../types.js";
 
 const scrollContainerId = "member-search-scroll";
-const dialogStyle = {
-    paper: {
-        minHeight: "min(100vh - 64px, 600px)",
-        width: "min(100%, 500px)",
-    },
-} as const;
 
 /**
  * View members and invited members of a team
@@ -42,6 +38,7 @@ export function MemberManageView({
 }: MemberManageViewProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
+    const isMobile = useIsMobile();
 
     const {
         currTab,
@@ -264,13 +261,12 @@ export function MemberManageView({
     }, [currTab.key, isSelecting, selectedData.length, t, handleRemoveMembers, handleCancelInvites, handleInviteMembers]);
 
 
-    return (
-        <MaybeLargeDialog
-            display={display}
-            id="member-manage-dialog"
+    return display === "Dialog" ? (
+        <Dialog
             isOpen={isOpen}
             onClose={onClose}
-            sxs={dialogStyle}
+            size="lg"
+            title="Manage Members"
         >
             <SearchListScrollContainer id={scrollContainerId}>
                 {/* Dialog for creating new member invite */}
@@ -307,6 +303,42 @@ export function MemberManageView({
                     ) : null}
                 </SideActionsButtons>
             </SearchListScrollContainer>
-        </MaybeLargeDialog>
+        </Dialog>
+    ) : (
+        <SearchListScrollContainer id={scrollContainerId}>
+            {/* Dialog for creating new member invite */}
+            {/* <MemberInvitesUpsert
+                isCreate={true}
+                isMutate={false}
+                invites={invites}
+                isOpen={isInviteDialogOpen}
+                onCompleted={onInviteCompleted}
+                onCancel={() => setInviteDialogOpen(false)}
+            />  */}
+            {/* Main dialog */}
+            <TopBar
+                display={display}
+                onClose={onClose}
+                below={<PageTabs<typeof memberTabParams>
+                    ariaLabel="Search tabs"
+                    currTab={currTab}
+                    fullWidth
+                    onChange={handleTabChange}
+                    tabs={tabs}
+                />}
+            />
+            {renderTabContent}
+            <SideActionsButtons display={display}>
+                {renderActionButtons}
+                <IconButton aria-label={t(isSelecting ? "Cancel" : "Select")} onClick={handleToggleSelecting}>
+                    <IconCommon name={isSelecting ? "Cancel" : "Action"} />
+                </IconButton>
+                {!isSelecting ? (
+                    <IconButton aria-label={t("Search")} onClick={toggleSearchFilters}>
+                        <IconCommon name="Search" />
+                    </IconButton>
+                ) : null}
+            </SideActionsButtons>
+        </SearchListScrollContainer>
     );
 }

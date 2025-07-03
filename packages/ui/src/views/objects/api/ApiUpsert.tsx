@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=37 | LAST: 2025-06-28
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
@@ -790,11 +791,14 @@ export function ApiUpsert({
             const schema = isCreate ? resourceVersionValidation.create({ env: process.env.NODE_ENV }) : resourceVersionValidation.update({ env: process.env.NODE_ENV });
             await schema.validate(values, { abortEarly: false });
             return {};
-        } catch (error: any) {
+        } catch (error) {
             const errors: Record<string, string> = {};
-            if (error.inner) {
-                error.inner.forEach((err: any) => {
-                    if (err.path) errors[err.path] = err.message;
+            // Check if it's a Yup validation error with proper type narrowing
+            if (error && typeof error === "object" && "inner" in error && Array.isArray(error.inner)) {
+                error.inner.forEach((err) => {
+                    if (err && typeof err === "object" && "path" in err && "message" in err && typeof err.path === "string") {
+                        errors[err.path] = String(err.message);
+                    }
                 });
             }
             return errors;

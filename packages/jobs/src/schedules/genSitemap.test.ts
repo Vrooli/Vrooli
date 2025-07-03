@@ -8,7 +8,6 @@ import { promisify } from "util";
 import { genSitemap, isSitemapMissing } from "./genSitemap.js";
 import { DbProvider, logger, UI_URL_REMOTE } from "@vrooli/server";
 
-const gzipAsync = promisify(zlib.gzip);
 const gunzipAsync = promisify(zlib.gunzip);
 
 describe("genSitemap integration tests", () => {

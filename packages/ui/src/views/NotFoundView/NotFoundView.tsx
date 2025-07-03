@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import Bunny404 from "../../assets/img/Bunny404.svg";
 import { TopBar } from "../../components/navigation/TopBar.js";
 import { IconCommon } from "../../icons/Icons.js";
+import type { IconName as IconCommonName } from "../../icons/types/commonIcons.js";
 import { Link } from "../../route/router.js";
 import { type ViewProps } from "../../types.js";
 
@@ -84,15 +85,17 @@ export function NotFoundView(_props: ViewProps) {
             <Container
                 maxWidth="md"
                 sx={containerStyles}
+                data-testid="not-found-container"
             >
-                <Typography sx={errorCodeStyles}>404</Typography>
+                <Typography sx={errorCodeStyles} data-testid="error-code">404</Typography>
                 <Fade in timeout={1000}>
-                    <Box sx={contentBoxStyles}>
-                        <Box sx={imageContainerStyles}>
+                    <Box sx={contentBoxStyles} data-testid="content-box">
+                        <Box sx={imageContainerStyles} data-testid="image-container">
                             <img
                                 alt="A lop-eared bunny in a pastel-themed workspace with a notepad and pen, looking slightly worried."
                                 src={Bunny404}
                                 style={{ width: "100%", height: "auto", maxWidth: "100%" }}
+                                data-testid="bunny-image"
                             />
                         </Box>
                         <Typography 
@@ -107,6 +110,7 @@ export function NotFoundView(_props: ViewProps) {
                                     fontSize: "2rem",
                                 },
                             }}
+                            data-testid="page-title"
                         >
                             {t("PageNotFound", { ns: "error", defaultValue: "Page Not Found" })}
                         </Typography>
@@ -119,11 +123,12 @@ export function NotFoundView(_props: ViewProps) {
                                 maxWidth: "500px",
                                 mx: "auto",
                             }}
+                            data-testid="page-description"
                         >
                             {t("PageNotFoundDetails", { ns: "error", defaultValue: "Oops! The page you're looking for seems to have hopped away. Let's get you back on track!" })}
                         </Typography>
                         
-                        <Stack direction="row" spacing={2} justifyContent="center" alignItems="center" mb={4} flexWrap="wrap">
+                        <Stack direction="row" spacing={2} justifyContent="center" alignItems="center" mb={4} flexWrap="wrap" data-testid="action-buttons">
                             {hasPreviousPage ? (
                                 <Button
                                     aria-label={t("GoBack")}
@@ -137,6 +142,7 @@ export function NotFoundView(_props: ViewProps) {
                                             borderWidth: 2,
                                         },
                                     }}
+                                    data-testid="go-back-button"
                                 >{t("GoBack")}</Button>
                             ) : null}
                             <Link to={LINKS.Home}>
@@ -151,11 +157,12 @@ export function NotFoundView(_props: ViewProps) {
                                             backgroundColor: theme.palette.primary.dark,
                                         },
                                     }}
+                                    data-testid="go-home-button"
                                 >{t("GoToHome")}</Button>
                             </Link>
                         </Stack>
 
-                        <Box sx={{ mt: 2, mb: 2 }}>
+                        <Box sx={{ mt: 2, mb: 2 }} data-testid="popular-pages-section">
                             <Typography 
                                 variant="body2" 
                                 textAlign="center" 
@@ -163,6 +170,7 @@ export function NotFoundView(_props: ViewProps) {
                                     color: theme.palette.text.secondary,
                                     mb: 2,
                                 }}
+                                data-testid="popular-pages-label"
                             >
                                 {t("PopularPages", { defaultValue: "Popular pages:" })}
                             </Typography>
@@ -172,23 +180,27 @@ export function NotFoundView(_props: ViewProps) {
                                 justifyContent="center" 
                                 flexWrap="wrap"
                                 sx={{ gap: 1 }}
+                                data-testid="popular-pages-chips"
                             >
-                                {popularPages.map((page) => (
-                                    <Link key={page.link} to={page.link}>
-                                        <Chip
-                                            icon={<IconCommon decorative name={page.icon as any} />}
-                                            label={page.label}
-                                            clickable
-                                            variant="outlined"
-                                            sx={{
-                                                borderColor: theme.palette.divider,
-                                                "&:hover": {
-                                                    borderColor: theme.palette.primary.main,
-                                                    backgroundColor: theme.palette.action.hover,
-                                                },
-                                            }}
-                                        />
-                                    </Link>
+                                {popularPages.map((page, index) => (
+                                    <div key={`${page.link}-${index}`} style={{ display: "inline-block" }}>
+                                        <Link to={page.link}>
+                                            <Chip
+                                                icon={<IconCommon decorative name={page.icon as IconCommonName} />}
+                                                label={page.label}
+                                                clickable
+                                                variant="outlined"
+                                                sx={{
+                                                    borderColor: theme.palette.divider,
+                                                    "&:hover": {
+                                                        borderColor: theme.palette.primary.main,
+                                                        backgroundColor: theme.palette.action.hover,
+                                                    },
+                                                }}
+                                                data-testid={`popular-page-chip-${page.label.toLowerCase()}`}
+                                            />
+                                        </Link>
+                                    </div>
                                 ))}
                             </Stack>
                         </Box>

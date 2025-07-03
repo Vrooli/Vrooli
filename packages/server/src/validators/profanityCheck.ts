@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=2 | LAST: 2025-07-03
 import { type ModelType } from "@vrooli/shared";
 import { isRelationshipArray, isRelationshipObject } from "../builders/isOfType.js";
 import { CustomError } from "../events/error.js";
@@ -37,7 +38,7 @@ function collectProfanities(
         }
     }
     // Helper function to handle translations
-    function handleTranslationsArray(translationsArray: any[], result: { [x: string]: string[] }) {
+    function handleTranslationsArray(translationsArray: any[], result: { [x: string]: string[] }): void {
         for (const translation of translationsArray) {
             for (const field in translation) {
                 // Ignore ID fields and language fields
@@ -67,7 +68,7 @@ function collectProfanities(
         result.tagsConnect = input.tagsConnect as string[];
     }
     // Handle recursive case
-    function processNestedFields(nestedInput: any, nestedObjectType?: `${ModelType}`) {
+    function processNestedFields(nestedInput: any, nestedObjectType?: `${ModelType}`): void {
         const newFields = collectProfanities(nestedInput, nestedObjectType);
         for (const field in newFields) {
             result[field] = result[field] ? [...result[field], ...newFields[field]] : newFields[field];

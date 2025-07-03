@@ -1,11 +1,20 @@
-import { generatePK } from "@vrooli/shared";
+import { generatePK, toBotId, toSwarmId, type BotParticipant, type ChatMessage, type ConversationContext, type ConversationParams, type MessageConfigObject, type MessageState } from "@vrooli/shared";
 import { type Job } from "bullmq";
+import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
-import { conversationEngine, responseService, swarmContextManager } from "../../services/conversation/responseEngine.js";
+import { ConversationEngine } from "../../services/conversation/conversationEngine.js";
+import { SwarmContextManager } from "../../services/execution/shared/SwarmContextManager.js";
 import { SwarmStateMachine } from "../../services/execution/tier1/swarmStateMachine.js";
+import { ResponseService } from "../../services/response/responseService.js";
+import { getDefaultLlmRouter, getDefaultToolRunner } from "../../services/response/services.js";
 import { BaseActiveTaskRegistry, type BaseActiveTaskRecord } from "../activeTaskRegistry.js";
 import { QueueTaskType, type LLMCompletionTask, type SwarmExecutionTask } from "../taskTypes.js";
+
+// Default configuration constants
+const DEFAULT_MAX_TOKENS = 4000;
+const DEFAULT_TEMPERATURE = 0.7;
+const MAX_CONVERSATION_HISTORY = 20;
 
 
 export type ActiveSwarmRecord = BaseActiveTaskRecord;
@@ -15,9 +24,125 @@ class SwarmRegistry extends BaseActiveTaskRegistry<ActiveSwarmRecord, SwarmState
 export const activeSwarmRegistry = new SwarmRegistry();
 
 
-export async function llmProcessBotMessage(payload: LLMCompletionTask) {
-    // TODO: Route through swarm execution service instead of conversation/responseEngine
-    throw new Error("LLM completion through conversation service deprecated - use swarm execution");
+export async function llmProcessBotMessage(payload: LLMCompletionTask): Promise<{ success: boolean; messageId?: string }> {
+    logger.info("[llmProcessBotMessage] Processing direct bot response via ConversationEngine", {
+        chatId: payload.chatId,
+        messageId: payload.messageId,
+        userId: payload.userData.id,
+    });
+
+    try {
+        // 1. Build conversation context
+        const conversationContext = await buildConversationContext(payload);
+
+        // 2. Create conversation params
+        const conversationParams: ConversationParams = {
+            context: conversationContext,
+            trigger: {
+                type: "user_message",
+                message: await loadTriggerMessage(payload.messageId),
+            },
+            strategy: "conversation",
+            constraints: {
+                maxTurns: 1, // Single response turn
+                timeoutMs: 60000, // 60 second timeout
+                maxParticipants: 1, // Only one bot should respond
+                allowToolUse: true, // Allow tool use if needed
+            },
+        };
+
+        // 3. Create ConversationEngine with streaming-enabled ResponseService
+        const [toolRunner, contextBuilder] = await Promise.all([
+            getDefaultToolRunner(),
+            getDefaultContextBuilder(),
+        ]);
+
+        const responseService = new ResponseService(
+            getDefaultLlmRouter(),
+            toolRunner,
+            contextBuilder,
+            {
+                enableStreaming: true,
+                streamingChatId: payload.chatId, // Enable streaming for this chat
+            },
+        );
+
+        const contextManager = new SwarmContextManager();
+        const conversationEngine = new ConversationEngine(
+            responseService,
+            contextManager,
+        );
+
+        // 4. Generate response (streaming happens automatically via ResponseService)
+        const result = await conversationEngine.orchestrateConversation(conversationParams);
+
+        if (!result.success || result.messages.length === 0) {
+            throw new Error("Failed to generate bot response");
+        }
+
+        // 5. Persist to database
+        const botMessage = result.messages[0];
+        const dbMessage = await DbProvider.get().chat_message.create({
+            data: {
+                chatId: BigInt(payload.chatId),
+                parentId: BigInt(payload.messageId),
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                user: {
+                    connect: { id: BigInt(botMessage.user.id) },
+                },
+                parent: {
+                    connect: { id: BigInt(payload.messageId) },
+                },
+                chat: {
+                    connect: { id: BigInt(payload.chatId) },
+                },
+                config: {
+                    id: generatePK().toString(),
+                    role: "bot",
+                    text: botMessage.text,
+                    __version: "1.0.0",
+                },
+                translations: [{
+                    id: generatePK().toString(),
+                    language: payload.userData.languages?.[0] || "en",
+                    text: botMessage.text,
+                }],
+            },
+        });
+
+        // 6. Update cache (after DB persistence as per interface contract)
+        await RedisMessageStore.get().addMessage(payload.chatId, {
+            id: dbMessage.id.toString(),
+            chatId: payload.chatId,
+            createdAt: dbMessage.createdAt,
+            updatedAt: dbMessage.updatedAt,
+            config: dbMessage.config as MessageConfigObject,
+            parent: payload.messageId ? { id: payload.messageId } : null,
+            user: { id: botMessage.user.id },
+            translations: dbMessage.translations.map(t => ({
+                id: t.id,
+                language: t.language,
+                text: t.text,
+            })),
+        } as MessageState);
+
+        // 7. Socket events are already handled by Trigger system in chatMessage.create
+
+        logger.info("[llmProcessBotMessage] Successfully processed bot response", {
+            chatId: payload.chatId,
+            messageId: dbMessage.id.toString(),
+        });
+
+        return { success: true, messageId: dbMessage.id.toString() };
+
+    } catch (error) {
+        logger.error("[llmProcessBotMessage] Failed to process bot response", {
+            chatId: payload.chatId,
+            error: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+    }
 }
 
 /**

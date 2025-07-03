@@ -1,6 +1,8 @@
 /* eslint-disable no-magic-numbers */
 import { CodeLanguage, ResourceUsedFor, endpointsResource, generatePK, getObjectUrl, type Api, type ApiVersion, type Resource, type ResourceList, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
+import React from "react";
+import { getMockUrl, getStoryRoutePath } from "../../../__test/helpers/storybookMocking.js";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ApiView } from "./ApiView.js";
 
@@ -223,7 +225,7 @@ Loading.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findApiVersion.findOne.endpoint}`, async () => {
+            http.get(getMockUrl(endpointsResource.findApiVersion), async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120_000));
                 return HttpResponse.json({ data: mockApiVersionData });
@@ -231,7 +233,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockApiVersionData)}`,
+        path: getStoryRoutePath(mockApiVersionData),
     },
 };
 
@@ -244,13 +246,13 @@ SignInWithResults.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findApiVersion.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsResource.findApiVersion), () => {
                 return HttpResponse.json({ data: mockApiVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockApiVersionData)}`,
+        path: getStoryRoutePath(mockApiVersionData),
     },
 };
 
@@ -263,13 +265,13 @@ LoggedOutWithResults.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findApiVersion.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsResource.findApiVersion), () => {
                 return HttpResponse.json({ data: mockApiVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockApiVersionData)}`,
+        path: getStoryRoutePath(mockApiVersionData),
     },
 };
 
@@ -282,7 +284,7 @@ Own.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findApiVersion.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsResource.findApiVersion), () => {
                 // Create a modified version of the mock data with owner permissions
                 const mockWithOwnerPermissions = {
                     ...mockApiVersionData,
@@ -311,6 +313,6 @@ Own.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockApiVersionData)}`,
+        path: getStoryRoutePath(mockApiVersionData),
     },
 };

@@ -1,9 +1,15 @@
 import { exists, isObject } from "@vrooli/shared";
 import fs from "fs";
-import pkg from "lodash";
 import { logger } from "../events/logger.js";
 
-const { flatten } = pkg;
+// AI_CHECK: TYPE_SAFETY=server-type-safety-fixes | LAST: 2025-07-02 - Replaced unsafe any types with unknown for better type safety
+
+// Simple flatten function since lodash.flatten is not available
+function flatten(arr: unknown[]): unknown[] {
+    return arr.reduce((flat: unknown[], item: unknown) => {
+        return flat.concat(Array.isArray(item) ? flatten(item) : item);
+    }, [] as unknown[]);
+}
 
 let profanity: string[] = [];
 let profanityRegex: RegExp | undefined;
@@ -26,7 +32,7 @@ export function initializeProfanity() {
         profanity = fileContent.toString().split("\n").filter(word => word.trim().length > 0);
         // Add word boundaries to prevent matching parts of words (e.g. "document" contains "cum", but shouldn't be censored)
         if (profanity.length > 0) {
-            profanityRegex = new RegExp(profanity.map(word => `\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).join("|"), "gi");
+            profanityRegex = new RegExp(profanity.map(word => `\\b${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).join("|"), "gi");
         } else {
             profanityRegex = /(?!.*)/; // Never matches anything
         }
@@ -44,7 +50,7 @@ export function initializeProfanity() {
  */
 export function hasProfanity(...text: (string | null | undefined)[]): boolean {
     if (!profanityRegex) return false;
-    return text.some(t => exists(t) && t.search(profanityRegex) !== -1);
+    return text.some(t => exists(t) && profanityRegex && t.search(profanityRegex) !== -1);
 }
 
 /**
@@ -53,7 +59,7 @@ export function hasProfanity(...text: (string | null | undefined)[]): boolean {
  * @param fields The fields to convert (supports dot notation). If not specified, all fields will be converted
  * @returns An array of strings
  */
-export function toStringArray(item: any, fields: string[] | null): string[] | null {
+export function toStringArray(item: unknown, fields: string[] | null): string[] | null {
     // Check if item is array
     if (Array.isArray(item)) {
         // Recursively convert each item in the array
@@ -63,7 +69,7 @@ export function toStringArray(item: any, fields: string[] | null): string[] | nu
     else if (isObject(item) && Object.prototype.toString.call(item) !== "[object Date]") {
         const childFields = fields ? fields.map(s => s.split(".").slice(1).join(".")).filter(s => s.length > 0) : null;
         // Filter out fields that are not specified
-        const valuesToCheck: any[] = [];
+        const valuesToCheck: unknown[] = [];
         for (const [key, value] of Object.entries(item)) {
             if (fields && !fields.includes(key)) continue;
             valuesToCheck.push(value);
