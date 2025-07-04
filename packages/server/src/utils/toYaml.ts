@@ -9,7 +9,7 @@ const SPACES_IN_TAB = 2;
  * @param indentLevel The current level of indentation
  * @returns The YAML string 
  */
-export function objectToYaml(obj: Record<string, any>, indentLevel = 0) {
+export function objectToYaml(obj: Record<string, unknown>, indentLevel = 0): string {
     if (obj === null || obj === undefined || typeof obj !== "object" || Array.isArray(obj)) {
         logger.error("Invalid input to objectToYaml", { trace: "0051", obj });
         return "";
@@ -51,7 +51,7 @@ export function objectToYaml(obj: Record<string, any>, indentLevel = 0) {
  * @param indentLevel The current level of indentation
  * @returns The YAML string
  */
-export function arrayToYaml(arr: Array<any>, indentLevel = 0) {
+export function arrayToYaml(arr: Array<unknown>, indentLevel = 0): string {
     if (arr === null || arr === undefined || !Array.isArray(arr)) {
         logger.error("Invalid input to arrayToYaml", { trace: "0053", arr });
         return "";

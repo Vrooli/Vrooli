@@ -1,4 +1,5 @@
 import { exists, type ModelType, type SessionUser } from "@vrooli/shared";
+// AI_CHECK: TYPE_SAFETY=phase1-2 | LAST: 2025-07-03 - Replaced Record<string, any> and any[] with unknown types
 import { type PrismaDelegate } from "../../builders/types.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
@@ -137,7 +138,7 @@ export async function preShapeRoot({
             if (!original) throw new CustomError("0412", "InternalError", { id: input?.id });
             const isRootPrivate = input.isPrivate ?? original.isPrivate;
             // Convert original versions to map for easy lookup
-            const updatedWithOriginal = original.versions.reduce((acc, v) => ({ ...acc, [v.id]: v }), {} as Record<string, any>);
+            const updatedWithOriginal = original.versions.reduce((acc, v) => ({ ...acc, [v.id]: v }), {} as Record<string, unknown>);
             // Combine updated versions with original versions
             if (Array.isArray(input.versionsUpdate)) {
                 for (const v of input.versionsUpdate) {
@@ -148,7 +149,7 @@ export async function preShapeRoot({
                 }
             }
             // Combine new, updated, and original versions. Then remove deleting versions
-            const allVersions: any[] = Object.values(updatedWithOriginal).concat(input.versionsCreate ?? []);
+            const allVersions: unknown[] = Object.values(updatedWithOriginal).concat(input.versionsCreate ?? []);
             const versions = allVersions.filter(v => !input.versionsDelete?.includes(v.id));
             // Calculate flags
             const hasCompleteVersion = versions.some(v => v.isComplete);

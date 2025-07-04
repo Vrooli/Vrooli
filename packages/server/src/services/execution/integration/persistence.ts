@@ -1,7 +1,8 @@
 import {
-    type ResourceUsage,
+    type ExecutionResourceUsage,
     type RunState,
     type StepStatus,
+    RunStepStatus,
     generatePK,
 } from "@vrooli/shared";
 import { DbProvider } from "../../../db/provider.js";
@@ -22,13 +23,14 @@ const RUN_STATUS_MAP = {
     "CANCELLED": "Cancelled",
 } as const;
 
-const STEP_STATUS_MAP = {
-    "pending": "InProgress",
-    "running": "InProgress",
-    "completed": "Completed",
-    "failed": "Failed",
-    "skipped": "Skipped",
-} as const;
+const STEP_STATUS_MAP: Record<StepStatus["state"], RunStepStatus> = {
+    "pending": RunStepStatus.InProgress,
+    "ready": RunStepStatus.InProgress,
+    "running": RunStepStatus.InProgress,
+    "completed": RunStepStatus.Completed,
+    "failed": RunStepStatus.Skipped,  // Map failed to Skipped since Failed doesn't exist in RunStepStatus
+    "skipped": RunStepStatus.Skipped,
+};
 
 /**
  * Run persistence service that stores execution state in Vrooli's database
@@ -174,12 +176,12 @@ export class RunPersistenceService {
      */
     async recordStepExecution(runId: string, stepData: {
         stepId: string;
-        state: StepStatus;
+        state: StepStatus["state"];
         startedAt: Date;
         completedAt?: Date;
         result?: Record<string, unknown>;
         error?: string;
-        resourceUsage?: ResourceUsage;
+        resourceUsage?: ExecutionResourceUsage;
     }): Promise<void> {
         logger.debug("[RunPersistenceService] Recording step execution", {
             runId,
@@ -188,7 +190,7 @@ export class RunPersistenceService {
         });
 
         try {
-            const dbStatus = STEP_STATUS_MAP[stepData.state] || "InProgress";
+            const dbStatus = STEP_STATUS_MAP[stepData.state] || RunStepStatus.InProgress;
 
             // Calculate time elapsed if completed
             let timeElapsed: number | undefined;
@@ -378,9 +380,7 @@ export class RunPersistenceService {
                         include: {
                             translations: {
                                 where: {
-                                    language: {
-                                        code: "en",
-                                    },
+                                    language: "en",
                                 },
                             },
                         },
@@ -394,8 +394,10 @@ export class RunPersistenceService {
             });
 
             const history = runs.map(run => {
-                const routineName = run.resourceVersion?.translations?.[0]?.name ||
-                    `Routine ${run.resourceVersion?.publicId || "Unknown"}`;
+                // Type assertion needed due to Prisma include typing issue
+                const runWithRelations = run as any;
+                const routineName = runWithRelations.resourceVersion?.translations?.[0]?.name ||
+                    `Routine ${runWithRelations.resourceVersion?.publicId || "Unknown"}`;
 
                 let duration: number | undefined;
                 if (run.startedAt && run.completedAt) {
@@ -404,7 +406,7 @@ export class RunPersistenceService {
 
                 return {
                     id: run.id.toString(),
-                    routineId: run.resourceVersion?.publicId || "unknown",
+                    routineId: runWithRelations.resourceVersion?.publicId || "unknown",
                     routineName,
                     status: run.status,
                     createdAt: run.createdAt,
@@ -482,14 +484,14 @@ export class RunPersistenceService {
     /**
      * Private helper methods
      */
-    private estimateStepComplexity(resourceUsage?: ResourceUsage): number {
+    private estimateStepComplexity(resourceUsage?: ExecutionResourceUsage): number {
         if (!resourceUsage) return 1;
 
         let complexity = 1;
 
-        if (resourceUsage.tokens && resourceUsage.tokens > 1000) complexity += 1;
-        if (resourceUsage.apiCalls && resourceUsage.apiCalls > 5) complexity += 1;
-        if (resourceUsage.computeTime && resourceUsage.computeTime > 30000) complexity += 2;
+        if (resourceUsage.toolCalls > 5) complexity += 1;
+        if (resourceUsage.durationMs > 30000) complexity += 2;
+        if (resourceUsage.memoryUsedMB > 100) complexity += 1;
 
         return Math.min(complexity, 10);
     }

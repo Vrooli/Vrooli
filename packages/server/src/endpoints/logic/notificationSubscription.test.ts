@@ -13,7 +13,7 @@ import { notificationSubscription_updateOne } from "../generated/notificationSub
 import { notificationSubscription } from "./notificationSubscription.js";
 // Import database fixtures
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
-import { NotificationSubscriptionDbFactory } from "../../__test/fixtures/db/notificationSubscriptionFixtures.js";
+import { NotificationSubscriptionDbFactory } from "../../__test/fixtures/db/notificationFixtures.js";
 
 describe("EndpointsNotificationSubscription", () => {
     beforeAll(async () => {
@@ -425,14 +425,14 @@ describe("EndpointsNotificationSubscription", () => {
                 const input1: NotificationSubscriptionCreateInput = notificationSubscriptionTestDataFactory.createMinimal({
                     id: generatePK(),
                     objectType: "Project",
-                    objectId: objectId,
+                    objectId,
                     condition: "CRUD",
                 });
 
                 const input2: NotificationSubscriptionCreateInput = notificationSubscriptionTestDataFactory.createMinimal({
                     id: generatePK(),
                     objectType: "Project",
-                    objectId: objectId,
+                    objectId,
                     condition: "Updated",
                 });
 
@@ -469,7 +469,7 @@ describe("EndpointsNotificationSubscription", () => {
                 const input: NotificationSubscriptionCreateInput = notificationSubscriptionTestDataFactory.createMinimal({
                     id: generatePK(),
                     objectType: "Project",
-                    objectId: objectId,
+                    objectId,
                     condition: "CRUD",
                 });
 

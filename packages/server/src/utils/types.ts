@@ -7,14 +7,14 @@ export type IdsByAction = { [action in QueryAction]?: string[] };
 export type IdsByType = { [objectType in ModelType]?: string[] };
 export type InputsById = { [id: string]: { node: InputNode, input: unknown } };
 export type InputsByType = { [objectType in ModelType]?: {
-    Connect: { node: InputNode, input: string; }[];
+    Connect: { node: InputNode, input: string | bigint; }[];
     Create: { node: InputNode, input: PrismaUpdate }[];
-    Delete: { node: InputNode, input: string; }[];
-    Disconnect: { node: InputNode, input: string; }[];
+    Delete: { node: InputNode, input: string | bigint; }[];
+    Disconnect: { node: InputNode, input: string | bigint; }[];
     Read: { node: InputNode, input: PrismaSelect }[];
     Update: { node: InputNode, input: PrismaUpdate }[];
 } };
-export type IdsByPlaceholder = { [placeholder: string]: string | null };
+export type IdsByPlaceholder = { [placeholder: string]: string | bigint | null };
 export type IdsCreateToConnect = { [id: string]: string };
 // TODO add other types later. Reason is that this is used for cudHelper and cudInputsToMaps, which originally only supported the 3 types below. Ideally we want them to support all types, but baby steps :)
 export type CudInputData = {

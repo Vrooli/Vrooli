@@ -1,3 +1,5 @@
+// AI_CHECK: TYPE_SAFETY=server-phase2-1 | LAST: 2025-07-03
+// AI_CHECK: TYPE_SAFETY=server-type-safety-maintenance-phase2 | LAST: 2025-07-04 - Added comprehensive return type annotation to Notify function with proper method signatures
 import { DAYS_1_MS, DAYS_1_S, DEFAULT_LANGUAGE, type DeferredDecisionData, endpointsTask, generatePK, HOURS_1_MS, type IssueStatus, LINKS, MINUTES_1_MS, type ModelType, nanoid, type NotificationSettingsUpdateInput, type PullRequestStatus, type PushDevice, type ReportStatus, SECONDS_1_MS, type SessionUser, SubscribableObject, type Success } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
 import i18next, { type TFuncKey } from "i18next";
@@ -601,7 +603,7 @@ async function replaceLabels(
     }
 
     // --- Step 2: Batch fetch all translations for unique labels ---
-    const fetchedLabelData = new Map<string, any>(); // Stores raw label data from DB (the result of display().label.select())
+    const fetchedLabelData = new Map<string, unknown>(); // Stores raw label data from DB (the result of display().label.select())
 
     // Pre-fetch all unique labels
     // Using Promise.all to fetch in parallel for potentially better performance
@@ -923,7 +925,26 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
  * Notifications settings and devices are queried from the main database.
  * Notification limits are tracked using Redis.
  */
-export function Notify(languages: string[] | undefined) {
+export function Notify(languages: string[] | undefined): {
+    registerPushDevice: (params: {
+        endpoint: string,
+        p256dh: string,
+        auth: string,
+        expires?: Date,
+        name?: string,
+        userData: SessionUser,
+        info: PartialApiInfo,
+    }) => Promise<PushDevice>;
+    send: (params: {
+        message: string,
+        title?: string,
+        data?: Record<string, unknown>,
+        userIds?: string[],
+        teamIds?: string[],
+        apiKey?: string,
+        info: PartialApiInfo,
+    }) => Promise<void>;
+} {
     return {
         /** Sets up a push device to receive notifications */
         registerPushDevice: async ({ endpoint, p256dh, auth, expires, userData, info }: {
@@ -936,8 +957,8 @@ export function Notify(languages: string[] | undefined) {
             info: PartialApiInfo,
         }): Promise<PushDevice> => {
             const partialInfo = InfoConverter.get().fromApiToPartialApi(info, PushDeviceModel.format.apiRelMap, true);
-            let select: { [key: string]: any } | undefined;
-            let result: any = {};
+            let select: Prisma.push_deviceSelect | undefined;
+            let result: Partial<PushDevice> = {};
             try {
                 select = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo)?.select;
                 // Check if the device is already registered
@@ -948,15 +969,16 @@ export function Notify(languages: string[] | undefined) {
                 // If it is, update the auth and p256dh keys
                 if (device) {
                     logger.info(`device already registered: ${JSON.stringify(device)}`);
-                    result = await DbProvider.get().push_device.update({
+                    const updatedDevice = await DbProvider.get().push_device.update({
                         where: { id: device.id },
                         data: { auth, p256dh, expires },
                         select,
                     });
+                    result = updatedDevice as PushDevice;
                 }
                 // If it isn't, create a new device
                 else {
-                    result = await DbProvider.get().push_device.create({
+                    const createdDevice = await DbProvider.get().push_device.create({
                         data: {
                             id: generatePK(),
                             endpoint,
@@ -967,9 +989,10 @@ export function Notify(languages: string[] | undefined) {
                         },
                         select,
                     });
+                    result = createdDevice as PushDevice;
                     logger.info(`device created: ${userData.id} ${JSON.stringify(result)}`);
                 }
-                return result;
+                return result as PushDevice;
             } catch (error) {
                 throw new CustomError("0452", "InternalError", { error, select, result });
             }

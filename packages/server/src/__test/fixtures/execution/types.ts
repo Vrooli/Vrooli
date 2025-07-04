@@ -10,15 +10,15 @@
 
 import type {
     BaseConfigObject,
-    ChatConfigObject,
-    RunProgress,
-    BotConfigObject,
-    SwarmSubTask,
-    SwarmResource,
     BlackboardItem,
+    BotConfigObject,
+    ChatConfigObject,
     ChatToolCallRecord,
-    SwarmPolicy,
     PendingToolCallEntry,
+    RunProgress,
+    SwarmPolicy,
+    SwarmResource,
+    SwarmSubTask,
 } from "@vrooli/shared";
 
 /**
@@ -27,16 +27,16 @@ import type {
 export interface ExecutionFixture<TConfig extends BaseConfigObject = BaseConfigObject> {
     /** The data-driven configuration object */
     config: TConfig;
-    
+
     /** Expected emergent behaviors from this configuration */
     emergence: EmergenceDefinition;
-    
+
     /** Integration points with other fixtures/tiers */
     integration: IntegrationDefinition;
-    
+
     /** Validation metadata */
     validation?: ValidationDefinition;
-    
+
     /** Test metadata */
     metadata?: TestMetadata;
 }
@@ -47,16 +47,16 @@ export interface ExecutionFixture<TConfig extends BaseConfigObject = BaseConfigO
 export interface EmergenceDefinition {
     /** Capabilities that emerge from this configuration */
     capabilities: string[];
-    
+
     /** Event patterns that trigger emergent behaviors */
     eventPatterns?: string[];
-    
+
     /** How this fixture can evolve to more efficient forms */
     evolutionPath?: string;
-    
+
     /** Collaboration patterns with other agents/fixtures */
     collaborationPatterns?: string[];
-    
+
     /** Conditions under which capabilities emerge */
     emergenceConditions?: {
         minEvents?: number;
@@ -65,7 +65,7 @@ export interface EmergenceDefinition {
         timeframe?: number;
         environmentalFactors?: string[];
     };
-    
+
     /** Learning metrics for measuring emergence */
     learningMetrics?: {
         performanceImprovement: string;
@@ -80,7 +80,7 @@ export interface EmergenceDefinition {
 export interface EnhancedEmergenceDefinition extends EmergenceDefinition {
     /** Measurable capabilities with concrete metrics */
     measurableCapabilities?: MeasurableCapability[];
-    
+
     /** Tests to verify emergence */
     emergenceTests?: {
         setup: string;
@@ -112,19 +112,19 @@ export interface MeasurableCapability {
 export interface IntegrationDefinition {
     /** Which tier this fixture belongs to */
     tier: ExecutionTier;
-    
+
     /** Other configurations this depends on */
     requiredConfigs?: string[];
-    
+
     /** Events produced during execution */
     producedEvents?: string[];
-    
+
     /** Events this fixture responds to */
     consumedEvents?: string[];
-    
+
     /** Shared resources used/produced */
     sharedResources?: string[];
-    
+
     /** Cross-tier dependencies */
     crossTierDependencies?: {
         tier1?: string[];
@@ -133,7 +133,7 @@ export interface IntegrationDefinition {
         dependsOn?: string[];
         provides?: string[];
     };
-    
+
     /** MCP tools used by this component */
     mcpTools?: string[];
 }
@@ -144,7 +144,7 @@ export interface IntegrationDefinition {
 export interface EnhancedIntegrationDefinition extends IntegrationDefinition {
     /** Event contracts for validation */
     eventContracts?: EventContract[];
-    
+
     /** Integration test scenarios */
     integrationTests?: {
         scenario: string;
@@ -179,13 +179,13 @@ export interface EventContract {
 export interface ValidationDefinition {
     /** Config class for runtime validation */
     configClass?: string;
-    
+
     /** Schema name for API validation */
     schemaName?: string;
-    
+
     /** Custom validation rules */
     customRules?: ValidationRule[];
-    
+
     /** Expected validation results */
     expectedResults?: {
         emergenceScore?: number;
@@ -229,22 +229,22 @@ export interface SharedValidationResult {
 export interface TestMetadata {
     /** Unique identifier for this fixture */
     id: string;
-    
+
     /** Human-readable name */
     name: string;
-    
+
     /** Detailed description */
     description?: string;
-    
+
     /** Tags for categorization */
     tags?: string[];
-    
+
     /** Performance benchmarks */
     benchmarks?: PerformanceBenchmarks;
-    
+
     /** Related fixtures */
     relatedFixtures?: string[];
-    
+
     /** Creation/update info */
     created?: string;
     updated?: string;
@@ -257,16 +257,16 @@ export interface TestMetadata {
 export interface PerformanceBenchmarks {
     /** Average execution time in ms */
     avgDuration?: number;
-    
+
     /** Average credit cost */
     avgCredits?: number;
-    
+
     /** Success rate (0-1) */
     successRate?: number;
-    
+
     /** Quality score (0-1) */
     qualityScore?: number;
-    
+
     /** Resource usage */
     resourceUsage?: {
         memory?: number;
@@ -281,17 +281,12 @@ export interface PerformanceBenchmarks {
 export type ExecutionTier = "tier1" | "tier2" | "tier3" | "cross-tier";
 
 /**
- * Execution strategies
- */
-export type ExecutionStrategy = "conversational" | "reasoning" | "deterministic" | "routing";
-
-/**
  * Emergence pattern types - how capabilities emerge from configuration
  */
 export interface EmergencePattern {
     /** Pattern name (e.g., "collaborative_learning", "swarm_intelligence") */
     name: string;
-    
+
     /** Minimum configuration requirements for this pattern */
     requires: {
         minAgents?: number;
@@ -300,14 +295,14 @@ export interface EmergencePattern {
         resources?: string[];
         timeWindow?: number;
     };
-    
+
     /** What emerges when pattern is triggered */
     produces: {
         capabilities: string[];
         behaviors: string[];
         optimizations: string[];
     };
-    
+
     /** How to measure emergence */
     metrics: MeasurableCapability[];
 }
@@ -318,14 +313,14 @@ export interface EmergencePattern {
 export interface EvolutionTrigger {
     /** Trigger type */
     type: "performance" | "error_rate" | "usage_pattern" | "external_event";
-    
+
     /** Threshold for triggering evolution */
     threshold: {
         metric: string;
         operator: ">" | "<" | "=" | ">=" | "<=";
         value: number;
     };
-    
+
     /** What happens when triggered */
     action: {
         targetStrategy: ExecutionStrategy;
@@ -341,7 +336,7 @@ export interface EvolutionTrigger {
  */
 export interface SwarmFixture extends ExecutionFixture<ChatConfigObject> {
     config: ChatConfigObject;
-    
+
     /** Swarm-specific metadata */
     swarmMetadata?: {
         formation: "hierarchical" | "flat" | "matrix" | "dynamic";
@@ -352,53 +347,26 @@ export interface SwarmFixture extends ExecutionFixture<ChatConfigObject> {
 }
 
 /**
- * Agent definition within a swarm
- */
-export interface SwarmAgent {
-    /** Unique agent identifier */
-    id: string;
-    
-    /** Agent role in the swarm */
-    role: string;
-    
-    /** Agent capabilities */
-    capabilities: string[];
-    
-    /** Responsibilities */
-    responsibilities?: string[];
-    
-    /** Event subscriptions specific to this agent */
-    eventSubscriptions?: Record<string, boolean>;
-    
-    /** Learning configuration */
-    learning?: {
-        enabled: boolean;
-        adaptationRate?: number;
-        memoryRetention?: number;
-    };
-}
-
-/**
  * MOISE+ organization structure
  */
 export interface MOISEOrganization {
     /** Organization ID */
     id: string;
-    
+
     /** Structural specification */
     structure: {
         roles: MOISERole[];
         groups: MOISEGroup[];
         links: MOISELink[];
     };
-    
+
     /** Functional specification */
     functional: {
         missions: MOISEMission[];
         goals: MOISEGoal[];
         plans: MOISEPlan[];
     };
-    
+
     /** Normative specification */
     normative: {
         norms: MOISENorm[];
@@ -472,13 +440,13 @@ export interface MOISEObligation extends MOISENorm {
  */
 export interface RoutineFixture extends ExecutionFixture<RunProgress> {
     config: RunProgress;
-    
+
     /** Evolution stage of this routine */
     evolutionStage: EvolutionStage;
-    
+
     /** Domain this routine belongs to */
     domain?: RoutineDomain;
-    
+
     /** Navigator type for workflow execution */
     navigator?: NavigatorType;
 }
@@ -489,19 +457,19 @@ export interface RoutineFixture extends ExecutionFixture<RunProgress> {
 export interface EvolutionStage {
     /** Current strategy */
     strategy: ExecutionStrategy;
-    
+
     /** Version identifier */
     version: string;
-    
+
     /** Performance metrics */
     metrics: RoutineMetrics;
-    
+
     /** Previous version reference */
     previousVersion?: string;
-    
+
     /** Next version reference (if known) */
     nextVersion?: string;
-    
+
     /** Improvement notes */
     improvements?: string[];
 }
@@ -512,19 +480,19 @@ export interface EvolutionStage {
 export interface RoutineMetrics {
     /** Average duration in ms */
     avgDuration: number;
-    
+
     /** Average credit cost */
     avgCredits: number;
-    
+
     /** Success rate (0-1) */
     successRate?: number;
-    
+
     /** Error rate (0-1) */
     errorRate?: number;
-    
+
     /** User satisfaction (0-1) */
     satisfaction?: number;
-    
+
     /** Complexity score */
     complexity?: number;
 }
@@ -532,11 +500,11 @@ export interface RoutineMetrics {
 /**
  * Routine domains
  */
-export type RoutineDomain = 
-    | "security" 
-    | "medical" 
-    | "performance" 
-    | "system" 
+export type RoutineDomain =
+    | "security"
+    | "medical"
+    | "performance"
+    | "system"
     | "api-bootstrap"
     | "data-bootstrap"
     | "customer-service"
@@ -546,8 +514,8 @@ export type RoutineDomain =
 /**
  * Navigator types for different workflow formats
  */
-export type NavigatorType = 
-    | "native"      // Vrooli native JSON format
+export type NavigatorType =
+    | "sequential"  // Sequential (simple) navigator
     | "bpmn"        // BPMN 2.0
     | "temporal"    // Temporal workflows
     | "airflow"     // Apache Airflow
@@ -560,13 +528,13 @@ export type NavigatorType =
 export interface RunStateFixture {
     /** Initial state */
     initialState: string;
-    
+
     /** State transitions */
     transitions: StateTransition[];
-    
+
     /** Expected final state */
     expectedFinalState: string;
-    
+
     /** Events emitted during transitions */
     expectedEvents: string[];
 }
@@ -587,10 +555,10 @@ export interface StateTransition {
 export interface ExecutionContextFixture extends ExecutionFixture<RunProgress> {
     /** Execution strategy */
     strategy: ExecutionStrategy;
-    
+
     /** Execution context */
     context: ExecutionContext;
-    
+
     /** Tool configuration */
     tools?: ToolConfiguration;
 }
@@ -601,16 +569,16 @@ export interface ExecutionContextFixture extends ExecutionFixture<RunProgress> {
 export interface ExecutionContext {
     /** Available tools */
     tools: string[];
-    
+
     /** Execution constraints */
     constraints: ExecutionConstraints;
-    
+
     /** Shared memory/state */
     sharedMemory?: Record<string, any>;
-    
+
     /** Resource allocation */
     resources?: ResourceAllocation;
-    
+
     /** Safety configuration */
     safety?: SafetyConfiguration;
 }
@@ -621,13 +589,13 @@ export interface ExecutionContext {
 export interface ExecutionConstraints {
     /** Maximum tokens allowed */
     maxTokens?: number;
-    
+
     /** Timeout in ms */
     timeout?: number;
-    
+
     /** Tools requiring approval */
     requireApproval?: string[];
-    
+
     /** Resource limits */
     resourceLimits?: {
         memory?: number;
@@ -642,13 +610,13 @@ export interface ExecutionConstraints {
 export interface ResourceAllocation {
     /** Credit budget */
     creditBudget: number;
-    
+
     /** Time budget in ms */
     timeBudget: number;
-    
+
     /** Priority level */
     priority: "low" | "medium" | "high" | "critical";
-    
+
     /** Resource pools */
     pools?: string[];
 }
@@ -659,13 +627,13 @@ export interface ResourceAllocation {
 export interface SafetyConfiguration {
     /** Synchronous checks (<10ms) */
     syncChecks: string[];
-    
+
     /** Asynchronous monitoring agents */
     asyncAgents: string[];
-    
+
     /** Domain-specific rules */
     domainRules?: string[];
-    
+
     /** Emergency stop conditions */
     emergencyStop?: {
         conditions: string[];
@@ -679,10 +647,10 @@ export interface SafetyConfiguration {
 export interface ToolConfiguration {
     /** Available tools */
     available: ToolDefinition[];
-    
+
     /** Tool restrictions */
     restrictions?: ToolRestrictions;
-    
+
     /** Tool preferences */
     preferences?: ToolPreferences;
 }
@@ -698,10 +666,10 @@ export interface ToolDefinition {
 export interface ToolRestrictions {
     /** Blacklisted tools */
     blacklist?: string[];
-    
+
     /** Rate limits per tool */
     rateLimits?: Record<string, number>;
-    
+
     /** Time-based restrictions */
     timeRestrictions?: Record<string, { start: number; end: number }>;
 }
@@ -709,10 +677,10 @@ export interface ToolRestrictions {
 export interface ToolPreferences {
     /** Preferred tools for specific tasks */
     taskPreferences?: Record<string, string[]>;
-    
+
     /** Cost optimization preferences */
     costOptimization?: boolean;
-    
+
     /** Performance optimization preferences */
     performanceOptimization?: boolean;
 }
@@ -725,10 +693,10 @@ export interface ToolPreferences {
 export interface EmergentAgentFixture {
     /** Agent configuration */
     config: EmergentAgentConfig;
-    
+
     /** Expected emergence */
     emergence: EmergenceDefinition;
-    
+
     /** Learning configuration */
     learning?: LearningConfiguration;
 }
@@ -739,16 +707,16 @@ export interface EmergentAgentFixture {
 export interface EmergentAgentConfig {
     /** Agent role */
     role: string;
-    
+
     /** Event subscriptions */
     eventSubscriptions: string[];
-    
+
     /** Initial capabilities */
     initialCapabilities?: string[];
-    
+
     /** Learning enabled */
     learningEnabled: boolean;
-    
+
     /** Collaboration preferences */
     collaborationPreferences?: {
         preferredPartners?: string[];
@@ -763,16 +731,16 @@ export interface EmergentAgentConfig {
 export interface LearningConfiguration {
     /** Learning rate */
     learningRate: number;
-    
+
     /** Pattern recognition threshold */
     patternThreshold: number;
-    
+
     /** Memory retention period */
     memoryRetention: number;
-    
+
     /** Adaptation strategies */
     adaptationStrategies: string[];
-    
+
     /** Knowledge transfer enabled */
     knowledgeTransfer: boolean;
 }
@@ -783,16 +751,16 @@ export interface LearningConfiguration {
 export interface EvolutionPath {
     /** Path identifier */
     id: string;
-    
+
     /** Domain */
     domain: string;
-    
+
     /** Evolution stages */
     stages: EvolutionStage[];
-    
+
     /** Triggers for evolution */
     evolutionTriggers: EvolutionTrigger[];
-    
+
     /** Expected outcomes */
     expectedOutcomes: {
         performanceGain: number;
@@ -807,13 +775,13 @@ export interface EvolutionPath {
 export interface EvolutionTrigger {
     /** Trigger type */
     type: "usage_count" | "error_rate" | "performance_threshold" | "time_based" | "manual";
-    
+
     /** Threshold value */
     threshold: number;
-    
+
     /** Measurement period */
     period?: number;
-    
+
     /** Additional conditions */
     conditions?: string[];
 }
@@ -826,28 +794,28 @@ export interface EvolutionTrigger {
 export interface IntegrationScenario {
     /** Scenario ID */
     id: string;
-    
+
     /** Scenario name */
     name: string;
-    
+
     /** Tier 1 configuration */
     tier1: SwarmFixture | SwarmFixture[];
-    
+
     /** Tier 2 configuration */
     tier2: RoutineFixture | RoutineFixture[];
-    
+
     /** Tier 3 configuration */
     tier3: ExecutionContextFixture | ExecutionContextFixture[];
-    
+
     /** Expected event flow */
     expectedEvents: string[];
-    
+
     /** Expected emergence */
     emergence: {
         capabilities: string[];
         metrics?: IntegrationMetrics;
     };
-    
+
     /** Test scenarios */
     testScenarios?: TestScenario[];
 }
@@ -858,16 +826,16 @@ export interface IntegrationScenario {
 export interface IntegrationMetrics {
     /** End-to-end latency */
     latency: number;
-    
+
     /** Overall accuracy */
     accuracy: number;
-    
+
     /** Total cost */
     cost: number;
-    
+
     /** Reliability score */
     reliability?: number;
-    
+
     /** Scalability factor */
     scalability?: number;
 }
@@ -878,16 +846,16 @@ export interface IntegrationMetrics {
 export interface TestScenario {
     /** Scenario name */
     name: string;
-    
+
     /** Input data */
     input: any;
-    
+
     /** Expected output */
     expectedOutput?: any;
-    
+
     /** Success criteria */
     successCriteria: SuccessCriteria[];
-    
+
     /** Failure conditions */
     failureConditions?: string[];
 }
@@ -898,13 +866,13 @@ export interface TestScenario {
 export interface SuccessCriteria {
     /** Metric name */
     metric: string;
-    
+
     /** Comparison operator */
     operator: ">" | "<" | ">=" | "<=" | "==" | "!=";
-    
+
     /** Target value */
     value: number | string | boolean;
-    
+
     /** Optional tolerance */
     tolerance?: number;
 }
@@ -917,35 +885,35 @@ export interface SuccessCriteria {
 export interface ExecutionFixtureFactory<TConfig extends BaseConfigObject> {
     /** Create minimal fixture (following shared package pattern) */
     createMinimal(overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
-    
+
     /** Create complete fixture (following shared package pattern) */
     createComplete(overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
-    
+
     /** Create fixture with defaults */
     createWithDefaults(overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
-    
+
     /** Create fixture variant */
     createVariant(variant: string, overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
-    
+
     /** Create fixture with overrides */
     create(overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
-    
+
     /** Create multiple fixtures */
     createBatch(count: number, overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>[];
-    
+
     /** Create evolution path */
     createEvolutionPath?(stages: number): ExecutionFixture<TConfig>[];
-    
+
     /** Validation methods (using shared package utilities) */
     validateFixture(fixture: ExecutionFixture<TConfig>): Promise<ValidationResult>;
     validateConfig(config: TConfig): Promise<ValidationResult>;
     validateEmergence(emergence: EmergenceDefinition): ValidationResult;
     validateIntegration(integration: IntegrationDefinition): ValidationResult;
-    
+
     /** Integration with shared package validation */
     getConfigValidator(): any;
     getIntegrationAdapter(): any;
-    
+
     /** Factory methods */
     isValid(fixture: unknown): fixture is ExecutionFixture<TConfig>;
     merge(base: ExecutionFixture<TConfig>, override: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
@@ -958,16 +926,16 @@ export interface ExecutionFixtureFactory<TConfig extends BaseConfigObject> {
 export interface FixtureFactory<T> {
     /** Create minimal fixture */
     createMinimal(): T;
-    
+
     /** Create complete fixture */
     createComplete(): T;
-    
+
     /** Create fixture with overrides */
     create(overrides?: Partial<T>): T;
-    
+
     /** Create multiple fixtures */
     createBatch(count: number, overrides?: Partial<T>): T[];
-    
+
     /** Create evolution path */
     createEvolutionPath?(stages: number): T[];
 }
@@ -978,19 +946,19 @@ export interface FixtureFactory<T> {
 export interface FixtureCollection<T> {
     /** Collection name */
     name: string;
-    
+
     /** Collection description */
     description: string;
-    
+
     /** Fixtures in the collection */
     fixtures: Record<string, T>;
-    
+
     /** Get fixture by ID */
     get(id: string): T | undefined;
-    
+
     /** Get fixtures by tag */
     getByTag(tag: string): T[];
-    
+
     /** Get fixtures by tier */
     getByTier(tier: ExecutionTier): T[];
 }
@@ -1000,13 +968,6 @@ export type TypedExecutionFixture<TConfig extends BaseConfigObject> = ExecutionF
 
 // Re-export common types from shared package for convenience
 export type {
-    ChatConfigObject,
-    RunProgress,
-    BotConfigObject,
-    SwarmSubTask,
-    SwarmResource,
-    BlackboardItem,
-    ChatToolCallRecord,
-    SwarmPolicy,
-    PendingToolCallEntry,
+    BlackboardItem, BotConfigObject, ChatConfigObject, ChatToolCallRecord, PendingToolCallEntry, RunProgress, SwarmPolicy, SwarmResource, SwarmSubTask,
 };
+

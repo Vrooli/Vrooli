@@ -190,6 +190,12 @@ export const EventTypes = {
         /** Fired AFTER action completion but BEFORE results are returned to user
          * Allows agents to validate outputs, check for compliance, quality, etc. */
         POST_ACTION: "safety/post_action",
+
+        /** Fired when an emergency stop is triggered */
+        EMERGENCY_STOP: "safety/emergency_stop",
+
+        /** Fired when a threat is detected */
+        THREAT_DETECTED: "safety/threat_detected",
     },
 
     // ===== User Room Events =====
@@ -1114,6 +1120,36 @@ export interface SocketEventPayloads {
         duration?: number;
         /** Actual credits consumed */
         creditsUsed?: string;
+    };
+
+    /**
+     * Payload for emergency stop events
+     * @event EMERGENCY_STOP
+     */
+    [EventTypes.SAFETY.EMERGENCY_STOP]: {
+        /** ID of the entity that triggered the emergency stop */
+        actorId: string;
+        /** Type of actor */
+        actorType: "user" | "bot" | "agent" | "system";
+        /** Context where emergency stop happened */
+        contextId?: string;
+        /** Context type */
+        contextType?: "chat" | "run" | "swarm";
+    };
+
+    /**
+     * Payload for threat detected events
+     * @event THREAT_DETECTED
+     */
+    [EventTypes.SAFETY.THREAT_DETECTED]: {
+        /** ID of the entity that triggered the threat */
+        actorId: string;
+        /** Type of actor */
+        actorType: "user" | "bot" | "agent" | "system";
+        /** Context where threat happened */
+        contextId?: string;
+        /** Context type */
+        contextType?: "chat" | "run" | "swarm";
     };
 
     // ===== Room Management event payloads =====

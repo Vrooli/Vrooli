@@ -1,6 +1,6 @@
 import { DEFAULT_LANGUAGE, MINUTES_15_S, VisibilityType, WEEKS_1_S } from "@vrooli/shared";
 import OpenAI, { APIError } from "openai";
-import stopword from "stopword";
+import * as stopword from "stopword";
 import { hashString } from "../auth/codes.js";
 import { logger } from "../events/logger.js";
 import { CacheService } from "../redisConn.js";

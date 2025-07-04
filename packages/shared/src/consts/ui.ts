@@ -3,6 +3,7 @@ import { type ValueOf } from "./commonTypes.js";
 
 export const LINKS = {
     About: "/about",
+    Admin: "/admin",
     Api: "/api",
     Awards: "/awards",
     BookmarkList: "/bookmarks",

@@ -2,6 +2,7 @@ import { type ExecutionResult, type RoutineExecutionInput, type TierCommunicatio
 import { logger } from "../../../events/logger.js";
 import type { ISwarmContextManager } from "../shared/SwarmContextManager.js";
 import type { MOISEGate } from "./moiseGate.js";
+import { getNavigator } from "./navigators/navigatorFactory.js";
 import { RoutineEventCoordinator } from "./routineEventCoordinator.js";
 import { RoutineStateMachine } from "./routineStateMachine.js";
 import type { IRunContextManager } from "./runContextManager.js";
@@ -84,16 +85,16 @@ export class RoutineExecutor {
             await this.stateMachine.start();
 
             // Step 3: Navigate through routine structure using simplified navigation
-            const navigator = getNavigator(input.routine);
+            const navigator = getNavigator(input.routineId);
             if (!navigator) {
                 throw new Error("No navigator available for this routine type");
             }
-            const startLocation = navigator.getStartLocation(input.routine);
+            const startLocation = navigator.getStartLocation(input.routineId);
 
             // Step 4: Execute routine steps with resource tracking
             const result = await this.executeRoutineSteps(
                 swarmId,
-                input.routine,
+                input.routineId,
                 startLocation,
                 context,
             );

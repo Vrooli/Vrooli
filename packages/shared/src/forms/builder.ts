@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=2 | LAST: 2025-06-26
 import * as Yup from "yup";
 import { type ResourceSubTypeRoutine, type Run } from "../api/types.js";
 import { InputType } from "../consts/model.js";
@@ -6,13 +7,14 @@ import { type RoutineVersionConfig, defaultConfigFormInputMap, defaultConfigForm
 import { isObject } from "../utils/objects.js";
 import { type CheckboxFormInputProps, type CodeFormInputProps, type DropzoneFormInputProps, type FormElement, type FormInputBase, type FormInputType, type FormSchema, type IntegerFormInputProps, type LanguageFormInputProps, type LinkItemFormInputProps, type LinkUrlFormInputProps, type RadioFormInputProps, type SelectorFormInputOption, type SelectorFormInputProps, type SliderFormInputProps, type SwitchFormInputProps, type TagSelectorFormInputProps, type TextFormInputProps, type YupField, type YupType } from "./types.js";
 
+
 const DEFAULT_SLIDER_MIN = 0;
 const DEFAULT_SLIDER_MAX = 100;
 const DEFAULT_SLIDER_STEP = 20;
 
 function isNumeric(n: unknown): n is number {
-    return typeof n === 'number' && !isNaN(n) && isFinite(n) ||
-           typeof n === 'string' && !isNaN(parseFloat(n)) && isFinite(parseFloat(n));
+    return typeof n === "number" && !isNaN(n) && isFinite(n) ||
+           typeof n === "string" && !isNaN(parseFloat(n)) && isFinite(parseFloat(n));
 }
 
 function nearest(value: number, min: number, max: number, steps: number) {
@@ -40,6 +42,13 @@ export const healFormInputPropsMap: { [key in InputType]: (props: unknown) => an
             row: false,
             ...typedProps,
         } as const;
+    },
+    [InputType.ColorPicker]: function healColorPickerProps(props: unknown): unknown {
+        const typedProps = props as Partial<{ defaultValue?: string }>;
+        return {
+            defaultValue: "#000000",
+            ...typedProps,
+        };
     },
     [InputType.Dropzone]: function healDropzoneProps(props: unknown): DropzoneFormInputProps {
         const typedProps = props as Partial<DropzoneFormInputProps>;
@@ -100,8 +109,8 @@ export const healFormInputPropsMap: { [key in InputType]: (props: unknown) => an
             ...typedProps,
         };
     },
-    [InputType.Selector]: (props: unknown): SelectorFormInputProps<any> => {
-        const typedProps = props as Partial<SelectorFormInputProps<any>>;
+    [InputType.Selector]: (props: unknown): SelectorFormInputProps<SelectorFormInputOption> => {
+        const typedProps = props as Partial<SelectorFormInputProps<SelectorFormInputOption>>;
         return {
             options: [],
             getOptionDescription: (option: SelectorFormInputOption) =>
@@ -461,13 +470,13 @@ export function createFormInput({
     // Return the FormInputType object
     return ({
         type,
-        props: healFormInputPropsMap[type](props),
+        props: healFormInputPropsMap[type](props) as any,
         fieldName: fieldName ?? "",
         id: id ?? nanoid(),
         label: label ?? "",
         yup: yup as YupField,
         ...rest,
-    });
+    }) as FormInputType;
 }
 
 const FIELD_NAME_DELIMITER = "-";

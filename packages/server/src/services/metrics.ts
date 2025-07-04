@@ -7,7 +7,7 @@ import { logger } from "../events/logger.js";
 import { CacheService } from "../redisConn.js";
 import { SocketService } from "../sockets/io.js";
 import { QueueService } from "../tasks/queues.js";
-import { AIServiceRegistry } from "./conversation/registry.js";
+import { AIServiceRegistry } from "./response/registry.js";
 
 const debug = process.env.NODE_ENV === "development";
 
@@ -348,7 +348,7 @@ export class MetricsService {
      */
     public async getMetrics(): Promise<SystemMetrics> {
         const now = Date.now();
-        const uptime = Math.floor((now - this.startTime) / 1000);
+        const uptime = Math.floor((now - this.startTime) / SECONDS_1_MS);
 
         const [system, application, database, redis] = await Promise.all([
             this.getSystemMetrics(),

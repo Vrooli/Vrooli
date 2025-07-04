@@ -209,7 +209,7 @@ export abstract class BaseTierExecutor extends BaseComponent {
             tier: this.tierName,
             swarmId,
             inputType: this.getInputTypeName(request.input),
-            phase: metrics?.phase || "unknown",
+            phase: metrics?.phase || "execution",
             additionalContext: this.getAdditionalErrorContext(request, error),
         };
 

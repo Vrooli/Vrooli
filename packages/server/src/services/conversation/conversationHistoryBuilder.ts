@@ -130,7 +130,7 @@ export class RedisConversationHistoryBuilder extends ConversationHistoryBuilder 
             for (const rec of recs) {
                 const msg: MessageState = {
                     id: rec.id.toString(),
-                    createdAt: rec.createdAt,
+                    createdAt: rec.createdAt.toISOString(),
                     text: rec.text ?? "",
                     language: rec.language,
                     config: rec.config as any,
@@ -145,7 +145,7 @@ export class RedisConversationHistoryBuilder extends ConversationHistoryBuilder 
                     text: msg.text,
                     config: msg.config,
                     language: msg.language,
-                    createdAt: msg.createdAt.toISOString(),
+                    createdAt: msg.createdAt,
                     tokenSize: size,
                 };
             }
@@ -158,7 +158,7 @@ export class RedisConversationHistoryBuilder extends ConversationHistoryBuilder 
             if (entry.tokenSize <= 0) {
                 const dummy: MessageState = {
                     id: entry.id,
-                    createdAt: new Date(entry.createdAt),
+                    createdAt: entry.createdAt,
                     text: entry.text,
                     language: entry.language,
                     config: entry.config as any,

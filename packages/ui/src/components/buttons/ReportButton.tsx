@@ -1,9 +1,9 @@
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../Tooltip/Tooltip.js";
 import { useTheme } from "@mui/material/styles";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../icons/Icons.js";
+import { IconButton } from "./IconButton.js";
 import { ReportUpsert } from "../../views/objects/report/ReportUpsert.js";
 import { type ReportButtonProps } from "./types.js";
 
@@ -34,7 +34,8 @@ export function ReportButton({
             <Tooltip title={t("Report")}>
                 <IconButton
                     aria-label={t("Report")}
-                    size="small"
+                    size="sm"
+                    variant="transparent"
                     onClick={openDialog}
                 >
                     <IconCommon

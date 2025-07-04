@@ -60,6 +60,7 @@ import {
     type SwarmId,
 } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
+import { CacheService } from "../../../redisConn.js";
 import { getEventBus } from "../../events/eventBus.js";
 import { EventUtils } from "../../events/utils.js";
 import {
@@ -125,6 +126,7 @@ interface ContextStorageRecord {
 export class SwarmContextManager implements ISwarmContextManager {
     private static readonly DEFAULT_CACHE_TTL_MS = SECONDS_30_MS;
     private static readonly CHECKSUM_LENGTH = BASE64_CHECKSUM_LENGTH;
+    private static readonly MAX_VERSION_HISTORY = 10;
 
     private readonly config: BaseTierExecutionRequest;
 
@@ -253,7 +255,7 @@ export class SwarmContextManager implements ISwarmContextManager {
             this.metrics.cacheMisses++;
 
             // Load from Redis
-            const redis = this.ensureRedisConnected();
+            const redis = await CacheService.get().raw();
             const key = this.getContextKey(swarmId);
             const data = await redis.get(key);
 
@@ -290,7 +292,7 @@ export class SwarmContextManager implements ISwarmContextManager {
             this.contextCache.set(swarmId, record);
 
             // Update access count in Redis (fire and forget)
-            redis.set(key, JSON.stringify(record), "EX", this.config.contextTTL).catch(error => {
+            redis.set(key, JSON.stringify(record), "EX", Math.floor(this.cacheTTL / 1000)).catch(error => {
                 logger.warn("[SwarmContextManager] Failed to update access metadata", {
                     swarmId,
                     error: error instanceof Error ? error.message : String(error),
@@ -402,7 +404,7 @@ export class SwarmContextManager implements ISwarmContextManager {
             this.contextCache.delete(swarmId);
 
             // Remove from Redis
-            const redis = this.ensureRedisConnected();
+            const redis = await CacheService.get().raw();
             const key = this.getContextKey(swarmId);
             await redis.del(key);
 
@@ -456,7 +458,7 @@ export class SwarmContextManager implements ISwarmContextManager {
             // Create resource allocation
             const allocation: ResourceAllocation = {
                 ...request,
-                id: generatePK(),
+                id: generatePK().toString(),
                 allocatedAt: new Date(),
             };
 
@@ -646,7 +648,7 @@ export class SwarmContextManager implements ISwarmContextManager {
     async healthCheck(): Promise<{ healthy: boolean; details: Record<string, any> }> {
         try {
             // Test Redis connection
-            const redis = this.ensureRedisConnected();
+            const redis = await CacheService.get().raw();
             await redis.ping();
 
             return {
@@ -707,23 +709,24 @@ export class SwarmContextManager implements ISwarmContextManager {
         const key = this.getContextKey(context.swarmId);
         const data = JSON.stringify(record);
 
-        await redis.set(key, data, "EX", this.config.contextTTL);
+        const redis = await CacheService.get().raw();
+        await redis.set(key, data, "EX", Math.floor(this.cacheTTL / 1000));
 
         // Store version history
         const versionKey = `${key}:version:${context.version}`;
-        await redis.set(versionKey, data, "EX", this.config.contextTTL);
+        await redis.set(versionKey, data, "EX", Math.floor(this.cacheTTL / 1000));
 
         // Cleanup old versions
         await this.cleanupOldVersions(context.swarmId);
     }
 
     private async cleanupOldVersions(swarmId: SwarmId): Promise<void> {
-        const redis = this.ensureRedisConnected();
+        const redis = await CacheService.get().raw();
         const baseKey = this.getContextKey(swarmId);
         const pattern = `${baseKey}:version:*`;
         const versionKeys = await redis.keys(pattern);
 
-        if (versionKeys.length > this.config.maxVersionHistory) {
+        if (versionKeys.length > SwarmContextManager.MAX_VERSION_HISTORY) {
             // Sort by version number and remove oldest
             const sortedKeys = versionKeys.sort((a, b) => {
                 const versionA = parseInt(a.split(":version:")[1]);
@@ -731,7 +734,7 @@ export class SwarmContextManager implements ISwarmContextManager {
                 return versionA - versionB;
             });
 
-            const keysToDelete = sortedKeys.slice(0, sortedKeys.length - this.config.maxVersionHistory);
+            const keysToDelete = sortedKeys.slice(0, sortedKeys.length - SwarmContextManager.MAX_VERSION_HISTORY);
             if (keysToDelete.length > 0) {
                 await redis.del(...keysToDelete);
             }

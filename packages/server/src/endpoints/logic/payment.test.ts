@@ -52,7 +52,7 @@ describe("EndpointsPayment", () => {
                     create: [{
                         id: generatePK(),
                         userId: testUsers[0].id,
-                        permissions: '["owner"]',
+                        permissions: "[\"owner\"]",
                     }],
                 },
             }),
@@ -66,7 +66,7 @@ describe("EndpointsPayment", () => {
                     create: [{
                         id: generatePK(),
                         userId: testUsers[1].id,
-                        permissions: '["owner"]',
+                        permissions: "[\"owner\"]",
                     }],
                 },
             }),

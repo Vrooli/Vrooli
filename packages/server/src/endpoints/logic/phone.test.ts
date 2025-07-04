@@ -12,14 +12,19 @@ import { phone_verify } from "../generated/phone_verify.js";
 import { phone } from "./phone.js";
 // Import database fixtures
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
-import { PhoneDbFactory } from "../../__test/fixtures/db/phoneFixtures.js";
+import { createPhoneDbFactory } from "../../__test/fixtures/db/PhoneDbFactory.js";
 
 describe("EndpointsPhone", () => {
+    let phoneFactory: ReturnType<typeof createPhoneDbFactory>;
+
     beforeAll(async () => {
         // Use Vitest spies to suppress logger output during tests
         vi.spyOn(logger, "error").mockImplementation(() => logger);
         vi.spyOn(logger, "info").mockImplementation(() => logger);
         vi.spyOn(logger, "warning").mockImplementation(() => logger);
+
+        // Initialize factory
+        phoneFactory = createPhoneDbFactory();
     });
 
     beforeEach(async () => {
@@ -206,7 +211,7 @@ describe("EndpointsPhone", () => {
                 
                 // Create existing phone
                 await DbProvider.get().phone.create({
-                    data: PhoneDbFactory.createMinimal({
+                    data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
                         userId: testUser[0].id,
                     }),
@@ -286,11 +291,11 @@ describe("EndpointsPhone", () => {
                 for (let i = 0; i < 3; i++) {
                     phonePromises.push(
                         DbProvider.get().phone.create({
-                            data: PhoneDbFactory.createMinimal({
+                            data: phoneFactory.createMinimal({
                                 phoneNumber: `+123456789${i}`,
                                 userId: testUser[0].id,
                             }),
-                        })
+                        }),
                     );
                 }
                 await Promise.all(phonePromises);
@@ -345,7 +350,7 @@ describe("EndpointsPhone", () => {
                 
                 // Create phone for the user
                 const userPhone = await DbProvider.get().phone.create({
-                    data: PhoneDbFactory.createMinimal({
+                    data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
                         userId: testUser[0].id,
                         isVerified: false,
@@ -382,7 +387,7 @@ describe("EndpointsPhone", () => {
                 
                 // Create phone with existing verification code
                 const userPhone = await DbProvider.get().phone.create({
-                    data: PhoneDbFactory.createMinimal({
+                    data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
                         userId: testUser[0].id,
                         verificationCode: "oldcode",
@@ -419,7 +424,7 @@ describe("EndpointsPhone", () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 
                 await DbProvider.get().phone.create({
-                    data: PhoneDbFactory.createMinimal({
+                    data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
                         userId: testUser[0].id,
                     }),
@@ -467,7 +472,7 @@ describe("EndpointsPhone", () => {
                 
                 // Create phone for user 1
                 await DbProvider.get().phone.create({
-                    data: PhoneDbFactory.createMinimal({
+                    data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
                         userId: testUsers[0].id,
                     }),
@@ -524,7 +529,7 @@ describe("EndpointsPhone", () => {
                 
                 // Create phone with verification code
                 await DbProvider.get().phone.create({
-                    data: PhoneDbFactory.createMinimal({
+                    data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
                         userId: testUser[0].id,
                         verificationCode: "123456",
@@ -566,7 +571,7 @@ describe("EndpointsPhone", () => {
                 
                 // Create phone with very recent verification code
                 await DbProvider.get().phone.create({
-                    data: PhoneDbFactory.createMinimal({
+                    data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
                         userId: testUser[0].id,
                         verificationCode: "654321",
@@ -598,7 +603,7 @@ describe("EndpointsPhone", () => {
                 
                 // Create phone with verification code
                 await DbProvider.get().phone.create({
-                    data: PhoneDbFactory.createMinimal({
+                    data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
                         userId: testUser[0].id,
                         verificationCode: "123456",
@@ -627,7 +632,7 @@ describe("EndpointsPhone", () => {
                 
                 // Create phone with expired verification code
                 await DbProvider.get().phone.create({
-                    data: PhoneDbFactory.createMinimal({
+                    data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
                         userId: testUser[0].id,
                         verificationCode: "123456",
@@ -673,7 +678,7 @@ describe("EndpointsPhone", () => {
                 
                 // Create phone for user 1
                 await DbProvider.get().phone.create({
-                    data: PhoneDbFactory.createMinimal({
+                    data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
                         userId: testUsers[0].id,
                         verificationCode: "123456",
@@ -702,7 +707,7 @@ describe("EndpointsPhone", () => {
                 
                 // Create already verified phone
                 await DbProvider.get().phone.create({
-                    data: PhoneDbFactory.createMinimal({
+                    data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
                         userId: testUser[0].id,
                         isVerified: true,

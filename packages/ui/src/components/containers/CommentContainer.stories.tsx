@@ -4,6 +4,7 @@ import { useTheme } from "@mui/material/styles";
 import { CommentFor, endpointsComment, generatePK, type Comment, type CommentThread, type CommentTranslation } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
+import { getMockUrl } from "../../__test/helpers/storybookMocking.js";
 import { PageContainer } from "../../components/Page/Page.js";
 import { ScrollBox } from "../../styles.js";
 import { Navbar } from "../navigation/Navbar.js";
@@ -181,12 +182,12 @@ const defaultProps = {
 function commentHandlers(responseData = emptyCommentsResponse) {
     return [
         // Mock find many comments endpoint
-        http.get(`${API_URL}/v2${endpointsComment.findMany.endpoint}*`, () => {
+        http.get(`${getMockUrl(endpointsComment.findMany)}*`, () => {
             return HttpResponse.json({ data: responseData });
         }),
 
         // Mock create comment endpoint
-        http.post(`${API_URL}/v2${endpointsComment.createOne.endpoint}`, async ({ request }) => {
+        http.post(getMockUrl(endpointsComment.createOne), async ({ request }) => {
             const body = await request.json() as Record<string, any>;
             console.log("Create comment request body:", body);
 
@@ -215,7 +216,7 @@ function commentHandlers(responseData = emptyCommentsResponse) {
 
 // Loading handlers that delay response
 const loadingHandlers = [
-    http.get(`${API_URL}/v2${endpointsComment.findMany.endpoint}*`, async () => {
+    http.get(`${getMockUrl(endpointsComment.findMany)}*`, async () => {
         // Simulate a delay
         await new Promise(resolve => setTimeout(resolve, 2000));
         return HttpResponse.json({ data: emptyCommentsResponse });
@@ -226,12 +227,12 @@ const loadingHandlers = [
 function readOnlyHandlers(responseData = emptyCommentsResponse) {
     return [
         // Allow read operations
-        http.get(`${API_URL}/v2${endpointsComment.findMany.endpoint}*`, () => {
+        http.get(`${getMockUrl(endpointsComment.findMany)}*`, () => {
             return HttpResponse.json({ data: responseData });
         }),
 
         // Deny write operations
-        http.post(`${API_URL}/v2${endpointsComment.createOne.endpoint}`, () => {
+        http.post(getMockUrl(endpointsComment.createOne), () => {
             return HttpResponse.json(
                 {
                     success: false,

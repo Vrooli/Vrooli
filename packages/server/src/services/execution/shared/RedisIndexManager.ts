@@ -317,8 +317,9 @@ export class RedisIndexManager implements IRedisIndexManager {
             operations.push((pipeline) => pipeline.sadd(stateKeyGenerator(newState), itemId));
 
             // Apply TTL to new state index
-            if (this.defaultTtl) {
-                operations.push((pipeline) => pipeline.expire(stateKeyGenerator(newState), this.defaultTtl));
+            if (this.defaultTtl !== undefined) {
+                const ttl = this.defaultTtl;
+                operations.push((pipeline) => pipeline.expire(stateKeyGenerator(newState), ttl));
             }
 
             await this.executePipeline(operations);

@@ -94,6 +94,7 @@ export function createEmergentMockBehavior(config: EmergentMockBehavior): {
 } {
     let currentIteration = 0;
     
+    // eslint-disable-next-line func-style
     const getCurrentBehavior = (iteration: number): AIMockConfig => {
         currentIteration = iteration;
         
@@ -115,6 +116,7 @@ export function createEmergentMockBehavior(config: EmergentMockBehavior): {
         return stage.response;
     };
     
+    // eslint-disable-next-line func-style
     const evolve = (iteration: number) => {
         currentIteration = iteration;
     };

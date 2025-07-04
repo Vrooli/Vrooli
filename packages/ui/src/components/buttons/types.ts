@@ -1,6 +1,7 @@
 /* c8 ignore start */
+// AI_CHECK: TYPE_SAFETY=replaced-object-any-types | LAST: 2025-06-28
 import type { ButtonProps } from "@mui/material";
-import { type BookmarkFor, type FormSchema, type NavigableObject, type OrArray, type ProjectVersion, type ReactionFor, type ReportFor, type RoutineVersion, type SearchType, type Status } from "@vrooli/shared";
+import { type BookmarkFor, type FormSchema, type NavigableObject, type OrArray, type ProjectVersion, type ReactionFor, type ReportFor, type RoutineVersion, type SearchType, type Status, type TimeFrame } from "@vrooli/shared";
 import type React from "react";
 import { type FormErrors, type SxType, type ViewDisplayType } from "../../types.js";
 
@@ -58,7 +59,7 @@ export interface HelpButtonProps extends Omit<ButtonProps, "size"> {
     /** Size of the button */
     size?: number;
     /** Style applied to the root element */
-    sxRoot?: object;
+    sxRoot?: SxType;
 }
 
 export type MicrophoneButtonProps = {
@@ -95,16 +96,20 @@ export interface RunButtonProps {
     runnableObject: ProjectVersion | RoutineVersion | null;
 }
 
+export type PermissionsFilter = "All" | "Own" | "Public" | "Team";
+
 export type SearchButtonsProps = {
-    advancedSearchParams: object | null;
+    advancedSearchParams: Record<string, unknown> | null;
     advancedSearchSchema: FormSchema | null | undefined;
     controlsUrl: boolean;
+    permissionsFilter?: PermissionsFilter;
     searchType: SearchType | `${SearchType}`;
-    setAdvancedSearchParams: (params: object | null) => unknown;
+    setAdvancedSearchParams: (params: Record<string, unknown> | null) => unknown;
+    setPermissionsFilter?: (filter: PermissionsFilter) => unknown;
     setSortBy: (sortBy: string) => unknown;
     setTimeFrame: (timeFrame: TimeFrame | undefined) => unknown;
     sortBy: string;
-    sortByOptions: any; // No way to specify generic enum
+    sortByOptions: Record<string, string>; // Maps enum values to display strings
     sx?: SxType;
     timeFrame: TimeFrame | undefined;
 }
@@ -123,7 +128,7 @@ export interface BookmarkButtonProps {
     disabled?: boolean;
     isBookmarked?: boolean | null; // Defaults to false
     objectId: string;
-    onChange?: (isBookmarked: boolean, event?: any) => unknown;
+    onChange?: (isBookmarked: boolean, event?: React.MouseEvent) => unknown;
     showBookmarks?: boolean; // Defaults to true. If false, the number of bookmarks is not shown
     bookmarkFor: BookmarkFor;
     bookmarks?: number | null; // Defaults to 0

@@ -11,7 +11,7 @@ import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { Trigger } from "../../events/trigger.js";
-import { messageStore } from "../../services/conversation/responseEngine.js";
+import { RedisMessageStore } from "../../services/response/messageStore.js";
 import { QueueService } from "../../tasks/queues.js";
 import { type LLMCompletionTask, QueueTaskType } from "../../tasks/taskTypes.js";
 import { getAuthenticatedData } from "../../utils/getAuthenticatedData.js";
@@ -81,7 +81,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 }
                 return {
                     id: BigInt(data.id),
-                    config: data.config as unknown as Prisma.InputJsonValue,
+                    config: data.config as Prisma.InputJsonValue,
                     language: userData.languages[0] ?? DEFAULT_LANGUAGE,
                     parent: parentId ? { connect: { id: BigInt(parentId) } } : undefined,
                     user: { connect: { id: BigInt(data.userConnect ?? userData.id) } }, // Can create messages for bots. This is authenticated in the "pre" function.
@@ -99,7 +99,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     parentId = messageData.parentId;
                 }
                 return {
-                    config: noNull(data.config as unknown as Prisma.InputJsonValue),
+                    config: noNull(data.config as Prisma.InputJsonValue),
                     parent: parentId ? { connect: { id: BigInt(parentId) } } : undefined,
                     text: noNull(data.text),
                 };
@@ -180,7 +180,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
 
                     const updatedDbMessage = resultsById[objectId] as ChatMessage | undefined;
                     if (updatedDbMessage) {
-                        await messageStore.updateMessage(objectId, updatedDbMessage);
+                        await RedisMessageStore.get().updateMessage(objectId, updatedDbMessage);
                     } else {
                         logger.error("Updated message not found in resultsById for cache update", { trace: "chatMessage_update_cache_no_result", objectId });
                     }
@@ -213,7 +213,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         wasCompleteAndPublic: true, // N/A
                     });
 
-                    await messageStore.deleteMessage(objectId);
+                    await RedisMessageStore.get().deleteMessage(objectId);
 
                     await Trigger(userData.languages).chatMessageDeleted({
                         data: messageData,
@@ -417,7 +417,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 // Recurse Down (Children)
                 if (!excludeDown && node.children) {
                     // Pass current node's id as parentId when going down
-                    node.children.forEach((child: any) => flattenAndCheckDepth(child, depthUp, depthDown + 1, node.id));
+                    node.children.forEach((child) => flattenAndCheckDepth(child, depthUp, depthDown + 1, node.id));
                 }
             }
 
@@ -427,7 +427,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             const rawMessages = Array.from(allNodesMap.values());
 
             // --- Convert & Supplement --- 
-            const partialMessages = rawMessages.map((c: any) => InfoConverter.get().fromDbToApi(c, partialInfo)); // Use the already derived partialInfo
+            const partialMessages = rawMessages.map((c) => InfoConverter.get().fromDbToApi(c, partialInfo)); // Use the already derived partialInfo
             const messagesWithSupplements = await addSupplementalFields(userData, partialMessages, partialInfo); // Use partialInfo here too
 
             // --- Return Result --- 

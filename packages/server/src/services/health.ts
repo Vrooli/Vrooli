@@ -21,7 +21,7 @@ import { QueueService } from "../tasks/queues.js";
 import { checkNSFW, getS3Client } from "../utils/fileStorage.js";
 import { getImageProcessingStatus } from "../utils/sharpWrapper.js";
 import { BusService, type RedisStreamBus } from "./bus.js";
-import { AIServiceRegistry, AIServiceState } from "./conversation/registry.js";
+import { AIServiceRegistry, AIServiceState } from "./response/registry.js";
 import { EmbeddingService } from "./embedding.js";
 import { runWithMcpContext } from "./mcp/context.js";
 import { getMcpServer } from "./mcp/index.js";

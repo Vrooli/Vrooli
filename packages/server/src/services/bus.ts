@@ -11,12 +11,12 @@ import { type ServiceHealth } from "./health.js";
 /**
  * Base interface for all events, requiring only a type discriminator.
  */
-export interface BaseEvent {
+export interface BaseSingleProcessEvent {
     type: string;
 }
 
 /*──────────────────────── financial events ───────────────────*/
-export interface BillingEvent extends BaseEvent {
+export interface BillingEvent extends BaseSingleProcessEvent {
     type: "billing:event";
     /** idempotency key (UUID v4 from emitter) */
     id: string;
@@ -32,7 +32,7 @@ export interface BillingEvent extends BaseEvent {
     meta?: Record<string, unknown>;
 }
 
-export interface BillingNegativeBalanceEvent extends BaseEvent {
+export interface BillingNegativeBalanceEvent extends BaseSingleProcessEvent {
     type: "billing.negative_balance";
     payload: {
         accountId: string;
@@ -47,9 +47,9 @@ export interface BillingNegativeBalanceEvent extends BaseEvent {
 
 /*──────────────────────── conversation execution ───────────────────*/
 /**
- * Events related to conversations, extending BaseEvent with conversation-specific fields.
+ * Events related to conversations, extending BaseSingleProcessEvent with conversation-specific fields.
  */
-export interface ConversationBaseEvent extends BaseEvent {
+export interface ConversationBaseEvent extends BaseSingleProcessEvent {
     conversationId: string;
     turnId?: number;
 }
@@ -751,7 +751,7 @@ export class RedisStreamBus extends EventBus {
  * Provides methods to start, stop, and access the bus
  */
 export class BusService {
-    private static instance: BusService;
+    private static instance: BusService | null;
     private bus: EventBus | null = null;
     private started = false;
 
@@ -774,7 +774,7 @@ export class BusService {
      */
     public static async reset(): Promise<void> {
         if (BusService.instance) {
-            await BusService.instance.shutdown();
+            await BusService.instance.stopEventBus();
             BusService.instance = null;
         }
     }

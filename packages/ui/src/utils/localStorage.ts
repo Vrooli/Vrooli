@@ -3,6 +3,8 @@ import { chatMatchHash } from "./codes.js";
 import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "./consts.js";
 import { getDeviceInfo } from "./display/device.js";
 
+// AI_CHECK: TYPE_SAFETY=improved-localstorage-types | LAST: 2025-06-28
+
 // Helper to access window in both environments
 const windowObj = typeof global !== "undefined" && global.window
     ? global.window
@@ -424,7 +426,7 @@ export function getOrSetCookie<T extends SimpleStorageType | string>(
  * @param callback Callback function to call if cookie is allowed
  * @param fallback Optional fallback value to use if cookie is not allowed
  */
-export function ifAllowed(cookieType: keyof CookiePreferences, callback: () => unknown, fallback?: any) {
+export function ifAllowed<T>(cookieType: keyof CookiePreferences, callback: () => T, fallback?: T): T | undefined {
     // Allow all in dev mode   
     if (process.env.DEV) {
         return callback();
@@ -488,9 +490,7 @@ export function removeCookie<T extends SimpleStorageType | CacheStorageType>(
 }
 
 /** Represents the stored values for a particular form identified by objectType and objectId */
-type FormCacheEntry = {
-    [key: string]: any; // This would be the form data
-}
+type FormCacheEntry = Record<string, unknown>
 const formDataCache = new LocalStorageLruCache<FormCacheEntry>("formData", FORM_CACHE_LIMIT, CACHE_LIMIT_512KB);
 
 export function getCookieFormData(pathname: string): FormCacheEntry | undefined {
@@ -686,7 +686,7 @@ function getPartialDataKey(partialData: CookiePartialData) {
     if (typeof partialData !== "object" || partialData === null) {
         return key;
     }
-    const { id, handle, publicId } = (partialData as Record<string, any>);
+    const { id, handle, publicId } = partialData as { id?: string; handle?: string; publicId?: string };
     if (typeof id === "string") key = `|id:${id}`;
     if (typeof handle === "string") key = `|handle:${handle}`;
     if (typeof publicId === "string") key = `|publicId:${publicId}`;

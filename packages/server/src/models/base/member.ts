@@ -5,7 +5,7 @@ import { defaultPermissions, getSingleTypePermissions } from "../../validators/p
 import { MemberFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { type MemberModelInfo, type MemberModelLogic, type RoleModelLogic, type TeamModelInfo, type TeamModelLogic, type UserModelInfo, type UserModelLogic } from "./types.js";
+import { type MemberModelInfo, type MemberModelLogic, type TeamModelInfo, type TeamModelLogic, type UserModelInfo, type UserModelLogic } from "./types.js";
 
 const __typename = "Member" as const;
 export const MemberModel: MemberModelLogic = ({
@@ -27,14 +27,12 @@ export const MemberModel: MemberModelLogic = ({
         searchFields: {
             createdTimeFrame: true,
             isAdmin: true,
-            roles: true,
             teamId: true,
             updatedTimeFrame: true,
             userId: true,
         },
         searchStringQuery: () => ({
             OR: [
-                { role: ModelMap.get<RoleModelLogic>("Role").search.searchStringQuery() },
                 { team: ModelMap.get<TeamModelLogic>("Team").search.searchStringQuery() },
                 { user: ModelMap.get<UserModelLogic>("User").search.searchStringQuery() },
             ],
@@ -76,3 +74,5 @@ export const MemberModel: MemberModelLogic = ({
         },
     }),
 });
+
+// AI_CHECK: TASK_ID=fix-role-model-logic | LAST: 2025-01-29

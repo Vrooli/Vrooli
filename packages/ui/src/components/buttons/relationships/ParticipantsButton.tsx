@@ -1,5 +1,5 @@
 import AvatarGroup from "@mui/material/AvatarGroup";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import { type ChatParticipantShape } from "@vrooli/shared";
 import { useField, useFormikContext } from "formik";
 import { useCallback, useMemo, useState } from "react";

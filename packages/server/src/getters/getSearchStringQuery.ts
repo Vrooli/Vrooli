@@ -9,7 +9,7 @@ import { SearchStringMap } from "../utils/searchStringMap.js";
  * @param query The query object to convert
  * @returns Fully-converted Prisma query, ready to be passed into DbProvider.get().findMany()
  */
-function getSearchStringQueryHelper<Where extends { [x: string]: any }>(
+function getSearchStringQueryHelper<Where extends Record<string, unknown>>(
     queryParams: SearchStringQueryParams,
     query: SearchStringQuery<Where>,
 ): Where {
@@ -26,7 +26,7 @@ function getSearchStringQueryHelper<Where extends { [x: string]: any }>(
                 } else {
                     return v;
                 }
-            }) as any;
+            }) as Where[keyof Where];
         }
         // If value is a key of SearchStringMap, convert it to a Prisma query
         else if (SearchStringMap[key]) {
@@ -34,11 +34,11 @@ function getSearchStringQueryHelper<Where extends { [x: string]: any }>(
         }
         // If value is an object, recursively convert it
         else if (isRelationshipObject(value)) {
-            where[key as keyof Where] = getSearchStringQueryHelper(queryParams, value as any);
+            where[key as keyof Where] = getSearchStringQueryHelper(queryParams, value as SearchStringQuery<Where>);
         }
         // If value is a string, convert it to a Prisma query
         else if (typeof value === "string" && SearchStringMap[value]) {
-            (where as any)[key as keyof Where] = SearchStringMap[value](queryParams);
+            where[key as keyof Where] = SearchStringMap[value](queryParams) as Where[keyof Where];
         }
         // Otherwise, just copy the value
         else {
@@ -54,7 +54,7 @@ function getSearchStringQueryHelper<Where extends { [x: string]: any }>(
  * to their corresponding Prisma query (stored in SearchStringMap).
  * @returns Fully-converted Prisma query, ready to be passed into DbProvider.get().findMany()
  */
-export function getSearchStringQuery<Where extends { [x: string]: any }>({
+export function getSearchStringQuery<Where extends Record<string, unknown>>({
     languages,
     objectType,
     searchString,

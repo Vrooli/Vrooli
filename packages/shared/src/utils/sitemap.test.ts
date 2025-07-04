@@ -73,8 +73,6 @@ describe("generateSitemap", () => {
             },
         ];
         const xml = generateSitemap("https://example.com", { main: mainEntries, content: contentEntries });
-        // Print full XML for visual verification
-        console.log(xml);
         // Basic structural and content assertions
         expect(xml.startsWith("<?xml")).toBe(true);
         expect(xml).toContain("<urlset");

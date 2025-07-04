@@ -1,24 +1,24 @@
 import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
 import FormControl from "@mui/material/FormControl";
-import FormLabel from "@mui/material/FormLabel";
-import RadioGroup from "@mui/material/RadioGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import Radio from "@mui/material/Radio";
-import Select from "@mui/material/Select";
+import FormLabel from "@mui/material/FormLabel";
 import MenuItem from "@mui/material/MenuItem";
-import { Switch } from "../inputs/Switch/Switch.js";
-import { Slider } from "../inputs/Slider.js";
-// Simple action replacement
-const action = (name: string) => (...args: any[]) => console.log(`Action: ${name}`, args);
-import { MINUTES_10_MS, generatePK, type ChatMessageShape, type ChatMessageStatus, type ChatSocketEventPayloads, type ReactionSummary, type ChatMessageRunConfig } from "@vrooli/shared";
+import Radio from "@mui/material/Radio";
+import RadioGroup from "@mui/material/RadioGroup";
+import Select from "@mui/material/Select";
+import Typography from "@mui/material/Typography";
+import { MINUTES_10_MS, generatePK, type ChatMessageRunConfig, type ChatMessageShape, type ChatMessageStatus, type ChatSocketEventPayloads, type ReactionSummary } from "@vrooli/shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { borderedContainerDecorator } from "../../__test/helpers/storybookDecorators.tsx";
 import { loggedOutSession, signedInPremiumWithCreditsSession, signedInUserId } from "../../__test/storybookConsts.js";
 import { MessageTree } from "../../hooks/messages.js";
-import { pagePaddingBottom } from "../../styles.js";
 import { type BranchMap } from "../../utils/localStorage.js";
-import { ChatBubbleTree, ChatBubble } from "./ChatBubbleTree.js";
-import { borderedContainerDecorator } from "../../__test/helpers/storybookDecorators.tsx";
+import { Slider } from "../inputs/Slider.js";
+import { Switch } from "../inputs/Switch/Switch.js";
+import { ChatBubble, ChatBubbleTree } from "./ChatBubbleTree.js";
+
+// Simple action replacement
+const action = (name: string) => (...args: any[]) => console.log(`Action: ${name}`, args);
 
 const bot1Id = generatePK().toString();
 const botMessage1Id = generatePK().toString();
@@ -473,7 +473,7 @@ class Tree<T> {
             value,
             children: [],
             metadata: {
-                id: crypto.randomUUID(),
+                id: nanoid(),
                 parentId,
                 depth: 0,
                 index: 0
@@ -739,14 +739,14 @@ export const ChatBubbleShowcase: Story = {
         const [contentType, setContentType] = useState<"none" | "short" | "long" | "code">("short");
         const [hasVersions, setHasVersions] = useState(false);
         const [activeVersion, setActiveVersion] = useState(0);
-        
+
         // Generate user/bot data based on messageFrom
         const userId = messageFrom === "you" ? signedInUserId : generatePK().toString();
         const userName = messageFrom === "you" ? "You" : messageFrom === "bot" ? "AI Assistant" : "Other User";
         const userHandle = messageFrom === "you" ? "you" : messageFrom === "bot" ? "ai_assistant" : "otheruser";
         const isBot = messageFrom === "bot";
         const isOwn = messageFrom === "you";
-        
+
         // Generate message content based on contentType
         const getMessageContent = () => {
             switch (contentType) {
@@ -795,44 +795,44 @@ This implementation uses a generic type parameter and an optional comparison fun
                     return "Default message content";
             }
         };
-        
+
         // Generate reactions based on reactionCount
         const generateReactions = (): ReactionSummary[] => {
             if (reactionCount === 0) return [];
-            
+
             const emojis = ["👍", "❤️", "😂", "🎉", "🤔", "👏", "🔥", "💯", "😍", "🚀", "💪", "🙏", "😊", "🤩", "👀", "💡", "⭐", "✨", "🎯", "💎", "🌟", "🔮", "🎨", "🎵", "🌈", "⚡", "🎪", "🌸", "🎭", "🎸"];
             const reactions: ReactionSummary[] = [];
-            
+
             // Distribute reaction count across different emojis
             let remaining = reactionCount;
             // Use more emojis as reaction count increases to better showcase the toggle feature
             const numEmojis = Math.min(
-                reactionCount > 80 ? 12 : 
-                reactionCount > 60 ? 10 : 
-                reactionCount > 40 ? 8 : 
-                reactionCount > 20 ? 6 : 
-                reactionCount > 10 ? 4 : 
-                reactionCount > 5 ? 3 : 2, 
-                emojis.length
+                reactionCount > 80 ? 12 :
+                    reactionCount > 60 ? 10 :
+                        reactionCount > 40 ? 8 :
+                            reactionCount > 20 ? 6 :
+                                reactionCount > 10 ? 4 :
+                                    reactionCount > 5 ? 3 : 2,
+                emojis.length,
             );
-            
+
             for (let i = 0; i < numEmojis && remaining > 0; i++) {
-                const count = i === numEmojis - 1 
-                    ? remaining 
+                const count = i === numEmojis - 1
+                    ? remaining
                     : Math.ceil(remaining / (numEmojis - i) * (0.5 + Math.random() * 0.5));
-                
+
                 reactions.push({
                     __typename: "ReactionSummary" as const,
                     emoji: emojis[i],
                     count: Math.min(count, remaining),
                 });
-                
+
                 remaining -= count;
             }
-            
+
             return reactions;
         };
-        
+
         // Create the message object
         const message: ChatMessageShape = {
             __typename: "ChatMessage" as const,
@@ -852,7 +852,7 @@ This implementation uses a generic type parameter and an optional comparison fun
                 id: userId,
                 name: userName,
                 handle: userHandle,
-                isBot: isBot,
+                isBot,
             },
             versionIndex: activeVersion,
             parent: null,
@@ -869,37 +869,37 @@ This implementation uses a generic type parameter and an optional comparison fun
                 },
             }),
         };
-        
+
         const handleActiveIndexChange = (index: number) => {
             setActiveVersion(index);
             action("handleActiveIndexChange")(index);
         };
-        
+
         return (
-            <Box sx={{ 
-                p: 2, 
-                height: "100vh", 
+            <Box sx={{
+                p: 2,
+                height: "100vh",
                 overflow: "auto",
-                bgcolor: "background.default" 
+                bgcolor: "background.default",
             }}>
-                <Box sx={{ 
-                    display: "flex", 
-                    gap: 2, 
+                <Box sx={{
+                    display: "flex",
+                    gap: 2,
                     flexDirection: { xs: "column", lg: "row" },
-                    maxWidth: 1400, 
-                    mx: "auto" 
+                    maxWidth: 1400,
+                    mx: "auto",
                 }}>
                     {/* Controls Section */}
-                    <Box sx={{ 
-                        p: 3, 
-                        bgcolor: "background.paper", 
-                        borderRadius: 2, 
+                    <Box sx={{
+                        p: 3,
+                        bgcolor: "background.paper",
+                        borderRadius: 2,
                         boxShadow: 1,
                         height: "fit-content",
-                        minWidth: { lg: 320 }
+                        minWidth: { lg: 320 },
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>ChatBubble Controls</Typography>
-                        
+
                         <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
                             {/* Message From Control */}
                             <FormControl component="fieldset" size="small">
@@ -914,7 +914,7 @@ This implementation uses a generic type parameter and an optional comparison fun
                                     <FormControlLabel value="bot" control={<Radio size="small" />} label="Bot" sx={{ m: 0 }} />
                                 </RadioGroup>
                             </FormControl>
-                            
+
                             {/* Message Status Control */}
                             <FormControl size="small" fullWidth>
                                 <FormLabel sx={{ fontSize: "0.875rem", mb: 1 }}>Message Status</FormLabel>
@@ -929,7 +929,7 @@ This implementation uses a generic type parameter and an optional comparison fun
                                     <MenuItem value="failed">Failed</MenuItem>
                                 </Select>
                             </FormControl>
-                            
+
                             {/* Reaction Count Control */}
                             <FormControl component="fieldset" size="small">
                                 <Slider
@@ -948,7 +948,7 @@ This implementation uses a generic type parameter and an optional comparison fun
                                     ]}
                                 />
                             </FormControl>
-                            
+
                             {/* Report Count Control */}
                             <FormControl component="fieldset" size="small">
                                 <Slider
@@ -961,7 +961,7 @@ This implementation uses a generic type parameter and an optional comparison fun
                                     marks={Array.from({ length: 11 }, (_, i) => ({ value: i }))}
                                 />
                             </FormControl>
-                            
+
                             {/* Content Type Control */}
                             <FormControl component="fieldset" size="small">
                                 <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Content Type</FormLabel>
@@ -976,7 +976,7 @@ This implementation uses a generic type parameter and an optional comparison fun
                                     <FormControlLabel value="code" control={<Radio size="small" />} label="Code Block" sx={{ m: 0 }} />
                                 </RadioGroup>
                             </FormControl>
-                            
+
                             {/* Has Versions Control */}
                             <FormControl component="fieldset" size="small">
                                 <Switch
@@ -989,26 +989,26 @@ This implementation uses a generic type parameter and an optional comparison fun
                             </FormControl>
                         </Box>
                     </Box>
-                    
+
                     {/* Preview Section */}
-                    <Box sx={{ 
-                        p: 3, 
-                        bgcolor: "background.paper", 
-                        borderRadius: 2, 
+                    <Box sx={{
+                        p: 3,
+                        bgcolor: "background.paper",
+                        borderRadius: 2,
                         boxShadow: 1,
                         flex: 1,
-                        overflow: "hidden"
+                        overflow: "hidden",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>ChatBubble Preview</Typography>
-                        
-                        <Box sx={{ 
-                            bgcolor: "background.default", 
-                            borderRadius: 2, 
+
+                        <Box sx={{
+                            bgcolor: "background.default",
+                            borderRadius: 2,
                             p: 2,
                             minHeight: 400,
                             display: "flex",
                             alignItems: "flex-start",
-                            overflow: "auto"
+                            overflow: "auto",
                         }}>
                             <Box sx={{ width: "100%", maxWidth: 800 }}>
                                 <ChatBubble
@@ -1027,7 +1027,7 @@ This implementation uses a generic type parameter and an optional comparison fun
                                 />
                             </Box>
                         </Box>
-                        
+
                         {/* State Information */}
                         <Box sx={{ mt: 3 }}>
                             <Typography variant="subtitle2" color="text.secondary">
@@ -1056,7 +1056,7 @@ ChatBubbleShowcase.parameters = {
 };
 
 // Generate long content for performance testing
-function generateLongText(paragraphs: number = 3): string {
+function generateLongText(paragraphs = 3): string {
     const sentences = [
         "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
         "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
@@ -1067,9 +1067,9 @@ function generateLongText(paragraphs: number = 3): string {
         "Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores.",
         "Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit.",
         "Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam.",
-        "Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur."
+        "Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur.",
     ];
-    
+
     const paragraphTexts: string[] = [];
     for (let p = 0; p < paragraphs; p++) {
         const sentenceCount = 4 + Math.floor(Math.random() * 4); // 4-7 sentences per paragraph
@@ -1079,7 +1079,7 @@ function generateLongText(paragraphs: number = 3): string {
         }
         paragraphTexts.push(paragraphSentences.join(" "));
     }
-    
+
     return paragraphTexts.join("\n\n");
 }
 
@@ -1124,7 +1124,7 @@ async function authenticateUser(email: string, password: string): Promise<AuthRe
     }
 }
 \`\`\``,
-        
+
         // React component with hooks
         `I've created a custom hook for managing form state:
 
@@ -1197,7 +1197,7 @@ export function useForm<T extends Record<string, any>>(
     };
 }
 \`\`\``,
-        
+
         // Python data processing
         `Here's a Python script for data analysis:
 
@@ -1269,7 +1269,7 @@ stats = analyzer.calculate_statistics()
 report_path = analyzer.generate_report()
 print(f"Report generated at: {report_path}")
 \`\`\``,
-        
+
         // SQL query
         `Here's an optimized SQL query for the report:
 
@@ -1313,7 +1313,7 @@ JOIN products p ON pr.product_id = p.product_id
 WHERE pr.revenue_rank <= 10
 ORDER BY pr.month DESC, pr.revenue_rank;
 \`\`\``,
-        
+
         // Algorithm implementation
         `Here's an efficient algorithm for finding the shortest path:
 
@@ -1455,9 +1455,9 @@ class PriorityQueue {
         }
     }
 }
-\`\`\``
+\`\`\``,
     ];
-    
+
     return codeExamples[Math.floor(Math.random() * codeExamples.length)];
 }
 
@@ -1465,7 +1465,7 @@ class PriorityQueue {
 function generateManyReactions(count: number): ReactionSummary[] {
     const emojis = ["👍", "❤️", "😂", "🎉", "🤔", "👏", "🔥", "💯", "😍", "🚀", "💪", "🙏", "😊", "🤩", "👀", "💡", "⭐", "✨"];
     const reactions: ReactionSummary[] = [];
-    
+
     for (let i = 0; i < Math.min(count, emojis.length); i++) {
         reactions.push({
             __typename: "ReactionSummary",
@@ -1473,31 +1473,31 @@ function generateManyReactions(count: number): ReactionSummary[] {
             count: 1 + Math.floor(Math.random() * 10),
         });
     }
-    
+
     return reactions;
 }
 
 // Create hundreds of messages for performance testing
-function createPerformanceTestMessages(messageCount: number = 1000): ChatMessageShape[] {
+function createPerformanceTestMessages(messageCount = 1000): ChatMessageShape[] {
     const messages: ChatMessageShape[] = [];
     const userIds = [bot1Id, signedInUserId];
     const userNames = ["AI Assistant", "Test User"];
     const userHandles = ["ai_assistant", "testuser"];
     const isBot = [true, false];
-    
-    let currentTime = Date.now() - (messageCount * 30000); // Start 30 seconds apart
-    
+
+    const currentTime = Date.now() - (messageCount * 30000); // Start 30 seconds apart
+
     for (let i = 0; i < messageCount; i++) {
         const userIndex = i % 2; // Alternate between bot and user
         const messageId = generatePK().toString();
         const parentId = i > 0 ? messages[i - 1].id : null;
-        
+
         // Mix code blocks with regular text - 30% chance for code content
         const includeCode = Math.random() < 0.3;
-        const messageText = includeCode 
-            ? generateCodeContent() 
+        const messageText = includeCode
+            ? generateCodeContent()
             : generateLongText(2 + Math.floor(Math.random() * 4)); // 2-5 paragraphs
-        
+
         messages.push({
             __typename: "ChatMessage",
             id: messageId,
@@ -1525,7 +1525,7 @@ function createPerformanceTestMessages(messageCount: number = 1000): ChatMessage
             } : null,
         });
     }
-    
+
     return messages;
 }
 
@@ -1535,7 +1535,7 @@ function createPerformanceTestMessages(messageCount: number = 1000): ChatMessage
  */
 export function PerformanceTest() {
     const performanceMessages = useMemo(() => createPerformanceTestMessages(1000), []); // 1000 messages for stress testing
-    
+
     const {
         tree,
         branches,
@@ -1550,7 +1550,7 @@ export function PerformanceTest() {
 
     // Add performance monitoring
     const renderStart = performance.now();
-    
+
     useEffect(() => {
         const renderEnd = performance.now();
         console.log(`📊 ChatBubbleTree Performance Test - Render time: ${(renderEnd - renderStart).toFixed(2)}ms`);
@@ -1560,16 +1560,16 @@ export function PerformanceTest() {
 
     return (
         <>
-            <Box sx={{ 
-                position: "absolute", 
-                top: 10, 
-                right: 10, 
-                background: "rgba(0,0,0,0.7)", 
-                color: "white", 
-                padding: 1, 
+            <Box sx={{
+                position: "absolute",
+                top: 10,
+                right: 10,
+                background: "rgba(0,0,0,0.7)",
+                color: "white",
+                padding: 1,
                 borderRadius: 1,
                 fontSize: "0.8rem",
-                zIndex: 1000
+                zIndex: 1000,
             }}>
                 📊 Performance Test: {performanceMessages.length} messages
             </Box>
@@ -1610,7 +1610,7 @@ function createMockRuns(): ChatMessageRunConfig[] {
         // InProgress run (pause button)
         {
             runId: generatePK().toString(),
-            resourceVersionId: generatePK().toString(), 
+            resourceVersionId: generatePK().toString(),
             resourceVersionName: "File Converter",
             taskId: generatePK().toString(),
             runStatus: "InProgress",
@@ -1621,7 +1621,7 @@ function createMockRuns(): ChatMessageRunConfig[] {
             runId: generatePK().toString(),
             resourceVersionId: generatePK().toString(),
             resourceVersionName: "API Integration",
-            taskId: generatePK().toString(), 
+            taskId: generatePK().toString(),
             runStatus: "Failed",
             createdAt: new Date(Date.now() - 4 * MINUTES_10_MS).toISOString(),
             completedAt: new Date(Date.now() - 1 * MINUTES_10_MS).toISOString(),
@@ -1676,7 +1676,7 @@ const messagesWithRuns: ChatMessageShape[] = [
         user: {
             id: bot1Id,
             name: "AI Assistant",
-            handle: "ai_assistant", 
+            handle: "ai_assistant",
             isBot: true,
             __typename: "User",
         },
@@ -1703,7 +1703,7 @@ const messagesWithRuns: ChatMessageShape[] = [
         user: {
             __typename: "User" as const,
             id: signedInUserId,
-            name: "Test User", 
+            name: "Test User",
             handle: "testuser",
             isBot: false,
         },

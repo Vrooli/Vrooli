@@ -1,11 +1,7 @@
-import { type BotParticipant } from "@vrooli/shared";
-import match from "mqtt-match";
-import { type ConversationState, type MessageState } from "./types.js";
-
-// Helper type guard to correctly narrow down the trigger type
-function isMessageState(t: MessageState | { type: "system"; content: string }): t is MessageState {
-    return "role" in t; // 'role' is a property of MessageState, not the system trigger
-}
+import { type BotParticipant, type ChatMessage } from "@vrooli/shared";
+const match = require("mqtt-match");
+import type { UnifiedSwarmContext } from "../execution/shared/UnifiedSwarmContext.js";
+import { type MessageState } from "./types.js";
 
 /**
  * Responsible for deciding **which bots** should act when a trigger arrives.
@@ -13,8 +9,8 @@ function isMessageState(t: MessageState | { type: "system"; content: string }): 
  */
 export abstract class AgentGraph {
     abstract selectResponders(
-        conversation: ConversationState,
-        trigger: MessageState | { type: "system"; content: string }
+        context: UnifiedSwarmContext,
+        trigger: Pick<ChatMessage, "config">,
     ): Promise<AgentSelectionResult>;
 }
 
@@ -34,36 +30,30 @@ export type AgentSelectionResult = {
  */
 export class DirectResponderGraph extends AgentGraph {
     async selectResponders(
-        conversation: ConversationState,
-        trigger: MessageState | { type: "system"; content: string },
+        context: UnifiedSwarmContext,
+        trigger: Pick<ChatMessage, "config">,
     ): Promise<AgentSelectionResult> {
-        const allBots = conversation.participants;
+        const agents = context.execution.agents;
         let respondingBotIds: string[] | undefined;
         const strategy = "direct_mention" as const;
 
-        if (isMessageState(trigger)) {
-            // trigger is now correctly typed as MessageState
-            if (trigger.config) { // Safely access optional config
-                respondingBotIds = trigger.config.respondingBots;
-            }
+        if (trigger && trigger.config) {
+            respondingBotIds = trigger.config.respondingBots;
         }
 
-        if (allBots.length === 0 || !respondingBotIds) {
+        if (agents.length === 0 || !respondingBotIds) {
             return { responders: [], strategy };
         }
 
         if (respondingBotIds.some(id => id === "@all")) {
-            return { responders: allBots, strategy };
+            return { responders: agents, strategy };
         }
 
-        const matchingBots = allBots.filter((p) => respondingBotIds!.includes(p.id)); // Non-null assertion is safe due to the check above
-        const uniqueBots = Array.from(new Map(matchingBots.map(bot => [bot.id, bot])).values());
-        return { responders: uniqueBots, strategy };
+        const matchingAgents = agents.filter((p) => respondingBotIds!.includes(p.id)); // Non-null assertion is safe due to the check above
+        const uniqueAgents = Array.from(new Map(matchingAgents.map(bot => [bot.id, bot])).values());
+        return { responders: uniqueAgents, strategy };
     }
 }
-
-/* ------------------------------------------------------------------
- * 2) SubscriptionGraph – topic/event based routing ----------------------- */
 
 /**
  * conversation.meta.eventSubscriptions example:
@@ -78,51 +68,28 @@ export class SubscriptionGraph extends AgentGraph {
      * Subscriptions are defined in `conversation.config.eventSubscriptions`.
      * It uses the {@link matchTopic} function to determine if a bot's subscribed pattern matches
      * the `eventTopic` from the trigger message.
-     *
-     * @async
-     * @param {ConversationState} conversation - The current state of the conversation, including participants
-     *                                         and configuration containing event subscriptions.
-     *                                         `conversation.config.eventSubscriptions` is expected to be an object
-     *                                         where keys are topic patterns (e.g., "sensor/#") and values are arrays
-     *                                         of bot IDs subscribed to that pattern.
-     * @param {MessageState | { type: "system"; content: string }} trigger -
-     *                                         The message or system event that triggered this selection.
-     *                                         If it's a `MessageState`, its `config.eventTopic` field is used.
-     * @returns {Promise<AgentSelectionResult>} A promise that resolves to an object containing an array of `BotParticipant` objects
-     *                                     that are subscribed to the event topic and the strategy used. Returns an empty array if
-     *                                     no topic is present in the trigger or no bots match the subscription.
-     * @example
-     * // Given conversation.config.eventSubscriptions = {
-     * //   "sensor/+/temp": ["bot_temp_logger"],
-     * //   "alerts/#": ["bot_alerter", "bot_dashboard"],
-     * // };
-     * // And trigger = { config: { eventTopic: "sensor/room1/temp" } };
-     * // This method would return the participant with ID "bot_temp_logger".
-     *
-     * // And trigger = { config: { eventTopic: "alerts/system/high_cpu" } };
-     * // This method would return participants with IDs "bot_alerter" and "bot_dashboard".
      */
     async selectResponders(
-        conversation: ConversationState,
-        trigger: MessageState | { type: "system"; content: string },
+        context: UnifiedSwarmContext,
+        trigger: Pick<ChatMessage, "config">,
     ): Promise<AgentSelectionResult> {
         let topic: string | undefined;
         const strategy = "subscription" as const;
 
-        if (isMessageState(trigger)) {
-            topic = trigger.config?.eventTopic;
+        if (trigger && trigger.config) {
+            topic = trigger.config.eventTopic;
         }
         if (!topic) {
             return { responders: [], strategy };
         }
 
-        const subs: Record<string, string[]> = conversation.config?.eventSubscriptions ?? {};
+        const subs: Record<string, string[]> = context.configuration.eventSubscriptions ?? {};
 
         const responderIds = new Set<string>();
         for (const [pattern, botIds] of Object.entries(subs)) {
             if (match(pattern, topic)) botIds.forEach((id) => responderIds.add(id));
         }
-        const selectedResponders = conversation.participants.filter((p) => responderIds.has(p.id));
+        const selectedResponders = context.execution.agents.filter((p) => responderIds.has(p.id));
         return { responders: selectedResponders, strategy };
     }
 }
@@ -152,19 +119,19 @@ export class ActiveBotGraph extends AgentGraph {
     }
 
     async selectResponders(
-        conversation: ConversationState,
-        _trigger: MessageState | { type: "system"; content: string },
+        context: UnifiedSwarmContext,
+        _trigger: Pick<ChatMessage, "config">,
     ): Promise<AgentSelectionResult> {
         const strategy = "swarm_baton" as const;
 
-        const active = conversation.config?.activeBotId;
+        const active = context.execution.activeBotId;
         if (!active) {                         // no baton ⇒ arbitrator
             // The correct role is "arbitrator", but since this could be set by a bot, 
             // we'll be more lenient in what's considered an "arbitrator".
             // Ideally this wouldn't be needed, but language models are not always reliable. 
             // So it's best to keep this check.
             // First, specifically look for a participant with the "arbitrator" role.
-            let arb = conversation.participants.find(p => {
+            let arb = context.execution.agents.find(p => {
                 const role = p.meta?.role;
                 return typeof role === "string" && role.trim().toLowerCase() === "arbitrator";
             });
@@ -172,7 +139,7 @@ export class ActiveBotGraph extends AgentGraph {
             // If no specific "arbitrator" is found, then look for other designated roles.
             if (!arb) {
                 const secondaryArbRoles = ["leader", "delegator", "coordinator"]; // Roles other than "arbitrator"
-                arb = conversation.participants.find(p => {
+                arb = context.execution.agents.find(p => {
                     const role = p.meta?.role;
                     if (typeof role === "string") {
                         return secondaryArbRoles.includes(role.trim().toLowerCase());
@@ -184,19 +151,16 @@ export class ActiveBotGraph extends AgentGraph {
                 // If an arbitrator is expected as per the comment "should always exist"
                 // and the logic for finding one, log a warning if none is found,
                 // unless warning suppression is active.
-                console.warn(`ActiveBotGraph: Expected an arbitrator participant, but none was found. Conversation ID: ${conversation.id ?? "N/A"}`);
+                console.warn(`ActiveBotGraph: Expected an arbitrator participant, but none was found. Conversation ID: ${context.swarmId ?? "N/A"}`);
             }
             const responders = arb ? [arb] : [];
             return { responders, strategy };
         }
-        const bot = conversation.participants.find(p => p.id === active);
+        const bot = context.execution.agents.find(p => p.id === active);
         const responders = bot ? [bot] : [];
         return { responders, strategy };
     }
 }
-
-/* ------------------------------------------------------------------
- * 4) CompositeGraph – combine other graphs ---------------------------------- */
 
 /**
  * The `CompositeGraph` is responsible for determining which bot(s) should respond to a given trigger
@@ -243,31 +207,31 @@ export class CompositeGraph extends AgentGraph {
     ) { super(); }
 
     async selectResponders(
-        conversation: ConversationState,
-        trigger: MessageState | { type: "system"; content: string },
+        context: UnifiedSwarmContext,
+        trigger: Pick<ChatMessage, "config">,
     ): Promise<AgentSelectionResult> {
         // 1️⃣ explicit responders override everything
-        const directResult = await this.direct.selectResponders(conversation, trigger);
+        const directResult = await this.direct.selectResponders(context, trigger);
         if (directResult.responders.length) return directResult;
 
         // 2️⃣ topic/event subscriptions
-        const subResult = await this.subGraph.selectResponders(conversation, trigger);
+        const subResult = await this.subGraph.selectResponders(context, trigger);
         if (subResult.responders.length) return subResult;
 
         // 3️⃣ Swarm baton
-        const activeResult = await this.activeBotGraph.selectResponders(conversation, trigger);
+        const activeResult = await this.activeBotGraph.selectResponders(context, trigger);
         // If activeResult has responders, OR if an activeBotId was configured in the conversation
         // (meaning the baton was explicitly intended to be active), then this result from ActiveBotGraph
         // is considered definitive for the swarm step. If activeBotId was set but the bot
         // was missing, activeResult.responders will be empty, and we should return that
         // (i.e., no one responds via swarm) rather than proceeding to fallback.
-        if (activeResult.responders.length || conversation.config?.activeBotId) {
+        if (activeResult.responders.length || context.execution?.activeBotId) {
             return activeResult;
         }
 
         // 4️⃣ If all else fails, just pick the first bot
-        if (conversation.participants.length) {
-            return { responders: [conversation.participants[0]], strategy: "fallback" };
+        if (context.execution.agents.length) {
+            return { responders: [context.execution.agents[0]], strategy: "fallback" };
         }
         return { responders: [], strategy: "fallback" };
     }

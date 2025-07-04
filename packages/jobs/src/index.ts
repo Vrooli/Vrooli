@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { CacheService, initSingletons, logger } from "@vrooli/server";
+import { CacheService, getBcryptService, initSingletons, logger } from "@vrooli/server";
 import { MINUTES_30_MS } from "@vrooli/shared";
 import cron from "node-cron";
 import { cleanupRevokedSessions } from "./schedules/cleanupRevokedSessions.js";
@@ -37,7 +37,7 @@ type CronJobDefinition = {
 /**
  * @returns A random off-peak minute (i.e. not on the hour or multiples of 15)
  */
-function offPeakMinute() {
+function offPeakMinute(): number {
     const peakMinutes = new Set([0, 15, 30, 45]);
     let minute: number;
     do {
@@ -49,7 +49,7 @@ function offPeakMinute() {
 /**
  * @returns A random off-peak hour (i.e. between 0-5 or 22-23)
  */
-function offPeakHour() {
+function offPeakHour(): number {
     // 0.75 probability of returning 0-5
     // 0.25 probability of returning 22-23
     if (Math.random() < 0.75) {
@@ -78,7 +78,7 @@ function generateCronJob(
     dayOfWeek: CronPart,
 ): string {
     // Helper function for random values when null is provided
-    function getRandomValue(min: number, max: number) {
+    function getRandomValue(min: number, max: number): number {
         return Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
@@ -210,7 +210,7 @@ class CronJobQueue {
                 await this.runWithTimeout(job, schedule, description);
                 logger.info(`Job completed: ${description}`);
                 success = true;
-            } catch (error) {
+            } catch (error: unknown) {
                 errorMessage = error instanceof Error ? error.message : String(error);
                 logger.error(`Error in job: ${description}`, { error, trace: "0398" });
                 success = false;
@@ -221,7 +221,7 @@ class CronJobQueue {
                 // Record job execution in Redis
                 try {
                     await this.recordJobExecution(description, success, errorMessage, duration);
-                } catch (redisError) {
+                } catch (redisError: unknown) {
                     logger.error(`Failed to record job execution: ${description}`, { error: redisError, trace: "0400" });
                 }
 
@@ -306,13 +306,13 @@ class CronJobQueue {
         multi.set(`cron:lastExecution:${jobName}`, executionData);
 
         // Add to the list of known cron jobs if it's not already there
-        multi.sAdd("cron:jobs", jobName);
+        multi.sadd("cron:jobs", jobName);
 
         await multi.exec();
     }
 }
 
-export function initializeAllCronJobs() {
+export function initializeAllCronJobs(): void {
     const jobQueue = new CronJobQueue(MAX_JOB_CONCURRENCY, MAX_QUEUE_LENGTH);
 
     cronJobs.forEach(cronJob => {
@@ -329,7 +329,73 @@ export function initializeAllCronJobs() {
     logger.info("🚀 Jobs are scheduled and running.");
 }
 
+/**
+ * Simple health check server for Kubernetes monitoring
+ */
+async function startHealthServer(): Promise<void> {
+    const express = await import("express");
+    const app = express.default();
+
+    app.get("/healthcheck", async (req, res) => {
+        try {
+            // Check if Redis is accessible
+            const cacheService = CacheService.get();
+            const redis = await cacheService.raw();
+
+            if (!redis) {
+                return res.status(503).json({
+                    status: "unhealthy",
+                    error: "Redis connection unavailable",
+                    timestamp: new Date().toISOString(),
+                });
+            }
+
+            // Get recent job execution status
+            const recentJobs = await redis.smembers("cron:jobs");
+            const jobHealth: Array<{ name: string; lastSuccess?: string; lastFailure?: string }> = [];
+
+            for (const jobName of recentJobs.slice(0, 5)) { // Check first 5 jobs
+                const lastSuccess = await redis.get(`cron:lastSuccess:${jobName}`);
+                const lastFailure = await redis.get(`cron:lastFailure:${jobName}`);
+                jobHealth.push({
+                    name: jobName,
+                    lastSuccess: lastSuccess || undefined,
+                    lastFailure: lastFailure || undefined,
+                });
+            }
+
+            // Check bcrypt availability
+            const bcryptService = getBcryptService();
+
+            res.json({
+                status: "healthy",
+                timestamp: new Date().toISOString(),
+                service: "jobs",
+                redis: "connected",
+                bcrypt: {
+                    available: bcryptService.isAvailable,
+                    error: bcryptService.error || undefined,
+                },
+                cronJobs: jobHealth,
+            });
+        } catch (error: unknown) {
+            logger.error("Health check failed", { error, trace: "0402" });
+            res.status(503).json({
+                status: "unhealthy",
+                error: error instanceof Error ? error.message : String(error),
+                timestamp: new Date().toISOString(),
+            });
+        }
+    });
+
+    const port = process.env.JOBS_HEALTH_PORT || process.env.PORT_JOBS || 4001;
+    app.listen(port, () => {
+        logger.info(`Jobs health server running on port ${port}`, { trace: "0403" });
+    });
+}
+
 if (process.env.npm_package_name === "@vrooli/jobs") {
     await initSingletons();
     initializeAllCronJobs();
+    await startHealthServer();
 }

@@ -79,7 +79,7 @@ export const ReactionModel: ReactionModelLogic = ({
                 // Try to find this id in the reactions array
                 if (exists(ids[i])) {
                     // If found, set result index to value of emoji field
-                    result[i] = reactionsArray.find((vote: any) => vote[fieldName] === ids[i])?.emoji ?? null;
+                    result[i] = reactionsArray.find((vote: { [key: string]: unknown; emoji: string }) => vote[fieldName] === ids[i])?.emoji ?? null;
                 }
             }
             return result;
@@ -135,7 +135,7 @@ export const ReactionModel: ReactionModelLogic = ({
             throw new CustomError("0637", "Unauthorized", { reactionFor: input.reactionFor, forId: input.forConnect });
         }
         const reaction = Array.isArray(reactedOnObject.reactions) && reactedOnObject.reactions.length > 0
-            ? reactedOnObject.reactions[0] as { id: string, emoji: string }
+            ? (reactedOnObject.reactions[0] as { id: string; emoji: string })
             : null;
         // Find sentiment of current and new reaction
         const isRemove = !exists(input.emoji);
@@ -197,7 +197,7 @@ export const ReactionModel: ReactionModelLogic = ({
                     VALUES ($1::BIGINT, $2, $3, $4::BIGINT)
                     ON CONFLICT (emoji, "apiId", "chatMessageId", "codeId", "commentId", "issueId", "noteId", "projectId", "routineId", "standardId")
                     DO UPDATE SET count = reaction_summary.count + $5
-                  `, createId, emoji, delta, input.forConnect, delta) as unknown as Prisma.PrismaPromise<object>,
+                  `, createId, emoji, delta, input.forConnect, delta) as Prisma.PrismaPromise<number>,
                 );
                 // Add/update in-memory summaries
                 const summary = updatedReactionSummaries.find((s) => s.emoji === emoji);
@@ -337,3 +337,5 @@ export const ReactionModel: ReactionModelLogic = ({
         },
     }),
 });
+
+// AI_CHECK: TASK_ID=fix-prisma-delegate-export | LAST: 2025-01-29

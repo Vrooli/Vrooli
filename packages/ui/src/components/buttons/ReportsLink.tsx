@@ -1,5 +1,5 @@
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
+import { IconButton } from "./IconButton.js";
+import { Tooltip } from "../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { styled, useTheme } from "@mui/material/styles";
 import { getObjectSlug, getObjectUrlBase } from "@vrooli/shared";
@@ -38,8 +38,9 @@ export function ReportsLink({
     return (
         <Tooltip title="Press to view and repond to reports.">
             <IconButton
+                variant="transparent"
+                size="md"
                 aria-label={t("Report", { count: object.reportsCount })}
-                href={link}
                 onClick={handleClick}
             >
                 <IconCommon

@@ -1,4 +1,6 @@
 /* c8 ignore start */
+// NOTE FOR AI: DO NOT ATTEMPT TO IMPROVE TYPE SAFETY FOR THIS FILE. IT WILL BREAK MANY THINGS.
+
 // Dot Notation
 // eslint-disable-next-line no-magic-numbers
 type Prev = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];

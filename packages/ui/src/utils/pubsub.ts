@@ -14,10 +14,10 @@ export type UntranslatedSnackMessage = {
 export type SnackMessage<KeyList = TranslationKeyCommon | TranslationKeyError> = TranslatedSnackMessage<KeyList> | UntranslatedSnackMessage;
 export type SnackPub<KeyList = TranslationKeyCommon | TranslationKeyError> = SnackMessage<KeyList> & {
     autoHideDuration?: number | "persist";
-    buttonClicked?: (event?: any) => any;
+    buttonClicked?: (event?: Event) => void;
     buttonKey?: TranslationKeyCommon;
     buttonVariables?: { [key: string]: string | number };
-    data?: any;
+    data?: unknown;
     /**
      * If ID is set, a snack with the same ID will be replaced
      */
@@ -269,7 +269,7 @@ export type SubscriberInfo<T> = {
      * which can be used to identify or filter subscriptions 
      * for advanced use cases.
      */
-    metadata?: any;
+    metadata?: unknown;
 }
 
 
@@ -297,7 +297,7 @@ export class PubSub {
     publish<T extends PubType>(
         type: T,
         data: EventPayloads[T] = defaultPayloads[type] as EventPayloads[T],
-        filterFn?: (metadata: any) => boolean,
+        filterFn?: (metadata: unknown) => boolean,
     ): void {
         const subscribersOfType = this.subscribers.get(type);
         if (!subscribersOfType) return;
@@ -319,7 +319,7 @@ export class PubSub {
     subscribe<T extends PubType>(
         type: T,
         subscriber: (data: EventPayloads[T]) => void,
-        metadata?: any,
+        metadata?: unknown,
     ): () => void {
         const token = Symbol(type);
 
@@ -360,7 +360,7 @@ export class PubSub {
      *                   If provided, only subscribers whose metadata satisfy this function are considered.
      * @returns True if there is at least one subscriber for the event type that matches the filter (if provided); otherwise, false.
      */
-    hasSubscribers<T extends PubType>(type: T, filterFn?: (metadata: any) => boolean): boolean {
+    hasSubscribers<T extends PubType>(type: T, filterFn?: (metadata: unknown) => boolean): boolean {
         const subs = this.subscribers.get(type);
         if (!subs || subs.size === 0) return false;
 

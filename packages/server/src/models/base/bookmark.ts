@@ -114,7 +114,7 @@ export const BookmarkModel: BookmarkModelLogic = ({
                 // For each bookmarked object type, decrement the bookmark count
                 for (const [objectType, objectIds] of Object.entries((beforeDeletedData[__typename] ?? {}) as { [key in BookmarkFor]?: string[] })) {
                     const delegate = (DbProvider.get()[ModelMap.get(objectType as ModelType, true, "bookmark onDeleted").dbTable] as PrismaDelegate);
-                    await (delegate as any).updateMany({ where: { id: { in: objectIds.map(id => BigInt(id)) } }, data: { bookmarks: { decrement: 1 } } });
+                    await delegate.updateMany({ where: { id: { in: objectIds.map(id => BigInt(id)) } }, data: { bookmarks: { decrement: 1 } } });
                     // For each bookmarked object, trigger bookmarkDeleted event
                     for (const objectId of (objectIds as string[])) {
                         Trigger(userData.languages).objectBookmark(false, objectType as BookmarkFor, objectId, userData.id);

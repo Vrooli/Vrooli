@@ -1,4 +1,9 @@
 {{- range $name, $svc := .Values.services }}
+{{- $serviceEnabled := true -}}
+{{- if hasKey $svc "enabled" -}}
+  {{- $serviceEnabled = $svc.enabled -}}
+{{- end -}}
+{{- if $serviceEnabled -}}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -28,7 +33,7 @@ spec:
       {{- end }}
       containers:
         - name: {{ include "vrooli.componentName" $name }}
-          image: {{ $.Values.image.registry }}/{{ $svc.repository }}:{{ $svc.tag | default $.Chart.AppVersion }}
+          image: {{ if $.Values.image.registry }}{{ $.Values.image.registry }}/{{ $svc.repository }}{{ else }}{{ $svc.repository }}{{ end }}:{{ $svc.tag | default $.Chart.AppVersion }}
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
           ports:
             - name: http
@@ -153,6 +158,7 @@ spec:
             {{- toYaml $svc.resources | nindent 12 }}
           {{- end }}
 {{- end }}
+{{- end }}{{/* range services */}}
 
 {{- if .Values.adminer.enabled }}
 ---

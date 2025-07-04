@@ -1,10 +1,10 @@
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../Tooltip/Tooltip.js";
 import { useTheme } from "@mui/material/styles";
 import { type ListObject } from "@vrooli/shared";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../icons/Icons.js";
+import { IconButton } from "./IconButton.js";
 import { ShareObjectDialog } from "../dialogs/ShareObjectDialog/ShareObjectDialog.js";
 import { type ShareButtonProps } from "./types.js";
 
@@ -28,7 +28,8 @@ export function ShareButton({
             <Tooltip title={t("Share")}>
                 <IconButton
                     onClick={openDialog}
-                    size="small"
+                    size="sm"
+                    variant="transparent"
                 >
                     <IconCommon
                         decorative

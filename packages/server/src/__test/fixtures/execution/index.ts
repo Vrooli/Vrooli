@@ -17,12 +17,10 @@
  */
 
 // Core utilities and types (ENHANCED IMPLEMENTATION - Phase 1-4 Improvements)
-export * from "./executionValidationUtils.js";
-export * from "./executionFactories.js";
-export * from "./executionTestUtils.js";
-export * from "./integrationScenarios.js";
-export * from "./types.js";
 export * from "./emergentCapabilityHelpers.js";
+export * from "./executionTestUtils.js";
+export * from "./executionValidationUtils.js";
+export * from "./types.js";
 
 // Production fixtures with defensive security focus
 export * from "./fixtures.js";
@@ -36,144 +34,50 @@ export * from "./errorScenarios.js";
 // Phase 4: Performance Benchmarking
 export * from "./performanceBenchmarking.js";
 
-// Tier 1: Coordination Intelligence
-export * from "./tier1-coordination/index.js";
-
 // Tier 2: Process Intelligence
 export * from "./tier2-process/index.js";
 
-// Tier 3: Execution Intelligence
-export * from "./tier3-execution/index.js";
-
 // Emergent Capabilities
 export * from "./emergent-capabilities/index.js";
-
-// Cross-cutting Concerns
-export * from "./cross-cutting/index.js";
-
-// Shared Components
-export * from "./shared/contextAdapterFixtures.js";
-
-// Integration Scenarios
-export * from "./integration-scenarios/index.js";
-
-// Tool fixtures (including MCP)
-export * from "./tools/index.js";
 
 // Shared utilities
 export * from "./testIdGenerator.js";
 
 // Re-export key utilities for convenience (ENHANCED IMPLEMENTATION - Phase 1-4)
-export { 
-    runComprehensiveExecutionTests,
-    runEnhancedComprehensiveExecutionTests,
-    validateConfigAgainstSchema,
-    validateConfigWithSharedFixtures,
-    validateConfigCompatibility,
-    validateEmergence,
-    validateIntegration,
-    validateEvolutionPathways,
-    validateEventFlow,
-    combineValidationResults,
-    createMinimalEmergence,
+export {
+    combineValidationResults, CONFIG_CLASS_REGISTRY,
+    CONFIG_FIXTURE_REGISTRY, CONFIG_INTEGRATION_MAP, createMinimalEmergence,
     createMinimalIntegration,
-    FixtureCreationUtils,
-    CONFIG_INTEGRATION_MAP,
-    CONFIG_CLASS_REGISTRY,
-    CONFIG_FIXTURE_REGISTRY,
+    FixtureCreationUtils, runComprehensiveExecutionTests,
+    runEnhancedComprehensiveExecutionTests,
+    validateConfigAgainstSchema, validateConfigCompatibility, validateConfigWithSharedFixtures, validateEmergence, validateEventFlow, validateEvolutionPathways, validateIntegration,
 } from "./executionValidationUtils.js";
 
 // Phase 2: Runtime Integration Testing Exports
 export {
-    ExecutionFixtureRunner,
-    createRuntimeTestScenarios,
-    validateRuntimeExecution,
+    createRuntimeTestScenarios, ExecutionFixtureRunner, validateRuntimeExecution,
 } from "./executionRunner.js";
 
 // Phase 3: Error Scenario Testing Exports
 export {
-    ErrorScenarioRunner,
-    createStandardErrorScenarios,
-    runErrorScenarioTests,
+    createStandardErrorScenarios, ErrorScenarioRunner, runErrorScenarioTests,
 } from "./errorScenarios.js";
 
 // Phase 4: Performance Benchmarking Exports
 export {
-    PerformanceBenchmarker,
-    runPerformanceBenchmarkTests,
-    runEvolutionBenchmarkTests,
+    PerformanceBenchmarker, runEvolutionBenchmarkTests, runPerformanceBenchmarkTests,
 } from "./performanceBenchmarking.js";
-
-// Re-export factories for convenience
-export {
-    SwarmFixtureFactory,
-    RoutineFixtureFactory,
-    ExecutionContextFixtureFactory,
-    swarmFactory,
-    routineFactory,
-    executionFactory,
-    createMeasurableCapability,
-    createEnhancedEmergence,
-} from "./executionFactories.js";
-
-// Re-export integration scenario utilities
-export {
-    IntegrationScenarioTester,
-    IntegrationScenarioFactory,
-    runIntegrationScenarioTests,
-    runMultipleIntegrationTests,
-    validateIntegrationScenario,
-    ScenarioBuilder,
-    createEventContract,
-    commonScenarios,
-    createCustomScenario,
-    runIntegrationScenarioWithValidation,
-} from "./integrationScenarios.js";
 
 // Re-export key types for convenience
 export type {
-    ExecutionFixture,
-    SwarmFixture,
-    RoutineFixture,
-    ExecutionContextFixture,
-    EmergenceDefinition,
-    IntegrationDefinition,
-    EnhancedEmergenceDefinition,
-    EnhancedIntegrationDefinition,
-    MeasurableCapability,
-    EventContract,
-    ValidationResult,
-    ConfigType,
-    ExecutionFixtureFactory,
+    EmergenceDefinition, EnhancedEmergenceDefinition,
+    EnhancedIntegrationDefinition, EventContract, ExecutionContextFixture, ExecutionFixture, ExecutionFixtureFactory, IntegrationDefinition, MeasurableCapability, RoutineFixture, SwarmFixture, ValidationResult,
 } from "./types.js";
 
 // Additional types from types.ts
 export type {
-    ValidationDefinition,
-    IntegrationScenario,
-    ExecutionTier,
-    ExecutionStrategy,
-    TestMetadata,
-    PerformanceBenchmarks,
-    SwarmAgent,
-    MOISEOrganization,
-    EvolutionStage,
-    RoutineMetrics,
-    ExecutionContext,
-    ExecutionConstraints,
-    ResourceAllocation,
-    SafetyConfiguration,
-    ToolConfiguration,
+    EvolutionStage, ExecutionConstraints, ExecutionContext, ExecutionTier, IntegrationScenario, MOISEOrganization, PerformanceBenchmarks, ResourceAllocation, RoutineMetrics, SafetyConfiguration, TestMetadata, ToolConfiguration, ValidationDefinition,
 } from "./types.js";
-
-// Integration scenario types
-export type {
-    IntegrationTestResult,
-    TestScenarioResult,
-    IntegrationMetrics,
-    TestScenario,
-    SuccessCriteria,
-} from "./integrationScenarios.js";
 
 /**
  * Quick Access to Key Fixtures
@@ -181,45 +85,43 @@ export type {
 
 // Production security-focused fixtures
 import {
-    securityMonitoringSwarm,
     complianceAuditSwarm,
-    vulnerabilityAssessmentRoutine,
-    dataPrivacyComplianceRoutine,
-    secureCodeExecutionContext,
-    highPerformanceAnalyticsContext,
-    securityResponseIntegration,
     complianceMonitoringIntegration,
+    dataPrivacyComplianceRoutine,
     executionFixtures,
+    highPerformanceAnalyticsContext,
+    secureCodeExecutionContext,
+    securityMonitoringSwarm,
+    securityResponseIntegration,
+    vulnerabilityAssessmentRoutine,
 } from "./fixtures.js";
 
 export const productionFixtures = {
     // Tier 1: Coordination Intelligence
     securityMonitoringSwarm,
     complianceAuditSwarm,
-    
+
     // Tier 2: Process Intelligence
     vulnerabilityAssessmentRoutine,
     dataPrivacyComplianceRoutine,
-    
+
     // Tier 3: Execution Intelligence
     secureCodeExecutionContext,
     highPerformanceAnalyticsContext,
-    
+
     // Integration Scenarios
     securityResponseIntegration,
     complianceMonitoringIntegration,
-    
+
     // Complete collection
     all: executionFixtures,
 };
 
 // Get all swarm configurations
-import { minimalSwarmConfig, completeSwarmConfig, customerSupportSwarmDb } from "./tier1-coordination/swarms/swarmFixtures.js";
+import { minimalSwarmConfig } from "./tier1-coordination/swarms/swarmFixtures.js";
 
 export const swarmConfigs = {
     minimal: minimalSwarmConfig,
-    complete: completeSwarmConfig,
-    customerSupport: customerSupportSwarmDb,
 };
 
 // Get all routine fixtures by evolution stage
@@ -231,33 +133,3 @@ export const routinesByStage = getRoutinesByEvolutionStage();
 import { evolutionMetrics } from "./emergent-capabilities/index.js";
 
 export { evolutionMetrics };
-
-// Get integration flows
-import { integrationFlows, compoundGrowthMetrics } from "./integration-scenarios/index.js";
-
-export { integrationFlows, compoundGrowthMetrics };
-
-/**
- * Helper function to demonstrate the three-tier architecture in action
- */
-export function demonstrateThreeTierFlow(scenario: keyof typeof integrationFlows) {
-    const flow = integrationFlows[scenario];
-    
-    return {
-        name: scenario,
-        flow: [
-            `1. Trigger: ${flow.trigger}`,
-            `2. Tier 1 (Coordination): ${flow.tier1Action}`,
-            `3. Tier 2 (Process): ${flow.tier2Action}`,
-            `4. Tier 3 (Execution): ${flow.tier3Action}`,
-            `5. Emergent: ${flow.emergentAction}`,
-            `6. Result: ${flow.outcome}`,
-        ].join("\n"),
-        architecture: {
-            tier1: "AI metacognition for dynamic coordination",
-            tier2: "Universal workflow execution",
-            tier3: "Context-aware strategy execution",
-            emergent: "Self-improving capabilities",
-        },
-    };
-}

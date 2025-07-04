@@ -94,8 +94,8 @@ export type FormImageType = FormElementBase & {
 }
 
 export type FormQrCodeType = FormElementBase & {
-    /** URL of the QR code */
-    url: string;
+    /** Data to encode in the QR code (URL, text, or any string data) */
+    data: string;
     type: FormStructureType.QrCode;
 }
 
@@ -177,6 +177,19 @@ export interface CodeFormInput extends FormInputBase {
     type: InputType.JSON;
     /** Type-specific props */
     props: CodeFormInputProps;
+}
+
+/** ColorPicker-specific form input props */
+export type ColorPickerFormInputProps = {
+    defaultValue?: string;
+    disabled?: boolean;
+}
+/** Type-props pair for ColorPicker input components */
+export interface ColorPickerFormInput extends FormInputBase {
+    /** The type of the field */
+    type: InputType.ColorPicker;
+    /** Type-specific props */
+    props: ColorPickerFormInputProps;
 }
 
 /** Dropzone-specific form input props */
@@ -329,9 +342,9 @@ export type SelectorFormInputProps<T extends SelectorFormInputOption> = {
     defaultValue?: T;
     disabled?: boolean;
     fullWidth?: boolean;
-    getOptionDescription: (option: T) => string | null | undefined;
-    getOptionLabel: (option: T) => string | null | undefined;
-    getOptionValue: (option: T) => string | null | undefined;
+    getOptionDescription?: (option: T) => string | null | undefined;
+    getOptionLabel?: (option: T) => string | null | undefined;
+    getOptionValue?: (option: T) => string | null | undefined;
     inputAriaLabel?: string;
     isRequired?: boolean,
     label?: string;
@@ -401,7 +414,7 @@ export interface TextFormInputProps {
     defaultValue?: string;
     /** Autocomplete attribute for auto-filling the text field (e.g. 'username', 'current-password') */
     autoComplete?: string;
-    /** If true, displays RichInput instead of TextInput */
+    /** If true, displays rich input editor */
     isMarkdown?: boolean;
     /** Maximum number of characters for the text field. Defaults to 1000 */
     maxChars?: number;
@@ -425,6 +438,7 @@ export interface TextFormInput extends FormInputBase {
 export type FormInputType =
     CheckboxFormInput |
     CodeFormInput |
+    ColorPickerFormInput |
     DropzoneFormInput |
     IntegerFormInput |
     LanguageFormInput |
@@ -524,12 +538,13 @@ export interface YupField {
 
 /**
  * Shape of entire Yup schema, generated from the yups in the FieldData objects
+ * AI_CHECK: TYPE_SAFETY=shared-form-schema-type-safety-fixes | LAST: 2025-07-01 - Fixed YupSchema any[] types to proper string[] and Record<string, unknown>
  */
 export interface YupSchema {
     title: string;
     type: "object";
-    required: any[];
-    properties: { [x: string]: any };
+    required: string[];
+    properties: { [x: string]: Record<string, unknown> };
 }
 
 //==============================================================

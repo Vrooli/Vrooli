@@ -1,5 +1,22 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-02
 import { type TranslationKeyError } from "@vrooli/shared";
 import { CustomError } from "../events/error.js";
+
+/**
+ * Interface for translation objects that may contain string fields
+ */
+interface TranslationData {
+    [key: string]: unknown;
+}
+
+/**
+ * Interface for objects that may have translation arrays
+ */
+interface TranslatableInput {
+    translationsCreate?: TranslationData[];
+    translationsUpdate?: TranslationData[];
+    [key: string]: unknown;
+}
 
 /**
  * Makes sure there are no more than k line breaks in the specified fields
@@ -8,23 +25,32 @@ import { CustomError } from "../events/error.js";
  * @param error - The error to throw if failed
  * @param k - The maximum number of line breaks allowed
  */
-export const lineBreaksCheck = (input: any, fields: string[], error: TranslationKeyError, k = 2): void => {
-    // First, check translations
-    const checkTranslations = (translations: any[], fields: string[]): void => {
-        translations.forEach((x: any) => {
+export function lineBreaksCheck(input: TranslatableInput, fields: string[], error: TranslationKeyError, k = 2): void {
+    // Helper function to check translations
+    function checkTranslations(translations: TranslationData[], fields: string[]): void {
+        translations.forEach((translation) => {
             fields.forEach(field => {
-                if (x[field] && x[field].split("\n").length > (k + 1)) {
+                const value = translation[field];
+                if (typeof value === "string" && value.split("\n").length > (k + 1)) {
                     throw new CustomError("0116", error);
                 }
             });
         });
-    };
-    if (input.translationsCreate) checkTranslations(input.translationsCreate, fields);
-    if (input.translationsUpdate) checkTranslations(input.translationsUpdate, fields);
-    // Then, check the main object
+    }
+    
+    // Check translation arrays if they exist
+    if (input.translationsCreate) {
+        checkTranslations(input.translationsCreate, fields);
+    }
+    if (input.translationsUpdate) {
+        checkTranslations(input.translationsUpdate, fields);
+    }
+    
+    // Check the main object fields
     fields.forEach(field => {
-        if (input[field] && input[field].split("\n").length > (k + 1)) {
+        const value = input[field];
+        if (typeof value === "string" && value.split("\n").length > (k + 1)) {
             throw new CustomError("0117", error);
         }
     });
-};
+}

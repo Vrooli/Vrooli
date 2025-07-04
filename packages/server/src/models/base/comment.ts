@@ -215,9 +215,9 @@ export const CommentModel: CommentModelLogic = ({
                 }
                 return result;
             }
-            let comments: any = flattenThreads(childThreads);
+            let comments = flattenThreads(childThreads);
             // Shape comments and add supplemental fields
-            comments = comments.map((c: any) => InfoConverter.get().fromDbToApi(c, partialInfo as PartialApiInfo));
+            comments = comments.map((c) => InfoConverter.get().fromDbToApi(c, partialInfo as PartialApiInfo));
             comments = await addSupplementalFields(userData, comments, partialInfo);
             // Put comments back into "threads" object, using another helper function. 
             // Comments can be matched by their ID
@@ -225,7 +225,7 @@ export const CommentModel: CommentModelLogic = ({
                 const result: CommentThread[] = [];
                 for (const thread of threads) {
                     // Find current-level comment
-                    const comment = comments.find((c: any) => c.id === thread.comment.id);
+                    const comment = comments.find((c) => c.id === thread.comment.id);
                     // Recurse
                     const children = shapeThreads(thread.childThreads);
                     // Add thread to result

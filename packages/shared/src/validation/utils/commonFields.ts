@@ -155,7 +155,6 @@ export const endTime = yup.date()
             const startTime = this.resolve(yup.ref("startTime"));
 
             if (startTime === null || startTime === undefined) {
-                console.log("Start time is missing");
                 return false;
             }
 
@@ -185,7 +184,6 @@ export const newEndTime = yup.date()
             const startTime = this.resolve(yup.ref("newStartTime"));
 
             if (startTime === null || startTime === undefined) {
-                console.log("Start time is missing");
                 return false;
             }
 

@@ -35,6 +35,7 @@ const COMMENT_INPUT_FEATURES = {
     allowCharacterLimit: true,
     allowSubmit: true,
     allowSpellcheck: true,
+    maxChars: 16_256,
 };
 
 export function CommentContainer({
@@ -169,7 +170,6 @@ export function CommentContainer({
                     value={commentText}
                     onChange={handleCommentChange}
                     onSubmit={handleSubmitComment}
-                    maxChars={16_256}
                     placeholder={t("AddComment", { defaultValue: "Add a comment..." })}
                     features={COMMENT_INPUT_FEATURES}
                     disabled={isSubmitting || isCreateLoading}

@@ -113,7 +113,7 @@ const RESERVED_HANDLES = [
  * @param Update Handle and id pairs for updated objects
  */
 export async function handlesCheck(
-    forType: "User" | "Project" | "Team",
+    forType: "User" | "Resource" | "Team",
     Create: { input: { id: string, handle?: string | null | undefined } }[],
     Update: { input: { id: string, handle?: string | null | undefined } }[],
 ): Promise<void> {

@@ -10,7 +10,7 @@ metadata:
 spec:
   rules:
 {{- range .Values.ingress.hosts }}
-    - host: {{ .host }}
+    - host: {{ $.Values.productionDomain | default .host }}
       http:
         paths:
 {{- range .paths }}
@@ -25,6 +25,12 @@ spec:
 {{- end }}
   {{- if .Values.ingress.tls }}
   tls:
-{{ toYaml .Values.ingress.tls | indent 4 }}
+  {{- range .Values.ingress.tls }}
+    - secretName: {{ $.Values.tlsSecretName | default .secretName }}
+      hosts:
+      {{- range .hosts }}
+        - {{ $.Values.productionDomain | default . }}
+      {{- end }}
+  {{- end }}
   {{- end }}
 {{- end }} 

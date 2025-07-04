@@ -1,4 +1,5 @@
 // AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-19
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-01 - Added proper eslint-disable comments for necessary 'as any' test assertions
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Import the actual implementation by bypassing the mock
@@ -10,10 +11,13 @@ describe("PubSub", () => {
 
     beforeEach(() => {
         // Clear the static instance to ensure each test gets a fresh instance
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (PubSub as any).instance = undefined;
         pubSub = PubSub.get();
         // Clear any existing subscribers if they exist
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         if ((pubSub as any).subscribers) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (pubSub as any).subscribers.clear();
         }
     });

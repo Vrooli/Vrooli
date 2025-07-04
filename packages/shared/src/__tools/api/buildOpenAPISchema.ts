@@ -59,7 +59,7 @@ type SchemaPathEndpoint = {
     description: string | undefined;
     operationId: string;
     tags: string[];
-    parameters: any[];
+    parameters: Record<string, unknown>[];
     requestBody?: {
         required: boolean;
         content: SchemaContent;

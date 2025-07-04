@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=server-type-safety-fixes | LAST: 2025-06-29 - Fixed null/undefined type mismatch
 import { ResourceSubType } from "@vrooli/shared";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
@@ -61,13 +62,13 @@ export async function calculateComplexity(
     });
 
     // Create a map of all resource versions (including related versions) by ID, so we can reference them later.
-    const resourceVersionsById = new Map<string, { complexity: number | null }>(
+    const resourceVersionsById = new Map<string, { complexity: number | null; resourceSubType?: string | null }>(
         fetchedData.map(rv => [rv.id.toString(), rv]),
     );
     for (const rv of fetchedData) {
         if (rv.relatedVersions) {
             for (const rel of rv.relatedVersions) {
-                resourceVersionsById.set(rel.toVersion.id.toString(), { complexity: rel.toVersion.complexity });
+                resourceVersionsById.set(rel.toVersion.id.toString(), { complexity: rel.toVersion.complexity, resourceSubType: rel.toVersion.resourceSubType ?? undefined });
             }
         }
     }
