@@ -19,7 +19,8 @@ const BIGINT_64_MAX = (2n ** 64n) - 1n;
  * Must be awaited (or called synchronously in `main()`) if used in Node.js.
  */
 export async function initIdGenerator(workerId = 1, epoch = 1609459200000) {
-    if (typeof process !== "undefined" && process.versions?.node) {
+    // Skip native module loading in test environment to avoid dynamic import errors
+    if (typeof process !== "undefined" && process.versions?.node && process.env?.NODE_ENV !== "test") {
         /* ---------- Node path: Rust/WASM fast generator ---------- */
         try {
             // Using a new Function constructor for dynamic import to bypass Vite's static analysis
@@ -45,10 +46,13 @@ export async function initIdGenerator(workerId = 1, epoch = 1609459200000) {
             // Successfully initialized Node.js generator
             generator = { next: () => nodeGen.getUniqueID() };
         } catch (error) {
-            console.warn(
-                "Failed to initialize native Snowflake generator in Node.js environment, using pure JS version. Error:",
-                error,
-            );
+            // Only warn in non-test environments
+            if (process.env?.NODE_ENV !== "test") {
+                console.warn(
+                    "Failed to initialize native Snowflake generator in Node.js environment, using pure JS version. Error:",
+                    error,
+                );
+            }
             // Fallback to the pure JS generator is already the default, so no change needed here if an error occurs.
             // If for some reason generator was nullified, re-initialize:
             if (!generator) {

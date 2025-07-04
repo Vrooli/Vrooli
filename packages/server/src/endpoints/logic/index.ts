@@ -34,7 +34,6 @@ export * from "./resource.js";
 export * from "./run.js";
 export * from "./runIO.js";
 export * from "./schedule.js";
-export * from "./statsProject.js";
 export * from "./statsResource.js";
 export * from "./statsSite.js";
 export * from "./statsTeam.js";

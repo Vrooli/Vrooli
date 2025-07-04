@@ -326,7 +326,7 @@ export class ChatContextCache {
         // Ensure complex objects like config, parent, user are stringified for hset
         const dataToStore = {
             ...data,
-            createdAt: data.createdAt.toISOString(), // Store dates as ISO strings
+            createdAt: data.createdAt,
             config: JSON.stringify(data.config),
             parent: data.parent ? JSON.stringify(data.parent) : null,
             user: data.user ? JSON.stringify(data.user) : null,
@@ -586,8 +586,22 @@ export class ChatContextCache {
  * - **Efficient Access**: Provides quick access to message data through Redis.
  */
 export class RedisMessageStore implements MessageStore {
+    private static _instance: RedisMessageStore | null = null;
     private readonly cache = ChatContextCache.get();
     private readonly tokenService = AIServiceRegistry.get();
+
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    private constructor() { }
+
+    /**
+     * Retrieves the singleton instance of the RedisMessageStore.
+     * If no instance exists, a new one is created.
+     *
+     * @returns The singleton instance of RedisMessageStore.
+     */
+    static get(): RedisMessageStore {
+        return this._instance ?? (this._instance = new RedisMessageStore());
+    }
 
     async addMessage(
         conversationId: string,
@@ -614,7 +628,7 @@ export class RedisMessageStore implements MessageStore {
             text: message.text,
             config: message.config,
             language: message.language,
-            createdAt: message.createdAt.toISOString(),
+            createdAt: message.createdAt,
             tokenSize: 0,
         });
         return message; // Return the original MessageState object
@@ -647,7 +661,7 @@ export class RedisMessageStore implements MessageStore {
             text: updates.text,
             config: updates.config,
             language: updates.language,
-            createdAt: updates.createdAt.toISOString(),
+            createdAt: updates.createdAt,
             tokenSize: 0,
         });
         return updates;

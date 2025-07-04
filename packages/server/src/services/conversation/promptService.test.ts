@@ -36,7 +36,7 @@ describe("PromptService", () => {
             const mockTemplate = "Hello {{ROLE}}!";
             vi.mocked(fs.readFile).mockResolvedValue(mockTemplate);
             
-            const result = await service.loadTemplate("test.txt");
+            const result = await PromptService.loadTemplate("test.txt");
             
             expect(result).toBe(mockTemplate);
             expect(fs.readFile).toHaveBeenCalledWith("/templates/test.txt", "utf-8");
@@ -70,7 +70,7 @@ describe("PromptService", () => {
             vi.mocked(getAuthenticatedData).mockResolvedValue({ "123": { __typename: "ResourceVersion", id: "123" } });
             vi.mocked(permissionsCheck).mockResolvedValue(true);
             
-            const result = await service.loadTemplate("prompt:123", { id: "user1", languages: ["en"] } as any);
+            const result = await PromptService.loadTemplate("prompt:123", { id: "user1", languages: ["en"] } as any);
             
             expect(result).toBe("User prompt: {{GOAL}}");
             expect(mockDb.resource_version.findUnique).toHaveBeenCalledWith(
@@ -92,7 +92,7 @@ describe("PromptService", () => {
             };
             vi.mocked(DbProvider.get).mockReturnValue(mockDb as any);
             
-            await expect(service.loadTemplate("prompt:999")).rejects.toThrow(CustomError);
+            await expect(PromptService.loadTemplate("prompt:999")).rejects.toThrow(CustomError);
         });
 
         it("should check permissions for private prompts", async () => {
@@ -121,7 +121,7 @@ describe("PromptService", () => {
             vi.mocked(getAuthenticatedData).mockResolvedValue({ "123": { __typename: "ResourceVersion", id: "123" } });
             vi.mocked(permissionsCheck).mockRejectedValue(new CustomError("0297", "Unauthorized"));
             
-            await expect(service.loadTemplate("prompt:123", { id: "user1", languages: ["en"] } as any))
+            await expect(PromptService.loadTemplate("prompt:123", { id: "user1", languages: ["en"] } as any))
                 .rejects.toThrow(CustomError);
             
             expect(permissionsCheck).toHaveBeenCalled();
@@ -152,12 +152,12 @@ describe("PromptService", () => {
             vi.mocked(permissionsCheck).mockResolvedValue(true);
             
             // First call - should hit database
-            const result1 = await service.loadTemplate("prompt:123", { id: "user1", languages: ["en"] } as any);
+            const result1 = await PromptService.loadTemplate("prompt:123", { id: "user1", languages: ["en"] } as any);
             expect(result1).toBe("Cached prompt");
             expect(mockDb.resource_version.findUnique).toHaveBeenCalledTimes(1);
             
             // Second call - should use cache
-            const result2 = await service.loadTemplate("prompt:123", { id: "user1", languages: ["en"] } as any);
+            const result2 = await PromptService.loadTemplate("prompt:123", { id: "user1", languages: ["en"] } as any);
             expect(result2).toBe("Cached prompt");
             expect(mockDb.resource_version.findUnique).toHaveBeenCalledTimes(1); // Still only called once
         });
@@ -177,7 +177,7 @@ describe("PromptService", () => {
                 convoConfig: {} as any,
             };
             
-            const result = await service.buildSystemMessage(context);
+            const result = await PromptService.buildSystemMessage(context);
             
             expect(result).toContain("Welcome to Vrooli");
             expect(result).toContain("Goal: Test goal");
@@ -220,7 +220,7 @@ describe("PromptService", () => {
                 },
             };
             
-            const result = await service.buildSystemMessage(context, {
+            const result = await PromptService.buildSystemMessage(context, {
                 templateIdentifier: "prompt:123",
                 userData: { id: "user1", languages: ["en"] } as any,
             });

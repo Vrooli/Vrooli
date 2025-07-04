@@ -1,4 +1,4 @@
-import { type FindByIdOrHandleInput, type UserSearchInput, type UserUpdateInput, SEEDED_IDS, generatePK } from "@vrooli/shared";
+import { type FindByIdOrHandleInput, type UserSearchInput, type UserUpdateInput, SEEDED_PUBLIC_IDS, generatePK } from "@vrooli/shared";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { testEndpointRequiresApiKeyWritePermissions, testEndpointRequiresAuth } from "../../__test/endpoints.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
@@ -14,7 +14,21 @@ import { user } from "./user.js";
 // Import database fixtures for seeding
 import { UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
-import { userTestDataFactory } from "@vrooli/shared";
+import { userTestDataFactory } from "@vrooli/shared/test-fixtures/api-inputs";
+
+// Helper function to create admin user for tests
+async function createTestAdminUser() {
+    return await DbProvider.get().user.create({
+        data: UserDbFactory.createWithAuth({
+            id: generatePK(),
+            publicId: SEEDED_PUBLIC_IDS.Admin,
+            name: "Admin User",
+            handle: "__admin__",
+            isPrivate: false,
+            theme: "light",
+        }),
+    });
+}
 
 describe("EndpointsUser", () => {
     beforeAll(async () => {
@@ -344,13 +358,14 @@ describe("EndpointsUser", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 // Use validation fixtures for API input
-                const input = userTestDataFactory.createBot({
+                const input = userTestDataFactory.createComplete({
                     name: "Test Bot",
                     handle: "test-bot-" + Math.floor(Math.random() * 1000),
-                    botSettings: JSON.stringify({
+                    botSettings: {
+                        __version: "1.0",
                         model: "gpt-3.5-turbo",
                         systemPrompt: "You are a helpful assistant.",
-                    }),
+                    },
                 });
 
                 const result = await user.botCreateOne({ input }, { req, res }, user_botCreateOne);
@@ -385,15 +400,16 @@ describe("EndpointsUser", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
-                const input = userTestDataFactory.createBot({
+                const input = userTestDataFactory.createComplete({
                     name: "API Key Bot",
                     handle: "api-bot-" + Math.floor(Math.random() * 1000),
                     isBotDepictingPerson: true,
                     isPrivate: true,
-                    botSettings: JSON.stringify({
+                    botSettings: {
+                        __version: "1.0",
                         model: "gpt-4",
                         systemPrompt: "You are a specialized bot created via API.",
-                    }),
+                    },
                 });
 
                 const result = await user.botCreateOne({ input }, { req, res }, user_botCreateOne);
@@ -432,13 +448,14 @@ describe("EndpointsUser", () => {
                 const testUser = { ...loggedInUserNoPremiumData(), id: testUser1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                const input = userTestDataFactory.createBot({
+                const input = userTestDataFactory.createComplete({
                     id: testUser2.id.toString(), // Using existing user ID
                     name: "Test Bot",
                     handle: "test-bot-" + Math.floor(Math.random() * 1000),
-                    botSettings: JSON.stringify({
+                    botSettings: {
+                        __version: "1.0",
                         model: "gpt-3.5-turbo",
-                    }),
+                    },
                 });
 
                 await expect(async () => {
@@ -447,6 +464,9 @@ describe("EndpointsUser", () => {
             });
 
             it("same ID as admin", async () => {
+                // Create test admin user
+                const adminUser = await createTestAdminUser();
+                
                 // Create test user
                 const testUserRecord = await DbProvider.get().user.create({
                     data: UserDbFactory.createWithAuth({
@@ -459,13 +479,14 @@ describe("EndpointsUser", () => {
                 const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                const input = userTestDataFactory.createBot({
-                    id: SEEDED_IDS.User.Admin, // Using admin ID
+                const input = userTestDataFactory.createComplete({
+                    id: adminUser.id.toString(), // Using admin ID
                     name: "Admin Bot",
                     handle: "admin-bot-" + Math.floor(Math.random() * 1000),
-                    botSettings: JSON.stringify({
+                    botSettings: {
+                        __version: "1.0",
                         model: "gpt-3.5-turbo",
-                    }),
+                    },
                 });
 
                 await expect(async () => {
@@ -487,12 +508,13 @@ describe("EndpointsUser", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
-                    ...userTestDataFactory.createBot({
+                    ...userTestDataFactory.createComplete({
                         name: "Not A Bot",
                         handle: "not-a-bot-" + Math.floor(Math.random() * 1000),
-                        botSettings: JSON.stringify({
+                        botSettings: {
+                            __version: "1.0",
                             model: "gpt-3.5-turbo",
-                        }),
+                        },
                     }),
                     isBot: false, // This should cause validation to fail
                 };
@@ -516,12 +538,13 @@ describe("EndpointsUser", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
-                    ...userTestDataFactory.createBot({
+                    ...userTestDataFactory.createComplete({
                         name: "Test Bot",
                         handle: "test-bot-" + Math.floor(Math.random() * 1000),
-                        botSettings: JSON.stringify({
+                        botSettings: {
+                            __version: "1.0",
                             model: "gpt-3.5-turbo",
-                        }),
+                        },
                     }),
                     status: "HardLocked", // User-specific field that shouldn't be allowed
                     notificationSettings: JSON.stringify({ disable: true }), // User-specific field
@@ -553,13 +576,14 @@ describe("EndpointsUser", () => {
                 const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                const botData = userTestDataFactory.createBot({
+                const botData = userTestDataFactory.createComplete({
                     name: "Test Bot",
                     handle: "test-bot-" + Math.floor(Math.random() * 1000),
-                    botSettings: JSON.stringify({
+                    botSettings: {
+                        __version: "1.0",
                         model: "gpt-3.5-turbo",
                         systemPrompt: "Initial prompt",
-                    }),
+                    },
                 });
 
                 // Create the bot
@@ -605,13 +629,14 @@ describe("EndpointsUser", () => {
                 const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
                 const { req: createReq, res: createRes } = await mockAuthenticatedSession(testUser);
 
-                const botData = userTestDataFactory.createBot({
+                const botData = userTestDataFactory.createComplete({
                     name: "API Bot",
                     handle: "api-bot-" + Math.floor(Math.random() * 1000),
-                    botSettings: JSON.stringify({
+                    botSettings: {
+                        __version: "1.0",
                         model: "gpt-3.5-turbo",
                         systemPrompt: "Initial API prompt",
-                    }),
+                    },
                 });
 
                 // Create the bot
@@ -649,23 +674,40 @@ describe("EndpointsUser", () => {
 
         describe("invalid", () => {
             it("updating a different user's bot", async () => {
-                // First create a bot owned by user1
-                const user2 = { ...loggedInUserNoPremiumData(), id: testUsers[1].id };
+                // Create test users
+                const testUser1 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 1",
+                        handle: "test-user-1-" + Math.floor(Math.random() * 1000),
+                    }),
+                });
+                const testUser2 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 2", 
+                        handle: "test-user-2-" + Math.floor(Math.random() * 1000),
+                    }),
+                });
+
+                // First create a bot owned by user2
+                const user2 = { ...loggedInUserNoPremiumData(), id: testUser2.id.toString() };
                 const { req: user2Req, res: user2Res } = await mockAuthenticatedSession(user2);
 
-                const botData = userTestDataFactory.createBot({
+                const botData = userTestDataFactory.createComplete({
                     name: "User2's Bot",
                     handle: "user2-bot-" + Math.floor(Math.random() * 1000),
-                    botSettings: JSON.stringify({
+                    botSettings: {
+                        __version: "1.0",
                         model: "gpt-3.5-turbo",
-                    }),
+                    },
                 });
 
                 // Create the bot
                 await user.botCreateOne({ input: botData }, { req: user2Req, res: user2Res }, user_botCreateOne);
 
-                // Try to update the bot as user0
-                const user1 = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
+                // Try to update the bot as user1
+                const user1 = { ...loggedInUserNoPremiumData(), id: testUser1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(user1);
 
                 const updateInput: UserUpdateInput = {
@@ -679,11 +721,23 @@ describe("EndpointsUser", () => {
             });
 
             it("updating admin user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
+                // Create test admin user
+                const adminUser = await createTestAdminUser();
+                
+                // Create test user
+                const testUserRecord = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User",
+                        handle: "test-user-" + Math.floor(Math.random() * 1000),
+                    }),
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const updateInput: UserUpdateInput = {
-                    id: SEEDED_IDS.User.Admin,
+                    id: adminUser.id.toString(),
                     name: "Hacked Admin",
                 };
 
@@ -693,16 +747,26 @@ describe("EndpointsUser", () => {
             });
 
             it("trying to set `isBot` to false", async () => {
+                // Create test user
+                const testUserRecord = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User",
+                        handle: "test-user-" + Math.floor(Math.random() * 1000),
+                    }),
+                });
+
                 // First create a bot
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                const botData = userTestDataFactory.createBot({
+                const botData = userTestDataFactory.createComplete({
                     name: "Test Bot",
                     handle: "test-bot-" + Math.floor(Math.random() * 1000),
-                    botSettings: JSON.stringify({
+                    botSettings: {
+                        __version: "1.0",
                         model: "gpt-3.5-turbo",
-                    }),
+                    },
                 });
 
                 // Create the bot
@@ -720,16 +784,26 @@ describe("EndpointsUser", () => {
             });
 
             it("trying to update user-specific fields", async () => {
+                // Create test user
+                const testUserRecord = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User",
+                        handle: "test-user-" + Math.floor(Math.random() * 1000),
+                    }),
+                });
+
                 // First create a bot
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                const botData = userTestDataFactory.createBot({
+                const botData = userTestDataFactory.createComplete({
                     name: "Test Bot",
                     handle: "test-bot-" + Math.floor(Math.random() * 1000),
-                    botSettings: JSON.stringify({
+                    botSettings: {
+                        __version: "1.0",
                         model: "gpt-3.5-turbo",
-                    }),
+                    },
                 });
 
                 // Create the bot
@@ -750,18 +824,19 @@ describe("EndpointsUser", () => {
 
             testEndpointRequiresAuth(user.botUpdateOne, {
                 input: {
-                    id: userTestDataFactory.createBot({}).id,
+                    id: userTestDataFactory.createComplete({}).id,
                     name: "Test Bot Update",
                 },
             }, user_botUpdateOne);
 
-            const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
+            // Create test user for API key permissions test
+            const testUserForApiTest = { ...loggedInUserNoPremiumData(), id: generatePK() };
             testEndpointRequiresApiKeyWritePermissions(
-                testUser,
+                testUserForApiTest,
                 user.botUpdateOne,
                 {
                     input: {
-                        id: userTestDataFactory.createBot({}).id,
+                        id: userTestDataFactory.createComplete({}).id,
                         name: "Test Bot Update",
                     },
                 },
@@ -803,7 +878,16 @@ describe("EndpointsUser", () => {
             });
 
             it("should handle translationsCreate correctly", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
+                // Create test user
+                const testUserRecord = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User",
+                        handle: "test-user-" + Math.floor(Math.random() * 1000),
+                    }),
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: UserUpdateInput = {
@@ -833,7 +917,16 @@ describe("EndpointsUser", () => {
             });
 
             it("API key - write permissions", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
+                // Create test user
+                const testUserRecord = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User",
+                        handle: "test-user-" + Math.floor(Math.random() * 1000),
+                    }),
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -851,11 +944,27 @@ describe("EndpointsUser", () => {
 
         describe("invalid", () => {
             it("updating a different user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
+                // Create test users
+                const testUser1 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 1",
+                        handle: "test-user-1-" + Math.floor(Math.random() * 1000),
+                    }),
+                });
+                const testUser2 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 2",
+                        handle: "test-user-2-" + Math.floor(Math.random() * 1000),
+                    }),
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUser1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: UserUpdateInput = {
-                    id: testUsers[1].id,
+                    id: testUser2.id.toString(),
                     name: "Updated Name",
                 };
                 await expect(async () => {
@@ -864,11 +973,23 @@ describe("EndpointsUser", () => {
             });
 
             it("updating admin user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
+                // Create test admin user
+                const adminUser = await createTestAdminUser();
+                
+                // Create test user
+                const testUserRecord = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User",
+                        handle: "test-user-" + Math.floor(Math.random() * 1000),
+                    }),
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: UserUpdateInput = {
-                    id: SEEDED_IDS.User.Admin,
+                    id: adminUser.id.toString(),
                     name: "Updated Name",
                 };
                 await expect(async () => {
@@ -876,7 +997,16 @@ describe("EndpointsUser", () => {
                 }).rejects.toThrow();
             });
             it("updating a non-existent user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
+                // Create test user
+                const testUserRecord = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User",
+                        handle: "test-user-" + Math.floor(Math.random() * 1000),
+                    }),
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: UserUpdateInput = {
@@ -888,10 +1018,10 @@ describe("EndpointsUser", () => {
                 }).rejects.toThrow();
             });
 
-            testEndpointRequiresAuth(user.profileUpdate, { input: { id: testUsers[0].id, name: "Updated Name" } }, user_profileUpdate);
+            testEndpointRequiresAuth(user.profileUpdate, { input: { id: generatePK(), name: "Updated Name" } }, user_profileUpdate);
 
-            const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
-            testEndpointRequiresApiKeyWritePermissions(testUser, user.profileUpdate, { input: { id: testUsers[0].id, name: "Updated Name" } }, user_profileUpdate);
+            const testUserForApiTest = { ...loggedInUserNoPremiumData(), id: generatePK() };
+            testEndpointRequiresApiKeyWritePermissions(testUserForApiTest, user.profileUpdate, { input: { id: generatePK(), name: "Updated Name" } }, user_profileUpdate);
         });
     });
 }); 

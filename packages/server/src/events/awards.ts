@@ -56,7 +56,9 @@ export function objectAwardCategory<T extends keyof typeof ModelType>(objectType
  * Handles tracking awards for a user. If a new award is earned, a notification
  * can be sent to the user (push or email)
  */
-export function Award(userId: string, languages: string[] | undefined) {
+export function Award(userId: string, languages: string[] | undefined): {
+    update: (category: `${AwardCategory}`, newProgress: number) => Promise<{ progress: number; timeReward: Date; userId: string; category: AwardCategory; }>;
+} {
     return {
         /**
          * Upserts an award into the database. If the award progress reaches a new goal,
@@ -70,7 +72,7 @@ export function Award(userId: string, languages: string[] | undefined) {
             // Upsert the award into the database, with progress incremented
             // by the new progress
             const award = await DbProvider.get().award.upsert({
-                where: { userId_category: { userId, category } },
+                where: { award_userId_category_unique: { userId, category } },
                 update: { progress: { increment: newProgress } },
                 create: { userId, category, progress: newProgress },
             });
@@ -89,7 +91,7 @@ export function Award(userId: string, languages: string[] | undefined) {
                 }
                 // Set "tierCompletedAt" to the current time
                 await DbProvider.get().award.update({
-                    where: { userId_category: { userId, category } },
+                    where: { award_userId_category_unique: { userId, category } },
                     data: { tierCompletedAt: new Date() },
                 });
             }
@@ -97,4 +99,6 @@ export function Award(userId: string, languages: string[] | undefined) {
         },
     };
 }
+
+// AI_CHECK: TASK_ID=fix-compound-unique-key-awards | LAST: 2025-01-29
 

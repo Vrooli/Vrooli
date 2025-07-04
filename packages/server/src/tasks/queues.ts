@@ -1,4 +1,5 @@
 // queues/index.ts
+// AI_CHECK: TYPE_SAFETY=critical-generics | LAST: 2025-07-04 - Added proper types for lazy-loaded modules and queue limits
 import { type Success } from "@vrooli/shared";
 import { type Job, type JobsOptions } from "bullmq";
 import { logger } from "../events/logger.js";
@@ -13,9 +14,16 @@ import { ManagedQueue } from "./queueFactory.js";
 import { sandboxProcess } from "./sandbox/process.js";
 import { smsProcess } from "./sms/process.js";
 
+// Type for queue limits
+interface QueueLimits {
+    maxActive: number;
+    highLoadCheckIntervalMs: number;
+    taskTimeoutMs: number;
+}
+
 // Lazy load queue limits to avoid circular dependencies
-let _RUN_QUEUE_LIMITS: any = null;
-let _SWARM_QUEUE_LIMITS: any = null;
+let _RUN_QUEUE_LIMITS: QueueLimits | null = null;
+let _SWARM_QUEUE_LIMITS: QueueLimits | null = null;
 
 // Default limits used before async load completes
 const DEFAULT_RUN_LIMITS = {
@@ -317,7 +325,7 @@ export class QueueService {
      * Get a queue instance, creating it if it doesn't exist
      */
     private getQueue<T>(name: string, processor: (job: Job<T>) => Promise<unknown>, options?: {
-        workerOpts?: any;
+        workerOpts?: Partial<import("bullmq").WorkerOptions>;
         jobOpts?: Partial<JobsOptions>;
         onReady?: () => void | Promise<void>;
         validator?: (data: T) => { valid: boolean; errors?: string[] };
@@ -371,17 +379,17 @@ export class QueueService {
             case QueueTaskType.NOTIFICATION_CREATE:
                 return this.notification.addTask(data as NotificationCreateTask, opts);
             default: {
-                const taskTypeStr = (data as any).type as string;
+                const taskTypeStr = (data as AnyTask).type as string;
                 logger.warn(`QueueService: addTask received unhandled explicit task type: ${taskTypeStr}. Attempting fallback routing.`);
                 // Fallback prefix-based routing for unknown task types (this part can remain if needed)
                 const fallbackQueueName = this.getQueueNameForTaskType(taskTypeStr);
                 if (fallbackQueueName) {
                     logger.info(`QueueService: Fallback routing task type ${taskTypeStr} to queue ${fallbackQueueName}.`);
                     // Use the named queue getter to ensure the queue is instantiated with the correct processor
-                    const queue = (this as any)[fallbackQueueName] as ManagedQueue<any>;
-                    return queue.addTask(data as any, opts);
+                    const queue = (this as Record<string, unknown>)[fallbackQueueName] as ManagedQueue<BaseTaskData>;
+                    return queue.addTask(data as BaseTaskData, opts);
                 }
-                logger.error(`Unsupported task type: ${(data as any).type}`);
+                logger.error(`Unsupported task type: ${taskTypeStr}`);
                 return { __typename: "Success" as const, success: false };
             }
         }

@@ -188,7 +188,7 @@ export class ApprovalSystem {
             timeoutAt: Date;
         }> = [];
 
-        for (const [pendingId, approval] of this.pendingApprovals) {
+        for (const [pendingId, approval] of Array.from(this.pendingApprovals)) {
             if (approval.toolCall.conversationId === conversationId) {
                 pending.push({
                     pendingId,

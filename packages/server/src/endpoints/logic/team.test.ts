@@ -64,7 +64,7 @@ describe("EndpointsTeam", () => {
                     createdById: testUsers[0].id,
                     members: [{
                         userId: testUsers[0].id,
-                        permissions: '["owner"]',
+                        permissions: "[\"owner\"]",
                     }],
                 }),
                 include: { members: true },
@@ -80,7 +80,7 @@ describe("EndpointsTeam", () => {
                     createdById: testUsers[1].id,
                     members: [{
                         userId: testUsers[1].id,
-                        permissions: '["owner"]',
+                        permissions: "[\"owner\"]",
                     }],
                 }),
                 include: { members: true },
@@ -96,11 +96,11 @@ describe("EndpointsTeam", () => {
                     members: [
                         {
                             userId: testUsers[0].id,
-                            permissions: '["owner"]',
+                            permissions: "[\"owner\"]",
                         },
                         {
                             userId: testUsers[1].id,
-                            permissions: '["editChildObjects", "viewChildObjects"]',
+                            permissions: "[\"editChildObjects\", \"viewChildObjects\"]",
                         },
                     ],
                 }),
@@ -186,7 +186,7 @@ describe("EndpointsTeam", () => {
                 expect(result.members?.length).toBe(2);
                 
                 const ownerMember = result.members?.find(m => 
-                    m.user?.id === testUsers[0].id.toString()
+                    m.user?.id === testUsers[0].id.toString(),
                 );
                 expect(ownerMember?.permissions).toContain("owner");
             });
@@ -548,7 +548,7 @@ describe("EndpointsTeam", () => {
                         createdById: testUser[0].id,
                         members: [{
                             userId: testUser[0].id,
-                            permissions: '["owner"]',
+                            permissions: "[\"owner\"]",
                         }],
                     }),
                 });
@@ -586,11 +586,11 @@ describe("EndpointsTeam", () => {
                         members: [
                             {
                                 userId: testUsers[0].id,
-                                permissions: '["owner"]',
+                                permissions: "[\"owner\"]",
                             },
                             {
                                 userId: testUsers[1].id,
-                                permissions: '["viewChildObjects"]',
+                                permissions: "[\"viewChildObjects\"]",
                             },
                         ],
                     }),
@@ -612,7 +612,7 @@ describe("EndpointsTeam", () => {
                 const result = await team.updateOne({ input }, { req, res }, team_updateOne);
 
                 const updatedMember = result.members?.find(m => 
-                    m.user?.id === testUsers[1].id.toString()
+                    m.user?.id === testUsers[1].id.toString(),
                 );
                 expect(updatedMember?.permissions).toContain("editChildObjects");
             });
@@ -627,7 +627,7 @@ describe("EndpointsTeam", () => {
                         createdById: testUsers[0].id,
                         members: [{
                             userId: testUsers[0].id,
-                            permissions: '["owner"]',
+                            permissions: "[\"owner\"]",
                         }],
                     }),
                 });
@@ -649,7 +649,7 @@ describe("EndpointsTeam", () => {
 
                 expect(result.members).toHaveLength(2);
                 const newMember = result.members?.find(m => 
-                    m.user?.id === testUsers[1].id.toString()
+                    m.user?.id === testUsers[1].id.toString(),
                 );
                 expect(newMember).toBeDefined();
                 expect(newMember?.permissions).toContain("viewChildObjects");
@@ -667,7 +667,7 @@ describe("EndpointsTeam", () => {
                         createdById: testUsers[0].id,
                         members: [{
                             userId: testUsers[0].id,
-                            permissions: '["owner"]',
+                            permissions: "[\"owner\"]",
                         }],
                     }),
                 });
@@ -696,7 +696,7 @@ describe("EndpointsTeam", () => {
                         createdById: testUser[0].id,
                         members: [{
                             userId: testUser[0].id,
-                            permissions: '["owner"]',
+                            permissions: "[\"owner\"]",
                         }],
                     }),
                 });
@@ -732,7 +732,7 @@ describe("EndpointsTeam", () => {
                         members: [{
                             id: generatePK(),
                             userId: testUser[0].id,
-                            permissions: '["owner"]',
+                            permissions: "[\"owner\"]",
                         }],
                     }),
                     include: { members: true },

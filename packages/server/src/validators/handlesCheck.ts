@@ -152,6 +152,7 @@ export async function handlesCheck(
 
     // Loop through existing handles
     for (const { id, handle } of existingHandles) {
+        if (typeof handle !== 'string') continue;
         // Decrease the count if the handle is being changed to something else
         if (Update.find(x => x.input.id === id && x.input.handle !== handle)) {
             handleUsage[handle]--;

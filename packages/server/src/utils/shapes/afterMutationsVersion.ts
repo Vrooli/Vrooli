@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=server-type-safety-maintenance-phase2 | LAST: 2025-07-04 - Added return type annotations to findLatestPublicVersionIndex, getChangedVersions, and prepareVersionUpdates functions
 import { type ModelType, calculateVersionsFromString } from "@vrooli/shared";
 import { type PrismaDelegate } from "../../builders/types.js";
 import { DbProvider } from "../../db/provider.js";
@@ -37,7 +38,7 @@ export function sortVersions<T extends { versionLabel: string }>(versions: T[]):
  * @param {Array} versions - The sorted array of version objects.
  * @return {number} - The index of the latest public version, or -1 if no public version exists.
  */
-export function findLatestPublicVersionIndex(versions: Pick<Version, "isPrivate">[]) {
+export function findLatestPublicVersionIndex(versions: Pick<Version, "isPrivate">[]): number {
     for (let i = versions.length - 1; i >= 0; i--) {
         if (!versions[i].isPrivate) {
             return i; // Return the index as soon as the first public version is found from the end
@@ -52,7 +53,7 @@ export function findLatestPublicVersionIndex(versions: Pick<Version, "isPrivate"
  * @param updatedVersions - The updated list of versions.
  * @returns An array of versions that have changed.
  */
-export function getChangedVersions(originalVersions: Version[], updatedVersions: Version[]) {
+export function getChangedVersions(originalVersions: Version[], updatedVersions: Version[]): Version[] {
     const changedVersions: Version[] = [];
 
     // Create a map of original versions for quick lookup
@@ -85,7 +86,7 @@ export function getChangedVersions(originalVersions: Version[], updatedVersions:
  * @param root The root object containing versions to be updated.
  * @returns Data to be updated in a Prisma transaction.
  */
-export function prepareVersionUpdates(root: { id: string, versions: Version[] }) {
+export function prepareVersionUpdates(root: { id: string, versions: Version[] }): Array<{ where: { id: bigint }, data: { isLatest: boolean, isLatestPublic: boolean, versionIndex: number } }> {
     // Sort versions by versionLabel (using copy to avoid mutation of original array)
     const versionsUpdated = sortVersions(root.versions.map(v => ({ ...v }))) as Version[];
     // Set version index for each version and reset flags

@@ -21,7 +21,7 @@ export interface RunAllocationRequest {
         memoryMB: number;
         maxSteps: number;
     };
-    priority: "low" | "medium" | "high"; 
+    priority: "low" | "medium" | "high";
     purpose: string;
 }
 
@@ -71,20 +71,6 @@ export interface StepAllocation {
 }
 
 /**
- * Actual resource usage reporting
- * 
- * Used to report back actual resource consumption for proper accounting
- * and resource release calculations.
- */
-export interface ResourceUsage {
-    credits: string;
-    durationMs: number;
-    memoryMB: number;
-    stepsExecuted?: number;
-    tokensUsed?: number;
-}
-
-/**
  * INavigator - Pure navigation interface
  * 
  * Navigators are pure functions that take routine structure + current position
@@ -94,32 +80,32 @@ export interface ResourceUsage {
 export interface INavigator {
     readonly type: string;
     readonly version: string;
-    
+
     /**
      * Check if this navigator can handle the routine structure
      */
     canNavigate(routine: unknown): boolean;
-    
+
     /**
      * Get the starting location(s) for this routine
      */
     getStartLocation(routine: unknown): Location;
-    
+
     /**
      * Get next possible locations from current position
      * Pure function - no side effects or state changes
      */
     getNextLocations(
-        routine: unknown, 
-        current: Location, 
+        routine: unknown,
+        current: Location,
         context?: Record<string, unknown>
     ): Location[];
-    
+
     /**
      * Check if location is a terminal/end location
      */
     isEndLocation(routine: unknown, location: Location): boolean;
-    
+
     /**
      * Get step information for execution at this location
      */

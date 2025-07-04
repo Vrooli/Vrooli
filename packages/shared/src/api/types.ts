@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=2 | LAST: 2025-06-26
 /* c8 ignore start */
 import { type RunConfig } from "../run/types.js";
 import { type BaseConfigObject } from "../shape/configs/base.js";
@@ -17,9 +18,9 @@ type Scalars = {
     Boolean: boolean;
     Int: number;
     Float: number;
-    Date: any;
-    JSONObject: any;
-    Upload: any;
+    Date: string; // ISO string format
+    JSONObject: Record<string, unknown>;
+    Upload: File; // File upload type
 };
 
 // OAuth types
@@ -215,6 +216,15 @@ export type AwardSearchInput = BaseSearchInput<Award> & {
 };
 
 export type AwardSearchResult = SearchResult<AwardEdge, "AwardSearchResult">;
+
+export enum ApiKeySortBy {
+    DateCreatedAsc = "DateCreatedAsc",
+    DateCreatedDesc = "DateCreatedDesc",
+    DateUpdatedAsc = "DateUpdatedAsc",
+    DateUpdatedDesc = "DateUpdatedDesc",
+    NameAsc = "NameAsc",
+    NameDesc = "NameDesc"
+}
 
 export enum AwardSortBy {
     DateUpdatedAsc = "DateUpdatedAsc",
@@ -2590,6 +2600,17 @@ export enum RunStepStatus {
     Skipped = "Skipped"
 }
 
+export enum SwarmStatus {
+    Active = "Active",
+    Cancelled = "Cancelled",
+    Completed = "Completed",
+    Failed = "Failed",
+    Initializing = "Initializing",
+    Paused = "Paused",
+    Scheduled = "Scheduled",
+    Unknown = "Unknown"
+}
+
 export enum SandboxTask {
     CallApi = "CallApi",
     RunDataTransform = "RunDataTransform",
@@ -3586,7 +3607,7 @@ export interface AdminSiteStatsOutput {
         totalCreditsDonatedAllTime: string;
         activeDonorsThisMonth: number;
         averageDonationPercentage: number;
-        lastRolloverJobStatus: 'success' | 'partial' | 'failed' | 'never_run';
+        lastRolloverJobStatus: "success" | "partial" | "failed" | "never_run";
         lastRolloverJobTime: string | null;
         nextScheduledRollover: string;
         donationsByMonth: Array<{

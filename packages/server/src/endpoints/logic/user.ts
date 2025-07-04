@@ -1,4 +1,4 @@
-import { AUTH_PROVIDERS, profileEmailUpdateValidation, type BotCreateInput, type BotUpdateInput, type ExportCalendarResult, type FindByPublicIdInput, type ImportCalendarInput, type ProfileEmailUpdateInput, type ProfileUpdateInput, type ScheduleCreateInput, type ScheduleSearchInput, type Success, type User, type UserSearchInput, type UserSearchResult } from "@vrooli/shared";
+import { AUTH_PROVIDERS, profileEmailUpdateValidation, type ScheduleRecurrenceType, type BotCreateInput, type BotUpdateInput, type ExportCalendarResult, type FindByPublicIdInput, type ImportCalendarInput, type ProfileEmailUpdateInput, type ProfileUpdateInput, type ScheduleCreateInput, type ScheduleSearchInput, type Success, type User, type UserSearchInput, type UserSearchResult } from "@vrooli/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { cudHelper } from "../../actions/cuds.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
@@ -155,7 +155,16 @@ export const user: EndpointsUser = createStandardCrudEndpoints({
                             startTime: scheduleInput.startTime.toISOString(),
                             endTime: scheduleInput.endTime.toISOString(),
                             timezone: scheduleInput.timezone,
-                            recurrencesCreate: scheduleInput.recurrences?.map(rec => ({
+                            recurrencesCreate: scheduleInput.recurrences?.map((rec: {
+                                id: string;
+                                recurrenceType: ScheduleRecurrenceType;
+                                interval: number;
+                                dayOfWeek?: number;
+                                dayOfMonth?: number;
+                                month?: number;
+                                endDate?: Date;
+                                duration: number;
+                            }) => ({
                                 id: rec.id,
                                 recurrenceType: rec.recurrenceType,
                                 interval: rec.interval,

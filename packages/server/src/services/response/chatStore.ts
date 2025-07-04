@@ -191,7 +191,7 @@ function mapParticipant(participant: ParticipantDbData): BotParticipant {
     return {
         id: id.toString(),
         config: BotConfig.parse(participant.user as Pick<User, "botSettings">, logger),
-        name,
+        name: participant.user.name,
         meta: {}, //TODO need to get this somewhere else, since it contains information calculated by the current conversation/swarm/routine, rather than information tied to the bot object itself and stored in the database
     };
 }

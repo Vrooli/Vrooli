@@ -97,7 +97,7 @@ export interface BranchExecution {
  * Navigator interface for universal workflow support
  */
 export interface Navigator {
-    type: string; // "native" | "bpmn" | "langchain" | "temporal" | "custom"
+    type: "sequential" | "bpmn";
     version: string;
 
     // Core navigation methods

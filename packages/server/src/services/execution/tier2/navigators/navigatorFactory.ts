@@ -1,6 +1,6 @@
 import { type INavigator } from "../types.js";
-import { SequentialNavigator } from "./SequentialNavigator.js";
 import { BpmnNavigator } from "./BpmnNavigator.js";
+import { SequentialNavigator } from "./SequentialNavigator.js";
 
 /**
  * Simple navigator factory function
@@ -13,12 +13,12 @@ export function getNavigator(routine: unknown): INavigator | null {
     if (sequentialNav.canNavigate(routine)) {
         return sequentialNav;
     }
-    
+
     const bpmnNav = new BpmnNavigator();
     if (bpmnNav.canNavigate(routine)) {
         return bpmnNav;
     }
-    
+
     return null;
 }
 
@@ -39,6 +39,6 @@ export function getNavigatorByType(type: string): INavigator | null {
 /**
  * Get supported navigator types
  */
-export function getSupportedTypes(): string[] {
+export function getSupportedNavigatorTypes(): string[] {
     return ["sequential", "bpmn"];
 }

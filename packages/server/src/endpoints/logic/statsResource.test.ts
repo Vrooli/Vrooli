@@ -123,7 +123,7 @@ describe("EndpointsStatsResource", () => {
             privateResources, 
             internalResource,
             statsData,
-            internalStats
+            internalStats,
         };
     };
 
@@ -147,7 +147,7 @@ describe("EndpointsStatsResource", () => {
                 expect(result.edges).toBeInstanceOf(Array);
                 
                 const resultResourceIds = result.edges!.map(edge => 
-                    edge?.node?.resource?.id
+                    edge?.node?.resource?.id,
                 ).filter(Boolean);
 
                 // User 1 should see public resources and their own private resource
@@ -166,7 +166,7 @@ describe("EndpointsStatsResource", () => {
                 });
 
                 const input: StatsResourceSearchInput = { 
-                    periodType: StatPeriodType.Monthly 
+                    periodType: StatPeriodType.Monthly, 
                 };
                 const result = await statsResource.findMany({ input }, { req, res }, statsResource_findMany);
 
@@ -228,7 +228,7 @@ describe("EndpointsStatsResource", () => {
                 expect(result.edges).toBeInstanceOf(Array);
                 
                 const resultResourceIds = result.edges!.map(edge => 
-                    edge?.node?.resource?.id
+                    edge?.node?.resource?.id,
                 ).filter(Boolean);
 
                 // Should only see public resources
@@ -256,7 +256,7 @@ describe("EndpointsStatsResource", () => {
                 expect(result.edges).toBeInstanceOf(Array);
                 
                 const resultResourceIds = result.edges!.map(edge => 
-                    edge?.node?.resource?.id
+                    edge?.node?.resource?.id,
                 ).filter(Boolean);
 
                 // Should include public resources
@@ -281,7 +281,7 @@ describe("EndpointsStatsResource", () => {
                 expect(result.edges).toBeInstanceOf(Array);
                 
                 const resultResourceIds = result.edges!.map(edge => 
-                    edge?.node?.resource?.id
+                    edge?.node?.resource?.id,
                 ).filter(Boolean);
 
                 // Should only see public resources
@@ -326,7 +326,7 @@ describe("EndpointsStatsResource", () => {
 
                 await expect(async () => {
                     await statsResource.findMany({ 
-                        input: input as StatsResourceSearchInput 
+                        input: input as StatsResourceSearchInput, 
                     }, { req, res }, statsResource_findMany);
                 }).rejects.toThrow();
             });

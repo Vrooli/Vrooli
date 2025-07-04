@@ -1,7 +1,7 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-06-17
 import { type CreditEntryType, type CreditSourceSystem } from "@prisma/client";
 import { MINUTES_1_MS, nanoid, SECONDS_1_MS, SECONDS_5_MS } from "@vrooli/shared";
-import IORedis, { type Redis } from "ioredis";
+import { default as IORedis, type Redis } from "ioredis";
 import { EventEmitter } from "node:events";
 import { logger } from "../events/logger.js";
 import { getRedisUrl } from "../redisConn.js";
@@ -419,7 +419,7 @@ export class RedisStreamBus extends EventBus {
     constructor(options: Partial<StreamBusOptions> = {}) {
         super();
         this.options = { ...DEFAULT_STREAM_OPTIONS, ...options };
-        this.client = new IORedis(getRedisUrl(), {
+        this.client = new (IORedis as any)(getRedisUrl(), {
             retryStrategy: (retries) => {
                 if (retries > this.options.maxReconnectAttempts) {
                     logger.error("[RedisStreamBus] Max retries reached");

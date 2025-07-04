@@ -4,17 +4,17 @@
  */
 
 import { type Notification } from "../../../api/types.js";
-import { type UserSocketEventPayloads } from "../../../consts/socketEvents.js";
+import { type UserSocketEventPayloads, type EventTypes } from "../../../consts/socketEvents.js";
 import { BaseEventFactory } from "./BaseEventFactory.js";
 import { type SocketEventFixture } from "./types.js";
-
+ 
 // Notification event types
 type NotificationEvent = SocketEventFixture<Notification> & {
     event: "notification";
 };
 
-type ApiCreditEvent = SocketEventFixture<UserSocketEventPayloads["apiCredits"]> & {
-    event: "apiCredits";
+type ApiCreditEvent = SocketEventFixture<UserSocketEventPayloads[typeof EventTypes.USER.CREDITS_UPDATED]> & {
+    event: typeof EventTypes.USER.CREDITS_UPDATED;
 };
 
 // Notification categories and priorities
@@ -363,10 +363,10 @@ export class NotificationEventFactory extends BaseEventFactory<NotificationEvent
 /**
  * Factory for creating API credit events and credit-related notifications
  */
-export class ApiCreditEventFactory extends BaseEventFactory<ApiCreditEvent, UserSocketEventPayloads["apiCredits"]> {
+export class ApiCreditEventFactory extends BaseEventFactory<ApiCreditEvent, UserSocketEventPayloads[typeof EventTypes.USER.CREDITS_UPDATED]> {
     constructor() {
-        super("apiCredits", {
-            validation: (data: UserSocketEventPayloads["apiCredits"]) => {
+        super(EventTypes.USER.CREDITS_UPDATED, {
+            validation: (data: UserSocketEventPayloads[typeof EventTypes.USER.CREDITS_UPDATED]) => {
                 if (!data.credits || isNaN(Number(data.credits))) {
                     return "Credits must be a valid stringified number";
                 }
@@ -377,8 +377,9 @@ export class ApiCreditEventFactory extends BaseEventFactory<ApiCreditEvent, User
 
     get single(): ApiCreditEvent {
         return {
-            event: "apiCredits",
+            event: EventTypes.USER.CREDITS_UPDATED,
             data: {
+                userId: "user123",
                 credits: "1000000", // Stringified BigInt
             },
         };

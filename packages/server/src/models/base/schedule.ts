@@ -37,30 +37,28 @@ export const ScheduleModel: ScheduleModelLogic = ({
     format: ScheduleFormat,
     mutate: {
         shape: {
-            create: async ({ data, ...rest }) => {
+            create: async ({ additionalData, data, idsCreateToConnect, preMap, userData }) => {
                 return {
                     id: BigInt(data.id),
                     publicId: generatePublicId(),
                     startTime: noNull(data.startTime),
                     endTime: noNull(data.endTime),
                     timezone: data.timezone,
-                    userId: data.userId ? BigInt(data.userId) : undefined,
-                    exceptions: await shapeHelper({ relation: "exceptions", relTypes: ["Create"], isOneToOne: false, objectType: "ScheduleException", parentRelationshipName: "schedule", data, ...rest }),
-                    recurrences: await shapeHelper({ relation: "recurrences", relTypes: ["Create"], isOneToOne: false, objectType: "ScheduleRecurrence", parentRelationshipName: "schedule", data, ...rest }),
+                    exceptions: await shapeHelper({ relation: "exceptions", relTypes: ["Create"], isOneToOne: false, objectType: "ScheduleException", parentRelationshipName: "schedule", data, additionalData, idsCreateToConnect, preMap, userData }),
+                    recurrences: await shapeHelper({ relation: "recurrences", relTypes: ["Create"], isOneToOne: false, objectType: "ScheduleRecurrence", parentRelationshipName: "schedule", data, additionalData, idsCreateToConnect, preMap, userData }),
                     // These relations are treated as one-to-one in the API, but not in the database.
                     // Therefore, the key is pural, but the "relation" passed to shapeHelper is singular.
-                    meetings: await shapeHelper({ relation: "meeting", relTypes: ["Connect"], isOneToOne: true, objectType: "Meeting", parentRelationshipName: "schedule", data, ...rest }),
-                    runs: await shapeHelper({ relation: "run", relTypes: ["Connect"], isOneToOne: true, objectType: "Run", parentRelationshipName: "schedule", data, ...rest }),
+                    meetings: await shapeHelper({ relation: "meeting", relTypes: ["Connect"], isOneToOne: true, objectType: "Meeting", parentRelationshipName: "schedule", data, additionalData, idsCreateToConnect, preMap, userData }),
+                    runs: await shapeHelper({ relation: "run", relTypes: ["Connect"], isOneToOne: true, objectType: "Run", parentRelationshipName: "schedule", data, additionalData, idsCreateToConnect, preMap, userData }),
                 };
             },
-            update: async ({ data, ...rest }) => {
+            update: async ({ additionalData, data, idsCreateToConnect, preMap, userData }) => {
                 return {
                     startTime: noNull(data.startTime),
                     endTime: noNull(data.endTime),
                     timezone: noNull(data.timezone),
-                    userId: data.userId ? BigInt(data.userId) : undefined,
-                    exceptions: await shapeHelper({ relation: "exceptions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ScheduleException", parentRelationshipName: "schedule", data, ...rest }),
-                    recurrences: await shapeHelper({ relation: "recurrences", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ScheduleRecurrence", parentRelationshipName: "schedule", data, ...rest }),
+                    exceptions: await shapeHelper({ relation: "exceptions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ScheduleException", parentRelationshipName: "schedule", data, additionalData, idsCreateToConnect, preMap, userData }),
+                    recurrences: await shapeHelper({ relation: "recurrences", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ScheduleRecurrence", parentRelationshipName: "schedule", data, additionalData, idsCreateToConnect, preMap, userData }),
                 };
             },
         },
@@ -97,11 +95,12 @@ export const ScheduleModel: ScheduleModelLogic = ({
             Team: data?.meetings?.[0]?.team,
             User: data?.user ?? data?.runs?.[0]?.user,
         }),
-        permissionResolvers: defaultPermissions,
+        permissionResolvers: (params) => defaultPermissions(params),
         permissionsSelect: () => ({
             id: true,
-            user: "User",
-            ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, key as ModelType])),
+            user: { select: { id: true } },
+            meetings: { select: { id: true, team: { select: { id: true } } } },
+            runs: { select: { id: true, user: { select: { id: true } } } },
         }),
         visibility: {
             own: function getOwn(data) {

@@ -2,7 +2,6 @@ export * from "./batch.js";
 export * from "./calendar.js";
 export * from "./censor.js";
 export * from "./cudInputsToMaps.js";
-export * from "./defaultPermissions.js";
 export * from "./fileStorage.js";
 export * from "./getAuthenticatedData.js";
 export * from "./objectTools.js";

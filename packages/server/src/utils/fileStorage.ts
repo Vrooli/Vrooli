@@ -99,8 +99,14 @@ export async function checkNSFW(buffer: Buffer, originalFileName: string): Promi
 }
 
 // heic-convert has to defer initialization because (presumably) the wasm file messes up the compiler error logs
-let heicConvert;
-async function getHeicConvert() {
+type HeicConvertFunction = (options: {
+    buffer: Buffer;
+    format: "JPEG" | "PNG";
+    quality: number;
+}) => Promise<ArrayBuffer>;
+
+let heicConvert: HeicConvertFunction | undefined;
+async function getHeicConvert(): Promise<HeicConvertFunction> {
     if (!heicConvert) {
         heicConvert = (await import("heic-convert")).default;
     }
@@ -113,7 +119,7 @@ type FileTypeResult = {
     readonly mime: string;
 };
 let fileTypeFromBuffer: (buffer: Uint8Array | ArrayBuffer) => Promise<FileTypeResult | undefined>;
-async function getFileType(buffer: Uint8Array | ArrayBuffer) {
+async function getFileType(buffer: Uint8Array | ArrayBuffer): Promise<FileTypeResult | undefined> {
     if (!fileTypeFromBuffer) {
         const fileTypePkg = await import("file-type");
         // Adjust import based on likely package structure
@@ -152,7 +158,7 @@ interface SafeContentAIResponse {
     confidence_percentage: number;
 }
 
-async function resizeImage(buffer: Buffer, width: number, height: number, format: "jpeg" | "png" | "webp" = "jpeg") {
+async function resizeImage(buffer: Buffer, width: number, height: number, format: "jpeg" | "png" | "webp" = "jpeg"): Promise<Buffer> {
     // Use the safe wrapper that handles Sharp failures gracefully
     const result = await safeResizeImage(buffer, width, height, format);
     
@@ -195,7 +201,7 @@ async function uploadFile(
     key: string,
     body: Buffer,
     mimetype: string,
-) {
+): Promise<string> {
     const S3_UPLOAD_TIMEOUT_MS = 60_000; // 60 seconds
     const SECONDS_PER_MS = 1_000;
     let timeoutId: NodeJS.Timeout | undefined = undefined;

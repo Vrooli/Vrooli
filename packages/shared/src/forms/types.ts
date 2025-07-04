@@ -538,7 +538,6 @@ export interface YupField {
 
 /**
  * Shape of entire Yup schema, generated from the yups in the FieldData objects
- * AI_CHECK: TYPE_SAFETY=shared-form-schema-type-safety-fixes | LAST: 2025-07-01 - Fixed YupSchema any[] types to proper string[] and Record<string, unknown>
  */
 export interface YupSchema {
     title: string;

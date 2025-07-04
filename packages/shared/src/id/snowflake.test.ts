@@ -85,7 +85,7 @@ describe("Snowflake IDs", () => {
     describe("Snowflake ID Format Validation", () => {
         it("should generate IDs that follow Snowflake format", () => {
             const id = generatePK();
-            const idBits = id.toString(2).padStart(64, '0');
+            const idBits = id.toString(2).padStart(64, "0");
             
             // Snowflake ID format (64 bits):
             // 1 bit: unused (sign bit for compatibility, always 0)
@@ -127,7 +127,7 @@ describe("Snowflake IDs", () => {
             const afterTime = Date.now();
             
             // Convert ID to binary to examine structure
-            const idBinary = id.toString(2).padStart(64, '0');
+            const idBinary = id.toString(2).padStart(64, "0");
             
             // Extract timestamp bits (bits 22-63 in standard Snowflake)
             // This is implementation-specific but validates the format
@@ -323,6 +323,14 @@ describe("Snowflake IDs", () => {
         it("should handle Snowflake constructor not found in module", async () => {
             // Mock a scenario where the module loads but Snowflake constructor is not found
             const originalFunction = globalThis.Function;
+            const originalProcess = globalThis.process;
+            
+            // Mock Node.js environment with process.env to allow warnings
+            globalThis.process = { 
+                versions: { node: "18.0.0" },
+                env: { NODE_ENV: "development" }, // Non-test environment to trigger warning
+            } as any;
+            
             globalThis.Function = vi.fn().mockImplementation((param, body) => {
                 if (param === "modulePath" && body === "return import(modulePath);") {
                     return vi.fn().mockResolvedValue({ someOtherExport: "value" }); // No Snowflake constructor
@@ -334,7 +342,7 @@ describe("Snowflake IDs", () => {
             
             // Should warn about missing constructor
             expect(consoleWarnSpy).toHaveBeenCalledWith(
-                "nodejs-snowflake module loaded, but Snowflake constructor not found. Using pure JS ID generator."
+                "nodejs-snowflake module loaded, but Snowflake constructor not found. Using pure JS ID generator.",
             );
 
             // Should still generate valid IDs
@@ -342,13 +350,22 @@ describe("Snowflake IDs", () => {
             expect(typeof id).toBe("bigint");
             expect(validatePK(id)).toBe(true);
 
-            // Restore original Function
+            // Restore original mocks
             globalThis.Function = originalFunction;
+            globalThis.process = originalProcess;
         });
 
         it("should handle import errors and fallback gracefully", async () => {
             // Mock a scenario where import fails
             const originalFunction = globalThis.Function;
+            const originalProcess = globalThis.process;
+            
+            // Mock Node.js environment with process.env to allow warnings
+            globalThis.process = { 
+                versions: { node: "18.0.0" },
+                env: { NODE_ENV: "development" }, // Non-test environment to trigger warning
+            } as any;
+            
             globalThis.Function = vi.fn().mockImplementation((param, body) => {
                 if (param === "modulePath" && body === "return import(modulePath);") {
                     return vi.fn().mockRejectedValue(new Error("Module not found"));
@@ -361,7 +378,7 @@ describe("Snowflake IDs", () => {
             // Should warn about import failure
             expect(consoleWarnSpy).toHaveBeenCalledWith(
                 expect.stringContaining("Failed to initialize native Snowflake generator in Node.js environment"),
-                expect.any(Error)
+                expect.any(Error),
             );
 
             // Should still generate valid IDs
@@ -369,8 +386,9 @@ describe("Snowflake IDs", () => {
             expect(typeof id).toBe("bigint");
             expect(validatePK(id)).toBe(true);
 
-            // Restore original Function
+            // Restore original mocks
             globalThis.Function = originalFunction;
+            globalThis.process = originalProcess;
         });
 
         it("should test successful Node.js Snowflake initialization", async () => {
@@ -378,15 +396,18 @@ describe("Snowflake IDs", () => {
             const originalFunction = globalThis.Function;
             
             // Mock Node.js environment
-            globalThis.process = { versions: { node: "18.0.0" } } as any;
+            globalThis.process = { 
+                versions: { node: "18.0.0" },
+                env: { NODE_ENV: "development" },
+            } as any;
             
             // Mock successful nodejs-snowflake module import
             globalThis.Function = vi.fn().mockImplementation((param, body) => {
                 if (param === "modulePath" && body === "return import(modulePath);") {
                     return vi.fn().mockResolvedValue({
                         Snowflake: vi.fn().mockImplementation(() => ({
-                            getUniqueID: vi.fn().mockReturnValue(123456789n)
-                        }))
+                            getUniqueID: vi.fn().mockReturnValue(123456789n),
+                        })),
                     });
                 }
                 return originalFunction(param, body);
@@ -409,7 +430,10 @@ describe("Snowflake IDs", () => {
             const originalFunction = globalThis.Function;
             
             // Mock Node.js environment
-            globalThis.process = { versions: { node: "18.0.0" } } as any;
+            globalThis.process = { 
+                versions: { node: "18.0.0" },
+                env: { NODE_ENV: "development" },
+            } as any;
             
             // Mock import failure that triggers generator re-initialization path
             globalThis.Function = vi.fn().mockImplementation((param, body) => {
@@ -425,7 +449,7 @@ describe("Snowflake IDs", () => {
             // Should warn about failure and still be able to generate IDs
             expect(consoleWarnSpy).toHaveBeenCalledWith(
                 expect.stringContaining("Failed to initialize native Snowflake generator"),
-                expect.any(Error)
+                expect.any(Error),
             );
 
             const id = generatePK();
@@ -440,7 +464,10 @@ describe("Snowflake IDs", () => {
         it("should handle generator re-initialization when generator becomes null in Node.js", async () => {
             // Mock Node.js environment  
             const originalProcess = globalThis.process;
-            globalThis.process = { versions: { node: "18.0.0" } } as any;
+            globalThis.process = { 
+                versions: { node: "18.0.0" },
+                env: { NODE_ENV: "development" },
+            } as any;
             
             // This test specifically targets the re-initialization path in lines 54-61
             // by creating a scenario where the error handler runs and generator needs re-initialization
@@ -467,7 +494,7 @@ describe("Snowflake IDs", () => {
             // Verify error was logged
             expect(consoleWarnSpy).toHaveBeenCalledWith(
                 expect.stringContaining("Failed to initialize native Snowflake generator"),
-                expect.any(Error)
+                expect.any(Error),
             );
 
             // Restore mocks

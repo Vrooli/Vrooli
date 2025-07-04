@@ -1,5 +1,12 @@
+// AI_CHECK: TYPE_SAFETY=server-type-safety-fixes | LAST: 2025-07-01 - Fixed any types to proper version object interface
 import { type DotNotation } from "@vrooli/shared";
 import { type Displayer, type ModelLogic, type ModelLogicType } from "../models/types.js";
+
+interface VersionObject {
+    isLatest?: boolean;
+    versionIndex: number;
+    isPrivate?: boolean;
+}
 
 /**
  * Finds the most appropriate version to display for a root object.
@@ -10,7 +17,7 @@ import { type Displayer, type ModelLogic, type ModelLogicType } from "../models/
  * @param versions 
  * @returns 
  */
-function findBestVersion(versions: any[]): any | undefined {
+function findBestVersion(versions: VersionObject[]): VersionObject | undefined {
     if (versions.length === 0) return undefined;
     // 1. Version marked isLatest
     let latest = versions.find(v => v.isLatest);

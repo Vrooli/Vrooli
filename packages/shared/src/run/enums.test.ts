@@ -167,7 +167,7 @@ describe("Run Enums", () => {
             
             // Terminal states should not be able to transition to other states in normal operation
             expect(terminalStates.every(state => 
-                [BranchStatus.Completed, BranchStatus.Failed].includes(state)
+                [BranchStatus.Completed, BranchStatus.Failed].includes(state),
             )).toBe(true);
         });
 

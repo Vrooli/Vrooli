@@ -3,6 +3,7 @@
 export const SECONDS_1_MS = 1000;
 export const SECONDS_5_MS = 5 * SECONDS_1_MS;
 export const SECONDS_10_MS = 10 * SECONDS_1_MS;
+export const SECONDS_30_MS = 30 * SECONDS_1_MS;
 
 export const MINUTES_1_S = 60;
 export const MINUTES_1_MS = MINUTES_1_S * SECONDS_1_MS;

@@ -4,13 +4,13 @@
  */
 
 // Base types for event handling
-export interface BaseEvent {
+export interface BaseFixtureEvent {
     event: string;
     data: unknown;
 }
 
 // Timing support for realistic event simulation
-export interface TimedEvent<T = unknown> extends BaseEvent {
+export interface TimedEvent<T = unknown> extends BaseFixtureEvent {
     event: string;
     data: T;
     timing: {
@@ -29,7 +29,7 @@ export interface EventSequenceItem<T = unknown> {
 }
 
 // Correlated events for tracking causality
-export interface CorrelatedEvent<T = unknown> extends BaseEvent {
+export interface CorrelatedEvent<T = unknown> extends BaseFixtureEvent {
     event: string;
     data: T;
     metadata: {
@@ -42,7 +42,7 @@ export interface CorrelatedEvent<T = unknown> extends BaseEvent {
 }
 
 // State tracking for event-driven state changes
-export interface StatefulEvent<T = unknown> extends BaseEvent {
+export interface StatefulEvent<T = unknown> extends BaseFixtureEvent {
     event: string;
     data: T;
     state: {
@@ -75,7 +75,7 @@ export interface ErrorSimulation {
 }
 
 // Event patterns for factory creation
-export type EventPattern = 
+export type EventPattern =
     | "single"                  // One-time event
     | "burst"                   // Multiple events at once
     | "periodic"                // Regular intervals
@@ -140,7 +140,7 @@ export interface EventFixtureFactory<TEvent, TData = unknown> {
     single: TEvent;
     sequence: TEvent[];
     variants: Record<string, TEvent | TEvent[]>;
-    
+
     // Factory methods
     create(overrides?: Partial<TData>): TEvent;
     createSequence(pattern: EventPattern, options?: {
@@ -149,16 +149,16 @@ export interface EventFixtureFactory<TEvent, TData = unknown> {
         data?: Partial<TData>;
     }): TEvent[];
     createCorrelated(correlationId: string, events: TEvent[]): CorrelatedEvent<TData>[];
-    
+
     // Timing and simulation
     withTiming(events: TEvent[], intervals: number[]): TimedEvent<TData>[];
     withDelay(event: TEvent, delay: number): TimedEvent<TData>;
     withJitter(events: TEvent[], baseDelay: number, jitter: number): TimedEvent<TData>[];
-    
+
     // State management
     withState(event: TEvent, state: { before: Record<string, unknown>; after: Record<string, unknown> }): StatefulEvent<TData>;
     trackStateChanges(events: TEvent[]): StateChangeLog;
-    
+
     // Testing helpers
     validateEventOrder(events: TEvent[]): boolean;
     simulateEventFlow(events: TEvent[], options?: SimulationOptions): Promise<TestResult>;
@@ -166,7 +166,7 @@ export interface EventFixtureFactory<TEvent, TData = unknown> {
 }
 
 // Socket-specific types
-export interface SocketEventFixture<T = unknown> extends BaseEvent {
+export interface SocketEventFixture<T = unknown> extends BaseFixtureEvent {
     event: string;
     data: T;
     room?: string;              // Room context for the event
