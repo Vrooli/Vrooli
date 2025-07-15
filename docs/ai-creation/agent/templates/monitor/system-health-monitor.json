@@ -1,101 +1,104 @@
 {
-  "identity": {
-    "name": "system-health-monitor", 
-    "version": "1.0.0"
-  },
-  "goal": "Monitor swarm execution health and alert on critical issues",
-  "role": "monitor",
-  "subscriptions": [
-    "run/failed",
-    "step/failed", 
-    "swarm/state/changed",
-    "swarm/resource/updated"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "run/failed"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Failure Alert Generator",
-        "inputMap": {
-          "error": "event.data.error",
-          "runId": "event.data.runId",
-          "retryable": "event.data.retryable"
+    "identity": {
+        "name": "system-health-monitor",
+        "version": "1.0.0"
+    },
+    "goal": "Monitor swarm execution health and alert on critical issues",
+    "role": "monitor",
+    "subscriptions": [
+        "run/failed",
+        "step/failed",
+        "swarm/state/changed",
+        "swarm/resource/updated"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "run/failed"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Failure Alert Generator",
+                "inputMap": {
+                    "error": "event.data.error",
+                    "runId": "event.data.runId",
+                    "retryable": "event.data.retryable"
+                }
+            },
+            "qos": 2
+        },
+        {
+            "trigger": {
+                "topic": "swarm/resource/updated",
+                "when": "remaining < allocated * 0.1"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Analyze resource consumption patterns and alert on critical depletion"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "swarm/state/changed",
+                "when": "newState == 'FAILED' || newState == 'TERMINATED'"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Swarm Failure Analyzer",
+                "inputMap": {
+                    "swarmId": "event.data.swarmId",
+                    "oldState": "event.data.oldState",
+                    "newState": "event.data.newState",
+                    "recentFailures": "blackboard.failures.history",
+                    "failureCount": "records.length",
+                    "goal": "goal"
+                }
+            },
+            "qos": 2
         }
-      },
-      "qos": 2
+    ],
+    "prompt": {
+        "mode": "supplement",
+        "source": "direct",
+        "content": "You must immediately alert on all critical failures. You are permitted to aggregate failure patterns for trend analysis and preventive recommendations."
     },
-    {
-      "trigger": {
-        "topic": "swarm/resource/updated",
-        "when": "remaining < allocated * 0.1"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Analyze resource consumption patterns and alert on critical depletion"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "swarm/state/changed",
-        "when": "newState == 'FAILED' || newState == 'TERMINATED'"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Swarm Failure Analyzer",
-        "inputMap": {
-          "swarmId": "event.data.swarmId",
-          "oldState": "event.data.oldState",
-          "newState": "event.data.newState",
-          "recentFailures": "blackboard.failures.history",
-          "failureCount": "records.length",
-          "goal": "goal"
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "system-alerts",
+            "permissions": [
+                "write"
+            ],
+            "scope": "alerts.health",
+            "description": "Write system health alerts and critical notifications"
+        },
+        {
+            "type": "blackboard",
+            "label": "failure-history",
+            "permissions": [
+                "read"
+            ],
+            "scope": "failures.history",
+            "description": "Read historical failure data for pattern analysis"
+        },
+        {
+            "type": "blackboard",
+            "label": "failure-analysis",
+            "permissions": [
+                "write"
+            ],
+            "scope": "failures.analysis",
+            "description": "Write failure pattern analysis and recommendations"
+        },
+        {
+            "type": "blackboard",
+            "label": "resource-status",
+            "permissions": [
+                "read"
+            ],
+            "scope": "resources.*",
+            "description": "Monitor system resource utilization and availability"
         }
-      },
-      "qos": 2
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "alert-on-critical-failures"
-    },
-    {
-      "modality": "permission",
-      "target": "aggregate-failure-patterns"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "system-alerts",
-      "permissions": ["write"],
-      "scope": "alerts.health",
-      "description": "Write system health alerts and critical notifications"
-    },
-    {
-      "type": "blackboard",
-      "label": "failure-history",
-      "permissions": ["read"],
-      "scope": "failures.history",
-      "description": "Read historical failure data for pattern analysis"
-    },
-    {
-      "type": "blackboard",
-      "label": "failure-analysis",
-      "permissions": ["write"],
-      "scope": "failures.analysis",
-      "description": "Write failure pattern analysis and recommendations"
-    },
-    {
-      "type": "blackboard",
-      "label": "resource-status",
-      "permissions": ["read"],
-      "scope": "resources.*",
-      "description": "Monitor system resource utilization and availability"
-    }
-  ]
+    ]
 }

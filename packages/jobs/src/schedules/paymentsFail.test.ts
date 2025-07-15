@@ -443,7 +443,7 @@ describe("paymentsFail integration tests", () => {
         await paymentsFail();
 
         // Should send only one email to the address
-        const emailCalls = mockEmailAddTask.mock.calls.filter((call: any) => 
+        const emailCalls = mockEmailAddTask.mock.calls.filter((call) => 
             call[0].to.includes("multi@example.com"),
         );
         expect(emailCalls.length).toBe(1);

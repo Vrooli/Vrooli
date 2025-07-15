@@ -37,6 +37,7 @@ export const user: ApiPartial<User> = {
         you: () => rel(userYou, "full"),
     },
     full: {
+        // @ts-expect-error - JSONB field - select entire JSON object
         botSettings: true,
         translations: () => rel(userTranslation, "full"),
     },

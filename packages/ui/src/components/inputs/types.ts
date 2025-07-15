@@ -354,6 +354,7 @@ export interface SelectorProps<T extends string | number | Record<string, unknow
     noneText?: string;
     onChange?: (value: T | null) => unknown;
     options: readonly T[];
+    placeholder?: string;
     size?: SelectorSize;
     sx?: SxType;
     tabIndex?: number;

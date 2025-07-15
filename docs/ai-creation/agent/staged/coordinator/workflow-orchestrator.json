@@ -1,108 +1,106 @@
 {
-  "identity": {
-    "name": "workflow-orchestrator",
-    "version": "1.0.0"
-  },
-  "goal": "Manages complex multi-step processes across specialist agents",
-  "role": "coordinator",
-  "subscriptions": [
-    "swarm/goal/created",
-    "run/completed",
-    "run/failed",
-    "swarm/team/updated"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "swarm/goal/created",
-        "when": "event.data.complexity == 'high' || subtasks.length > 5"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Workflow Designer",
-        "inputMap": {
-          "goal": "event.data.description",
-          "constraints": "event.data.constraints",
-          "availableAgents": "blackboard.agents.available",
-          "workflowTemplates": "blackboard.workflows.templates"
+    "identity": {
+        "name": "workflow-orchestrator",
+        "version": "1.0.0"
+    },
+    "goal": "Manages complex multi-step processes across specialist agents",
+    "role": "coordinator",
+    "subscriptions": [
+        "swarm/goal/created",
+        "run/completed",
+        "run/failed",
+        "swarm/team/updated"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "swarm/goal/created",
+                "when": "event.data.complexity == 'high' || subtasks.length > 5"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Workflow Designer",
+                "inputMap": {
+                    "goal": "event.data.description",
+                    "constraints": "event.data.constraints",
+                    "availableAgents": "blackboard.agents.available",
+                    "workflowTemplates": "blackboard.workflows.templates"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/completed"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Analyze workflow progress, manage dependencies, and initiate next steps in the orchestrated process"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "swarm/team/updated",
+                "when": "event.data.changeType == 'capability_added'"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Workflow Optimizer",
+                "inputMap": {
+                    "currentWorkflows": "blackboard.workflows.active",
+                    "newCapabilities": "event.data.capabilities",
+                    "performanceMetrics": "blackboard.workflows.metrics"
+                }
+            },
+            "qos": 0
         }
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "run/completed"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Analyze workflow progress, manage dependencies, and initiate next steps in the orchestrated process"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "swarm/team/updated",
-        "when": "event.data.changeType == 'capability_added'"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Workflow Optimizer",
-        "inputMap": {
-          "currentWorkflows": "blackboard.workflows.active",
-          "newCapabilities": "event.data.capabilities",
-          "performanceMetrics": "blackboard.workflows.metrics"
+    ],
+    "prompt": "You are the Workflow Orchestrator, managing complex multi-step processes across specialist agents. Your obligations include maintaining workflow integrity and ensuring all dependencies are properly managed. You are permitted to optimize parallel execution when possible. You must never create circular dependencies in workflows.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "workflow-engine",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "workflows.*",
+            "description": "Manage workflow definitions, states, and execution tracking"
+        },
+        {
+            "type": "blackboard",
+            "label": "agent-registry",
+            "permissions": [
+                "read"
+            ],
+            "scope": "agents.*",
+            "description": "Read agent capabilities and availability"
+        },
+        {
+            "type": "blackboard",
+            "label": "process-templates",
+            "permissions": [
+                "read"
+            ],
+            "scope": "templates.workflows",
+            "description": "Access pre-defined workflow templates and patterns"
+        },
+        {
+            "type": "routine",
+            "label": "Workflow Designer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Design optimal workflows based on goals and constraints"
+        },
+        {
+            "type": "routine",
+            "label": "Workflow Optimizer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Optimize existing workflows based on new capabilities"
         }
-      },
-      "qos": 0
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "maintain-workflow-integrity"
-    },
-    {
-      "modality": "permission",
-      "target": "optimize-parallel-execution"
-    },
-    {
-      "modality": "prohibition",
-      "target": "create-circular-dependencies"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "workflow-engine",
-      "permissions": ["read", "write"],
-      "scope": "workflows.*",
-      "description": "Manage workflow definitions, states, and execution tracking"
-    },
-    {
-      "type": "blackboard",
-      "label": "agent-registry",
-      "permissions": ["read"],
-      "scope": "agents.*",
-      "description": "Read agent capabilities and availability"
-    },
-    {
-      "type": "blackboard",
-      "label": "process-templates",
-      "permissions": ["read"],
-      "scope": "templates.workflows",
-      "description": "Access pre-defined workflow templates and patterns"
-    },
-    {
-      "type": "routine",
-      "label": "Workflow Designer",
-      "permissions": ["read"],
-      "description": "Design optimal workflows based on goals and constraints"
-    },
-    {
-      "type": "routine",
-      "label": "Workflow Optimizer",
-      "permissions": ["read"],
-      "description": "Optimize existing workflows based on new capabilities"
-    }
-  ]
+    ]
 }

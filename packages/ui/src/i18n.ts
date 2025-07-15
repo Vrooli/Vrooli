@@ -7,7 +7,15 @@ const debug = process.env.DEV as unknown as boolean;
 /** Displays keys instead of translations. Useful to find missing translations */
 export const CI_MODE = false;
 
-i18n.use(initReactI18next).init(i18nConfig(debug, CI_MODE));
+// Configure i18next with initImmediate: false for Storybook to prevent backend warnings
+// Also disable debug mode in Storybook to prevent console spam
+const isStorybook = typeof window !== "undefined" && window.location.href.includes("storybook");
+const config = i18nConfig(isStorybook ? false : debug, CI_MODE);
+i18n.use(initReactI18next).init({
+    ...config,
+    initImmediate: false, // Prevents backend connector warnings in Storybook
+});
+
 if (CI_MODE) {
     i18n.changeLanguage("cimode");
 }

@@ -6,8 +6,11 @@ import { logger } from "../../events/logger.js";
 import { ConversationEngine } from "../../services/conversation/conversationEngine.js";
 import { SwarmContextManager } from "../../services/execution/shared/SwarmContextManager.js";
 import { SwarmStateMachine } from "../../services/execution/tier1/swarmStateMachine.js";
+import { CachedConversationStateStore, PrismaChatStore } from "../../services/response/chatStore.js";
+import { RedisMessageStore } from "../../services/response/messageStore.js";
 import { ResponseService } from "../../services/response/responseService.js";
 import { getDefaultLlmRouter, getDefaultToolRunner } from "../../services/response/services.js";
+import { CacheService } from "../../redisConn.js";
 import { BaseActiveTaskRegistry, type BaseActiveTaskRecord } from "../activeTaskRegistry.js";
 import { QueueTaskType, type LLMCompletionTask, type SwarmExecutionTask } from "../taskTypes.js";
 
@@ -117,7 +120,7 @@ export async function llmProcessBotMessage(payload: LLMCompletionTask): Promise<
             chatId: payload.chatId,
             createdAt: dbMessage.createdAt,
             updatedAt: dbMessage.updatedAt,
-            config: dbMessage.config as MessageConfigObject,
+            config: dbMessage.config as unknown as MessageConfigObject,
             parent: payload.messageId ? { id: payload.messageId } : null,
             user: { id: botMessage.user.id },
             translations: dbMessage.translations.map(t => ({
@@ -161,11 +164,23 @@ async function processSwarmExecution(payload: SwarmExecutionTask) {
         // Extract swarm ID or generate new one if not provided
         const swarmId = payload.context.swarmId || generatePK().toString();
 
-        // Use the existing service instances from responseEngine
+        const responseService = new ResponseService();
+        const contextManager = new SwarmContextManager();
+        const conversationEngine = new ConversationEngine(responseService, contextManager);
+        
+        // Create chat store for loading chat configuration
+        const messageStore = new RedisMessageStore(CacheService.get());
+        const chatStore = new CachedConversationStateStore(
+            new PrismaChatStore(), 
+            CacheService.get(),
+            messageStore,
+        );
+        
         const coordinator = new SwarmStateMachine(
-            swarmContextManager,
+            contextManager,
             conversationEngine,
             responseService,
+            chatStore,
         );
 
         // Start swarm with SwarmExecutionTask directly
@@ -211,4 +226,169 @@ export async function llmProcess({ data }: Job<LLMCompletionTask | SwarmExecutio
         default:
             throw new CustomError("0330", "InternalError", { process: (data as { __process?: unknown }).__process });
     }
+}
+
+/**
+ * Helper function to build conversation context from LLM completion task
+ */
+async function buildConversationContext(payload: LLMCompletionTask): Promise<ConversationContext> {
+    // Load chat and participants from database
+    const chat = await DbProvider.get().chat.findUnique({
+        where: { id: BigInt(payload.chatId) },
+        include: {
+            participants: {
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            handle: true,
+                            isBot: true,
+                            botSettings: true,
+                        },
+                    },
+                },
+            },
+            config: true,
+        },
+    });
+
+    if (!chat) {
+        throw new Error(`Chat ${payload.chatId} not found`);
+    }
+
+    // Build bot participants list
+    const botParticipants: BotParticipant[] = [];
+
+    // If a specific bot is requested, find it
+    if (payload.respondingBot?.id) {
+        const botParticipant = chat.participants.find(p =>
+            p.user.id.toString() === payload.respondingBot?.id && p.user.isBot,
+        );
+        if (botParticipant) {
+            botParticipants.push({
+                id: toBotId(botParticipant.user.id.toString()),
+                name: botParticipant.user.name || "Bot",
+                config: {
+                    id: botParticipant.user.id.toString(),
+                    name: botParticipant.user.name || "Bot",
+                    model: payload.model || botParticipant.user.botSettings?.model || "gpt-4",
+                    description: botParticipant.user.botSettings?.description || "AI Assistant",
+                    maxTokens: botParticipant.user.botSettings?.maxTokens || DEFAULT_MAX_TOKENS,
+                    temperature: botParticipant.user.botSettings?.temperature || DEFAULT_TEMPERATURE,
+                    specializations: botParticipant.user.botSettings?.specializations || [],
+                },
+                state: {
+                    isProcessing: false,
+                    isWaiting: true,
+                    hasResponded: false,
+                },
+                isAvailable: true,
+            });
+        }
+    } else {
+        // Find all bot participants in the chat
+        for (const participant of chat.participants) {
+            if (participant.user.isBot) {
+                botParticipants.push({
+                    id: toBotId(participant.user.id.toString()),
+                    name: participant.user.name || "Bot",
+                    config: {
+                        id: participant.user.id.toString(),
+                        name: participant.user.name || "Bot",
+                        model: payload.model || participant.user.botSettings?.model || "gpt-4",
+                        description: participant.user.botSettings?.description || "AI Assistant",
+                        maxTokens: participant.user.botSettings?.maxTokens || DEFAULT_MAX_TOKENS,
+                        temperature: participant.user.botSettings?.temperature || DEFAULT_TEMPERATURE,
+                        specializations: participant.user.botSettings?.specializations || [],
+                    },
+                    state: {
+                        isProcessing: false,
+                        isWaiting: true,
+                        hasResponded: false,
+                    },
+                    isAvailable: true,
+                });
+            }
+        }
+    }
+
+    // Load conversation history (last N messages for context)
+    const messages = await DbProvider.get().chat_message.findMany({
+        where: { chatId: BigInt(payload.chatId) },
+        orderBy: { createdAt: "desc" },
+        take: MAX_CONVERSATION_HISTORY,
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    handle: true,
+                },
+            },
+            translations: true,
+        },
+    });
+
+    // Convert to ChatMessage format and reverse to chronological order
+    const conversationHistory: ChatMessage[] = messages.reverse().map(msg => ({
+        id: msg.id.toString(),
+        createdAt: msg.createdAt,
+        config: msg.config as MessageConfigObject,
+        text: msg.translations?.[0]?.text || "",
+        user: {
+            id: msg.user.id.toString(),
+            name: msg.user.name || undefined,
+            handle: msg.user.handle || undefined,
+        },
+    }));
+
+    // Load available tools (for now, return empty array - can be enhanced later)
+    const availableTools = [];
+
+    return {
+        swarmId: toSwarmId(payload.chatId), // Use chatId as swarmId for simple conversations
+        userData: payload.userData,
+        timestamp: new Date(),
+        participants: botParticipants,
+        conversationHistory,
+        availableTools,
+        teamConfig: undefined, // No team config for simple conversations
+        sharedState: {}, // No shared state needed for simple conversations
+    };
+}
+
+/**
+ * Helper function to load the trigger message
+ */
+async function loadTriggerMessage(messageId: string): Promise<ChatMessage> {
+    const message = await DbProvider.get().chat_message.findUnique({
+        where: { id: BigInt(messageId) },
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    handle: true,
+                },
+            },
+            translations: true,
+        },
+    });
+
+    if (!message) {
+        throw new Error(`Message ${messageId} not found`);
+    }
+
+    return {
+        id: message.id.toString(),
+        createdAt: message.createdAt.toISOString(),
+        config: message.config as MessageConfigObject,
+        text: message.translations?.[0]?.text || "",
+        user: {
+            id: message.user.id.toString(),
+            name: message.user.name || undefined,
+            handle: message.user.handle || undefined,
+        },
+    };
 }

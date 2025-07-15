@@ -5,14 +5,12 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { http, type RestHandler } from "msw";
-import type { 
-    StatsTeam,
-    StatsTeamSearchInput,
-    PeriodType,
-} from "@vrooli/shared";
+import { http, HttpResponse, type RequestHandler } from "msw";
 import { 
-    PeriodType as PeriodTypeEnum, 
+    type StatsTeam,
+    type StatsTeamSearchInput,
+    type StatPeriodType,
+    StatPeriodType as PeriodType,
 } from "@vrooli/shared";
 
 /**
@@ -73,14 +71,14 @@ export class StatsTeamResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique stats ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -96,7 +94,7 @@ export class StatsTeamResponseFactory {
                 links: {
                     self: `${this.baseUrl}/api/stats/team/${stats.id}`,
                     related: {
-                        team: `${this.baseUrl}/api/team/${stats.team?.id}`,
+                        // team: `${this.baseUrl}/api/team/${stats.team?.id}`, // StatsTeam doesn't have team property
                     },
                 },
             },
@@ -246,78 +244,16 @@ export class StatsTeamResponseFactory {
             id,
             periodStart: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
             periodEnd: now,
-            periodType: PeriodTypeEnum.Week,
+            periodType: PeriodType.Weekly,
             
-            // Member statistics
+            // StatsTeam only has these properties
             members: Math.floor(Math.random() * 50) + 5,
-            membersLoggedIn: Math.floor(Math.random() * 30) + 3,
-            membersJoined: Math.floor(Math.random() * 5) + 1,
-            membersLeft: Math.floor(Math.random() * 2),
-            
-            // Content statistics
-            apis: Math.floor(Math.random() * 20) + 2,
-            apisCreated: Math.floor(Math.random() * 3),
             projects: Math.floor(Math.random() * 30) + 5,
-            projectsCreated: Math.floor(Math.random() * 5) + 1,
-            projectsCompleted: Math.floor(Math.random() * 3),
-            routines: Math.floor(Math.random() * 50) + 10,
-            routinesCreated: Math.floor(Math.random() * 8) + 1,
-            routinesCompleted: Math.floor(Math.random() * 15) + 2,
-            
-            // Activity statistics
-            runs: Math.floor(Math.random() * 200) + 50,
+            resources: Math.floor(Math.random() * 50) + 10,
             runsStarted: Math.floor(Math.random() * 40) + 10,
             runsCompleted: Math.floor(Math.random() * 35) + 8,
-            
-            // Engagement statistics
-            views: Math.floor(Math.random() * 1000) + 100,
-            bookmarks: Math.floor(Math.random() * 50) + 5,
-            
-            team: {
-                __typename: "Team",
-                id: `team_${id}`,
-                created_at: now,
-                updated_at: now,
-                handle: `team_${id}`,
-                name: "Test Team",
-                isOpenToNewMembers: true,
-                isPrivate: false,
-                bookmarks: Math.floor(Math.random() * 50) + 5,
-                views: Math.floor(Math.random() * 500) + 50,
-                you: {
-                    __typename: "TeamYou",
-                    canAddMembers: true,
-                    canBookmark: false,
-                    canDelete: false,
-                    canReport: false,
-                    canUpdate: true,
-                    canRead: true,
-                    isBookmarked: false,
-                    isViewed: true,
-                    yourMembership: {
-                        __typename: "Member",
-                        id: `member_${id}`,
-                        created_at: now,
-                        updated_at: now,
-                        isAdmin: true,
-                        permissions: JSON.stringify(["read", "write", "admin"]),
-                        role: {
-                            __typename: "Role",
-                            id: `role_${id}`,
-                            created_at: now,
-                            updated_at: now,
-                            name: "Admin",
-                            permissions: JSON.stringify(["read", "write", "admin"]),
-                            translations: [],
-                        },
-                        you: {
-                            __typename: "MemberYou",
-                            canUpdate: true,
-                            canDelete: false,
-                        },
-                    },
-                },
-            },
+            runCompletionTimeAverage: Math.random() * 3600 + 300, // Average completion time in seconds
+            runContextSwitchesAverage: Math.random() * 5 + 0.5, // Average context switches per run
         };
         
         return {
@@ -333,39 +269,33 @@ export class StatsTeamResponseFactory {
         return [
             this.createMockStats({
                 members: 25,
-                membersLoggedIn: 22,
-                routinesCreated: 15,
-                routinesCompleted: 45,
-                projectsCreated: 8,
-                projectsCompleted: 6,
+                projects: 15,
+                resources: 45,
+                runsStarted: 150,
                 runsCompleted: 120,
-                views: 2500,
-                bookmarks: 150,
-                periodType: PeriodTypeEnum.Month,
+                runCompletionTimeAverage: 450,
+                runContextSwitchesAverage: 0.8,
+                periodType: PeriodType.Monthly,
             }),
             this.createMockStats({
                 members: 18,
-                membersLoggedIn: 16,
-                routinesCreated: 12,
-                routinesCompleted: 38,
-                projectsCreated: 6,
-                projectsCompleted: 5,
+                projects: 12,
+                resources: 38,
+                runsStarted: 110,
                 runsCompleted: 95,
-                views: 1800,
-                bookmarks: 120,
-                periodType: PeriodTypeEnum.Month,
+                runCompletionTimeAverage: 520,
+                runContextSwitchesAverage: 1.2,
+                periodType: PeriodType.Monthly,
             }),
             this.createMockStats({
                 members: 12,
-                membersLoggedIn: 11,
-                routinesCreated: 8,
-                routinesCompleted: 25,
-                projectsCreated: 4,
-                projectsCompleted: 3,
+                projects: 8,
+                resources: 25,
+                runsStarted: 85,
                 runsCompleted: 75,
-                views: 1200,
-                bookmarks: 90,
-                periodType: PeriodTypeEnum.Month,
+                runCompletionTimeAverage: 600,
+                runContextSwitchesAverage: 1.5,
+                periodType: PeriodType.Monthly,
             }),
         ];
     }
@@ -373,84 +303,65 @@ export class StatsTeamResponseFactory {
     /**
      * Create statistics for different time periods
      */
-    createStatsByPeriod(teamId: string): Record<PeriodType, StatsTeam> {
-        const baseStats = this.createMockStats({
-            team: {
-                ...this.createMockStats().team,
-                id: teamId,
-            },
-        });
+    createStatsByPeriod(teamId: string): Record<StatPeriodType, StatsTeam> {
+        const baseStats = this.createMockStats();
         
         return {
-            [PeriodTypeEnum.Day]: {
+            [PeriodType.Hourly]: {
                 ...baseStats,
-                periodType: PeriodTypeEnum.Day,
+                periodType: PeriodType.Hourly,
+                periodStart: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+                members: 8,
+                runsStarted: 2,
+                runsCompleted: 1,
+                runCompletionTimeAverage: 300,
+                runContextSwitchesAverage: 0.5,
+            },
+            [PeriodType.Daily]: {
+                ...baseStats,
+                periodType: PeriodType.Daily,
                 periodStart: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-                membersLoggedIn: 8,
+                members: 12,
                 runsStarted: 5,
                 runsCompleted: 4,
-                views: 25,
-                bookmarks: 2,
+                runCompletionTimeAverage: 450,
+                runContextSwitchesAverage: 1.2,
             },
-            [PeriodTypeEnum.Week]: {
+            [PeriodType.Weekly]: {
                 ...baseStats,
-                periodType: PeriodTypeEnum.Week,
+                periodType: PeriodType.Weekly,
                 periodStart: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-                membersLoggedIn: 15,
+                members: 15,
                 runsStarted: 35,
                 runsCompleted: 28,
-                views: 180,
-                bookmarks: 12,
-                routinesCreated: 3,
-                projectsCreated: 1,
+                runCompletionTimeAverage: 600,
+                runContextSwitchesAverage: 1.5,
+                projects: 8,
+                resources: 22,
             },
-            [PeriodTypeEnum.Month]: {
+            [PeriodType.Monthly]: {
                 ...baseStats,
-                periodType: PeriodTypeEnum.Month,
+                periodType: PeriodType.Monthly,
                 periodStart: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-                membersLoggedIn: 20,
-                membersJoined: 3,
-                membersLeft: 1,
+                members: 20,
                 runsStarted: 150,
                 runsCompleted: 120,
-                views: 800,
-                bookmarks: 45,
-                routinesCreated: 12,
-                routinesCompleted: 35,
-                projectsCreated: 5,
-                projectsCompleted: 3,
+                runCompletionTimeAverage: 780,
+                runContextSwitchesAverage: 2.1,
+                projects: 15,
+                resources: 45,
             },
-            [PeriodTypeEnum.Year]: {
+            [PeriodType.Yearly]: {
                 ...baseStats,
-                periodType: PeriodTypeEnum.Year,
+                periodType: PeriodType.Yearly,
                 periodStart: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(),
                 members: 25,
-                membersJoined: 18,
-                membersLeft: 5,
                 runsStarted: 1800,
                 runsCompleted: 1500,
-                views: 12000,
-                bookmarks: 600,
-                routinesCreated: 150,
-                routinesCompleted: 400,
-                projectsCreated: 60,
-                projectsCompleted: 45,
-            },
-            [PeriodTypeEnum.AllTime]: {
-                ...baseStats,
-                periodType: PeriodTypeEnum.AllTime,
-                periodStart: new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000).toISOString(),
-                members: 25,
-                membersJoined: 25,
-                membersLeft: 8,
-                runsStarted: 3500,
-                runsCompleted: 3000,
-                views: 25000,
-                bookmarks: 1200,
-                routinesCreated: 300,
-                routinesCompleted: 800,
-                projectsCreated: 120,
-                projectsCompleted: 95,
+                runCompletionTimeAverage: 920,
+                runContextSwitchesAverage: 2.8,
+                projects: 60,
+                resources: 180,
             },
         };
     }
@@ -467,18 +378,16 @@ export class StatsTeamResponseFactory {
             const dayEnd = dayStart + oneDay;
             
             return this.createMockStats({
-                team: {
-                    ...this.createMockStats().team,
-                    id: teamId,
-                },
-                periodType: PeriodTypeEnum.Day,
+                periodType: PeriodType.Daily,
                 periodStart: new Date(dayStart).toISOString(),
                 periodEnd: new Date(dayEnd).toISOString(),
-                membersLoggedIn: Math.floor(Math.random() * 15) + 3,
+                members: Math.floor(Math.random() * 15) + 3,
+                projects: Math.floor(Math.random() * 5) + 1,
+                resources: Math.floor(Math.random() * 10) + 2,
                 runsStarted: Math.floor(Math.random() * 10) + 2,
                 runsCompleted: Math.floor(Math.random() * 8) + 1,
-                views: Math.floor(Math.random() * 50) + 10,
-                bookmarks: Math.floor(Math.random() * 5),
+                runCompletionTimeAverage: Math.random() * 1200 + 300,
+                runContextSwitchesAverage: Math.random() * 3 + 0.5,
             });
         });
     }
@@ -489,17 +398,14 @@ export class StatsTeamResponseFactory {
     createComparativeStats(teamIds: string[]): StatsTeam[] {
         return teamIds.map(teamId => 
             this.createMockStats({
-                team: {
-                    ...this.createMockStats().team,
-                    id: teamId,
-                    name: `Team ${teamId}`,
-                },
-                periodType: PeriodTypeEnum.Month,
+                periodType: PeriodType.Monthly,
                 members: Math.floor(Math.random() * 30) + 5,
+                projects: Math.floor(Math.random() * 15) + 2,
+                resources: Math.floor(Math.random() * 50) + 10,
+                runsStarted: Math.floor(Math.random() * 120) + 25,
                 runsCompleted: Math.floor(Math.random() * 100) + 20,
-                routinesCreated: Math.floor(Math.random() * 15) + 2,
-                projectsCompleted: Math.floor(Math.random() * 8) + 1,
-                views: Math.floor(Math.random() * 1000) + 100,
+                runCompletionTimeAverage: Math.random() * 2400 + 600,
+                runContextSwitchesAverage: Math.random() * 4 + 1,
             }),
         );
     }
@@ -518,53 +424,41 @@ export class StatsTeamMSWHandlers {
     /**
      * Create success handlers for all team statistics endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): RequestHandler[] {
         return [
             // Get team statistics by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                const url = new URL(req.url);
-                const period = url.searchParams.get("period") as PeriodType;
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, ({ request, params }) => {
+                const { id } = params;
+                const url = new URL(request.url);
+                const period = url.searchParams.get("period") as StatPeriodType;
                 
                 if (period) {
                     const statsByPeriod = this.responseFactory.createStatsByPeriod(id as string);
-                    const stats = statsByPeriod[period] || statsByPeriod[PeriodTypeEnum.Month];
+                    const stats = statsByPeriod[period] || statsByPeriod[PeriodType.Monthly];
                     const response = this.responseFactory.createSuccessResponse(stats);
                     
-                    return res(
-                        ctx.status(200),
-                        ctx.json(response),
-                    );
+                    return HttpResponse.json(response, { status: 200 });
                 }
                 
                 const stats = this.responseFactory.createMockStats({
-                    team: {
-                        ...this.responseFactory.createMockStats().team,
-                        id: id as string,
-                    },
+                    id: id as string,
                 });
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Search team statistics
-            http.post(`${this.responseFactory["baseUrl"]}/api/stats/team/search`, async (req, res, ctx) => {
-                const body = await req.json() as StatsTeamSearchInput;
-                const url = new URL(req.url);
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/team/search`, async ({ request, params }) => {
+                const body = await request.json() as StatsTeamSearchInput;
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 
                 let statsList: StatsTeam[] = [];
                 
-                if (body.teamIds && body.teamIds.length > 0) {
-                    statsList = this.responseFactory.createComparativeStats(body.teamIds);
-                } else {
-                    statsList = this.responseFactory.createHighPerformingTeamStats();
-                }
+                // Always return high performing team stats for search
+                statsList = this.responseFactory.createHighPerformingTeamStats();
                 
                 // Filter by period if specified
                 if (body.periodType) {
@@ -587,16 +481,13 @@ export class StatsTeamMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Get top performing teams
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/top-performers`, (req, res, ctx) => {
-                const url = new URL(req.url);
-                const period = url.searchParams.get("period") as PeriodType || PeriodTypeEnum.Month;
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/top-performers`, ({ request, params }) => {
+                const url = new URL(request.url);
+                const period = url.searchParams.get("period") as StatPeriodType || PeriodType.Monthly;
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 
                 const topTeams = this.responseFactory.createHighPerformingTeamStats()
@@ -605,32 +496,26 @@ export class StatsTeamMSWHandlers {
                 
                 const response = this.responseFactory.createStatsListResponse(topTeams);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Get time series data for team
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id/timeseries`, (req, res, ctx) => {
-                const { id } = req.params;
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id/timeseries`, ({ request, params }) => {
+                const { id } = params;
+                const url = new URL(request.url);
                 const days = parseInt(url.searchParams.get("days") || "30");
                 
                 const timeSeriesData = this.responseFactory.createTimeSeriesStats(id as string, days);
                 const response = this.responseFactory.createStatsListResponse(timeSeriesData);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Get aggregated statistics for multiple teams
-            http.post(`${this.responseFactory["baseUrl"]}/api/stats/team/aggregate`, async (req, res, ctx) => {
-                const { teamIds, periodType } = await req.json() as {
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/team/aggregate`, async ({ request, params }) => {
+                const { teamIds, periodType } = await request.json() as {
                     teamIds: string[];
-                    periodType: PeriodType;
+                    periodType: StatPeriodType;
                 };
                 
                 const aggregatedStats = this.responseFactory.createComparativeStats(teamIds)
@@ -638,10 +523,7 @@ export class StatsTeamMSWHandlers {
                 
                 const response = this.responseFactory.createStatsListResponse(aggregatedStats);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -649,30 +531,30 @@ export class StatsTeamMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): RequestHandler[] {
         return [
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, ({ request, params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string),
+                    { status: 404 }
                 );
             }),
             
             // Permission error
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("view")),
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("view"),
+                    { status: 403 }
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/stats/team/search`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/team/search`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse(),
+                    { status: 500 }
                 );
             }),
         ];
@@ -681,23 +563,17 @@ export class StatsTeamMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RequestHandler[] {
         return [
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, async ({ request, params }) => {
+                const { id } = params;
                 const stats = this.responseFactory.createMockStats({
-                    team: {
-                        ...this.responseFactory.createMockStats().team,
-                        id: id as string,
-                    },
+                    id: id as string,
                 });
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -705,14 +581,14 @@ export class StatsTeamMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): RequestHandler[] {
         return [
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
             
-            http.post(`${this.responseFactory["baseUrl"]}/api/stats/team/search`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/team/search`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -726,18 +602,17 @@ export class StatsTeamMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): RequestHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        const httpMethod = http[method.toLowerCase() as keyof typeof http] as any;
+        return httpMethod(fullEndpoint, async ({ request, params }) => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }
@@ -761,7 +636,7 @@ export const statsTeamResponseScenarios = {
         );
     },
     
-    topPerformers: (period?: PeriodType) => {
+    topPerformers: (period?: StatPeriodType) => {
         const factory = new StatsTeamResponseFactory();
         const topTeams = factory.createHighPerformingTeamStats();
         if (period) {

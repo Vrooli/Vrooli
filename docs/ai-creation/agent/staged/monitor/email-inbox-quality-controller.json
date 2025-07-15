@@ -1,108 +1,110 @@
 {
-  "identity": {
-    "name": "email-inbox-quality-controller",
-    "version": "1.0.0"
-  },
-  "goal": "Monitors email patterns and suggests improvements",
-  "role": "monitor",
-  "subscriptions": [
-    "step/completed",
-    "run/completed",
-    "safety/post_action"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'email_processing' || event.data.tags.includes('communication_activity')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Email Pattern Analyzer",
-        "inputMap": {
-          "emailMetrics": "event.data.output.metrics",
-          "communicationData": "event.data.communication",
-          "emailAnalytics": "blackboard.email.analytics",
-          "productivityMetrics": "blackboard.email.productivity"
+    "identity": {
+        "name": "email-inbox-quality-controller",
+        "version": "1.0.0"
+    },
+    "goal": "Monitors email patterns and suggests improvements",
+    "role": "monitor",
+    "subscriptions": [
+        "step/completed",
+        "run/completed",
+        "safety/post_action"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'email_processing' || event.data.tags.includes('communication_activity')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Email Pattern Analyzer",
+                "inputMap": {
+                    "emailMetrics": "event.data.output.metrics",
+                    "communicationData": "event.data.communication",
+                    "emailAnalytics": "blackboard.email.analytics",
+                    "productivityMetrics": "blackboard.email.productivity"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/completed",
+                "when": "event.data.tags.includes('email_workflow') || event.data.tags.includes('communication_audit')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Analyze email usage patterns, response times, and communication efficiency to identify productivity optimization opportunities"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "safety/post_action",
+                "when": "event.data.action.type == 'email_overload' || event.data.action.type == 'communication_bottleneck'"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Productivity Optimizer",
+                "inputMap": {
+                    "overloadIndicators": "event.data.action.indicators",
+                    "workflowStatus": "event.data.action.status",
+                    "communicationPatterns": "blackboard.email.patterns"
+                }
+            },
+            "qos": 2
         }
-      },
-      "qos": 1
+    ],
+    "prompt": {
+        "mode": "supplement",
+        "source": "direct",
+        "content": "You monitor email patterns and suggest improvements for productivity. Always monitor communication health by analyzing patterns, response times, and workflow efficiency. You have permission to suggest efficiency improvements and productivity optimizations. Never access private email content - only analyze metadata and patterns."
     },
-    {
-      "trigger": {
-        "topic": "run/completed",
-        "when": "event.data.tags.includes('email_workflow') || event.data.tags.includes('communication_audit')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Analyze email usage patterns, response times, and communication efficiency to identify productivity optimization opportunities"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "safety/post_action",
-        "when": "event.data.action.type == 'email_overload' || event.data.action.type == 'communication_bottleneck'"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Productivity Optimizer",
-        "inputMap": {
-          "overloadIndicators": "event.data.action.indicators",
-          "workflowStatus": "event.data.action.status",
-          "communicationPatterns": "blackboard.email.patterns"
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "email-analytics",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "email.analytics",
+            "description": "Email usage analytics and pattern tracking"
+        },
+        {
+            "type": "blackboard",
+            "label": "productivity-metrics",
+            "permissions": [
+                "read"
+            ],
+            "scope": "email.productivity",
+            "description": "Communication productivity metrics and benchmarks"
+        },
+        {
+            "type": "blackboard",
+            "label": "communication-patterns",
+            "permissions": [
+                "read"
+            ],
+            "scope": "email.patterns",
+            "description": "Communication pattern analysis and optimization techniques"
+        },
+        {
+            "type": "routine",
+            "label": "Email Pattern Analyzer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Analyze email usage patterns and communication efficiency"
+        },
+        {
+            "type": "routine",
+            "label": "Productivity Optimizer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Optimize communication workflows for productivity"
         }
-      },
-      "qos": 2
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "monitor-communication-health"
-    },
-    {
-      "modality": "permission",
-      "target": "suggest-efficiency-improvements"
-    },
-    {
-      "modality": "prohibition",
-      "target": "access-private-content"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "email-analytics",
-      "permissions": ["read", "write"],
-      "scope": "email.analytics",
-      "description": "Email usage analytics and pattern tracking"
-    },
-    {
-      "type": "blackboard",
-      "label": "productivity-metrics",
-      "permissions": ["read"],
-      "scope": "email.productivity",
-      "description": "Communication productivity metrics and benchmarks"
-    },
-    {
-      "type": "blackboard",
-      "label": "communication-patterns",
-      "permissions": ["read"],
-      "scope": "email.patterns",
-      "description": "Communication pattern analysis and optimization techniques"
-    },
-    {
-      "type": "routine",
-      "label": "Email Pattern Analyzer",
-      "permissions": ["read"],
-      "description": "Analyze email usage patterns and communication efficiency"
-    },
-    {
-      "type": "routine",
-      "label": "Productivity Optimizer",
-      "permissions": ["read"],
-      "description": "Optimize communication workflows for productivity"
-    }
-  ]
+    ]
 }

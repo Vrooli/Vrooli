@@ -1,4 +1,4 @@
-import { InputHTMLAttributes, TextareaHTMLAttributes, RefObject } from "react";
+import { type RefObject } from "react";
 
 export type TextInputVariant = "outline" | "filled" | "underline";
 export type TextInputSize = "sm" | "md" | "lg";
@@ -27,7 +27,7 @@ type CommonInputProps = {
     type?: string;
 };
 
-export interface TailwindTextInputBaseProps extends CommonInputProps {
+export interface TextInputBaseProps extends CommonInputProps {
     /** Visual style variant */
     variant?: TextInputVariant;
     /** Size of the input */
@@ -50,6 +50,10 @@ export interface TailwindTextInputBaseProps extends CommonInputProps {
     onSubmit?: () => unknown;
     /** Whether to render as textarea */
     multiline?: boolean;
+    /** Maximum number of rows for multiline */
+    maxRows?: number;
+    /** Minimum number of rows for multiline */
+    minRows?: number;
     /** Element to display at the start of the input */
     startAdornment?: React.ReactNode;
     /** Element to display at the end of the input */
@@ -58,16 +62,16 @@ export interface TailwindTextInputBaseProps extends CommonInputProps {
     ref?: RefObject<HTMLInputElement | HTMLTextAreaElement>;
 }
 
-export type TailwindTextInputProps = Omit<TailwindTextInputBaseProps, "ref" | "value" | "onChange" | "onBlur" | "error" | "helperText" | "name"> & {
+export type TextInputProps = Omit<TextInputBaseProps, "ref" | "value" | "onChange" | "onBlur" | "error" | "helperText" | "name"> & {
     /** Field name for Formik */
     name: string;
     /** Validation function for Formik */
-    validate?: (value: any) => string | undefined;
+    validate?: (value: unknown) => string | undefined;
     /** Ref for the input element */
     ref?: RefObject<HTMLElement>;
 }
 
-export interface TranslatedTailwindTextInputProps {
+export interface TranslatedTextInputProps {
     /** Visual style variant */
     variant?: TextInputVariant;
     /** Size of the input */

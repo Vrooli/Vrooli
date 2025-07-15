@@ -1,4 +1,5 @@
 // AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-24
+// AI_CHECK: TYPE_SAFETY=2 | LAST: 2025-07-06
 import { CreditEntryType, CreditSourceSystem } from "@prisma/client";
 import { API_CREDITS_PREMIUM, generatePK, generatePublicId, EventTypes } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -47,11 +48,11 @@ describe("paymentsCreditsFreePremium integration tests", () => {
             getBus: () => ({
                 publish: mockBusPublish,
             }),
-        } as any);
+        } as ReturnType<typeof BusService.get>);
 
         vi.mocked(SocketService.get).mockReturnValue({
             emitSocketEvent: mockSocketEmit,
-        } as any);
+        } as ReturnType<typeof SocketService.get>);
 
         vi.mocked(Notify).mockImplementation(mockNotify);
 

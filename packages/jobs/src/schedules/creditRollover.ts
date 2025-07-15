@@ -1,4 +1,5 @@
 // AI_CHECK: TEST_COVERAGE=1 | LAST: 2025-06-24
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-04
 import { CreditEntryType, CreditSourceSystem, type Prisma } from "@prisma/client";
 import { batch, BusService, logger, type BillingEvent, CacheService } from "@vrooli/server";
 import { API_CREDITS_PREMIUM, CreditConfig, type CreditConfigObject, generatePK } from "@vrooli/shared";
@@ -43,7 +44,7 @@ export async function creditRollover(): Promise<void> {
         await batch<Prisma.userFindManyArgs, CreditSettingsPayload>({
             objectType: "User",
             batchSize: 100, // Process users in chunks to avoid memory issues
-            processBatch: async (batch) => {
+            processBatch: async (batch: CreditSettingsPayload[]) => {
                 for (const user of batch) {
                     try {
                         await processUserCreditRollover(user, currentMonth);
@@ -357,7 +358,7 @@ async function updateCreditSettingsProcessedMonth(
         while (retryCount < maxRetries) {
             try {
                 // Use a transaction to ensure atomic read-modify-write
-                await DbProvider.get().$transaction(async (tx) => {
+                await DbProvider.get().$transaction(async (tx: Prisma.TransactionClient) => {
                     const user = await tx.user.findUnique({
                         where: { id: userId },
                         select: { creditSettings: true },

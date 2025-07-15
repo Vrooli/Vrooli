@@ -1,4 +1,5 @@
 import { JOIN_RUN_ROOM_ERRORS, LEAVE_RUN_ROOM_ERRORS } from "@vrooli/shared";
+// AI_CHECK: TYPE_SAFETY=server-phase2-1 | LAST: 2025-07-03 - Added explicit return type annotation
 import { type Socket } from "socket.io";
 import { AuthTokensService } from "../../auth/auth.js";
 import { RequestService } from "../../auth/request.js";
@@ -8,7 +9,7 @@ import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { SocketService } from "../io.js";
 
 /** Socket room for run events */
-export function runSocketRoomHandlers(socket: Socket) {
+export function runSocketRoomHandlers(socket: Socket): void {
     SocketService.get().onSocketEvent(socket, "joinRunRoom", async ({ runId }, callback) => {
         try {
             if (!("session" in socket) || !socket.session || AuthTokensService.isAccessTokenExpired(socket.session)) {

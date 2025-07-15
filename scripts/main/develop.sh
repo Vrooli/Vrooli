@@ -18,6 +18,8 @@ source "${MAIN_DIR}/../helpers/utils/var.sh"
 source "${MAIN_DIR}/../helpers/utils/exit_codes.sh"
 # shellcheck disable=SC1091
 source "${MAIN_DIR}/../helpers/develop/index.sh"
+# shellcheck disable=SC1091
+source "${MAIN_DIR}/../helpers/develop/port_manager.sh"
 
 develop::parse_arguments() {
     args::reset
@@ -66,6 +68,9 @@ develop::main() {
     export TARGET="$saved_target"
     
     setup::main "$@"
+    
+    # Resolve port conflicts before starting services
+    develop::resolve_port_conflicts "$TARGET"
 
     if env::is_location_remote; then
         proxy::setup

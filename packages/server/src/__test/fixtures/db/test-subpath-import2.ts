@@ -1,5 +1,5 @@
 // Test subpath imports from @vrooli/shared
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared/id";
+import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
 
 console.log("Testing /id subpath imports...");
 console.log("generatePK:", typeof generatePK);

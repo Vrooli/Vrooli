@@ -190,6 +190,10 @@ function AwardCard({ award }: { award: AwardDisplay }) {
 
     return (
         <Card
+            data-testid="award-card"
+            data-category={award.category}
+            data-completed={isFullyCompleted}
+            data-progress={percentage}
             sx={{
                 height: "100%",
                 border: isFullyCompleted ? 2 : 1,
@@ -245,11 +249,13 @@ function AwardCard({ award }: { award: AwardDisplay }) {
                             </Typography>
                             <Stack direction="row" spacing={1} flexWrap="wrap">
                                 <Chip
+                                    data-testid="award-status-chip"
                                     label={statusText}
                                     color={statusColor}
                                     size="small"
                                 />
                                 <Chip
+                                    data-testid="award-tier-chip"
                                     label={tierLabel}
                                     variant="outlined"
                                     size="small"
@@ -285,13 +291,14 @@ function AwardCard({ award }: { award: AwardDisplay }) {
                         </Stack>
 
                         <LinearProgress
+                            data-testid="award-progress-bar"
                             variant="determinate"
                             value={percentage}
                             color={progressColor}
                             sx={{
                                 height: 8,
                                 borderRadius: 4,
-                                bgcolor: theme.palette.grey[200],
+                                bgcolor: theme.palette.grey?.[200] || "#f5f5f5",
                             }}
                         />
 
@@ -365,7 +372,7 @@ export function AwardsView(_props: ViewProps) {
     // Count completed and in-progress awards for summary
     const { completedCount, inProgressCount } = useMemo(() => {
         const completed = sortedAwards.filter(a => Boolean(a.earnedTier) && !a.nextTier).length;
-        const inProgress = sortedAwards.filter(a => a.progress > 0 && (Boolean(a.nextTier) || !Boolean(a.earnedTier))).length;
+        const inProgress = sortedAwards.filter(a => a.progress > 0 && (Boolean(a.nextTier) || !a.earnedTier)).length;
         return { completedCount: completed, inProgressCount: inProgress };
     }, [sortedAwards]);
 
@@ -375,24 +382,27 @@ export function AwardsView(_props: ViewProps) {
                 <Navbar title={t("Award", { count: 2 })} />
 
                 {/* Summary header */}
-                <Box sx={{ mb: 4, textAlign: "center" }}>
+                <Box data-testid="awards-summary" sx={{ mb: 4, textAlign: "center" }}>
                     <Typography variant="h4" sx={{ mb: 2 }}>
                         🏆 Your Awards Progress
                     </Typography>
                     <Stack direction="row" spacing={2} justifyContent="center" flexWrap="wrap">
                         <Chip
+                            data-testid="completed-count-chip"
                             label={`${completedCount} Completed`}
                             color="success"
                             variant="outlined"
                             icon={<IconCommon name="CheckCircle" size={18} />}
                         />
                         <Chip
+                            data-testid="in-progress-count-chip"
                             label={`${inProgressCount} In Progress`}
                             color="primary"
                             variant="outlined"
                             icon={<IconCommon name="Timer" size={18} />}
                         />
                         <Chip
+                            data-testid="total-count-chip"
                             label={`${sortedAwards.length} Total`}
                             color="default"
                             variant="outlined"
@@ -402,7 +412,7 @@ export function AwardsView(_props: ViewProps) {
                 </Box>
 
                 {/* Unified awards grid */}
-                <CardGrid minWidth={350}>
+                <CardGrid data-testid="awards-grid" minWidth={350}>
                     {sortedAwards.map((award) => (
                         <AwardCard
                             key={award.category}

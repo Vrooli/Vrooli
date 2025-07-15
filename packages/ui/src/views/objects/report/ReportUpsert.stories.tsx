@@ -4,6 +4,7 @@
 import { endpointsReport, generatePK, getObjectUrl, type Report, type ReportFor } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
+import { getMockUrl, getStoryRouteEditPath } from "../../../__test/helpers/storybookMocking.js";
 import { ReportUpsert } from "./ReportUpsert.js";
 
 // Create simplified mock data for Report responses
@@ -110,13 +111,13 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsReport.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsReport.findOne), () => {
                 return HttpResponse.json({ data: mockReportData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockReportData)}/edit`,
+        path: getStoryRouteEditPath(mockReportData),
     },
 };
 
@@ -134,13 +135,13 @@ UpdateOtherReason.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsReport.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsReport.findOne), () => {
                 return HttpResponse.json({ data: mockOtherReasonReportData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockOtherReasonReportData)}/edit`,
+        path: getStoryRouteEditPath(mockOtherReasonReportData),
     },
 };
 
@@ -158,7 +159,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsReport.findOne.endpoint}`, async () => {
+            http.get(getMockUrl(endpointsReport.findOne), async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockReportData });
@@ -166,7 +167,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockReportData)}/edit`,
+        path: getStoryRouteEditPath(mockReportData),
     },
 };
 

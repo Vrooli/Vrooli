@@ -1,5 +1,6 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
 import { generatePK } from "@vrooli/shared";
-import { type Prisma } from "@prisma/client";
+import { type Prisma, type PrismaClient } from "@prisma/client";
 import { ScheduleExceptionDbFactory as EnhancedScheduleExceptionDbFactory } from "./ScheduleExceptionDbFactory.js";
 
 /**
@@ -258,7 +259,7 @@ export async function seedScheduleExceptions(
 /**
  * Helper to clean up schedule exceptions for testing
  */
-export async function cleanupScheduleExceptions(prisma: any, exceptionIds: string[]) {
+export async function cleanupScheduleExceptions(prisma: PrismaClient, exceptionIds: string[]) {
     return prisma.schedule_exception.deleteMany({
         where: {
             id: {

@@ -29,6 +29,7 @@ export function SelectorBase<T extends string | number | { [x: string]: unknown 
     noneText,
     label,
     disabled = false,
+    placeholder,
     size = "md",
     sxs,
     tabIndex,
@@ -88,6 +89,20 @@ export function SelectorBase<T extends string | number | { [x: string]: unknown 
     }, [options, getOptionLabel, t]);
 
     const renderValue = useCallback(function renderValueCallback(value: string) {
+        // If no value is selected, show placeholder (either provided or default)
+        if (!value) {
+            const placeholderText = placeholder || `${t("Select")}...`;
+            return (
+                <span style={{ 
+                    color: palette.text.secondary, 
+                    fontStyle: "italic",
+                    opacity: 0.7,
+                }}>
+                    {placeholderText}
+                </span>
+            );
+        }
+        
         const option = findOption(value as string);
         if (!exists(option)) return null;
         const labelText = getOptionLabel(option, t) ?? "";
@@ -112,7 +127,7 @@ export function SelectorBase<T extends string | number | { [x: string]: unknown 
                 {/* Note that we omit the description */}
             </div>
         );
-    }, [findOption, getDisplayIcon, getOptionIcon, getOptionLabel, getOptionStyle, palette.background.textSecondary, t]);
+    }, [findOption, getDisplayIcon, getOptionIcon, getOptionLabel, getOptionStyle, palette.background.textSecondary, palette.text.secondary, placeholder, t]);
 
     const handleChange = useCallback((e) => { 
         const found = findOption(e.target.value as string);

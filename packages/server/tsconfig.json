@@ -1,44 +1,36 @@
 {
+    "extends": "../../tsconfig.base.json",
     "compilerOptions": {
-        "target": "ESNext",
         // NOTE: If changing to or from "commonjs", make sure package.json and .swcrc are updated as well
-        "module": "nodenext",
+        "target": "ES2022",
+        "downlevelIteration": true,
         "rootDir": "./src",
         "outDir": "./dist",
         "lib": [
             "DOM",
-            "ESNext",
+            "ESNext"
         ],
-        "allowJs": true,
-        "skipLibCheck": true,
-        "esModuleInterop": true,
-        "allowSyntheticDefaultImports": true,
-        "strict": true,
-        "forceConsistentCasingInFileNames": true,
-        "noFallthroughCasesInSwitch": true,
-        "moduleResolution": "nodenext",
-        "resolveJsonModule": true,
-        "incremental": true,
-        "isolatedModules": true,
         "jsx": "react-jsx",
-        "noImplicitAny": false,
         "noImplicitThis": true,
         "sourceMap": true,
         "strictNullChecks": true,
-        "removeComments": true,
-        "verbatimModuleSyntax": true,
+        "composite": true,
+        "declaration": true,
+        "declarationMap": true,
+        "tsBuildInfoFile": ".tsbuildinfo",
         "types": [
-            "vitest/globals",
+            "vitest/globals"
         ]
     },
     "include": [
-        "src",
+        "src"
     ],
     "exclude": [
+        "**/*.spec.ts",
         "**/*.test.ts",
-        "**/__test",
-        "**/node_modules",
-        "**/dist",
-        "**/.*/",
+        "**/__test/**"
     ],
+    "references": [
+        { "path": "../shared" }
+    ]
 }

@@ -24,7 +24,7 @@ export const issueDbIds = {
 /**
  * Enhanced test fixtures for Issue model following standard structure
  */
-export const issueDbFixtures: DbTestFixtures<Prisma.IssueCreateInput> = {
+export const issueDbFixtures: DbTestFixtures<Prisma.issueCreateInput> = {
     minimal: {
         id: generatePK(),
         publicId: generatePublicId(),
@@ -183,12 +183,12 @@ export const issueDbFixtures: DbTestFixtures<Prisma.IssueCreateInput> = {
 /**
  * Enhanced factory for creating issue database fixtures
  */
-export class IssueDbFactory extends EnhancedDbFactory<Prisma.IssueCreateInput> {
+export class IssueDbFactory extends EnhancedDbFactory<Prisma.issueCreateInput> {
     
     /**
      * Get the test fixtures for Issue model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.IssueCreateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.issueCreateInput> {
         return issueDbFixtures;
     }
 
@@ -240,7 +240,7 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.IssueCreateInput> {
     /**
      * Issue-specific validation
      */
-    protected validateSpecific(data: Prisma.IssueCreateInput): { errors: string[]; warnings: string[] } {
+    protected validateSpecific(data: Prisma.issueCreateInput): { errors: string[]; warnings: string[] } {
         const errors: string[] = [];
         const warnings: string[] = [];
 
@@ -250,7 +250,7 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.IssueCreateInput> {
 
         // Check business logic - should have exactly one target object
         const targetFields = ["api", "code", "note", "project", "routine", "standard", "team"];
-        const connectedTargets = targetFields.filter(field => data[field as keyof Prisma.IssueCreateInput]);
+        const connectedTargets = targetFields.filter(field => data[field as keyof Prisma.issueCreateInput]);
         
         if (connectedTargets.length === 0) {
             warnings.push("Issue should reference a target object");
@@ -272,8 +272,8 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.IssueCreateInput> {
     // Static methods for backward compatibility
     static createMinimal(
         createdById: string,
-        overrides?: Partial<Prisma.IssueCreateInput>,
-    ): Prisma.IssueCreateInput {
+        overrides?: Partial<Prisma.issueCreateInput>,
+    ): Prisma.issueCreateInput {
         const factory = new IssueDbFactory();
         return factory.createMinimal({
             createdBy: { connect: { id: createdById } },
@@ -285,8 +285,8 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.IssueCreateInput> {
         createdById: string,
         objectId: string,
         objectType: string,
-        overrides?: Partial<Prisma.IssueCreateInput>,
-    ): Prisma.IssueCreateInput {
+        overrides?: Partial<Prisma.issueCreateInput>,
+    ): Prisma.issueCreateInput {
         const base = this.createMinimal(createdById, overrides);
         
         // Add the appropriate connection based on object type
@@ -309,8 +309,8 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.IssueCreateInput> {
     static createWithTranslations(
         createdById: string,
         translations: Array<{ language: string; name: string; description: string }>,
-        overrides?: Partial<Prisma.IssueCreateInput>,
-    ): Prisma.IssueCreateInput {
+        overrides?: Partial<Prisma.issueCreateInput>,
+    ): Prisma.issueCreateInput {
         return {
             ...this.createMinimal(createdById, overrides),
             translations: {
@@ -327,8 +327,8 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.IssueCreateInput> {
     static createWithLabels(
         createdById: string,
         labelIds: string[],
-        overrides?: Partial<Prisma.IssueCreateInput>,
-    ): Prisma.IssueCreateInput {
+        overrides?: Partial<Prisma.issueCreateInput>,
+    ): Prisma.issueCreateInput {
         return {
             ...this.createMinimal(createdById, overrides),
             labels: {
@@ -358,7 +358,7 @@ export async function seedIssues(
     let targetedCount = 0;
 
     for (let i = 0; i < count; i++) {
-        let issueData: Prisma.IssueCreateInput;
+        let issueData: Prisma.issueCreateInput;
 
         if (options.forObject) {
             issueData = IssueDbFactory.createForObject(

@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=fixed-api-schema-types | LAST: 2025-06-28
 import $RefParser from "@apidevtools/json-schema-ref-parser";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
@@ -6,12 +7,10 @@ import Chip from "@mui/material/Chip";
 import Collapse from "@mui/material/Collapse";
 import Container from "@mui/material/Container";
 import Grid from "@mui/material/Grid";
-import { IconButton } from "../../../components/buttons/IconButton.js";
 import LinearProgress from "@mui/material/LinearProgress";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
-import { Tooltip } from "../../../components/Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
 import { BookmarkFor, CodeLanguage, getTranslation, type ResourceList as ResourceListType, type ResourceVersion, type Tag } from "@vrooli/shared";
@@ -19,7 +18,9 @@ import yaml from "js-yaml";
 import { useCallback, useContext, useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../../components/Page/Page.js";
+import { Tooltip } from "../../../components/Tooltip/Tooltip.js";
 import { BookmarkButton } from "../../../components/buttons/BookmarkButton.js";
+import { IconButton } from "../../../components/buttons/IconButton.js";
 import { ReportsLink } from "../../../components/buttons/ReportsLink.js";
 import { ShareButton } from "../../../components/buttons/ShareButton.js";
 import { ObjectActionMenu } from "../../../components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
@@ -39,14 +40,14 @@ import { ScrollBox } from "../../../styles.js";
 import { placeholderColor } from "../../../utils/display/listTools.js";
 import { firstString } from "../../../utils/display/stringTools.js";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "../../../utils/display/translationTools.js";
-import { type ApiViewProps } from "./types.js";
+import { type ApiEndpoint, type ApiParameter, type ApiRequestParams, type ApiResponseData, type ApiSchema, type ApiViewProps } from "./types.js";
 
 /**
  * Function to parse and process API schemas in JSON or YAML format
  * Supports OpenAPI/Swagger, AsyncAPI, and other schema formats
  * Handles schema references ($ref) through json-schema-ref-parser
  */
-const parseOpenAPISchema = async (schemaText: string): Promise<any> => {
+async function parseOpenAPISchema(schemaText: string): Promise<ApiSchema | null> {
     try {
         if (!schemaText || typeof schemaText !== "string") {
             console.error("Invalid schema text provided");
@@ -97,12 +98,12 @@ const parseOpenAPISchema = async (schemaText: string): Promise<any> => {
         console.error("Failed to process schema:", error);
         return null;
     }
-};
+}
 
 /**
  * Identifies the type of API schema (OpenAPI/Swagger, AsyncAPI, etc.)
  */
-const identifySchemaType = (schema: any): string => {
+function identifySchemaType(schema: ApiSchema): string {
     if (!schema) return "Unknown";
 
     if (schema.openapi) {
@@ -116,113 +117,140 @@ const identifySchemaType = (schema: any): string => {
     } else {
         return "Generic API Schema";
     }
-};
+}
 
 // Function to extract endpoints from parsed schema
-const extractEndpoints = (schema: any): Array<{
-    method: string;
-    path: string;
-    summary: string;
-    description?: string;
-    parameters?: any[];
-    responses?: any;
-}> => {
+function extractEndpoints(schema: ApiSchema): ApiEndpoint[] {
     // Return empty array if schema is not valid
     if (!schema) return [];
 
-    const endpoints: Array<{
-        method: string;
-        path: string;
-        summary: string;
-        description?: string;
-        parameters?: any[];
-        responses?: any;
-    }> = [];
+    const endpoints: ApiEndpoint[] = [];
 
     // Handle OpenAPI/Swagger format
     if (schema.paths) {
         // Loop through all paths and methods
-        Object.entries(schema.paths).forEach(([path, pathObj]: [string, any]) => {
-            Object.entries(pathObj).forEach(([method, methodObj]: [string, any]) => {
-                // Only include HTTP methods, not parameters like parameters, servers, etc.
-                if (["get", "post", "put", "delete", "patch", "options", "head"].includes(method.toLowerCase())) {
-                    endpoints.push({
-                        path,
-                        method: method.toUpperCase(),
-                        summary: methodObj.summary || "",
-                        description: methodObj.description,
-                        parameters: methodObj.parameters,
-                        responses: methodObj.responses,
-                    });
-                }
-            });
+        Object.entries(schema.paths).forEach(([path, pathObj]) => {
+            if (typeof pathObj === "object" && pathObj !== null) {
+                Object.entries(pathObj).forEach(([method, methodObj]) => {
+                    // Only include HTTP methods, not parameters like parameters, servers, etc.
+                    if (["get", "post", "put", "delete", "patch", "options", "head"].includes(method.toLowerCase()) &&
+                        typeof methodObj === "object" && methodObj !== null) {
+                        const operation = methodObj as {
+                            summary?: string;
+                            description?: string;
+                            parameters?: ApiParameter[];
+                            responses?: Record<string, unknown>
+                        };
+                        endpoints.push({
+                            path,
+                            method: method.toUpperCase(),
+                            summary: operation.summary || "",
+                            description: operation.description,
+                            parameters: operation.parameters,
+                            responses: operation.responses,
+                        });
+                    }
+                });
+            }
         });
     }
 
     // Handle AsyncAPI format
     else if (schema.channels) {
         // Loop through all channels
-        Object.entries(schema.channels).forEach(([path, channelObj]: [string, any]) => {
+        Object.entries(schema.channels).forEach(([path, channelObj]) => {
             // Check for publish operations (subscriber perspective)
-            if (channelObj.publish) {
-                endpoints.push({
-                    path,
-                    method: "SUBSCRIBE",
-                    summary: channelObj.publish.summary || "",
-                    description: channelObj.publish.description,
-                    parameters: extractAsyncApiParameters(channelObj),
-                    responses: {
-                        "message": {
-                            description: "Received message",
-                            payload: channelObj.publish.message?.payload,
+            if (typeof channelObj === "object" && channelObj !== null && "publish" in channelObj) {
+                const channel = channelObj as { publish?: { summary?: string; description?: string; message?: { payload?: unknown } } };
+                if (channel.publish) {
+                    endpoints.push({
+                        path,
+                        method: "SUBSCRIBE",
+                        summary: channel.publish.summary || "",
+                        description: channel.publish.description,
+                        parameters: extractAsyncApiParameters(channelObj),
+                        responses: {
+                            "message": {
+                                description: "Received message",
+                                payload: channel.publish.message?.payload,
+                            },
                         },
-                    },
-                });
+                    });
+                }
             }
 
             // Check for subscribe operations (publisher perspective)
-            if (channelObj.subscribe) {
-                endpoints.push({
-                    path,
-                    method: "PUBLISH",
-                    summary: channelObj.subscribe.summary || "",
-                    description: channelObj.subscribe.description,
-                    parameters: extractAsyncApiParameters(channelObj),
-                    responses: {
-                        "message": {
-                            description: "Published message",
-                            payload: channelObj.subscribe.message?.payload,
+            if (typeof channelObj === "object" && channelObj !== null && "subscribe" in channelObj) {
+                const channel = channelObj as { subscribe?: { summary?: string; description?: string; message?: { payload?: unknown } } };
+                if (channel.subscribe) {
+                    endpoints.push({
+                        path,
+                        method: "PUBLISH",
+                        summary: channel.subscribe.summary || "",
+                        description: channel.subscribe.description,
+                        parameters: extractAsyncApiParameters(channelObj),
+                        responses: {
+                            "message": {
+                                description: "Published message",
+                                payload: channel.subscribe.message?.payload,
+                            },
                         },
-                    },
-                });
+                    });
+                }
             }
         });
     }
 
     return endpoints;
-};
+}
 
 /**
  * Helper function to extract parameters from AsyncAPI channels
  */
-const extractAsyncApiParameters = (channelObj: any): any[] => {
-    const parameters: any[] = [];
+function extractAsyncApiParameters(channelObj: unknown): ApiParameter[] {
+    const parameters: ApiParameter[] = [];
 
     // Extract parameters from channel parameters
-    if (channelObj.parameters) {
-        Object.entries(channelObj.parameters).forEach(([name, paramObj]: [string, any]) => {
-            parameters.push({
-                name,
-                in: "path",
-                description: paramObj.description,
-                required: true,
-                schema: paramObj.schema,
+    if (typeof channelObj === "object" && channelObj !== null && "parameters" in channelObj) {
+        const channel = channelObj as { parameters?: Record<string, unknown> };
+        const channelParams = channel.parameters;
+        if (typeof channelParams === "object" && channelParams !== null) {
+            Object.entries(channelParams).forEach(([name, paramObj]) => {
+                if (typeof paramObj === "object" && paramObj !== null) {
+                    const param = paramObj as { description?: unknown; schema?: unknown };
+                    parameters.push({
+                        name,
+                        in: "path" as const,
+                        description: typeof param.description === "string" ? param.description : undefined,
+                        required: true,
+                        schema: param.schema as Record<string, unknown> | undefined,
+                    });
+                }
             });
-        });
+        }
     }
 
     return parameters;
-};
+}
+
+const GRID_SIZES = {
+    FULL_WIDTH: 12,
+    HALF_WIDTH: 6,
+} as const;
+
+const ICON_SIZES = {
+    AVATAR_XS: 80,
+    AVATAR_SM: 100,
+    ICON_AVATAR_XS: 40,
+    ICON_AVATAR_SM: 50,
+    ICON_STANDARD: 80,
+    ICON_SMALL: 20,
+    ICON_TINY: 16,
+} as const;
+
+const UI_CONSTANTS = {
+    MAX_ENDPOINTS_HEIGHT: 500,
+} as const;
 
 export function ApiView({
     display,
@@ -238,20 +266,13 @@ export function ApiView({
 
     // State for schema type and endpoints
     const [schemaType, setSchemaType] = useState<string>("Unknown");
-    const [parsedEndpoints, setParsedEndpoints] = useState<Array<{
-        method: string;
-        path: string;
-        summary: string;
-        description?: string;
-        parameters?: any[];
-        responses?: any;
-    }>>([]);
+    const [parsedEndpoints, setParsedEndpoints] = useState<ApiEndpoint[]>([]);
     const [expandedEndpoint, setExpandedEndpoint] = useState<number | null>(null);
-    const [selectedEndpoint, setSelectedEndpoint] = useState<any>(null);
-    const [requestParams, setRequestParams] = useState<Record<string, string>>({});
-    const [responseData, setResponseData] = useState<any>(null);
+    const [selectedEndpoint, setSelectedEndpoint] = useState<ApiEndpoint | null>(null);
+    const [requestParams, setRequestParams] = useState<ApiRequestParams>({});
+    const [responseData, setResponseData] = useState<ApiResponseData | null>(null);
 
-    const { id, isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useManagedObject<ResourceVersion>({ pathname });
+    const { isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useManagedObject<ResourceVersion>({ pathname });
 
     const availableLanguages = useMemo<string[]>(() => (apiVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [apiVersion?.translations]);
     useEffect(() => {
@@ -280,7 +301,7 @@ export function ApiView({
         if (!schemaText) return;
 
         // Create async function to use inside useEffect
-        const parseSchema = async () => {
+        async function parseSchema() {
             try {
                 // Call the async parse function
                 const parsedSchema = await parseOpenAPISchema(schemaText);
@@ -295,7 +316,7 @@ export function ApiView({
             } catch (error) {
                 console.error("Error parsing schema:", error);
             }
-        };
+        }
 
         // Call the async function
         parseSchema();
@@ -304,24 +325,18 @@ export function ApiView({
     const resources = useMemo(() => (resourceList || permissions.canUpdate) ? (
         <ResourceList
             horizontal
-            list={resourceList as any}
+            list={resourceList ?? undefined}
             canUpdate={permissions.canUpdate}
-            handleUpdate={(updatedList) => {
-                if (!apiVersion) return;
-                setApiVersion({
-                    ...apiVersion,
-                    resourceList: updatedList,
-                });
-            }}
+            handleUpdate={handleResourceListUpdate}
             loading={isLoading}
             mutate={true}
             parent={{ __typename: "ApiVersion", id: apiVersion?.id ?? "" }}
         />
-    ) : null, [resourceList, permissions.canUpdate, isLoading, apiVersion, setApiVersion]);
+    ) : null, [resourceList, permissions.canUpdate, handleResourceListUpdate, isLoading, apiVersion?.id]);
 
     // More menu
-    const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
-    const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
+    const [moreMenuAnchor, setMoreMenuAnchor] = useState<HTMLElement | null>(null);
+    const openMoreMenu = useCallback((ev: MouseEvent<HTMLElement>) => {
         setMoreMenuAnchor(ev.currentTarget);
         ev.preventDefault();
     }, []);
@@ -335,19 +350,19 @@ export function ApiView({
     });
 
     // Function to execute an API request
-    const executeRequest = async (endpoint: any, params: Record<string, string>) => {
+    const executeRequest = useCallback(async (endpoint: ApiEndpoint, params: ApiRequestParams) => {
         if (!callLink) return;
 
         try {
             setResponseData({ loading: true });
 
             // Build the URL with path parameters
-            let url = new URL(callLink).origin;
+            const _url = new URL(callLink).origin;
             let path = endpoint.path;
 
             // Replace path parameters with values from requestParams
             if (endpoint.parameters) {
-                endpoint.parameters.forEach((param: any) => {
+                endpoint.parameters.forEach((param) => {
                     if (param.in === "path" && params[param.name]) {
                         path = path.replace(`{${param.name}}`, params[param.name]);
                     }
@@ -359,7 +374,7 @@ export function ApiView({
             // Add query parameters
             const queryParams = new URLSearchParams();
             if (endpoint.parameters) {
-                endpoint.parameters.forEach((param: any) => {
+                endpoint.parameters.forEach((param) => {
                     if (param.in === "query" && params[param.name]) {
                         queryParams.append(param.name, params[param.name]);
                     }
@@ -371,6 +386,7 @@ export function ApiView({
             }
 
             // Mock response for now - in a real implementation, this would make an actual API call
+            const MOCK_DELAY_MS = 1000;
             setTimeout(() => {
                 setResponseData({
                     status: 200,
@@ -384,14 +400,14 @@ export function ApiView({
                         params,
                     },
                 });
-            }, 1000);
+            }, MOCK_DELAY_MS);
         } catch (error) {
             setResponseData({
                 error: true,
                 message: error instanceof Error ? error.message : "Unknown error",
             });
         }
-    };
+    }, [callLink]);
 
     // Check if we can extract a valid URL from the callLink
     const isValidUrl = useMemo(() => {
@@ -409,6 +425,131 @@ export function ApiView({
         return apiVersion?.root?.tags || [];
     }, [apiVersion?.root?.tags]);
 
+    // Memoized style objects
+    const headerBoxStyle = useMemo(() => ({
+        background: palette.mode === "light" ? "#b2b3b3" : "#303030",
+        paddingY: 3,
+        position: "relative" as const,
+    }), [palette.mode]);
+
+    const avatarStyle = useMemo(() => ({
+        backgroundColor: profileColors[0],
+        color: profileColors[1],
+        boxShadow: 2,
+        width: { xs: ICON_SIZES.AVATAR_XS, sm: ICON_SIZES.AVATAR_SM },
+        height: { xs: ICON_SIZES.AVATAR_XS, sm: ICON_SIZES.AVATAR_SM },
+        fontSize: { xs: ICON_SIZES.ICON_AVATAR_XS, sm: ICON_SIZES.ICON_AVATAR_SM },
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        "& svg": {
+            width: "85%",
+            height: "85%",
+        },
+    }), [profileColors]);
+
+    const paperStyle = useMemo(() => ({
+        backgroundColor: palette.mode === "light" ? "#f5f7fa" : "#1e1e1e",
+        p: 3,
+        borderRadius: 2,
+    }), [palette.mode]);
+
+    const endpointsPaperStyle = useMemo(() => ({
+        ...paperStyle,
+        overflow: "auto",
+        maxHeight: UI_CONSTANTS.MAX_ENDPOINTS_HEIGHT,
+    }), [paperStyle]);
+
+    // More memoized styles
+    const stackStyle = useMemo(() => ({ cursor: "pointer", alignItems: "center" }), []);
+    const monoFontStyle = useMemo(() => ({ fontFamily: "monospace", flex: 1 }), []);
+    const endpointTestHeaderStyle = useMemo(() => ({
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        mb: 2,
+    }), []);
+    const langSelectorBoxStyle = useMemo(() => ({
+        position: "absolute" as const,
+        top: 8,
+        right: 8,
+    }), []);
+    const linearProgressStyle = useMemo(() => ({ width: "50%" }), []);
+    const colorTextSecondaryStyle = useMemo(() => ({ color: "text.secondary", mt: 0 }), []);
+    const mb1Style = useMemo(() => ({ mb: 1 }), []);
+    const mb1ColorSecondaryStyle = useMemo(() => ({ mb: 1, color: "text.secondary" }), []);
+    const ml10Mt1Style = useMemo(() => ({ ml: 10, mt: 1 }), []);
+    const ml2Style = useMemo(() => ({ ml: 2 }), []);
+    const mt1Style = useMemo(() => ({ mt: 1 }), []);
+    const mt2Style = useMemo(() => ({ mt: 2 }), []);
+    const mt3Style = useMemo(() => ({ mt: 3 }), []);
+    const mt4Style = useMemo(() => ({ mt: 4 }), []);
+    const m2Style = useMemo(() => ({ m: 2 }), []);
+    const monospaceStyle = useMemo(() => ({ fontFamily: "monospace" }), []);
+
+    // Create a function to get method color style
+    const getMethodColorStyle = useCallback((method: string) => ({
+        color: getMethodColor(method, palette.mode),
+        width: 80,
+        display: "inline-block",
+        fontFamily: "monospace",
+    }), [palette.mode]);
+
+    // Create endpoint divider style function
+    const getEndpointDividerStyle = useCallback((index: number, length: number) => ({
+        borderBottom: index < length - 1 ? `1px solid ${palette.divider}` : "none",
+        pb: 2,
+    }), [palette.divider]);
+
+    // Memoized handlers
+    const handleExpandEndpoint = useCallback((index: number) => {
+        setExpandedEndpoint(expandedEndpoint === index ? null : index);
+    }, [expandedEndpoint]);
+
+    const handleSelectEndpoint = useCallback((endpoint: ApiEndpoint) => {
+        setSelectedEndpoint(endpoint);
+        setRequestParams({});
+        setResponseData(null);
+    }, []);
+
+    const handleCloseEndpoint = useCallback(() => {
+        setSelectedEndpoint(null);
+    }, []);
+
+    const handleResourceListUpdate = useCallback((updatedList: ResourceListType) => {
+        if (!apiVersion) return;
+        setApiVersion({
+            ...apiVersion,
+            resourceList: updatedList,
+        });
+    }, [apiVersion, setApiVersion]);
+
+    const handleBookmarkChange = useCallback(() => {
+        // Bookmark change is handled internally by BookmarkButton
+    }, []);
+
+    const handleCodeLanguageChange = useCallback(() => {
+        // Language change is disabled for this read-only view
+    }, []);
+
+    const handleContentChange = useCallback(() => {
+        // Content change is disabled for this read-only view
+    }, []);
+
+    const handleRequestParamChange = useCallback((paramName: string, value: string) => {
+        setRequestParams({
+            ...requestParams,
+            [paramName]: value,
+        });
+    }, [requestParams]);
+
+    const handleFormSubmit = useCallback((e: React.FormEvent) => {
+        e.preventDefault();
+        if (selectedEndpoint) {
+            executeRequest(selectedEndpoint, requestParams);
+        }
+    }, [selectedEndpoint, requestParams, executeRequest]);
+
     return (
         <PageContainer size="fullSize">
             <ScrollBox>
@@ -422,22 +563,14 @@ export function ApiView({
                 <ObjectActionMenu
                     actionData={actionData}
                     anchorEl={moreMenuAnchor}
-                    object={apiVersion as any}
+                    object={apiVersion}
                     onClose={closeMoreMenu}
                 />
 
                 {/* Top section with API icon, title, and metadata */}
-                <Box sx={{
-                    background: palette.mode === "light" ? "#b2b3b3" : "#303030",
-                    paddingY: 3,
-                    position: "relative",
-                }}>
+                <Box sx={headerBoxStyle}>
                     {/* Language selector */}
-                    <Box
-                        position="absolute"
-                        top={8}
-                        right={8}
-                    >
+                    <Box sx={langSelectorBoxStyle}>
                         {availableLanguages.length > 1 && <SelectLanguageMenu
                             currentLanguage={language}
                             handleCurrent={setLanguage}
@@ -451,7 +584,7 @@ export function ApiView({
                             {isValidUrl && callLink ? (
                                 <IconFavicon
                                     href={callLink}
-                                    size={80}
+                                    size={ICON_SIZES.ICON_STANDARD}
                                     fallbackIcon={{ name: "Api", type: "Common" }}
                                     decorative
                                     style={{
@@ -460,27 +593,13 @@ export function ApiView({
                                 />
                             ) : (
                                 <Avatar
-                                    sx={{
-                                        backgroundColor: profileColors[0],
-                                        color: profileColors[1],
-                                        boxShadow: 2,
-                                        width: { xs: 80, sm: 100 },
-                                        height: { xs: 80, sm: 100 },
-                                        fontSize: { xs: 40, sm: 50 },
-                                        display: "flex",
-                                        justifyContent: "center",
-                                        alignItems: "center",
-                                        "& svg": {
-                                            width: "85%",
-                                            height: "85%",
-                                        },
-                                    }}
+                                    sx={avatarStyle}
                                 >
                                     <IconCommon
                                         decorative
                                         fill="white"
                                         name="Api"
-                                        size={80}
+                                        size={ICON_SIZES.ICON_STANDARD}
                                     />
                                 </Avatar>
                             )}
@@ -488,7 +607,7 @@ export function ApiView({
                             {/* API Title and Metadata */}
                             <Stack flex={1} spacing={1}>
                                 {isLoading ? (
-                                    <LinearProgress color="inherit" sx={{ width: "50%" }} />
+                                    <LinearProgress color="inherit" sx={linearProgressStyle} />
                                 ) : (
                                     <>
                                         <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -525,7 +644,7 @@ export function ApiView({
                                                     <IconCommon
                                                         decorative
                                                         name="Visible"
-                                                        size={20}
+                                                        size={ICON_SIZES.ICON_SMALL}
                                                         fill={palette.background.textSecondary}
                                                     />
                                                     <Typography variant="body1" fontWeight="bold">
@@ -538,7 +657,7 @@ export function ApiView({
                                                     <IconRoutine
                                                         decorative
                                                         name="Routine"
-                                                        size={20}
+                                                        size={ICON_SIZES.ICON_SMALL}
                                                         fill={palette.background.textSecondary}
                                                     />
                                                     <Typography variant="body1" fontWeight="bold">
@@ -580,7 +699,7 @@ export function ApiView({
                                                 bookmarkFor={BookmarkFor.Api}
                                                 isBookmarked={apiVersion?.root?.you?.isBookmarked ?? false}
                                                 bookmarks={apiVersion?.root?.bookmarks ?? 0}
-                                                onChange={(isBookmarked: boolean) => { }}
+                                                onChange={handleBookmarkChange}
                                             />
                                         </Stack>
                                     </>
@@ -593,14 +712,10 @@ export function ApiView({
                 <Container maxWidth="lg">
                     {/* Details Section */}
                     {details && (
-                        <Box mt={4}>
+                        <Box sx={mt4Style}>
                             <Paper
                                 elevation={0}
-                                sx={{
-                                    backgroundColor: palette.mode === "light" ? "#f5f7fa" : "#1e1e1e",
-                                    p: 3,
-                                    borderRadius: 2,
-                                }}
+                                sx={paperStyle}
                             >
                                 <MarkdownDisplay content={details} />
                             </Paper>
@@ -608,7 +723,7 @@ export function ApiView({
                     )}
 
                     {resources && (
-                        <Box mt={4} m={2}>
+                        <Box sx={{ ...mt4Style, ...m2Style }}>
                             <Typography variant="h5" component="h2" fontWeight="bold" mb={2}>
                                 Resources
                             </Typography>
@@ -618,8 +733,8 @@ export function ApiView({
                     {/* On desktop: Schema and Endpoints side by side. On mobile: Stacked */}
                     <Grid container spacing={4} mt={4} mb={4}>
                         {/* Schema Section using CodeInputBase */}
-                        <Grid item xs={12} md={isMobile ? 12 : 6}>
-                            <Stack direction="row" spacing={2} alignItems="center" mb={2}>
+                        <Grid item xs={GRID_SIZES.FULL_WIDTH} md={isMobile ? GRID_SIZES.FULL_WIDTH : GRID_SIZES.HALF_WIDTH}>
+                            <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
                                 <Typography variant="h5" component="h2" fontWeight="bold">
                                     Schema
                                 </Typography>
@@ -636,27 +751,21 @@ export function ApiView({
                                     codeLanguage={schemaLanguage || CodeLanguage.Yaml}
                                     content={schemaText || ""}
                                     disabled={true}
-                                    handleCodeLanguageChange={() => { }}
-                                    handleContentChange={() => { }}
+                                    handleCodeLanguageChange={handleCodeLanguageChange}
+                                    handleContentChange={handleContentChange}
                                     name="schema"
                                 />
                             )}
                         </Grid>
 
                         {/* Endpoints Section */}
-                        <Grid item xs={12} md={isMobile ? 12 : 6}>
+                        <Grid item xs={GRID_SIZES.FULL_WIDTH} md={isMobile ? GRID_SIZES.FULL_WIDTH : GRID_SIZES.HALF_WIDTH}>
                             <Typography variant="h5" component="h2" fontWeight="bold" mb={2}>
                                 Endpoints
                             </Typography>
                             <Paper
                                 elevation={0}
-                                sx={{
-                                    backgroundColor: palette.mode === "light" ? "#f5f7fa" : "#1e1e1e",
-                                    p: 3,
-                                    borderRadius: 2,
-                                    overflow: "auto",
-                                    maxHeight: 500,
-                                }}
+                                sx={endpointsPaperStyle}
                             >
                                 {isLoading ? (
                                     <LinearProgress color="inherit" />
@@ -665,50 +774,42 @@ export function ApiView({
                                         {parsedEndpoints.map((endpoint, index) => (
                                             <Box
                                                 key={index}
-                                                sx={{
-                                                    borderBottom: index < parsedEndpoints.length - 1 ? `1px solid ${palette.divider}` : "none",
-                                                    pb: 2,
-                                                }}
+                                                sx={getEndpointDividerStyle(index, parsedEndpoints.length)}
                                             >
                                                 <Stack
                                                     direction="row"
                                                     spacing={1}
-                                                    onClick={() => setExpandedEndpoint(expandedEndpoint === index ? null : index)}
-                                                    sx={{ cursor: "pointer", alignItems: "center" }}
+                                                    onClick={() => handleExpandEndpoint(index)}
+                                                    sx={stackStyle}
                                                 >
                                                     <Box
                                                         component="span"
-                                                        sx={{
-                                                            color: getMethodColor(endpoint.method, palette.mode),
-                                                            width: 80,
-                                                            display: "inline-block",
-                                                            fontFamily: "monospace",
-                                                        }}
+                                                        sx={getMethodColorStyle(endpoint.method)}
                                                     >
                                                         {endpoint.method}
                                                     </Box>
-                                                    <Typography variant="body1" component="span" sx={{ fontFamily: "monospace", flex: 1 }}>
+                                                    <Typography variant="body1" component="span" sx={monoFontStyle}>
                                                         {endpoint.path}
                                                     </Typography>
                                                     <IconButton size="small">
                                                         <IconCommon
                                                             name={expandedEndpoint === index ? "ArrowDropUp" : "ArrowDropDown"}
                                                             decorative
-                                                            size={16}
+                                                            size={ICON_SIZES.ICON_TINY}
                                                         />
                                                     </IconButton>
                                                 </Stack>
 
                                                 <Collapse in={expandedEndpoint === index}>
-                                                    <Box sx={{ ml: 10, mt: 1 }}>
+                                                    <Box sx={ml10Mt1Style}>
                                                         {endpoint.summary && (
-                                                            <Typography variant="body2" sx={{ mb: 1 }}>
+                                                            <Typography variant="body2" sx={mb1Style}>
                                                                 {endpoint.summary}
                                                             </Typography>
                                                         )}
 
                                                         {endpoint.description && (
-                                                            <Typography variant="body2" sx={{ mb: 1, color: "text.secondary" }}>
+                                                            <Typography variant="body2" sx={mb1ColorSecondaryStyle}>
                                                                 {endpoint.description}
                                                             </Typography>
                                                         )}
@@ -716,7 +817,7 @@ export function ApiView({
                                                         {endpoint.parameters && endpoint.parameters.length > 0 && (
                                                             <>
                                                                 <Typography variant="subtitle2" sx={{ mt: 1 }}>Parameters:</Typography>
-                                                                {endpoint.parameters.map((param: any, pIndex: number) => (
+                                                                {endpoint.parameters.map((param, pIndex: number) => (
                                                                     <Typography key={pIndex} variant="body2" sx={{ ml: 2 }}>
                                                                         <Box component="span" sx={{ fontWeight: "bold" }}>{param.name}</Box>
                                                                         {param.required && <Box component="span" sx={{ color: "error.main" }}> (required)</Box>}
@@ -729,7 +830,7 @@ export function ApiView({
                                                         {endpoint.responses && Object.keys(endpoint.responses).length > 0 && (
                                                             <>
                                                                 <Typography variant="subtitle2" sx={{ mt: 1 }}>Responses:</Typography>
-                                                                {Object.entries(endpoint.responses).map(([code, response]: [string, any], rIndex: number) => (
+                                                                {Object.entries(endpoint.responses).map(([code, response], rIndex: number) => (
                                                                     <Typography key={rIndex} variant="body2" sx={{ ml: 2 }}>
                                                                         <Box component="span" sx={{ fontWeight: "bold" }}>{code}</Box>
                                                                         {response.description && ` - ${response.description}`}
@@ -744,9 +845,7 @@ export function ApiView({
                                                             sx={{ mt: 2 }}
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                setSelectedEndpoint(endpoint);
-                                                                setRequestParams({});
-                                                                setResponseData(null);
+                                                                handleSelectEndpoint(endpoint);
                                                             }}
                                                         >
                                                             Try it
@@ -766,11 +865,11 @@ export function ApiView({
                                         </Typography>
                                         <Box component="ul" sx={{ color: "text.secondary", mt: 0 }}>
                                             <li>The schema format is not recognized (supported: OpenAPI, Swagger, AsyncAPI)</li>
-                                            <li>The schema doesn't contain any path or channel definitions</li>
+                                            <li>The schema doesn&apos;t contain any path or channel definitions</li>
                                             <li>The schema contains syntax errors or invalid references</li>
                                         </Box>
                                         <Typography variant="body2" color="text.secondary" align="center">
-                                            Check the schema content and format to ensure it's valid.
+                                            Check the schema content and format to ensure it&apos;s valid.
                                         </Typography>
                                     </Stack>
                                 )}
@@ -780,20 +879,15 @@ export function ApiView({
                             {selectedEndpoint && (
                                 <Paper
                                     elevation={0}
-                                    sx={{
-                                        backgroundColor: palette.mode === "light" ? "#f5f7fa" : "#1e1e1e",
-                                        p: 3,
-                                        borderRadius: 2,
-                                        mt: 3,
-                                    }}
+                                    sx={{ ...paperStyle, mt: 3 }}
                                 >
                                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
                                         <Typography variant="h6">Test Endpoint</Typography>
                                         <IconButton
                                             size="small"
-                                            onClick={() => setSelectedEndpoint(null)}
+                                            onClick={handleCloseEndpoint}
                                         >
-                                            <IconCommon name="Close" size={16} decorative />
+                                            <IconCommon name="Close" size={ICON_SIZES.ICON_TINY} decorative />
                                         </IconButton>
                                     </Box>
                                     <Typography
@@ -808,11 +902,8 @@ export function ApiView({
                                         {selectedEndpoint.method} {selectedEndpoint.path}
                                     </Typography>
 
-                                    <form onSubmit={(e) => {
-                                        e.preventDefault();
-                                        executeRequest(selectedEndpoint, requestParams);
-                                    }}>
-                                        {selectedEndpoint.parameters?.filter((p: any) => p.in === "path" || p.in === "query").map((param: any, index: number) => (
+                                    <form onSubmit={handleFormSubmit}>
+                                        {selectedEndpoint.parameters?.filter((p) => p.in === "path" || p.in === "query").map((param, index: number) => (
                                             <TextField
                                                 key={index}
                                                 label={`${param.name}${param.required ? " *" : ""}`}
@@ -820,10 +911,7 @@ export function ApiView({
                                                 size="small"
                                                 fullWidth
                                                 margin="dense"
-                                                onChange={(e) => setRequestParams({
-                                                    ...requestParams,
-                                                    [param.name]: e.target.value,
-                                                })}
+                                                onChange={(e) => handleRequestParamChange(param.name, e.target.value)}
                                                 helperText={param.description}
                                                 required={param.required}
                                                 value={requestParams[param.name] || ""}
@@ -847,8 +935,8 @@ export function ApiView({
                                                 codeLanguage={CodeLanguage.Json}
                                                 content={JSON.stringify(responseData, null, 2)}
                                                 disabled={true}
-                                                handleCodeLanguageChange={() => { }}
-                                                handleContentChange={() => { }}
+                                                handleCodeLanguageChange={handleCodeLanguageChange}
+                                                handleContentChange={handleContentChange}
                                                 name="response"
                                             />
                                         </Box>

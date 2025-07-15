@@ -1,5 +1,6 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
 import { generatePK } from "@vrooli/shared";
-import { type Prisma } from "@prisma/client";
+import { type Prisma, type PrismaClient } from "@prisma/client";
 
 /**
  * Database fixtures for Plan model - used for seeding subscription test data
@@ -20,7 +21,7 @@ export const planDbIds = {
 /**
  * Basic user plan
  */
-export const basicUserPlanDb: Prisma.PlanCreateInput = {
+export const basicUserPlanDb: Prisma.planCreateInput = {
     id: planDbIds.userBasic,
     enabledAt: new Date(),
     expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
@@ -32,7 +33,7 @@ export const basicUserPlanDb: Prisma.PlanCreateInput = {
 /**
  * Premium user plan with trial history
  */
-export const premiumUserPlanDb: Prisma.PlanCreateInput = {
+export const premiumUserPlanDb: Prisma.planCreateInput = {
     id: planDbIds.userPremium,
     enabledAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Started 7 days ago
     expiresAt: new Date(Date.now() + 23 * 24 * 60 * 60 * 1000), // 23 days remaining
@@ -45,7 +46,7 @@ export const premiumUserPlanDb: Prisma.PlanCreateInput = {
 /**
  * Team basic plan
  */
-export const basicTeamPlanDb: Prisma.PlanCreateInput = {
+export const basicTeamPlanDb: Prisma.planCreateInput = {
     id: planDbIds.teamBasic,
     enabledAt: new Date(),
     expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
@@ -57,7 +58,7 @@ export const basicTeamPlanDb: Prisma.PlanCreateInput = {
 /**
  * Team premium plan with custom features
  */
-export const premiumTeamPlanDb: Prisma.PlanCreateInput = {
+export const premiumTeamPlanDb: Prisma.planCreateInput = {
     id: planDbIds.teamPremium,
     enabledAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // Started 15 days ago
     expiresAt: new Date(Date.now() + 345 * 24 * 60 * 60 * 1000), // ~11 months remaining
@@ -78,7 +79,7 @@ export const premiumTeamPlanDb: Prisma.PlanCreateInput = {
 /**
  * Expired plan
  */
-export const expiredPlanDb: Prisma.PlanCreateInput = {
+export const expiredPlanDb: Prisma.planCreateInput = {
     id: planDbIds.expired,
     enabledAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000), // Started 60 days ago
     expiresAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // Expired 5 days ago
@@ -91,7 +92,7 @@ export const expiredPlanDb: Prisma.PlanCreateInput = {
 /**
  * Trial plan (not yet converted)
  */
-export const trialPlanDb: Prisma.PlanCreateInput = {
+export const trialPlanDb: Prisma.planCreateInput = {
     id: planDbIds.trial,
     receivedFreeTrialAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // Trial started 3 days ago
     user: {
@@ -102,7 +103,7 @@ export const trialPlanDb: Prisma.PlanCreateInput = {
 /**
  * Custom enterprise plan
  */
-export const customEnterprisePlanDb: Prisma.PlanCreateInput = {
+export const customEnterprisePlanDb: Prisma.planCreateInput = {
     id: planDbIds.custom,
     enabledAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Started 30 days ago
     expiresAt: new Date(Date.now() + 335 * 24 * 60 * 60 * 1000), // ~11 months remaining
@@ -142,7 +143,7 @@ export class PlanDbFactory {
     /**
      * Create minimal plan
      */
-    static createMinimal(overrides?: Partial<Prisma.PlanCreateInput>): Prisma.PlanCreateInput {
+    static createMinimal(overrides?: Partial<Prisma.planCreateInput>): Prisma.planCreateInput {
         return {
             id: generatePK(),
             enabledAt: new Date(),
@@ -157,8 +158,8 @@ export class PlanDbFactory {
     static createUserPlan(
         userId: bigint,
         durationDays = 30,
-        overrides?: Partial<Prisma.PlanCreateInput>,
-    ): Prisma.PlanCreateInput {
+        overrides?: Partial<Prisma.planCreateInput>,
+    ): Prisma.planCreateInput {
         return {
             id: generatePK(),
             enabledAt: new Date(),
@@ -174,8 +175,8 @@ export class PlanDbFactory {
     static createTeamPlan(
         teamId: bigint,
         durationDays = 30,
-        overrides?: Partial<Prisma.PlanCreateInput>,
-    ): Prisma.PlanCreateInput {
+        overrides?: Partial<Prisma.planCreateInput>,
+    ): Prisma.planCreateInput {
         return {
             id: generatePK(),
             enabledAt: new Date(),
@@ -191,8 +192,8 @@ export class PlanDbFactory {
     static createTrial(
         userId: bigint,
         trialStartDaysAgo = 0,
-        overrides?: Partial<Prisma.PlanCreateInput>,
-    ): Prisma.PlanCreateInput {
+        overrides?: Partial<Prisma.planCreateInput>,
+    ): Prisma.planCreateInput {
         return {
             id: generatePK(),
             receivedFreeTrialAt: new Date(Date.now() - trialStartDaysAgo * 24 * 60 * 60 * 1000),
@@ -207,8 +208,8 @@ export class PlanDbFactory {
     static createExpired(
         userId: bigint,
         expiredDaysAgo = 5,
-        overrides?: Partial<Prisma.PlanCreateInput>,
-    ): Prisma.PlanCreateInput {
+        overrides?: Partial<Prisma.planCreateInput>,
+    ): Prisma.planCreateInput {
         return {
             id: generatePK(),
             enabledAt: new Date(Date.now() - (expiredDaysAgo + 30) * 24 * 60 * 60 * 1000),
@@ -226,8 +227,8 @@ export class PlanDbFactory {
         entityType: "user" | "team",
         features: string[],
         limits: Record<string, any>,
-        overrides?: Partial<Prisma.PlanCreateInput>,
-    ): Prisma.PlanCreateInput {
+        overrides?: Partial<Prisma.planCreateInput>,
+    ): Prisma.planCreateInput {
         const customPlan = JSON.stringify({
             features,
             limits,
@@ -255,7 +256,7 @@ export class PlanDbFactory {
 /**
  * Seed basic plan scenarios for testing
  */
-export async function seedTestPlans(db: any) {
+export async function seedTestPlans(db: PrismaClient) {
     // Create users and teams first
     const user1 = await db.user.create({
         data: {

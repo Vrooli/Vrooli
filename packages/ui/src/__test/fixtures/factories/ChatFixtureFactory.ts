@@ -19,14 +19,20 @@ import type {
 import { 
     chatValidation,
     shapeChat,
-    ChatType,
 } from "@vrooli/shared";
+
+// Define ChatType locally since it's not exported from shared
+export enum ChatType {
+    DIRECT = "DIRECT",
+    GROUP = "GROUP", 
+    CHANNEL = "CHANNEL",
+}
 import type { 
     FixtureFactory, 
     ValidationResult, 
     MSWHandlers,
 } from "../types.js";
-import { rest } from "msw";
+import { http, HttpResponse } from "msw";
 
 /**
  * UI-specific form data for chat creation
@@ -93,7 +99,7 @@ export class ChatFixtureFactory implements FixtureFactory<
             case "minimal":
                 return {
                     name: "Test Chat",
-                    chatType: ChatType.Direct,
+                    chatType: ChatType.DIRECT,
                     isPrivate: false,
                     participantIds: [this.generateId()],
                 };
@@ -102,7 +108,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                 return {
                     name: "Complete Test Chat",
                     description: "A comprehensive chat with all fields filled",
-                    chatType: ChatType.Group,
+                    chatType: ChatType.GROUP,
                     isPrivate: false,
                     participantIds: [this.generateId(), this.generateId(), this.generateId()],
                     welcomeMessage: "Welcome to our test chat! Feel free to ask questions.",
@@ -119,7 +125,7 @@ export class ChatFixtureFactory implements FixtureFactory<
             case "directMessage":
                 return {
                     name: "Direct Message",
-                    chatType: ChatType.Direct,
+                    chatType: ChatType.DIRECT,
                     isPrivate: true,
                     participantIds: [this.generateId()],
                 };
@@ -128,7 +134,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                 return {
                     name: "Group Chat",
                     description: "A group chat for collaboration",
-                    chatType: ChatType.Group,
+                    chatType: ChatType.GROUP,
                     isPrivate: false,
                     participantIds: [this.generateId(), this.generateId(), this.generateId(), this.generateId()],
                     welcomeMessage: "Welcome to the group!",
@@ -138,7 +144,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                 return {
                     name: "Team Discussion",
                     description: "Official team communication channel",
-                    chatType: ChatType.Group,
+                    chatType: ChatType.GROUP,
                     isPrivate: false,
                     teamId: this.generateId(),
                     participantIds: [],
@@ -148,7 +154,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                 return {
                     name: "Private Discussion",
                     description: "Invite-only private chat",
-                    chatType: ChatType.Group,
+                    chatType: ChatType.GROUP,
                     isPrivate: true,
                     participantIds: [this.generateId(), this.generateId()],
                 };
@@ -157,7 +163,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                 return {
                     name: "Community Chat",
                     description: "Large community discussion",
-                    chatType: ChatType.Group,
+                    chatType: ChatType.GROUP,
                     isPrivate: false,
                     participantIds: Array.from({ length: 20 }, () => this.generateId()),
                 };
@@ -176,7 +182,7 @@ export class ChatFixtureFactory implements FixtureFactory<
             __typename: "Chat" as const,
             id: this.generateId(),
             name: formData.name,
-            chatType: formData.chatType || ChatType.Direct,
+            chatType: formData.chatType || ChatType.DIRECT,
             isPrivate: formData.isPrivate || false,
             team: formData.teamId ? { id: formData.teamId } : null,
             translations: formData.description ? [{
@@ -235,7 +241,7 @@ export class ChatFixtureFactory implements FixtureFactory<
             __typename: "Chat",
             id: chatId,
             name: "Test Chat",
-            chatType: ChatType.Direct,
+            chatType: ChatType.DIRECT,
             createdAt: now,
             updatedAt: now,
             isPrivate: false,
@@ -361,7 +367,7 @@ export class ChatFixtureFactory implements FixtureFactory<
             await chatValidation.create.validate(apiInput, { abortEarly: false });
             
             // Additional validation for chat-specific rules
-            if (formData.chatType === ChatType.Direct && formData.participantIds && formData.participantIds.length > 1) {
+            if (formData.chatType === ChatType.DIRECT && formData.participantIds && formData.participantIds.length > 1) {
                 return {
                     isValid: false,
                     errors: ["Direct messages can only have one other participant"],
@@ -396,19 +402,16 @@ export class ChatFixtureFactory implements FixtureFactory<
         return {
             success: [
                 // Create chat
-                rest.post(`${baseUrl}/api/chat`, async (req, res, ctx) => {
-                    const body = await req.json();
+                http.post(`${baseUrl}/api/chat`, async ({ request }) => {
+                    const body = await request.json() as ChatFormData;
                     
                     // Validate the request body
                     const validation = await this.validateFormData(body);
                     if (!validation.isValid) {
-                        return res(
-                            ctx.status(400),
-                            ctx.json({ 
-                                errors: validation.errors,
-                                fieldErrors: validation.fieldErrors, 
-                            }),
-                        );
+                        return HttpResponse.json({ 
+                            errors: validation.errors,
+                            fieldErrors: validation.fieldErrors, 
+                        }, { status: 400 });
                     }
 
                     // Return successful response
@@ -418,16 +421,13 @@ export class ChatFixtureFactory implements FixtureFactory<
                         isPrivate: body.isPrivate,
                     });
 
-                    return res(
-                        ctx.status(201),
-                        ctx.json(mockChat),
-                    );
+                    return HttpResponse.json(mockChat, { status: 201 });
                 }),
 
                 // Update chat
-                rest.put(`${baseUrl}/api/chat/:id`, async (req, res, ctx) => {
-                    const { id } = req.params;
-                    const body = await req.json();
+                http.put(`${baseUrl}/api/chat/:id`, async ({ request, params }) => {
+                    const { id } = params;
+                    const body = await request.json() as Partial<ChatFormData>;
 
                     const mockChat = this.createMockResponse({ 
                         id: id as string,
@@ -435,92 +435,69 @@ export class ChatFixtureFactory implements FixtureFactory<
                         updatedAt: new Date().toISOString(),
                     });
 
-                    return res(
-                        ctx.status(200),
-                        ctx.json(mockChat),
-                    );
+                    return HttpResponse.json(mockChat, { status: 200 });
                 }),
 
                 // Get chat
-                rest.get(`${baseUrl}/api/chat/:id`, (req, res, ctx) => {
-                    const { id } = req.params;
+                http.get(`${baseUrl}/api/chat/:id`, ({ params }) => {
+                    const { id } = params;
                     const mockChat = this.createMockResponse({ id: id as string });
                     
-                    return res(
-                        ctx.status(200),
-                        ctx.json(mockChat),
-                    );
+                    return HttpResponse.json(mockChat, { status: 200 });
                 }),
 
                 // Get user's chats
-                rest.get(`${baseUrl}/api/chats`, (req, res, ctx) => {
+                http.get(`${baseUrl}/api/chats`, () => {
                     const chats = [
                         this.createMockResponse(),
                         this.createMockResponse({ 
                             name: "Team Chat",
-                            chatType: ChatType.Group, 
+                            chatType: ChatType.GROUP, 
                         }),
                     ];
                     
-                    return res(
-                        ctx.status(200),
-                        ctx.json({ data: chats }),
-                    );
+                    return HttpResponse.json({ data: chats }, { status: 200 });
                 }),
 
                 // Delete chat
-                rest.delete(`${baseUrl}/api/chat/:id`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(204),
-                    );
+                http.delete(`${baseUrl}/api/chat/:id`, () => {
+                    return new HttpResponse(null, { status: 204 });
                 }),
             ],
 
             error: [
-                rest.post(`${baseUrl}/api/chat`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(400),
-                        ctx.json({ 
-                            message: "Invalid chat configuration",
-                            code: "INVALID_CHAT", 
-                        }),
-                    );
+                http.post(`${baseUrl}/api/chat`, () => {
+                    return HttpResponse.json({ 
+                        message: "Invalid chat configuration",
+                        code: "INVALID_CHAT", 
+                    }, { status: 400 });
                 }),
 
-                rest.put(`${baseUrl}/api/chat/:id`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(403),
-                        ctx.json({ 
-                            message: "You do not have permission to update this chat",
-                            code: "PERMISSION_DENIED", 
-                        }),
-                    );
+                http.put(`${baseUrl}/api/chat/:id`, () => {
+                    return HttpResponse.json({ 
+                        message: "You do not have permission to update this chat",
+                        code: "PERMISSION_DENIED", 
+                    }, { status: 403 });
                 }),
 
-                rest.get(`${baseUrl}/api/chat/:id`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(404),
-                        ctx.json({ 
-                            message: "Chat not found",
-                            code: "CHAT_NOT_FOUND", 
-                        }),
-                    );
+                http.get(`${baseUrl}/api/chat/:id`, () => {
+                    return HttpResponse.json({ 
+                        message: "Chat not found",
+                        code: "CHAT_NOT_FOUND", 
+                    }, { status: 404 });
                 }),
             ],
 
             loading: [
-                rest.post(`${baseUrl}/api/chat`, (req, res, ctx) => {
-                    return res(
-                        ctx.delay(2000), // 2 second delay
-                        ctx.status(201),
-                        ctx.json(this.createMockResponse()),
-                    );
+                http.post(`${baseUrl}/api/chat`, async () => {
+                    await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+                    return HttpResponse.json(this.createMockResponse(), { status: 201 });
                 }),
             ],
 
             networkError: [
-                rest.post(`${baseUrl}/api/chat`, (req, res, ctx) => {
-                    return res.networkError("Network connection failed");
+                http.post(`${baseUrl}/api/chat`, () => {
+                    return HttpResponse.error();
                 }),
             ],
         };
@@ -575,7 +552,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                     isTyping: [],
                     unreadCount: 0,
                     canSendMessage: true,
-                    canInviteMembers: chat.chatType === ChatType.Group,
+                    canInviteMembers: chat.chatType === ChatType.GROUP,
                 };
 
             case "typing":
@@ -590,7 +567,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                     isTyping: data?.typingUsers || [this.generateId()],
                     unreadCount: 0,
                     canSendMessage: true,
-                    canInviteMembers: typingChat.chatType === ChatType.Group,
+                    canInviteMembers: typingChat.chatType === ChatType.GROUP,
                 };
 
             case "empty":
@@ -656,7 +633,7 @@ export class ChatFixtureFactory implements FixtureFactory<
         }));
 
         return this.createMockResponse({
-            chatType: ChatType.Group,
+            chatType: ChatType.GROUP,
             participants,
             participantsCount: participantCount,
         });
@@ -668,7 +645,7 @@ export class ChatFixtureFactory implements FixtureFactory<
     createTeamChat(teamId: string, teamName = "Test Team"): Chat {
         return this.createMockResponse({
             name: `${teamName} Chat`,
-            chatType: ChatType.Group,
+            chatType: ChatType.GROUP,
             team: {
                 __typename: "Team",
                 id: teamId,

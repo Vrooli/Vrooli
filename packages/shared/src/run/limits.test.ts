@@ -56,7 +56,7 @@ describe("RunLimitsManager", () => {
                 expect(result).toBe(RunStatusChangeReason.MaxTime);
                 expect(mockRun.status).toBe(RunStatus.Failed);
                 expect(mockLogger.error).toHaveBeenCalledWith(
-                    expect.stringContaining("Run test-run-123 reached time limit")
+                    expect.stringContaining("Run test-run-123 reached time limit"),
                 );
             });
 
@@ -122,7 +122,7 @@ describe("RunLimitsManager", () => {
                 expect(result).toBe(RunStatusChangeReason.MaxCredits);
                 expect(mockRun.status).toBe(RunStatus.Failed);
                 expect(mockLogger.error).toHaveBeenCalledWith(
-                    expect.stringContaining("Run test-run-123 reached credits limit")
+                    expect.stringContaining("Run test-run-123 reached credits limit"),
                 );
             });
 
@@ -222,7 +222,7 @@ describe("RunLimitsManager", () => {
                 expect(result).toBe(RunStatusChangeReason.MaxSteps);
                 expect(mockRun.status).toBe(RunStatus.Failed);
                 expect(mockLogger.error).toHaveBeenCalledWith(
-                    expect.stringContaining("Run test-run-123 reached steps limit")
+                    expect.stringContaining("Run test-run-123 reached steps limit"),
                 );
             });
 
@@ -452,7 +452,7 @@ describe("RunLimitsManager", () => {
             limitsManager.checkLimits(mockRun, runLimits, startTime);
 
             expect(mockLogger.error).toHaveBeenCalledWith(
-                expect.stringContaining("checkLimits: Run test-run-123 reached time limit")
+                expect.stringContaining("checkLimits: Run test-run-123 reached time limit"),
             );
         });
 
@@ -467,7 +467,7 @@ describe("RunLimitsManager", () => {
             limitsManager.checkLimits(mockRun, runLimits, startTime);
 
             expect(mockLogger.error).toHaveBeenCalledWith(
-                expect.stringContaining("checkLimits: Run test-run-123 reached credits limit")
+                expect.stringContaining("checkLimits: Run test-run-123 reached credits limit"),
             );
         });
 
@@ -482,7 +482,7 @@ describe("RunLimitsManager", () => {
             limitsManager.checkLimits(mockRun, runLimits, startTime);
 
             expect(mockLogger.error).toHaveBeenCalledWith(
-                expect.stringContaining("checkLimits: Run test-run-123 reached steps limit")
+                expect.stringContaining("checkLimits: Run test-run-123 reached steps limit"),
             );
         });
 

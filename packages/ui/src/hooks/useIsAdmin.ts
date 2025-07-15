@@ -1,3 +1,4 @@
+import { SEEDED_PUBLIC_IDS } from "@vrooli/shared";
 import { useContext } from "react";
 import { SessionContext } from "../contexts/session.js";
 
@@ -8,23 +9,29 @@ import { SessionContext } from "../contexts/session.js";
 export function useIsAdmin() {
     const session = useContext(SessionContext);
 
-    // Check if current user is admin
-    // This checks if the current user ID matches the admin ID from the seeded data
+    // Handle case where session context is not yet initialized
+    if (!session) {
+        return {
+            isAdmin: false,
+            loading: true,
+            adminUser: null,
+            userId: null,
+        };
+    }
+
+    // Check if current user is admin by comparing publicId with the seeded admin ID
+    const currentUser = session.users?.[0];
     const isAdmin = Boolean(
         session.isLoggedIn &&
-        session.users &&
-        session.users.length > 0 &&
-        session.users.some(user => user.isAdmin === true),
+        currentUser &&
+        currentUser.publicId === SEEDED_PUBLIC_IDS.Admin,
     );
-
-    // Get admin user data if available
-    const adminUser = session.users?.find(user => user.isAdmin === true);
 
     return {
         isAdmin,
-        loading: session.loading,
-        adminUser: isAdmin ? adminUser : null,
-        userId: session.users?.[0]?.id || null,
+        loading: false, // Session doesn't have a loading property
+        adminUser: isAdmin ? currentUser : null,
+        userId: currentUser?.id || null,
     };
 }
 
@@ -33,7 +40,7 @@ export function useIsAdmin() {
  * This can be extended later for more granular admin permissions
  */
 export function useAdminPermissions() {
-    const { isAdmin, adminUser } = useIsAdmin();
+    const { isAdmin } = useIsAdmin();
 
     return {
         canManageUsers: isAdmin,

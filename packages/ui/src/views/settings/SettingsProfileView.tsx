@@ -86,8 +86,7 @@ function SettingsProfileForm({
         handle: values.handle,
         profileImage: values.profileImage,
         bannerImage: values.bannerImage,
-        updatedAt: values.updatedAt,
-    }), [values.id, values.name, values.handle, values.profileImage, values.bannerImage, values.updatedAt]);
+    }), [values.id, values.name, values.handle, values.profileImage, values.bannerImage]);
 
     return (
         <OuterForm display={display}>
@@ -177,7 +176,7 @@ export function SettingsProfileView({
             bio: "",
         }],
         updatedAt: profile?.updatedAt ?? null, // Used for cache busting on profile image
-    } as SettingsProfileFormInput), [profile, session]);
+    }), [profile, session]);
 
     // Form submission handler
     const handleSubmit = useCallback((values: SettingsProfileFormInput, helpers: FormikHelpers<SettingsProfileFormInput>) => {
@@ -222,7 +221,6 @@ export function SettingsProfileView({
                             <SettingsProfileForm
                                 display={display}
                                 isLoading={isProfileLoading || isUpdating}
-                                numVerifiedWallets={profile?.wallets?.filter(w => w.verifiedAt)?.length ?? 0}
                                 onCancel={formik.resetForm}
                                 {...formik}
                             />

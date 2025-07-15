@@ -1,5 +1,7 @@
 import { type Pathname } from "./useLocation.js";
 
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-01 - Fixed 4 'any' type assertions with proper types
+
 export interface DefaultParams {
     [paramName: string]: string;
 }
@@ -36,7 +38,7 @@ export default function makeMatcher(makeRegexpFn: (pattern: string) => PatternTo
         if (!out) return [false, null];
 
         // formats an object with matched params
-        const params = keys.reduce((params: any, key: any, i: number) => {
+        const params = keys.reduce((params: Record<string, string>, key: { name: string | number }, i: number) => {
             params[key.name] = out[i + 1];
             return params;
         }, {});
@@ -51,13 +53,13 @@ const escapeRx = (str: string) => str.replace(/([.+*?=^!:${}()[\]|/\\])/g, "\\$1
 
 // returns a segment representation in RegExp based on flags
 // adapted and simplified version from path-to-regexp sources
-const rxForSegment = (repeat: any, optional: any, prefix: any) => {
+const rxForSegment = (repeat: boolean, optional: boolean, prefix: number) => {
     let capture = repeat ? "((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*)" : "([^\\/]+?)";
     if (optional && prefix) capture = "(?:\\/" + capture + ")";
     return capture + (optional ? "?" : "");
 };
 
-const pathToRegexp = (pattern: any) => {
+const pathToRegexp = (pattern: string): PatternToRegexpResult => {
     const groupRx = /:([A-Za-z0-9_]+)([?+*]?)/g;
 
     let match: RegExpExecArray | null = null,

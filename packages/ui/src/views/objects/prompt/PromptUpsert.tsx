@@ -2,19 +2,19 @@ import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
 import Grid from "@mui/material/Grid";
 import { useTheme } from "@mui/material/styles";
-import { CodeLanguage, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, ResourceSubType, endpointsResource, noopSubmit, orDefault, shapeResourceVersion, resourceVersionTranslationValidation, resourceVersionValidation, type FormSchema, type Session, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionShape, type ResourceVersionUpdateInput } from "@vrooli/shared";
+import { CodeLanguage, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, ResourceSubType, endpointsResource, noopSubmit, orDefault, promptFormConfig, type FormElement, type FormSchema, type Session, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionShape, type ResourceVersionUpdateInput } from "@vrooli/shared";
 import { Formik, useField } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useSubmitHelper } from "../../../api/fetchWrapper.js";
 import { AutoFillButton } from "../../../components/buttons/AutoFillButton.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
 import { SearchExistingButton } from "../../../components/buttons/SearchExistingButton.js";
 import { ContentCollapse } from "../../../components/containers/ContentCollapse.js";
-import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
+import { Dialog } from "../../../components/dialogs/Dialog/Dialog.js";
+import { useIsMobile } from "../../../hooks/useIsMobile.js";
 import { CodeInputBase } from "../../../components/inputs/CodeInput/CodeInput.js";
 import { LanguageInput } from "../../../components/inputs/LanguageInput/LanguageInput.js";
-import { TranslatedRichInput } from "../../../components/inputs/RichInput/RichInput.js";
+import { TranslatedAdvancedInput } from "../../../components/inputs/AdvancedInput/AdvancedInput.js";
 import { TagSelector } from "../../../components/inputs/TagSelector/TagSelector.js";
 import { TranslatedTextInput } from "../../../components/inputs/TextInput/TextInput.js";
 import { VersionInput } from "../../../components/inputs/VersionInput/VersionInput.js";
@@ -24,11 +24,9 @@ import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { FormView } from "../../../forms/FormView/FormView.js";
-import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { getAutoFillTranslationData, useAutoFill, type UseAutoFillProps } from "../../../hooks/tasks.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
-import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
-import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
+import { useStandardUpsertForm } from "../../../hooks/useStandardUpsertForm.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { FormContainer, FormSection } from "../../../styles.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
@@ -45,9 +43,10 @@ function defaultSchemaInput(): FormSchema {
     };
 }
 
+// AI_CHECK: TYPE_SAFETY=prompt-upsert-parse-schema | LAST: 2025-06-30 - Fixed parseSchema inputs parameter from 'any' to 'unknown' with proper type assertion
 // Parse schema from props.inputs into FormSchema
 function parseSchema(
-    inputs: any,
+    inputs: unknown,
     defaultFn: () => FormSchema,
     logger: Console,
     label: string,
@@ -57,13 +56,23 @@ function parseSchema(
             return defaultFn();
         }
         return {
-            elements: inputs,
+            elements: inputs as FormElement[],
             layout: "column",
         };
     } catch (error) {
         logger.error(`Error parsing ${label}:`, error);
         return defaultFn();
     }
+}
+
+export function transformPromptVersionValues(
+    values: ResourceVersionShape,
+    existing?: ResourceVersionShape,
+    isCreate?: boolean,
+): ResourceVersionCreateInput | ResourceVersionUpdateInput {
+    return isCreate 
+        ? values as ResourceVersionCreateInput
+        : values as ResourceVersionUpdateInput;
 }
 
 export function promptInitialValues(
@@ -109,9 +118,6 @@ export function promptInitialValues(
     };
 }
 
-function transformPromptVersionValues(values: ResourceVersionShape, existing: ResourceVersionShape, isCreate: boolean) {
-    return isCreate ? shapeResourceVersion.create(values) : shapeResourceVersion.update(existing, values);
-}
 
 //TODO
 const exampleStandardJavaScript = [`
@@ -187,55 +193,59 @@ function PromptForm({
     existing,
     handleUpdate,
     isCreate,
+    isMutate,
     isOpen,
     isReadLoading,
+    onCancel,
     onClose,
+    onCompleted,
+    onDeleted,
     values,
     versions,
     ...props
 }: PromptFormProps) {
-    const session = useContext(SessionContext);
     const { t } = useTranslation();
     const theme = useTheme();
     const { dimensions, ref } = useDimensions<HTMLDivElement>();
     const isStacked = dimensions.width < theme.breakpoints.values.lg;
-
-    // Handle translations
-    const {
-        handleAddLanguage,
-        handleDeleteLanguage,
-        language,
-        languages,
-        setLanguage,
-        translationErrors,
-    } = useTranslatedFields({
-        defaultLanguage: getUserLanguages(session)[0],
-        validationSchema: resourceVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
-    });
+    const isMobile = useIsMobile();
 
     const resourceListParent = useMemo(function resourceListParentMemo() {
         return { __typename: "ResourceVersion", id: values.id } as const;
     }, [values]);
 
-    const { handleCancel, handleCompleted } = useUpsertActions<ResourceVersion>({
-        display,
-        isCreate,
-        objectId: values.id,
-        objectType: "ResourceVersion",
-        rootObjectId: values.root?.id,
-        ...props,
-    });
+    // Use the standardized form hook
     const {
-        fetch,
-        isCreateLoading,
-        isUpdateLoading,
-    } = useUpsertFetch<ResourceVersion, ResourceVersionCreateInput, ResourceVersionUpdateInput>({
+        session,
+        isLoading,
+        handleCancel,
+        handleCompleted,
+        onSubmit,
+        language,
+        languages,
+        handleAddLanguage,
+        handleDeleteLanguage,
+        setLanguage,
+        translationErrors,
+    } = useStandardUpsertForm({
+        ...promptFormConfig,
+        rootObjectType: "Resource",
+    }, {
+        values,
+        existing,
         isCreate,
-        isMutate: true,
-        endpointCreate: endpointsResource.createOne,
-        endpointUpdate: endpointsResource.updateOne,
+        display,
+        disabled,
+        isMutate,
+        isReadLoading,
+        isSubmitting: props.isSubmitting,
+        handleUpdate,
+        setSubmitting: props.setSubmitting,
+        onCancel,
+        onCompleted,
+        onDeleted,
+        onClose,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "ResourceVersion" });
 
     const getAutoFillInput = useCallback(function getAutoFillInput() {
         return {
@@ -257,26 +267,17 @@ function PromptForm({
         task: isCreate ? LlmTask.StandardAdd : LlmTask.StandardUpdate,
     });
 
-    const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
-
-    const onSubmit = useSubmitHelper<ResourceVersionCreateInput | ResourceVersionUpdateInput, ResourceVersion>({
-        disabled,
-        existing,
-        fetch,
-        inputs: transformPromptVersionValues(values, existing, isCreate),
-        isCreate,
-        onSuccess: (data) => { handleCompleted(data); },
-        onCompleted: () => { props.setSubmitting(false); },
-    });
+    const finalIsLoading = useMemo(() => isAutoFillLoading || isLoading, [isAutoFillLoading, isLoading]);
 
 
-    const [codeLanguageField, , codeLanguageHelpers] = useField<StandardVersion["codeLanguage"]>("codeLanguage");
-    const [propsField, , propsHelpers] = useField<StandardVersion["props"]>("props");
+    const [codeLanguageField, , codeLanguageHelpers] = useField<CodeLanguage>("codeLanguage");
+    const [propsField, , propsHelpers] = useField<string>("config.props");
 
     const [outputFunction, setOutputFunction] = useState<string>();
     useEffect(function setOutputFunctionEffect() {
         try {
-            const props = JSON.parse(propsField.value);
+            const propsStr = typeof propsField.value === "string" ? propsField.value : JSON.stringify(propsField.value);
+            const props = JSON.parse(propsStr);
             setOutputFunction(typeof props.output === "string" ? props.output : "");
         } catch (error) {
             console.error("Error setting output function", error);
@@ -285,7 +286,8 @@ function PromptForm({
 
     const schemaInput = useMemo(function schemeInputMemo() {
         try {
-            const props = JSON.parse(propsField.value);
+            const propsStr = typeof propsField.value === "string" ? propsField.value : JSON.stringify(propsField.value);
+            const props = JSON.parse(propsStr);
             return parseSchema(props.inputs, defaultSchemaInput, console, "Prompt input");
         } catch (error) {
             console.error("Error parsing schema", error);
@@ -294,7 +296,8 @@ function PromptForm({
     }, [propsField.value]);
     const onSchemaInputChange = useCallback(function onSchemaInputChange(schema: FormSchema) {
         try {
-            const props = JSON.parse(propsField.value);
+            const propsStr = typeof propsField.value === "string" ? propsField.value : JSON.stringify(propsField.value);
+            const props = JSON.parse(propsStr);
             props.inputs = schema.elements;
             propsHelpers.setValue(JSON.stringify(props));
         } catch (error) {
@@ -310,13 +313,13 @@ function PromptForm({
         propsHelpers.setValue(JSON.stringify(exampleProps));
     }, [propsHelpers]);
 
-    return (
-        <MaybeLargeDialog
-            display={display}
-            id="prompt-upsert-dialog"
-            isOpen={isOpen}
-            onClose={onClose}
-        >
+    if (display === "Page" || isMobile) {
+        return (
+            <Dialog
+                isOpen={isOpen}
+                onClose={onClose}
+                size="full"
+            >
             <TopBar
                 display={display}
                 onClose={onClose}
@@ -328,7 +331,7 @@ function PromptForm({
             />
             <BaseForm
                 display={display}
-                isLoading={isLoading}
+                isLoading={finalIsLoading}
                 maxWidth={700}
                 ref={ref}
             >
@@ -355,12 +358,10 @@ function PromptForm({
                                         name="name"
                                         placeholder={t("NamePlaceholder")}
                                     />
-                                    <TranslatedRichInput
+                                    <TranslatedAdvancedInput
                                         language={language}
                                         name="description"
-                                        maxChars={2048}
-                                        minRows={4}
-                                        maxRows={8}
+                                        features={{ maxChars: 2048, minRowsCollapsed: 4, maxRowsCollapsed: 8 }}
                                         placeholder={t("DescriptionPlaceholder")}
                                     />
                                     <LanguageInput
@@ -421,7 +422,7 @@ function PromptForm({
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 hideButtons={disabled}
                 isCreate={isCreate}
-                loading={isLoading}
+                loading={finalIsLoading}
                 onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
@@ -430,30 +431,151 @@ function PromptForm({
                     isAutoFillLoading={isAutoFillLoading}
                 />}
             />
-        </MaybeLargeDialog >
+            </Dialog>
+        );
+    }
+    return (
+        <Dialog
+            isOpen={isOpen}
+            onClose={onClose}
+            size="lg"
+        >
+            <TopBar
+                display={display}
+                onClose={onClose}
+                title={t(isCreate ? "CreatePrompt" : "UpdatePrompt")}
+            />
+            <SearchExistingButton
+                href={`${LINKS.Search}?type="${SearchPageTabOption.Prompt}"`}
+                text="Search existing prompts"
+            />
+            <BaseForm
+                display={display}
+                isLoading={finalIsLoading}
+                maxWidth={700}
+                ref={ref}
+            >
+                <FormContainer>
+                    <Grid container spacing={2}>
+                        <Grid item xs={12} lg={isStacked ? 12 : 6}>
+                            <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
+                                <RelationshipList
+                                    isEditing={true}
+                                    objectType={"Standard"}
+                                    sx={relationshipListStyle}
+                                />
+                                <ResourceListInput
+                                    horizontal
+                                    isCreate={true}
+                                    parent={resourceListParent}
+                                    sxs={resourceListStyle}
+                                />
+                                <FormSection sx={formSectionStyle}>
+                                    <TranslatedTextInput
+                                        fullWidth
+                                        label={t("Name")}
+                                        language={language}
+                                        name="name"
+                                        placeholder={t("NamePlaceholder")}
+                                    />
+                                    <TranslatedAdvancedInput
+                                        language={language}
+                                        name="description"
+                                        features={{ maxChars: 2048, minRowsCollapsed: 4, maxRowsCollapsed: 8 }}
+                                        placeholder={t("DescriptionPlaceholder")}
+                                    />
+                                    <LanguageInput
+                                        currentLanguage={language}
+                                        flexDirection="row-reverse"
+                                        handleAdd={handleAddLanguage}
+                                        handleDelete={handleDeleteLanguage}
+                                        handleCurrent={setLanguage}
+                                        languages={languages}
+                                    />
+                                </FormSection>
+                                <TagSelector name="root.tags" sx={{ marginBottom: 2 }} />
+                                <VersionInput
+                                    fullWidth
+                                    versions={versions}
+                                    sx={{ marginBottom: 2 }}
+                                />
+                            </ContentCollapse>
+                        </Grid>
+                        <Grid item xs={12} lg={isStacked ? 12 : 6}>
+                            <ContentCollapse helpText={"Specify inputs for building the prompt."} title={t("Input", { count: schemaInput.elements.length })} isOpen={!disabled} titleVariant="h4">
+                                <FormView
+                                    disabled={disabled}
+                                    isEditing={true}
+                                    onSchemaChange={onSchemaInputChange}
+                                    schema={schemaInput}
+                                />
+                            </ContentCollapse>
+                            <Divider sx={dividerStyle} />
+                            <ContentCollapse helpText={"Define a function that combines the input values into a single output string.\n\nIf not provided or invalid, the output will be a list of the input values in the order of the form."} title={t("Output", { count: 1 })} isOpen={!disabled} titleVariant="h4" toTheRight={
+                                <Button
+                                    variant="outlined"
+                                    onClick={showExample}
+                                    startIcon={<IconCommon name="Help" />}
+                                    sx={exampleButtonStyle}
+                                >
+                                    Show example
+                                </Button>
+                            } sxs={codeCollapseStyle}>
+                                <CodeInputBase
+                                    codeLanguage={codeLanguageField.value as CodeLanguage}
+                                    content={outputFunction || ""}
+                                    defaultValue={undefined}
+                                    format={undefined}
+                                    handleCodeLanguageChange={codeLanguageHelpers.setValue}
+                                    handleContentChange={setOutputFunction}
+                                    limitTo={codeLimitTo}
+                                    name="output"
+                                    variables={undefined}
+                                />
+                            </ContentCollapse>
+                        </Grid>
+                    </Grid>
+                </FormContainer>
+            </BaseForm>
+            <BottomActionsButtons
+                display={display}
+                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                hideButtons={disabled}
+                isCreate={isCreate}
+                loading={finalIsLoading}
+                onCancel={handleCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={onSubmit}
+                sideActionButtons={<AutoFillButton
+                    handleAutoFill={autoFill}
+                    isAutoFillLoading={isAutoFillLoading}
+                />}
+            />
+        </Dialog>
     );
 }
 
 export function PromptUpsert({
     display,
     isCreate,
+    isMutate,
     isOpen,
     overrideObject,
     ...props
 }: PromptUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<StandardVersion, StandardVersionShape>({
-        ...endpointsStandardVersion.findOne,
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<ResourceVersion, ResourceVersionShape>({
+        ...endpointsResource.findOne,
         disabled: display === "Dialog" && isOpen !== true,
         isCreate,
-        objectType: "StandardVersion",
+        objectType: "ResourceVersion",
         overrideObject,
         transform: (existing) => promptInitialValues(session, existing),
     });
 
-    async function validateValues(values: StandardVersionShape) {
-        return await validateFormValues(values, existing, isCreate, transformPromptVersionValues, standardVersionValidation);
+    async function validateValues(values: ResourceVersionShape) {
+        return await validateFormValues(values, existing, isCreate, promptFormConfig.transformFunction, promptFormConfig.validation);
     }
 
     return (
@@ -469,6 +591,7 @@ export function PromptUpsert({
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}
+                isMutate={isMutate}
                 isReadLoading={isReadLoading}
                 isOpen={isOpen}
                 versions={existing?.root?.versions?.map(v => v.versionLabel) ?? []}

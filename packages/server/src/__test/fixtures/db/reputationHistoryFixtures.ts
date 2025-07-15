@@ -1,5 +1,6 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
 import { generatePK } from "@vrooli/shared";
-import { type Prisma } from "@prisma/client";
+import { type Prisma, type PrismaClient } from "@prisma/client";
 
 /**
  * Database fixtures for ReputationHistory model - used for seeding test data
@@ -157,7 +158,7 @@ export class ReputationHistoryDbFactory {
  * Helper to seed reputation history for testing
  */
 export async function seedReputationHistory(
-    prisma: any,
+    prisma: PrismaClient,
     options: {
         userId: string;
         count?: number;
@@ -227,7 +228,7 @@ export function calculateTotalReputation(histories: Array<{ amount: number }>): 
  * Helper to seed reputation history with timeline progression
  */
 export async function seedReputationTimeline(
-    prisma: any,
+    prisma: PrismaClient,
     userId: string,
     options?: {
         startDate?: Date;

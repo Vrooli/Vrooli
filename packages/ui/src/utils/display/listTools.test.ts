@@ -1,4 +1,5 @@
 // AI_CHECK: TEST_COVERAGE=1 | TEST_QUALITY=1 | LAST: 2025-06-19
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-01 - Added comment for intentional 'as any' in invalid type test
 import { DUMMY_ID } from "@vrooli/shared";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { defaultYou, getYou, placeholderColor, placeholderColors, simpleHash } from "./listTools.js";
@@ -76,7 +77,7 @@ describe("getYou function", () => {
                 canReact: true,
                 canReport: true,
             },
-        } as any;
+        } as any; // Intentionally testing with invalid type
         const result = getYou(object);
         expect(result.canBookmark).toBe(false);
         expect(result.canComment).toBe(false);

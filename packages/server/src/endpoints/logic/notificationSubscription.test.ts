@@ -1,7 +1,7 @@
 import { type FindByIdInput, type NotificationSubscriptionCreateInput, type NotificationSubscriptionSearchInput, type NotificationSubscriptionUpdateInput, notificationSubscriptionTestDataFactory, generatePK } from "@vrooli/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockAuthenticatedSession, mockLoggedOutSession, mockApiSession, mockReadPrivatePermissions, mockWritePrivatePermissions } from "../../__test/session.js";
-import { testEndpointRequiresAuth, testEndpointRequiresApiKeyReadPermissions, testEndpointRequiresApiKeyWritePermissions } from "../../__test/endpoints.js";
+import { assertRequiresAuth, assertRequiresApiKeyReadPermissions, assertRequiresApiKeyWritePermissions } from "../../__test/authTestUtils.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
@@ -14,6 +14,8 @@ import { notificationSubscription } from "./notificationSubscription.js";
 // Import database fixtures
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { NotificationSubscriptionDbFactory } from "../../__test/fixtures/db/notificationFixtures.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsNotificationSubscription", () => {
     beforeAll(async () => {
@@ -23,14 +25,21 @@ describe("EndpointsNotificationSubscription", () => {
         vi.spyOn(logger, "warning").mockImplementation(() => logger);
     });
 
-    beforeEach(async () => {
-        // Clean up tables used in tests
-        const prisma = DbProvider.get();
-        await prisma.notificationSubscription.deleteMany();
-        await prisma.user.deleteMany();
-        // Clear Redis cache
-        await CacheService.get().flushAll();
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["user","user_auth","email","session"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn('Test cleanup incomplete:', orphans);
+        }
     });
+
+    beforeEach(async () => {
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.minimal(DbProvider.get());
+    }););
 
     afterAll(async () => {
         // Restore all mocks
@@ -40,12 +49,12 @@ describe("EndpointsNotificationSubscription", () => {
     // Helper function to create test data
     const createTestData = async () => {
         // Create test users
-        const testUsers = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
+        const { records: testUsers } = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
         
         // Create notification subscriptions for users
         const subscriptions = await Promise.all([
             // User 1 subscriptions
-            DbProvider.get().notificationSubscription.create({
+            DbProvider.get().notification_subscription.create({
                 data: NotificationSubscriptionDbFactory.createMinimal({
                     createdById: testUsers[0].id,
                     objectType: "Project",
@@ -53,7 +62,7 @@ describe("EndpointsNotificationSubscription", () => {
                     condition: "CRUD",
                 }),
             }),
-            DbProvider.get().notificationSubscription.create({
+            DbProvider.get().notification_subscription.create({
                 data: NotificationSubscriptionDbFactory.createMinimal({
                     createdById: testUsers[0].id,
                     objectType: "Routine",
@@ -62,7 +71,7 @@ describe("EndpointsNotificationSubscription", () => {
                 }),
             }),
             // User 2 subscription
-            DbProvider.get().notificationSubscription.create({
+            DbProvider.get().notification_subscription.create({
                 data: NotificationSubscriptionDbFactory.createMinimal({
                     createdById: testUsers[1].id,
                     objectType: "Team",
@@ -77,20 +86,19 @@ describe("EndpointsNotificationSubscription", () => {
 
     describe("findOne", () => {
         describe("authentication", () => {
-            it("requires authentication", async () => {
-                await testEndpointRequiresAuth(
+            it("not logged in", async () => {
+                await assertRequiresAuth(
                     notificationSubscription.findOne,
                     { id: generatePK() },
                     notificationSubscription_findOne,
                 );
             });
 
-            it("requires API key with read permissions", async () => {
-                await testEndpointRequiresApiKeyReadPermissions(
+            it("API key - no read permissions", async () => {
+                await assertRequiresApiKeyReadPermissions(
                     notificationSubscription.findOne,
                     { id: generatePK() },
                     notificationSubscription_findOne,
-                    ["NotificationSubscription"],
                 );
             });
         });
@@ -174,20 +182,19 @@ describe("EndpointsNotificationSubscription", () => {
 
     describe("findMany", () => {
         describe("authentication", () => {
-            it("requires authentication", async () => {
-                await testEndpointRequiresAuth(
+            it("not logged in", async () => {
+                await assertRequiresAuth(
                     notificationSubscription.findMany,
                     {},
                     notificationSubscription_findMany,
                 );
             });
 
-            it("requires API key with read permissions", async () => {
-                await testEndpointRequiresApiKeyReadPermissions(
+            it("API key - no read permissions", async () => {
+                await assertRequiresApiKeyReadPermissions(
                     notificationSubscription.findMany,
                     {},
                     notificationSubscription_findMany,
-                    ["NotificationSubscription"],
                 );
             });
         });
@@ -317,20 +324,19 @@ describe("EndpointsNotificationSubscription", () => {
 
     describe("createOne", () => {
         describe("authentication", () => {
-            it("requires authentication", async () => {
-                await testEndpointRequiresAuth(
+            it("not logged in", async () => {
+                await assertRequiresAuth(
                     notificationSubscription.createOne,
                     notificationSubscriptionTestDataFactory.createMinimal(),
                     notificationSubscription_createOne,
                 );
             });
 
-            it("requires API key with write permissions", async () => {
-                await testEndpointRequiresApiKeyWritePermissions(
+            it("API key - no write permissions", async () => {
+                await assertRequiresApiKeyWritePermissions(
                     notificationSubscription.createOne,
                     notificationSubscriptionTestDataFactory.createMinimal(),
                     notificationSubscription_createOne,
-                    ["NotificationSubscription"],
                 );
             });
         });
@@ -359,7 +365,7 @@ describe("EndpointsNotificationSubscription", () => {
                 expect(result.user?.id).toBe(testUser[0].id.toString());
 
                 // Verify in database
-                const created = await DbProvider.get().notificationSubscription.findUnique({
+                const created = await DbProvider.get().notification_subscription.findUnique({
                     where: { id: BigInt(input.id) },
                 });
                 expect(created).toBeDefined();
@@ -452,7 +458,7 @@ describe("EndpointsNotificationSubscription", () => {
                 
                 // Create existing subscription
                 const objectId = generatePK();
-                await DbProvider.get().notificationSubscription.create({
+                await DbProvider.get().notification_subscription.create({
                     data: NotificationSubscriptionDbFactory.createMinimal({
                         createdById: testUser[0].id,
                         objectType: "Project",
@@ -515,20 +521,19 @@ describe("EndpointsNotificationSubscription", () => {
 
     describe("updateOne", () => {
         describe("authentication", () => {
-            it("requires authentication", async () => {
-                await testEndpointRequiresAuth(
+            it("not logged in", async () => {
+                await assertRequiresAuth(
                     notificationSubscription.updateOne,
                     { id: generatePK() },
                     notificationSubscription_updateOne,
                 );
             });
 
-            it("requires API key with write permissions", async () => {
-                await testEndpointRequiresApiKeyWritePermissions(
+            it("API key - no write permissions", async () => {
+                await assertRequiresApiKeyWritePermissions(
                     notificationSubscription.updateOne,
                     { id: generatePK() },
                     notificationSubscription_updateOne,
-                    ["NotificationSubscription"],
                 );
             });
         });
@@ -551,7 +556,7 @@ describe("EndpointsNotificationSubscription", () => {
                 expect(result.id).toBe(subscriptions[0].id.toString());
 
                 // Verify in database
-                const updated = await DbProvider.get().notificationSubscription.findUnique({
+                const updated = await DbProvider.get().notification_subscription.findUnique({
                     where: { id: subscriptions[0].id },
                 });
                 expect(updated?.condition).toBe("Updated");

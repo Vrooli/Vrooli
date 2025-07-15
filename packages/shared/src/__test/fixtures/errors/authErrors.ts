@@ -7,7 +7,7 @@
  * Enhanced with VrooliError interface compatibility for cross-package validation.
  */
 import { BaseErrorFactory, BaseErrorFixture, type EnhancedAuthError, type ErrorContext } from "./types.js";
-import { type TranslationKeyError } from "../../types.js";
+import { type TranslationKeyError } from "../../../types.d.js";
 
 /**
  * Factory for creating enhanced authentication errors

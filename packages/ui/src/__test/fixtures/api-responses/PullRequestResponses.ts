@@ -4,6 +4,8 @@
  * This file provides comprehensive API response fixtures for pull request endpoints.
  * It includes success responses, error responses, and MSW handlers for testing.
  */
+// AI_CHECK: TYPE_SAFETY=fixed-user-resource-types | LAST: 2025-07-02 - Fixed User/ResourceVersion properties and removed invalid fields
+// AI_CHECK: TYPE_SAFETY=fixed-premium-user-resource-types | LAST: 2025-07-02 - Fixed Premium, UserYou, ResourceYou, and ResourceVersionYou type errors
 
 import { HttpResponse, http } from "msw";
 import type { 
@@ -13,7 +15,7 @@ import type {
     PullRequestStatus,
     PullRequestFromObjectType,
     PullRequestToObjectType,
-    PullRequestTranslation,
+    CommentTranslation,
     User,
     ResourceVersion,
     Resource,
@@ -84,14 +86,14 @@ export class PullRequestResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique resource ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -293,26 +295,32 @@ export class PullRequestResponseFactory {
             isPrivate: false,
             profileImage: null,
             bannerImage: null,
-            premium: false,
-            premiumExpiration: null,
-            roles: [],
+            premium: null,
             wallets: [],
             translations: [],
-            translationsCount: 0,
+            bookmarkedBy: [],
+            bookmarks: 0,
+            publicId: `user_public_${userId}`,
+            views: 0,
+            isBotDepictingPerson: false,
+            isPrivateBookmarks: true,
+            isPrivateMemberships: true,
+            isPrivatePullRequests: true,
+            isPrivateResources: false,
+            isPrivateResourcesCreated: false,
+            isPrivateTeamsCreated: true,
+            isPrivateVotes: true,
+            membershipsCount: 0,
+            reportsReceived: [],
+            reportsReceivedCount: 0,
+            resourcesCount: 0,
             you: {
                 __typename: "UserYou",
-                isBlocked: false,
-                isBlockedByYou: false,
                 canDelete: false,
                 canReport: false,
                 canUpdate: false,
                 isBookmarked: false,
-                isReacted: false,
-                reactionSummary: {
-                    __typename: "ReactionSummary",
-                    emotion: null,
-                    count: 0,
-                },
+                isViewed: false,
             },
         };
     }
@@ -330,8 +338,8 @@ export class PullRequestResponseFactory {
             createdAt: now,
             updatedAt: now,
             commentsCount: 0,
-            directoryListingsCount: 0,
             forksCount: 0,
+            isDeleted: false,
             isLatest: true,
             isPrivate: false,
             reportsCount: 0,
@@ -340,17 +348,71 @@ export class PullRequestResponseFactory {
             comments: [],
             translations: [],
             translationsCount: 0,
+            root: {
+                __typename: "Resource",
+                id: `resource_${versionId}`,
+                createdAt: now,
+                updatedAt: now,
+                bookmarkedBy: [],
+                bookmarks: 0,
+                completedAt: null,
+                createdBy: null,
+                hasCompleteVersion: false,
+                isDeleted: false,
+                isInternal: false,
+                isPrivate: false,
+                issues: [],
+                issuesCount: 0,
+                owner: null,
+                parent: null,
+                permissions: "{}",
+                publicId: `resource_public_${versionId}`,
+                pullRequests: [],
+                pullRequestsCount: 0,
+                resourceType: "Api" as any,
+                score: 0,
+                stats: [],
+                tags: [],
+                transfers: [],
+                transfersCount: 0,
+                translatedName: "Test Resource",
+                versions: [],
+                versionsCount: 1,
+                views: 0,
+                you: {
+                    __typename: "ResourceYou",
+                    canBookmark: true,
+                    canComment: true,
+                    canDelete: false,
+                    canReact: true,
+                    canRead: true,
+                    canTransfer: false,
+                    canUpdate: false,
+                    isBookmarked: false,
+                    isViewed: false,
+                    reaction: null,
+                },
+            },
+            pullRequest: null,
+            publicId: `pub_res_ver_${versionId}`,
+            complexity: 1,
+            forks: [],
+            isComplete: false,
+            relatedVersions: [],
+            reports: [],
+            timesCompleted: 0,
+            timesStarted: 0,
             you: {
                 __typename: "ResourceVersionYou",
+                canBookmark: true,
                 canComment: false,
+                canCopy: true,
                 canDelete: false,
-                canReport: false,
-                canUpdate: false,
-                canUse: true,
+                canReact: true,
                 canRead: true,
-                isBookmarked: false,
-                isReacted: false,
-                reaction: null,
+                canReport: false,
+                canRun: true,
+                canUpdate: false,
             },
         };
     }
@@ -367,19 +429,43 @@ export class PullRequestResponseFactory {
             id: resourceId,
             createdAt: now,
             updatedAt: now,
+            bookmarkedBy: [],
+            bookmarks: 0,
+            completedAt: null,
+            createdBy: null,
+            hasCompleteVersion: false,
+            isDeleted: false,
             isInternal: false,
             isPrivate: false,
-            usedBy: [],
-            usedByCount: 0,
+            issues: [],
+            issuesCount: 0,
+            owner: null,
+            parent: null,
+            permissions: "{}",
+            publicId: `resource_public_${resourceId}`,
+            pullRequests: [],
+            pullRequestsCount: 0,
+            resourceType: "Api" as any,
+            score: 0,
+            stats: [],
+            tags: [],
+            transfers: [],
+            transfersCount: 0,
+            translatedName: "Test Resource",
             versions: [],
             versionsCount: 1,
+            views: 0,
             you: {
                 __typename: "ResourceYou",
+                canBookmark: true,
+                canComment: true,
                 canDelete: false,
+                canReact: true,
+                canRead: true,
+                canTransfer: false,
                 canUpdate: false,
-                canReport: false,
                 isBookmarked: false,
-                isReacted: false,
+                isViewed: false,
                 reaction: null,
             },
         };
@@ -406,7 +492,7 @@ export class PullRequestResponseFactory {
             comments: [],
             commentsCount: 0,
             translations: [{
-                __typename: "PullRequestTranslation",
+                __typename: "CommentTranslation",
                 id: `trans_${id}`,
                 language: "en",
                 text: "This pull request adds a new feature to improve user experience.",
@@ -440,7 +526,7 @@ export class PullRequestResponseFactory {
         
         if (input.translationsCreate && input.translationsCreate.length > 0) {
             pullRequest.translations = input.translationsCreate.map(trans => ({
-                __typename: "PullRequestTranslation" as const,
+                __typename: "CommentTranslation" as const,
                 id: trans.id,
                 language: trans.language,
                 text: trans.text,
@@ -550,7 +636,7 @@ export class PullRequestResponseFactory {
         errors?: Record<string, string>;
     }> {
         try {
-            await pullRequestValidation.create.validate(input);
+            await pullRequestValidation.create({}).validate(input);
             return { valid: true };
         } catch (error: any) {
             const fieldErrors: Record<string, string> = {};
@@ -580,7 +666,7 @@ export class PullRequestResponseFactory {
         errors?: Record<string, string>;
     }> {
         try {
-            await pullRequestValidation.update.validate(input);
+            await pullRequestValidation.update({}).validate(input);
             return { valid: true };
         } catch (error: any) {
             const fieldErrors: Record<string, string> = {};

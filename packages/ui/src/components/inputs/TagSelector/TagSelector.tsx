@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-06-30 - Fixed untyped event handler
 import Autocomplete from "@mui/material/Autocomplete";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -55,8 +56,8 @@ function PopperComponent({
     const popperRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
-        function handleScroll(event) {
-            const target = event.target;
+        function handleScroll(event: Event) {
+            const target = event.target as HTMLElement;
             // Check if we've scrolled to the bottom
             if (target.scrollTop + target.clientHeight >= target.scrollHeight - 10) {
                 // Trigger load more function
@@ -381,7 +382,7 @@ export function TagSelector({
 
     const tags = useMemo(() => field.value ?? [], [field.value]);
     const handleTagsUpdate = useCallback((tags: (TagShape | Tag)[]) => {
-        exists(helpers) && helpers.setValue(tags);
+        helpers.setValue(tags);
     }, [helpers]);
 
     return (

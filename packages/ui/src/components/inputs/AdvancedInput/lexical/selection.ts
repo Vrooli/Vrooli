@@ -1,5 +1,5 @@
 
-import { useCallback, useEffect, useState } from "react";
+// AI_CHECK: TYPE_SAFETY=reviewed-4-ts-ignore-comments-kept-intentional-performance-optimizations | LAST: 2025-06-30\nimport { useCallback, useEffect, useState } from "react";
 import { SELECTION_CHANGE_COMMAND } from "./commands.js";
 import { DOM_ELEMENT_TYPE, TEXT_FLAGS } from "./consts.js";
 import { useLexicalComposerContext } from "./context.js";

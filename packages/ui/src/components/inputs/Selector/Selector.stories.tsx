@@ -1,13 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import React, { useState } from "react";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import TextField from "@mui/material/TextField";
-import FormLabel from "@mui/material/FormLabel";
-import MenuItem from "@mui/material/MenuItem";
+import { InputType, type FormSchema } from "@vrooli/shared";
 import { Formik } from "formik";
+import React from "react";
+import { showcaseDecorator, type ShowcaseDecoratorConfig } from "../../../__test/helpers/storybookDecorators.js";
+import { Box } from "../../layout/Box.js";
+import { Typography } from "../../text/Typography.js";
 import { IconCommon } from "../../../icons/Icons.js";
-import { Switch } from "../Switch/Switch.js";
 import { Selector, SelectorBase } from "./Selector.js";
 
 const meta: Meta<typeof Selector> = {
@@ -31,523 +29,361 @@ const sampleOptions = [
 
 const simpleOptions = ["Apple", "Banana", "Cherry", "Date", "Elderberry"];
 
-const numberOptions = [1, 2, 3, 4, 5];
+const categoryOptions = [
+    { id: "home", name: "Home" },
+    { id: "work", name: "Work" },
+    { id: "personal", name: "Personal" },
+    { id: "shopping", name: "Shopping" },
+];
 
 export const Showcase: Story = {
     render: () => {
-        const [variant, setVariant] = useState<"outline" | "filled" | "underline">("filled");
-        const [size, setSize] = useState<"sm" | "md" | "lg">("md");
-        const [disabled, setDisabled] = useState(false);
-        const [fullWidth, setFullWidth] = useState(false);
-        const [showNoneOption, setShowNoneOption] = useState(false);
-        const [showAddOption, setShowAddOption] = useState(false);
-        const [showIcons, setShowIcons] = useState(false);
-        const [showDescriptions, setShowDescriptions] = useState(false);
-        const [labelText, setLabelText] = useState("Select an option");
-        const [noneText, setNoneText] = useState("None");
-
-        const getOptionLabel = (option: any) => {
-            if (typeof option === "string") return option;
-            if (typeof option === "number") return option.toString();
-            return option.name;
+        // Define the form schema for controls
+        const controlsSchema: FormSchema = {
+            elements: [
+                {
+                    id: "variant",
+                    type: InputType.Selector,
+                    fieldName: "variant",
+                    label: "Variant",
+                    isRequired: false,
+                    props: {
+                        options: [
+                            { label: "Filled", value: "filled" },
+                            { label: "Outline", value: "outline" },
+                            { label: "Underline", value: "underline" },
+                        ],
+                        defaultValue: "filled",
+                    },
+                },
+                {
+                    id: "size",
+                    type: InputType.Radio,
+                    fieldName: "size",
+                    label: "Size",
+                    isRequired: false,
+                    props: {
+                        options: [
+                            { label: "Small", value: "sm" },
+                            { label: "Medium", value: "md" },
+                            { label: "Large", value: "lg" },
+                        ],
+                        defaultValue: "md",
+                        row: true,
+                    },
+                },
+                {
+                    id: "disabled",
+                    type: InputType.Switch,
+                    fieldName: "disabled",
+                    label: "Disabled",
+                    isRequired: false,
+                    props: {
+                        defaultValue: false,
+                    },
+                },
+                {
+                    id: "fullWidth",
+                    type: InputType.Switch,
+                    fieldName: "fullWidth",
+                    label: "Full Width",
+                    isRequired: false,
+                    props: {
+                        defaultValue: false,
+                    },
+                },
+                {
+                    id: "showIcons",
+                    type: InputType.Switch,
+                    fieldName: "showIcons",
+                    label: "Show Icons",
+                    isRequired: false,
+                    props: {
+                        defaultValue: false,
+                    },
+                },
+                {
+                    id: "showDescriptions",
+                    type: InputType.Switch,
+                    fieldName: "showDescriptions",
+                    label: "Show Descriptions",
+                    isRequired: false,
+                    props: {
+                        defaultValue: false,
+                    },
+                },
+                {
+                    id: "showNoneOption",
+                    type: InputType.Switch,
+                    fieldName: "showNoneOption",
+                    label: "Show None Option",
+                    isRequired: false,
+                    props: {
+                        defaultValue: false,
+                    },
+                },
+                {
+                    id: "showAddOption",
+                    type: InputType.Switch,
+                    fieldName: "showAddOption",
+                    label: "Show Add Option",
+                    isRequired: false,
+                    props: {
+                        defaultValue: false,
+                    },
+                },
+            ],
+            containers: [{
+                totalItems: 8,
+            }],
         };
 
-        const getOptionDescription = showDescriptions ? (option: any) => {
-            if (typeof option === "object" && option.description) return option.description;
-            return null;
-        } : undefined;
+        // Initial values for the form
+        const initialValues = {
+            variant: "filled",
+            size: "md",
+            disabled: false,
+            fullWidth: false,
+            showIcons: false,
+            showDescriptions: false,
+            showNoneOption: false,
+            showAddOption: false,
+        };
 
-        const getOptionIcon = showIcons ? (option: any) => {
-            const iconNames = ["Home", "Star", "Heart", "Settings", "User"];
-            const index = typeof option === "string" ? simpleOptions.indexOf(option) :
-                         typeof option === "number" ? option - 1 :
-                         parseInt(option.id) - 1;
-            const iconName = iconNames[index % iconNames.length];
-            return <IconCommon name={iconName as any} />;
-        } : undefined;
+        // Showcase decorator configuration
+        const showcaseConfig: ShowcaseDecoratorConfig = {
+            componentName: "Selector",
+            controlsSchema,
+            initialValues,
+            renderShowcase: (values) => {
+                const { variant, size, disabled, fullWidth, showIcons, showDescriptions, showNoneOption, showAddOption } = values;
 
-        return (
-            <Box sx={{ 
-                p: 2, 
-                height: "100vh", 
-                overflow: "auto",
-                bgcolor: "background.default", 
-            }}>
-                <Box sx={{ 
-                    display: "flex", 
-                    gap: 2, 
-                    flexDirection: "column",
-                    maxWidth: 1200, 
-                    mx: "auto", 
-                }}>
-                    {/* Controls Section */}
-                    <Box sx={{ 
-                        p: 3, 
-                        bgcolor: "background.paper", 
-                        borderRadius: 2, 
-                        boxShadow: 1,
-                    }}>
-                        <Typography variant="h5" sx={{ mb: 3 }}>Selector Controls</Typography>
-                        
-                        <Box sx={{ 
-                            display: "grid", 
-                            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
-                            gap: 3, 
-                        }}>
-                            <Box>
-                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Variant</FormLabel>
-                                <TextField
-                                    select
-                                    value={variant}
-                                    onChange={(e) => setVariant(e.target.value as any)}
-                                    size="small"
-                                    fullWidth
-                                >
-                                    <MenuItem value="outline">Outline</MenuItem>
-                                    <MenuItem value="filled">Filled</MenuItem>
-                                    <MenuItem value="underline">Underline</MenuItem>
-                                </TextField>
-                            </Box>
+                const getOptionLabel = (option: any) => {
+                    if (typeof option === "string") return option;
+                    if (typeof option === "number") return option.toString();
+                    return option.name;
+                };
 
-                            <Box>
-                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Size</FormLabel>
-                                <TextField
-                                    select
-                                    value={size}
-                                    onChange={(e) => setSize(e.target.value as any)}
-                                    size="small"
-                                    fullWidth
-                                >
-                                    <MenuItem value="sm">Small</MenuItem>
-                                    <MenuItem value="md">Medium</MenuItem>
-                                    <MenuItem value="lg">Large</MenuItem>
-                                </TextField>
-                            </Box>
+                const getOptionDescription = showDescriptions ? (option: any) => {
+                    if (typeof option === "object" && option.description) return option.description;
+                    return null;
+                } : undefined;
 
-                            <Switch
-                                checked={disabled}
-                                onChange={(checked) => setDisabled(checked)}
-                                size="sm"
-                                label="Disabled"
-                                labelPosition="right"
-                            />
+                const getOptionIcon = showIcons ? (option: any) => {
+                    const iconNames = ["Home", "Star", "Heart", "Settings", "User"];
+                    const index = typeof option === "string" ? simpleOptions.indexOf(option) :
+                                 typeof option === "number" ? option - 1 :
+                                 parseInt(option.id) - 1;
+                    const iconName = iconNames[index % iconNames.length];
+                    return <IconCommon name={iconName as any} />;
+                } : undefined;
 
-                            <Switch
-                                checked={fullWidth}
-                                onChange={(checked) => setFullWidth(checked)}
-                                size="sm"
-                                label="Full Width"
-                                labelPosition="right"
-                            />
+                const getCategoryIcon = showIcons ? (option: any) => {
+                    const iconMap: Record<string, any> = {
+                        home: "Home",
+                        work: "Briefcase",
+                        personal: "User",
+                        shopping: "ShoppingCart",
+                    };
+                    return <IconCommon name={iconMap[option.id]} />;
+                } : undefined;
 
-                            <Switch
-                                checked={showNoneOption}
-                                onChange={(checked) => setShowNoneOption(checked)}
-                                size="sm"
-                                label="Show None Option"
-                                labelPosition="right"
-                            />
-
-                            <Switch
-                                checked={showAddOption}
-                                onChange={(checked) => setShowAddOption(checked)}
-                                size="sm"
-                                label="Show Add Option"
-                                labelPosition="right"
-                            />
-
-                            <Switch
-                                checked={showIcons}
-                                onChange={(checked) => setShowIcons(checked)}
-                                size="sm"
-                                label="Show Icons"
-                                labelPosition="right"
-                            />
-
-                            <Switch
-                                checked={showDescriptions}
-                                onChange={(checked) => setShowDescriptions(checked)}
-                                size="sm"
-                                label="Show Descriptions"
-                                labelPosition="right"
-                            />
-
-                            <Box>
-                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Label Text</FormLabel>
-                                <TextField
-                                    value={labelText}
-                                    onChange={(e) => setLabelText(e.target.value)}
-                                    size="small"
-                                    fullWidth
+                return (
+                    <Box className="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-6">
+                        {/* Object Options with Descriptions */}
+                        <Box>
+                            <Typography variant="h6" className="tw-mb-3">
+                                Object Options (with descriptions)
+                            </Typography>
+                            <Formik
+                                initialValues={{ objectOption: null }}
+                                onSubmit={() => {}}
+                            >
+                                <Selector
+                                    name="objectOption"
+                                    label="Select an option"
+                                    placeholder="Choose an option..."
+                                    options={sampleOptions}
+                                    getOptionLabel={getOptionLabel}
+                                    getOptionDescription={getOptionDescription}
+                                    getOptionIcon={getOptionIcon}
+                                    disabled={disabled}
+                                    fullWidth={fullWidth}
+                                    noneOption={showNoneOption}
+                                    noneText="None"
+                                    variant={variant as any}
+                                    size={size as any}
+                                    addOption={showAddOption ? {
+                                        label: "Add new option",
+                                        onSelect: () => console.log("Add option clicked"),
+                                    } : undefined}
                                 />
-                            </Box>
-
-                            <Box>
-                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>None Text</FormLabel>
-                                <TextField
-                                    value={noneText}
-                                    onChange={(e) => setNoneText(e.target.value)}
-                                    size="small"
-                                    fullWidth
-                                />
-                            </Box>
+                            </Formik>
                         </Box>
-                    </Box>
 
-                    {/* Examples Section */}
-                    <Box sx={{ 
-                        p: 3, 
-                        bgcolor: "background.paper", 
-                        borderRadius: 2, 
-                        boxShadow: 1,
-                    }}>
-                        <Typography variant="h5" sx={{ mb: 3 }}>Selector Examples</Typography>
-                        
-                        <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                            {/* Object Options Example */}
-                            <Box>
-                                <Typography variant="h6" sx={{ mb: 2 }}>Object Options</Typography>
-                                <Formik
-                                    initialValues={{ objectOption: null }}
-                                    onSubmit={() => {}}
-                                >
-                                    <Selector
-                                        name="objectOption"
-                                        label={labelText}
-                                        options={sampleOptions}
-                                        getOptionLabel={getOptionLabel}
-                                        getOptionDescription={getOptionDescription}
-                                        getOptionIcon={getOptionIcon}
-                                        disabled={disabled}
-                                        fullWidth={fullWidth}
-                                        noneOption={showNoneOption}
-                                        noneText={noneText}
-                                        variant={variant}
-                                        size={size}
-                                        addOption={showAddOption ? {
-                                            label: "Add new option",
-                                            onSelect: () => console.log("Add option clicked"),
-                                        } : undefined}
-                                    />
-                                </Formik>
-                            </Box>
+                        {/* String Options */}
+                        <Box>
+                            <Typography variant="h6" className="tw-mb-3">
+                                String Options
+                            </Typography>
+                            <Formik
+                                initialValues={{ stringOption: "Apple" }}
+                                onSubmit={() => {}}
+                            >
+                                <Selector
+                                    name="stringOption"
+                                    label="Select a fruit"
+                                    placeholder="Pick your favorite fruit..."
+                                    options={simpleOptions}
+                                    getOptionLabel={getOptionLabel}
+                                    getOptionIcon={getOptionIcon}
+                                    disabled={disabled}
+                                    fullWidth={fullWidth}
+                                    noneOption={showNoneOption}
+                                    noneText="None"
+                                    variant={variant as any}
+                                    size={size as any}
+                                />
+                            </Formik>
+                        </Box>
 
-                            {/* String Options Example */}
-                            <Box>
-                                <Typography variant="h6" sx={{ mb: 2 }}>String Options</Typography>
-                                <Formik
-                                    initialValues={{ stringOption: "Apple" }}
-                                    onSubmit={() => {}}
-                                >
-                                    <Selector
-                                        name="stringOption"
-                                        label="Select a fruit"
+                        {/* Category Options with Icons */}
+                        <Box>
+                            <Typography variant="h6" className="tw-mb-3">
+                                Category Options (with icons)
+                            </Typography>
+                            <Formik
+                                initialValues={{ categoryOption: null }}
+                                onSubmit={() => {}}
+                            >
+                                <Selector
+                                    name="categoryOption"
+                                    label="Select a category"
+                                    placeholder="Pick a category..."
+                                    options={categoryOptions}
+                                    getOptionLabel={getOptionLabel}
+                                    getOptionIcon={getCategoryIcon}
+                                    disabled={disabled}
+                                    fullWidth={fullWidth}
+                                    noneOption={showNoneOption}
+                                    noneText="None"
+                                    variant={variant as any}
+                                    size={size as any}
+                                />
+                            </Formik>
+                        </Box>
+
+                        {/* SelectorBase (without Formik) */}
+                        <Box>
+                            <Typography variant="h6" className="tw-mb-3">
+                                SelectorBase (without Formik)
+                            </Typography>
+                            {(() => {
+                                const [value, setValue] = React.useState<string | null>("Banana");
+                                return (
+                                    <SelectorBase
+                                        name="baseExample"
+                                        label="Base selector example"
+                                        placeholder="Select a fruit..."
                                         options={simpleOptions}
                                         getOptionLabel={getOptionLabel}
                                         getOptionIcon={getOptionIcon}
+                                        value={value}
+                                        onChange={(newValue) => setValue(newValue)}
                                         disabled={disabled}
                                         fullWidth={fullWidth}
                                         noneOption={showNoneOption}
-                                        noneText={noneText}
-                                        variant={variant}
-                                        size={size}
+                                        noneText="None"
+                                        variant={variant as any}
+                                        size={size as any}
                                     />
-                                </Formik>
-                            </Box>
+                                );
+                            })()}
+                        </Box>
 
-                            {/* Number Options Example */}
-                            <Box>
-                                <Typography variant="h6" sx={{ mb: 2 }}>Number Options</Typography>
-                                <Formik
-                                    initialValues={{ numberOption: 3 }}
-                                    onSubmit={() => {}}
-                                >
-                                    <Selector
-                                        name="numberOption"
-                                        label="Select a number"
-                                        options={numberOptions}
-                                        getOptionLabel={getOptionLabel}
-                                        disabled={disabled}
-                                        fullWidth={fullWidth}
-                                        noneOption={showNoneOption}
-                                        noneText={noneText}
-                                        variant={variant}
-                                        size={size}
-                                    />
-                                </Formik>
-                            </Box>
-
-                            {/* SelectorBase Example (without Formik) */}
-                            <Box>
-                                <Typography variant="h6" sx={{ mb: 2 }}>SelectorBase (without Formik)</Typography>
-                                {(() => {
-                                    const [value, setValue] = useState<string | null>("Banana");
-                                    return (
-                                        <SelectorBase
-                                            name="baseExample"
-                                            label="Base selector example"
+                        {/* Placeholder Examples */}
+                        <Box className="md:tw-col-span-2">
+                            <Typography variant="h6" className="tw-mb-3">
+                                Placeholder Examples
+                            </Typography>
+                            <Box className="tw-grid tw-grid-cols-1 md:tw-grid-cols-4 tw-gap-4">
+                                <Box>
+                                    <Typography variant="subtitle2" className="tw-mb-2">
+                                        Custom Placeholder
+                                    </Typography>
+                                    <Formik initialValues={{ customPlaceholder: null }} onSubmit={() => {}}>
+                                        <Selector
+                                            name="customPlaceholder"
+                                            label="Fruit selector"
+                                            placeholder="Choose your favorite fruit..."
                                             options={simpleOptions}
                                             getOptionLabel={getOptionLabel}
-                                            getOptionIcon={getOptionIcon}
-                                            value={value}
-                                            onChange={(newValue) => setValue(newValue)}
                                             disabled={disabled}
-                                            fullWidth={fullWidth}
-                                            noneOption={showNoneOption}
-                                            noneText={noneText}
-                                            variant={variant}
-                                            size={size}
+                                            variant={variant as any}
+                                            size={size as any}
                                         />
-                                    );
-                                })()}
+                                    </Formik>
+                                </Box>
+                                
+                                <Box>
+                                    <Typography variant="subtitle2" className="tw-mb-2">
+                                        Default Placeholder
+                                    </Typography>
+                                    <Formik initialValues={{ defaultPlaceholder: null }} onSubmit={() => {}}>
+                                        <Selector
+                                            name="defaultPlaceholder"
+                                            label="Fruit selector"
+                                            options={simpleOptions}
+                                            getOptionLabel={getOptionLabel}
+                                            disabled={disabled}
+                                            variant={variant as any}
+                                            size={size as any}
+                                        />
+                                    </Formik>
+                                </Box>
+                                
+                                <Box>
+                                    <Typography variant="subtitle2" className="tw-mb-2">
+                                        Empty Placeholder
+                                    </Typography>
+                                    <Formik initialValues={{ emptyPlaceholder: null }} onSubmit={() => {}}>
+                                        <Selector
+                                            name="emptyPlaceholder"
+                                            label="Fruit selector"
+                                            placeholder=""
+                                            options={simpleOptions}
+                                            getOptionLabel={getOptionLabel}
+                                            disabled={disabled}
+                                            variant={variant as any}
+                                            size={size as any}
+                                        />
+                                    </Formik>
+                                </Box>
+                                
+                                <Box>
+                                    <Typography variant="subtitle2" className="tw-mb-2">
+                                        Has Selection
+                                    </Typography>
+                                    <Formik initialValues={{ hasSelection: "Apple" }} onSubmit={() => {}}>
+                                        <Selector
+                                            name="hasSelection"
+                                            label="Fruit selector"
+                                            placeholder="Choose your favorite fruit..."
+                                            options={simpleOptions}
+                                            getOptionLabel={getOptionLabel}
+                                            disabled={disabled}
+                                            variant={variant as any}
+                                            size={size as any}
+                                        />
+                                    </Formik>
+                                </Box>
                             </Box>
                         </Box>
                     </Box>
-                </Box>
-            </Box>
-        );
+                );
+            },
+        };
+
+        return React.createElement(showcaseDecorator(showcaseConfig));
     },
-};
-
-export const BasicUsage: Story = {
-    render: () => (
-        <Box sx={{ p: 3 }}>
-            <Formik
-                initialValues={{ fruit: "Apple" }}
-                onSubmit={(values) => console.log("Selected:", values)}
-            >
-                <Selector
-                    name="fruit"
-                    label="Select a fruit"
-                    options={["Apple", "Banana", "Cherry", "Date", "Elderberry"]}
-                    getOptionLabel={(option) => option}
-                />
-            </Formik>
-        </Box>
-    ),
-};
-
-export const WithIcons: Story = {
-    render: () => (
-        <Box sx={{ p: 3 }}>
-            <Formik
-                initialValues={{ category: null }}
-                onSubmit={(values) => console.log("Selected:", values)}
-            >
-                <Selector
-                    name="category"
-                    label="Select a category"
-                    options={[
-                        { id: "home", name: "Home" },
-                        { id: "work", name: "Work" },
-                        { id: "personal", name: "Personal" },
-                        { id: "shopping", name: "Shopping" },
-                    ]}
-                    getOptionLabel={(option) => option.name}
-                    getOptionIcon={(option) => {
-                        const iconMap: Record<string, any> = {
-                            home: "Home",
-                            work: "Briefcase",
-                            personal: "User",
-                            shopping: "ShoppingCart",
-                        };
-                        return <IconCommon name={iconMap[option.id]} />;
-                    }}
-                />
-            </Formik>
-        </Box>
-    ),
-};
-
-export const WithDescriptions: Story = {
-    render: () => (
-        <Box sx={{ p: 3 }}>
-            <Formik
-                initialValues={{ plan: null }}
-                onSubmit={(values) => console.log("Selected:", values)}
-            >
-                <Selector
-                    name="plan"
-                    label="Select a plan"
-                    options={[
-                        { id: "free", name: "Free", description: "Basic features for personal use" },
-                        { id: "pro", name: "Pro", description: "Advanced features for professionals" },
-                        { id: "enterprise", name: "Enterprise", description: "Full features for teams" },
-                    ]}
-                    getOptionLabel={(option) => option.name}
-                    getOptionDescription={(option) => option.description}
-                />
-            </Formik>
-        </Box>
-    ),
-};
-
-export const WithAddOption: Story = {
-    render: () => (
-        <Box sx={{ p: 3 }}>
-            <Formik
-                initialValues={{ tag: null }}
-                onSubmit={(values) => console.log("Selected:", values)}
-            >
-                <Selector
-                    name="tag"
-                    label="Select a tag"
-                    options={["JavaScript", "TypeScript", "React", "Node.js"]}
-                    getOptionLabel={(option) => option}
-                    addOption={{
-                        label: "Create new tag",
-                        onSelect: () => console.log("Add new tag clicked"),
-                    }}
-                />
-            </Formik>
-        </Box>
-    ),
-};
-
-export const FullWidth: Story = {
-    render: () => (
-        <Box sx={{ p: 3 }}>
-            <Formik
-                initialValues={{ option: null }}
-                onSubmit={(values) => console.log("Selected:", values)}
-            >
-                <Selector
-                    name="option"
-                    label="Full width selector"
-                    options={["Option 1", "Option 2", "Option 3"]}
-                    getOptionLabel={(option) => option}
-                    fullWidth
-                />
-            </Formik>
-        </Box>
-    ),
-};
-
-export const Disabled: Story = {
-    render: () => (
-        <Box sx={{ p: 3 }}>
-            <Formik
-                initialValues={{ option: "Option 2" }}
-                onSubmit={(values) => console.log("Selected:", values)}
-            >
-                <Selector
-                    name="option"
-                    label="Disabled selector"
-                    options={["Option 1", "Option 2", "Option 3"]}
-                    getOptionLabel={(option) => option}
-                    disabled
-                />
-            </Formik>
-        </Box>
-    ),
-};
-
-export const WithNoneOption: Story = {
-    render: () => (
-        <Box sx={{ p: 3 }}>
-            <Formik
-                initialValues={{ option: null }}
-                onSubmit={(values) => console.log("Selected:", values)}
-            >
-                <Selector
-                    name="option"
-                    label="Optional selector"
-                    options={["Option 1", "Option 2", "Option 3"]}
-                    getOptionLabel={(option) => option}
-                    noneOption
-                    noneText="Select later"
-                />
-            </Formik>
-        </Box>
-    ),
-};
-
-export const Variants: Story = {
-    render: () => (
-        <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 3 }}>
-            <Typography variant="h6">Selector Variants</Typography>
-            
-            <Formik initialValues={{ filled: "Apple", outline: "Banana", underline: "Cherry" }} onSubmit={() => {}}>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                    <Box>
-                        <Typography variant="subtitle2" sx={{ mb: 1 }}>Filled Variant (Default)</Typography>
-                        <Selector
-                            name="filled"
-                            label="Filled selector"
-                            options={["Apple", "Banana", "Cherry", "Date"]}
-                            getOptionLabel={(option) => option}
-                            variant="filled"
-                        />
-                    </Box>
-                    
-                    <Box>
-                        <Typography variant="subtitle2" sx={{ mb: 1 }}>Outline Variant</Typography>
-                        <Selector
-                            name="outline"
-                            label="Outline selector"
-                            options={["Apple", "Banana", "Cherry", "Date"]}
-                            getOptionLabel={(option) => option}
-                            variant="outline"
-                        />
-                    </Box>
-                    
-                    <Box>
-                        <Typography variant="subtitle2" sx={{ mb: 1 }}>Underline Variant</Typography>
-                        <Selector
-                            name="underline"
-                            label="Underline selector"
-                            options={["Apple", "Banana", "Cherry", "Date"]}
-                            getOptionLabel={(option) => option}
-                            variant="underline"
-                        />
-                    </Box>
-                </Box>
-            </Formik>
-        </Box>
-    ),
-};
-
-export const Sizes: Story = {
-    render: () => (
-        <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 3 }}>
-            <Typography variant="h6">Selector Sizes</Typography>
-            
-            <Formik initialValues={{ small: "Apple", medium: "Banana", large: "Cherry" }} onSubmit={() => {}}>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                    <Box>
-                        <Typography variant="subtitle2" sx={{ mb: 1 }}>Small Size</Typography>
-                        <Selector
-                            name="small"
-                            label="Small selector"
-                            options={["Apple", "Banana", "Cherry", "Date"]}
-                            getOptionLabel={(option) => option}
-                            size="sm"
-                        />
-                    </Box>
-                    
-                    <Box>
-                        <Typography variant="subtitle2" sx={{ mb: 1 }}>Medium Size (Default)</Typography>
-                        <Selector
-                            name="medium"
-                            label="Medium selector"
-                            options={["Apple", "Banana", "Cherry", "Date"]}
-                            getOptionLabel={(option) => option}
-                            size="md"
-                        />
-                    </Box>
-                    
-                    <Box>
-                        <Typography variant="subtitle2" sx={{ mb: 1 }}>Large Size</Typography>
-                        <Selector
-                            name="large"
-                            label="Large selector"
-                            options={["Apple", "Banana", "Cherry", "Date"]}
-                            getOptionLabel={(option) => option}
-                            size="lg"
-                        />
-                    </Box>
-                </Box>
-            </Formik>
-        </Box>
-    ),
 };

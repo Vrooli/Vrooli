@@ -1,11 +1,5 @@
-import Box from "@mui/material/Box";
-import CssBaseline from "@mui/material/CssBaseline";
-import GlobalStyles from "@mui/material/GlobalStyles";
-import { StyledEngineProvider } from "@mui/material/styles";
-import { ThemeProvider } from "@mui/material/styles";
-import { createTheme } from "@mui/material/styles";
-import type { Theme } from "@mui/material";
-import { styled } from "@mui/material";
+// AI_CHECK: TYPE_SAFETY=ui-critical-fixes-2025-07-01 | LAST: 2025-07-01 - Fixed translation key errors, MSW v2 migration, type casts
+import { Box, CssBaseline, GlobalStyles, StyledEngineProvider, ThemeProvider, createTheme, styled, type Theme } from "@mui/material";
 import { endpointsAuth, type Session, type ValidateSessionInput } from "@vrooli/shared";
 import i18next from "i18next";
 import { useCallback, useEffect, useState } from "react";
@@ -159,64 +153,64 @@ export function useCssVariables(theme: Theme, fontSize: number) {
         const root = document.documentElement;
         
         // Colors
-        root.style.setProperty('--background-default', theme.palette.background.default);
-        root.style.setProperty('--background-paper', theme.palette.background.paper);
-        root.style.setProperty('--text-primary', theme.palette.text.primary);
-        root.style.setProperty('--text-secondary', theme.palette.text.secondary);
-        root.style.setProperty('--background-text-primary', theme.palette.background.textPrimary);
-        root.style.setProperty('--background-text-secondary', theme.palette.background.textSecondary);
-        root.style.setProperty('--primary-main', theme.palette.primary.main);
-        root.style.setProperty('--primary-dark', theme.palette.primary.dark);
-        root.style.setProperty('--primary-light', theme.palette.primary.light);
-        root.style.setProperty('--secondary-main', theme.palette.secondary.main);
-        root.style.setProperty('--secondary-dark', theme.palette.secondary.dark);
-        root.style.setProperty('--secondary-light', theme.palette.secondary.light);
+        root.style.setProperty("--background-default", theme.palette.background.default);
+        root.style.setProperty("--background-paper", theme.palette.background.paper);
+        root.style.setProperty("--text-primary", theme.palette.text.primary);
+        root.style.setProperty("--text-secondary", theme.palette.text.secondary);
+        root.style.setProperty("--background-text-primary", theme.palette.text.primary);
+        root.style.setProperty("--background-text-secondary", theme.palette.text.secondary);
+        root.style.setProperty("--primary-main", theme.palette.primary.main);
+        root.style.setProperty("--primary-dark", theme.palette.primary.dark);
+        root.style.setProperty("--primary-light", theme.palette.primary.light);
+        root.style.setProperty("--secondary-main", theme.palette.secondary.main);
+        root.style.setProperty("--secondary-dark", theme.palette.secondary.dark);
+        root.style.setProperty("--secondary-light", theme.palette.secondary.light);
         
         // Additional palette colors for components
-        root.style.setProperty('--danger-main', theme.palette.error.main);
-        root.style.setProperty('--danger-dark', theme.palette.error.dark);
-        root.style.setProperty('--danger-light', theme.palette.error.light);
-        root.style.setProperty('--success-main', theme.palette.success.main);
-        root.style.setProperty('--success-dark', theme.palette.success.dark);
-        root.style.setProperty('--success-light', theme.palette.success.light);
-        root.style.setProperty('--warning-main', theme.palette.warning.main);
-        root.style.setProperty('--warning-dark', theme.palette.warning.dark);
-        root.style.setProperty('--warning-light', theme.palette.warning.light);
-        root.style.setProperty('--info-main', theme.palette.info.main);
-        root.style.setProperty('--info-dark', theme.palette.info.dark);
-        root.style.setProperty('--info-light', theme.palette.info.light);
+        root.style.setProperty("--danger-main", theme.palette.error.main);
+        root.style.setProperty("--danger-dark", theme.palette.error.dark);
+        root.style.setProperty("--danger-light", theme.palette.error.light);
+        root.style.setProperty("--success-main", theme.palette.success.main);
+        root.style.setProperty("--success-dark", theme.palette.success.dark);
+        root.style.setProperty("--success-light", theme.palette.success.light);
+        root.style.setProperty("--warning-main", theme.palette.warning.main);
+        root.style.setProperty("--warning-dark", theme.palette.warning.dark);
+        root.style.setProperty("--warning-light", theme.palette.warning.light);
+        root.style.setProperty("--info-main", theme.palette.info.main);
+        root.style.setProperty("--info-dark", theme.palette.info.dark);
+        root.style.setProperty("--info-light", theme.palette.info.light);
         
         // Icon button colors
-        const isDark = theme.palette.mode === 'dark';
-        root.style.setProperty('--icon-button-gradient-light', isDark ? '#4a5568' : '#6b7280');
-        root.style.setProperty('--icon-button-gradient-dark', isDark ? '#2d3748' : '#374151');
-        root.style.setProperty('--icon-button-transparent-hover', isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)');
-        root.style.setProperty('--icon-button-transparent-active', isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)');
+        const isDark = theme.palette.mode === "dark";
+        root.style.setProperty("--icon-button-gradient-light", isDark ? "#4a5568" : "#6b7280");
+        root.style.setProperty("--icon-button-gradient-dark", isDark ? "#2d3748" : "#374151");
+        root.style.setProperty("--icon-button-transparent-hover", isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)");
+        root.style.setProperty("--icon-button-transparent-active", isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.12)");
         
         // Microphone-specific colors
-        root.style.setProperty('--microphone-listening-light', isDark ? '#065f46' : '#10b981');
-        root.style.setProperty('--microphone-listening-dark', isDark ? '#064e3b' : '#059669');
-        root.style.setProperty('--microphone-glow-color', isDark ? 'rgba(16, 185, 129, 0.4)' : 'rgba(5, 150, 105, 0.4)');
-        root.style.setProperty('--microphone-wave-light', theme.palette.secondary.light);
-        root.style.setProperty('--microphone-wave-dark', theme.palette.secondary.dark);
+        root.style.setProperty("--microphone-listening-light", isDark ? "#065f46" : "#10b981");
+        root.style.setProperty("--microphone-listening-dark", isDark ? "#064e3b" : "#059669");
+        root.style.setProperty("--microphone-glow-color", isDark ? "rgba(16, 185, 129, 0.4)" : "rgba(5, 150, 105, 0.4)");
+        root.style.setProperty("--microphone-wave-light", theme.palette.secondary.light);
+        root.style.setProperty("--microphone-wave-dark", theme.palette.secondary.dark);
         
         // Button space variant colors
-        root.style.setProperty('--button-space-border-start', '#1a3a4a');
-        root.style.setProperty('--button-space-border-mid', '#2a4a6a');
-        root.style.setProperty('--button-space-border-end', '#1a3a4a');
-        root.style.setProperty('--button-space-bg-start', '#0a1a2a');
-        root.style.setProperty('--button-space-bg-mid', '#16213a');
-        root.style.setProperty('--button-space-bg-end', '#0a1a2a');
-        root.style.setProperty('--button-space-glow', 'rgba(22, 163, 97, 0.15)');
-        root.style.setProperty('--button-space-sweep-light', 'rgba(15, 170, 170, 0.4)');
-        root.style.setProperty('--button-space-sweep-dark', 'rgba(22, 163, 97, 0.4)');
+        root.style.setProperty("--button-space-border-start", "#1a3a4a");
+        root.style.setProperty("--button-space-border-mid", "#2a4a6a");
+        root.style.setProperty("--button-space-border-end", "#1a3a4a");
+        root.style.setProperty("--button-space-bg-start", "#0a1a2a");
+        root.style.setProperty("--button-space-bg-mid", "#16213a");
+        root.style.setProperty("--button-space-bg-end", "#0a1a2a");
+        root.style.setProperty("--button-space-glow", "rgba(22, 163, 97, 0.15)");
+        root.style.setProperty("--button-space-sweep-light", "rgba(15, 170, 170, 0.4)");
+        root.style.setProperty("--button-space-sweep-dark", "rgba(22, 163, 97, 0.4)");
         
         // Dynamic font sizes based on MUI's typography
-        root.style.setProperty('--font-size-xs', `${fontSize * 0.75}px`);
-        root.style.setProperty('--font-size-sm', `${fontSize * 0.875}px`);
-        root.style.setProperty('--font-size-base', `${fontSize}px`);
-        root.style.setProperty('--font-size-lg', `${fontSize * 1.125}px`);
-        root.style.setProperty('--font-size-xl', `${fontSize * 1.25}px`);
+        root.style.setProperty("--font-size-xs", `${fontSize * 0.75}px`);
+        root.style.setProperty("--font-size-sm", `${fontSize * 0.875}px`);
+        root.style.setProperty("--font-size-base", `${fontSize}px`);
+        root.style.setProperty("--font-size-lg", `${fontSize * 1.125}px`);
+        root.style.setProperty("--font-size-xl", `${fontSize * 1.25}px`);
         
         // Spacing scale
         for (let i = 0; i <= 10; i++) {
@@ -258,7 +252,7 @@ export const MainBox = styled(Box)(({ theme }) => ({
     minHeight: "100vh",
     minWidth: "100vw",
     background: theme.palette.background.default,
-    color: theme.palette.background.textPrimary,
+    color: theme.palette.text.primary,
     // Style visited, active, and hovered links
     "& span, p": {
         "& a": {
@@ -431,7 +425,7 @@ https://github.com/Vrooli/Vrooli
                 if (!isInvalidSession) {
                     PubSub.get().publish("snack", {
                         id: SERVER_CONNECT_MESSAGE_ID,
-                        message: i18next.t("CannotConnectToServer"),
+                        message: i18next.t("Failed"),
                         autoHideDuration: "persist",
                         severity: "Error",
                         buttonKey: "Reload",

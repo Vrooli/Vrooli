@@ -3,6 +3,7 @@ import { styled } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import { type CSSProperties, forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_MIN_ROWS } from "../../../../utils/consts.js";
+
 const LINE_HEIGHT_MULTIPLIER = 1.5;
 import { defaultActiveStates } from "../AdvancedInputToolbar.js";
 import { type AdvancedInputAction, type AdvancedInputActiveStates, type AdvancedInputLexicalProps, Headers } from "../utils.js";

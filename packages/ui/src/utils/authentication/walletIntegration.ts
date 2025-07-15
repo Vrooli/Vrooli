@@ -2,6 +2,7 @@
  * Handles wallet integration
  * See CIP-0030 for more info: https://github.com/cardano-foundation/CIPs/pull/148
  */
+// AI_CHECK: TYPE_SAFETY=fixed-wallet-integration-any-types | LAST: 2025-06-28
 import { endpointsAuth, type WalletComplete, type WalletCompleteInput, type WalletInit, type WalletInitInput } from "@vrooli/shared";
 import { fetchWrapper } from "../../api/fetchWrapper.js";
 import { PubSub } from "../../utils/pubsub.js";
@@ -23,7 +24,7 @@ export type WalletActions = {
 export type WalletProviderInfo = {
     apiVersion: string,
     enable: () => Promise<WalletActions>,
-    experimental?: { [x: string]: any },
+    experimental?: Record<string, unknown>,
     icon: string, // base64
     isEnabled: () => Promise<boolean>,
     name: string, // Display name
@@ -73,7 +74,7 @@ export function getInstalledWalletProviders(): [string, WalletProviderInfo][] {
     // Filter out all entries that don't match the WalletProviderInfo shape
     let providers = Object.entries(window.cardano).filter(([key, value]) => {
         if (typeof value !== "object") return false;
-        const obj = value as { [x: string]: any };
+        const obj = value as Record<string, unknown>;
         if (!Object.prototype.hasOwnProperty.call(obj, "apiVersion")) return false;
         if (!Object.prototype.hasOwnProperty.call(obj, "enable")) return false;
         if (!Object.prototype.hasOwnProperty.call(obj, "name")) return false;
@@ -95,7 +96,7 @@ export function getInstalledWalletProviders(): [string, WalletProviderInfo][] {
  * @param key The wallet provider to connect to
  * @returns Object containing methods to interact with the wallet provider
  */
-async function connectWallet(key: string): Promise<any> {
+async function connectWallet(key: string): Promise<WalletActions | false> {
     if (!hasWalletExtension(key)) return false;
     return await window.cardano[key].enable();
 }
@@ -135,7 +136,7 @@ async function walletComplete(stakingAddress: string, signedPayload: string): Pr
  * @param payload Hex string of payload to be signed by wallet
  * @returns Result of walletActions.signData
  */
-async function signPayload(key: string, walletActions: WalletActions, stakingAddress: string, payload: string): Promise<any> {
+async function signPayload(key: string, walletActions: WalletActions, stakingAddress: string, payload: string): Promise<string | null> {
     if (!hasWalletExtension(key)) return null;
     // As of 2022-02-05, new Nami endpoint is not fully working. So the old method is used for now
     if (key === "nami")
@@ -169,7 +170,7 @@ export async function validateWallet(key: string): Promise<WalletComplete | null
         if (!signedPayload) return null;
         // Send signed payload to backend for verification
         result = (await walletComplete(stakingAddresses[0], signedPayload));
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Caught error completing wallet validation", error);
         PubSub.get().publish("alertDialog", {
             messageKey: "WalletErrorUnknown",

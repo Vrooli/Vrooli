@@ -3,8 +3,6 @@ import { chatMatchHash } from "./codes.js";
 import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "./consts.js";
 import { getDeviceInfo } from "./display/device.js";
 
-// AI_CHECK: TYPE_SAFETY=improved-localstorage-types | LAST: 2025-06-28
-
 // Helper to access window in both environments
 const windowObj = typeof global !== "undefined" && global.window
     ? global.window
@@ -206,7 +204,7 @@ export function getLocalStorageKeys({
     // Use localStorage directly to ensure we're using the same instance as the tests
     const storage = typeof localStorage !== "undefined" ? localStorage : localStorageObj;
     if (!storage) return keys;
-    
+
     for (let i = 0; i < storage.length; i++) {
         const key = storage.key(i);
         if (key && key.startsWith(prefix) && key.endsWith(suffix)) {
@@ -255,12 +253,12 @@ export class LocalStorageLruCache<ValueType> {
             localStorageObj?.setItem(this.getNamespacedKey("cacheKeys"), JSON.stringify(this.cacheKeys));
         } catch (error) {
             // Handle quota exceeded error when saving keys
-            if (error instanceof DOMException && 
+            if (error instanceof DOMException &&
                 (error.code === 22 || // Legacy browsers
-                 error.code === 1014 || // Firefox
-                 error.name === "QuotaExceededError" || // Modern browsers
-                 error.name === "NS_ERROR_DOM_QUOTA_REACHED")) { // Firefox
-                
+                    error.code === 1014 || // Firefox
+                    error.name === "QuotaExceededError" || // Modern browsers
+                    error.name === "NS_ERROR_DOM_QUOTA_REACHED")) { // Firefox
+
                 console.error("localStorage quota exceeded when saving cache keys. Cache state may be inconsistent.");
             } else {
                 // Re-throw other errors
@@ -296,24 +294,24 @@ export class LocalStorageLruCache<ValueType> {
         }
 
         this.touchKey(key);
-        
+
         try {
             localStorageObj?.setItem(this.getNamespacedKey(key), serializedValue);
         } catch (error) {
             // Handle quota exceeded error
-            if (error instanceof DOMException && 
+            if (error instanceof DOMException &&
                 (error.code === 22 || // Legacy browsers
-                 error.code === 1014 || // Firefox
-                 error.name === "QuotaExceededError" || // Modern browsers
-                 error.name === "NS_ERROR_DOM_QUOTA_REACHED")) { // Firefox
-                
+                    error.code === 1014 || // Firefox
+                    error.name === "QuotaExceededError" || // Modern browsers
+                    error.name === "NS_ERROR_DOM_QUOTA_REACHED")) { // Firefox
+
                 console.warn(`localStorage quota exceeded when setting key ${key}. Attempting to free space...`);
-                
+
                 // Try to free up space by removing the oldest item
                 if (this.cacheKeys.length > 0) {
                     const oldestKey = this.cacheKeys[0];
                     this.remove(oldestKey);
-                    
+
                     // Try again
                     try {
                         localStorageObj?.setItem(this.getNamespacedKey(key), serializedValue);

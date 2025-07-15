@@ -1,7 +1,7 @@
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
-import DialogContent from "@mui/material/DialogContent";
+import { Dialog, DialogContent } from "../../components/dialogs/Dialog/Dialog.js";
 import Divider from "@mui/material/Divider";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormGroup from "@mui/material/FormGroup";
@@ -26,13 +26,15 @@ import { useTranslation } from "react-i18next";
 import { CalendarPreviewToolbar } from "../../components/CalendarPreviewToolbar.js";
 import { FullPageSpinner } from "../../components/Spinners.js";
 import { SideActionsButtons } from "../../components/buttons/SideActionsButtons.js";
-import { LargeDialog } from "../../components/dialogs/LargeDialog/LargeDialog.js";
+import { UpTransition } from "../../components/transitions/UpTransition/UpTransition.js";
+import { useIsMobile } from "../../hooks/useIsMobile.js";
 import { useIsBottomNavVisible } from "../../components/navigation/BottomNav.js";
 import { APP_BAR_HEIGHT_PX, Navbar } from "../../components/navigation/Navbar.js";
 import { SessionContext } from "../../contexts/session.js";
 import { useFindMany } from "../../hooks/useFindMany.js";
 import { useHistoryState } from "../../hooks/useHistoryState.js";
 import { IconCommon } from "../../icons/Icons.js";
+import type { IconName as IconCommonName } from "../../icons/types/commonIcons.js";
 import { useLocation } from "../../route/router.js";
 import { bottomNavHeight } from "../../styles.js";
 import { type PartialWithType } from "../../types.js";
@@ -44,6 +46,7 @@ import { lazy, Suspense } from "react";
 const ScheduleUpsert = lazy(() => import("../objects/schedule/ScheduleUpsert.js").then(module => ({ default: module.ScheduleUpsert })));
 import { type CalendarViewProps } from "../types.js";
 
+// AI_CHECK: TYPE_SAFETY=calendar-iconcommon-props | LAST: 2025-06-30 - Fixed IconCommon prop types (color -> fill)
 // Workaround typing issues: wrap Calendar as any to satisfy JSX
 const BigCalendar: any = Calendar;
 
@@ -216,6 +219,7 @@ function FilterDialog({
 }: FilterDialogProps) {
     const dialogId = "filter-dialog";
     const { t } = useTranslation();
+    const isMobile = useIsMobile();
 
     const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchQuery(e.target.value);
@@ -285,21 +289,13 @@ function FilterDialog({
     }, [setSelectedTriggerActions]);
 
     return (
-        <LargeDialog
+        <Dialog
             isOpen={isOpen}
             onClose={onClose}
-            id={dialogId}
-            sxs={{
-                paper: {
-                    width: "min(100%, 800px)",
-                },
-                content: {
-                    height: "100%",
-                },
-            }}
-            titleId={`${dialogId}-title`}
+            size="lg"
+            title={activeTab === CalendarTabs.CALENDAR ? "Filter Events" : "Filter Triggers"}
         >
-            <DialogContent sx={{ display: "flex", flexDirection: "column" }}>
+            <DialogContent>
                 <TextField
                     fullWidth
                     placeholder={activeTab === CalendarTabs.CALENDAR
@@ -525,7 +521,7 @@ function FilterDialog({
                     </Box>
                 </Box>
             </DialogContent>
-        </LargeDialog>
+        </Dialog>
     );
 }
 
@@ -604,7 +600,7 @@ function TriggerView({ triggers, loading, onTriggerUpdate }: TriggerViewProps) {
 
     const handleTriggerToggle = useCallback((triggerId: string, enabled: boolean) => {
         onTriggerUpdate(triggers.map(trigger => 
-            trigger.id === triggerId ? { ...trigger, enabled } : trigger
+            trigger.id === triggerId ? { ...trigger, enabled } : trigger,
         ));
     }, [triggers, onTriggerUpdate]);
 
@@ -736,7 +732,7 @@ function TriggerView({ triggers, loading, onTriggerUpdate }: TriggerViewProps) {
                                 <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 2 }}>
                                     {/* Event */}
                                     <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}>
-                                        <IconCommon name={eventInfo.icon as any} color={eventInfo.color as any} />
+                                        <IconCommon name={eventInfo.icon as IconCommonName} fill={`${eventInfo.color}.main`} />
                                         <Box>
                                             <Typography variant="caption" color="text.secondary">
                                                 {t("When", { defaultValue: "WHEN" })}
@@ -748,11 +744,11 @@ function TriggerView({ triggers, loading, onTriggerUpdate }: TriggerViewProps) {
                                     </Box>
 
                                     {/* Arrow */}
-                                    <IconCommon name="ArrowForward" color="text.secondary" />
+                                    <IconCommon name="ArrowForward" fill="text.secondary" />
 
                                     {/* Action */}
                                     <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}>
-                                        <IconCommon name={actionInfo.icon as any} color={actionInfo.color as any} />
+                                        <IconCommon name={actionInfo.icon as IconCommonName} fill={`${actionInfo.color}.main`} />
                                         <Box>
                                             <Typography variant="caption" color="text.secondary">
                                                 {t("Then", { defaultValue: "THEN" })}
@@ -859,13 +855,13 @@ export function CalendarView({
                         triggerEvent: "WeeklyOn",
                         triggerConditions: [
                             { field: "dayOfWeek", operator: "equals", value: 1 },
-                            { field: "timeOfDay", operator: "equals", value: "09:00" }
+                            { field: "timeOfDay", operator: "equals", value: "09:00" },
                         ],
                         action: "SendNotification",
                         actionConfig: {
                             title: "Weekly Planning Time",
                             message: "Don't forget to plan your week ahead!",
-                            type: "reminder"
+                            type: "reminder",
                         },
                         createdAt: new Date().toISOString(),
                         updatedAt: new Date().toISOString(),
@@ -879,12 +875,12 @@ export function CalendarView({
                         enabled: true,
                         triggerEvent: "RunCompleted",
                         triggerConditions: [
-                            { field: "routineType", operator: "equals", value: "project" }
+                            { field: "routineType", operator: "equals", value: "project" },
                         ],
                         action: "StartRun",
                         actionConfig: {
                             routineId: "retrospective-routine-id",
-                            delay: 30
+                            delay: 30,
                         },
                         createdAt: new Date().toISOString(),
                         updatedAt: new Date().toISOString(),
@@ -898,14 +894,14 @@ export function CalendarView({
                         enabled: false,
                         triggerEvent: "RunCompleted",
                         triggerConditions: [
-                            { field: "tags", operator: "contains", value: "sprint" }
+                            { field: "tags", operator: "contains", value: "sprint" },
                         ],
                         action: "CreateMeeting",
                         actionConfig: {
                             title: "Sprint Retrospective Meeting",
                             duration: 60,
                             teamId: "team-id",
-                            scheduledOffset: "1 day"
+                            scheduledOffset: "1 day",
                         },
                         createdAt: new Date().toISOString(),
                         updatedAt: new Date().toISOString(),
@@ -920,11 +916,11 @@ export function CalendarView({
                         triggerEvent: "DailyAt",
                         triggerConditions: [
                             { field: "timeOfDay", operator: "equals", value: "09:30" },
-                            { field: "weekdaysOnly", operator: "equals", value: true }
+                            { field: "weekdaysOnly", operator: "equals", value: true },
                         ],
                         action: "StartRun",
                         actionConfig: {
-                            routineId: "daily-standup-routine-id"
+                            routineId: "daily-standup-routine-id",
                         },
                         createdAt: new Date().toISOString(),
                         updatedAt: new Date().toISOString(),
@@ -938,13 +934,13 @@ export function CalendarView({
                         enabled: true,
                         triggerEvent: "NoteUpdated",
                         triggerConditions: [
-                            { field: "tags", operator: "contains", value: "important" }
+                            { field: "tags", operator: "contains", value: "important" },
                         ],
                         action: "CreateNote",
                         actionConfig: {
                             title: "Documentation Update Required",
                             template: "project-doc-template",
-                            parentProject: "auto-detect"
+                            parentProject: "auto-detect",
                         },
                         createdAt: new Date().toISOString(),
                         updatedAt: new Date().toISOString(),

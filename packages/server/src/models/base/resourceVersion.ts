@@ -10,7 +10,7 @@ import { afterMutationsVersion } from "../../utils/shapes/afterMutationsVersion.
 import { preShapeVersion, type PreShapeVersionResult } from "../../utils/shapes/preShapeVersion.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
 import { lineBreaksCheck } from "../../validators/lineBreaksCheck.js";
-import { defaultPermissions, getSingleTypePermissions } from "../../validators/permissions.js";
+import { defaultPermissions, filterPermissions, getSingleTypePermissions } from "../../validators/permissions.js";
 import { versionsCheck } from "../../validators/versionsCheck.js";
 import { ResourceVersionFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
@@ -39,11 +39,15 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
                 translations: { select: { id: true, embeddingExpiredAt: true, language: true, name: true, description: true } },
             }),
             get: ({ root, translations }, languages) => {
-                const trans = getTranslation({ translations }, languages);
+                const trans = getTranslation({ translations }, languages) as Partial<{
+                    language: string;
+                    name: string;
+                    description: string;
+                }>;
                 return EmbeddingService.getEmbeddableString({
-                    name: trans.name,
+                    name: trans?.name || "",
                     tags: (root as any).tags.map(({ tag }) => tag),
-                    description: trans.description,
+                    description: trans?.description || "",
                 }, languages?.[0]);
             },
         },
@@ -61,7 +65,13 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
                     userData,
                 });
                 const combinedInputs = [...Create, ...Update].map(d => d.input);
-                combinedInputs.forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio"));
+                combinedInputs.forEach(input => {
+                    // Only check fields that exist on the input
+                    const fieldsToCheck = ["description"].filter(field => field in input);
+                    if (fieldsToCheck.length > 0) {
+                        lineBreaksCheck(input as any, fieldsToCheck, "LineBreaksBio");
+                    }
+                });
                 // Calculate complexity of all versions. Since these calculations 
                 // can depend on other versions, we need to do them all at once.
                 const complexityMap = await calculateComplexity(
@@ -175,6 +185,7 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
             ownedByUserIdRoot: true,
             reportId: true,
             rootId: true,
+            rootResourceType: true,
             resourceSubType: true,
             resourceSubTypes: true,
             tagsRoot: true,
@@ -201,9 +212,9 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
     },
     validate: () => ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-        isPublic: (data, ...rest) => data.isPrivate === false &&
+        isPublic: (data, getParentInfo?) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<ResourceVersionModelInfo["DbSelect"]>([["root", "Resource"]], data, ...rest),
+            oneIsPublic<ResourceVersionModelInfo["DbSelect"]>([["root", "Resource"]], data, getParentInfo),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => ModelMap.get<ResourceModelLogic>("Resource").validate().owner(data?.root as ResourceModelInfo["DbModel"], userId),
@@ -213,7 +224,13 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
             isPrivate: true,
             root: ["Resource", ["versions"]],
         }),
-        permissionResolvers: defaultPermissions,
+        permissionResolvers: ({ isAdmin, isDeleted, isLoggedIn, isPublic }) => {
+            const base = defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic });
+            return filterPermissions(base, [
+                "canBookmark", "canComment", "canCopy", "canDelete", "canReact", "canRead", "canReport", "canRun", "canUpdate",
+                "canConnect", "canDisconnect",
+            ]);
+        },
         visibility: {
             own: function getOwn(data) {
                 return {

@@ -1,4 +1,6 @@
+// AI_CHECK: TYPE_SAFETY=phase2-outputs | LAST: 2025-07-04 - Enhanced type safety with proper type assertions and guards
 import { type ModelType } from "@vrooli/shared";
+import { hasTypename } from "./typeGuards.js";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
 import { type ModelLogicType } from "../models/types.js";
@@ -41,38 +43,50 @@ export function cudOutputsToMaps<Model extends {
     // Generate createInputs
     if (idsByAction.Create) {
         for (const createdId of idsByAction.Create) {
-            const node = inputsById[createdId].node;
+            const node = inputsById[createdId.toString()].node;
             if (node.action !== "Create") {
                 // If this error is thrown, there is a bug in cudInputsToMaps
                 throw new CustomError("0529", "InternalError", { node, createdId });
             }
+            if (!hasTypename(node)) {
+                throw new CustomError("0531", "InternalError", { node, createdId });
+            }
             const type = node.__typename;
-            initResult(type as ModelType);
-            result[type]!.createInputs.push(inputsById[createdId].input as Model["ApiCreate"]);
+            initResult(type);
+            result[type]!.createInputs.push(inputsById[createdId.toString()].input as Model["ApiCreate"]);
         }
     }
     // Generate updateInputs
     if (idsByAction.Update) {
         for (const updatedId of idsByAction.Update) {
-            const node = inputsById[updatedId].node;
+            const node = inputsById[updatedId.toString()].node;
             if (node.action !== "Update") {
                 // If this error is thrown, there is a bug in cudInputsToMaps
                 throw new CustomError("0530", "InternalError", { node, updatedId });
             }
+            if (!hasTypename(node)) {
+                throw new CustomError("0532", "InternalError", { node, updatedId });
+            }
             const type = node.__typename;
-            initResult(type as ModelType);
+            initResult(type);
             // Populate the update input for the ID
-            result[type]!.updateInputs.push(inputsById[updatedId].input as Model["ApiUpdate"]);
+            result[type]!.updateInputs.push(inputsById[updatedId.toString()].input as Model["ApiUpdate"]);
         }
     }
     // Generate createdIds and updatedIds
     for (const type of Object.keys(result)) {
-        const { idField } = ModelMap.getLogic(["idField"], type as ModelType);
-        for (const createInput of result[type].createInputs) {
-            result[type].createdIds.push((createInput as { [key in typeof idField]: string })[idField]);
+        const typeKey = type as ModelType;
+        const { idField } = ModelMap.getLogic(["idField"], typeKey);
+        const typeResult = result[typeKey];
+        if (!typeResult) continue;
+        
+        for (const createInput of typeResult.createInputs) {
+            const createInputWithId = createInput as { [key in typeof idField]: string };
+            typeResult.createdIds.push(createInputWithId[idField]);
         }
-        for (const updateInput of result[type].updateInputs) {
-            result[type].updatedIds.push((updateInput as { [key in typeof idField]: string })[idField]);
+        for (const updateInput of typeResult.updateInputs) {
+            const updateInputWithId = updateInput as { [key in typeof idField]: string };
+            typeResult.updatedIds.push(updateInputWithId[idField]);
         }
     }
     return result;

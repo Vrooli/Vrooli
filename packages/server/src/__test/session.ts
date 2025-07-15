@@ -27,7 +27,6 @@ export function loggedInUserNoPremiumData(): UserDataForPasswordAuth {
             emailAddress: "test-user@example.com",
         }],
         languages: ["en"],
-        premium: null,
         sessions: [],
     };
 }

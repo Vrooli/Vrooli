@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
+import { generatePublicId, nanoid } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -28,11 +28,12 @@ interface TeamRelationConfig extends RelationConfig {
  * - Privacy and access control testing
  */
 export class TeamDbFactory extends EnhancedDatabaseFactory<
-    Prisma.TeamCreateInput,
-    Prisma.TeamCreateInput,
-    Prisma.TeamInclude,
-    Prisma.TeamUpdateInput
+    team,
+    Prisma.teamCreateInput,
+    Prisma.teamInclude,
+    Prisma.teamUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
         super("Team", prisma);
         this.initializeScenarios();
@@ -45,20 +46,20 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get complete test fixtures for Team model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.TeamCreateInput, Prisma.TeamUpdateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.teamCreateInput, Prisma.teamUpdateInput> {
         return {
             minimal: {
-                id: generatePK(),
+                id: this.generateId(),
                 publicId: generatePublicId(),
-                handle: `team_${nanoid(8)}`,
+                handle: `team_${nanoid()}`,
                 name: "Test Team",
                 isOpenToNewMembers: true,
                 isPrivate: false,
             },
             complete: {
-                id: generatePK(),
+                id: this.generateId(),
                 publicId: generatePublicId(),
-                handle: `complete_team_${nanoid(8)}`,
+                handle: `complete_team_${nanoid()}`,
                 name: "Complete Test Team",
                 isOpenToNewMembers: true,
                 isPrivate: false,
@@ -67,13 +68,13 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                 translations: {
                     create: [
                         {
-                            id: generatePK(),
+                            id: this.generateId(),
                             language: "en",
                             name: "Complete Test Team",
                             bio: "A comprehensive test team with all features",
                         },
                         {
-                            id: generatePK(),
+                            id: this.generateId(),
                             language: "es",
                             name: "Equipo de Prueba Completo",
                             bio: "Un equipo de prueba integral con todas las funcionalidades",
@@ -96,7 +97,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                     isOpenToNewMembers: 1, // Should be boolean
                 },
                 duplicateHandle: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     name: "Duplicate Handle Team",
                     handle: "existing_team_handle", // Assumes this exists
@@ -104,18 +105,18 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                     isOpenToNewMembers: true,
                 },
                 conflictingPrivacy: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     name: "Conflicting Team",
-                    handle: `conflict_${nanoid(8)}`,
+                    handle: `conflict_${nanoid()}`,
                     isPrivate: true,
                     isOpenToNewMembers: true, // Conflict with isPrivate
                 },
                 teamWithoutOwner: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     name: "No Owner Team",
-                    handle: `no_owner_${nanoid(8)}`,
+                    handle: `no_owner_${nanoid()}`,
                     isPrivate: false,
                     isOpenToNewMembers: true,
                     // No members with Owner role
@@ -123,7 +124,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
             },
             edgeCases: {
                 maxLengthHandle: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     name: "Max Length Handle Team",
                     handle: "team_" + "a".repeat(45), // Max length handle
@@ -131,40 +132,40 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                     isOpenToNewMembers: true,
                 },
                 unicodeNameTeam: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     name: "チーム 🎌", // Unicode characters
-                    handle: `unicode_team_${nanoid(8)}`,
+                    handle: `unicode_team_${nanoid()}`,
                     isPrivate: false,
                     isOpenToNewMembers: true,
                 },
                 largeTeam: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     name: "Large Test Team",
-                    handle: `large_team_${nanoid(8)}`,
+                    handle: `large_team_${nanoid()}`,
                     isPrivate: false,
                     isOpenToNewMembers: true,
                     // Would need to add many members after creation
                 },
                 privateClosedTeam: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     name: "Private Closed Team",
-                    handle: `private_closed_${nanoid(8)}`,
+                    handle: `private_closed_${nanoid()}`,
                     isPrivate: true,
                     isOpenToNewMembers: false,
                 },
                 multiLanguageTeam: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     name: "Multilingual Team",
-                    handle: `multilang_team_${nanoid(8)}`,
+                    handle: `multilang_team_${nanoid()}`,
                     isPrivate: false,
                     isOpenToNewMembers: true,
                     translations: {
                         create: Array.from({ length: 5 }, (_, i) => ({
-                            id: generatePK(),
+                            id: this.generateId(),
                             language: ["en", "es", "fr", "de", "ja"][i],
                             name: `Team Name ${i}`,
                             bio: `Team bio in language ${i}`,
@@ -192,11 +193,11 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateMinimalData(overrides?: Partial<Prisma.TeamCreateInput>): Prisma.TeamCreateInput {
-        const uniqueHandle = `team_${nanoid(8)}`;
+    protected generateMinimalData(overrides?: Partial<Prisma.teamCreateInput>): Prisma.teamCreateInput {
+        const uniqueHandle = `team_${nanoid()}`;
         
         return {
-            id: generatePK(),
+            id: this.generateId(),
             publicId: generatePublicId(),
             handle: uniqueHandle,
             name: "Test Team",
@@ -206,11 +207,11 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateCompleteData(overrides?: Partial<Prisma.TeamCreateInput>): Prisma.TeamCreateInput {
-        const uniqueHandle = `complete_team_${nanoid(8)}`;
+    protected generateCompleteData(overrides?: Partial<Prisma.teamCreateInput>): Prisma.teamCreateInput {
+        const uniqueHandle = `complete_team_${nanoid()}`;
         
         return {
-            id: generatePK(),
+            id: this.generateId(),
             publicId: generatePublicId(),
             handle: uniqueHandle,
             name: "Complete Test Team",
@@ -221,13 +222,13 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
             translations: {
                 create: [
                     {
-                        id: generatePK(),
+                        id: this.generateId(),
                         language: "en",
                         name: "Complete Test Team",
                         bio: "A comprehensive test team with all features",
                     },
                     {
-                        id: generatePK(),
+                        id: this.generateId(),
                         language: "es",
                         name: "Equipo de Prueba Completo",
                         bio: "Un equipo de prueba integral con todas las funcionalidades",
@@ -250,7 +251,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         name: "Small Team",
                     },
-                    owner: { userId: "owner-user-id" },
+                    owner: { user: { connect: { id: this.generateId() } } },
                 },
             },
             standardTeam: {
@@ -260,11 +261,11 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         name: "Standard Team",
                     },
-                    owner: { userId: "owner-user-id" },
+                    owner: { user: { connect: { id: this.generateId() } } },
                     members: [
-                        { userId: "member-1-id", role: "Admin" },
-                        { userId: "member-2-id", role: "Member" },
-                        { userId: "member-3-id", role: "Member" },
+                        { user: { connect: { id: this.generateId() } }, role: "Admin" },
+                        { user: { connect: { id: this.generateId() } }, role: "Member" },
+                        { user: { connect: { id: this.generateId() } }, role: "Member" },
                     ],
                 },
             },
@@ -277,7 +278,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                         isPrivate: true,
                         isOpenToNewMembers: false,
                     },
-                    owner: { userId: "org-owner-id" },
+                    owner: { user: { connect: { id: this.generateId() } } },
                     translations: [
                         {
                             language: "en",
@@ -314,13 +315,13 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                         isPrivate: true,
                         isOpenToNewMembers: false,
                     },
-                    owner: { userId: "enterprise-owner-id" },
+                    owner: { user: { connect: { id: this.generateId() } } },
                     members: [
-                        { userId: "admin-1-id", role: "Admin" },
-                        { userId: "admin-2-id", role: "Admin" },
-                        { userId: "member-1-id", role: "Member" },
-                        { userId: "member-2-id", role: "Member" },
-                        { userId: "member-3-id", role: "Member" },
+                        { user: { connect: { id: this.generateId() } }, role: "Admin" },
+                        { user: { connect: { id: this.generateId() } }, role: "Admin" },
+                        { user: { connect: { id: this.generateId() } }, role: "Member" },
+                        { user: { connect: { id: this.generateId() } }, role: "Member" },
+                        { user: { connect: { id: this.generateId() } }, role: "Member" },
                     ],
                     projects: 5,
                     resourceLists: 3,
@@ -329,7 +330,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected getDefaultInclude(): Prisma.TeamInclude {
+    protected getDefaultInclude(): Prisma.teamInclude {
         return {
             translations: true,
             members: {
@@ -371,17 +372,17 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async applyRelationships(
-        baseData: Prisma.TeamCreateInput,
+        baseData: Prisma.teamCreateInput,
         config: TeamRelationConfig,
         tx: any,
-    ): Promise<Prisma.TeamCreateInput> {
+    ): Promise<Prisma.teamCreateInput> {
         const data = { ...baseData };
 
         // Handle owner (first member with Owner role)
         if (config.owner) {
             data.members = {
                 create: [{
-                    id: generatePK(),
+                    id: this.generateId(),
                     userId: config.owner.userId,
                     role: "Owner",
                 }],
@@ -391,7 +392,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
         // Handle additional members
         if (config.members && Array.isArray(config.members)) {
             const memberCreates = config.members.map(member => ({
-                id: generatePK(),
+                id: this.generateId(),
                 userId: member.userId,
                 role: member.role || "Member",
             }));
@@ -411,7 +412,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
         if (config.translations && Array.isArray(config.translations)) {
             data.translations = {
                 create: config.translations.map(trans => ({
-                    id: generatePK(),
+                    id: this.generateId(),
                     ...trans,
                 })),
             };
@@ -429,7 +430,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
     async createWithOwnerAndMembers(
         ownerId: string,
         memberIds: string[] = [],
-    ): Promise<Prisma.Team> {
+    ): Promise<team> {
         const members = [
             { userId: ownerId, role: "Owner" },
             ...memberIds.map(userId => ({ userId, role: "Member" })),
@@ -443,24 +444,24 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create specific team types
      */
-    async createPrivateTeam(): Promise<Prisma.Team> {
+    async createPrivateTeam(): Promise<team> {
         return await this.createMinimal({
             isPrivate: true,
             isOpenToNewMembers: false,
-            handle: `private_team_${nanoid(8)}`,
+            handle: `private_team_${nanoid()}`,
             name: "Private Team",
         });
     }
 
-    async createOpenCommunity(): Promise<Prisma.Team> {
+    async createOpenCommunity(): Promise<team> {
         return await this.seedScenario("openCommunity");
     }
 
-    async createOrganizationTeam(): Promise<Prisma.Team> {
+    async createOrganizationTeam(): Promise<team> {
         return await this.seedScenario("organizationTeam");
     }
 
-    protected async checkModelConstraints(record: Prisma.Team): Promise<string[]> {
+    protected async checkModelConstraints(record: team): Promise<string[]> {
         const violations: string[] = [];
         
         // Check handle uniqueness
@@ -515,7 +516,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.Team,
+        record: team,
         remainingDepth: number,
         tx: any,
         includeOnly?: string[],
@@ -549,7 +550,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
 
         // Delete bookmark lists
         if (shouldDelete("bookmarkLists") && record.bookmarkLists?.length) {
-            await tx.bookmarkList.deleteMany({
+            await tx.bookmark_list.deleteMany({
                 where: { teamId: record.id },
             });
         }
@@ -579,7 +580,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
 
         // Delete translations
         if (shouldDelete("translations") && record.translations?.length) {
-            await tx.teamTranslation.deleteMany({
+            await tx.team_translation.deleteMany({
                 where: { teamId: record.id },
             });
         }
@@ -592,8 +593,8 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
         teamCount: number,
         membersPerTeam: number,
         userIds: string[],
-    ): Promise<Prisma.Team[]> {
-        const teams: Prisma.Team[] = [];
+    ): Promise<team[]> {
+        const teams: team[] = [];
         
         for (let i = 0; i < teamCount; i++) {
             const startIdx = (i * membersPerTeam) % userIds.length;
@@ -619,13 +620,13 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
      * Create a team hierarchy (teams with sub-teams)
      * Note: This would require a parent-child relationship in the schema
      */
-    async createTeamHierarchy(levels = 3): Promise<Prisma.Team[]> {
-        const teams: Prisma.Team[] = [];
+    async createTeamHierarchy(levels = 3): Promise<team[]> {
+        const teams: team[] = [];
         
         // Create root team
         const rootTeam = await this.createComplete({
             name: "Root Organization",
-            handle: `root_org_${nanoid(8)}`,
+            handle: `root_org_${nanoid()}`,
         });
         teams.push(rootTeam);
         
@@ -634,7 +635,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
         for (let i = 0; i < levels - 1; i++) {
             const subTeam = await this.createMinimal({
                 name: `Sub Team Level ${i + 1}`,
-                handle: `sub_team_${i}_${nanoid(8)}`,
+                handle: `sub_team_${i}_${nanoid()}`,
             });
             teams.push(subTeam);
         }
@@ -646,10 +647,10 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
      * Create teams for different testing scenarios
      */
     async createTestingScenarios(): Promise<{
-        publicTeam: Prisma.Team;
-        privateTeam: Prisma.Team;
-        organizationTeam: Prisma.Team;
-        communityTeam: Prisma.Team;
+        publicTeam: team;
+        privateTeam: team;
+        organizationTeam: team;
+        communityTeam: team;
     }> {
         const [publicTeam, privateTeam, organizationTeam, communityTeam] = await Promise.all([
             this.createMinimal({ name: "Public Team", isPrivate: false }),
@@ -661,15 +662,15 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
         return {
             publicTeam,
             privateTeam,
-            organizationTeam: organizationTeam as unknown as Prisma.Team,
-            communityTeam: communityTeam as unknown as Prisma.Team,
+            organizationTeam: organizationTeam as unknown as team,
+            communityTeam: communityTeam as unknown as team,
         };
     }
 }
 
 // Export factory creator function
 export const createTeamDbFactory = (prisma: PrismaClient) => 
-    TeamDbFactory.getInstance("Team", prisma);
+    new TeamDbFactory(prisma);
 
 // Export the class for type usage
 export { TeamDbFactory as TeamDbFactoryClass };

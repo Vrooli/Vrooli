@@ -3,7 +3,7 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material";
 import { useField } from "formik";
-import { ToggleSwitch } from "../../inputs/ToggleSwitch/ToggleSwitch.js";
+import { Switch } from "../../inputs/Switch/Switch.js";
 import { type SettingsToggleListItemProps } from "../types.js";
 
 export function SettingsToggleListItem({
@@ -38,11 +38,13 @@ export function SettingsToggleListItem({
                     {description}
                 </Typography>
             </Stack>
-            <ToggleSwitch
+            <Switch
                 checked={field.value}
                 disabled={disabled}
                 name={name}
-                onChange={field.onChange}
+                onChange={(checked, event) => field.onChange(event)}
+                size="md"
+                labelPosition="none"
             />
         </ListItem>
     );

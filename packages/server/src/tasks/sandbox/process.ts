@@ -1,4 +1,4 @@
-import { CodeLanguage, CodeVersionConfig, type ResourceVersion } from "@vrooli/shared";
+import { CodeLanguage, CodeVersionConfig, type ResourceVersion, type SessionUser } from "@vrooli/shared";
 import { type Job } from "bullmq";
 import { readOneHelper } from "../../actions/reads.js";
 import { CustomError } from "../../events/error.js";
@@ -6,9 +6,12 @@ import { logger } from "../../events/logger.js";
 import { CacheService } from "../../redisConn.js";
 import { getAuthenticatedData } from "../../utils/getAuthenticatedData.js";
 import { permissionsCheck } from "../../validators/permissions.js";
-import { type SandboxRequestPayload } from "./queue.js";
 import { SandboxChildProcessManager } from "./sandboxWorkerManager.js";
-import { type RunUserCodeInput, type RunUserCodeOutput, type SandboxProcessPayload } from "./types.js";
+import { type RunUserCodeInput, type RunUserCodeOutput } from "./types.js";
+import { type SandboxTask } from "../taskTypes.js";
+
+// Type for the sandbox process payload - picks the essential fields from SandboxTask
+type SandboxProcessPayload = Pick<SandboxTask, "codeVersionId" | "input" | "userData">;
 
 const codeVersionSelect = {
     id: true,
@@ -124,14 +127,14 @@ export async function doSandbox({
         }
         return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
         if (error instanceof CustomError) {
             logger.warn(`CustomError in doSandbox: ${error.message}`, {
                 trace: "doSandbox-CustomError",
                 codeVersionId,
                 errorCode: error.code,
                 errorName: error.name,
-                errorContext: (error as any).context ?? (error as any).payload,
+                errorContext: "context" in error ? error.context : ("payload" in error ? (error as { payload: unknown }).payload : undefined),
             });
             throw error; // Rethrow CustomError to be handled by higher-level handlers
         }
@@ -142,14 +145,17 @@ export async function doSandbox({
     }
 }
 
-export async function sandboxProcess({ data }: Job<SandboxRequestPayload>) {
-    switch (data.__process) {
+export async function sandboxProcess({ data }: Job<SandboxTask>) {
+    // For backward compatibility, check if __process is provided
+    const processType = ("__process" in data && typeof data.__process === "string") ? data.__process : "Sandbox";
+    
+    switch (processType) {
         case "Sandbox":
             return doSandbox(data);
         case "Test":
             logger.info("sandboxProcess test triggered");
             return { __typename: "Success" as const, success: true };
         default:
-            throw new CustomError("0608", "InternalError", { process: (data as { __process?: unknown }).__process });
+            throw new CustomError("0608", "InternalError", { process: processType });
     }
 }

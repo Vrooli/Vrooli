@@ -2,10 +2,10 @@ import { keyframes, styled, useTheme } from "@mui/material";
 import Box from "@mui/material/Box";
 import Fade from "@mui/material/Fade";
 import Grow from "@mui/material/Grow";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../components/buttons/IconButton.js";
 import Link from "@mui/material/Link";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../components/Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { SOCIALS } from "@vrooli/shared";
 import { cloneElement, useCallback, useEffect, useState } from "react";
@@ -172,7 +172,7 @@ export function AboutView(_props: ViewProps) {
                                 position: "relative",
                                 overflow: "hidden",
                                 "&::before": {
-                                    content: '""',
+                                    content: "\"\"",
                                     position: "absolute",
                                     top: 0,
                                     left: 0,
@@ -230,7 +230,7 @@ export function AboutView(_props: ViewProps) {
                                         position: "relative",
                                         overflow: "hidden",
                                         "&::before": {
-                                            content: '""',
+                                            content: "\"\"",
                                             position: "absolute",
                                             top: 0,
                                             left: 0,
@@ -239,7 +239,7 @@ export function AboutView(_props: ViewProps) {
                                             background: `linear-gradient(to bottom, ${section.color}, ${section.color}80)`,
                                         },
                                         "&:hover::after": {
-                                            content: '""',
+                                            content: "\"\"",
                                             position: "absolute",
                                             top: 0,
                                             left: 0,
@@ -305,7 +305,7 @@ export function AboutView(_props: ViewProps) {
                                 position: "relative",
                                 overflow: "hidden",
                                 "&::after": {
-                                    content: '""',
+                                    content: "\"\"",
                                     position: "absolute",
                                     top: 0,
                                     left: 0,
@@ -345,7 +345,7 @@ export function AboutView(_props: ViewProps) {
                                 position: "relative",
                                 overflow: "hidden",
                                 "&::before": {
-                                    content: '""',
+                                    content: "\"\"",
                                     position: "absolute",
                                     top: "-50%",
                                     left: "-50%",
@@ -393,7 +393,7 @@ export function AboutView(_props: ViewProps) {
                                                         border: `1px solid ${palette.primary.light}40`,
                                                         position: "relative",
                                                         "&::before": {
-                                                            content: '""',
+                                                            content: "\"\"",
                                                             position: "absolute",
                                                             top: 0,
                                                             left: 0,
@@ -520,7 +520,7 @@ export function AboutView(_props: ViewProps) {
                                                     position: "relative",
                                                     overflow: "hidden",
                                                     "&::before": {
-                                                        content: '""',
+                                                        content: "\"\"",
                                                         position: "absolute",
                                                         top: 0,
                                                         left: "-100%",

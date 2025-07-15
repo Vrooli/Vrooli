@@ -5,14 +5,14 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { http, type RestHandler } from "msw";
+import { http, HttpResponse, type RequestHandler } from "msw";
 import type { 
     StatsSite,
     StatsSiteSearchInput,
-    PeriodType,
+    StatPeriodType,
 } from "@vrooli/shared";
 import { 
-    PeriodType as PeriodTypeEnum, 
+    StatPeriodType as StatPeriodTypeEnum, 
 } from "@vrooli/shared";
 
 /**
@@ -73,14 +73,14 @@ export class StatsSiteResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique stats ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -238,121 +238,84 @@ export class StatsSiteResponseFactory {
         const now = new Date().toISOString();
         const id = this.generateId();
         
-        const defaultStats: StatsSite = {
+        const defaultStats = {
             __typename: "StatsSite",
             id,
             periodStart: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
             periodEnd: now,
-            periodType: PeriodTypeEnum.Week,
+            periodType: StatPeriodTypeEnum.Weekly,
             
-            // User statistics
-            users: Math.floor(Math.random() * 10000) + 1000,
-            usersLoggedIn: Math.floor(Math.random() * 5000) + 500,
-            usersCreated: Math.floor(Math.random() * 200) + 20,
-            
-            // Content statistics  
-            apis: Math.floor(Math.random() * 500) + 100,
-            apisCreated: Math.floor(Math.random() * 30) + 5,
-            projects: Math.floor(Math.random() * 1000) + 200,
-            projectsCreated: Math.floor(Math.random() * 50) + 10,
-            routines: Math.floor(Math.random() * 2000) + 300,
-            routinesCreated: Math.floor(Math.random() * 100) + 15,
-            routinesCompleted: Math.floor(Math.random() * 500) + 50,
-            runs: Math.floor(Math.random() * 5000) + 1000,
-            runsStarted: Math.floor(Math.random() * 1000) + 200,
-            runsCompleted: Math.floor(Math.random() * 800) + 150,
-            
-            // Engagement statistics
-            verificationApplications: Math.floor(Math.random() * 50) + 5,
-            verificationApplicationsApproved: Math.floor(Math.random() * 30) + 2,
-            reports: Math.floor(Math.random() * 20) + 1,
-            reportsActionTaken: Math.floor(Math.random() * 15) + 1,
-            
-            // Community statistics
-            teams: Math.floor(Math.random() * 300) + 50,
+            // StatsSite actual properties
+            activeUsers: Math.floor(Math.random() * 5000) + 500,
             teamsCreated: Math.floor(Math.random() * 20) + 3,
-            
-            // System statistics
-            pageViews: Math.floor(Math.random() * 100000) + 10000,
-            uniqueVisitors: Math.floor(Math.random() * 20000) + 2000,
-            
-            // Performance metrics
-            averageResponseTime: Math.floor(Math.random() * 500) + 100, // milliseconds
-            uptime: 99.9 - Math.random() * 0.1, // percentage
+            verifiedEmailsCreated: Math.floor(Math.random() * 100) + 10,
+            verifiedWalletsCreated: Math.floor(Math.random() * 50) + 5,
+            resourcesCreatedByType: JSON.stringify({
+                "routine": Math.floor(Math.random() * 100) + 15,
+                "project": Math.floor(Math.random() * 50) + 10,
+                "api": Math.floor(Math.random() * 30) + 5
+            }),
+            resourcesCompletedByType: JSON.stringify({
+                "routine": Math.floor(Math.random() * 80) + 12,
+                "project": Math.floor(Math.random() * 40) + 8,
+                "api": Math.floor(Math.random() * 25) + 3
+            }),
+            resourceCompletionTimeAverageByType: JSON.stringify({
+                "routine": Math.floor(Math.random() * 3600) + 300,
+                "project": Math.floor(Math.random() * 7200) + 600,
+                "api": Math.floor(Math.random() * 1800) + 200
+            }),
+            routineComplexityAverage: Math.random() * 10 + 1,
+            runCompletionTimeAverage: Math.random() * 3600 + 300,
+            runContextSwitchesAverage: Math.random() * 5 + 0.5,
+            runsStarted: Math.floor(Math.random() * 1000) + 200,
+            runsCompleted: Math.floor(Math.random() * 800) + 150
         };
         
         return {
             ...defaultStats,
             ...overrides,
-        };
+        } as unknown as StatsSite;
     }
     
     /**
      * Create site statistics for different time periods
      */
-    createStatsByPeriod(): Record<PeriodType, StatsSite> {
+    createStatsByPeriod(): any {
         const baseStats = this.createMockStats();
         
         return {
-            [PeriodTypeEnum.Day]: {
+            [StatPeriodTypeEnum.Daily]: {
                 ...baseStats,
-                periodType: PeriodTypeEnum.Day,
+                periodType: StatPeriodTypeEnum.Daily,
                 periodStart: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-                users: 150,
-                usersLoggedIn: 80,
-                usersCreated: 5,
-                pageViews: 2500,
-                uniqueVisitors: 400,
+                activeUsers: 80,
                 runsStarted: 45,
                 runsCompleted: 35,
             },
-            [PeriodTypeEnum.Week]: {
+            [StatPeriodTypeEnum.Weekly]: {
                 ...baseStats,
-                periodType: PeriodTypeEnum.Week,
+                periodType: StatPeriodTypeEnum.Weekly,
                 periodStart: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-                users: 1200,
-                usersLoggedIn: 650,
-                usersCreated: 35,
-                pageViews: 18000,
-                uniqueVisitors: 2800,
+                activeUsers: 650,
                 runsStarted: 320,
                 runsCompleted: 280,
             },
-            [PeriodTypeEnum.Month]: {
+            [StatPeriodTypeEnum.Monthly]: {
                 ...baseStats,
-                periodType: PeriodTypeEnum.Month,
+                periodType: StatPeriodTypeEnum.Monthly,
                 periodStart: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-                users: 5500,
-                usersLoggedIn: 3200,
-                usersCreated: 180,
-                pageViews: 85000,
-                uniqueVisitors: 12000,
+                activeUsers: 3200,
                 runsStarted: 1500,
                 runsCompleted: 1200,
             },
-            [PeriodTypeEnum.Year]: {
+            [StatPeriodTypeEnum.Yearly]: {
                 ...baseStats,
-                periodType: PeriodTypeEnum.Year,
+                periodType: StatPeriodTypeEnum.Yearly,
                 periodStart: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(),
-                users: 25000,
-                usersLoggedIn: 18000,
-                usersCreated: 2200,
-                pageViews: 1200000,
-                uniqueVisitors: 180000,
+                activeUsers: 18000,
                 runsStarted: 25000,
                 runsCompleted: 20000,
-            },
-            [PeriodTypeEnum.AllTime]: {
-                ...baseStats,
-                periodType: PeriodTypeEnum.AllTime,
-                periodStart: new Date(Date.now() - 3 * 365 * 24 * 60 * 60 * 1000).toISOString(),
-                users: 50000,
-                usersLoggedIn: 35000,
-                usersCreated: 50000,
-                pageViews: 5000000,
-                uniqueVisitors: 750000,
-                runsStarted: 100000,
-                runsCompleted: 80000,
             },
         };
     }
@@ -372,14 +335,10 @@ export class StatsSiteResponseFactory {
             const growthFactor = 1 + (index / days) * 0.1;
             
             return this.createMockStats({
-                periodType: PeriodTypeEnum.Day,
+                periodType: StatPeriodTypeEnum.Daily,
                 periodStart: new Date(dayStart).toISOString(),
                 periodEnd: new Date(dayEnd).toISOString(),
-                users: Math.floor((100 + Math.random() * 50) * growthFactor),
-                usersLoggedIn: Math.floor((50 + Math.random() * 30) * growthFactor),
-                usersCreated: Math.floor((2 + Math.random() * 8) * growthFactor),
-                pageViews: Math.floor((1500 + Math.random() * 1000) * growthFactor),
-                uniqueVisitors: Math.floor((300 + Math.random() * 200) * growthFactor),
+                activeUsers: Math.floor((50 + Math.random() * 30) * growthFactor),
                 runsStarted: Math.floor((30 + Math.random() * 20) * growthFactor),
                 runsCompleted: Math.floor((25 + Math.random() * 15) * growthFactor),
             });
@@ -391,30 +350,13 @@ export class StatsSiteResponseFactory {
      */
     createAdminDashboardStats(): StatsSite {
         return this.createMockStats({
-            periodType: PeriodTypeEnum.Day,
-            users: 12500,
-            usersLoggedIn: 3400,
-            usersCreated: 45,
-            apis: 850,
-            apisCreated: 12,
-            projects: 2400,
-            projectsCreated: 28,
-            routines: 5800,
-            routinesCreated: 65,
-            routinesCompleted: 340,
-            runs: 15000,
+            periodType: StatPeriodTypeEnum.Daily,
+            activeUsers: 3400,
+            teamsCreated: 8,
+            verifiedEmailsCreated: 15,
+            verifiedWalletsCreated: 8,
             runsStarted: 480,
             runsCompleted: 420,
-            teams: 320,
-            teamsCreated: 8,
-            pageViews: 45000,
-            uniqueVisitors: 8200,
-            verificationApplications: 15,
-            verificationApplicationsApproved: 8,
-            reports: 3,
-            reportsActionTaken: 2,
-            averageResponseTime: 180,
-            uptime: 99.95,
         });
     }
     
@@ -449,41 +391,35 @@ export class StatsSiteMSWHandlers {
     /**
      * Create success handlers for all site statistics endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): RequestHandler[] {
         return [
             // Get current site statistics
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/current`, (req, res, ctx) => {
-                const url = new URL(req.url);
-                const period = url.searchParams.get("period") as PeriodType || PeriodTypeEnum.Week;
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/current`, ({ request, params }) => {
+                const url = new URL(request.url);
+                const period = url.searchParams.get("period") as StatPeriodType || StatPeriodTypeEnum.Weekly;
                 
                 const statsByPeriod = this.responseFactory.createStatsByPeriod();
                 const stats = statsByPeriod[period];
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Get site statistics by period
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/:period`, (req, res, ctx) => {
-                const { period } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/:period`, ({ request, params }) => {
+                const { period } = params;
                 
                 const statsByPeriod = this.responseFactory.createStatsByPeriod();
-                const stats = statsByPeriod[period as PeriodType] || statsByPeriod[PeriodTypeEnum.Week];
+                const stats = statsByPeriod[period as StatPeriodType] || statsByPeriod[StatPeriodTypeEnum.Weekly];
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Search site statistics
-            http.post(`${this.responseFactory["baseUrl"]}/api/stats/site/search`, async (req, res, ctx) => {
-                const body = await req.json() as StatsSiteSearchInput;
-                const url = new URL(req.url);
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/site/search`, async ({ request, params }) => {
+                const body = await request.json() as StatsSiteSearchInput;
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 
@@ -510,52 +446,40 @@ export class StatsSiteMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Get admin dashboard statistics
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/admin/dashboard`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/admin/dashboard`, ({ request, params }) => {
                 const stats = this.responseFactory.createAdminDashboardStats();
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Get growth metrics
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/growth`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/growth`, ({ request, params }) => {
                 const growthMetrics = this.responseFactory.createGrowthMetrics();
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json({
+                return HttpResponse.json({
                         data: growthMetrics,
                         meta: {
                             timestamp: new Date().toISOString(),
                             requestId: this.responseFactory["generateRequestId"](),
                             version: "1.0",
                         },
-                    }),
-                );
+                    }, { status: 200 });
             }),
             
             // Get time series data
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/timeseries`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/timeseries`, ({ request, params }) => {
+                const url = new URL(request.url);
                 const days = parseInt(url.searchParams.get("days") || "30");
                 
                 const timeSeriesData = this.responseFactory.createTimeSeriesStats(days);
                 const response = this.responseFactory.createStatsListResponse(timeSeriesData);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -563,30 +487,30 @@ export class StatsSiteMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): RequestHandler[] {
         return [
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/:period`, (req, res, ctx) => {
-                const { period } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(period as string)),
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/:period`, ({ request, params }) => {
+                const { period } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse(period as string),
+                    { status: 404 }
                 );
             }),
             
             // Permission error (admin only)
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/admin/dashboard`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("view admin statistics")),
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/admin/dashboard`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("view admin statistics"),
+                    { status: 403 }
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/stats/site/search`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/site/search`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse(),
+                    { status: 500 }
                 );
             }),
         ];
@@ -595,17 +519,14 @@ export class StatsSiteMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RequestHandler[] {
         return [
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/current`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/current`, async ({ request, params }) => {
                 const stats = this.responseFactory.createMockStats();
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -613,14 +534,14 @@ export class StatsSiteMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): RequestHandler[] {
         return [
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/current`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/current`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/admin/dashboard`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/admin/dashboard`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -634,18 +555,17 @@ export class StatsSiteMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): RequestHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        const httpMethod = http[method.toLowerCase() as keyof typeof http] as any;
+        return httpMethod(fullEndpoint, async ({ request, params }) => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }
@@ -655,10 +575,10 @@ export class StatsSiteMSWHandlers {
  */
 export const statsSiteResponseScenarios = {
     // Success scenarios
-    currentStats: (period?: PeriodType) => {
+    currentStats: (period?: StatPeriodType) => {
         const factory = new StatsSiteResponseFactory();
         const statsByPeriod = factory.createStatsByPeriod();
-        const stats = statsByPeriod[period || PeriodTypeEnum.Week];
+        const stats = statsByPeriod[period || StatPeriodTypeEnum.Weekly];
         return factory.createSuccessResponse(stats);
     },
     

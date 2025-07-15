@@ -40,7 +40,7 @@ export const StatsUserModel: StatsUserModelLogic = ({
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => ModelMap.get<UserModelLogic>("User").validate().owner(data?.user as UserModelInfo["DbModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<StatsUserModelInfo["DbSelect"]>([["user", "User"]], ...rest),
+        isPublic: (data, getParentInfo?) => oneIsPublic<StatsUserModelInfo["DbSelect"]>([["user", "User"]], data, getParentInfo),
         visibility: {
             own: function getOwn(data) {
                 return {

@@ -11,13 +11,20 @@
         "sourceMap": true,
         "strictNullChecks": true,
         "tsBuildInfoFile": ".tsbuildinfo",
-        "types": []
+        "types": [],
+        // Enhanced type safety for jobs package
+        "noImplicitAny": true,
+        "useUnknownInCatchVariables": true,
+        "noUncheckedIndexedAccess": true,
+        "exactOptionalPropertyTypes": true
     },
     "include": [
         "src"
     ],
     "exclude": [
-        "**/*.spec.ts"
+        "**/*.spec.ts",
+        "**/*.test.ts",
+        "**/__test/**"
     ],
     "references": [
         { "path": "../shared" },

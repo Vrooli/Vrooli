@@ -51,6 +51,7 @@ export const team: ApiPartial<Team> = {
         you: () => rel(teamYou, "full"),
     },
     full: {
+        // @ts-expect-error - JSONB field - select entire JSON object
         config: true,
         members: async () => rel((await import("./member.js")).member, "list", { omit: "team" }),
     },

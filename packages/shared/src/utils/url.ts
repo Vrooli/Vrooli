@@ -1,6 +1,6 @@
 import { type Bookmark, type ChatParticipant, type Member, type ModelType, type Notification, type Reaction, type Resource, ResourceSubType, type ResourceVersion, type Run, type Schedule, type Session, type View } from "../api/types.js";
 import { LINKS } from "../consts/ui.js";
-import { type TranslationKeyCommon } from "../types.js";
+import { type TranslationKeyCommon } from "../types.d.js";
 import { isOfType } from "./objects.js";
 
 export type UrlPrimitive = string | number | boolean | object;
@@ -203,14 +203,35 @@ export function stringifySearchParams(params: ParseSearchParamsResult) {
 
 /**
  * Converts url search params to object
+ * @param searchString Custom search string to parse (optional, defaults to window.location.search)
+ * @param filterKeys Array of keys to filter for (optional, returns all if not provided)
  * @returns Object with key/value pairs, or empty object if no params
  */
-export function parseSearchParams(): ParseSearchParamsResult {
-    const params = new URLSearchParams(window.location.search);
+export function parseSearchParams(): ParseSearchParamsResult;
+export function parseSearchParams(searchString: string): ParseSearchParamsResult;
+export function parseSearchParams(searchString: string, filterKeys: string[]): ParseSearchParamsResult;
+export function parseSearchParams(searchString?: string, filterKeys?: string[]): ParseSearchParamsResult {
+    const searchStr = searchString ?? (typeof window !== "undefined" ? window.location.search : "");
+    const params = new URLSearchParams(searchStr);
     const obj: ParseSearchParamsResult = {};
+    
     for (const [key, value] of params) {
+        // If filterKeys is provided, only include those keys
+        if (filterKeys && !filterKeys.includes(key)) {
+            continue;
+        }
+        
         try {
-            obj[decodeURIComponent(key)] = JSON.parse(decodeURIComponent(value));
+            const decodedKey = decodeURIComponent(key);
+            const decodedValue = decodeURIComponent(value);
+            
+            // Try parsing as JSON first
+            try {
+                obj[decodedKey] = JSON.parse(decodedValue);
+            } catch {
+                // If JSON parsing fails, treat as plain string (for Storybook compatibility)
+                obj[decodedKey] = decodedValue;
+            }
         } catch (e: unknown) {
             const errorMessage = typeof e === "object" && e !== null && "message" in e ? (e as Error).message : String(e);
             if (process.env.NODE_ENV !== "test") {
@@ -241,7 +262,10 @@ function getResourceSubType(object: Omit<NavigableObject, "id">): ResourceSubTyp
  */
 export function getObjectUrlBase(object: Omit<NavigableObject, "id">): string {
     if (typeof object !== "object" || object === null || !Object.prototype.hasOwnProperty.call(object, "__typename") || typeof object.__typename !== "string") {
-        console.warn("getObjectUrlBase called with non-object or non-string __typename", object);
+        // Only warn in non-test environments to avoid noise during test runs
+        if (typeof process === "undefined" || process.env.NODE_ENV !== "test") {
+            console.warn("getObjectUrlBase called with non-object or non-string __typename", object);
+        }
         return "";
     }
     // Resources have several types
@@ -296,11 +320,11 @@ export function getObjectSlug(object: NavigableObject | null | undefined, prefer
     // If object is an action/shortcut/event, return blank
     if (isOfType(object, "Action", "Shortcut", "CalendarEvent")) return "/";
     // If object is a star/vote/some other __typename that links to a main object, use that object's slug
-    if (isOfType(object, "Bookmark", "Reaction", "View")) return getObjectSlug((object as Partial<Bookmark | Reaction | View>).to);
+    if (isOfType(object, "Bookmark", "Reaction", "View")) return getObjectSlug((object as Partial<Bookmark | Reaction | View>).to as NavigableObject);
     // If object has root, use the root and version
     if (Object.prototype.hasOwnProperty.call(object, "root")) {
         const resourceVersion = object as ResourceVersion;
-        const root = getObjectSlug(resourceVersion.root);
+        const root = getObjectSlug(resourceVersion.root as NavigableObject);
         const version = resourceVersion.versionLabel ?? resourceVersion.publicId ?? resourceVersion.id;
         return `${root}/v/${version}`;
     }

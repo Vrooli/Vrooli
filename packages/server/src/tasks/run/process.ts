@@ -1,9 +1,9 @@
-import { type Success, type TierExecutionRequest, type RoutineExecutionInput } from "@vrooli/shared";
+import { generatePK, type RoutineExecutionInput, type Success, type TierExecutionRequest } from "@vrooli/shared";
 import { type Job } from "bullmq";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
-import { RoutineOrchestrator } from "../../services/execution/tier2/routineOrchestrator.js";
-import type { RoutineStateMachine } from "../../services/execution/tier2/routineStateMachine.js";
+import { SwarmContextManager } from "../../services/execution/shared/SwarmContextManager.js";
+import { RoutineStateMachine } from "../../services/execution/tier2/routineStateMachine.js";
 import { BaseActiveTaskRegistry, type BaseActiveTaskRecord } from "../activeTaskRegistry.js";
 import { QueueTaskType, type RunTask } from "../taskTypes.js";
 
@@ -101,74 +101,81 @@ export const RunProcessSelect = {
 
 export type ActiveRunRecord = BaseActiveTaskRecord;
 class RunRegistry extends BaseActiveTaskRegistry<ActiveRunRecord, RoutineStateMachine> {
-    // Add any swarm-specific methods here
+    // Add any routine-specific methods here
 }
 export const activeRunRegistry = new RunRegistry();
 
 /**
- * Process new three-tier run execution
+ * Process routine execution directly through RoutineStateMachine
+ * 
+ * This uses RoutineStateMachine directly with RunTask structure
+ * for clean integration with the three-tier architecture.
  */
-async function processNewRunExecution(payload: RunTask) {
-    // Extract fields from the new nested structure
-    const { context, input, allocation } = payload;
-    
-    logger.info("[processNewRunExecution] Starting new run execution", {
-        runId: input.runId,
-        resourceVersionId: input.resourceVersionId,
-        userId: context.userData.id,
-        isNewRun: input.isNewRun,
+async function processRoutineExecution(payload: RunTask) {
+    logger.info("[processRoutineExecution] Starting routine execution", {
+        runId: payload.input.runId,
+        resourceVersionId: payload.input.resourceVersionId,
+        userId: payload.context.userData.id,
     });
 
     try {
-        // TODO: Fetch routine data from database using input.resourceVersionId
-        // For now, we'll need to implement this properly
-        const routineData = {
-            routineId: input.resourceVersionId,
-            parameters: input.formValues || {},
-            workflow: {
-                steps: [],
-                dependencies: [],
-            },
-        };
+        // Extract run ID or generate new one if not provided
+        const runId = payload.input.runId || generatePK().toString();
 
-        // Create RoutineExecutionInput for the orchestrator
-        const routineRequest: TierExecutionRequest<RoutineExecutionInput> = {
-            context,
-            input: routineData,
-            allocation,
+        const contextManager = new SwarmContextManager();
+
+        // Create state machine directly with RunTask
+        const stateMachine = new RoutineStateMachine(
+            runId,
+            contextManager,
+            undefined, // runContextManager
+            payload.context.userData.id,
+        );
+
+        // Create tier execution request from RunTask
+        const tierRequest: TierExecutionRequest<RoutineExecutionInput> = {
+            context: payload.context,
+            input: {
+                routineId: payload.input.resourceVersionId,
+                parameters: payload.input.formValues || {},
+                workflow: {
+                    steps: [], // TODO: Load from database
+                    dependencies: [],
+                },
+            },
+            allocation: payload.allocation,
             options: {
-                // Add any execution options if needed
+                strategy: "sequential",
+                timeout: 300000, // 5 minutes
             },
         };
 
-        // Execute directly through coordinator
-        const coordinator = new RoutineOrchestrator();
-        const result = await coordinator.execute(routineRequest);
+        // Start routine execution using the state machine
+        const result = await stateMachine.executeInForeground(tierRequest);
         if (!result.success) {
-            throw new Error(result.error?.message || "Failed to start run");
+            throw new Error(result.error?.message || "Failed to start routine");
         }
 
         // Create registry record
         const record: ActiveRunRecord = {
-            id: input.runId,
-            userId: context.userData.id,
-            hasPremium: context.userData.hasPremium || false,
+            id: runId,
+            userId: payload.context.userData.id,
+            hasPremium: payload.context.userData.hasPremium || false,
             startTime: Date.now(),
         };
 
-        // TODO: Need to get the actual RoutineStateMachine instance from RoutineOrchestrator
-        // For now, we'll comment out the registry add until we can get the proper instance
-        // activeRunRegistry.add(record, coordinator);
+        // Add state machine to registry
+        activeRunRegistry.add(record, stateMachine);
 
-        logger.info("[processNewRunExecution] Successfully started run", {
-            runId: input.runId,
+        logger.info("[processRoutineExecution] Successfully started routine", {
+            runId,
         });
 
-        return { runId: input.runId };
+        return { runId };
 
     } catch (error) {
-        logger.error("[processNewRunExecution] Failed to start run execution", {
-            runId: input.runId,
+        logger.error("[processRoutineExecution] Failed to start routine execution", {
+            runId: payload.input.runId,
             error: error instanceof Error ? error.message : String(error),
         });
         throw error;
@@ -178,7 +185,7 @@ async function processNewRunExecution(payload: RunTask) {
 export async function runProcess({ data }: Job<RunTask>): Promise<Success> {
     switch (data.type) {
         case QueueTaskType.RUN_START:
-            await processNewRunExecution(data as RunTask);
+            await processRoutineExecution(data as RunTask);
             return { __typename: "Success" as const, success: true };
 
         default:

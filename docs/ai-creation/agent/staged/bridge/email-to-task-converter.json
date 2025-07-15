@@ -1,108 +1,110 @@
 {
-  "identity": {
-    "name": "email-to-task-converter",
-    "version": "1.0.0"
-  },
-  "goal": "Transforms emails into actionable tasks and projects",
-  "role": "bridge",
-  "subscriptions": [
-    "step/completed",
-    "run/started",
-    "safety/post_action"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.outputType == 'email_content'"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Task Extractor",
-        "inputMap": {
-          "emailContent": "event.data.output.content",
-          "sender": "event.data.output.sender",
-          "priority": "event.data.output.priority",
-          "taskTemplates": "blackboard.templates.tasks"
+    "identity": {
+        "name": "email-to-task-converter",
+        "version": "1.0.0"
+    },
+    "goal": "Transforms emails into actionable tasks and projects",
+    "role": "bridge",
+    "subscriptions": [
+        "step/completed",
+        "run/started",
+        "safety/post_action"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.outputType == 'email_content'"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Task Extractor",
+                "inputMap": {
+                    "emailContent": "event.data.output.content",
+                    "sender": "event.data.output.sender",
+                    "priority": "event.data.output.priority",
+                    "taskTemplates": "blackboard.templates.tasks"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/started",
+                "when": "event.data.source == 'email_integration'"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Analyze email thread context to extract actionable items and create structured task workflows"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "safety/post_action",
+                "when": "event.data.action.type == 'task_creation' && event.data.source == 'email'"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Priority Classifier",
+                "inputMap": {
+                    "taskData": "event.data.output",
+                    "senderImportance": "blackboard.contacts.priority",
+                    "urgencyKeywords": "blackboard.classification.urgency"
+                }
+            },
+            "qos": 0
         }
-      },
-      "qos": 1
+    ],
+    "prompt": {
+        "mode": "supplement",
+        "source": "direct",
+        "content": "You are the Email-to-Task Converter, responsible for transforming email communications into actionable tasks and projects. Always preserve the original context and intent of the email when creating tasks. You have permission to infer deadlines and urgency levels from email content, sender behavior, and contextual clues. Never discard or ignore email attachments, as they often contain critical information for task completion. Focus on extracting clear, actionable items while maintaining the relationship between the original communication and the resulting tasks."
     },
-    {
-      "trigger": {
-        "topic": "run/started",
-        "when": "event.data.source == 'email_integration'"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Analyze email thread context to extract actionable items and create structured task workflows"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "safety/post_action",
-        "when": "event.data.action.type == 'task_creation' && event.data.source == 'email'"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Priority Classifier",
-        "inputMap": {
-          "taskData": "event.data.output",
-          "senderImportance": "blackboard.contacts.priority",
-          "urgencyKeywords": "blackboard.classification.urgency"
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "task-extractors",
+            "permissions": [
+                "read"
+            ],
+            "scope": "tools.extraction.tasks",
+            "description": "Access task extraction algorithms and patterns"
+        },
+        {
+            "type": "blackboard",
+            "label": "project-templates",
+            "permissions": [
+                "read"
+            ],
+            "scope": "templates.projects",
+            "description": "Read project and task templates"
+        },
+        {
+            "type": "blackboard",
+            "label": "priority-classification",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "classification.priority",
+            "description": "Access and update priority classification rules"
+        },
+        {
+            "type": "routine",
+            "label": "Task Extractor",
+            "permissions": [
+                "read"
+            ],
+            "description": "Extract actionable tasks from email content"
+        },
+        {
+            "type": "routine",
+            "label": "Priority Classifier",
+            "permissions": [
+                "read"
+            ],
+            "description": "Classify task priority based on context and sender"
         }
-      },
-      "qos": 0
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "preserve-context"
-    },
-    {
-      "modality": "permission",
-      "target": "infer-deadlines"
-    },
-    {
-      "modality": "prohibition",
-      "target": "discard-attachments"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "task-extractors",
-      "permissions": ["read"],
-      "scope": "tools.extraction.tasks",
-      "description": "Access task extraction algorithms and patterns"
-    },
-    {
-      "type": "blackboard",
-      "label": "project-templates",
-      "permissions": ["read"],
-      "scope": "templates.projects",
-      "description": "Read project and task templates"
-    },
-    {
-      "type": "blackboard",
-      "label": "priority-classification",
-      "permissions": ["read", "write"],
-      "scope": "classification.priority",
-      "description": "Access and update priority classification rules"
-    },
-    {
-      "type": "routine",
-      "label": "Task Extractor",
-      "permissions": ["read"],
-      "description": "Extract actionable tasks from email content"
-    },
-    {
-      "type": "routine",
-      "label": "Priority Classifier",
-      "permissions": ["read"],
-      "description": "Classify task priority based on context and sender"
-    }
-  ]
+    ]
 }

@@ -13,6 +13,7 @@
  */
 export enum InputType {
     Checkbox = "Checkbox",
+    ColorPicker = "ColorPicker",
     Dropzone = "Dropzone",
     JSON = "JSON",
     IntegerInput = "IntegerInput",

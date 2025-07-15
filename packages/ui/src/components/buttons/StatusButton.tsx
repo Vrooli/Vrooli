@@ -1,5 +1,5 @@
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { Status } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";

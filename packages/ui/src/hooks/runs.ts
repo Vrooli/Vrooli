@@ -1,4 +1,5 @@
-import { DUMMY_ID, RunStatus, endpointsRun, validatePK, type Run, type RunCreateInput, type RunTaskInfo, type RunUpdateInput } from "@vrooli/shared";
+// AI_CHECK: TYPE_SAFETY=40 | LAST: 2025-06-28
+import { DUMMY_ID, RunStatus, endpointsRun, validatePK, type DeferredDecisionData, type Run, type RunCreateInput, type RunTaskInfo, type RunUpdateInput } from "@vrooli/shared";
 import { useCallback, useEffect, useRef } from "react";
 import { fetchLazyWrapper } from "../api/fetchWrapper.js";
 import { SocketService } from "../api/socket.js";
@@ -69,7 +70,7 @@ export function useUpsertRun() {
 type UseSocketRunProps = {
     applyRunUpdate: (callback: (existingRun: Run | null) => Run | null) => void;
     runId: string | undefined;
-    onDecisionRequest?: (decisionData: any) => void;
+    onDecisionRequest?: (decisionData: DeferredDecisionData) => void;
 }
 
 export function processRunTaskUpdate(

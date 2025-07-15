@@ -1,4 +1,5 @@
 /* eslint-disable no-magic-numbers */
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-01 - Fixed 5 'as any' type assertions with proper Record<string, unknown>
 import { ApiKeyPermission, generatePK, type ApiKey, type Session, type SessionUser, type User, type Resource, type ResourceVersion, type ResourceTranslation, type ResourceSearchResult, type ApiKeyCreated } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession, signedInPremiumNoCreditsSession } from "../../__test/storybookConsts.js";
@@ -258,7 +259,7 @@ const createCommonHandlers = (userData: Partial<User>) => [
     
     // Create internal API key
     http.post(getMockApiUrl("/apiKey"), async ({ request }) => {
-        const body = await request.json() as any;
+        const body = await request.json() as Record<string, unknown>;
         const newKey: ApiKeyCreated = {
             __typename: "ApiKey",
             id: generatePK().toString(),
@@ -278,7 +279,7 @@ const createCommonHandlers = (userData: Partial<User>) => [
     
     // Update internal API key
     http.put(getMockApiUrl("/apiKey/:id"), async ({ request, params }) => {
-        const body = await request.json() as any;
+        const body = await request.json() as Record<string, unknown>;
         const updatedKey: ApiKey = {
             __typename: "ApiKey",
             id: params.id as string,
@@ -303,7 +304,7 @@ const createCommonHandlers = (userData: Partial<User>) => [
     
     // Create external API key
     http.post(getMockApiUrl("/apiKeyExternal"), async ({ request }) => {
-        const body = await request.json() as any;
+        const body = await request.json() as Record<string, unknown>;
         const newExternalKey = {
             __typename: "ApiKeyExternal",
             id: generatePK().toString(),
@@ -321,7 +322,7 @@ const createCommonHandlers = (userData: Partial<User>) => [
     
     // Update external API key
     http.put(getMockApiUrl("/apiKeyExternal/:id"), async ({ request, params }) => {
-        const body = await request.json() as any;
+        const body = await request.json() as Record<string, unknown>;
         const updatedExternalKey = {
             __typename: "ApiKeyExternal", 
             id: params.id as string,
@@ -339,7 +340,7 @@ const createCommonHandlers = (userData: Partial<User>) => [
     
     // OAuth initiate
     http.post(getMockApiUrl("/auth/oauth/initiate"), async ({ request }) => {
-        const body = await request.json() as any;
+        const body = await request.json() as Record<string, unknown>;
         const result = {
             authUrl: `https://openai.com/oauth/authorize?client_id=test&redirect_uri=${encodeURIComponent(body.redirectUri)}&state=test-state-123`,
             state: "test-state-123",

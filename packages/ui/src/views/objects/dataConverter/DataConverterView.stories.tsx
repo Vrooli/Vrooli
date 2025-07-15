@@ -3,6 +3,7 @@ import { type Meta } from "@storybook/react";
 import { CodeLanguage, ResourceSubType, ResourceUsedFor, endpointsResource, generatePK, getObjectUrl, type CodeVersion, type Resource, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
+import { getMockEndpoint, getStoryRoutePath } from "../../../__test/helpers/storybookMocking.js";
 import { DataConverterView } from "./DataConverterView.js";
 
 const mockTestCases = [
@@ -216,7 +217,7 @@ Loading.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findDataConverterVersion.findOne.endpoint}`, async () => {
+            http.get(getMockEndpoint(endpointsResource.findDataConverterVersion), async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120_000));
                 return HttpResponse.json({ data: mockDataConverterVersionData });
@@ -224,7 +225,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}`,
+        path: getStoryRoutePath(mockDataConverterVersionData),
     },
 };
 
@@ -237,13 +238,13 @@ SignInWithResults.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findDataConverterVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findDataConverterVersion), () => {
                 return HttpResponse.json({ data: mockDataConverterVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}`,
+        path: getStoryRoutePath(mockDataConverterVersionData),
     },
 };
 
@@ -256,16 +257,15 @@ LoggedOutWithResults.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findDataConverterVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findDataConverterVersion), () => {
                 return HttpResponse.json({ data: mockDataConverterVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}`,
+        path: getStoryRoutePath(mockDataConverterVersionData),
     },
 };
-console.log("yeet mocked url", `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}`);
 
 export function Own() {
     return (
@@ -276,7 +276,7 @@ Own.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findDataConverterVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findDataConverterVersion), () => {
                 // Create a modified version of the mock data with owner permissions
                 const mockWithOwnerPermissions = {
                     ...mockDataConverterVersionData,
@@ -305,6 +305,6 @@ Own.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}`,
+        path: getStoryRoutePath(mockDataConverterVersionData),
     },
 };

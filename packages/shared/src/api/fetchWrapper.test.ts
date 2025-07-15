@@ -327,7 +327,7 @@ describe("createLazyFetch", () => {
 
         const customLazyFetch = createLazyFetch({ 
             cacheDuration: 1000, // 1 second cache
-            maxRetries: 0
+            maxRetries: 0,
         });
 
         try {

@@ -3,10 +3,14 @@
  * 
  * This file provides comprehensive API response fixtures for resource version relation endpoints.
  * It includes success responses, error responses, and MSW handlers for testing.
+ * 
+ * NOTE: Migrated to MSW v2 - uses HttpResponse.json() and new handler syntax
  */
 
-import { http, type RestHandler } from "msw";
+import { http, HttpResponse, type RequestHandler } from "msw";
 import type { 
+    Resource,
+    ResourceVersion,
     ResourceVersionRelation, 
     ResourceVersionRelationCreateInput, 
     ResourceVersionRelationUpdateInput,
@@ -73,14 +77,14 @@ export class ResourceVersionRelationResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique resource version relation ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -96,8 +100,7 @@ export class ResourceVersionRelationResponseFactory {
                 links: {
                     self: `${this.baseUrl}/api/resource-version-relation/${relation.id}`,
                     related: {
-                        from: `${this.baseUrl}/api/resource-version/${relation.from.id}`,
-                        to: `${this.baseUrl}/api/resource-version/${relation.to.id}`,
+                        toVersion: `${this.baseUrl}/api/resource-version/${relation.toVersion.id}`,
                     },
                 },
             },
@@ -245,52 +248,52 @@ export class ResourceVersionRelationResponseFactory {
         const defaultRelation: ResourceVersionRelation = {
             __typename: "ResourceVersionRelation",
             id,
-            created_at: now,
-            updated_at: now,
-            from: {
-                __typename: "ResourceVersion",
-                id: `from_${id}`,
-                created_at: now,
-                updated_at: now,
-                versionLabel: "1.0.0",
-                link: `https://example.com/resource/from/${id}`,
-                title: "Source Resource",
-                description: "The source resource in this relation",
-                isLatest: true,
-                isPrivate: false,
-                translations: [],
-                translationsCount: 0,
-                you: {
-                    __typename: "VersionYou",
-                    canComment: true,
-                    canDelete: true,
-                    canRead: true,
-                    canReport: false,
-                    canUpdate: true,
-                },
-            },
-            to: {
+            toVersion: {
                 __typename: "ResourceVersion",
                 id: `to_${id}`,
-                created_at: now,
-                updated_at: now,
-                versionLabel: "1.0.0",
-                link: `https://example.com/resource/to/${id}`,
-                title: "Target Resource",
-                description: "The target resource in this relation",
+                codeLanguage: null,
+                comments: [],
+                commentsCount: 0,
+                completedAt: null,
+                complexity: 1,
+                config: null,
+                createdAt: now,
+                forks: [],
+                forksCount: 0,
+                isAutomatable: false,
+                isComplete: true,
+                isDeleted: false,
                 isLatest: true,
                 isPrivate: false,
+                publicId: `pub_${id}`,
+                pullRequest: null,
+                relatedVersions: [],
+                reports: [],
+                reportsCount: 0,
+                root: {} as ResourceVersion["root"], // Simplified for mock
+                resourceSubType: null,
+                timesCompleted: 0,
+                timesStarted: 0,
                 translations: [],
                 translationsCount: 0,
+                updatedAt: now,
+                versionIndex: 1,
+                versionLabel: "1.0.0",
+                versionNotes: null,
                 you: {
-                    __typename: "VersionYou",
+                    __typename: "ResourceVersionYou",
+                    canBookmark: true,
                     canComment: true,
+                    canCopy: true,
                     canDelete: true,
+                    canReact: true,
                     canRead: true,
                     canReport: false,
+                    canRun: true,
                     canUpdate: true,
                 },
             },
+            labels: ["dependency", "upgrade"],
         };
         
         return {
@@ -306,12 +309,12 @@ export class ResourceVersionRelationResponseFactory {
         const relation = this.createMockRelation();
         
         // Update relation based on input
-        if (input.fromConnect) {
-            relation.from.id = input.fromConnect;
+        if (input.toVersionConnect) {
+            relation.toVersion.id = input.toVersionConnect;
         }
         
-        if (input.toConnect) {
-            relation.to.id = input.toConnect;
+        if (input.labels) {
+            relation.labels = input.labels;
         }
         
         return relation;
@@ -320,20 +323,16 @@ export class ResourceVersionRelationResponseFactory {
     /**
      * Create multiple relations for testing
      */
-    createMultipleRelations(count = 5): ResourceVersionRelation[] {
+    createMultipleRelations(count = 10): ResourceVersionRelation[] {
         return Array.from({ length: count }, (_, index) => 
             this.createMockRelation({
                 id: `relation_${index}_${this.generateId()}`,
-                from: {
-                    ...this.createMockRelation().from,
-                    id: `from_${index}_${this.generateId()}`,
-                    title: `Source Resource ${index + 1}`,
-                },
-                to: {
-                    ...this.createMockRelation().to,
+                toVersion: {
+                    ...this.createMockRelation().toVersion,
                     id: `to_${index}_${this.generateId()}`,
-                    title: `Target Resource ${index + 1}`,
+                    versionLabel: `${index + 1}.0.0`,
                 },
+                labels: [`label_${index + 1}`, "test"],
             }),
         );
     }
@@ -346,7 +345,7 @@ export class ResourceVersionRelationResponseFactory {
         errors?: Record<string, string>;
     }> {
         try {
-            await resourceVersionRelationValidation.create.validate(input);
+            await resourceVersionRelationValidation.create({}).validate(input);
             return { valid: true };
         } catch (error: any) {
             const fieldErrors: Record<string, string> = {};
@@ -382,18 +381,18 @@ export class ResourceVersionRelationMSWHandlers {
     /**
      * Create success handlers for all resource version relation endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): RequestHandler[] {
         return [
             // Create resource version relation
-            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, async (req, res, ctx) => {
-                const body = await req.json() as ResourceVersionRelationCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, async ({ request }) => {
+                const body = await request.json() as ResourceVersionRelationCreateInput;
                 
                 // Validate input
                 const validation = await this.responseFactory.validateCreateInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
+                    return HttpResponse.json(
+                        this.responseFactory.createValidationErrorResponse(validation.errors || {}),
+                        { status: 400 },
                     );
                 }
                 
@@ -401,66 +400,51 @@ export class ResourceVersionRelationMSWHandlers {
                 const relation = this.responseFactory.createRelationFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(relation);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 201 });
             }),
             
             // Get resource version relation by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/resource-version-relation/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/resource-version-relation/:id`, ({ params }) => {
+                const { id } = params;
                 
                 const relation = this.responseFactory.createMockRelation({ id: id as string });
                 const response = this.responseFactory.createSuccessResponse(relation);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Update resource version relation
-            http.put(`${this.responseFactory["baseUrl"]}/api/resource-version-relation/:id`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const body = await req.json() as ResourceVersionRelationUpdateInput;
+            http.put(`${this.responseFactory["baseUrl"]}/api/resource-version-relation/:id`, async ({ params, request }) => {
+                const { id } = params;
+                const _body = await request.json() as ResourceVersionRelationUpdateInput;
                 
                 const relation = this.responseFactory.createMockRelation({ 
                     id: id as string,
-                    updated_at: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(relation);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Delete resource version relation
-            http.delete(`${this.responseFactory["baseUrl"]}/api/resource-version-relation/:id`, (req, res, ctx) => {
-                return res(ctx.status(204));
+            http.delete(`${this.responseFactory["baseUrl"]}/api/resource-version-relation/:id`, () => {
+                return new HttpResponse(null, { status: 204 });
             }),
             
             // List resource version relations
-            http.get(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, ({ request }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
-                const fromId = url.searchParams.get("fromId");
+                const _fromId = url.searchParams.get("fromId");
                 const toId = url.searchParams.get("toId");
                 
-                let relations = this.responseFactory.createMultipleRelations(20);
-                
-                // Filter by fromId if specified
-                if (fromId) {
-                    relations = relations.filter(r => r.from.id === fromId);
-                }
+                let relations = this.responseFactory.createMultipleRelations(50);
                 
                 // Filter by toId if specified
                 if (toId) {
-                    relations = relations.filter(r => r.to.id === toId);
+                    relations = relations.filter(r => r.toVersion.id === toId);
                 }
                 
                 // Paginate
@@ -476,10 +460,7 @@ export class ResourceVersionRelationMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -487,41 +468,41 @@ export class ResourceVersionRelationMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): RequestHandler[] {
         return [
             // Validation error
-            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
-                        fromConnect: "Source resource version is required",
-                        toConnect: "Target resource version is required",
-                    })),
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, () => {
+                return HttpResponse.json(
+                    this.responseFactory.createValidationErrorResponse({
+                        toVersionConnect: "Target resource version is required",
+                        labels: "Labels must be an array of strings",
+                    }),
+                    { status: 400 },
                 );
             }),
             
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/resource-version-relation/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
+            http.get(`${this.responseFactory["baseUrl"]}/api/resource-version-relation/:id`, ({ params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string),
+                    { status: 404 },
                 );
             }),
             
             // Permission error
-            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, () => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("create"),
+                    { status: 403 },
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, () => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse(),
+                    { status: 500 },
                 );
             }),
         ];
@@ -530,18 +511,16 @@ export class ResourceVersionRelationMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 5000): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, async (req, res, ctx) => {
-                const body = await req.json() as ResourceVersionRelationCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, async ({ request }) => {
+                const body = await request.json() as ResourceVersionRelationCreateInput;
                 const relation = this.responseFactory.createRelationFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(relation);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                
+                return HttpResponse.json(response, { status: 201 });
             }),
         ];
     }
@@ -549,14 +528,14 @@ export class ResourceVersionRelationMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, () => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/resource-version-relation/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/resource-version-relation/:id`, () => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -570,18 +549,18 @@ export class ResourceVersionRelationMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): RequestHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        const httpMethod = http[method.toLowerCase() as keyof typeof http] as any;
+        
+        return httpMethod(fullEndpoint, async () => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }
@@ -610,8 +589,8 @@ export const resourceVersionRelationResponseScenarios = {
         const factory = new ResourceVersionRelationResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                fromConnect: "Source resource version is required",
-                toConnect: "Target resource version is required",
+                toVersionConnect: "Target resource version is required",
+                labels: "Labels must be an array of strings",
             },
         );
     },

@@ -8,46 +8,42 @@
  * that enables true emergent capabilities through agent-extensible event types.
  */
 
-import { MINUTES_1_MS } from "@vrooli/shared";
+import { MINUTES_1_MS, nanoid } from "@vrooli/shared";
 import { EventEmitter } from "events";
-import mqttMatch from "mqtt-match";
-import { nanoid } from "nanoid";
 import { logger } from "../../events/logger.js";
 import { SocketService } from "../../sockets/io.js";
-import {
-    EVENT_BUS_CONSTANTS,
-} from "./constants.js";
-import {
-    EventBusRateLimiter,
-    type EventPublishResultWithRateLimit,
-} from "./rateLimiter.js";
-import {
-    type BaseServiceEvent,
-    type EventBarrierSyncResult,
-    type EventHandler,
-    type EventPublishResult,
-    type EventSubscription,
-    type EventSubscriptionId,
-    type IEventBus,
-    type SafetyEvent,
-    type SubscriptionOptions,
-} from "./types.js";
+import { EVENT_BUS_CONSTANTS } from "./constants.js";
+import { EventBusMonitor } from "./EventBusMonitor.js";
+import { EventBusRateLimiter, type EventPublishResultWithRateLimit } from "./rateLimiter.js";
+import { getEventBehavior } from "./registry.js";
+import type { BarrierSyncConfig, BotEventResponse, EventHandler, EventPublishResult, EventSubscription, EventSubscriptionId, IEventBus, ProgressionControl, ServiceEvent, SubscriptionOptions } from "./types.js";
+import { EventMode } from "./types.js";
+
+// Dynamic import type for mqtt-match
+type MqttMatchFunction = (pattern: string, topic: string) => boolean;
 
 /** High pending barrier count threshold for backpressure monitoring */
 const HIGH_PENDING_BARRIER_THRESHOLD = 50;
+/** Subscription warning threshold as percentage of max listeners */
+const SUBSCRIPTION_WARNING_THRESHOLD = 0.8;
 
 /**
  * Pending barrier sync operation
  */
 interface PendingBarrier {
     eventId: string;
-    event: SafetyEvent;
-    responses: Array<{ responderId: string; response: "OK" | "ALARM"; reason?: string }>;
-    resolve: (result: EventBarrierSyncResult) => void;
+    event: ServiceEvent;
+    responses: Array<{
+        responderId: string;
+        response: BotEventResponse;
+        timestamp: Date;
+    }>;
+    resolve: (result: EventPublishResult) => void;
     reject: (error: Error) => void;
     timeoutId: NodeJS.Timeout;
     startTime: number;
     isCompleted: boolean; // Track completion state to prevent double cleanup
+    barrierConfig: BarrierSyncConfig;
 }
 
 /**
@@ -58,7 +54,9 @@ export class EventBus implements IEventBus {
     private readonly subscriptions = new Map<EventSubscriptionId, EventSubscription>();
     private readonly pendingBarriers = new Map<string, PendingBarrier>();
     private readonly rateLimiter: EventBusRateLimiter;
+    private readonly monitor: EventBusMonitor;
     private isStarted = false;
+    private mqttMatch: MqttMatchFunction | null = null;
 
     // Metrics
     private metrics = {
@@ -77,7 +75,10 @@ export class EventBus implements IEventBus {
         this.emitter.setMaxListeners(EVENT_BUS_CONSTANTS.MAX_EVENT_LISTENERS); // Allow many subscribers
 
         // Initialize rate limiter
-        this.rateLimiter = rateLimiter || new EventBusRateLimiter(logger);
+        this.rateLimiter = rateLimiter || new EventBusRateLimiter();
+
+        // Initialize performance monitor
+        this.monitor = new EventBusMonitor();
 
         // Set up backpressure monitoring
         this.setupBackpressureMonitoring();
@@ -93,7 +94,8 @@ export class EventBus implements IEventBus {
         }
 
         this.isStarted = true;
-        logger.info("[EventBus] Started enhanced event bus");
+        this.monitor.start();
+        logger.info("[EventBus] Started enhanced event bus with performance monitoring");
     }
 
     /**
@@ -105,9 +107,10 @@ export class EventBus implements IEventBus {
         }
 
         this.isStarted = false;
+        this.monitor.stop();
 
         // Clear pending barriers with proper cleanup
-        for (const barrier of this.pendingBarriers.values()) {
+        for (const barrier of Array.from(this.pendingBarriers.values())) {
             if (!barrier.isCompleted) {
                 clearTimeout(barrier.timeoutId);
                 barrier.isCompleted = true;
@@ -124,9 +127,9 @@ export class EventBus implements IEventBus {
     }
 
     /**
-     * Publish an event with specified delivery guarantee and rate limiting
+     * Publish an event with intelligent mode detection and barrier handling
      */
-    async publish<T extends BaseServiceEvent>(event: T): Promise<EventPublishResult> {
+    async publish(event: Omit<ServiceEvent, "id" | "timestamp">): Promise<EventPublishResult> {
         const startTime = performance.now();
 
         if (!this.isStarted) {
@@ -138,21 +141,23 @@ export class EventBus implements IEventBus {
         }
 
         try {
+            // Create full event first
+            const fullEvent = this.createFullEvent(event);
+
             // 🔥 RATE LIMITING - Check before processing event
-            const rateLimitResult = await this.rateLimiter.checkEventRateLimit(event);
+            const rateLimitResult = await this.rateLimiter.checkEventRateLimit(fullEvent);
 
             if (!rateLimitResult.allowed) {
                 // Rate limit exceeded - emit rate limited event and reject original
                 this.metrics.eventsRateLimited++;
 
-                const rateLimitedEvent = this.rateLimiter.createRateLimitedEvent(event, rateLimitResult);
+                const rateLimitedEvent = this.rateLimiter.createRateLimitedEvent(fullEvent, rateLimitResult);
 
                 // Emit the rate limited event (bypasses rate limiting)
                 await this.publishBypassRateLimit(rateLimitedEvent);
 
                 logger.warn("[EventBus] Event rate limited", {
-                    eventId: event.id,
-                    eventType: event.type,
+                    eventType: fullEvent.type,
                     limitType: rateLimitResult.limitType,
                     retryAfterMs: rateLimitResult.retryAfterMs,
                 });
@@ -164,39 +169,39 @@ export class EventBus implements IEventBus {
                 } as EventPublishResultWithRateLimit;
             }
 
+            // Get event behavior from registry
+            const behavior = getEventBehavior(fullEvent.type);
+
             // Update metrics
             this.metrics.eventsPublished++;
             this.metrics.lastEventTime = Date.now();
 
-            // Handle different delivery guarantees
-            const deliveryGuarantee = event.metadata?.deliveryGuarantee || "fire-and-forget";
+            // Check if we need a barrier
+            const needsBarrier = await this.needsBarrier(behavior, fullEvent);
 
-            switch (deliveryGuarantee) {
-                case "fire-and-forget":
-                    await this.publishFireAndForget(event);
-                    break;
-                case "reliable":
-                    await this.publishReliable(event);
-                    break;
-                case "barrier-sync":
-                    // Barrier sync events should use publishBarrierSync method
-                    throw new Error("Barrier sync events must use publishBarrierSync method");
-                default:
-                    throw new Error(`Unknown delivery guarantee: ${deliveryGuarantee}`);
+            if (needsBarrier) {
+                // Use barrier sync for APPROVAL/CONSENSUS modes or when intercepted
+                return this.publishWithBarrier(fullEvent, behavior);
             }
 
+            // Fast path: emit without barrier
+            await this.emitToSubscribers(fullEvent);
             this.metrics.eventsDelivered++;
 
-            logger.debug("[EventBus] Published event", {
-                eventId: event.id,
-                eventType: event.type,
-                deliveryGuarantee,
+            // Record event in monitor
+            const duration = performance.now() - startTime;
+            this.monitor.recordEvent(event.type, behavior.mode || EventMode.PASSIVE, duration, true);
+
+            logger.debug("[EventBus] Published event (fast path)", {
+                eventType: fullEvent.type,
+                mode: behavior.mode,
                 rateLimitStatus: "allowed",
             });
 
             return {
                 success: true,
-                duration: performance.now() - startTime,
+                duration,
+                eventId: fullEvent.id,
                 remainingQuota: rateLimitResult.remainingQuota,
                 resetTime: rateLimitResult.resetTime,
             } as EventPublishResultWithRateLimit;
@@ -204,8 +209,12 @@ export class EventBus implements IEventBus {
         } catch (error) {
             this.metrics.eventsFailed++;
 
+            // Record failure in monitor
+            const duration = performance.now() - startTime;
+            const behavior = getEventBehavior(event.type);
+            this.monitor.recordEvent(event.type, behavior.mode || EventMode.PASSIVE, duration, false);
+
             logger.error("[EventBus] Failed to publish event", {
-                eventId: event.id,
                 eventType: event.type,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -213,7 +222,7 @@ export class EventBus implements IEventBus {
             return {
                 success: false,
                 error: error instanceof Error ? error : new Error(String(error)),
-                duration: performance.now() - startTime,
+                duration,
             };
         }
     }
@@ -221,74 +230,21 @@ export class EventBus implements IEventBus {
     /**
      * Publish an event bypassing rate limits (for internal system events)
      */
-    private async publishBypassRateLimit<T extends BaseServiceEvent>(event: T): Promise<void> {
-        // Handle delivery without rate limiting
-        const deliveryGuarantee = event.metadata?.deliveryGuarantee || "fire-and-forget";
-
-        switch (deliveryGuarantee) {
-            case "fire-and-forget":
-                await this.publishFireAndForget(event);
-                break;
-            case "reliable":
-                await this.publishReliable(event);
-                break;
-            default:
-                await this.publishFireAndForget(event);
-        }
+    private async publishBypassRateLimit(event: ServiceEvent): Promise<void> {
+        // For system events, always use fast path
+        await this.emitToSubscribers(event);
+        this.emitToSocketClients(event);
 
         logger.debug("[EventBus] Published system event bypassing rate limits", {
-            eventId: event.id,
             eventType: event.type,
         });
     }
 
-    /**
-     * Handle barrier sync events (blocking until responses received)
-     */
-    async publishBarrierSync<T extends SafetyEvent>(event: T): Promise<EventBarrierSyncResult> {
-        const startTime = performance.now();
-
-        if (!this.isStarted) {
-            throw new Error("Event bus not started");
-        }
-
-        const barrierConfig = event.metadata.barrierConfig;
-        if (!barrierConfig) {
-            throw new Error("Barrier sync event must have barrierConfig");
-        }
-
-        return new Promise<EventBarrierSyncResult>((resolve, reject) => {
-            const pendingBarrier: PendingBarrier = {
-                eventId: event.id,
-                event,
-                responses: [],
-                resolve,
-                reject,
-                timeoutId: setTimeout(() => {
-                    this.handleBarrierTimeout(event.id, startTime);
-                }, barrierConfig.timeoutMs),
-                startTime,
-                isCompleted: false,
-            };
-
-            this.pendingBarriers.set(event.id, pendingBarrier);
-
-            // Emit the event for safety agents to respond
-            this.emitToSubscribers(event);
-
-            logger.debug("[EventBus] Published barrier sync event", {
-                eventId: event.id,
-                eventType: event.type,
-                quorum: barrierConfig.quorum,
-                timeoutMs: barrierConfig.timeoutMs,
-            });
-        });
-    }
 
     /**
      * Subscribe to event patterns with optional filtering
      */
-    async subscribe<T extends BaseServiceEvent>(
+    async subscribe<T extends ServiceEvent>(
         pattern: string | string[],
         handler: EventHandler<T>,
         options: SubscriptionOptions = {},
@@ -330,71 +286,22 @@ export class EventBus implements IEventBus {
     }
 
     /**
-     * Respond to a barrier sync event (for safety agents)
-     */
-    async respondToBarrierSync(
-        eventId: string,
-        responderId: string,
-        response: "OK" | "ALARM",
-        reason?: string,
-    ): Promise<void> {
-        const barrier = this.pendingBarriers.get(eventId);
-        if (!barrier) {
-            logger.warn("[EventBus] Response to unknown barrier sync event", {
-                eventId,
-                responderId,
-                response,
-            });
-            return;
-        }
-
-        // Add response
-        barrier.responses.push({ responderId, response, reason });
-
-        logger.debug("[EventBus] Received barrier sync response", {
-            eventId,
-            responderId,
-            response,
-            reason,
-            responseCount: barrier.responses.length,
-            requiredQuorum: barrier.event.metadata.barrierConfig.quorum,
-        });
-
-        // Check if we have enough responses
-        const config = barrier.event.metadata.barrierConfig;
-        const okResponses = barrier.responses.filter(r => r.response === "OK").length;
-        const alarmResponses = barrier.responses.filter(r => r.response === "ALARM").length;
-
-        // If we have any ALARM responses, reject immediately
-        if (alarmResponses > 0) {
-            this.completeBarrierSync(eventId, false, "ALARM response received");
-            return;
-        }
-
-        // If we have enough OK responses, approve
-        if (okResponses >= config.quorum) {
-            this.completeBarrierSync(eventId, true, "Quorum reached");
-            return;
-        }
-
-        // If we've heard from all required responders and don't have quorum, reject
-        if (config.requiredResponders &&
-            barrier.responses.length >= config.requiredResponders.length) {
-            this.completeBarrierSync(eventId, false, "All responders replied without reaching quorum");
-        }
-    }
-
-    /**
-     * Get event bus metrics including rate limiting statistics
+     * Get comprehensive event bus metrics including rate limiting and performance monitoring
      */
     getMetrics(): typeof this.metrics & {
         pendingBarriers: number;
         rateLimitingEnabled: boolean;
+        performance: ReturnType<EventBusMonitor["getPerformanceReport"]>;
+        health: ReturnType<EventBusMonitor["getSystemHealth"]>;
+        optimizations: ReturnType<EventBusMonitor["getOptimizationSuggestions"]>;
     } {
         return {
             ...this.metrics,
             pendingBarriers: this.pendingBarriers.size,
             rateLimitingEnabled: true,
+            performance: this.monitor.getPerformanceReport(),
+            health: this.monitor.getSystemHealth(),
+            optimizations: this.monitor.getOptimizationSuggestions(),
         };
     }
 
@@ -413,27 +320,11 @@ export class EventBus implements IEventBus {
      * Private methods
      */
 
-    private async publishFireAndForget<T extends BaseServiceEvent>(event: T): Promise<void> {
-        // Fire and forget - emit and don't wait for delivery confirmation
-        this.emitToSubscribers(event);
-
-        // Also emit to socket clients if socket service is configured
-        this.emitToSocketClients(event);
-    }
-
-    private async publishReliable<T extends BaseServiceEvent>(event: T): Promise<void> {
-        // Reliable delivery - emit and ensure delivery to all subscribers
-        await this.emitToSubscribersReliably(event);
-
-        // Also emit to socket clients if socket service is configured
-        this.emitToSocketClients(event);
-    }
-
-    private emitToSubscribers<T extends BaseServiceEvent>(event: T): void {
+    private async emitToSubscribers<T extends ServiceEvent>(event: T): Promise<void> {
         let deliveredCount = 0;
 
-        for (const subscription of this.subscriptions.values()) {
-            if (this.matchesSubscription(event, subscription)) {
+        for (const subscription of Array.from(this.subscriptions.values())) {
+            if (await this.matchesSubscription(event, subscription)) {
                 // Don't await - fire and forget
                 this.callSubscriptionHandler(subscription, event)
                     .then(() => deliveredCount++)
@@ -448,11 +339,11 @@ export class EventBus implements IEventBus {
         }
     }
 
-    private async emitToSubscribersReliably<T extends BaseServiceEvent>(event: T): Promise<void> {
+    private async emitToSubscribersReliably<T extends ServiceEvent>(event: T): Promise<void> {
         const promises: Promise<void>[] = [];
 
-        for (const subscription of this.subscriptions.values()) {
-            if (this.matchesSubscription(event, subscription)) {
+        for (const subscription of Array.from(this.subscriptions.values())) {
+            if (await this.matchesSubscription(event, subscription)) {
                 promises.push(
                     this.callSubscriptionHandler(subscription, event).catch(error => {
                         logger.error("[EventBus] Subscription handler error", {
@@ -473,7 +364,7 @@ export class EventBus implements IEventBus {
 
     private async callSubscriptionHandler(
         subscription: EventSubscription,
-        event: BaseServiceEvent,
+        event: ServiceEvent,
     ): Promise<void> {
         // Apply filter if provided
         if (subscription.options.filter && !subscription.options.filter(event)) {
@@ -504,30 +395,58 @@ export class EventBus implements IEventBus {
         }
     }
 
-    private matchesSubscription(event: BaseServiceEvent, subscription: EventSubscription): boolean {
-        return subscription.patterns.some(pattern => this.matchesPattern(event.type, pattern));
+    private async matchesSubscription(event: ServiceEvent, subscription: EventSubscription): Promise<boolean> {
+        for (const pattern of subscription.patterns) {
+            if (await this.matchesPattern(event.type, pattern)) {
+                return true;
+            }
+        }
+        return false;
     }
 
-    private matchesPattern(eventType: string, pattern: string): boolean {
+    private async matchesPattern(eventType: string, pattern: string): Promise<boolean> {
         // Use mqtt-match library for proper MQTT pattern matching
         // This handles +, #, and exact matching according to MQTT standards
-        return mqttMatch(pattern, eventType);
+        if (!this.mqttMatch) {
+            try {
+                const mqttMatchModule = await import("mqtt-match");
+                // Handle different export patterns
+                this.mqttMatch = (mqttMatchModule as any).default || mqttMatchModule;
+            } catch (error) {
+                logger.warn("[EventBus] Failed to load mqtt-match, using fallback pattern matching", {
+                    error: error instanceof Error ? error.message : String(error),
+                });
+                // Fallback to simple wildcard matching
+                this.mqttMatch = (pattern: string, topic: string) => {
+                    const regexPattern = pattern
+                        .replace(/\+/g, "[^/]+")    // + matches single level
+                        .replace(/#/g, ".*")        // # matches multi-level
+                        .replace(/\*/g, "[^/]*");   // * matches within level
+                    const regex = new RegExp(`^${regexPattern}$`);
+                    return regex.test(topic);
+                };
+            }
+        }
+        if (!this.mqttMatch) {
+            throw new Error("mqttMatch not initialized");
+        }
+        return this.mqttMatch(pattern, eventType);
     }
 
     private handleBarrierTimeout(eventId: string, startTime: number): void {
         const barrier = this.pendingBarriers.get(eventId);
-        if (!barrier) return;
+        if (!barrier || barrier.isCompleted) return;
 
-        const timeoutAction = barrier.event.metadata.barrierConfig.timeoutAction;
+        const timeoutAction = barrier.barrierConfig?.timeoutAction || "block";
 
         switch (timeoutAction) {
-            case "auto-approve":
-                this.completeBarrierSync(eventId, true, "Auto-approved on timeout");
+            case "continue":
+                this.completeBarrierWithProgression(eventId, "continue", "Auto-approved on timeout");
                 break;
-            case "auto-reject":
-                this.completeBarrierSync(eventId, false, "Auto-rejected on timeout");
+            case "block":
+                this.completeBarrierWithProgression(eventId, "block", "Auto-rejected on timeout");
                 break;
-            case "keep-pending":
+            case "defer":
                 // Don't complete - leave pending for manual resolution
                 logger.warn("[EventBus] Barrier sync timed out but keeping pending", {
                     eventId,
@@ -535,45 +454,14 @@ export class EventBus implements IEventBus {
                 });
                 break;
         }
-    }
 
-    private completeBarrierSync(eventId: string, success: boolean, reason: string): void {
-        const barrier = this.pendingBarriers.get(eventId);
-        if (!barrier || barrier.isCompleted) return;
-
-        // Mark as completed first to prevent double cleanup
-        barrier.isCompleted = true;
-        clearTimeout(barrier.timeoutId);
-        this.pendingBarriers.delete(eventId);
-
-        const result: EventBarrierSyncResult = {
-            success,
-            responses: barrier.responses,
-            timedOut: false,
-            duration: performance.now() - barrier.startTime,
-        };
-
-        if (success) {
-            this.metrics.barrierSyncsCompleted++;
-        } else {
-            this.metrics.barrierSyncsTimedOut++;
-        }
-
-        logger.debug("[EventBus] Completed barrier sync", {
-            eventId,
-            success,
-            reason,
-            responseCount: barrier.responses.length,
-            duration: result.duration,
-        });
-
-        barrier.resolve(result);
+        this.metrics.barrierSyncsTimedOut++;
     }
 
     /**
      * Emit event to socket clients if socket service is configured
      */
-    private emitToSocketClients<T extends BaseServiceEvent>(event: T): void {
+    private emitToSocketClients<T extends ServiceEvent>(event: T): void {
         try {
             // Extract the appropriate room ID from the event based on its type
             const roomId = this.extractRoomId(event);
@@ -614,7 +502,7 @@ export class EventBus implements IEventBus {
     /**
      * Extract the appropriate room ID from an event based on its type and data
      */
-    private extractRoomId(event: BaseServiceEvent): string | null {
+    private extractRoomId(event: Pick<ServiceEvent, "type" | "data">): string | null {
         // For chat, swarm, bot, tool, response, reasoning, and cancellation events - use chat room
         if (event.type.startsWith("chat/") ||
             event.type.startsWith("swarm/") ||
@@ -628,23 +516,22 @@ export class EventBus implements IEventBus {
 
         // For run and step events - use run room
         if (event.type.startsWith("run/") || event.type.startsWith("step/")) {
-            return (event.data as any)?.runId || null;
+            return (event.data as Record<string, unknown>)?.runId as string || null;
         }
 
         // For user events - use user room
         if (event.type.startsWith("user/")) {
-            return (event.data as any)?.userId || null;
+            return (event.data as Record<string, unknown>)?.userId as string || null;
         }
 
         // For room events - extract room ID from the event data
         if (event.type.startsWith("room/")) {
-            return (event.data as any)?.roomId || null;
+            return (event.data as Record<string, unknown>)?.roomId as string || null;
         }
 
         // Unknown event type pattern
         logger.debug("[EventBus] Unknown event type pattern for socket emission", {
             eventType: event.type,
-            eventId: event.id,
         });
         return null;
     }
@@ -652,11 +539,11 @@ export class EventBus implements IEventBus {
     /**
      * Extract chat ID from event data
      */
-    private extractChatId(event: BaseServiceEvent): string | null {
+    private extractChatId(event: Pick<ServiceEvent, "data">): string | null {
         // Try multiple possible locations for chat ID
-        const data = event.data as any;
-        return data?.chatId ||
-            data?.conversationId ||
+        const data = event.data as Record<string, unknown>;
+        return (data?.chatId as string) ||
+            (data?.conversationId as string) ||
             null;
     }
 
@@ -674,7 +561,7 @@ export class EventBus implements IEventBus {
             const subscriptionCount = this.subscriptions.size;
             const pendingBarriers = this.pendingBarriers.size;
 
-            if (subscriptionCount > EVENT_BUS_CONSTANTS.MAX_EVENT_LISTENERS * 0.8) {
+            if (subscriptionCount > EVENT_BUS_CONSTANTS.MAX_EVENT_LISTENERS * SUBSCRIPTION_WARNING_THRESHOLD) {
                 logger.warn("[EventBus] High subscription count detected", {
                     subscriptionCount,
                     maxListeners: EVENT_BUS_CONSTANTS.MAX_EVENT_LISTENERS,
@@ -688,6 +575,253 @@ export class EventBus implements IEventBus {
             }
         }, MINUTES_1_MS);
     }
+
+    /**
+     * Create a full event with ID and timestamp
+     */
+    private createFullEvent(event: Omit<ServiceEvent, "id" | "timestamp">): ServiceEvent {
+        return {
+            ...event,
+            id: nanoid(),
+            timestamp: new Date(),
+        };
+    }
+
+    /**
+     * Determine if an event needs barrier synchronization
+     */
+    private async needsBarrier(behavior: ReturnType<typeof getEventBehavior>, event: ServiceEvent): Promise<boolean> {
+        // Check event mode
+        if (behavior.mode === EventMode.APPROVAL || behavior.mode === EventMode.CONSENSUS) {
+            return true;
+        }
+
+        // For INTERCEPTABLE mode, check if there are subscribers
+        if (behavior.mode === EventMode.INTERCEPTABLE) {
+            const subscriberCount = await this.getSubscriberCountForEvent(event);
+            return subscriberCount > 0;
+        }
+
+        // PASSIVE mode never needs barrier
+        return false;
+    }
+
+    /**
+     * Get subscriber count for a specific event
+     */
+    private async getSubscriberCountForEvent(event: ServiceEvent): Promise<number> {
+        let count = 0;
+        for (const subscription of this.subscriptions.values()) {
+            if (await this.matchesSubscription(event, subscription)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Get subscriber count for a pattern (implements IEventBus interface)
+     */
+    getSubscriberCount(pattern: string): number {
+        let count = 0;
+        for (const subscription of this.subscriptions.values()) {
+            if (subscription.patterns.includes(pattern)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Publish event with barrier synchronization
+     */
+    private async publishWithBarrier(event: ServiceEvent, behavior: ReturnType<typeof getEventBehavior>): Promise<EventPublishResult> {
+        const startTime = performance.now();
+        const barrierConfig = behavior.barrierConfig || {
+            quorum: 1,
+            timeoutMs: EVENT_BUS_CONSTANTS.DEFAULT_BARRIER_TIMEOUT_MS,
+            timeoutAction: "block",
+        };
+
+        return new Promise<EventPublishResult>((resolve, reject) => {
+            const pendingBarrier: PendingBarrier = {
+                eventId: event.id,
+                event,
+                responses: [],
+                resolve: (result) => {
+                    // Convert to EventPublishResult
+                    resolve({
+                        ...result,
+                        wasBlocking: true,
+                    });
+                },
+                reject,
+                timeoutId: setTimeout(() => {
+                    this.handleBarrierTimeout(event.id, startTime);
+                }, barrierConfig.timeoutMs),
+                startTime,
+                isCompleted: false,
+                barrierConfig,
+            };
+
+            this.pendingBarriers.set(event.id, pendingBarrier);
+
+            // Emit the event for agents to respond
+            this.emitToSubscribers(event).then(() => {
+                logger.debug("[EventBus] Published barrier event", {
+                    eventId: event.id,
+                    eventType: event.type,
+                    mode: behavior.mode,
+                    quorum: barrierConfig.quorum,
+                    timeoutMs: barrierConfig.timeoutMs,
+                });
+
+                // For INTERCEPTABLE mode with no responses, complete immediately
+                if (behavior.mode === EventMode.INTERCEPTABLE && pendingBarrier.responses.length === 0) {
+                    // No one intercepted, continue
+                    this.completeBarrierWithProgression(event.id, "continue", "No interception");
+                }
+            }).catch(error => {
+                logger.error("[EventBus] Failed to emit barrier event", {
+                    eventId: event.id,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+                // Don't reject the promise here as the barrier might still complete
+            });
+        });
+    }
+
+    /**
+     * Complete barrier with progression control
+     */
+    private completeBarrierWithProgression(eventId: string, progression: ProgressionControl, reason?: string): void {
+        const barrier = this.pendingBarriers.get(eventId);
+        if (!barrier || barrier.isCompleted) {
+            return;
+        }
+
+        barrier.isCompleted = true;
+        clearTimeout(barrier.timeoutId);
+        this.pendingBarriers.delete(eventId);
+
+        const duration = performance.now() - barrier.startTime;
+
+        const result: EventPublishResult = {
+            success: true,
+            duration,
+            eventId,
+            progression,
+            responses: barrier.responses,
+            wasBlocking: true,
+        };
+
+        barrier.resolve(result);
+        this.metrics.barrierSyncsCompleted++;
+
+        // Record successful barrier completion in monitor
+        const behavior = getEventBehavior(barrier.event.type);
+        this.monitor.recordEvent(barrier.event.type, behavior.mode || EventMode.PASSIVE, duration, true);
+
+        logger.debug("[EventBus] Barrier sync completed", {
+            eventId,
+            progression,
+            reason,
+            responseCount: barrier.responses.length,
+            duration,
+        });
+    }
+
+    /**
+     * Add response to barrier (new method for bot responses)
+     */
+    async respondToBarrier(eventId: string, responderId: string, response: BotEventResponse): Promise<void> {
+        const barrier = this.pendingBarriers.get(eventId);
+        if (!barrier || barrier.isCompleted) {
+            logger.warn("[EventBus] Received response for unknown or completed barrier", {
+                eventId,
+                responderId,
+            });
+            return;
+        }
+
+        // Add response
+        barrier.responses.push({
+            responderId,
+            response,
+            timestamp: new Date(),
+        });
+
+        logger.debug("[EventBus] Received barrier response", {
+            eventId,
+            responderId,
+            progression: response.progression,
+            responseCount: barrier.responses.length,
+        });
+
+        // Check if we should complete based on response
+        const config = barrier.barrierConfig;
+
+        // For blockOnFirst, any block response blocks immediately
+        if (config?.blockOnFirst && response.progression === "block") {
+            this.completeBarrierWithProgression(eventId, "block", response.reason);
+            return;
+        }
+
+        // Check if we have quorum
+        if (typeof config?.quorum === "number" && barrier.responses.length >= config.quorum) {
+            // Aggregate responses
+            const progression = this.aggregateProgression(barrier.responses, config);
+            this.completeBarrierWithProgression(eventId, progression, "Quorum reached");
+        } else if (config?.quorum === "all") {
+            // For "all" quorum, need to know total expected responders
+            // This would require tracking bot subscriptions
+            // For now, we'll rely on timeout
+        }
+    }
+
+    /**
+     * Aggregate progression from multiple responses
+     */
+    private aggregateProgression(responses: PendingBarrier["responses"], config?: PendingBarrier["barrierConfig"]): ProgressionControl {
+        if (responses.length === 0) {
+            return "continue";
+        }
+
+        // Count progression types
+        const counts = responses.reduce((acc, r) => {
+            acc[r.response.progression] = (acc[r.response.progression] || 0) + 1;
+            return acc;
+        }, {} as Record<ProgressionControl, number>);
+
+        // If we have a continue threshold, check if we meet it
+        if (config?.continueThreshold !== undefined) {
+            const continueCount = counts.continue || 0;
+            if (continueCount >= config.continueThreshold) {
+                return "continue";
+            }
+            return "block";
+        }
+
+        // Default: Majority wins, ties go to "block" for safety
+        const total = responses.length;
+        if ((counts.continue || 0) > total / 2) {
+            return "continue";
+        }
+        if ((counts.block || 0) >= total / 2) {
+            return "block";
+        }
+        if ((counts.defer || 0) > total / 2) {
+            return "defer";
+        }
+        if ((counts.retry || 0) > total / 2) {
+            return "retry";
+        }
+
+        // Fallback to block for safety
+        return "block";
+    }
+
+
 }
 
 /**

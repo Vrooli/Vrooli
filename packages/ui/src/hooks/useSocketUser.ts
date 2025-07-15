@@ -1,4 +1,4 @@
-import { type Session } from "@vrooli/shared";
+import { type Session, EventTypes } from "@vrooli/shared";
 import { useEffect } from "react";
 import { SocketService } from "../api/socket.js";
 import { getCurrentUser } from "../utils/authentication/session.js";
@@ -29,7 +29,7 @@ export function useSocketUser(
 
     // Handle incoming data
     useEffect(() => {
-        const cleanupApiCredits = SocketService.get().onEvent("apiCredits", ({ credits }) => {
+        const cleanupApiCredits = SocketService.get().onEvent(EventTypes.USER.CREDITS_UPDATED, ({ credits }) => {
             const { id } = getCurrentUser(session);
             if (!id) return;
             setSession({

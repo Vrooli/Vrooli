@@ -107,9 +107,9 @@ export const BookmarkModel: BookmarkModelLogic = ({
                     const objectType: BookmarkFor = uppercaseFirstLetter(objectRel.slice(0, -"Id".length)) as BookmarkFor;
                     // Update "bookmarks" count for bookmarked object
                     const delegate = (DbProvider.get()[ModelMap.get(objectType, true, "bookmark onCreated").dbTable] as PrismaDelegate);
-                    await delegate.update({ where: { id: BigInt(objectId) }, data: { bookmarks: { increment: 1 } } });
+                    await delegate.update({ where: { id: BigInt(objectId as string) }, data: { bookmarks: { increment: 1 } } });
                     // Trigger bookmarkCreated event
-                    Trigger(userData.languages).objectBookmark(true, objectType, objectId, userData.id);
+                    Trigger(userData.languages).objectBookmark(true, objectType, objectId as string, userData.id);
                 }
                 // For each bookmarked object type, decrement the bookmark count
                 for (const [objectType, objectIds] of Object.entries((beforeDeletedData[__typename] ?? {}) as { [key in BookmarkFor]?: string[] })) {
@@ -186,7 +186,7 @@ export const BookmarkModel: BookmarkModelLogic = ({
     },
     validate: () => ({
         isDeleted: () => false,
-        isPublic: () => false,
+        isPublic: (_data, _getParentInfo?) => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => ModelMap.get<BookmarkListModelLogic>("BookmarkList").validate().owner(data?.list as BookmarkListModelInfo["DbModel"], userId),

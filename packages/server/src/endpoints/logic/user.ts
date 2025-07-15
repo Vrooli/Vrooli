@@ -212,7 +212,7 @@ export const user: EndpointsUser = createStandardCrudEndpoints({
             try {
                 // Fetch user's schedules with related meetings and runs
                 const schedules = await readManyHelper({
-                    input,
+                    input: input as Record<string, unknown>,
                     objectType: "Schedule",
                     req,
                     info: {

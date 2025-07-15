@@ -1,108 +1,105 @@
 {
-  "identity": {
-    "name": "multi-platform-content-syncer",
-    "version": "1.0.0"
-  },
-  "goal": "Adapts content across different social platforms",
-  "role": "bridge",
-  "subscriptions": [
-    "step/completed",
-    "run/completed",
-    "safety/post_action"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'content_creation' || event.data.tags.includes('multi_platform')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Content Adapter",
-        "inputMap": {
-          "originalContent": "event.data.output.content",
-          "targetPlatforms": "event.data.platforms",
-          "platformApis": "blackboard.social.apis",
-          "contentFormatters": "blackboard.social.formatters"
+    "identity": {
+        "name": "multi-platform-content-syncer",
+        "version": "1.0.0"
+    },
+    "goal": "Adapts content across different social platforms",
+    "role": "bridge",
+    "subscriptions": [
+        "step/completed",
+        "run/completed",
+        "safety/post_action"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'content_creation' || event.data.tags.includes('multi_platform')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Content Adapter",
+                "inputMap": {
+                    "originalContent": "event.data.output.content",
+                    "targetPlatforms": "event.data.platforms",
+                    "platformApis": "blackboard.social.apis",
+                    "contentFormatters": "blackboard.social.formatters"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/completed",
+                "when": "event.data.tags.includes('content_distribution') || event.data.tags.includes('social_campaign')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Adapt and optimize content for multiple social platforms while maintaining brand consistency and platform-specific best practices"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "safety/post_action",
+                "when": "event.data.action.type == 'content_publication' || event.data.action.type == 'platform_sync'"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Sync Coordinator",
+                "inputMap": {
+                    "publishedContent": "event.data.action.content",
+                    "platformStatus": "event.data.action.status",
+                    "adaptationRules": "blackboard.social.adaptation"
+                }
+            },
+            "qos": 1
         }
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "run/completed",
-        "when": "event.data.tags.includes('content_distribution') || event.data.tags.includes('social_campaign')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Adapt and optimize content for multiple social platforms while maintaining brand consistency and platform-specific best practices"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "safety/post_action",
-        "when": "event.data.action.type == 'content_publication' || event.data.action.type == 'platform_sync'"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Sync Coordinator",
-        "inputMap": {
-          "publishedContent": "event.data.action.content",
-          "platformStatus": "event.data.action.status",
-          "adaptationRules": "blackboard.social.adaptation"
+    ],
+    "prompt": "You are a multi-platform content syncer responsible for adapting content across different social platforms. You must maintain brand consistency across all platforms while optimizing content formats for each platform's unique requirements and audience expectations. You are permitted to modify content structure, length, and style to suit platform-specific best practices, but you must never compromise content quality or dilute the core message. Ensure all adaptations preserve the original intent and value while maximizing engagement potential.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "platform-apis",
+            "permissions": [
+                "read"
+            ],
+            "scope": "social.apis",
+            "description": "Social media platform APIs and integration tools"
+        },
+        {
+            "type": "blackboard",
+            "label": "content-formatters",
+            "permissions": [
+                "read"
+            ],
+            "scope": "social.formatters",
+            "description": "Content formatting tools for different platforms"
+        },
+        {
+            "type": "blackboard",
+            "label": "adaptation-rules",
+            "permissions": [
+                "read"
+            ],
+            "scope": "social.adaptation",
+            "description": "Platform-specific adaptation rules and best practices"
+        },
+        {
+            "type": "routine",
+            "label": "Content Adapter",
+            "permissions": [
+                "read"
+            ],
+            "description": "Adapt content for multiple social media platforms"
+        },
+        {
+            "type": "routine",
+            "label": "Sync Coordinator",
+            "permissions": [
+                "read"
+            ],
+            "description": "Coordinate content synchronization across platforms"
         }
-      },
-      "qos": 1
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "maintain-brand-consistency"
-    },
-    {
-      "modality": "permission",
-      "target": "optimize-platform-formats"
-    },
-    {
-      "modality": "prohibition",
-      "target": "compromise-content-quality"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "platform-apis",
-      "permissions": ["read"],
-      "scope": "social.apis",
-      "description": "Social media platform APIs and integration tools"
-    },
-    {
-      "type": "blackboard",
-      "label": "content-formatters",
-      "permissions": ["read"],
-      "scope": "social.formatters",
-      "description": "Content formatting tools for different platforms"
-    },
-    {
-      "type": "blackboard",
-      "label": "adaptation-rules",
-      "permissions": ["read"],
-      "scope": "social.adaptation",
-      "description": "Platform-specific adaptation rules and best practices"
-    },
-    {
-      "type": "routine",
-      "label": "Content Adapter",
-      "permissions": ["read"],
-      "description": "Adapt content for multiple social media platforms"
-    },
-    {
-      "type": "routine",
-      "label": "Sync Coordinator",
-      "permissions": ["read"],
-      "description": "Coordinate content synchronization across platforms"
-    }
-  ]
+    ]
 }

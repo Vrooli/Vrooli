@@ -260,7 +260,7 @@ export function BasicSnack({
                     width="40px"
                 >
                     <IconCommon
-                        decorative={false}
+                        decorative="false"
                         fill={iconColor}
                         name={iconType}
                         size={24}

@@ -4,6 +4,7 @@
 import { DUMMY_ID, InputType, ResourceUsedFor, endpointsResource, generatePK, getObjectUrl, type RoutineVersion, type RoutineVersionYou } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
+import { getMockEndpoint, getStoryRouteEditPath } from "../../../__test/helpers/storybookMocking.js";
 import { RoutineMultiStepCrud } from "./RoutineMultiStepCrud.js";
 
 // Create node IDs in advance to reference in the links
@@ -349,13 +350,13 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findRoutineMultiStepVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findRoutineMultiStepVersion), () => {
                 return HttpResponse.json({ data: mockRoutineVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockRoutineVersionData),
     },
 };
 
@@ -377,13 +378,13 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findRoutineMultiStepVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findRoutineMultiStepVersion), () => {
                 return HttpResponse.json({ data: mockRoutineVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockRoutineVersionData),
     },
 };
 
@@ -397,7 +398,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findRoutineMultiStepVersion.findOne.endpoint}`, async () => {
+            http.get(getMockEndpoint(endpointsResource.findRoutineMultiStepVersion), async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120_000));
                 return HttpResponse.json({ data: mockRoutineVersionData });
@@ -405,7 +406,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockRoutineVersionData),
     },
 };
 
@@ -448,7 +449,7 @@ Own.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findRoutineMultiStepVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findRoutineMultiStepVersion), () => {
                 // Create a modified version of the mock data with owner permissions
                 const mockWithOwnerPermissions = {
                     ...mockRoutineVersionData,
@@ -483,6 +484,6 @@ Own.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockRoutineVersionData),
     },
 }; 

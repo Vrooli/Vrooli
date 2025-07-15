@@ -3,47 +3,30 @@ import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material";
-import { endpointsMemberInvite, memberInviteValidation, noop, noopSubmit, shapeMemberInvite, validateAndGetYupErrors, type MemberInvite, type MemberInviteCreateInput, type MemberInviteShape, type MemberInviteUpdateInput } from "@vrooli/shared";
+import { memberInviteFormConfig, noop, noopSubmit, validateAndGetYupErrors, type MemberInvite, type MemberInviteCreateInput, type MemberInviteShape, type MemberInviteUpdateInput } from "@vrooli/shared";
 import { Field, Formik } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
-import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
-import { RichInputBase } from "../../../components/inputs/RichInput/RichInput.js";
+import Dialog from "@mui/material/Dialog";
+import { useIsMobile } from "../../../hooks/useIsMobile.js";
+import { AdvancedInputBase } from "../../../components/inputs/AdvancedInput/AdvancedInput.js";
 import { ObjectList } from "../../../components/lists/ObjectList/ObjectList.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
-import { useUpsertActions } from "../../../hooks/forms.js";
 import { useHistoryState } from "../../../hooks/useHistoryState.js";
-import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
+import { useStandardBatchUpsertForm } from "../../../hooks/useStandardBatchUpsertForm.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
-import { PubSub } from "../../../utils/pubsub.js";
 import { type MemberInvitesFormProps, type MemberInvitesUpsertProps } from "./types.js";
 
-// const memberInviteInitialValues = (
-//     session: Session | undefined,
-//     existing: NewMemberInviteShape,
-// ): MemberInviteShape => ({
-//     message: "",
-//     willBeAdmin: false,
-//     willHavePermissions: JSON.stringify({}),
-//     ...existing,
-//     user: {
-//         __typename: "User" as const,
-//         ...existing.user,
-//         id: existing.user?.id ?? DUMMY_ID,
-//     },
-// });
-
-function transformMemberInviteValues(values: MemberInviteShape[], existing: MemberInviteShape[], isCreate: boolean) {
+export function transformMemberInviteValues(values: MemberInviteShape[], existing: MemberInviteShape[], isCreate: boolean) {
     return isCreate ?
-        values.map((value) => shapeMemberInvite.create(value)) :
-        values.map((value, index) => shapeMemberInvite.update(existing[index], value)); // Assumes the dialog doesn't change the order or remove items
+        values.map((value) => memberInviteFormConfig.transformations.shapeToInput.create?.(value)) :
+        values.map((value, index) => memberInviteFormConfig.transformations.shapeToInput.update?.(existing[index], value)); // Assumes the dialog doesn't change the order or remove items
 }
 
 async function validateMemberInviteValues(values: MemberInviteShape[], existing: MemberInviteShape[], isCreate: boolean) {
     const transformedValues = transformMemberInviteValues(values, existing, isCreate);
-    const validationSchema = memberInviteValidation[isCreate ? "create" : "update"]({ env: process.env.NODE_ENV });
+    const validationSchema = memberInviteFormConfig.validation.schema[isCreate ? "create" : "update"]({ env: process.env.NODE_ENV });
     const result = await Promise.all(transformedValues.map(async (value) => await validateAndGetYupErrors(validationSchema, value)));
 
     // Filter and combine the result into one object with only error results
@@ -77,59 +60,51 @@ function MemberInvitesForm({
     const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
     const [message, setMessage] = useHistoryState("member-invite-message", "");
-    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    const isMobile = useIsMobile();
+    const isMobileOld = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
-    const { handleCancel, handleCompleted } = useUpsertActions<MemberInvite[]>({
-        display,
-        isCreate,
-        objectType: "MemberInvite",
-        ...props,
-    });
+    // Use the standardized batch form hook
     const {
-        fetch,
-        isCreateLoading,
-        isUpdateLoading,
-    } = useUpsertFetch<MemberInvite[], MemberInviteCreateInput[], MemberInviteUpdateInput[]>({
+        isLoading,
+        handleCancel,
+        handleCompleted,
+        onSubmit,
+    } = useStandardBatchUpsertForm({
+        objectType: "MemberInvite",
+        transformFunction: transformMemberInviteValues,
+        validateFunction: validateMemberInviteValues,
+        endpoints: {
+            create: memberInviteFormConfig.endpoints.createOne,
+            update: memberInviteFormConfig.endpoints.updateOne,
+        },
+    }, {
+        values,
+        existing,
         isCreate,
-        isMutate: true,
-        endpointCreate: endpointsMemberInvite.createOne,
-        endpointUpdate: endpointsMemberInvite.updateOne,
+        display,
+        disabled,
+        isMutate,
+        isReadLoading,
+        isSubmitting: props.isSubmitting,
+        handleUpdate,
+        setSubmitting: props.setSubmitting,
+        onCancel,
+        onCompleted,
+        onDeleted,
+        onClose,
     });
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
-    const onSubmit = useCallback(() => {
-        if (disabled) {
-            PubSub.get().publish("snack", { messageKey: "Unauthorized", severity: "Error" });
-            return;
-        }
-        if (!isCreate && !existing) {
-            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
-            return;
-        }
+    const handleSubmit = useCallback(() => {
         setMessage("");
-        if (isMutate) {
-            fetchLazyWrapper<MemberInviteCreateInput[] | MemberInviteUpdateInput[], MemberInvite[]>({
-                fetch,
-                inputs: transformMemberInviteValues(values, existing, isCreate) as MemberInviteCreateInput[] | MemberInviteUpdateInput[],
-                onSuccess: (data) => { handleCompleted(data); },
-                onCompleted: () => { props.setSubmitting(false); },
-            });
-        } else {
-            handleCompleted(values as MemberInvite[]);
-        }
-    }, [disabled, existing, fetch, handleCompleted, isCreate, isMutate, props, setMessage, values]);
+        onSubmit();
+    }, [setMessage, onSubmit]);
 
     const [inputFocused, setInputFocused] = useState(false);
     const onFocus = useCallback(() => { setInputFocused(true); }, []);
     const onBlur = useCallback(() => { setInputFocused(false); }, []);
 
-    return (
-        <MaybeLargeDialog
-            display={display}
-            id="member-invite-upsert-dialog"
-            isOpen={isOpen}
-            onClose={onClose}
-        >
+    const dialogContent = (
+        <>
             <TopBar
                 display={display}
                 onClose={onClose}
@@ -172,12 +147,9 @@ function MemberInvitesForm({
                 {/* TODO willHavePermissions */}
                 <Box mt={4}>
                     <Typography variant="h6" p={2}>{t("Message", { count: 1 })}</Typography>
-                    <RichInputBase
+                    <AdvancedInputBase
                         disabled={values.length <= 0}
-                        fullWidth
-                        maxChars={4096}
-                        maxRows={inputFocused ? 10 : 2}
-                        minRows={1}
+                        features={{ maxChars: 4096, maxRowsCollapsed: 2, maxRowsExpanded: 10, minRowsCollapsed: 1 }}
                         onBlur={onBlur}
                         onChange={setMessage}
                         onFocus={onFocus}
@@ -191,8 +163,8 @@ function MemberInvitesForm({
                                 width: "-webkit-fill-available",
                                 margin: "0",
                             },
-                            topBar: { borderRadius: 0, paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
-                            bottomBar: { paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
+                            topBar: { borderRadius: 0, paddingLeft: isMobileOld ? "20px" : 0, paddingRight: isMobileOld ? "20px" : 0 },
+                            bottomBar: { paddingLeft: isMobileOld ? "20px" : 0, paddingRight: isMobileOld ? "20px" : 0 },
                             inputRoot: {
                                 border: "none",
                                 background: palette.background.paper,
@@ -209,16 +181,38 @@ function MemberInvitesForm({
                     loading={isLoading}
                     onCancel={handleCancel}
                     onSetSubmitting={props.setSubmitting}
-                    onSubmit={onSubmit}
+                    onSubmit={handleSubmit}
                 />
             </Box>
-        </MaybeLargeDialog>
+        </>
+    );
+
+    return isMobile ? (
+        <Dialog
+            id="member-invite-upsert-dialog"
+            open={isOpen}
+            onClose={onClose}
+            fullScreen
+        >
+            {dialogContent}
+        </Dialog>
+    ) : (
+        <Dialog
+            id="member-invite-upsert-dialog"
+            open={isOpen}
+            onClose={onClose}
+            maxWidth="sm"
+            fullWidth
+        >
+            {dialogContent}
+        </Dialog>
     );
 }
 
 export function MemberInvitesUpsert({
     invites,
     isCreate,
+    isMutate,
     isOpen,
     ...props
 }: MemberInvitesUpsertProps) {
@@ -239,6 +233,7 @@ export function MemberInvitesUpsert({
                 existing={invites}
                 handleUpdate={() => { }}
                 isCreate={isCreate}
+                isMutate={isMutate}
                 isReadLoading={false}
                 isOpen={isOpen}
                 {...props}

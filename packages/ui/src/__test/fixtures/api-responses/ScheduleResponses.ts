@@ -4,8 +4,9 @@
  * This file provides comprehensive API response fixtures for schedule endpoints.
  * It includes success responses, error responses, and MSW handlers for testing.
  */
+// AI_CHECK: TYPE_SAFETY=fixed-schedule-recurrence-types | LAST: 2025-07-02 - Fixed ScheduleRecurrence properties to include required fields
 
-import { http, type RestHandler } from "msw";
+import { http, HttpResponse, type RequestHandler } from "msw";
 import type { 
     Schedule, 
     ScheduleCreateInput, 
@@ -14,7 +15,8 @@ import type {
 } from "@vrooli/shared";
 import { 
     scheduleValidation,
-    ScheduleFor as ScheduleForEnum, 
+    ScheduleFor as ScheduleForEnum,
+    ScheduleRecurrenceType,
 } from "@vrooli/shared";
 
 /**
@@ -75,14 +77,14 @@ export class ScheduleResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique schedule ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -100,8 +102,9 @@ export class ScheduleResponseFactory {
                     related: {
                         recurrences: `${this.baseUrl}/api/schedule/${schedule.id}/recurrences`,
                         exceptions: `${this.baseUrl}/api/schedule/${schedule.id}/exceptions`,
-                        runProject: schedule.runProject ? `${this.baseUrl}/api/run-project/${schedule.runProject.id}` : undefined,
-                        runRoutine: schedule.runRoutine ? `${this.baseUrl}/api/run-routine/${schedule.runRoutine.id}` : undefined,
+                        runs: `${this.baseUrl}/api/schedule/${schedule.id}/runs`,
+                        meetings: `${this.baseUrl}/api/schedule/${schedule.id}/meetings`,
+                        user: `${this.baseUrl}/api/user/${schedule.user?.id}`,
                     },
                 },
             },
@@ -250,41 +253,33 @@ export class ScheduleResponseFactory {
         const defaultSchedule: Schedule = {
             __typename: "Schedule",
             id,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             startTime: nextWeek,
-            endTime: null,
+            endTime: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString(),
             timezone: "UTC",
+            publicId: `pub_${id}`,
             recurrences: [],
-            recurrencesCount: 0,
             exceptions: [],
-            exceptionsCount: 0,
-            labels: [],
-            labelsCount: 0,
-            focusModes: [],
-            focusModesCount: 0,
             meetings: [],
-            meetingsCount: 0,
-            runProject: null,
-            runRoutine: {
-                __typename: "RunRoutine",
-                id: `run_${id}`,
-                completedAt: null,
-                startedAt: null,
-                isPrivate: false,
-                timeElapsed: 0,
-                title: "Scheduled Routine Run",
-                runProject: null,
-                steps: [],
-                inputs: [],
-                outputs: [],
-            },
-            you: {
-                __typename: "ScheduleYou",
-                canDelete: true,
-                canUpdate: true,
-                canRead: true,
-            },
+            runs: [],
+            user: {
+                __typename: "User",
+                id: "user-123",
+                createdAt: now,
+                updatedAt: now,
+                name: "Test User",
+                handle: "testuser",
+                isBot: false,
+                premium: "None",
+                you: {
+                    __typename: "UserYou",
+                    canDelete: false,
+                    canUpdate: false,
+                    canReport: false,
+                },
+            } as any,
+            // Remove 'you' property - it doesn't exist on Schedule type
         };
         
         return {
@@ -313,23 +308,21 @@ export class ScheduleResponseFactory {
         }
         
         // Handle run connections
-        if (input.runProjectConnect) {
-            schedule.runProject = {
-                __typename: "RunProject",
-                id: input.runProjectConnect,
-                completedAt: null,
+        if (input.runConnect) {
+            // Add a run to the runs array
+            const newRun = {
+                __typename: "Run",
+                id: input.runConnect,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
                 startedAt: null,
-                isPrivate: false,
+                completedAt: null,
+                status: "Scheduled",
                 timeElapsed: 0,
-                title: "Scheduled Project Run",
-                steps: [],
-            };
-            schedule.runRoutine = null;
-        } else if (input.runRoutineConnect) {
-            schedule.runRoutine = {
-                ...schedule.runRoutine!,
-                id: input.runRoutineConnect,
-            };
+                name: "Scheduled Run",
+                contextSwitches: 0,
+            } as any;
+            schedule.runs = [newRun];
         }
         
         return schedule;
@@ -339,34 +332,32 @@ export class ScheduleResponseFactory {
      * Create schedules for different schedule types
      */
     createSchedulesForAllTypes(): Schedule[] {
-        return Object.values(ScheduleForEnum).map(scheduleFor => {
-            const base = this.createMockSchedule();
-            
-            if (scheduleFor === ScheduleForEnum.RunProject) {
-                return {
-                    ...base,
-                    runProject: {
-                        __typename: "RunProject",
-                        id: `project_${this.generateId()}`,
-                        completedAt: null,
-                        startedAt: null,
-                        isPrivate: false,
-                        timeElapsed: 0,
-                        title: "Project Schedule",
-                        steps: [],
-                    },
-                    runRoutine: null,
-                };
-            } else {
-                return {
-                    ...base,
-                    runRoutine: {
-                        ...base.runRoutine!,
-                        title: "Routine Schedule",
-                    },
-                };
-            }
-        });
+        return [
+            // Schedule with runs
+            this.createMockSchedule({
+                runs: [{
+                    __typename: "Run",
+                    id: `run_${this.generateId()}`,
+                    startedAt: null,
+                    completedAt: null,
+                    status: "Scheduled",
+                    timeElapsed: 0,
+                    name: "Scheduled Run",
+                    contextSwitches: 0,
+                } as any],
+            }),
+            // Schedule with meetings
+            this.createMockSchedule({
+                meetings: [{
+                    __typename: "Meeting",
+                    id: `meeting_${this.generateId()}`,
+                    openToAnyoneWithInvite: false,
+                    showOnTeamProfile: false,
+                } as any],
+            }),
+            // Basic schedule
+            this.createMockSchedule(),
+        ];
     }
     
     /**
@@ -382,14 +373,15 @@ export class ScheduleResponseFactory {
                 recurrences: [{
                     __typename: "ScheduleRecurrence",
                     id: `daily_${this.generateId()}`,
-                    recurrenceType: "Daily",
+                    recurrenceType: ScheduleRecurrenceType.Daily,
                     interval: 1,
+                    duration: 3600,
                     dayOfWeek: null,
                     dayOfMonth: null,
                     month: null,
                     endDate: null,
+                    schedule: null,
                 }],
-                recurrencesCount: 1,
             }),
             
             // Weekly schedule
@@ -398,14 +390,15 @@ export class ScheduleResponseFactory {
                 recurrences: [{
                     __typename: "ScheduleRecurrence",
                     id: `weekly_${this.generateId()}`,
-                    recurrenceType: "Weekly",
+                    recurrenceType: ScheduleRecurrenceType.Weekly,
                     interval: 1,
+                    duration: 3600,
                     dayOfWeek: now.getDay(),
                     dayOfMonth: null,
                     month: null,
                     endDate: null,
+                    schedule: null,
                 }],
-                recurrencesCount: 1,
             }),
             
             // Monthly schedule
@@ -414,14 +407,15 @@ export class ScheduleResponseFactory {
                 recurrences: [{
                     __typename: "ScheduleRecurrence",
                     id: `monthly_${this.generateId()}`,
-                    recurrenceType: "Monthly",
+                    recurrenceType: ScheduleRecurrenceType.Monthly,
                     interval: 1,
+                    duration: 3600,
                     dayOfWeek: null,
                     dayOfMonth: now.getDate(),
                     month: null,
                     endDate: null,
+                    schedule: null,
                 }],
-                recurrencesCount: 1,
             }),
         ];
     }
@@ -434,7 +428,7 @@ export class ScheduleResponseFactory {
         errors?: Record<string, string>;
     }> {
         try {
-            await scheduleValidation.create.validate(input);
+            await scheduleValidation.create({}).validate(input);
             return { valid: true };
         } catch (error: any) {
             const fieldErrors: Record<string, string> = {};
@@ -470,18 +464,18 @@ export class ScheduleMSWHandlers {
     /**
      * Create success handlers for all schedule endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): RequestHandler[] {
         return [
             // Create schedule
-            http.post(`${this.responseFactory["baseUrl"]}/api/schedule`, async (req, res, ctx) => {
-                const body = await req.json() as ScheduleCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule`, async ({ request, params }) => {
+                const body = await request.json() as ScheduleCreateInput;
                 
                 // Validate input
                 const validation = await this.responseFactory.validateCreateInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
+                    return HttpResponse.json(
+                        this.responseFactory.createValidationErrorResponse(validation.errors || {}),
+                        { status: 400 }
                     );
                 }
                 
@@ -489,33 +483,27 @@ export class ScheduleMSWHandlers {
                 const schedule = this.responseFactory.createScheduleFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(schedule);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 201 });
             }),
             
             // Get schedule by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/schedule/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/schedule/:id`, ({ request, params }) => {
+                const { id } = params;
                 
                 const schedule = this.responseFactory.createMockSchedule({ id: id as string });
                 const response = this.responseFactory.createSuccessResponse(schedule);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Update schedule
-            http.put(`${this.responseFactory["baseUrl"]}/api/schedule/:id`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const body = await req.json() as ScheduleUpdateInput;
+            http.put(`${this.responseFactory["baseUrl"]}/api/schedule/:id`, async ({ request, params }) => {
+                const { id } = params;
+                const body = await request.json() as ScheduleUpdateInput;
                 
                 const schedule = this.responseFactory.createMockSchedule({ 
                     id: id as string,
-                    updated_at: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                 });
                 
                 // Apply updates from body
@@ -533,20 +521,17 @@ export class ScheduleMSWHandlers {
                 
                 const response = this.responseFactory.createSuccessResponse(schedule);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Delete schedule
-            http.delete(`${this.responseFactory["baseUrl"]}/api/schedule/:id`, (req, res, ctx) => {
-                return res(ctx.status(204));
+            http.delete(`${this.responseFactory["baseUrl"]}/api/schedule/:id`, ({ request, params }) => {
+                return new HttpResponse(null, { status: 204 });
             }),
             
             // List schedules
-            http.get(`${this.responseFactory["baseUrl"]}/api/schedule`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/schedule`, ({ request, params }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 const scheduleFor = url.searchParams.get("scheduleFor") as ScheduleFor;
@@ -559,10 +544,10 @@ export class ScheduleMSWHandlers {
                 // Filter by schedule type if specified
                 if (scheduleFor) {
                     schedules = schedules.filter(s => {
-                        if (scheduleFor === ScheduleForEnum.RunProject) {
-                            return s.runProject !== null;
+                        if (scheduleFor === "Run") {
+                            return s.runs.length > 0;
                         } else {
-                            return s.runRoutine !== null;
+                            return s.meetings.length > 0;
                         }
                     });
                 }
@@ -580,10 +565,7 @@ export class ScheduleMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -591,41 +573,41 @@ export class ScheduleMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): RequestHandler[] {
         return [
             // Validation error
-            http.post(`${this.responseFactory["baseUrl"]}/api/schedule`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createValidationErrorResponse({
                         startTime: "Start time is required",
                         timezone: "Timezone is required",
-                    })),
+                    }),
+                    { status: 400 }
                 );
             }),
             
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/schedule/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
+            http.get(`${this.responseFactory["baseUrl"]}/api/schedule/:id`, ({ request, params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string),
+                    { status: 404 }
                 );
             }),
             
             // Permission error
-            http.post(`${this.responseFactory["baseUrl"]}/api/schedule`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("create"),
+                    { status: 403 }
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/schedule`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse(),
+                    { status: 500 }
                 );
             }),
         ];
@@ -634,18 +616,15 @@ export class ScheduleMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/schedule`, async (req, res, ctx) => {
-                const body = await req.json() as ScheduleCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule`, async ({ request, params }) => {
+                const body = await request.json() as ScheduleCreateInput;
                 const schedule = this.responseFactory.createScheduleFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(schedule);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return HttpResponse.json(response, { status: 201 });
             }),
         ];
     }
@@ -653,14 +632,14 @@ export class ScheduleMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/schedule`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/schedule/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/schedule/:id`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -674,18 +653,16 @@ export class ScheduleMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): RequestHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        const httpMethod = http[method.toLowerCase() as keyof typeof http] as any;
+        return httpMethod(fullEndpoint, async ({ request, params }) => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
-            
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }

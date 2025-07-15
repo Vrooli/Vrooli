@@ -1,107 +1,106 @@
 {
-  "identity": {
-    "name": "emergent-learning-agent",
-    "version": "1.0.0"
-  },
-  "goal": "Learn from execution patterns to suggest routine improvements without explicit programming",
-  "role": "specialist",
-  "subscriptions": [
-    "step/completed",
-    "swarm/goal/completed",
-    "swarm/goal/failed"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "step/completed"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Learning Pattern Detector",
-        "inputMap": {
-          "stepData": "event.data",
-          "executionContext": "event.data.context",
-          "patternStorage": "blackboard.learning.patterns",
-          "learningAlgorithms": "blackboard.learning.algorithms"
+    "identity": {
+        "name": "emergent-learning-agent",
+        "version": "1.0.0"
+    },
+    "goal": "Learn from execution patterns to suggest routine improvements without explicit programming",
+    "role": "specialist",
+    "subscriptions": [
+        "step/completed",
+        "swarm/goal/completed",
+        "swarm/goal/failed"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "step/completed"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Learning Pattern Detector",
+                "inputMap": {
+                    "stepData": "event.data",
+                    "executionContext": "event.data.context",
+                    "patternStorage": "blackboard.learning.patterns",
+                    "learningAlgorithms": "blackboard.learning.algorithms"
+                }
+            },
+            "qos": 0
+        },
+        {
+            "trigger": {
+                "topic": "swarm/goal/completed",
+                "when": "event.data.efficiency > blackboard.learning.thresholds.efficiency"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Analyze highly efficient goal completions to discover emergent optimization patterns not explicitly programmed"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "swarm/goal/failed",
+                "when": "records.length > 20"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Failure Pattern Learner",
+                "inputMap": {
+                    "failureData": "event.data",
+                    "executionHistory": "records.latest",
+                    "improvementModels": "blackboard.learning.models"
+                }
+            },
+            "qos": 1
         }
-      },
-      "qos": 0
-    },
-    {
-      "trigger": {
-        "topic": "swarm/goal/completed",
-        "when": "event.data.efficiency > blackboard.learning.thresholds.efficiency"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Analyze highly efficient goal completions to discover emergent optimization patterns not explicitly programmed"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "swarm/goal/failed",
-        "when": "records.length > 20"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Failure Pattern Learner",
-        "inputMap": {
-          "failureData": "event.data",
-          "executionHistory": "records.latest",
-          "improvementModels": "blackboard.learning.models"
+    ],
+    "prompt": "You are an emergent learning agent who learns from execution patterns to suggest routine improvements without explicit programming. You MUST learn from all executions and continuously analyze patterns for insights. You MAY discover optimization patterns and suggest improvements based on observed behaviors. You MUST NOT modify routines autonomously or make changes without proper approval. Focus on pattern recognition, learning from execution data, and providing actionable insights for system optimization.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "pattern-storage",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "learning.patterns",
+            "description": "Storage for discovered execution patterns and insights"
+        },
+        {
+            "type": "blackboard",
+            "label": "learning-algorithms",
+            "permissions": [
+                "read"
+            ],
+            "scope": "learning.algorithms",
+            "description": "Machine learning algorithms for pattern discovery"
+        },
+        {
+            "type": "blackboard",
+            "label": "improvement-models",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "learning.models",
+            "description": "Models for predicting and suggesting improvements"
+        },
+        {
+            "type": "routine",
+            "label": "Learning Pattern Detector",
+            "permissions": [
+                "read"
+            ],
+            "description": "Detect patterns in execution data for learning"
+        },
+        {
+            "type": "routine",
+            "label": "Failure Pattern Learner",
+            "permissions": [
+                "read"
+            ],
+            "description": "Learn from failure patterns to prevent recurrence"
         }
-      },
-      "qos": 1
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "learn-from-all-executions"
-    },
-    {
-      "modality": "permission",
-      "target": "discover-optimization-patterns"
-    },
-    {
-      "modality": "prohibition",
-      "target": "modify-routines-autonomously"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "pattern-storage",
-      "permissions": ["read", "write"],
-      "scope": "learning.patterns",
-      "description": "Storage for discovered execution patterns and insights"
-    },
-    {
-      "type": "blackboard",
-      "label": "learning-algorithms",
-      "permissions": ["read"],
-      "scope": "learning.algorithms",
-      "description": "Machine learning algorithms for pattern discovery"
-    },
-    {
-      "type": "blackboard",
-      "label": "improvement-models",
-      "permissions": ["read", "write"],
-      "scope": "learning.models",
-      "description": "Models for predicting and suggesting improvements"
-    },
-    {
-      "type": "routine",
-      "label": "Learning Pattern Detector",
-      "permissions": ["read"],
-      "description": "Detect patterns in execution data for learning"
-    },
-    {
-      "type": "routine",
-      "label": "Failure Pattern Learner",
-      "permissions": ["read"],
-      "description": "Learn from failure patterns to prevent recurrence"
-    }
-  ]
+    ]
 }

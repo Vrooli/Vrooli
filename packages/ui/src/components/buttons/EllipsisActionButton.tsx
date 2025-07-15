@@ -1,7 +1,7 @@
 import Collapse from "@mui/material/Collapse";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "./IconButton.js";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../Tooltip/Tooltip.js";
 import { useTheme } from "@mui/material/styles";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -27,14 +27,12 @@ export function EllipsisActionButton({
     const button = useMemo(() => (
         <Tooltip title={t("MoreOptions")} placement="top">
             <IconButton
+                variant="transparent"
+                size={54}
                 aria-label="run-routine"
-                component="button"
                 onClick={toggleOpen}
-                sx={{
+                style={{
                     background: palette.secondary.main,
-                    padding: 0,
-                    width: "54px",
-                    height: "54px",
                 }}
             >
                 <Icon

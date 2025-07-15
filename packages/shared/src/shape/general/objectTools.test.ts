@@ -130,23 +130,23 @@ describe("hasObjectChanged", () => {
             user: { 
                 profile: { 
                     name: "John",
-                    age: 25
+                    age: 25,
                 },
                 settings: {
-                    theme: "dark"
-                }
-            } 
+                    theme: "dark",
+                },
+            }, 
         };
         const updated = { 
             user: { 
                 profile: { 
                     name: "Jane",
-                    age: 25
+                    age: 25,
                 },
                 settings: {
-                    theme: "dark"
-                }
-            } 
+                    theme: "dark",
+                },
+            }, 
         };
         
         // Check specific nested field
@@ -172,14 +172,14 @@ describe("hasObjectChanged", () => {
         const original = { 
             items: [
                 { id: 1, name: "Item 1" },
-                { id: 2, name: "Item 2" }
-            ] 
+                { id: 2, name: "Item 2" },
+            ], 
         };
         const updated = { 
             items: [
                 { id: 1, name: "Item 1" },
-                { id: 2, name: "Item 2 Updated" }
-            ] 
+                { id: 2, name: "Item 2 Updated" },
+            ], 
         };
         
         expect(hasObjectChanged(original, updated)).toBe(true);
@@ -192,22 +192,22 @@ describe("hasObjectChanged", () => {
                 level2: {
                     level3: {
                         level4: {
-                            value: "original"
-                        }
-                    }
-                }
-            }
+                            value: "original",
+                        },
+                    },
+                },
+            },
         };
         const updated = {
             level1: {
                 level2: {
                     level3: {
                         level4: {
-                            value: "updated"
-                        }
-                    }
-                }
-            }
+                            value: "updated",
+                        },
+                    },
+                },
+            },
         };
         
         expect(hasObjectChanged(original, updated)).toBe(true);
@@ -287,10 +287,10 @@ describe("valueFromDot edge cases", () => {
                 admin: {
                     permissions: {
                         read: true,
-                        write: true
-                    }
-                }
-            }
+                        write: true,
+                    },
+                },
+            },
         };
         expect(valueFromDot(obj, "users.admin.permissions.read")).toBe(true);
         expect(valueFromDot(obj, "users.admin.permissions.delete")).toBeNull();
@@ -302,7 +302,7 @@ describe("convertToDot edge cases", () => {
         const obj = { a: null, b: { c: null } };
         expect(convertToDot(obj)).toEqual({
             "a": null,
-            "b.c": null
+            "b.c": null,
         });
     });
 
@@ -313,7 +313,7 @@ describe("convertToDot edge cases", () => {
         expect(convertToDot(obj)).toEqual({
             "arr.0": 1,
             "arr.1": 2,
-            "arr.2": 3
+            "arr.2": 3,
         });
     });
 
@@ -323,14 +323,14 @@ describe("convertToDot edge cases", () => {
                 level2: {
                     level3: {
                         level4: {
-                            value: "deep"
-                        }
-                    }
-                }
-            }
+                            value: "deep",
+                        },
+                    },
+                },
+            },
         };
         expect(convertToDot(obj)).toEqual({
-            "level1.level2.level3.level4.value": "deep"
+            "level1.level2.level3.level4.value": "deep",
         });
     });
 
@@ -340,22 +340,22 @@ describe("convertToDot edge cases", () => {
             number: 42,
             boolean: true,
             null: null,
-            undefined: undefined,
+            undefined,
             nested: {
                 array: [1, 2, 3],
-                object: { key: "value" }
-            }
+                object: { key: "value" },
+            },
         };
         expect(convertToDot(obj)).toEqual({
             "string": "text",
             "number": 42,
             "boolean": true,
             "null": null,
-            "undefined": undefined,
+            undefined,
             "nested.array.0": 1,
             "nested.array.1": 2,
             "nested.array.2": 3,
-            "nested.object.key": "value"
+            "nested.object.key": "value",
         });
     });
 
@@ -364,7 +364,7 @@ describe("convertToDot edge cases", () => {
         expect(convertToDot(obj)).toEqual({
             "0": "first",
             "1": "second",
-            "2.3": "nested"
+            "2.3": "nested",
         });
     });
 });

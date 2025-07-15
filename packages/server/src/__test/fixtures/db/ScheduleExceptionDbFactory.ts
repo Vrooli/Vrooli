@@ -111,17 +111,17 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
         return {
             constraints: {
                 uniqueViolation: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     originalStartTime: new Date(),
                     schedule: { connect: { id: "schedule_placeholder_id" } },
                 },
                 foreignKeyViolation: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     originalStartTime: new Date(),
                     schedule: { connect: { id: "non-existent-schedule-id" } },
                 },
                 checkConstraintViolation: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     originalStartTime: new Date(),
                     newStartTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
                     newEndTime: new Date(Date.now() + 60 * 60 * 1000), // End before start
@@ -132,7 +132,7 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
                 requiredFieldMissing: scheduleExceptionDbFixtures.invalid.missingRequired,
                 invalidDataType: scheduleExceptionDbFixtures.invalid.invalidTypes,
                 outOfRange: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     originalStartTime: new Date("1900-01-01"), // Too far in past
                     schedule: { connect: { id: "schedule_placeholder_id" } },
                 },
@@ -140,12 +140,12 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
             businessLogic: {
                 endBeforeStart: scheduleExceptionDbFixtures.invalid.invalidTimeRange,
                 exceptionWithoutRecurrence: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     originalStartTime: new Date(),
                     schedule: { connect: { id: "one-time-schedule-id" } }, // Non-recurring schedule
                 },
                 duplicateException: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     originalStartTime: new Date("2025-06-01T10:00:00Z"), // Same as another exception
                     schedule: { connect: { id: "schedule_placeholder_id" } },
                 },
@@ -158,7 +158,7 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
      */
     protected generateFreshIdentifiers(): Record<string, any> {
         return {
-            id: generatePK(),
+            id: this.generateId(),
         };
     }
 

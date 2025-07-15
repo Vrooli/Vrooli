@@ -1,15 +1,13 @@
 import { useTheme } from "@mui/material";
 import Box from "@mui/material/Box";
-import Dialog from "@mui/material/Dialog";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
-import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import Typography from "@mui/material/Typography";
 import { useState } from "react";
 import { IconCommon, IconService } from "../../../icons/Icons.js";
+import { IconButton } from "../../buttons/IconButton.js";
+import { Dialog, DialogContent } from "../Dialog/Dialog.js";
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -60,33 +58,34 @@ export function InstallPWADialog({ open, onClose }: InstallPWADialogProps) {
         mx: 0.5,
     };
 
+    const titleWithCloseButton = (
+        <Box sx={{ 
+            display: "flex", 
+            alignItems: "center", 
+            justifyContent: "space-between",
+            width: "100%",
+        }}>
+            <Typography variant="h5" component="h2" fontWeight="bold">
+                Install Vrooli App
+            </Typography>
+            <IconButton 
+                onClick={onClose} 
+                variant="transparent"
+                size="sm"
+            >
+                <IconCommon name="X" />
+            </IconButton>
+        </Box>
+    );
+
     return (
         <Dialog
-            open={open}
+            isOpen={open}
             onClose={onClose}
-            maxWidth="sm"
-            fullWidth
-            PaperProps={{
-                sx: {
-                    borderRadius: 3,
-                    background: palette.background.default,
-                },
-            }}
+            size="full"
+            title={titleWithCloseButton}
+            showCloseButton={false}
         >
-            <DialogTitle sx={{ 
-                display: "flex", 
-                alignItems: "center", 
-                justifyContent: "space-between",
-                borderBottom: `1px solid ${palette.divider}`,
-                pb: 2,
-            }}>
-                <Typography variant="h5" component="h2" fontWeight="bold">
-                    Install Vrooli App
-                </Typography>
-                <IconButton onClick={onClose} size="small">
-                    <IconCommon name="X" />
-                </IconButton>
-            </DialogTitle>
             <DialogContent sx={{ pt: 3 }}>
                 <Typography variant="body1" sx={{ mb: 1, mt: 2, color: palette.text.secondary }}>
                     Add Vrooli to your home screen for the best experience. It works just like a native app!

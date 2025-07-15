@@ -51,9 +51,10 @@ export const chatInvite: EndpointsChatInvite = createStandardCrudEndpoints({
         },
     },
     customEndpoints: {
-        acceptOne: async ({ input }, { req }, info) => {
+        acceptOne: async (data, { req }, info) => {
             await RequestService.get().rateLimit({ maxUser: 250, req });
             RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
+            const input = data?.input;
             if (!input || !input.id || !validatePK(input.id)) {
                 throw new CustomError("0400", "InvalidArgs");
             }
@@ -85,6 +86,7 @@ export const chatInvite: EndpointsChatInvite = createStandardCrudEndpoints({
                         },
                     },
                     create: {
+                        id: invite.id, // Use same ID as the invite
                         chatId: invite.chatId,
                         userId: invite.userId,
                     },
@@ -96,9 +98,10 @@ export const chatInvite: EndpointsChatInvite = createStandardCrudEndpoints({
             const result = await readOneHelper({ info: partialInfo, input: { id: invite.id.toString() }, objectType, req });
             return result as ChatInvite;
         },
-        declineOne: async ({ input }, { req }, info) => {
+        declineOne: async (data, { req }, info) => {
             await RequestService.get().rateLimit({ maxUser: 250, req });
             RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
+            const input = data?.input;
             if (!input || !input.id || !validatePK(input.id)) {
                 throw new CustomError("0400", "InvalidArgs");
             }

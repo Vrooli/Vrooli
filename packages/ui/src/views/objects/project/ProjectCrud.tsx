@@ -1,14 +1,14 @@
 import Box from "@mui/material/Box";
 import { useTheme } from "@mui/material/styles";
-import { DUMMY_ID, DeleteType, LlmTask, endpointsActions, endpointsResource, noopSubmit, orDefault, resourceVersionTranslationValidation, resourceVersionValidation, shapeResourceVersion, type DeleteOneInput, type ListObject, type ResourceShape, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionDirectoryShape, type ResourceVersionShape, type ResourceVersionUpdateInput, type Session, type Success } from "@vrooli/shared";
-import { ResourceType } from "@vrooli/shared/api/types";
+import { DUMMY_ID, DeleteType, LlmTask, ResourceType, endpointsActions, endpointsResource, noopSubmit, orDefault, resourceVersionTranslationValidation, resourceVersionValidation, shapeResourceVersion, type DeleteOneInput, type ListObject, type ResourceShape, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionDirectoryShape, type ResourceVersionShape, type ResourceVersionUpdateInput, type Session, type Success } from "@vrooli/shared";
 import { Formik, useField } from "formik";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper, useSubmitHelper } from "../../../api/fetchWrapper.js";
 import { AutoFillButton } from "../../../components/buttons/AutoFillButton.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
-import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
+import { Dialog } from "../../../components/dialogs/Dialog/Dialog.js";
+import { useIsMobile } from "../../../hooks/useIsMobile.js";
 import { TranslatedAdvancedInput } from "../../../components/inputs/AdvancedInput/AdvancedInput.js";
 import { detailsInputFeatures, nameInputFeatures } from "../../../components/inputs/AdvancedInput/styles.js";
 import { LanguageInput } from "../../../components/inputs/LanguageInput/LanguageInput.js";
@@ -104,8 +104,7 @@ function ProjectForm({
 }: ProjectFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
-    const { breakpoints } = useTheme();
-    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    const isMobile = useIsMobile();
 
     // Handle translations
     const {
@@ -261,12 +260,70 @@ function ProjectForm({
         );
     }, [disabled, handleAddLanguage, handleDeleteLanguage, language, languages, setLanguage, t, versions]);
 
+    if (display === "Page" || isMobile) {
+        return (
+            <Dialog
+                isOpen={isOpen}
+                onClose={onClose}
+                size="full"
+            >
+                <Box display="flex" flexDirection="column" minHeight="100vh">
+                    <NavbarInner>
+                        <SiteNavigatorButton />
+                        <EditableTitle
+                            handleDelete={handleDelete}
+                            isDeletable={!(isCreate || disabled)}
+                            isEditable={!disabled}
+                            language={language}
+                            titleField="name"
+                            subtitleField="description"
+                            variant="subheader"
+                            sxs={topBarStyle}
+                            DialogContentForm={titleDialogContentForm}
+                        />
+                    </NavbarInner>
+                    <BaseForm
+                        display={display}
+                        isLoading={isLoading}
+                        style={{
+                            width: "min(700px, 100vw)",
+                            flex: 1,
+                            margin: "unset",
+                            marginLeft: "auto",
+                            marginRight: "auto",
+                        }}
+                    >
+                        {/* <DirectoryList
+                            canUpdate={!disabled}
+                            directory={directoryField.value}
+                            handleUpdate={directoryHelpers.setValue}
+                            loading={isLoading}
+                            mutate={false}
+                        /> */}
+                    </BaseForm>
+                    <BottomActionsButtons
+                        display={display}
+                        errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                        hideButtons={disabled}
+                        isCreate={isCreate}
+                        loading={isLoading}
+                        onCancel={handleCancel}
+                        onSetSubmitting={props.setSubmitting}
+                        onSubmit={onSubmit}
+                        sideActionButtons={<AutoFillButton
+                            handleAutoFill={autoFill}
+                            isAutoFillLoading={isAutoFillLoading}
+                        />}
+                    />
+                </Box>
+            </Dialog>
+        );
+    }
     return (
-        <MaybeLargeDialog
-            display={display}
-            id="project-upsert-dialog"
+        <Dialog
             isOpen={isOpen}
             onClose={onClose}
+            size="lg"
         >
             <Box display="flex" flexDirection="column" minHeight="100vh">
                 <NavbarInner>
@@ -317,7 +374,7 @@ function ProjectForm({
                     />}
                 />
             </Box>
-        </MaybeLargeDialog>
+        </Dialog>
     );
 }
 

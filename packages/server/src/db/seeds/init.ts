@@ -1,6 +1,8 @@
 /**
  * Adds initial data to the database. (i.e. data that should be included in production). 
  * This is written so that it can be called multiple times without duplicating data.
+ * 
+ * AI_CHECK: TYPE_SAFETY=server-type-safety-maintenance-phase2 | LAST: 2025-07-04 - Added Promise<void> return type annotation to init function
  */
 import { API_CREDITS_PREMIUM, AUTH_PROVIDERS, DEFAULT_LANGUAGE, generatePK, generatePublicId, SEEDED_PUBLIC_IDS, SEEDED_TAGS, TeamConfig } from "@vrooli/shared";
 import type { Prisma } from "@prisma/client";
@@ -285,7 +287,7 @@ async function initTeams(client: InstanceType<typeof PrismaClient>) {
     vrooliId = vrooli.id;
 }
 
-export async function init(client: InstanceType<typeof PrismaClient>) {
+export async function init(client: InstanceType<typeof PrismaClient>): Promise<void> {
     logger.info("🌱 Starting database initial seed...");
     // Check for required .env variables
     if (["ADMIN_WALLET", "ADMIN_PASSWORD", "SITE_EMAIL_USERNAME", "VALYXA_PASSWORD"].some(name => !process.env[name])) {

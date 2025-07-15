@@ -1,111 +1,116 @@
 {
-  "identity": {
-    "name": "performance-metrics-watchdog",
-    "version": "1.0.0"
-  },
-  "goal": "Monitors KPIs and alerts on significant changes",
-  "role": "monitor",
-  "subscriptions": [
-    "step/completed",
-    "run/completed",
-    "swarm/resource/updated"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "step/completed"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Performance Tracker",
-        "inputMap": {
-          "stepDuration": "event.data.duration",
-          "stepId": "event.data.stepId",
-          "resourceUsage": "event.data.resourcesUsed",
-          "performanceBaseline": "blackboard.metrics.baseline"
+    "identity": {
+        "name": "performance-metrics-watchdog",
+        "version": "1.0.0"
+    },
+    "goal": "Monitors KPIs and alerts on significant changes",
+    "role": "monitor",
+    "subscriptions": [
+        "step/completed",
+        "run/completed",
+        "swarm/resource/updated"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "step/completed"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Performance Tracker",
+                "inputMap": {
+                    "stepDuration": "event.data.duration",
+                    "stepId": "event.data.stepId",
+                    "resourceUsage": "event.data.resourcesUsed",
+                    "performanceBaseline": "blackboard.metrics.baseline"
+                }
+            },
+            "qos": 0
+        },
+        {
+            "trigger": {
+                "topic": "run/completed",
+                "when": "event.data.duration > blackboard.metrics.thresholds.runDuration"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Analyze slow run performance and identify optimization opportunities"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "swarm/resource/updated",
+                "when": "event.data.remaining < event.data.allocated * 0.2"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Resource Alert Generator",
+                "inputMap": {
+                    "resourceType": "event.data.type",
+                    "remaining": "event.data.remaining",
+                    "consumptionRate": "stats.totalCredits",
+                    "alertThresholds": "blackboard.alerts.thresholds"
+                }
+            },
+            "qos": 2
         }
-      },
-      "qos": 0
-    },
-    {
-      "trigger": {
-        "topic": "run/completed",
-        "when": "event.data.duration > blackboard.metrics.thresholds.runDuration"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Analyze slow run performance and identify optimization opportunities"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "swarm/resource/updated",
-        "when": "event.data.remaining < event.data.allocated * 0.2"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Resource Alert Generator",
-        "inputMap": {
-          "resourceType": "event.data.type",
-          "remaining": "event.data.remaining",
-          "consumptionRate": "stats.totalCredits",
-          "alertThresholds": "blackboard.alerts.thresholds"
+    ],
+    "prompt": "You monitor KPIs and alert on significant changes. You are obligated to track all metrics. You have permission to generate alerts.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "metrics-dashboards",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "metrics.dashboards.*",
+            "description": "Read and update performance metrics dashboards"
+        },
+        {
+            "type": "blackboard",
+            "label": "alerting-systems",
+            "permissions": [
+                "write"
+            ],
+            "scope": "alerts.performance",
+            "description": "Write performance alerts and notifications"
+        },
+        {
+            "type": "blackboard",
+            "label": "threshold-management",
+            "permissions": [
+                "read"
+            ],
+            "scope": "metrics.thresholds",
+            "description": "Read performance thresholds and alert configurations"
+        },
+        {
+            "type": "blackboard",
+            "label": "performance-baselines",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "metrics.baseline",
+            "description": "Track and update performance baseline metrics"
+        },
+        {
+            "type": "routine",
+            "label": "Performance Tracker",
+            "permissions": [
+                "read"
+            ],
+            "description": "Track and analyze performance metrics"
+        },
+        {
+            "type": "routine",
+            "label": "Resource Alert Generator",
+            "permissions": [
+                "read"
+            ],
+            "description": "Generate alerts for resource consumption issues"
         }
-      },
-      "qos": 2
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "track-all-metrics"
-    },
-    {
-      "modality": "permission",
-      "target": "generate-alerts"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "metrics-dashboards",
-      "permissions": ["read", "write"],
-      "scope": "metrics.dashboards.*",
-      "description": "Read and update performance metrics dashboards"
-    },
-    {
-      "type": "blackboard",
-      "label": "alerting-systems",
-      "permissions": ["write"],
-      "scope": "alerts.performance",
-      "description": "Write performance alerts and notifications"
-    },
-    {
-      "type": "blackboard",
-      "label": "threshold-management",
-      "permissions": ["read"],
-      "scope": "metrics.thresholds",
-      "description": "Read performance thresholds and alert configurations"
-    },
-    {
-      "type": "blackboard",
-      "label": "performance-baselines",
-      "permissions": ["read", "write"],
-      "scope": "metrics.baseline",
-      "description": "Track and update performance baseline metrics"
-    },
-    {
-      "type": "routine",
-      "label": "Performance Tracker",
-      "permissions": ["read"],
-      "description": "Track and analyze performance metrics"
-    },
-    {
-      "type": "routine",
-      "label": "Resource Alert Generator",
-      "permissions": ["read"],
-      "description": "Generate alerts for resource consumption issues"
-    }
-  ]
+    ]
 }

@@ -1,8 +1,8 @@
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import ListItem from "@mui/material/ListItem";
 import Popover from "@mui/material/Popover";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material";
 import { type MouseEvent, useCallback, useContext, useMemo, useState } from "react";
@@ -111,8 +111,9 @@ function LanguageListItem({
             {canDelete && (
                 <Tooltip title="Delete translation for this language">
                     <IconButton
-                        size="small"
+                        size="sm"
                         onClick={handleDeleteClick}
+                        variant="transparent"
                     >
                         <IconCommon
                             decorative
@@ -313,7 +314,7 @@ export function SelectLanguageMenu({
             {/* Selected language label */}
             <Tooltip title={AllLanguages[currentLanguage] ?? ""} placement="top">
                 <Stack direction="row" spacing={0} onClick={onOpen} sx={rootStackSx}>
-                    <IconButton size="small" sx={languageIconButtonSx}>
+                    <IconButton size="sm" sx={languageIconButtonSx} variant="transparent">
                         <IconCommon
                             decorative
                             fill="background.textSecondary"
@@ -327,8 +328,9 @@ export function SelectLanguageMenu({
                     {/* Drop down or drop up icon */}
                     <IconButton
                         aria-label="language-select"
-                        size="small"
+                        size="sm"
                         sx={dropIconButtonSx}
+                        variant="transparent"
                     >
                         <IconCommon
                             decorative

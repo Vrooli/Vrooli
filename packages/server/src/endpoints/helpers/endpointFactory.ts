@@ -3,7 +3,16 @@ import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readManyWithEmbeddingsHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
 import { RequestService } from "../../auth/request.js";
+import { type EmbeddableType } from "../../services/embedding.js";
 import { type ApiEndpoint } from "../../types.js";
+
+/**
+ * Type guard to check if a ModelType is embeddable
+ */
+function isEmbeddableType(type: ModelType | `${ModelType}`): type is EmbeddableType {
+    const embeddableTypes: EmbeddableType[] = ["Chat", "Issue", "Meeting", "Reminder", "ResourceVersion", "Run", "Tag", "Team", "User"];
+    return embeddableTypes.includes(type as EmbeddableType);
+}
 
 /**
  * Common rate limit presets used across endpoints
@@ -42,8 +51,8 @@ export interface EndpointMethodConfig {
  * Configuration for standard CRUD endpoints
  */
 export interface StandardCrudConfig {
-    /** The object type (e.g., "Tag", "Bookmark") */
-    objectType: ModelType | `${ModelType}`;
+    /** The object type (e.g., "Tag", "Bookmark") - optional when only custom endpoints are provided */
+    objectType?: ModelType | `${ModelType}`;
 
     /** Configuration for each endpoint method */
     endpoints: {
@@ -115,11 +124,15 @@ export function createStandardCrudEndpoints<T extends StandardCrudConfig>(
             if (permissions) {
                 RequestService.assertRequestFrom(req, permissions);
             }
-            
+
             if (customImplementation) {
                 return customImplementation({ input, req, info });
             }
-            
+
+            if (!objectType) {
+                throw new Error("objectType is required for standard CRUD endpoints without custom implementation");
+            }
+
             return readOneHelper({ info, input, objectType, req });
         };
     }
@@ -139,8 +152,18 @@ export function createStandardCrudEndpoints<T extends StandardCrudConfig>(
                 return customImplementation({ input, req, info });
             }
 
-            const readHelper = useEmbeddings ? readManyWithEmbeddingsHelper : readManyHelper;
-            return readHelper({ info, input, objectType, req, ...(visibility && { visibility }) });
+            if (!objectType) {
+                throw new Error("objectType is required for standard CRUD endpoints without custom implementation");
+            }
+
+            if (useEmbeddings) {
+                if (!isEmbeddableType(objectType)) {
+                    throw new Error(`objectType "${objectType}" does not support embeddings. Only these types support embeddings: Chat, Issue, Meeting, Reminder, ResourceVersion, Run, Tag, Team, User`);
+                }
+                return readManyWithEmbeddingsHelper({ info, input, objectType, req, ...(visibility && { visibility }) });
+            } else {
+                return readManyHelper({ info, input, objectType, req, ...(visibility && { visibility }) });
+            }
         };
     }
 
@@ -154,11 +177,15 @@ export function createStandardCrudEndpoints<T extends StandardCrudConfig>(
             if (permissions) {
                 RequestService.assertRequestFrom(req, permissions);
             }
-            
+
             if (customImplementation) {
                 return customImplementation({ input, req, info });
             }
-            
+
+            if (!objectType) {
+                throw new Error("objectType is required for standard CRUD endpoints without custom implementation");
+            }
+
             return createOneHelper({ info, input, objectType, req });
         };
     }
@@ -173,11 +200,15 @@ export function createStandardCrudEndpoints<T extends StandardCrudConfig>(
             if (permissions) {
                 RequestService.assertRequestFrom(req, permissions);
             }
-            
+
             if (customImplementation) {
                 return customImplementation({ input, req, info });
             }
-            
+
+            if (!objectType) {
+                throw new Error("objectType is required for standard CRUD endpoints without custom implementation");
+            }
+
             return updateOneHelper({ info, input, objectType, req });
         };
     }

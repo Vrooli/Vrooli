@@ -79,7 +79,7 @@ export const ReportResponseModel: ReportResponseModelLogic = ({
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => ModelMap.get<ReportModelLogic>("Report").validate().owner(data?.report as ReportModelInfo["DbModel"], userId),
         isDeleted: (data) => ModelMap.get<ReportModelLogic>("Report").validate().isDeleted(data.report as ReportModelInfo["DbModel"]),
-        isPublic: (...rest) => oneIsPublic<ReportResponseModelInfo["DbSelect"]>([["report", "Report"]], ...rest),
+        isPublic: (data, getParentInfo?) => oneIsPublic<ReportResponseModelInfo["DbSelect"]>([["report", "Report"]], data, getParentInfo),
         visibility: {
             own: function getOwn(data) {
                 return {

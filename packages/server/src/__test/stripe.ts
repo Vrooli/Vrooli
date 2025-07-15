@@ -2,6 +2,8 @@
 import type Stripe from "stripe";
 import { type RecursivePartial } from "../types.js";
 
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03
+
 type StripeGlobalStore = {
     billingPortalSessions: Stripe.BillingPortal.Session[];
     checkoutSessions: Stripe.Checkout.Session[];
@@ -95,7 +97,7 @@ class StripeMock {
         StripeMock.simulateFailure(false);
     }
 
-    _handlePromise = (operation) => {
+    _handlePromise = <T>(operation: () => T): Promise<T> => {
         return StripeMock.shouldFail ? Promise.reject(new Error("Stripe operation failed")) : Promise.resolve(operation());
     };
 

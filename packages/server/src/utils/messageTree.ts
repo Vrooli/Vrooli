@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=server-phase3-1 | LAST: 2025-07-03 - Replaced Record<string, any> with Record<string, unknown> and fixed type assertion
 import { DbProvider } from "../db/provider.js";
 
 /**
@@ -43,7 +44,7 @@ type PreMapMessageDataUpdate = {
     text: string;
     userId?: string;
 }
-type PreMapMessageDataDelete = {
+export type PreMapMessageDataDelete = {
     __type: "Delete";
     chatId: string;
     messageId: string;
@@ -265,11 +266,11 @@ export class MessageTree {
     public static buildOperations(input: TreeOpsInput): TreeOpsOutput {
         this.#validateInput(input);
 
-        const { branchInfo, create, update, del } = input;
+        const { branchInfo, create = [], update = [], del = [] } = input;
         const summary: ChatMessageOperationsSummaryResult = { Create: [], Update: [] };
 
         /* 1️⃣  CREATE --------------------------------------------------------- */
-        const idToCreate = new Map(create.map(m => [m.id, m]));
+        const idToCreate = new Map(create.map((m: ChatMessageCreate) => [m.id, m]));
         const ordered = this.#topoSortCreates(create, idToCreate);
         const nested = this.#nestCreateForest(ordered, idToCreate, branchInfo, summary);
 
@@ -298,14 +299,15 @@ export class MessageTree {
         const all = [{ arr: create, lab: "create" }, { arr: update, lab: "update" }, { arr: del, lab: "delete" }];
 
         for (const { arr, lab } of all) {
+            if (!arr || !Array.isArray(arr)) continue;
             for (const { id } of arr) {
                 if (!seen.add(id)) throw new Error(`Duplicate message id '${id}' in ${lab}`);
             }
         }
 
         // parent-id check (only once)
-        const createIds = new Set(create.map(m => m.id));
-        for (const m of create) {
+        const createIds = new Set((create || []).map((m: ChatMessageCreate) => m.id));
+        for (const m of (create || [])) {
             const pid = m.parent?.connect?.id;
             if (pid && !createIds.has(pid)) continue;            // existing row – fine
             if (pid && !createIds.has(pid)) {
@@ -372,7 +374,7 @@ export class MessageTree {
             pending.set(cur.id, node);
             const parentId =
                 cur.parent?.connect?.id ??
-                branchInfo.lastMessageId ??
+                branchInfo?.lastMessageId ??
                 null;
             summary.Create.push({ id: cur.id, parentId });
             /* Case 1 – parent created in same batch: nest it inside `node` */
@@ -406,12 +408,17 @@ export class MessageTree {
         summary: ChatMessageOperationsSummaryResult,
     ) {
         const deleted = new Set<string>(del.map(d => d.id));
-        const tree = branchInfo.messageTreePatchInfo;
+        const tree = branchInfo?.messageTreePatchInfo;
         const healed: ChatMessageUpdateWithParent[] = [...update];
+        
+        // If no tree info available, just return the original update array
+        if (!tree) {
+            return { healedUpdates: healed, deletedIds: [] };
+        }
 
         // record explicit client updates
         for (const u of update) {
-            summary.Update.push({ id: u.id, parentId: (u as any).parent?.connect?.id ?? null });
+            summary.Update.push({ id: u.id, parentId: (u as ChatMessageUpdateWithParent).parent?.connect?.id ?? null });
         }
 
         // eslint-disable-next-line func-style
@@ -438,11 +445,11 @@ export class MessageTree {
                 summary.Update.push({ id: child, parentId });
             }
         }
-        return { healedUpdates: healed, deletedIds: del.map(d => d.id) };
+        return { healedUpdates: healed, deletedIds: del.map((d: ChatMessageDelete) => d.id) };
     }
 
     /** Removes `undefined` fields and empty arrays from an object. */
-    static #compact<T extends Record<string, any>>(obj: T): T | undefined {
+    static #compact<T extends Record<string, unknown>>(obj: T): T | undefined {
         const o = Object.fromEntries(
             Object.entries(obj).filter(([_, v]) => v !== undefined && (!(Array.isArray(v)) || v.length)),
         ) as T;
@@ -566,7 +573,7 @@ export class BranchInfoLoader {
 
             tree[id.toString()] = {
                 parentId: parentId?.toString() ?? null,
-                childIds: children.map(c => c.id.toString()),
+                childIds: children.map((c: { id: bigint }) => c.id.toString()),
             };
         });
 
@@ -646,7 +653,7 @@ export class MessageInfoCollector {
             const chatId = chat.id.toString();
 
             chatData[chatId] = {
-                hasBotParticipants: chat.participants.some(p => p.user.isBot),
+                hasBotParticipants: chat.participants.some((p: { user: { isBot: boolean } }) => p.user.isBot),
                 isNew: false,
                 lastMessageId: chat.messages[0]?.id?.toString(),
             };

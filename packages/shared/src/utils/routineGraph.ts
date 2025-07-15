@@ -85,23 +85,23 @@ enum BpmnElementName {
 }
 
 type BpmnElement = {
-    [BpmnElementName.Definitions]: BpmnModdle.Definitions;
-    [BpmnElementName.Process]: BpmnModdle.Process;
-    [BpmnElementName.Parallel]: BpmnModdle.ParallelGateway;
-    [BpmnElementName.Exclusive]: BpmnModdle.ExclusiveGateway;
-    [BpmnElementName.Inclusive]: BpmnModdle.InclusiveGateway;
-    [BpmnElementName.EventBased]: BpmnModdle.EventBasedGateway;
-    [BpmnElementName.SequenceFlow]: BpmnModdle.SequenceFlow;
-    [BpmnElementName.Expression]: BpmnModdle.FormalExpression;
-    [BpmnElementName.StartEvent]: BpmnModdle.StartEvent;
-    [BpmnElementName.EndEvent]: BpmnModdle.EndEvent;
-    [BpmnElementName.IntermediateCatchEvent]: BpmnModdle.IntermediateCatchEvent;
-    [BpmnElementName.IntermediateThrowEvent]: BpmnModdle.IntermediateThrowEvent;
-    [BpmnElementName.BoundaryEvent]: BpmnModdle.BoundaryEvent;
-    [BpmnElementName.Task]: BpmnModdle.Task;
-    [BpmnElementName.UserTask]: BpmnModdle.UserTask;
-    [BpmnElementName.ServiceTask]: BpmnModdle.ServiceTask;
-    [BpmnElementName.CallActivity]: BpmnModdle.CallActivity;
+    [BpmnElementName.Definitions]: any;
+    [BpmnElementName.Process]: any;
+    [BpmnElementName.Parallel]: any;
+    [BpmnElementName.Exclusive]: any;
+    [BpmnElementName.Inclusive]: any;
+    [BpmnElementName.EventBased]: any;
+    [BpmnElementName.SequenceFlow]: any;
+    [BpmnElementName.Expression]: any;
+    [BpmnElementName.StartEvent]: any;
+    [BpmnElementName.EndEvent]: any;
+    [BpmnElementName.IntermediateCatchEvent]: any;
+    [BpmnElementName.IntermediateThrowEvent]: any;
+    [BpmnElementName.BoundaryEvent]: any;
+    [BpmnElementName.Task]: any;
+    [BpmnElementName.UserTask]: any;
+    [BpmnElementName.ServiceTask]: any;
+    [BpmnElementName.CallActivity]: any;
 }
 
 type CreateBaseElement = {
@@ -113,7 +113,7 @@ type CreateBpmnElement = CreateBaseElement & {
 }
 
 type CreateGateway = CreateBpmnElement & {
-    gatewayDirection: BpmnModdle.GatewayDirection;
+    gatewayDirection: any;
 }
 
 type CreateExclusiveGateway = CreateGateway;
@@ -197,50 +197,50 @@ export function getElementId(id: string, namespace: Pick<Namespace, "prefix">, u
 export class GatewayManager {
     private namespace = NAMESPACE_PROCESS;
 
-    constructor(private bpmnModdle: BpmnModdle.BPMNModdle) { }
+    constructor(private bpmnModdle: any) { }
 
-    createExclusiveGateway(data: CreateExclusiveGateway, useNamespace: boolean): BpmnModdle.ExclusiveGateway {
+    createExclusiveGateway(data: CreateExclusiveGateway, useNamespace: boolean): any {
         const tag = getElementTag(BpmnElementName.Exclusive, this.namespace, useNamespace);
         const id = getElementId(data.id, this.namespace, useNamespace);
-        return this.bpmnModdle.create(tag, { ...data, id }) as BpmnModdle.ExclusiveGateway;
+        return this.bpmnModdle.create(tag, { ...data, id }) as any;
     }
 
-    createParallelGateway(data: CreateParallelGateway, useNamespace: boolean): BpmnModdle.ParallelGateway {
+    createParallelGateway(data: CreateParallelGateway, useNamespace: boolean): any {
         const tag = getElementTag(BpmnElementName.Parallel, this.namespace, useNamespace);
         const id = getElementId(data.id, this.namespace, useNamespace);
-        return this.bpmnModdle.create(tag, { ...data, id }) as BpmnModdle.ParallelGateway;
+        return this.bpmnModdle.create(tag, { ...data, id }) as any;
     }
 
-    createInclusiveGateway(data: CreateInclusiveGateway, useNamespace: boolean): BpmnModdle.InclusiveGateway {
+    createInclusiveGateway(data: CreateInclusiveGateway, useNamespace: boolean): any {
         const tag = getElementTag(BpmnElementName.Inclusive, this.namespace, useNamespace);
         const id = getElementId(data.id, this.namespace, useNamespace);
-        return this.bpmnModdle.create(tag, { ...data, id }) as BpmnModdle.InclusiveGateway;
+        return this.bpmnModdle.create(tag, { ...data, id }) as any;
     }
 
-    createEventBasedGateway(data: CreateEventBasedGateway, useNamespace: boolean): BpmnModdle.EventBasedGateway {
+    createEventBasedGateway(data: CreateEventBasedGateway, useNamespace: boolean): any {
         const tag = getElementTag(BpmnElementName.EventBased, this.namespace, useNamespace);
         const id = getElementId(data.id, this.namespace, useNamespace);
-        return this.bpmnModdle.create(tag, { ...data, id }) as BpmnModdle.EventBasedGateway;
+        return this.bpmnModdle.create(tag, { ...data, id }) as any;
     }
 }
 
 export class SequenceFlowManager {
     private namespace = NAMESPACE_PROCESS;
 
-    constructor(private bpmnModdle: BpmnModdle.BPMNModdle) { }
+    constructor(private bpmnModdle: any) { }
 
-    public createExpression(data: CreateExpression, useNamespace: boolean): BpmnModdle.FormalExpression {
+    public createExpression(data: CreateExpression, useNamespace: boolean): any {
         const tag = getElementTag(BpmnElementName.Expression, this.namespace, useNamespace);
         const id = getElementId(data.id, this.namespace, useNamespace);
-        return this.bpmnModdle.create(tag, { ...data, id }) as BpmnModdle.FormalExpression;
+        return this.bpmnModdle.create(tag, { ...data, id }) as any;
     }
 
-    public createSequenceFlow(data: CreateSequenceFlow, useNamespace: boolean): BpmnModdle.SequenceFlow {
+    public createSequenceFlow(data: CreateSequenceFlow, useNamespace: boolean): any {
         const tag = getElementTag(BpmnElementName.SequenceFlow, this.namespace, useNamespace);
         const id = getElementId(data.id, this.namespace, useNamespace);
 
         const { conditionExpression, ...restData } = data;
-        const sequenceFlow = this.bpmnModdle.create(tag, { ...restData, id }) as BpmnModdle.SequenceFlow;
+        const sequenceFlow = this.bpmnModdle.create(tag, { ...restData, id }) as any;
         if (conditionExpression) {
             const expression = this.createExpression({ id: `${id}_expression`, body: conditionExpression }, useNamespace);
             sequenceFlow.conditionExpression = expression;
@@ -252,36 +252,36 @@ export class SequenceFlowManager {
 export class EventManager {
     private namespace = NAMESPACE_PROCESS;
 
-    constructor(private bpmnModdle: BpmnModdle.BPMNModdle) { }
+    constructor(private bpmnModdle: any) { }
 
-    public createStartEvent(data: CreateStartEvent, useNamespace: boolean): BpmnModdle.StartEvent {
+    public createStartEvent(data: CreateStartEvent, useNamespace: boolean): any {
         const tag = getElementTag(BpmnElementName.StartEvent, this.namespace, useNamespace);
         const id = getElementId(data.id, this.namespace, useNamespace);
-        return this.bpmnModdle.create(tag, { ...data, id }) as BpmnModdle.StartEvent;
+        return this.bpmnModdle.create(tag, { ...data, id }) as any;
     }
 
-    public createEndEvent(data: CreateEndEvent, useNamespace: boolean): BpmnModdle.EndEvent {
+    public createEndEvent(data: CreateEndEvent, useNamespace: boolean): any {
         const tag = getElementTag(BpmnElementName.EndEvent, this.namespace, useNamespace);
         const id = getElementId(data.id, this.namespace, useNamespace);
-        return this.bpmnModdle.create(tag, { ...data, id }) as BpmnModdle.EndEvent;
+        return this.bpmnModdle.create(tag, { ...data, id }) as any;
     }
 
-    public createIntermediateCatchEvent(data: CreateIntermediateCatchEvent, useNamespace: boolean): BpmnModdle.IntermediateCatchEvent {
+    public createIntermediateCatchEvent(data: CreateIntermediateCatchEvent, useNamespace: boolean): any {
         const tag = getElementTag(BpmnElementName.IntermediateCatchEvent, this.namespace, useNamespace);
         const id = getElementId(data.id, this.namespace, useNamespace);
-        return this.bpmnModdle.create(tag, { ...data, id }) as BpmnModdle.IntermediateCatchEvent;
+        return this.bpmnModdle.create(tag, { ...data, id }) as any;
     }
 
-    public createIntermediateThrowEvent(data: CreateIntermediateThrowEvent, useNamespace: boolean): BpmnModdle.IntermediateThrowEvent {
+    public createIntermediateThrowEvent(data: CreateIntermediateThrowEvent, useNamespace: boolean): any {
         const tag = getElementTag(BpmnElementName.IntermediateThrowEvent, this.namespace, useNamespace);
         const id = getElementId(data.id, this.namespace, useNamespace);
-        return this.bpmnModdle.create(tag, { ...data, id }) as BpmnModdle.IntermediateThrowEvent;
+        return this.bpmnModdle.create(tag, { ...data, id }) as any;
     }
 
     public createBoundaryEvent(
         data: CreateBoundaryEvent,
         useNamespace: boolean,
-    ): BpmnModdle.BoundaryEvent {
+    ): any {
         const tag = getElementTag(BpmnElementName.BoundaryEvent, this.namespace, useNamespace);
         const id = getElementId(data.id, this.namespace, useNamespace);
 
@@ -293,42 +293,42 @@ export class EventManager {
             id,
             cancelActivity: data.isInterrupting !== false, // default to true if not specified
             attachedToRef: data.attachedToRef, // must be set if attaching to an activity
-        }) as BpmnModdle.BoundaryEvent;
+        }) as any;
     }
 }
 
 export class ActivityManager {
     private namespace = NAMESPACE_PROCESS;
 
-    constructor(private bpmnModdle: BpmnModdle.BPMNModdle) { }
+    constructor(private bpmnModdle: any) { }
 
-    public createTask(data: CreateTask, useNamespace: boolean): BpmnModdle.Task {
+    public createTask(data: CreateTask, useNamespace: boolean): any {
         const tag = getElementTag(BpmnElementName.Task, this.namespace, useNamespace);
         const id = getElementId(data.id, this.namespace, useNamespace);
-        return this.bpmnModdle.create(tag, { ...data, id }) as BpmnModdle.Task;
+        return this.bpmnModdle.create(tag, { ...data, id }) as any;
     }
 
-    public createUserTask(data: CreateUserTask, useNamespace: boolean): BpmnModdle.UserTask {
+    public createUserTask(data: CreateUserTask, useNamespace: boolean): any {
         const tag = getElementTag(BpmnElementName.UserTask, this.namespace, useNamespace);
         const id = getElementId(data.id, this.namespace, useNamespace);
-        return this.bpmnModdle.create(tag, { ...data, id }) as BpmnModdle.UserTask;
+        return this.bpmnModdle.create(tag, { ...data, id }) as any;
     }
 
-    public createServiceTask(data: CreateServiceTask, useNamespace: boolean): BpmnModdle.ServiceTask {
+    public createServiceTask(data: CreateServiceTask, useNamespace: boolean): any {
         const tag = getElementTag(BpmnElementName.ServiceTask, this.namespace, useNamespace);
         const id = getElementId(data.id, this.namespace, useNamespace);
-        return this.bpmnModdle.create(tag, { ...data, id }) as BpmnModdle.ServiceTask;
+        return this.bpmnModdle.create(tag, { ...data, id }) as any;
     }
 
-    public createCallActivity(data: CreateCallActivity, useNamespace: boolean): BpmnModdle.CallActivity {
+    public createCallActivity(data: CreateCallActivity, useNamespace: boolean): any {
         const tag = getElementTag(BpmnElementName.CallActivity, this.namespace, useNamespace);
         const id = getElementId(data.id, this.namespace, useNamespace);
-        return this.bpmnModdle.create(tag, { ...data, id }) as BpmnModdle.CallActivity;
+        return this.bpmnModdle.create(tag, { ...data, id }) as any;
     }
 }
 
 export class BpmnManager {
-    private bpmnModdle = new BpmnModdle();
+    private bpmnModdle = new (BpmnModdle as any)();
 
     public gatewayManager: GatewayManager;
     public activityManager: ActivityManager;
@@ -342,7 +342,7 @@ export class BpmnManager {
     /**
      * Our definitions object, which is the root container for BPMN processes, messages, signals, etc.
      */
-    private definitions: BpmnModdle.Definitions | undefined;
+    private definitions: any | undefined;
     /**
      * Maps call activities to subroutine information.
      */
@@ -361,7 +361,7 @@ export class BpmnManager {
         const xmlData = graphConfig.schema.data;
 
         // Parse the XML data into a BPMN definitions object
-        this.bpmnModdle.fromXML(xmlData, (error: Error, defs: BpmnModdle.Definitions) => {
+        this.bpmnModdle.fromXML(xmlData, (error: Error, defs: any) => {
             if (error) {
                 throw new Error("Error parsing BPMN XML: " + error.message);
             }
@@ -403,7 +403,7 @@ export class BpmnManager {
             exporter: `${BUSINESS_NAME} BPMN Manager`,
             exporterVersion: BPMN_MANAGER_VERSION,
             targetNamespace: `${APP_URL}/bpmn/${idBase}`,
-        }) as BpmnModdle.Definitions;
+        }) as any;
 
         this.definitions = newDefs;
 

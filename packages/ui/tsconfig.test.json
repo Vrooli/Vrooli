@@ -5,5 +5,9 @@
         "**/*.test.ts",
         "**/*.test.tsx",
         "**/__test",
+        "**/*.roundtrip.test.ts",
+        "**/*.roundtrip.test.tsx",
+        "**/*.scenario.test.ts",
+        "**/*.scenario.test.tsx"
     ]
 }

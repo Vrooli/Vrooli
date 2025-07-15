@@ -61,7 +61,7 @@ graph TD
     B -->|Round-trip Flow| J[Round-trip Orchestrator]
     
     UI --> UI2[packages/ui/src/__test/fixtures/]
-    C --> API2[packages/shared/src/__test/fixtures/api/]
+    C --> API2[packages/shared/src/__test/fixtures/api-inputs/]
     D --> API2
     E --> DB2[packages/server/src/__test/fixtures/db/]
     F --> API2
@@ -115,7 +115,7 @@ expect(result.success).toBe(true);
 expect(result.data.databaseRecord).toBeDefined();
 ```
 
-### 🔗 API Fixtures (`packages/shared/src/__test/fixtures/api/`)
+### 🔗 API Fixtures (`packages/shared/src/__test/fixtures/api-inputs/`)
 **Purpose**: Shared validation and transformation layer between UI and database
 
 **Key Features**:
@@ -296,7 +296,7 @@ import { bookmarkValidation, commentValidation, teamValidation } from "@vrooli/s
 import { endpointsBookmark, endpointsComment, endpointsTeam } from "@vrooli/shared";
 
 // Test Fixtures
-import { userFixtures, teamFixtures } from "@vrooli/shared/__test/fixtures/api";
+import { userFixtures, teamFixtures } from "@vrooli/shared/__test";
 import { botConfigFixtures, chatConfigFixtures } from "@vrooli/shared/__test/fixtures/config";
 // Or with namespace imports
 import { apiFixtures, configFixtures } from "@vrooli/shared/__test/fixtures";
@@ -319,7 +319,7 @@ The shared package provides centralized fixtures in `@vrooli/shared/__test/fixtu
 
 ```typescript
 // Import specific fixtures
-import { userFixtures, teamFixtures } from "@vrooli/shared/__test/fixtures/api";
+import { userFixtures, teamFixtures } from "@vrooli/shared";
 
 // Use in tests
 const testUser = userFixtures.complete.create;
@@ -405,7 +405,7 @@ For detailed event fixture documentation, see [Event Fixtures README](/packages/
 
 **In Server Tests:**
 ```typescript
-import { userFixtures } from "@vrooli/shared/__test/fixtures/api";
+import { userFixtures } from "@vrooli/shared";
 import { botConfigFixtures } from "@vrooli/shared/__test/fixtures/config";
 
 const testBot = {
@@ -474,7 +474,7 @@ import { BookmarkIntegrationTest } from "@/test/fixtures/integrations";
 import { UserBookmarksProjectScenario } from "@/test/fixtures/scenarios";
 
 // Testing API endpoints directly?
-import { userFixtures } from "@vrooli/shared/__test/fixtures/api";
+import { userFixtures } from "@vrooli/shared";
 
 // Testing data transformation?
 import { shapeProject, projectValidation } from "@vrooli/shared";
@@ -740,7 +740,7 @@ interface RoundTripFixtureFactory<TFormData, TAPIResponse> {
    - Ensures compatibility between UI and API layers
    - Validates transformations are lossless
 
-3. **API Factory** (`packages/shared/src/__test/fixtures/api/`)
+3. **API Factory** (`packages/shared/src/__test/fixtures/api-inputs/`)
    - Validates API inputs using real validation schemas
    - Provides error injection for testing failure scenarios
    - Ensures type safety across the API layer

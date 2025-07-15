@@ -14,14 +14,15 @@ import { SERVER_PORT, SERVER_URL, server } from "./server.js";
 import { BillingWorker } from "./services/billing.js";
 import { setupErrorReporting } from "./services/errorReporting.js";
 import { setupHealthCheck } from "./services/health.js";
-import { setupMetrics } from "./services/metrics.js";
 import { setupMCP } from "./services/mcp/index.js";
+import { setupMetrics } from "./services/metrics.js";
 import { setupStripe } from "./services/stripe.js";
 import { SocketService } from "./sockets/io.js";
 import { chatSocketRoomHandlers } from "./sockets/rooms/chat.js";
 import { runSocketRoomHandlers } from "./sockets/rooms/run.js";
 import { userSocketRoomHandlers } from "./sockets/rooms/user.js";
 import { QueueService } from "./tasks/queues.js";
+import { checkImageProcessingCapabilities } from "./utils/fileStorage.js";
 import { initSingletons } from "./utils/singletons.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -36,7 +37,6 @@ async function main() {
         "JWT_PUB", // Public key for JWT tokens
         "PROJECT_DIR", // Path to the project directory
         "VITE_SERVER_LOCATION", // Location of the server
-        "LETSENCRYPT_EMAIL", // Email for Let's Encrypt
         "VAPID_PUBLIC_KEY", // Public key for VAPID
         "VAPID_PRIVATE_KEY", // Private key for VAPID
         "WORKER_ID", // Worker ID (e.g. pod ordinal) for Snowflake IDs
@@ -106,6 +106,16 @@ async function main() {
         logger.info("BillingWorker (and potentially RedisStreamBus) started.");
     } catch (billingError) {
         logger.error("🚨 Critical: BillingWorker failed to start.", { error: billingError });
+    }
+
+    // 5. Check image processing capabilities (non-critical)
+    try {
+        await checkImageProcessingCapabilities();
+    } catch (error) {
+        logger.warn("Failed to check image processing capabilities", {
+            error: error instanceof Error ? error.message : String(error),
+            message: "Image processing features may be limited",
+        });
     }
 
     // // For parsing application/xwww-
@@ -208,6 +218,7 @@ if (
 }
 
 // Export files for "jobs" package
+export * from "./auth/bcryptWrapper.js";
 export * from "./builders/index.js";
 export * from "./db/provider.js";
 export * from "./events/index.js";
@@ -220,4 +231,10 @@ export * from "./sockets/io.js";
 export * from "./tasks/index.js";
 export * from "./utils/index.js";
 export * from "./validators/index.js";
+
+// Export endpoints for integration testing
+export * from "./endpoints/index.js";
+export * from "./endpoints/logic/index.js";
+
+// Export test utilities for integration testing
 

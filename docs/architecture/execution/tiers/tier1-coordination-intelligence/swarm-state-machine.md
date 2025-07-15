@@ -278,7 +278,7 @@ await swarmStateMachine.start(conversationId, "Build a task management app", use
 ### **Monitoring Progress**
 ```typescript
 // Check operational state
-const status = swarmStateMachine.getCurrentSagaStatus(); // "RUNNING", "IDLE", etc.
+const status = swarmStateMachine.getState(); // "RUNNING", "IDLE", etc.
 
 // Monitor events
 eventBus.on("swarm.events", (event) => {

@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
+import { generatePublicId, nanoid } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -32,27 +32,28 @@ interface ResourceVersionRelationConfig extends RelationConfig {
  * - Comprehensive validation
  */
 export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
-    Prisma.ResourceVersionCreateInput,
-    Prisma.ResourceVersionCreateInput,
-    Prisma.ResourceVersionInclude,
-    Prisma.ResourceVersionUpdateInput
+    resource_version,
+    Prisma.resource_versionCreateInput,
+    Prisma.resource_versionInclude,
+    Prisma.resource_versionUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
         super("ResourceVersion", prisma);
         this.initializeScenarios();
     }
 
     protected getPrismaDelegate() {
-        return this.prisma.resourceVersion;
+        return this.prisma.resource_version;
     }
 
     /**
      * Get complete test fixtures for ResourceVersion model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.ResourceVersionCreateInput, Prisma.ResourceVersionUpdateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.resource_versionCreateInput, Prisma.resource_versionUpdateInput> {
         return {
             minimal: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 publicId: generatePublicId(),
                 isComplete: false,
                 isLatest: true,
@@ -61,7 +62,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                 complexity: 1,
             },
             complete: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 publicId: generatePublicId(),
                 isComplete: true,
                 isLatest: true,
@@ -74,7 +75,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                 translations: {
                     create: [
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             name: "Complete Resource Version",
                             description: "A comprehensive resource with all features",
@@ -82,7 +83,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                             details: "Detailed information about the resource",
                         },
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "es",
                             name: "Versión Completa del Recurso",
                             description: "Un recurso integral con todas las características",
@@ -110,7 +111,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                     link: 123, // Should be string
                 },
                 invalidComplexity: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     isComplete: true,
                     isLatest: true,
@@ -121,7 +122,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
             },
             edgeCases: {
                 minimalComplexity: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     isComplete: true,
                     isLatest: true,
@@ -130,7 +131,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                     complexity: 1, // Minimum complexity
                 },
                 maximalComplexity: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     isComplete: true,
                     isLatest: true,
@@ -139,7 +140,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                     complexity: 10, // Maximum complexity
                 },
                 preReleaseVersion: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     isComplete: false,
                     isLatest: false,
@@ -149,7 +150,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                     complexity: 7,
                 },
                 deprecatedVersion: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     isComplete: true,
                     isLatest: false,
@@ -159,7 +160,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                     complexity: 3,
                 },
                 multiLanguageVersion: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     isComplete: true,
                     isLatest: true,
@@ -168,7 +169,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                     complexity: 5,
                     translations: {
                         create: Array.from({ length: 5 }, (_, i) => ({
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: ["en", "es", "fr", "de", "ja"][i],
                             name: `Resource Version ${i}`,
                             description: `Description in language ${i}`,
@@ -199,9 +200,9 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateMinimalData(overrides?: Partial<Prisma.ResourceVersionCreateInput>): Prisma.ResourceVersionCreateInput {
+    protected generateMinimalData(overrides?: Partial<Prisma.resource_versionCreateInput>): Prisma.resource_versionCreateInput {
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             publicId: generatePublicId(),
             isComplete: false,
             isLatest: true,
@@ -212,9 +213,9 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateCompleteData(overrides?: Partial<Prisma.ResourceVersionCreateInput>): Prisma.ResourceVersionCreateInput {
+    protected generateCompleteData(overrides?: Partial<Prisma.resource_versionCreateInput>): Prisma.resource_versionCreateInput {
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             publicId: generatePublicId(),
             isComplete: true,
             isLatest: true,
@@ -227,7 +228,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
             translations: {
                 create: [
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         language: "en",
                         name: "Complete Resource Version",
                         description: "A comprehensive resource with all features",
@@ -235,7 +236,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                         details: "Detailed information about the resource",
                     },
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         language: "es",
                         name: "Versión Completa del Recurso",
                         description: "Un recurso integral con todas las características",
@@ -362,7 +363,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected getDefaultInclude(): Prisma.ResourceVersionInclude {
+    protected getDefaultInclude(): Prisma.resource_versionInclude {
         return {
             root: {
                 select: {
@@ -394,10 +395,10 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async applyRelationships(
-        baseData: Prisma.ResourceVersionCreateInput,
+        baseData: Prisma.resource_versionCreateInput,
         config: ResourceVersionRelationConfig,
         tx: any,
-    ): Promise<Prisma.ResourceVersionCreateInput> {
+    ): Promise<Prisma.resource_versionCreateInput> {
         const data = { ...baseData };
 
         // Handle root resource connection
@@ -409,7 +410,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
         if (config.translations && Array.isArray(config.translations)) {
             data.translations = {
                 create: config.translations.map(trans => ({
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     ...trans,
                 })),
             };
@@ -419,7 +420,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
         if (config.relations && Array.isArray(config.relations)) {
             data.relations = {
                 create: config.relations.map(relation => ({
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     fromId: data.id as string,
                     toId: relation.targetVersionId,
                     relationshipType: relation.relationshipType,
@@ -534,7 +535,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
 
         // Check that only one version is marked as latest per resource
         if (record.isLatest && record.rootId) {
-            const otherLatest = await this.prisma.resourceVersion.count({
+            const otherLatest = await this.prisma.resource_version.count({
                 where: {
                     rootId: record.rootId,
                     isLatest: true,
@@ -573,14 +574,14 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
 
         // Delete translations
         if (shouldDelete("translations") && record.translations?.length) {
-            await tx.resourceVersionTranslation.deleteMany({
+            await tx.resource_version_translation.deleteMany({
                 where: { resourceVersionId: record.id },
             });
         }
 
         // Delete relations
         if (shouldDelete("relations") && record.relations?.length) {
-            await tx.resourceVersionRelation.deleteMany({
+            await tx.resource_version_relation.deleteMany({
                 where: { OR: [{ fromId: record.id }, { toId: record.id }] },
             });
         }
@@ -618,7 +619,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createResourceVersionDbFactory = (prisma: PrismaClient) => 
-    ResourceVersionDbFactory.getInstance("ResourceVersion", prisma);
+    new ResourceVersionDbFactory(prisma);
 
 // Export the class for type usage
 export { ResourceVersionDbFactory as ResourceVersionDbFactoryClass };

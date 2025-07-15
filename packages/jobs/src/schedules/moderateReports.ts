@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=4 | LAST: 2025-07-06
 import { type Prisma } from "@prisma/client";
 import type { PrismaDelegate } from "@vrooli/server";
 import { DbProvider, ModelMap, Trigger, batch, findFirstRel, logger } from "@vrooli/server";
@@ -21,14 +22,16 @@ const DEFAULT_TIMEOUT = WEEKS_1_MS; // 1 week equivalent
  * Type guard to check if a value is a valid ModelType
  */
 function isValidModelType(value: string): value is ModelTypeType {
-    return (Object.values(ModelType) as string[]).includes(value);
+    const modelTypeValues: readonly string[] = Object.values(ModelType);
+    return modelTypeValues.includes(value);
 }
 
 /**
  * Type guard to check if a value is a valid ReportSuggestedAction
  */
 function isValidReportSuggestedAction(value: string): value is ReportSuggestedAction {
-    return (Object.values(ReportSuggestedAction) as string[]).includes(value);
+    const actionValues: readonly string[] = Object.values(ReportSuggestedAction);
+    return actionValues.includes(value);
 }
 
 /**
@@ -48,6 +51,31 @@ function isPrismaDelegate(value: unknown): value is PrismaDelegate {
            typeof value === "object" && 
            "update" in value &&
            typeof value.update === "function";
+}
+
+/**
+ * Type-safe helper to get Prisma model from DbProvider
+ * @param dbTable The table name from ModelMap
+ * @param objectType The ModelType for logging
+ * @returns The Prisma model or null if invalid
+ */
+function getPrismaModel(dbTable: string, objectType: string): PrismaDelegate | null {
+    const db = DbProvider.get();
+    
+    // Type assertion with runtime validation
+    if (dbTable in db) {
+        const model = (db as Record<string, unknown>)[dbTable];
+        if (isPrismaDelegate(model)) {
+            return model;
+        }
+    }
+    
+    logger.error("Invalid database table name", {
+        dbTable,
+        objectType,
+        availableTables: Object.keys(db).filter(key => isPrismaDelegate((db as Record<string, unknown>)[key])),
+    });
+    return null;
 }
 
 /**
@@ -151,7 +179,9 @@ function bestAction(list: [ReportSuggestedAction, number][]): ReportSuggestedAct
     const sorted = filtered.sort((a, b) => b[1] - a[1]);
     // Filter out actions that don't match the reputation of the first action 
     // in the sorted list (i.e. the highest reputation)
-    const highest = sorted.length > 0 && sorted[0] && sorted[0].length > 1 ? sorted.filter(([_, rep]) => rep === sorted[0][1]) : [];
+    const firstSorted = sorted.length > 0 ? sorted[0] : null;
+    const highest = firstSorted && firstSorted.length > 1 ? 
+        sorted.filter(([_, rep]) => rep === firstSorted[1]) : [];
     // If there is only one action with the highest reputation, return it
     if (highest.length === 1 && highest[0] && highest[0].length > 0) return highest[0][0];
     // Find the least severe action from the highest reputation actions
@@ -301,39 +331,52 @@ async function moderateReport(report: ReportPayload): Promise<void> {
         
         const objectField = uppercaseFirstLetter(objectFieldRaw);
         const objectType = objectField;
+        // Helper function to safely access object properties
+        function hasProperty<T extends string>(obj: unknown, prop: T): obj is Record<T, unknown> {
+            return obj !== null && typeof obj === "object" && prop in obj;
+        }
+
+        function hasIdProperty(obj: unknown): obj is { id: unknown } {
+            return hasProperty(obj, "id");
+        }
+
         // Find the object's owner
         let objectOwner: { __typename: "Team" | "User", id: string } | null = null;
         if (objectType.endsWith("Version")) {
-            if (objectData.root.ownedByTeam) {
-                objectOwner = { __typename: "Team", id: objectData.root.ownedByTeam.id };
+            if (hasProperty(objectData, "root") && hasProperty(objectData.root, "ownedByTeam") && hasIdProperty(objectData.root.ownedByTeam)) {
+                objectOwner = { __typename: "Team", id: String(objectData.root.ownedByTeam.id) };
             }
-            else if (objectData.root.ownedByUser) {
-                objectOwner = { __typename: "User", id: objectData.root.ownedByUser.id };
+            else if (hasProperty(objectData, "root") && hasProperty(objectData.root, "ownedByUser") && hasIdProperty(objectData.root.ownedByUser)) {
+                objectOwner = { __typename: "User", id: String(objectData.root.ownedByUser.id) };
             }
         }
         else if (["Comment"].includes(objectType)) {
-            if (objectData.ownedByTeam) {
-                objectOwner = { __typename: "Team", id: objectData.ownedByTeam.id };
+            if (hasProperty(objectData, "ownedByTeam") && hasIdProperty(objectData.ownedByTeam)) {
+                objectOwner = { __typename: "Team", id: String(objectData.ownedByTeam.id) };
             }
-            else if (objectData.ownedByUser) {
-                objectOwner = { __typename: "User", id: objectData.ownedByUser.id };
+            else if (hasProperty(objectData, "ownedByUser") && hasIdProperty(objectData.ownedByUser)) {
+                objectOwner = { __typename: "User", id: String(objectData.ownedByUser.id) };
             }
         }
         else if (["ChatMessage"].includes(objectType)) {
-            if (objectData.user && objectData.user.id) {
-                objectOwner = { __typename: "User", id: objectData.user.id };
+            if (hasProperty(objectData, "user") && hasIdProperty(objectData.user)) {
+                objectOwner = { __typename: "User", id: String(objectData.user.id) };
             }
         }
         else if (["Issue", "Tag"].includes(objectType)) {
-            if (objectData.createdBy && objectData.createdBy.id) {
-                objectOwner = { __typename: "User", id: objectData.createdBy.id };
+            if (hasProperty(objectData, "createdBy") && hasIdProperty(objectData.createdBy)) {
+                objectOwner = { __typename: "User", id: String(objectData.createdBy.id) };
             }
         }
         else if (["Team"].includes(objectType)) {
-            objectOwner = { __typename: "Team", id: objectData.id };
+            if (hasIdProperty(objectData)) {
+                objectOwner = { __typename: "Team", id: String(objectData.id) };
+            }
         }
         else if (["User"].includes(objectType)) {
-            objectOwner = { __typename: "User", id: objectData.id };
+            if (hasIdProperty(objectData)) {
+                objectOwner = { __typename: "User", id: String(objectData.id) };
+            }
         }
         if (!objectOwner) {
             logger.error("Failed to complete report moderation. Owner not found", { trace: "0410", reportId: report.id, objectType, objectData });
@@ -352,7 +395,7 @@ async function moderateReport(report: ReportPayload): Promise<void> {
         
         // Trigger activity
         await Trigger(["en"]).reportActivity({
-            objectId: objectData.id,
+            objectId: hasIdProperty(objectData) ? String(objectData.id) : "",
             objectType,
             objectOwner,
             reportContributors: report.responses.map(r => r.createdBy?.id?.toString()).filter((id): id is string => typeof id === "string"),
@@ -369,9 +412,9 @@ async function moderateReport(report: ReportPayload): Promise<void> {
             // If the object is a version, delete the version. DO NOT delete the root object.
             // If the object can be soft-deleted, soft-delete it.
             case ReportSuggestedAction.Delete: {
-                const dbModelForDelete = DbProvider.get()[dbTable];
-                if (!isPrismaDelegate(dbModelForDelete)) {
-                    logger.error("Invalid database model for delete operation", {
+                const dbModelForDelete = getPrismaModel(dbTable, objectType);
+                if (!dbModelForDelete) {
+                    logger.error("Failed to get database model for delete operation", {
                         objectType,
                         dbTable,
                         reportId: report.id,
@@ -411,9 +454,9 @@ async function moderateReport(report: ReportPayload): Promise<void> {
                     return;
                 }
                 
-                const dbModelForHide = DbProvider.get()[dbTable];
-                if (!isPrismaDelegate(dbModelForHide)) {
-                    logger.error("Invalid database model for hide operation", {
+                const dbModelForHide = getPrismaModel(dbTable, objectType);
+                if (!dbModelForHide) {
+                    logger.error("Failed to get database model for hide operation", {
                         objectType,
                         dbTable,
                         reportId: report.id,
@@ -459,8 +502,8 @@ export async function moderateReports(): Promise<void> {
     try {
         await batch<Prisma.reportFindManyArgs, ReportPayload>({
             objectType: "Report",
-            processBatch: async (batch) => {
-                await Promise.all(batch.map(async (report) => {
+            processBatch: async (batch: ReportPayload[]) => {
+                await Promise.all(batch.map(async (report: ReportPayload) => {
                     await moderateReport(report);
                 }));
             },

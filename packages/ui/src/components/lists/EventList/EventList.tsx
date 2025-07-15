@@ -485,10 +485,7 @@ export function EventList({
             case "Updated": {
                 if (!list) return;
                 const [updatedItem] = data as ArgsType<ObjectListActions<Resource>["Updated"]>;
-                handleUpdate?.({
-                    ...list,
-                    resources: list.map(r => r.id === updatedItem.id ? updatedItem : r),
-                });
+                handleUpdate?.(list.map(r => r.id === updatedItem.id ? updatedItem : r));
                 break;
             }
         }

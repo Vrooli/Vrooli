@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { http, type RestHandler } from "msw";
+import { http, HttpResponse, type RequestHandler } from "msw";
 import type { 
     ScheduleException, 
     ScheduleExceptionCreateInput, 
@@ -73,14 +73,14 @@ export class ScheduleExceptionResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique schedule exception ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -245,56 +245,26 @@ export class ScheduleExceptionResponseFactory {
         const defaultException: ScheduleException = {
             __typename: "ScheduleException",
             id,
-            created_at: now,
-            updated_at: now,
             originalStartTime: tomorrow,
             newStartTime: null,
             newEndTime: null,
             schedule: {
                 __typename: "Schedule",
                 id: `schedule_${id}`,
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
                 startTime: tomorrow,
                 endTime: null,
                 timezone: "UTC",
                 recurrences: [],
-                recurrencesCount: 0,
                 exceptions: [],
-                exceptionsCount: 1,
-                labels: [],
-                labelsCount: 0,
-                focusModes: [],
-                focusModesCount: 0,
-                meetings: [],
-                meetingsCount: 0,
-                runProject: null,
-                runRoutine: {
-                    __typename: "RunRoutine",
-                    id: `run_${id}`,
-                    completedAt: null,
-                    startedAt: null,
-                    isPrivate: false,
-                    timeElapsed: 0,
-                    title: "Scheduled Run with Exception",
-                    runProject: null,
-                    steps: [],
-                    inputs: [],
-                    outputs: [],
-                },
-                you: {
-                    __typename: "ScheduleYou",
-                    canDelete: true,
-                    canUpdate: true,
-                    canRead: true,
-                },
-            },
+            } as any,
         };
         
         return {
             ...defaultException,
             ...overrides,
-        };
+        } as unknown as ScheduleException;
     }
     
     /**
@@ -385,7 +355,7 @@ export class ScheduleExceptionResponseFactory {
         errors?: Record<string, string>;
     }> {
         try {
-            await scheduleExceptionValidation.create.validate(input);
+            await scheduleExceptionValidation.create({}).validate(input);
             return { valid: true };
         } catch (error: any) {
             const fieldErrors: Record<string, string> = {};
@@ -421,18 +391,18 @@ export class ScheduleExceptionMSWHandlers {
     /**
      * Create success handlers for all schedule exception endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): RequestHandler[] {
         return [
             // Create schedule exception
-            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, async (req, res, ctx) => {
-                const body = await req.json() as ScheduleExceptionCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, async ({ request }) => {
+                const body = await request.json() as ScheduleExceptionCreateInput;
                 
                 // Validate input
                 const validation = await this.responseFactory.validateCreateInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
+                    return HttpResponse.json(
+                        this.responseFactory.createValidationErrorResponse(validation.errors || {}),
+                        { status: 400 }
                     );
                 }
                 
@@ -440,33 +410,26 @@ export class ScheduleExceptionMSWHandlers {
                 const exception = this.responseFactory.createExceptionFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(exception);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 201 });
             }),
             
             // Get schedule exception by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, ({ params }) => {
+                const { id } = params;
                 
                 const exception = this.responseFactory.createMockException({ id: id as string });
                 const response = this.responseFactory.createSuccessResponse(exception);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Update schedule exception
-            http.put(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const body = await req.json() as ScheduleExceptionUpdateInput;
+            http.put(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, async ({ params, request }) => {
+                const { id } = params;
+                const body = await request.json() as ScheduleExceptionUpdateInput;
                 
                 const exception = this.responseFactory.createMockException({ 
                     id: id as string,
-                    updated_at: new Date().toISOString(),
                 });
                 
                 // Apply updates from body
@@ -480,20 +443,17 @@ export class ScheduleExceptionMSWHandlers {
                 
                 const response = this.responseFactory.createSuccessResponse(exception);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Delete schedule exception
-            http.delete(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, (req, res, ctx) => {
-                return res(ctx.status(204));
+            http.delete(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, () => {
+                return new HttpResponse(null, { status: 204 });
             }),
             
             // List schedule exceptions
-            http.get(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, ({ request, params }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 const scheduleId = url.searchParams.get("scheduleId");
@@ -523,10 +483,7 @@ export class ScheduleExceptionMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -534,41 +491,41 @@ export class ScheduleExceptionMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): RequestHandler[] {
         return [
             // Validation error
-            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, () => {
+                return HttpResponse.json(
+                    this.responseFactory.createValidationErrorResponse({
                         originalStartTime: "Original start time is required",
                         scheduleConnect: "Schedule is required",
-                    })),
+                    }),
+                    { status: 400 }
                 );
             }),
             
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
+            http.get(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, ({ params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string),
+                    { status: 404 }
                 );
             }),
             
             // Permission error
-            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, () => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("create"),
+                    { status: 403 }
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, () => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse(),
+                    { status: 500 }
                 );
             }),
         ];
@@ -577,18 +534,15 @@ export class ScheduleExceptionMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, async (req, res, ctx) => {
-                const body = await req.json() as ScheduleExceptionCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, async ({ request }) => {
+                const body = await request.json() as ScheduleExceptionCreateInput;
                 const exception = this.responseFactory.createExceptionFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(exception);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return HttpResponse.json(response, { status: 201 });
             }),
         ];
     }
@@ -596,14 +550,14 @@ export class ScheduleExceptionMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, () => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, () => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -617,18 +571,17 @@ export class ScheduleExceptionMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): RequestHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        const httpMethod = http[method.toLowerCase() as keyof typeof http] as any;
+        return httpMethod(fullEndpoint, async () => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }

@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=server-type-safety-fixes | LAST: 2025-07-01 - Fixed any type to proper Record<string, unknown>
 import { lowercaseFirstLetter } from "@vrooli/shared";
 import { shapeHelper, type ShapeHelperProps } from "../../builders/shapeHelper.js";
 
@@ -8,7 +9,7 @@ type OwnerShapeHelperProps<
     relation?: string;
 } & Omit<ShapeHelperProps<false, Types, false>, "isOneToOne" | "joinData" | "relation" | "softDelete">
 
-type OwnerShapeReturn = any;
+type OwnerShapeReturn = Record<string, unknown>;
 
 /**
 * Connect or disconnect owners to/from an object.

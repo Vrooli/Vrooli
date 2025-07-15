@@ -1,9 +1,11 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-01 - Fixed 7 'as any' type assertions with proper theme types
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { Formik } from "formik";
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { IntegerInput, IntegerInputBase, calculateUpdatedNumber, getColorForLabel, getNumberInRange } from "./IntegerInput";
+import type { Palette } from "@mui/material/styles";
 
 // Mock MUI theme
 vi.mock("@mui/material", async () => {
@@ -71,32 +73,32 @@ describe("IntegerInput", () => {
         });
 
         describe("getColorForLabel", () => {
-            const palette = {
+            const palette: Partial<Palette> = {
                 error: { main: "#ff0000" },
                 warning: { main: "#ff9800" },
                 background: { textSecondary: "#666666" },
-            };
+            } as Partial<Palette>;
 
             it("returns error color for out of range values", () => {
-                expect(getColorForLabel(15, 0, 10, palette as any, undefined)).toBe("#ff0000");
-                expect(getColorForLabel(-5, 0, 10, palette as any, undefined)).toBe("#ff0000");
+                expect(getColorForLabel(15, 0, 10, palette as Palette, undefined)).toBe("#ff0000");
+                expect(getColorForLabel(-5, 0, 10, palette as Palette, undefined)).toBe("#ff0000");
             });
 
             it("returns warning color for boundary values", () => {
-                expect(getColorForLabel(0, 0, 10, palette as any, undefined)).toBe("#ff9800");
-                expect(getColorForLabel(10, 0, 10, palette as any, undefined)).toBe("#ff9800");
+                expect(getColorForLabel(0, 0, 10, palette as Palette, undefined)).toBe("#ff9800");
+                expect(getColorForLabel(10, 0, 10, palette as Palette, undefined)).toBe("#ff9800");
             });
 
             it("returns normal color for valid in-range values", () => {
-                expect(getColorForLabel(5, 0, 10, palette as any, undefined)).toBe("#666666");
+                expect(getColorForLabel(5, 0, 10, palette as Palette, undefined)).toBe("#666666");
             });
 
             it("handles zeroText properly", () => {
-                expect(getColorForLabel("None", 0, 10, palette as any, "None")).toBe("#ff9800");
+                expect(getColorForLabel("None", 0, 10, palette as Palette, "None")).toBe("#ff9800");
             });
 
             it("handles invalid number strings", () => {
-                expect(getColorForLabel("abc", 0, 10, palette as any, undefined)).toBe("#ff0000");
+                expect(getColorForLabel("abc", 0, 10, palette as Palette, undefined)).toBe("#ff0000");
             });
         });
     });
@@ -340,7 +342,7 @@ describe("IntegerInput", () => {
                 <Formik
                     initialValues={{ testField: 5 }}
                     validate={(values) => {
-                        const errors: any = {};
+                        const errors: Record<string, string> = {};
                         if (values.testField < 0) {
                             errors.testField = "Must be positive";
                         }
@@ -391,7 +393,7 @@ describe("IntegerInput", () => {
                 <Formik
                     initialValues={{ testField: -1 }}
                     validate={(values) => {
-                        const errors: any = {};
+                        const errors: Record<string, string> = {};
                         if (values.testField < 0) {
                             errors.testField = "Must be positive";
                         }

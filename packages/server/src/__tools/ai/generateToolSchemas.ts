@@ -171,9 +171,9 @@ const baseSettings: TJS.PartialArgs = {
 const compilerOptions: TJS.CompilerOptions = {
     /* — Standard project settings — */
     allowJs: true,
-    target: ts.ScriptTarget.ESNext,
-    module: ts.ModuleKind.ESNext,
-    moduleResolution: ts.ModuleResolutionKind.NodeNext,
+    target: 99, // ESNext
+    module: 99, // ESNext  
+    moduleResolution: 3, // NodeNext
     strictNullChecks: true,
     allowSyntheticDefaultImports: true,
     esModuleInterop: true,
@@ -312,7 +312,7 @@ const RESOURCE_SCHEMAS: Array<TypeToSchema> = [
 
 // Add shared helper to properly format MCP tool schemas
 function wrapInputSchema(schema: Record<string, unknown>): Record<string, unknown> {
-    const { anyOf, oneOf, type, properties, required, $schema, ...rest } = schema;
+    const { anyOf, oneOf, type, properties, required, $schema: _$schema, ...rest } = schema;
     if (anyOf) {
         return { ...rest, inputSchema: { anyOf, additionalProperties: false } };
     }

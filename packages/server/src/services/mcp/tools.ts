@@ -2,7 +2,7 @@ import type { BotCreateInput, BotUpdateInput, ResourceVersionCreateInput, Resour
 import { DEFAULT_LANGUAGE, DeleteType, InputGenerationStrategy, McpToolName, ModelType, PathSelectionStrategy, ResourceSubType, ResourceType, RunTriggeredFrom, SubroutineExecutionStrategy, TeamConfig, generatePK, type ChatMessage, type ChatMessageCreateInput, type MessageConfigObject, type TaskContextInfo, type TeamConfigObject } from "@vrooli/shared";
 import fs from "fs";
 import { fileURLToPath } from "node:url";
-import path from "path";
+import * as path from "path";
 import { createOneHelper } from "../../actions/creates.js";
 import { deleteOneHelper } from "../../actions/deletes.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
@@ -12,7 +12,8 @@ import type { PartialApiInfo } from "../../builders/types.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { activeSwarmRegistry } from "../../tasks/swarm/process.js";
-import { type RunTask, type SwarmExecutionTask } from "../../tasks/taskTypes.js";
+import { QueueTaskType, type RunTask, type SwarmExecutionTask } from "../../tasks/taskTypes.js";
+import { type CoreResourceAllocation } from "@vrooli/shared";
 import { type ConversationStateStore } from "../response/chatStore.js";
 import type { BotAddAttributes, BotUpdateAttributes, NoteAddAttributes, NoteUpdateAttributes, ProjectAddAttributes, ProjectUpdateAttributes, RoutineApiAddAttributes, RoutineApiUpdateAttributes, RoutineCodeAddAttributes, RoutineCodeUpdateAttributes, RoutineDataAddAttributes, RoutineDataUpdateAttributes, RoutineGenerateAddAttributes, RoutineGenerateUpdateAttributes, RoutineInformationalAddAttributes, RoutineInformationalUpdateAttributes, RoutineMultiStepAddAttributes, RoutineMultiStepUpdateAttributes, RoutineSmartContractAddAttributes, RoutineSmartContractUpdateAttributes, RoutineWebAddAttributes, RoutineWebUpdateAttributes, StandardDataStructureAddAttributes, StandardDataStructureUpdateAttributes, StandardPromptAddAttributes, StandardPromptUpdateAttributes, TeamAddAttributes, TeamUpdateAttributes } from "../types/resources.js";
 import { type DefineToolParams, type EndSwarmParams, type Recipient, type ResourceManageParams, type RunRoutineParams, type SendMessageParams, type SpawnSwarmParams, type UpdateSwarmSharedStateParams } from "../types/tools.js";
@@ -20,7 +21,7 @@ import { loadSchema } from "./schemaLoader.js";
 import { type ToolResponse } from "./types.js";
 
 // Load schema using the schema loader utility
-const defineToolSchema = loadSchema("DefineTool/schema.json");
+const resourceManageSchema = loadSchema("ResourceManage/schema.json");
 
 // Type definitions for schema structures
 interface SchemaProperty {
@@ -376,7 +377,7 @@ export class BuiltInTools {
         let toolDef: ToolSchema | undefined = undefined;
         switch (toolName) {
             case McpToolName.ResourceManage:
-                toolDef = defineToolSchema as ToolSchema;
+                toolDef = resourceManageSchema as ToolSchema;
                 break;
         }
 
@@ -456,7 +457,7 @@ export class BuiltInTools {
     private addFilterSchemaForVariant(finalSchema: SchemaDefinition, variant: string, currentDirPath: string): void {
         let filterProperties: Record<string, SchemaProperty> = {};
         let filterRequired: string[] = [];
-        const schemaFilePath = path.join(currentDirPath, "..", "schemas", "DefineTool", variant, "find_filters.json");
+        const schemaFilePath = path.join(currentDirPath, "../..", "schemas", "DefineTool", variant, "find_filters.json");
 
         try {
             const fileContent = fs.readFileSync(schemaFilePath, "utf-8");
@@ -488,7 +489,7 @@ export class BuiltInTools {
     private addAttributeSchemaForVariant(finalSchema: SchemaDefinition, variant: string, currentDirPath: string, operation: "add" | "update"): void {
         let attributeProperties: Record<string, SchemaProperty> = {};
         let attributeRequired: string[] = [];
-        const schemaFilePath = path.join(currentDirPath, "schemas", variant, `${operation}_attributes.json`);
+        const schemaFilePath = path.join(currentDirPath, "../..", "schemas", "DefineTool", variant, `${operation}_attributes.json`);
 
         try {
             const fileContent = fs.readFileSync(schemaFilePath, "utf-8");
@@ -685,25 +686,183 @@ export class BuiltInTools {
      * Handles starting a new routine run.
      */
     private async _handleRunRoutineStart(args: Extract<RunRoutineParams, { action: "start" }>): Promise<ToolResponse> {
-        const { routineId, inputs = {}, mode = "sync", priority = "normal" } = args;
-
         try {
-            // Generate a unique run ID
-            const runId = generatePK().toString();
+            // Detect parent swarm context
+            const parentSwarmId = await this.getParentSwarmContext();
+            
+            if (parentSwarmId) {
+                logger.info("[runRoutine] Running in swarm-integrated mode", {
+                    routineId: args.routineId,
+                    parentSwarmId,
+                    userId: this.user.id,
+                });
+                return await this._handleSwarmIntegratedRoutine(args, parentSwarmId);
+            } else {
+                logger.info("[runRoutine] Running in standalone mode", {
+                    routineId: args.routineId,
+                    userId: this.user.id,
+                });
+                return await this._handleStandaloneRoutine(args);
+            }
+        } catch (error) {
+            const errorMsg = `Failed to start routine ${args.routineId}: ${(error as Error).message}`;
+            logger.error(errorMsg, error);
+            return { isError: true, content: [{ type: "text", text: errorMsg }] };
+        }
+    }
 
-            // Convert priority to RunTriggeredFrom for queue prioritization
-            // Use "Api" as the trigger source since this comes from MCP
-            const runFrom = RunTriggeredFrom.Api;
+    /**
+     * Detects parent swarm context for the current user
+     * Uses the same pattern as spawnSwarm for consistency
+     */
+    private async getParentSwarmContext(): Promise<string | null> {
+        const activeRecords = activeSwarmRegistry.getOrderedRecords();
+        for (const record of activeRecords) {
+            const swarmInstance = activeSwarmRegistry.get(record.id);
+            if (swarmInstance && swarmInstance.getAssociatedUserId() === this.user.id) {
+                return record.id;
+            }
+        }
+        return null;
+    }
 
-            // Create the RunTask for the queue
-            const runTask: Omit<RunTask, "type" | "status"> = {
-                id: generatePK().toString(), // Required for BaseTaskData
+    /**
+     * Handles swarm-integrated routine execution
+     * Inherits context and resources from parent swarm
+     */
+    private async _handleSwarmIntegratedRoutine(
+        args: Extract<RunRoutineParams, { action: "start" }>,
+        parentSwarmId: string,
+    ): Promise<ToolResponse> {
+        const { routineId, inputs = {}, mode = "sync", priority = "normal" } = args;
+        const runId = generatePK().toString();
+        
+        // Allocate resources from parent swarm
+        const allocation = await this.allocateFromParentSwarm(parentSwarmId);
+        
+        // Convert priority to RunTriggeredFrom
+        const runFrom = RunTriggeredFrom.Api;
+        
+        // Lazy imports
+        const { processRun } = await import("../../tasks/run/queue.js");
+        const { QueueService } = await import("../../tasks/queues.js");
+        
+        // Create RunTask with parent context
+        const runTaskForQueue: Omit<RunTask, "status"> = {
+            id: generatePK().toString(),
+            type: QueueTaskType.RUN_START,
+            context: {
+                swarmId: parentSwarmId,  // Inherit parent swarm ID
+                parentSwarmId,           // Track parent relationship
+                userData: this.user,
+                timestamp: new Date(),
+            },
+            input: {
                 runId,
                 resourceVersionId: routineId,
+                config: {
+                    botConfig: {},
+                    decisionConfig: {
+                        inputGeneration: InputGenerationStrategy.Auto,
+                        pathSelection: PathSelectionStrategy.AutoPickFirst,
+                        subroutineExecution: SubroutineExecutionStrategy.Auto,
+                    },
+                    isPrivate: false,
+                    limits: {},
+                    loopConfig: {},
+                    isTimeSensitive: priority === "high",
+                    ...(inputs && Object.keys(inputs).length > 0 && { inputs }),
+                },
+                formValues: inputs,
                 isNewRun: true,
                 runFrom,
                 startedById: this.user.id,
+                status: "Scheduled",
+            },
+            allocation, // Resources allocated from parent
+        };
+        
+        const result = await processRun(runTaskForQueue, QueueService.get());
+        
+        if (result.success) {
+            const actionText = mode === "sync" ? "started" : "scheduled";
+            return {
+                isError: false,
+                content: [{
+                    type: "text",
+                    text: `Routine ${runId} ${actionText} in swarm-integrated mode. Parent: ${parentSwarmId}. Allocated resources: ${allocation.maxCredits} credits, ${allocation.maxDurationMs}ms duration.`,
+                }],
+            };
+        } else {
+            throw new Error("Failed to queue swarm-integrated run task");
+        }
+    }
+
+    /**
+     * Allocates resources from parent swarm for child routine
+     * Uses conservative percentages to prevent resource exhaustion
+     */
+    private async allocateFromParentSwarm(parentSwarmId: string): Promise<CoreResourceAllocation> {
+        // Resource allocation percentages for child routines
+        const CHILD_CREDITS_DIVISOR = 5n; // 20% of parent (1/5)
+        const CHILD_DURATION_RATIO = 0.5; // 50% of parent time
+        const CHILD_MEMORY_RATIO = 0.3; // 30% of parent memory
+        const CHILD_MAX_CONCURRENT_STEPS = 3;
+        
+        // Get parent swarm from registry to verify it exists
+        const parentSwarm = activeSwarmRegistry.get(parentSwarmId);
+        if (!parentSwarm) {
+            throw new Error("Parent swarm not found");
+        }
+        
+        // For now, use conservative default allocations
+        // In a full implementation, this would query the SwarmContextManager
+        // or the parent swarm's actual resource allocation
+        const defaultParentAllocation = {
+            maxCredits: "10000",
+            maxDurationMs: 3600000, // 1 hour
+            maxMemoryMB: 1024,
+            maxConcurrentSteps: 10,
+        };
+        
+        return {
+            maxCredits: (BigInt(defaultParentAllocation.maxCredits) / CHILD_CREDITS_DIVISOR).toString(),
+            maxDurationMs: Math.floor(defaultParentAllocation.maxDurationMs * CHILD_DURATION_RATIO),
+            maxMemoryMB: Math.floor(defaultParentAllocation.maxMemoryMB * CHILD_MEMORY_RATIO),
+            maxConcurrentSteps: Math.min(CHILD_MAX_CONCURRENT_STEPS, defaultParentAllocation.maxConcurrentSteps),
+        };
+    }
+
+    /**
+     * Handles standalone routine execution (existing behavior)
+     */
+    private async _handleStandaloneRoutine(args: Extract<RunRoutineParams, { action: "start" }>): Promise<ToolResponse> {
+        const { routineId, inputs = {}, mode = "sync", priority = "normal" } = args;
+        
+        // Generate a unique run ID
+        const runId = generatePK().toString();
+
+        // Convert priority to RunTriggeredFrom for queue prioritization
+        // Use "Api" as the trigger source since this comes from MCP
+        const runFrom = RunTriggeredFrom.Api;
+
+        // Add the run to the queue
+        // Lazy import to avoid circular dependency
+        const { processRun } = await import("../../tasks/run/queue.js");
+        const { QueueService } = await import("../../tasks/queues.js");
+        
+        // Create proper RunTask structure
+        const runTaskForQueue: Omit<RunTask, "status"> = {
+            id: generatePK().toString(), // Required for BaseTaskData
+            type: QueueTaskType.RUN_START,
+            context: {
+                swarmId: `swarm-${runId}`,
                 userData: this.user,
+                timestamp: new Date(),
+            },
+            input: {
+                runId,
+                resourceVersionId: routineId,
                 config: {
                     botConfig: {},
                     decisionConfig: {
@@ -719,66 +878,41 @@ export class BuiltInTools {
                     ...(inputs && Object.keys(inputs).length > 0 && { inputs }),
                 },
                 formValues: inputs,
-            };
+                isNewRun: true,
+                runFrom,
+                startedById: this.user.id,
+                status: "Scheduled",
+            },
+            allocation: {
+                maxCredits: "10000",
+                maxDurationMs: 3600000, // 1 hour
+                maxMemoryMB: 512,
+                maxConcurrentSteps: 5,
+            },
+        };
+        
+        const result = await processRun(runTaskForQueue, QueueService.get());
 
-            // Add the run to the queue
-            // Lazy import to avoid circular dependency
-            const { processRun } = await import("../../tasks/run/queue.js");
-            const { QueueService } = await import("../../tasks/queues.js");
-            const { RunTask } = await import("../../tasks/taskTypes.js");
-            
-            // Create proper RunTask structure
-            const runTaskForQueue: Omit<RunTask, "type"> = {
-                context: {
-                    swarmId: `swarm-${runTask.runId}`,
-                    userData: runTask.userData,
-                    timestamp: new Date(),
-                },
-                input: {
-                    runId: runTask.runId,
-                    resourceVersionId: runTask.resourceVersionId,
-                    config: runTask.config,
-                    formValues: runTask.formValues,
-                    isNewRun: runTask.isNewRun,
-                    runFrom: runTask.runFrom,
-                    startedById: runTask.startedById,
-                    status: "Scheduled",
-                },
-                allocation: {
-                    maxCredits: "10000",
-                    maxDurationMs: 3600000, // 1 hour
-                    maxMemoryMB: 512,
-                    maxConcurrentSteps: 5,
-                },
-            };
-            
-            const result = await processRun(runTaskForQueue, QueueService.get());
-
-            if (result.success) {
-                if (mode === "sync") {
-                    return {
-                        isError: false,
-                        content: [{
-                            type: "text",
-                            text: `Run started successfully. Run ID: ${runId}. Mode: ${mode}. Check status for completion.`,
-                        }],
-                    };
-                } else {
-                    return {
-                        isError: false,
-                        content: [{
-                            type: "text",
-                            text: `Run scheduled successfully. Run ID: ${runId}. Mode: ${mode}.`,
-                        }],
-                    };
-                }
+        if (result.success) {
+            if (mode === "sync") {
+                return {
+                    isError: false,
+                    content: [{
+                        type: "text",
+                        text: `Run started successfully. Run ID: ${runId}. Mode: ${mode}. Check status for completion.`,
+                    }],
+                };
             } else {
-                throw new Error("Failed to queue run task");
+                return {
+                    isError: false,
+                    content: [{
+                        type: "text",
+                        text: `Run scheduled successfully. Run ID: ${runId}. Mode: ${mode}.`,
+                    }],
+                };
             }
-        } catch (error) {
-            const errorMsg = `Failed to start routine ${routineId}: ${(error as Error).message}`;
-            logger.error(errorMsg, error);
-            return { isError: true, content: [{ type: "text", text: errorMsg }] };
+        } else {
+            throw new Error("Failed to queue run task");
         }
     }
 
@@ -957,22 +1091,32 @@ export class BuiltInTools {
 
             if (isSpawnSwarmSimple(args)) {
                 // Handle simple child swarm
-                const childSwarmTask: Omit<SwarmExecutionTask, "type" | "status"> = {
+                const childSwarmTask: Omit<SwarmExecutionTask, "status"> = {
                     id: generatePK().toString(),
-                    swarmId: childSwarmId,
+                    type: QueueTaskType.SWARM_EXECUTION,
                     context: {
                         swarmId: childSwarmId,
-                        conversationId: childSwarmId,
                         userData: this.user,
-                        goal: args.goal,
                         parentSwarmId: actualParentSwarmId,
-                        resources: childResources,
-                        config: {
+                        timestamp: new Date(),
+                    },
+                    input: {
+                        swarmId: childSwarmId,
+                        goal: args.goal,
+                        teamConfiguration: undefined,
+                        availableTools: undefined,
+                        executionConfig: {
                             model: "claude-3-haiku-20240307", // Default model for child swarms
                             temperature: 0.7,
-                            autoApproveTools: false, // Child swarms should be more conservative
                             parallelExecutionLimit: 2,
                         },
+                        userData: this.user,
+                    },
+                    allocation: {
+                        maxCredits: childResources.maxCredits.toString(),
+                        maxDurationMs: childResources.maxTime,
+                        maxMemoryMB: 256,
+                        maxConcurrentSteps: 3,
                     },
                 };
 
@@ -991,23 +1135,32 @@ export class BuiltInTools {
 
             } else {
                 // Handle rich child swarm with team
-                const childSwarmTask: Omit<SwarmExecutionTask, "type" | "status"> = {
+                const childSwarmTask: Omit<SwarmExecutionTask, "status"> = {
                     id: generatePK().toString(),
-                    swarmId: childSwarmId,
+                    type: QueueTaskType.SWARM_EXECUTION,
                     context: {
                         swarmId: childSwarmId,
-                        conversationId: childSwarmId,
                         userData: this.user,
-                        goal: args.goal,
                         parentSwarmId: actualParentSwarmId,
-                        teamId: args.teamId,
-                        resources: childResources,
-                        config: {
+                        timestamp: new Date(),
+                    },
+                    input: {
+                        swarmId: childSwarmId,
+                        goal: args.goal,
+                        teamConfiguration: undefined,
+                        availableTools: undefined,
+                        executionConfig: {
                             model: "claude-3-sonnet-20240229", // Rich swarms get better model
                             temperature: 0.5,
-                            autoApproveTools: false,
                             parallelExecutionLimit: 5,
                         },
+                        userData: this.user,
+                    },
+                    allocation: {
+                        maxCredits: childResources.maxCredits.toString(),
+                        maxDurationMs: childResources.maxTime,
+                        maxMemoryMB: 512,
+                        maxConcurrentSteps: 5,
                     },
                 };
 
@@ -1591,8 +1744,15 @@ export class SwarmTools {
                     return { success: false, message: errorMsg, error: "TEAM_NOT_FOUND_OR_ACCESS_DENIED" };
                 }
 
-                // Parse current team config
-                const currentTeamConfig = TeamConfig.parse({ config: currentTeam.config }, logger, { useFallbacks: true });
+                // Parse current team config - ensure it has __version property
+                const teamConfigData = (currentTeam.config && typeof currentTeam.config === "object") 
+                    ? currentTeam.config as Record<string, unknown>
+                    : {};
+                const configWithVersion = {
+                    __version: "1.0",
+                    ...teamConfigData,
+                };
+                const currentTeamConfig = TeamConfig.parse({ config: configWithVersion }, logger, { useFallbacks: true });
 
                 // Apply updates to the team config
                 if (args.teamConfig.structure) {

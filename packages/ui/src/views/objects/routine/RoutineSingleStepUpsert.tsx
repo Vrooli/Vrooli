@@ -2,9 +2,8 @@ import Checkbox from "@mui/material/Checkbox";
 import Divider from "@mui/material/Divider";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Grid from "@mui/material/Grid";
-import Tooltip from "@mui/material/Tooltip";
-import { DUMMY_ID, LINKS, LlmTask, ResourceSubType, RoutineVersionConfig, SearchPageTabOption, endpointsResource, generatePK, noop, noopSubmit, orDefault, resourceVersionTranslationValidation, resourceVersionValidation, shapeResourceVersion, stringifyObject, validatePK, type CallDataActionConfigObject, type CallDataApiConfigObject, type CallDataCodeConfigObject, type CallDataGenerateConfigObject, type CallDataSmartContractConfigObject, type FormInputBase, type FormInputConfigObject, type FormOutputConfigObject, type FormSchema, type GraphConfigObject, type Resource, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionInputShape, type ResourceVersionOutputShape, type ResourceVersionShape, type ResourceVersionUpdateInput, type Session } from "@vrooli/shared";
-import { ResourceType } from "@vrooli/shared/api/types";
+import { Tooltip } from "../../../components/Tooltip/Tooltip.js";
+import { DUMMY_ID, LINKS, LlmTask, ResourceSubType, ResourceType, RoutineVersionConfig, SearchPageTabOption, endpointsResource, generatePK, noop, noopSubmit, orDefault, resourceVersionTranslationValidation, resourceVersionValidation, shapeResourceVersion, stringifyObject, validatePK, type CallDataActionConfigObject, type CallDataApiConfigObject, type CallDataCodeConfigObject, type CallDataGenerateConfigObject, type CallDataSmartContractConfigObject, type FormInputBase, type FormInputConfigObject, type FormOutputConfigObject, type FormSchema, type GraphConfigObject, type Resource, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionInputShape, type ResourceVersionOutputShape, type ResourceVersionShape, type ResourceVersionUpdateInput, type Session } from "@vrooli/shared";
 import { Formik, useField, type FieldHelperProps } from "formik";
 
 // Mapping from old RoutineType enum to new ResourceSubType values
@@ -24,9 +23,10 @@ import { AutoFillButton } from "../../../components/buttons/AutoFillButton.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
 import { SearchExistingButton } from "../../../components/buttons/SearchExistingButton.js";
 import { ContentCollapse } from "../../../components/containers/ContentCollapse.js";
-import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
+import Dialog from "@mui/material/Dialog";
+import { useIsMobile } from "../../../hooks/useIsMobile.js";
 import { LanguageInput } from "../../../components/inputs/LanguageInput/LanguageInput.js";
-import { TranslatedRichInput } from "../../../components/inputs/RichInput/RichInput.js";
+import { TranslatedAdvancedInput } from "../../../components/inputs/AdvancedInput/AdvancedInput.js";
 import { SelectorBase } from "../../../components/inputs/Selector/Selector.js";
 import { TagSelector } from "../../../components/inputs/TagSelector/TagSelector.js";
 import { TranslatedTextInput } from "../../../components/inputs/TextInput/TextInput.js";
@@ -50,6 +50,8 @@ import { getRoutineTypeDescription, getRoutineTypeIcon, getRoutineTypeLabel, rou
 import { validateFormValues } from "../../../utils/validateFormValues.js";
 import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm, type RoutineFormPropsBase } from "./RoutineTypeForms.js";
 import { type RoutineSingleStepFormProps, type RoutineSingleStepUpsertProps } from "./types.js";
+
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-01 - Fixed 1 'as any' type assertion with proper Partial<ResourceVersionShape>
 
 export function routineSingleStepInitialValues(
     session: Session | undefined,
@@ -234,6 +236,7 @@ function RoutineSingleStepForm({
 }: RoutineSingleStepFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
+    const isMobile = useIsMobile();
 
     // Handle translations
     const {
@@ -418,7 +421,7 @@ function RoutineSingleStepForm({
 
     const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback(data: Parameters<UseAutoFillProps["shapeAutoFillResult"]>[0]) {
         const originalValues = { ...values };
-        const updatedValues = {} as any; //TODO
+        const updatedValues: Partial<ResourceVersionShape> = {}; //TODO
         return { originalValues, updatedValues };
     }, [language, values]);
 
@@ -493,13 +496,8 @@ function RoutineSingleStepForm({
         return { __typename: "RoutineVersion", id: values.id } as const;
     }, [values.id]);
 
-    return (
-        <MaybeLargeDialog
-            display={display}
-            id={ELEMENT_IDS.RoutineSingleStepUpsertDialog}
-            isOpen={isOpen}
-            onClose={onClose}
-        >
+    const dialogContent = (
+        <>
             <TopBar
                 display={display}
                 onClose={onClose}
@@ -535,19 +533,16 @@ function RoutineSingleStepForm({
                                 name="name"
                                 placeholder={t("NamePlaceholder")}
                             />
-                            <TranslatedRichInput
+                            <TranslatedAdvancedInput
                                 language={language}
                                 name="description"
-                                maxChars={2048}
-                                maxRows={4}
-                                minRows={2}
+                                features={{ maxChars: 2048, minRowsCollapsed: 2, maxRowsCollapsed: 4 }}
                                 placeholder={t("DescriptionPlaceholder")}
                             />
-                            <TranslatedRichInput
+                            <TranslatedAdvancedInput
                                 language={language}
                                 name="instructions"
-                                maxChars={8192}
-                                minRows={4}
+                                features={{ maxChars: 8192, minRowsCollapsed: 4 }}
                                 placeholder={t("Instructions")}
                             />
                             <LanguageInput
@@ -617,7 +612,28 @@ function RoutineSingleStepForm({
                     isAutoFillLoading={isAutoFillLoading}
                 />}
             />
-        </MaybeLargeDialog >
+        </>
+    );
+
+    return isMobile ? (
+        <Dialog
+            id={ELEMENT_IDS.RoutineSingleStepUpsertDialog}
+            open={isOpen}
+            onClose={onClose}
+            fullScreen
+        >
+            {dialogContent}
+        </Dialog>
+    ) : (
+        <Dialog
+            id={ELEMENT_IDS.RoutineSingleStepUpsertDialog}
+            open={isOpen}
+            onClose={onClose}
+            maxWidth="lg"
+            fullWidth
+        >
+            {dialogContent}
+        </Dialog>
     );
 }
 

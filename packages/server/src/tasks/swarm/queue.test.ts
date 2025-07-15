@@ -39,8 +39,10 @@ vi.mock("../../services/events/eventBus.js", () => ({
     EventBus: vi.fn().mockImplementation(() => ({})),
 }));
 
-vi.mock("../../services/execution/tier3/TierThreeExecutor.js", () => ({
-    TierThreeExecutor: vi.fn().mockImplementation(() => ({})),
+vi.mock("../../services/execution/tier3/stepExecutor.js", () => ({
+    StepExecutor: vi.fn().mockImplementation(() => ({
+        execute: vi.fn().mockResolvedValue({ success: true, outputs: {} }),
+    })),
 }));
 
 // Mock state store to avoid initialization errors

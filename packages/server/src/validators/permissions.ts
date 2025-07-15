@@ -1,4 +1,4 @@
-// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-02
+// AI_CHECK: TYPE_SAFETY=security-critical-1 | LAST: 2025-07-04 - Fixed defaultPermissions return type to include required QueryAction methods and added RawOwnerData type for bigint IDs
 import { DUMMY_ID, type ModelType, type SessionUser } from "@vrooli/shared";
 import { permissionsSelectHelper } from "../builders/permissionsSelectHelper.js";
 import { type PrismaDelegate } from "../builders/types.js";
@@ -6,7 +6,10 @@ import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
 import { logger } from "../events/logger.js";
 import { ModelMap } from "../models/base/index.js";
-import { type Validator } from "../models/types.js";
+// AI_CHECK: TYPE_SAFETY=phase2-permissions | LAST: 2025-07-04 - Fixed type safety issues with ModelMap access
+import { type BaseModelLogic } from "../models/base/index.js";
+import { type ModelLogicType, type Validator } from "../models/types.js";
+import { hasTypename, isAuthData } from "../utils/typeGuards.js";
 import { type AuthDataById, type AuthDataItem } from "../utils/getAuthenticatedData.js";
 import { type InputsById, type QueryAction } from "../utils/types.js";
 
@@ -230,7 +233,23 @@ export function getParentInfo(id: string, typename: `${ModelType}`, inputsById: 
 }
 
 /**
- * Type for owner object structure
+ * Type for raw owner data from database (with bigint IDs)
+ */
+export interface RawOwnerData {
+    Team?: {
+        id: bigint;
+        members?: Array<{
+            userId: bigint;
+            isAdmin: boolean;
+        }>;
+    } | null;
+    User?: {
+        id: bigint;
+    } | null;
+}
+
+/**
+ * Type for owner object structure (with string IDs)
  */
 export interface OwnerData {
     Team?: {
@@ -271,25 +290,36 @@ export function isOwnerAdminCheck(
  * Some models may have custom resolvers, which can easily be set in 
  * their ModelLogic object.
  */
+// AI_CHECK: TYPE_SAFETY=server-validators-type-safety-maintenance-2 | LAST: 2025-07-04 - Fixed return type to match permissionResolvers requirements
+type DefaultPermissionsReturn = {
+    canConnect: () => boolean;
+    canDelete: () => boolean;
+    canDisconnect: () => boolean;
+    canRead: () => boolean;
+    canUpdate: () => boolean;
+} & Record<string, () => boolean>;
+
 export function defaultPermissions({
     isAdmin,
     isDeleted,
     isLoggedIn,
     isPublic,
-}: { isAdmin: boolean, isDeleted: boolean, isLoggedIn: boolean, isPublic: boolean }) {
+}: { isAdmin: boolean, isDeleted: boolean, isLoggedIn: boolean, isPublic: boolean }): DefaultPermissionsReturn {
     return {
-        canBookmark: () => isLoggedIn && !isDeleted && (isAdmin || isPublic),
-        canComment: () => isLoggedIn && !isDeleted && (isAdmin || isPublic),
+        // Required QueryAction permissions
         canConnect: () => isLoggedIn && !isDeleted && (isAdmin || isPublic),
-        canCopy: () => isLoggedIn && !isDeleted && (isAdmin || isPublic),
         canDelete: () => isLoggedIn && !isDeleted && isAdmin,
         canDisconnect: () => isLoggedIn,
         canRead: () => !isDeleted && (isPublic || isAdmin),
+        canUpdate: () => isLoggedIn && !isDeleted && isAdmin,
+        // Additional common permissions
+        canBookmark: () => isLoggedIn && !isDeleted && (isAdmin || isPublic),
+        canComment: () => isLoggedIn && !isDeleted && (isAdmin || isPublic),
+        canCopy: () => isLoggedIn && !isDeleted && (isAdmin || isPublic),
         canReport: () => isLoggedIn && !isAdmin && !isDeleted && isPublic,
         canRun: () => !isDeleted && (isAdmin || isPublic),
         canShare: () => !isDeleted && (isAdmin || isPublic),
         canTransfer: () => isLoggedIn && isAdmin && !isDeleted,
-        canUpdate: () => isLoggedIn && !isDeleted && isAdmin,
         canUse: () => isLoggedIn && !isDeleted && (isAdmin || isPublic),
         canReact: () => isLoggedIn && !isDeleted && (isAdmin || isPublic),
     };
@@ -303,19 +333,44 @@ export function defaultPermissions({
  * @param inputsById Optional data for additional permission logic context.
  * @returns A promise that resolves to an object with permission keys and boolean values.
  */
+// AI_CHECK: TYPE_SAFETY=server-type-safety-p1-5 | LAST: 2025-07-03 | Fixed validator interface types
 export async function calculatePermissions<T extends AuthDataItem>(
     authData: T,
     userData: Pick<SessionUser, "id"> | null,
-    validator: ReturnType<Validator<T>>,
+    validator: {
+        owner: (data: Record<string, unknown>, userId: string | null) => RawOwnerData | null;
+        isDeleted: (data: Record<string, unknown>) => boolean;
+        isPublic: (data: Record<string, unknown>, getParentInfo: unknown) => boolean;
+        permissionResolvers: (params: {
+            isAdmin: boolean;
+            isDeleted: boolean;
+            isLoggedIn: boolean;
+            isPublic: boolean;
+            data: Record<string, unknown>;
+            userId: string | null;
+        }) => Record<string, () => boolean>;
+    },
     inputsById?: InputsById,
 ): Promise<ResolvedPermissions> {
     // If the user is an admin in relation to the object (i.e. they can do anything to it). This DOES NOT mean they're a site admin!
-    const isAdmin = userData?.id ? isOwnerAdminCheck(validator.owner(authData, userData.id), userData.id) : false;
+    const ownerData = validator.owner(authData, userData?.id ?? null);
+    // Convert bigint IDs to strings for OwnerData compatibility
+    const convertedOwnerData: OwnerData = {
+        Team: ownerData?.Team ? {
+            id: ownerData.Team.id.toString(),
+            members: ownerData.Team.members?.map(member => ({
+                userId: member.userId.toString(),
+                isAdmin: member.isAdmin,
+            })),
+        } : null,
+        User: ownerData?.User ? { id: ownerData.User.id.toString() } : null,
+    };
+    const isAdmin = userData?.id ? isOwnerAdminCheck(convertedOwnerData, userData.id) : false;
     const isDeleted = validator.isDeleted(authData);
     const isLoggedIn = !!userData?.id;
-    const isPublic = validator.isPublic(authData, (...rest) => inputsById ? getParentInfo(...rest, inputsById) : undefined);
+    const isPublic = validator.isPublic(authData, inputsById ? (id: string, typename: `${ModelType}`) => getParentInfo(id, typename, inputsById) : undefined);
 
-    const permissionResolvers = validator.permissionResolvers({ isAdmin, isDeleted, isLoggedIn, isPublic, data: authData, userId: userData?.id });
+    const permissionResolvers = validator.permissionResolvers({ isAdmin, isDeleted, isLoggedIn, isPublic, data: authData, userId: userData?.id ?? null });
 
     // Execute resolvers and convert to object entries
     const permissions = await Promise.all(
@@ -348,7 +403,14 @@ export async function getMultiTypePermissions(
     // Loop through each ID and calculate permissions
     for (const [id, authData] of Object.entries(authDataById)) {
         // Get permissions object for this ID
-        const validator = ModelMap.get(authData.__typename).validate();
+        if (!hasTypename(authData)) {
+            throw new CustomError("0033", "InternalError", { authData });
+        }
+        const modelLogic = ModelMap.get(authData.__typename);
+        if (!modelLogic || !modelLogic.validate) {
+            throw new CustomError("0034", "InternalError", { type: authData.__typename });
+        }
+        const validator = modelLogic.validate();
         permissionsById[id] = await calculatePermissions(authData, userData, validator, inputsById);
     }
     return permissionsById;
@@ -370,7 +432,7 @@ export async function getSingleTypePermissions<Permissions extends Record<string
     // Initialize result
     const permissions: Partial<{ [K in keyof Permissions]: Permissions[K][] }> = {};
     // Get validator and prismaDelegate
-    const { dbTable, validate } = ModelMap.getLogic(["dbTable", "validate"], type);
+    const { dbTable, validate } = ModelMap.getLogic(["dbTable", "validate"], type, true, "getSingleTypePermissions");
     const validator = validate();
     // Get auth data for all objects
     let select: unknown;
@@ -381,7 +443,7 @@ export async function getSingleTypePermissions<Permissions extends Record<string
             where: { id: { in: ids } },
             select,
         });
-        dataById = Object.fromEntries(authData.map(item => [item.id, item]));
+        dataById = Object.fromEntries(authData.map(item => [item.id, item as AuthDataItem]));
     } catch (error) {
         throw new CustomError("0388", "InternalError", { ids, select, objectType: type });
     }

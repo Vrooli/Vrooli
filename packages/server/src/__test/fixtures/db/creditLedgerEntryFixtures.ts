@@ -1,5 +1,6 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
 import { generatePK } from "@vrooli/shared";
-import { type Prisma } from "@prisma/client";
+import { type Prisma, type PrismaClient } from "@prisma/client";
 
 /**
  * Database fixtures for CreditLedgerEntry model - used for seeding transaction history test data
@@ -21,7 +22,7 @@ export const creditLedgerDbIds = {
 /**
  * Purchase entry - user buys credits
  */
-export const purchaseEntryDb: Prisma.CreditLedgerEntryCreateInput = {
+export const purchaseEntryDb: Prisma.credit_ledger_entryCreateInput = {
     id: creditLedgerDbIds.purchase1,
     idempotencyKey: "stripe_cs_test_123456",
     amount: 1000000n, // +1,000,000 credits
@@ -43,7 +44,7 @@ export const purchaseEntryDb: Prisma.CreditLedgerEntryCreateInput = {
 /**
  * Large enterprise purchase
  */
-export const enterprisePurchaseDb: Prisma.CreditLedgerEntryCreateInput = {
+export const enterprisePurchaseDb: Prisma.credit_ledger_entryCreateInput = {
     id: creditLedgerDbIds.purchase2,
     idempotencyKey: "stripe_cs_enterprise_789",
     amount: 100000000n, // +100,000,000 credits
@@ -65,7 +66,7 @@ export const enterprisePurchaseDb: Prisma.CreditLedgerEntryCreateInput = {
 /**
  * AI generation spending
  */
-export const aiSpendEntryDb: Prisma.CreditLedgerEntryCreateInput = {
+export const aiSpendEntryDb: Prisma.credit_ledger_entryCreateInput = {
     id: creditLedgerDbIds.spend1,
     idempotencyKey: "ai_gen_123456789",
     amount: -50000n, // -50,000 credits
@@ -91,7 +92,7 @@ export const aiSpendEntryDb: Prisma.CreditLedgerEntryCreateInput = {
 /**
  * API usage spending
  */
-export const apiSpendEntryDb: Prisma.CreditLedgerEntryCreateInput = {
+export const apiSpendEntryDb: Prisma.credit_ledger_entryCreateInput = {
     id: creditLedgerDbIds.spend2,
     idempotencyKey: "api_call_987654321",
     amount: -1000n, // -1,000 credits
@@ -113,7 +114,7 @@ export const apiSpendEntryDb: Prisma.CreditLedgerEntryCreateInput = {
 /**
  * Transfer between accounts
  */
-export const transferInEntryDb: Prisma.CreditLedgerEntryCreateInput = {
+export const transferInEntryDb: Prisma.credit_ledger_entryCreateInput = {
     id: creditLedgerDbIds.transfer1,
     idempotencyKey: "transfer_in_555",
     amount: 250000n, // +250,000 credits
@@ -134,7 +135,7 @@ export const transferInEntryDb: Prisma.CreditLedgerEntryCreateInput = {
 /**
  * Bonus credits (promotion, referral, etc.)
  */
-export const bonusEntryDb: Prisma.CreditLedgerEntryCreateInput = {
+export const bonusEntryDb: Prisma.credit_ledger_entryCreateInput = {
     id: creditLedgerDbIds.bonus1,
     idempotencyKey: "bonus_ref_777",
     amount: 100000n, // +100,000 credits
@@ -155,7 +156,7 @@ export const bonusEntryDb: Prisma.CreditLedgerEntryCreateInput = {
 /**
  * Refund entry
  */
-export const refundEntryDb: Prisma.CreditLedgerEntryCreateInput = {
+export const refundEntryDb: Prisma.credit_ledger_entryCreateInput = {
     id: creditLedgerDbIds.refund1,
     idempotencyKey: "refund_cs_444",
     amount: 500000n, // +500,000 credits
@@ -178,7 +179,7 @@ export const refundEntryDb: Prisma.CreditLedgerEntryCreateInput = {
 /**
  * Rollover entry (from previous billing period)
  */
-export const rolloverEntryDb: Prisma.CreditLedgerEntryCreateInput = {
+export const rolloverEntryDb: Prisma.credit_ledger_entryCreateInput = {
     id: creditLedgerDbIds.rollover1,
     idempotencyKey: "rollover_2024_q1",
     amount: 75000n, // +75,000 credits
@@ -200,7 +201,7 @@ export const rolloverEntryDb: Prisma.CreditLedgerEntryCreateInput = {
 /**
  * Migration import entry
  */
-export const migrationEntryDb: Prisma.CreditLedgerEntryCreateInput = {
+export const migrationEntryDb: Prisma.credit_ledger_entryCreateInput = {
     id: generatePK(),
     idempotencyKey: "migration_legacy_001",
     amount: 2000000n, // +2,000,000 credits
@@ -226,7 +227,7 @@ export class CreditLedgerEntryDbFactory {
     /**
      * Create minimal ledger entry
      */
-    static createMinimal(overrides?: Partial<Prisma.CreditLedgerEntryCreateInput>): Prisma.CreditLedgerEntryCreateInput {
+    static createMinimal(overrides?: Partial<Prisma.credit_ledger_entryCreateInput>): Prisma.credit_ledger_entryCreateInput {
         return {
             id: generatePK(),
             idempotencyKey: `entry_${Date.now()}`,
@@ -245,8 +246,8 @@ export class CreditLedgerEntryDbFactory {
         amount: bigint,
         dollarAmount: number,
         stripeSessionId?: string,
-        overrides?: Partial<Prisma.CreditLedgerEntryCreateInput>,
-    ): Prisma.CreditLedgerEntryCreateInput {
+        overrides?: Partial<Prisma.credit_ledger_entryCreateInput>,
+    ): Prisma.credit_ledger_entryCreateInput {
         return {
             id: generatePK(),
             idempotencyKey: stripeSessionId || `purchase_${Date.now()}`,
@@ -272,8 +273,8 @@ export class CreditLedgerEntryDbFactory {
         amount: bigint,
         operation: string,
         metadata?: any,
-        overrides?: Partial<Prisma.CreditLedgerEntryCreateInput>,
-    ): Prisma.CreditLedgerEntryCreateInput {
+        overrides?: Partial<Prisma.credit_ledger_entryCreateInput>,
+    ): Prisma.credit_ledger_entryCreateInput {
         return {
             id: generatePK(),
             idempotencyKey: `spend_${operation}_${Date.now()}`,
@@ -299,8 +300,8 @@ export class CreditLedgerEntryDbFactory {
         direction: "in" | "out",
         fromAccountId?: bigint,
         toAccountId?: bigint,
-        overrides?: Partial<Prisma.CreditLedgerEntryCreateInput>,
-    ): Prisma.CreditLedgerEntryCreateInput {
+        overrides?: Partial<Prisma.credit_ledger_entryCreateInput>,
+    ): Prisma.credit_ledger_entryCreateInput {
         const transferId = `tf_${Date.now()}`;
         
         return {
@@ -329,8 +330,8 @@ export class CreditLedgerEntryDbFactory {
         amount: bigint,
         bonusType: string,
         metadata?: any,
-        overrides?: Partial<Prisma.CreditLedgerEntryCreateInput>,
-    ): Prisma.CreditLedgerEntryCreateInput {
+        overrides?: Partial<Prisma.credit_ledger_entryCreateInput>,
+    ): Prisma.credit_ledger_entryCreateInput {
         return {
             id: generatePK(),
             idempotencyKey: `bonus_${bonusType}_${Date.now()}`,
@@ -355,8 +356,8 @@ export class CreditLedgerEntryDbFactory {
         amount: bigint,
         originalSessionId: string,
         reason: string,
-        overrides?: Partial<Prisma.CreditLedgerEntryCreateInput>,
-    ): Prisma.CreditLedgerEntryCreateInput {
+        overrides?: Partial<Prisma.credit_ledger_entryCreateInput>,
+    ): Prisma.credit_ledger_entryCreateInput {
         return {
             id: generatePK(),
             idempotencyKey: `refund_${originalSessionId}`,
@@ -384,7 +385,7 @@ export class CreditLedgerEntryDbFactory {
             amount: bigint;
             metadata?: any;
         }>,
-    ): Prisma.CreditLedgerEntryCreateInput[] {
+    ): Prisma.credit_ledger_entryCreateInput[] {
         return transactions.map((tx, index) => {
             const baseKey = `seq_${Date.now()}_${index}`;
             
@@ -427,7 +428,7 @@ export class CreditLedgerEntryDbFactory {
 /**
  * Seed comprehensive ledger entries for testing
  */
-export async function seedTestLedgerEntries(db: any, accountId: bigint) {
+export async function seedTestLedgerEntries(db: PrismaClient, accountId: bigint) {
     const entries = await Promise.all([
         // Purchase
         db.creditLedgerEntry.create({
@@ -456,7 +457,7 @@ export async function seedTestLedgerEntries(db: any, accountId: bigint) {
 /**
  * Create a complete transaction history for testing analytics
  */
-export async function seedTransactionHistory(db: any, accountId: bigint) {
+export async function seedTransactionHistory(db: PrismaClient, accountId: bigint) {
     const sequence = CreditLedgerEntryDbFactory.createTransactionSequence(accountId, [
         { type: "purchase", amount: 2000000n }, // Initial purchase
         { type: "spend", amount: 100000n },     // Some usage

@@ -4,6 +4,7 @@
 import { DUMMY_ID, ResourceUsedFor, endpointsResource, generatePK, getObjectUrl, type ProjectVersion, type ProjectVersionDirectory, type Resource, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
+import { getMockEndpoint, getStoryRouteEditPath } from "../../../__test/helpers/storybookMocking.js";
 import { ProjectCrud } from "./ProjectCrud.js";
 
 // Create simplified mock data for Project responses
@@ -138,13 +139,13 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findProjectVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findProjectVersion), () => {
                 return HttpResponse.json({ data: mockProjectVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockProjectVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockProjectVersionData),
     },
 };
 
@@ -166,13 +167,13 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findProjectVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findProjectVersion), () => {
                 return HttpResponse.json({ data: mockProjectVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockProjectVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockProjectVersionData),
     },
 };
 
@@ -186,7 +187,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findProjectVersion.findOne.endpoint}`, async () => {
+            http.get(getMockEndpoint(endpointsResource.findProjectVersion), async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockProjectVersionData });
@@ -194,7 +195,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockProjectVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockProjectVersionData),
     },
 };
 

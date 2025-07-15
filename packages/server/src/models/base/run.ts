@@ -194,19 +194,19 @@ export const RunModel: RunModelLogic = ({
             user: "User",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data) => ({
+        owner: (data, _userId) => ({
             Team: data?.team,
             User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (data, ...rest) =>
+        isPublic: (data, getParentInfo?) =>
             data.isPrivate === false &&
             (
                 (data.user === null && data.team === null) ||
                 oneIsPublic<RunModelInfo["DbSelect"]>([
                     ["team", "Team"],
                     ["user", "User"],
-                ], data, ...rest)
+                ], data, getParentInfo)
             ),
         profanityFields: ["name"],
         visibility: {

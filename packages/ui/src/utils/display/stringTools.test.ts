@@ -1,4 +1,5 @@
 // AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-01 - Added eslint-disable for necessary global Date mock
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { displayDate, firstString, fontSizeToPixels, generateContext } from "./stringTools.js";
@@ -76,7 +77,8 @@ describe("displayDate", () => {
         };
 
         // Override the global Date with our mock
-        global.Date = mockDate as any; // Casting to `any` to bypass TypeScript's strict typing
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        global.Date = mockDate as any; // Mocking global Date for testing
 
         // Mock navigator.language if necessary
         Object.defineProperty(global.navigator, "language", { value: "en-US", configurable: true });

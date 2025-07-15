@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=3 | LAST: 2025-07-03
 import { HttpStatus, MB_10_BYTES, MB_2_BYTES, SERVER_VERSION, decodeValue, endpointsActions, endpointsAdmin, endpointsApiKey, endpointsApiKeyExternal, endpointsAuth, endpointsAward, endpointsBookmark, endpointsBookmarkList, endpointsChat, endpointsChatInvite, endpointsChatMessage, endpointsChatParticipant, endpointsComment, endpointsEmail, endpointsFeed, endpointsIssue, endpointsMeeting, endpointsMeetingInvite, endpointsMember, endpointsMemberInvite, endpointsNotification, endpointsNotificationSubscription, endpointsPhone, endpointsPullRequest, endpointsPushDevice, endpointsReaction, endpointsReminder, endpointsReminderList, endpointsReport, endpointsReportResponse, endpointsReputationHistory, endpointsResource, endpointsRun, endpointsRunIO, endpointsSchedule, endpointsStatsResource, endpointsStatsSite, endpointsStatsTeam, endpointsStatsUser, endpointsTag, endpointsTask, endpointsTeam, endpointsTransfer, endpointsUser, endpointsView, endpointsWallet, type BotCreateInput, type BotUpdateInput, type ServerError, type SessionUser, type TeamCreateInput, type TeamUpdateInput } from "@vrooli/shared";
 import Busboy from "busboy";
 import { Router, type Express, type NextFunction, type Request, type Response } from "express";
@@ -16,8 +17,7 @@ export type EndpointDef = {
     endpoint: string; // e.g. "/bookmark/:id"
     method: "GET" | "POST" | "PUT" | "DELETE";
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type FileConfig<TInput = any> = {
+export type FileConfig<TInput = unknown> = {
     readonly allowedExtensions?: Array<"txt" | "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" | "heic" | "heif" | "png" | "jpg" | "jpeg" | "gif" | "webp" | "tiff" | "bmp" | string>;
     fieldName: string;
     /** Creates the base name for the file */
@@ -28,8 +28,7 @@ export type FileConfig<TInput = any> = {
     /** For image files, what they should be resized to */
     imageSizes?: { width: number; height: number }[];
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type UploadConfig<TInput = any> = {
+export type UploadConfig<TInput = unknown> = {
     acceptsFiles?: boolean;
     fields: FileConfig<TInput>[];
 }
@@ -37,7 +36,7 @@ export type EndpointTuple = readonly [
     EndpointDef,
     ApiEndpoint<never, unknown>,
     PartialApiInfo | Record<string, unknown>,
-    UploadConfig?
+    UploadConfig<any>?
 ];
 export type EndpointType = "get" | "post" | "put" | "delete";
 export type EndpointGroup = { [key in EndpointType]?: EndpointTuple };
@@ -92,7 +91,7 @@ async function handleEndpoint(
 /**
  * Middleware to conditionally setup middleware for file uploads.
  */
-function maybeFileUploads(config?: UploadConfig) {
+function maybeFileUploads(config?: UploadConfig): (req: Request, res: Response, next: NextFunction) => void {
     // Return fily upload middleware if the endpoint accepts files.
     return (req: Request, res: Response, next: NextFunction) => {
         if (!config || !config.acceptsFiles) {
@@ -139,7 +138,7 @@ function maybeFileUploads(config?: UploadConfig) {
                     if (!req.files) {
                         req.files = [];
                     }
-                    const buffer = Buffer.concat(buffers);
+                    const buffer = Buffer.concat(buffers.map(b => new Uint8Array(b)));
                     req.files.push({
                         fieldname,
                         originalname: filename,
@@ -181,7 +180,7 @@ function setupRoutes(endpointTuples: EndpointTuple[]): Router {
         // e.g. router.route("/bookmark/:id").get(...)
         const routeChain = router.route(endpoint);
 
-        async function handleEndpointHelper(req: Request, res: Response) {
+        async function handleEndpointHelper(req: Request, res: Response): Promise<void> {
             // Find non-file data
             let input: Record<string, unknown> | unknown[] = {}; // default to an empty object
             // If it's a GET method, combine params and parsed query
@@ -259,7 +258,7 @@ function setupRoutes(endpointTuples: EndpointTuple[]): Router {
 /**
  * Creates a router with all the API endpoints.
  */
-export async function initRestApi(app: Express) {
+export async function initRestApi(app: Express): Promise<void> {
     const Select = await import("./generated/index.js");
     const Logic = await import("./logic/index.js");
     const { bannerImageConfig, profileImageConfig } = await import("../utils/fileStorage.js");

@@ -1,5 +1,6 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with proper types
 import { generatePK, generatePublicId } from "../../../../../shared/src/id/index.js";
-import { type Prisma } from "@prisma/client";
+import { type Prisma, type PrismaClient } from "@prisma/client";
 import { messageConfigFixtures } from "../../../../../shared/src/__test/fixtures/config/messageConfigFixtures.js";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
 import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
@@ -546,27 +547,29 @@ export async function seedChatMessages(
     };
 }
 
+type ConversationNode = {
+    id?: string;
+    userId: string;
+    text: string;
+    parentId?: string;
+    children?: ConversationNode[];
+};
+
 /**
  * Helper to seed a conversation tree
  */
 export async function seedConversationTree(
-    prisma: any,
+    prisma: PrismaClient,
     options: {
         chatId: string;
-        structure: Array<{
-            id?: string;
-            userId: string;
-            text: string;
-            parentId?: string;
-            children?: any[];
-        }>;
+        structure: ConversationNode[];
     },
-): Promise<BulkSeedResult<any>> {
-    const createdMessages: Record<string, any> = {};
+): Promise<BulkSeedResult<Prisma.chat_message>> {
+    const createdMessages: Record<string, Prisma.chat_message> = {};
     let totalCreated = 0;
     let botCount = 0;
 
-    async function createNode(node: any, parentId?: string) {
+    async function createNode(node: ConversationNode, parentId?: string) {
         const messageId = node.id || generatePK();
         const messageData: Prisma.chat_messageCreateInput = {
             id: messageId,

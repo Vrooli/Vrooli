@@ -1,7 +1,7 @@
-import { act, render, screen, RenderResult } from "@testing-library/react";
+import { act, render, screen, type RenderResult } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { Form, Formik, FormikConfig, FormikProps } from "formik";
-import React, { ReactNode } from "react";
+import { Form, Formik, type FormikConfig, type FormikProps } from "formik";
+import React, { type ReactNode } from "react";
 import { vi } from "vitest";
 import * as yup from "yup";
 
@@ -74,7 +74,12 @@ export function renderWithFormik<T = any>(
                 }
                 
                 if (wrapInForm) {
-                    return <Form>{component}</Form>;
+                    return (
+                        <Form>
+                            {component}
+                            <button type="submit" data-testid="form-submit-button">Submit</button>
+                        </Form>
+                    );
                 }
                 
                 return <>{component}</>;
@@ -230,17 +235,36 @@ export const formInteractions = {
         user: ReturnType<typeof userEvent.setup>,
         fieldName?: string,
     ) => {
-        let input: HTMLElement;
+        // Try to submit via enter key first
         if (fieldName) {
-            input = formInteractions.findInputByLabel(fieldName);
-        } else {
-            input = screen.getAllByRole("textbox")[0];
+            let input: HTMLElement;
+            try {
+                input = formInteractions.findInputByLabel(fieldName);
+                await act(async () => {
+                    await user.click(input);
+                    await user.keyboard("{Enter}");
+                });
+                // Give a moment for the submission to process
+                await new Promise(resolve => setTimeout(resolve, 10));
+                return;
+            } catch {
+                // Fall back to submit button if field not found
+            }
         }
         
-        await act(async () => {
-            await user.click(input);
-            await user.keyboard("{Enter}");
-        });
+        // Fallback: click the submit button
+        try {
+            const submitButton = screen.getByTestId("form-submit-button");
+            await act(async () => {
+                await user.click(submitButton);
+            });
+        } catch {
+            // Last resort: try to find any submit button
+            const submitButton = screen.getByRole("button", { name: /submit/i });
+            await act(async () => {
+                await user.click(submitButton);
+            });
+        }
     },
 
     /** Trigger field validation by focusing and blurring */

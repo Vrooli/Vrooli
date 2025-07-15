@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-04
 /* eslint-disable no-magic-numbers */
 import { CacheService, getBcryptService, initSingletons, logger } from "@vrooli/server";
 import { MINUTES_30_MS } from "@vrooli/shared";

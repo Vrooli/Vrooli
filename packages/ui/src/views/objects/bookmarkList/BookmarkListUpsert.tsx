@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=bookmarklist-upsert-types | LAST: 2025-06-30 - Fixed closeSearch selectedObject parameter and removed 'as any' cast
 import Box from "@mui/material/Box";
 import { IconButton } from "../../../components/buttons/IconButton.js";
 import { Tooltip } from "../../../components/Tooltip/Tooltip.js";
@@ -82,14 +83,14 @@ function BookmarkListForm({
             id: generatePK(),
             to,
             list: { __typename: "BookmarkList", id: values.id },
-        } as any]);
+        }]);
     }, [bookmarksField.value, bookmarksHelpers, values.id]);
 
     // Search dialog to find objects to bookmark
     const hasSelectedObject = useRef(false);
     const [searchOpen, setSearchOpen] = useState(false);
     const openSearch = useCallback(() => { setSearchOpen(true); }, []);
-    const closeSearch = useCallback((selectedObject?: any) => {
+    const closeSearch = useCallback((selectedObject?: BookmarkShape) => {
         setSearchOpen(false);
         hasSelectedObject.current = !!selectedObject;
         if (selectedObject) {

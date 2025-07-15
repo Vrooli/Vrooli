@@ -3,13 +3,13 @@
  * infrastructure monitoring, deployment processes, and incident management.
  */
 import { BaseEventFactory } from "./BaseEventFactory.js";
-import { type BaseEvent } from "./types.js";
+import { type BaseFixtureEvent } from "./types.js";
 
 // ========================================
 // Core Event Type Definitions
 // ========================================
 
-interface SystemEvent<T> extends BaseEvent {
+interface SystemEvent<T> extends BaseFixtureEvent {
     event: string;
     data: T;
 }

@@ -2,11 +2,11 @@ import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
-import { DUMMY_ID, ResourceUsedFor, endpointsResource, noopSubmit, orDefault, resourceValidation, shapeResource, userTranslationValidation, type Resource, type ResourceCreateInput, type ResourceShape, type ResourceUpdateInput, type Session, type TranslationKeyCommon } from "@vrooli/shared";
+import { DUMMY_ID, endpointsResource, resourceFormConfig, noopSubmit, orDefault, resourceValidation, userTranslationValidation, ResourceUsedFor, type Resource, type ResourceCreateInput, type ResourceShape, type ResourceUpdateInput, type Session, type TranslationKeyCommon } from "@vrooli/shared";
 import { Formik, useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
+import { useStandardUpsertForm } from "../../../hooks/useStandardUpsertForm.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
 import { LinkInput } from "../../../components/inputs/LinkInput/LinkInput.js";
 import { Selector, SelectorBase } from "../../../components/inputs/Selector/Selector.js";
@@ -14,56 +14,19 @@ import { TranslatedTextInput } from "../../../components/inputs/TextInput/TextIn
 import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
-import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { useIsMobile } from "../../../hooks/useIsMobile.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
-import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
-import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { FormContainer, FormSection } from "../../../styles.js";
 import { getResourceIcon } from "../../../utils/display/getResourceIcon.js";
-import { combineErrorsWithTranslations, getUserLanguages, handleTranslationChange } from "../../../utils/display/translationTools.js";
+import { getUserLanguages, handleTranslationChange } from "../../../utils/display/translationTools.js";
 import { shortcuts } from "../../../utils/navigation/quickActions.js";
-import { PubSub } from "../../../utils/pubsub.js";
 import { type PreSearchItem } from "../../../utils/search/siteToSearch.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
 import { type ResourceFormProps, type ResourceUpsertProps } from "./types.js";
 
-export function resourceInitialValues(
-    session: Session | undefined,
-    existing: Partial<ResourceShape>,
-): ResourceShape {
-    let listFor: ResourceShape["list"]["listFor"];
-    if (existing.list && "listFor" in existing.list) {
-        listFor = existing.list.listFor as ResourceShape["list"]["listFor"];
-    } else {
-        listFor = { __typename: "RoutineVersion", id: DUMMY_ID };
-    }
-    return {
-        __typename: "Resource" as const,
-        id: DUMMY_ID,
-        index: 0,
-        link: "",
-        usedFor: ResourceUsedFor.Context,
-        ...existing,
-        list: {
-            __typename: "ResourceList" as const,
-            id: DUMMY_ID,
-            ...existing.list,
-            listFor,
-        },
-        translations: orDefault(existing.translations, [{
-            __typename: "ResourceTranslation" as const,
-            id: DUMMY_ID,
-            language: getUserLanguages(session)[0],
-            description: "",
-            name: "",
-        }]),
-    };
-}
-
 export function transformResourceValues(values: ResourceShape, existing: ResourceShape, isCreate: boolean) {
-    return isCreate ? shapeResource.create(values) : shapeResource.update(existing, values);
+    return isCreate ? resourceFormConfig.transformations.shapeToInput.create?.(values) : resourceFormConfig.transformations.shapeToInput.update?.(existing, values);
 }
 
 function ResourceForm({
@@ -81,21 +44,46 @@ function ResourceForm({
     values,
     ...props
 }: ResourceFormProps) {
-    const session = useContext(SessionContext);
     const { t } = useTranslation();
     const isMobile = useIsMobile();
 
-    // Handle translations
+    // Use the standardized form hook
     const {
-        handleAddLanguage,
-        handleDeleteLanguage,
+        session,
+        isLoading,
+        handleCancel,
+        handleCompleted,
+        onSubmit,
         language,
         languages,
+        handleAddLanguage,
+        handleDeleteLanguage,
         setLanguage,
         translationErrors,
-    } = useTranslatedFields({
-        defaultLanguage: getUserLanguages(session)[0],
-        validationSchema: userTranslationValidation.create({ env: process.env.NODE_ENV }),
+    } = useStandardUpsertForm({
+        objectType: "Resource",
+        validation: resourceValidation,
+        translationValidation: userTranslationValidation,
+        transformFunction: transformResourceValues,
+        endpoints: {
+            create: resourceFormConfig.endpoints.createOne,
+            update: resourceFormConfig.endpoints.updateOne,
+        },
+    }, {
+        values,
+        existing,
+        isCreate,
+        display,
+        disabled,
+        isMutate,
+        isReadLoading,
+        isSubmitting: props.isSubmitting,
+        handleUpdate: props.handleUpdate,
+        setSubmitting: props.setSubmitting,
+        onCancel,
+        onCompleted,
+        onDeleted,
+        onClose,
     });
 
     const [field, meta, helpers] = useField("translations");
@@ -103,60 +91,22 @@ function ResourceForm({
     const foundLinkData = useCallback(({ title, subtitle }: { title: string, subtitle: string }) => {
         // If the user has not entered a name or description, set them to the found values
         if (title.length === 0 || subtitle.length === 0) return;
+        
+        // Ensure field.value is an array before calling find
+        if (!Array.isArray(field.value)) return;
+        
         const currName = field.value.find((t) => t.language === language)?.name;
         const currDescription = field.value.find((t) => t.language === language)?.description;
-        if (currName.length === 0) helpers.setValue(field.value.map((t) => t.language === language ? { ...t, name: title } : t));
-        if (currDescription.length === 0) helpers.setValue(field.value.map((t) => t.language === language ? { ...t, description: subtitle } : t));
+        
+        // Ensure currName and currDescription are strings before checking length
+        if (currName != null && currName.length === 0) {
+            helpers.setValue(field.value.map((t) => t.language === language ? { ...t, name: title } : t));
+        }
+        if (currDescription != null && currDescription.length === 0) {
+            helpers.setValue(field.value.map((t) => t.language === language ? { ...t, description: subtitle } : t));
+        }
     }, [field, helpers, language]);
 
-    const { handleCancel, handleCompleted } = useUpsertActions<Resource>({
-        display,
-        isCreate,
-        objectId: values.id,
-        objectType: "Resource",
-        onCancel,
-        onCompleted,
-        onDeleted,
-        ...props,
-    });
-    const {
-        fetch,
-        isCreateLoading,
-        isUpdateLoading,
-    } = useUpsertFetch<Resource, ResourceCreateInput, ResourceUpdateInput>({
-        isCreate,
-        isMutate,
-        endpointCreate: endpointsResource.createOne,
-        endpointUpdate: endpointsResource.updateOne,
-    });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Resource" });
-
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
-
-    const onSubmit = useCallback(() => {
-        if (disabled) {
-            PubSub.get().publish("snack", { messageKey: "Unauthorized", severity: "Error" });
-            return;
-        }
-        if (!isCreate && !existing) {
-            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
-            return;
-        }
-        if (isMutate) {
-            fetchLazyWrapper<ResourceCreateInput | ResourceUpdateInput, Resource>({
-                fetch,
-                inputs: transformResourceValues(values, existing, isCreate),
-                onSuccess: (data) => { handleCompleted(data); },
-                onCompleted: () => { props.setSubmitting(false); },
-            });
-        } else {
-            handleCompleted({
-                ...values,
-                createdAt: (existing as Resource)?.createdAt ?? new Date().toISOString(),
-                updatedAt: (existing as Resource)?.updatedAt ?? new Date().toISOString(),
-            } as Resource);
-        }
-    }, [disabled, existing, fetch, handleCompleted, isCreate, isMutate, props, values]);
 
     type ResourceType = "shortcut" | "link";
     const [resourceType, setResourceType] = useState<ResourceType>("link");
@@ -176,13 +126,8 @@ function ResourceForm({
         }
     }, [field, meta, helpers, props, t, language]);
 
-    return (
-        <Dialog
-            id="resource-upsert-dialog"
-            open={isOpen}
-            onClose={onClose}
-            size="full"
-        >
+    const dialogContent = (
+        <>
             <TopBar
                 display={display}
                 onClose={onClose}
@@ -276,7 +221,7 @@ function ResourceForm({
             </BaseForm>
             <BottomActionsButtons
                 display={display}
-                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                errors={translationErrors}
                 hideButtons={disabled}
                 isCreate={isCreate}
                 loading={isLoading}
@@ -284,6 +229,27 @@ function ResourceForm({
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
             />
+        </>
+    );
+
+    return isMobile ? (
+        <Dialog
+            id="resource-upsert-dialog"
+            open={isOpen}
+            onClose={onClose}
+            fullScreen
+        >
+            {dialogContent}
+        </Dialog>
+    ) : (
+        <Dialog
+            id="resource-upsert-dialog"
+            open={isOpen}
+            onClose={onClose}
+            maxWidth="sm"
+            fullWidth
+        >
+            {dialogContent}
         </Dialog>
     );
 }
@@ -304,11 +270,11 @@ export function ResourceUpsert({
         isCreate,
         objectType: "Resource",
         overrideObject: overrideObject as Resource,
-        transform: (existing) => resourceInitialValues(session, existing as ResourceShape),
+        transform: (existing) => resourceFormConfig.transformations.getInitialValues(session, existing as ResourceShape),
     });
 
+    // Validation for the wrapper Formik
     async function validateValues(values: ResourceShape) {
-        if (!existing) return;
         return await validateFormValues(values, existing, isCreate, transformResourceValues, resourceValidation);
     }
 

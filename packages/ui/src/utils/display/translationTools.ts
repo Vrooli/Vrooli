@@ -1,4 +1,5 @@
 /* eslint-disable import/extensions */
+// AI_CHECK: TYPE_SAFETY=fixed-translation-error-types | LAST: 2025-06-28
 import { generatePK, type Session, type TranslationKeyCommon, type TranslationKeyError } from "@vrooli/shared";
 import { type FieldHelperProps, type FieldInputProps, type FieldMetaProps } from "formik";
 import i18next from "i18next";
@@ -679,7 +680,7 @@ export function getTranslationData<
     const index = field.value.findIndex(t => t.language === language);
     const value = field.value[index];
     const touched = meta.touched?.[index];
-    const error = meta.error?.[index] as any;
+    const error = meta.error?.[index] as { [key in keyof Values[KeyField][0]]: string } | undefined;
     return { error, index, touched, value };
 }
 
@@ -717,7 +718,7 @@ export function handleTranslationChange(
  */
 export function getFormikErrorsWithTranslations(
     field: FieldInputProps<TranslationObject[]>,
-    validationSchema: ObjectSchema<any>,
+    validationSchema: ObjectSchema<TranslationObject>,
 ): { [key: string]: string | string[] } {
     // Initialize errors object
     const errors: { [key: string]: string | string[] } = {};

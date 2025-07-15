@@ -1,6 +1,6 @@
-import { type ReservedSocketEvents, type RoomSocketEvents, type SocketEvent, type SocketEventHandler, type SocketEventPayloads } from "@vrooli/shared";
 import { createAdapter } from "@socket.io/redis-adapter";
-import IORedis, { type Cluster, type Redis } from "ioredis";
+import { MINUTES_5_MS, nanoid, type ReservedSocketEvents, type RoomSocketEvents, type SocketEvent, type SocketEventHandler, type SocketEventPayloads, type UnifiedEvent } from "@vrooli/shared";
+import { Redis, type Cluster } from "ioredis";
 import { Server, type Socket } from "socket.io";
 import { AuthTokensService } from "../auth/auth.js";
 import { RequestService } from "../auth/request.js";
@@ -15,7 +15,7 @@ type SocketServiceState = "uninitialized" | "initializing" | "initialized";
 
 // Moved from events.ts
 type EmitSocketEvent = Exclude<SocketEvent, ReservedSocketEvents | RoomSocketEvents>;
-type OnSocketEvent = Exclude<SocketEvent, ReservedSocketEvents>;
+type OnSocketEvent = SocketEvent | RoomSocketEvents;
 
 // Define the structure for health details
 export interface SocketHealthDetails {
@@ -46,6 +46,9 @@ export class SocketService {
     private static state: SocketServiceState = "uninitialized";
     private static initializationPromise: Promise<SocketService> | null = null;
     private static currentSigtermHandler: (() => Promise<void>) | null = null;
+    private static pubClient: Redis | Cluster | null = null;
+    private static subClient: Redis | Cluster | null = null;
+    private static sessionCleanupInterval: NodeJS.Timeout | null = null;
 
     /**
      * Active socket IDs by user ID for clients connected *directly to this server instance*.
@@ -72,6 +75,16 @@ export class SocketService {
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     private constructor() { }
+
+    /**
+     * Type guard to check if a socket has valid session data
+     */
+    private isSessionValid(socket: Socket): socket is Socket & { session: SessionData } {
+        return "session" in socket &&
+            socket.session !== null &&
+            socket.session !== undefined &&
+            typeof socket.session === "object";
+    }
 
     /**
      * Asynchronously initializes the SocketService instance.
@@ -104,9 +117,6 @@ export class SocketService {
                 SocketService.currentSigtermHandler = null;
             }
 
-            let pubClient: Redis | Cluster | undefined;
-            let subClient: Redis | Cluster | undefined;
-
             try {
                 // Create the instance internally first
                 const instance = new SocketService();
@@ -120,35 +130,19 @@ export class SocketService {
                 let redisAdapter;
                 try {
                     const redisUrl = getRedisUrl();
-                    pubClient = new IORedis(redisUrl, { lazyConnect: true });
-                    subClient = pubClient.duplicate();
+                    SocketService.pubClient = new Redis(redisUrl, { lazyConnect: true });
+                    SocketService.subClient = SocketService.pubClient.duplicate();
 
-                    await Promise.all([pubClient.connect(), subClient.connect()]);
+                    await Promise.all([SocketService.pubClient.connect(), SocketService.subClient.connect()]);
                     logger.info("SocketService: ioredis clients connected.");
 
-                    redisAdapter = createAdapter(pubClient, subClient);
+                    redisAdapter = createAdapter(SocketService.pubClient, SocketService.subClient);
                     logger.info("SocketService: Redis adapter initialized (ioredis backend).");
-
-                    // Capture for closure, ensure they are defined if used in SIGTERM
-                    const finalPubClient = pubClient;
-                    const finalSubClient = subClient;
 
                     // Define and register the new SIGTERM handler only if Redis setup is successful
                     SocketService.currentSigtermHandler = async () => {
                         logger.info("SocketService: SIGTERM received (Redis mode), attempting to disconnect Redis clients.");
-                        const promises: Promise<"OK" | void>[] = [];
-                        if (finalPubClient) {
-                            promises.push(finalPubClient.quit().catch((e: Error) => { logger.error("SocketService: Error quitting pubClient on SIGTERM", { error: e }); return; }));
-                        }
-                        if (finalSubClient) {
-                            promises.push(finalSubClient.quit().catch((e: Error) => { logger.error("SocketService: Error quitting subClient on SIGTERM", { error: e }); return; }));
-                        }
-                        if (promises.length > 0) {
-                            await Promise.all(promises);
-                            logger.info("SocketService: Redis clients disconnection process completed via SIGTERM handler.");
-                        } else {
-                            logger.info("SocketService: No Redis clients for this SIGTERM handler instance to disconnect (Redis mode).");
-                        }
+                        await SocketService.cleanupRedisClients();
                     };
                     process.on("SIGTERM", SocketService.currentSigtermHandler);
                     logger.info("SocketService: SIGTERM handler for Redis clients set.");
@@ -160,17 +154,7 @@ export class SocketService {
                         logger.error("SocketService: Failed to connect Redis clients or create adapter due to an unknown error type.", { error: String(redisError), trace: "SOCKET_REDIS_ADAPTER_FAIL_UNKNOWN_TYPE" });
                     }
                     // Attempt to clean up clients if they were instantiated during this failed attempt
-                    const cleanupPromises: Promise<"OK" | void>[] = [];
-                    if (pubClient) {
-                        cleanupPromises.push(pubClient.quit().catch((e: Error) => { logger.error("SocketService: CRITICAL - Error quitting pubClient during adapter setup failure. Potential resource leak.", { error: e }); return; }));
-                    }
-                    if (subClient) {
-                        cleanupPromises.push(subClient.quit().catch((e: Error) => { logger.error("SocketService: CRITICAL - Error quitting subClient during adapter setup failure. Potential resource leak.", { error: e }); return; }));
-                    }
-                    if (cleanupPromises.length > 0) {
-                        await Promise.all(cleanupPromises); // Await cleanup before proceeding
-                        logger.info("SocketService: Attempted cleanup of partially initialized Redis clients after adapter setup failure.");
-                    }
+                    await SocketService.cleanupRedisClients();
                     // redisAdapter will remain undefined, Socket.IO uses the default in-memory adapter
                     // No new SIGTERM handler for Redis is set; any old one was cleared at the start of the IIFE.
                 }
@@ -201,6 +185,14 @@ export class SocketService {
 
                 SocketService.instance = instance; // Assign the fully initialized instance
                 SocketService.state = "initialized"; // Mark as initialized
+
+                // Start periodic session cleanup (every 5 minutes)
+                SocketService.sessionCleanupInterval = setInterval(() => {
+                    instance.cleanupExpiredSessions().catch(err => {
+                        logger.error("Error during periodic session cleanup", { error: err, trace: "SOCKET_SESSION_CLEANUP_ERR" });
+                    });
+                }, MINUTES_5_MS);
+
                 logger.info(`SocketService initialized successfully ${redisAdapter ? "with Redis adapter" : "with in-memory adapter"}.`);
                 return instance; // Resolve the promise with the instance
 
@@ -213,20 +205,9 @@ export class SocketService {
 
                 // Cleanup Redis clients if they were initialized in this attempt but a subsequent step failed
                 // (e.g. Redis setup was successful, pubClient/subClient are defined, but new Server() failed).
-                const cleanupPromises: Promise<"OK" | void>[] = [];
-                if (pubClient) { // pubClient is from the IIFE's scope
-                    cleanupPromises.push(pubClient.quit().catch((e: Error) => { logger.error("SocketService: CRITICAL - Error quitting pubClient in outer catch during init failure. Potential resource leak.", { error: e }); return; }));
-                }
-                if (subClient) { // subClient is from the IIFE's scope
-                    cleanupPromises.push(subClient.quit().catch((e: Error) => { logger.error("SocketService: CRITICAL - Error quitting subClient in outer catch during init failure. Potential resource leak.", { error: e }); return; }));
-                }
-
-                if (cleanupPromises.length > 0) {
-                    // Fire-and-forget cleanup efforts, logging outcomes.
-                    Promise.all(cleanupPromises)
-                        .then(() => logger.info("SocketService: Attempted cleanup of Redis clients in outer catch due to init failure."))
-                        .catch(e => logger.error("SocketService: Error during Redis client cleanup in outer catch.", { error: e }));
-                }
+                SocketService.cleanupRedisClients().catch(e =>
+                    logger.error("SocketService: Error during Redis client cleanup in outer catch.", { error: e }),
+                );
 
                 SocketService.state = "uninitialized"; // Reset state on failure
                 SocketService.instance = null; // Clear instance on failure
@@ -323,44 +304,40 @@ export class SocketService {
      * Emits a socket event to all clients in a specific room across all server instances.
      * This method leverages the Redis adapter to achieve cluster-wide emission.
      *
-     * How it works with the Redis Adapter:
-     * 1. `this.io.in(roomId).fetchSockets()`: This command, when an adapter is configured,
-     *    sends a request (via Redis) to all server instances to get a list of all socket IDs
-     *    present in the specified `roomId` across the entire cluster.
-     * 2. The method then iterates through these (potentially remote) sockets.
-     * 3. `socket.emit(event, payload)`: For each socket, this emit is routed by the adapter
-     *    (again, via Redis) to the specific server instance that is currently managing that
-     *    socket's connection. That instance then delivers the event to the client.
+     * With the event-driven broadcasting approach:
+     * - Direct broadcast to all sockets in the room without per-socket validation
+     * - Session validation happens at connection and room join time
+     * - Expired sessions are cleaned up on logout or periodic sweep
+     * - The Redis adapter handles distribution across the cluster automatically
      *
-     * The per-socket check for `AuthTokensService.isAccessTokenExpired` is performed before emitting.
-     * If a more direct broadcast without per-socket fetching is desired (and per-socket checks
-     * are handled differently), `this.io.to(roomId).emit(event, payload)` could be used, relying
-     * entirely on the adapter's optimized broadcast.
+     * This approach is more scalable and aligns with Socket.IO's distributed design.
      * 
      * @param event The custom socket event to emit.
      * @param roomId The ID of the room (e.g. chat) to emit the event to.
      * @param payload The payload data to send along with the event.
      */
-    public emitSocketEvent<T extends EmitSocketEvent>(event: T, roomId: string, payload: SocketEventPayloads[T]): void {
-        this.io.in(roomId).fetchSockets().then((sockets) => {
-            for (const socket of sockets) {
-                const session = (socket as { session?: SessionData }).session;
-                if (!session) {
-                    socket.emit(event, payload);
-                    continue; // Continue to next socket if no session
-                }
-                const isExpired = AuthTokensService.isAccessTokenExpired(session);
-                if (isExpired) {
-                    socket.disconnect();
-                    // Also remove the socket from session socket maps
-                    // No need to call removeSocket here as the disconnect event will trigger it
-                } else {
-                    socket.emit(event, payload);
-                }
-            }
-        }).catch(err => {
-            logger.error("Error fetching sockets for emit", { event, roomId, error: err, trace: "SOCKET_EMIT_FETCH_ERR" });
+    public emitSocketEvent<T extends EmitSocketEvent>(event: T, roomId: string, payload: SocketEventPayloads[T]): void;
+    public emitSocketEvent(event: string, roomId: string, payload: any): void;
+    public emitSocketEvent(event: string, roomId: string, payload: any): void {
+        // Wrap payload in UnifiedEvent structure
+        const wrappedEvent: UnifiedEvent<any> = {
+            id: nanoid(),
+            type: event,
+            timestamp: new Date(),
+            data: payload,
+        };
+
+        // Log event emission for debugging
+        logger.debug("Socket event emitted", {
+            eventId: wrappedEvent.id,
+            eventType: event,
+            roomId,
+            timestamp: wrappedEvent.timestamp,
         });
+
+        // Direct broadcast to room - let Socket.IO handle distribution
+        // The Redis adapter will ensure this reaches all sockets in the room across all server instances
+        this.io.to(roomId).emit(event, wrappedEvent);
     }
 
     /**
@@ -374,7 +351,11 @@ export class SocketService {
      * @param handler - The event handler function.
      */
     public onSocketEvent<T extends OnSocketEvent>(socket: Socket, event: T, handler: SocketEventHandler<T>): void {
-        socket.on(event, handler as never);
+        // Type-safe handler registration preserving Socket.IO's event typing
+        // Socket.IO's .on() method expects a generic function signature, but our SocketEventHandler
+        // is already properly typed for the specific event. We use a type assertion to bypass
+        // Socket.IO's strict type constraints while maintaining runtime compatibility.
+        (socket as any).on(event, handler);
     }
 
     /**
@@ -512,4 +493,121 @@ export class SocketService {
             return null; // Return null on error to indicate issue
         }
     }
+
+    /**
+     * Periodically cleans up expired sessions from all local sockets.
+     * This ensures that expired sessions don't remain connected indefinitely.
+     * Each server instance only cleans up its own local sockets.
+     */
+    private async cleanupExpiredSessions(): Promise<void> {
+        let expiredCount = 0;
+
+        // Iterate through all local sockets
+        for (const [_, socket] of this.io.sockets.sockets) {
+            if (this.isSessionValid(socket)) {
+                const isExpired = AuthTokensService.isAccessTokenExpired(socket.session);
+                if (isExpired) {
+                    socket.disconnect(true);
+                    expiredCount++;
+                }
+            }
+        }
+
+        if (expiredCount > 0) {
+            logger.info(`[SocketService] Cleaned up ${expiredCount} expired socket sessions`);
+        }
+    }
+
+    /**
+     * Cleans up Redis clients used by the Socket.IO adapter.
+     * This is a shared cleanup method used by shutdown, SIGTERM handler, and error recovery.
+     */
+    private static async cleanupRedisClients(): Promise<void> {
+        const promises: Promise<"OK" | void>[] = [];
+
+        if (SocketService.pubClient) {
+            promises.push(
+                SocketService.pubClient.quit().catch((e: Error) => {
+                    logger.error("SocketService: Error quitting pubClient", { error: e });
+                    return;
+                }),
+            );
+        }
+
+        if (SocketService.subClient) {
+            promises.push(
+                SocketService.subClient.quit().catch((e: Error) => {
+                    logger.error("SocketService: Error quitting subClient", { error: e });
+                    return;
+                }),
+            );
+        }
+
+        if (promises.length > 0) {
+            await Promise.all(promises);
+            logger.info("SocketService: Redis clients disconnection completed");
+        }
+
+        // Clear the client references
+        SocketService.pubClient = null;
+        SocketService.subClient = null;
+    }
+
+    /**
+     * Shuts down the SocketService and cleans up all Redis connections.
+     * This should be called during application shutdown or test cleanup.
+     */
+    public static async shutdown(): Promise<void> {
+        logger.info("SocketService: Starting shutdown process");
+
+        try {
+            // Clear session cleanup interval
+            if (SocketService.sessionCleanupInterval) {
+                clearInterval(SocketService.sessionCleanupInterval);
+                logger.debug("SocketService: Cleared session cleanup interval");
+                SocketService.sessionCleanupInterval = null;
+            }
+
+            // Clear maps
+            if (SocketService.instance) {
+                SocketService.instance.userSockets?.clear();
+                SocketService.instance.sessionSockets?.clear();
+
+                // Close Socket.IO server
+                if (SocketService.instance.io) {
+                    logger.debug("SocketService: Closing Socket.IO server");
+                    SocketService.instance.io.close();
+                }
+            }
+
+            // Remove SIGTERM handler if set
+            if (SocketService.currentSigtermHandler) {
+                process.removeListener("SIGTERM", SocketService.currentSigtermHandler);
+                logger.debug("SocketService: Removed SIGTERM handler");
+                SocketService.currentSigtermHandler = null;
+            }
+
+            // Clean up Redis clients
+            await SocketService.cleanupRedisClients();
+
+            logger.info("SocketService: Shutdown completed");
+        } catch (error) {
+            logger.error("SocketService: Error during shutdown", { error });
+        } finally {
+            // Always reset the state
+            SocketService.instance = null;
+            SocketService.state = "uninitialized";
+            SocketService.initializationPromise = null;
+        }
+    }
+
+    /**
+     * Resets the SocketService singleton (primarily for testing).
+     * This is an alias for shutdown() to maintain consistency with other services.
+     */
+    public static async reset(): Promise<void> {
+        await SocketService.shutdown();
+    }
 }
+
+// AI_CHECK: TYPE_SAFETY=server-socket-safety-fixes | LAST: 2025-07-10 - Implemented event-driven broadcasting to fix RemoteSocket type issues and added periodic session cleanup

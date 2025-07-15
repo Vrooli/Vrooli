@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-01 - Fixed type assertions, added eslint-disable for necessary monkey-patching
 import { stringifySearchParams } from "@vrooli/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type SetLocation } from "./types.js";
@@ -14,8 +15,8 @@ export type UseLocationResult = [Location, SetLocation];
 export type UseLocationHook = () => UseLocationResult;
 /** Returns the type of the navigation options that hook's push function accepts. */
 export type HookNavigationOptions =
-    SetLocation extends (to: string, options: infer R, ...rest: any[]) => any
-    ? R extends { [k: string]: any }
+    SetLocation extends (to: string, options: infer R, ...rest: unknown[]) => unknown
+    ? R extends { [k: string]: unknown }
     ? R
     : object
     : object;
@@ -164,9 +165,10 @@ if (typeof history !== "undefined") {
     for (const type of [eventPushState, eventReplaceState]) {
         const original = history[type as keyof History];
 
-        (history as any)[type as keyof History] = function monkeyPatchedHistory(...args: any[]) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (history as any)[type as keyof History] = function monkeyPatchedHistory(...args: any[]) { // Monkey-patching requires any
             const result = original.apply(this, args);
-            const event: Event & { arguments?: any } = new Event(type);
+            const event: Event & { arguments?: unknown[] } = new Event(type);
             event.arguments = args;
 
             dispatchEvent(event);

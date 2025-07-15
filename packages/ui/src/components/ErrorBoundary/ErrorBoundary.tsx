@@ -23,7 +23,7 @@ interface ErrorBoundaryState {
     showDetails: boolean;
 }
 
-const RootContainer = styled(Box)(({ theme }) => ({
+const RootContainer = styled(Box)(() => ({
     position: "fixed",
     top: 0,
     left: 0,
@@ -32,7 +32,7 @@ const RootContainer = styled(Box)(({ theme }) => ({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    background: `linear-gradient(135deg, ${theme.palette.background.default} 0%, ${alpha(theme.palette.primary.dark, 0.1)} 100%)`,
+    background: "linear-gradient(135deg, #1e2428 0%, #2b3539 100%)",
     backdropFilter: "blur(10px)",
     overflow: "auto",
 }));
@@ -44,8 +44,11 @@ const ContentCard = styled(Paper)(({ theme }) => ({
     overflow: "auto",
     padding: theme.spacing(4),
     borderRadius: theme.spacing(2),
-    boxShadow: theme.shadows[20],
-    background: theme.palette.background.paper,
+    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
+    background: "rgba(30, 36, 40, 0.95)",
+    backdropFilter: "blur(10px)",
+    border: "1px solid rgba(255, 255, 255, 0.1)",
+    color: "#ffffff",
     [theme.breakpoints.down("sm")]: {
         padding: theme.spacing(3),
     },
@@ -62,8 +65,8 @@ const ErrorIcon = styled("img")(({ theme }) => ({
 const ErrorDetailsContainer = styled(Paper)(({ theme }) => ({
     padding: theme.spacing(2),
     borderRadius: theme.spacing(1),
-    backgroundColor: alpha(theme.palette.error.main, 0.05),
-    border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+    backgroundColor: "rgba(255, 82, 82, 0.08)",
+    border: "1px solid rgba(255, 82, 82, 0.3)",
     marginTop: theme.spacing(2),
     marginBottom: theme.spacing(3),
     position: "relative",
@@ -78,20 +81,20 @@ const ErrorMessage = styled(Typography)(({ theme }) => ({
     maxHeight: 300,
     overflow: "auto",
     padding: theme.spacing(1),
-    color: theme.palette.text.secondary,
+    color: "#e0e0e0",
     "&::-webkit-scrollbar": {
         width: 8,
         height: 8,
     },
     "&::-webkit-scrollbar-track": {
-        background: alpha(theme.palette.action.hover, 0.1),
+        background: "rgba(255, 255, 255, 0.05)",
         borderRadius: 4,
     },
     "&::-webkit-scrollbar-thumb": {
-        background: alpha(theme.palette.action.hover, 0.3),
+        background: "rgba(255, 255, 255, 0.2)",
         borderRadius: 4,
         "&:hover": {
-            background: alpha(theme.palette.action.hover, 0.5),
+            background: "rgba(255, 255, 255, 0.3)",
         },
     },
 }));
@@ -99,14 +102,14 @@ const ErrorMessage = styled(Typography)(({ theme }) => ({
 const StyledFormControlLabel = styled(FormControlLabel)(({ theme }) => ({
     marginTop: theme.spacing(2),
     "& .MuiCheckbox-root": {
-        color: theme.palette.text.secondary,
+        color: "rgba(255, 255, 255, 0.7)",
         "&.Mui-checked": {
-            color: theme.palette.primary.main,
+            color: "#42f9a3",
         },
     },
     "& .MuiTypography-root": {
         fontSize: "0.875rem",
-        color: theme.palette.text.secondary,
+        color: "rgba(255, 255, 255, 0.8)",
     },
 }));
 
@@ -116,6 +119,21 @@ const ActionButton = styled(Button)(({ theme }) => ({
     fontWeight: 600,
     borderRadius: theme.spacing(1),
     padding: theme.spacing(1, 3),
+    "&.MuiButton-contained": {
+        backgroundColor: "#16a361",
+        color: "#ffffff",
+        "&:hover": {
+            backgroundColor: "#1db870",
+        },
+    },
+    "&.MuiButton-outlined": {
+        borderColor: "rgba(255, 255, 255, 0.3)",
+        color: "#ffffff",
+        "&:hover": {
+            borderColor: "rgba(255, 255, 255, 0.5)",
+            backgroundColor: "rgba(255, 255, 255, 0.05)",
+        },
+    },
 }));
 
 const CopyButton = styled(IconButton)(({ theme }) => ({
@@ -123,6 +141,11 @@ const CopyButton = styled(IconButton)(({ theme }) => ({
     top: theme.spacing(1),
     right: theme.spacing(1),
     padding: theme.spacing(0.5),
+    color: "rgba(255, 255, 255, 0.6)",
+    "&:hover": {
+        color: "rgba(255, 255, 255, 0.9)",
+        backgroundColor: "rgba(255, 255, 255, 0.1)",
+    },
 }));
 
 /**
@@ -247,12 +270,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                             />
                             
                             {/* Error Title */}
-                            <Typography variant="h4" component="h1" fontWeight="bold" textAlign="center">
+                            <Typography variant="h4" component="h1" fontWeight="bold" textAlign="center" color="white">
                                 Something went wrong
                             </Typography>
                             
                             {/* Error Description */}
-                            <Typography variant="body1" color="text.secondary" textAlign="center">
+                            <Typography variant="body1" textAlign="center" sx={{ color: "rgba(255, 255, 255, 0.8)" }}>
                                 We encountered an unexpected error. The application may need to be refreshed.
                             </Typography>
                             
@@ -277,6 +300,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                                         size="small" 
                                         onClick={this.toggleDetails}
                                         startIcon={<IconCommon name={showDetails ? "ChevronUp" : "ChevronDown"} decorative />}
+                                        sx={{ 
+                                            color: "rgba(255, 255, 255, 0.8)", 
+                                            "&:hover": { 
+                                                backgroundColor: "rgba(255, 255, 255, 0.05)" 
+                                            } 
+                                        }}
                                     >
                                         {showDetails ? "Show Less" : "Show More"}
                                     </Button>
@@ -284,7 +313,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                             </ErrorDetailsContainer>
                             
                             {/* Support Text */}
-                            <Typography variant="body2" color="text.secondary" textAlign="center">
+                            <Typography variant="body2" textAlign="center" sx={{ color: "rgba(255, 255, 255, 0.7)" }}>
                                 If the problem persists, please{" "}
                                 <Button
                                     component="a"
@@ -292,7 +321,15 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     size="small"
-                                    sx={{ textTransform: "none", verticalAlign: "baseline" }}
+                                    sx={{ 
+                                        textTransform: "none", 
+                                        verticalAlign: "baseline",
+                                        color: "#dd86db",
+                                        "&:hover": {
+                                            color: "#f3d4f2",
+                                            backgroundColor: "transparent",
+                                        },
+                                    }}
                                 >
                                     contact support
                                 </Button>

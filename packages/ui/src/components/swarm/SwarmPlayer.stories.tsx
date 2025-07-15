@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { Box, FormControl, FormControlLabel, FormLabel, Radio, RadioGroup, TextField, Typography } from "@mui/material";
-import { ChatConfigObject, ExecutionStates, PendingToolCallStatus, SwarmSubTask } from "@vrooli/shared";
+import { type ChatConfigObject, ExecutionStates, PendingToolCallStatus, type SwarmSubTask } from "@vrooli/shared";
 import { useState } from "react";
 import { SwarmPlayer } from "./SwarmPlayer.js";
 import { Switch } from "../inputs/Switch/Switch.js";
@@ -162,14 +162,14 @@ export const SwarmPlayerShowcase: Story = {
                 p: 2, 
                 height: "100vh", 
                 overflow: "auto",
-                bgcolor: "background.default" 
+                bgcolor: "background.default", 
             }}>
                 <Box sx={{ 
                     display: "flex", 
                     gap: 2, 
                     flexDirection: "column",
                     maxWidth: 1200, 
-                    mx: "auto" 
+                    mx: "auto", 
                 }}>
                     {/* Controls Section */}
                     <Box sx={{ 
@@ -183,7 +183,7 @@ export const SwarmPlayerShowcase: Story = {
                         <Box sx={{ 
                             display: "grid", 
                             gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
-                            gap: 3 
+                            gap: 3, 
                         }}>
                             {/* Status Control */}
                             <FormControl component="fieldset" size="small">
@@ -198,7 +198,7 @@ export const SwarmPlayerShowcase: Story = {
                                             key={s} 
                                             value={s} 
                                             control={<Radio size="small" />} 
-                                            label={s.charAt(0) + s.slice(1).toLowerCase().replace('_', ' ')} 
+                                            label={s.charAt(0) + s.slice(1).toLowerCase().replace("_", " ")} 
                                             sx={{ m: 0 }} 
                                         />
                                     ))}
@@ -288,6 +288,11 @@ export const SwarmPlayerShowcase: Story = {
                                 swarmConfig={swarmConfig}
                                 swarmStatus={status}
                                 isLoading={isLoading}
+                                onStart={() => {
+                                    console.log("Start clicked");
+                                    setStatus(ExecutionStates.STARTING);
+                                    setTimeout(() => setStatus(ExecutionStates.RUNNING), 1000);
+                                }}
                                 onPause={() => {
                                     console.log("Pause clicked");
                                     setStatus(ExecutionStates.PAUSED);

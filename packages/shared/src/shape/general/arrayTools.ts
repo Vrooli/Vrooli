@@ -1,4 +1,5 @@
 // Functions for manipulating arrays, especially state arrays
+// AI_CHECK: TYPE_SAFETY=shared-array-tools-type-safety-fixes | LAST: 2025-07-01 - Fixed 3 'any[]' type signatures to use proper generics and type constraints
 
 import { valueFromDot } from "./objectTools.js";
 
@@ -29,7 +30,7 @@ export function deleteArrayObject<T>(array: T[], obj: T): T[] {
 
 // For an array of objects, return the first index where an object has a key/value 
 // pair matching the attr/value pair
-export function findWithAttr(array: any[], attr: string, value: any) {
+export function findWithAttr<T extends Record<string, unknown>>(array: T[], attr: keyof T, value: unknown): number {
     for (let i = 0; i < array.length; i += 1) {
         if (array[i][attr] === value) {
             return i;
@@ -38,23 +39,27 @@ export function findWithAttr(array: any[], attr: string, value: any) {
     return -1;
 }
 
-export function moveArrayIndex(array: any[], from: number, to: number) {
+export function moveArrayIndex<T>(array: T[], from: number, to: number): T[] {
     const copy = [...array];
     copy.splice(to, 0, copy.splice(from, 1)[0]);
     return copy;
 }
 
 // Shifts everything to the right, and puts the last element in the beginning
-export function rotateArray(array: any[], to_right = true) {
+export function rotateArray<T>(array: T[], to_right = true): T[] {
     if (array.length === 0) return array;
     const copy = [...array];
     if (to_right) {
         const last_elem = copy.pop();
-        copy.unshift(last_elem);
+        if (last_elem !== undefined) {
+            copy.unshift(last_elem);
+        }
         return copy;
     } else {
         const first_elem = copy.shift();
-        copy.push(first_elem);
+        if (first_elem !== undefined) {
+            copy.push(first_elem);
+        }
         return copy;
     }
 }

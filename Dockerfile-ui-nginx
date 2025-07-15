@@ -1,0 +1,25 @@
+# Simple nginx-based UI image using the already built dist
+FROM nginx:alpine
+
+# Copy the built UI files from the current image
+COPY --from=matthalloran8/vrooli-ui:2.0.0 /srv/app/packages/ui/dist /usr/share/nginx/html
+
+# Add nginx configuration for SPA routing
+RUN echo 'server { \
+    listen 3000; \
+    server_name localhost; \
+    root /usr/share/nginx/html; \
+    index index.html; \
+    location / { \
+        try_files $uri $uri/ /index.html; \
+    } \
+    location /healthcheck { \
+        access_log off; \
+        return 200 "ok"; \
+        add_header Content-Type text/plain; \
+    } \
+}' > /etc/nginx/conf.d/default.conf && \
+    sed -i 's/listen       80;/listen       3000;/g' /etc/nginx/conf.d/default.conf
+
+EXPOSE 3000
+CMD ["nginx", "-g", "daemon off;"]

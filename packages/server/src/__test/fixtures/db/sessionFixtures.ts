@@ -1,5 +1,6 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
 import { generatePK } from "@vrooli/shared";
-import { type Prisma } from "@prisma/client";
+import { type Prisma, type PrismaClient } from "@prisma/client";
 
 /**
  * Database fixtures for Session model - used for seeding auth test data
@@ -21,7 +22,7 @@ export const sessionDbIds = {
 /**
  * Active session - standard user
  */
-export const activeSessionDb: Prisma.SessionCreateInput = {
+export const activeSessionDb: Prisma.sessionCreateInput = {
     id: sessionDbIds.activeSession1,
     expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
     last_refresh_at: new Date(),
@@ -38,7 +39,7 @@ export const activeSessionDb: Prisma.SessionCreateInput = {
 /**
  * Recently created active session
  */
-export const recentActiveSessionDb: Prisma.SessionCreateInput = {
+export const recentActiveSessionDb: Prisma.sessionCreateInput = {
     id: sessionDbIds.activeSession2,
     expires_at: new Date(Date.now() + 29 * 24 * 60 * 60 * 1000), // 29 days from now
     last_refresh_at: new Date(Date.now() - 60 * 1000), // Refreshed 1 minute ago
@@ -55,7 +56,7 @@ export const recentActiveSessionDb: Prisma.SessionCreateInput = {
 /**
  * Expired session
  */
-export const expiredSessionDb: Prisma.SessionCreateInput = {
+export const expiredSessionDb: Prisma.sessionCreateInput = {
     id: sessionDbIds.expiredSession,
     expires_at: new Date(Date.now() - 24 * 60 * 60 * 1000), // Expired 1 day ago
     last_refresh_at: new Date(Date.now() - 25 * 60 * 60 * 1000), // Last refreshed 25 hours ago
@@ -72,7 +73,7 @@ export const expiredSessionDb: Prisma.SessionCreateInput = {
 /**
  * Revoked session
  */
-export const revokedSessionDb: Prisma.SessionCreateInput = {
+export const revokedSessionDb: Prisma.sessionCreateInput = {
     id: sessionDbIds.revokedSession,
     expires_at: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000), // Would expire in 20 days
     last_refresh_at: new Date(Date.now() - 2 * 60 * 60 * 1000), // Last refreshed 2 hours ago
@@ -90,7 +91,7 @@ export const revokedSessionDb: Prisma.SessionCreateInput = {
 /**
  * Recently refreshed session
  */
-export const recentSessionDb: Prisma.SessionCreateInput = {
+export const recentSessionDb: Prisma.sessionCreateInput = {
     id: sessionDbIds.recentSession,
     expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
     last_refresh_at: new Date(Date.now() - 5 * 60 * 1000), // Refreshed 5 minutes ago
@@ -107,7 +108,7 @@ export const recentSessionDb: Prisma.SessionCreateInput = {
 /**
  * Old session (near expiry)
  */
-export const oldSessionDb: Prisma.SessionCreateInput = {
+export const oldSessionDb: Prisma.sessionCreateInput = {
     id: sessionDbIds.oldSession,
     expires_at: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // Expires in 2 days
     last_refresh_at: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000), // Last refreshed 28 days ago
@@ -124,7 +125,7 @@ export const oldSessionDb: Prisma.SessionCreateInput = {
 /**
  * Mobile session with detailed device info
  */
-export const mobileSessionDb: Prisma.SessionCreateInput = {
+export const mobileSessionDb: Prisma.sessionCreateInput = {
     id: sessionDbIds.mobileSession,
     expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
     last_refresh_at: new Date(Date.now() - 30 * 60 * 1000), // Refreshed 30 minutes ago
@@ -150,7 +151,7 @@ export const mobileSessionDb: Prisma.SessionCreateInput = {
 /**
  * Desktop session with detailed device info
  */
-export const desktopSessionDb: Prisma.SessionCreateInput = {
+export const desktopSessionDb: Prisma.sessionCreateInput = {
     id: sessionDbIds.desktopSession,
     expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
     last_refresh_at: new Date(Date.now() - 15 * 60 * 1000), // Refreshed 15 minutes ago
@@ -182,7 +183,7 @@ export class SessionDbFactory {
     /**
      * Create minimal session
      */
-    static createMinimal(overrides?: Partial<Prisma.SessionCreateInput>): Prisma.SessionCreateInput {
+    static createMinimal(overrides?: Partial<Prisma.sessionCreateInput>): Prisma.sessionCreateInput {
         return {
             id: generatePK(),
             expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
@@ -199,8 +200,8 @@ export class SessionDbFactory {
         userId: bigint,
         authId: bigint,
         daysUntilExpiry = 30,
-        overrides?: Partial<Prisma.SessionCreateInput>,
-    ): Prisma.SessionCreateInput {
+        overrides?: Partial<Prisma.sessionCreateInput>,
+    ): Prisma.sessionCreateInput {
         return {
             id: generatePK(),
             expires_at: new Date(Date.now() + daysUntilExpiry * 24 * 60 * 60 * 1000),
@@ -220,8 +221,8 @@ export class SessionDbFactory {
         userId: bigint,
         authId: bigint,
         expiredDaysAgo = 1,
-        overrides?: Partial<Prisma.SessionCreateInput>,
-    ): Prisma.SessionCreateInput {
+        overrides?: Partial<Prisma.sessionCreateInput>,
+    ): Prisma.sessionCreateInput {
         return {
             id: generatePK(),
             expires_at: new Date(Date.now() - expiredDaysAgo * 24 * 60 * 60 * 1000),
@@ -241,8 +242,8 @@ export class SessionDbFactory {
         userId: bigint,
         authId: bigint,
         revokedHoursAgo = 1,
-        overrides?: Partial<Prisma.SessionCreateInput>,
-    ): Prisma.SessionCreateInput {
+        overrides?: Partial<Prisma.sessionCreateInput>,
+    ): Prisma.sessionCreateInput {
         return {
             id: generatePK(),
             expires_at: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000), // Would have been valid
@@ -263,8 +264,8 @@ export class SessionDbFactory {
         userId: bigint,
         authId: bigint,
         deviceType: "iPhone" | "Android" = "iPhone",
-        overrides?: Partial<Prisma.SessionCreateInput>,
-    ): Prisma.SessionCreateInput {
+        overrides?: Partial<Prisma.sessionCreateInput>,
+    ): Prisma.sessionCreateInput {
         const deviceInfos = {
             iPhone: {
                 userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15",
@@ -297,8 +298,8 @@ export class SessionDbFactory {
         userId: bigint,
         authId: bigint,
         browser: "Chrome" | "Firefox" | "Safari" = "Chrome",
-        overrides?: Partial<Prisma.SessionCreateInput>,
-    ): Prisma.SessionCreateInput {
+        overrides?: Partial<Prisma.sessionCreateInput>,
+    ): Prisma.sessionCreateInput {
         const userAgents = {
             Chrome: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             Firefox: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
@@ -330,8 +331,8 @@ export class SessionDbFactory {
             city?: string;
             timezone?: string;
         },
-        overrides?: Partial<Prisma.SessionCreateInput>,
-    ): Prisma.SessionCreateInput {
+        overrides?: Partial<Prisma.sessionCreateInput>,
+    ): Prisma.sessionCreateInput {
         const deviceInfo = location ? JSON.stringify({
             userAgent: "Mozilla/5.0 (compatible; TestBrowser/1.0)",
             location,
@@ -357,8 +358,8 @@ export class SessionDbFactory {
         userId: bigint,
         authId: bigint,
         hoursUntilExpiry = 2,
-        overrides?: Partial<Prisma.SessionCreateInput>,
-    ): Prisma.SessionCreateInput {
+        overrides?: Partial<Prisma.sessionCreateInput>,
+    ): Prisma.sessionCreateInput {
         return {
             id: generatePK(),
             expires_at: new Date(Date.now() + hoursUntilExpiry * 60 * 60 * 1000),
@@ -378,8 +379,8 @@ export class SessionDbFactory {
         userId: bigint,
         authId: bigint,
         count = 3,
-    ): Prisma.SessionCreateInput[] {
-        const sessions: Prisma.SessionCreateInput[] = [];
+    ): Prisma.sessionCreateInput[] {
+        const sessions: Prisma.sessionCreateInput[] = [];
         
         for (let i = 0; i < count; i++) {
             sessions.push({
@@ -404,7 +405,7 @@ export class SessionDbFactory {
 /**
  * Seed basic session scenarios for testing
  */
-export async function seedTestSessions(db: any) {
+export async function seedTestSessions(db: PrismaClient) {
     // Create user and auth first
     const user1 = await db.user.create({
         data: {
@@ -472,7 +473,7 @@ export async function seedTestSessions(db: any) {
 /**
  * Create session history for testing session management
  */
-export async function seedSessionHistory(db: any, userId: bigint, authId: bigint) {
+export async function seedSessionHistory(db: PrismaClient, userId: bigint, authId: bigint) {
     const sessionHistory = SessionDbFactory.createMultipleForUser(userId, authId, 5);
     
     // Add one revoked and one expired session

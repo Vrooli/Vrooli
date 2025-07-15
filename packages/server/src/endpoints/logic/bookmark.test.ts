@@ -11,6 +11,8 @@ import { bookmark_findMany } from "../generated/bookmark_findMany.js";
 import { bookmark_findOne } from "../generated/bookmark_findOne.js";
 import { bookmark_updateOne } from "../generated/bookmark_updateOne.js";
 import { bookmark } from "./bookmark.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsBookmark", () => {
     beforeAll(async () => {
@@ -20,11 +22,20 @@ describe("EndpointsBookmark", () => {
     });
 
     beforeEach(async () => {
-        // Clean up tables used in tests
-        const prisma = DbProvider.get();
-        await prisma.bookmark_list.deleteMany();
-        await prisma.tag.deleteMany();
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.minimal(DbProvider.get());
     });
+
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["user","user_auth","email","session"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn('Test cleanup incomplete:', orphans);
+        }
+    }););
 
     afterAll(async () => {
         // Restore all mocks

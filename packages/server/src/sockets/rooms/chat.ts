@@ -1,14 +1,14 @@
-import { JOIN_CHAT_ROOM_ERRORS, LEAVE_CHAT_ROOM_ERRORS } from "@vrooli/shared";
+import { EventTypes, JOIN_CHAT_ROOM_ERRORS, LEAVE_CHAT_ROOM_ERRORS } from "@vrooli/shared";
 import { type Socket } from "socket.io";
 import { AuthTokensService } from "../../auth/auth.js";
 import { RequestService } from "../../auth/request.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { completionService } from "../../services/conversation/responseEngine.js";
+import { EventPublisher } from "../../services/events/publisher.js";
 import { SocketService } from "../io.js";
 
 /** Socket room for chat events */
-export function chatSocketRoomHandlers(socket: Socket) {
+export function chatSocketRoomHandlers(socket: Socket): void {
     SocketService.get().onSocketEvent(socket, "joinChatRoom", async ({ chatId }, callback) => {
         try {
             if (!("session" in socket) || !socket.session || AuthTokensService.isAccessTokenExpired(socket.session)) {
@@ -97,8 +97,19 @@ export function chatSocketRoomHandlers(socket: Socket) {
                 return;
             }
 
-            logger.info(`Received valid cancellation request for chatId: ${chatId} from user: ${userId}, socket: ${socket.id}`);
-            completionService.requestCancellation(chatId);
+            logger.info(`Processing cancellation request for chatId: ${chatId} from user: ${userId}, socket: ${socket.id}`);
+
+            // Emit cancellation event to the event system
+            const { proceed, reason } = await EventPublisher.emit(EventTypes.CHAT.CANCELLATION_REQUESTED, {
+                chatId,
+            });
+
+            if (!proceed) {
+                logger.warn("Cancellation request blocked by event system", { chatId, userId, reason });
+                callback({ success: false, error: `Cancellation blocked: ${reason}` });
+                return;
+            }
+
             callback({ success: true, message: "Cancellation request processed." });
 
         } catch (error: unknown) {
@@ -114,5 +125,3 @@ export function chatSocketRoomHandlers(socket: Socket) {
         }
     });
 }
-
-// AI_CHECK: TYPE_SAFETY=server-socket-safety-fixes | LAST: 2025-07-01 - Fixed unsafe session property access with proper null checks

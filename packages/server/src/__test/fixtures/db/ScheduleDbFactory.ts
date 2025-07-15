@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
+import { generatePublicId, nanoid } from "@vrooli/shared";
 import { type Prisma, type PrismaClient, ScheduleRecurrenceType } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -30,11 +30,12 @@ interface ScheduleRelationConfig extends RelationConfig {
  * - Temporal validation
  */
 export class ScheduleDbFactory extends EnhancedDatabaseFactory<
-    Prisma.scheduleCreateInput,
+    schedule,
     Prisma.scheduleCreateInput,
     Prisma.scheduleInclude,
     Prisma.scheduleUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
         super("Schedule", prisma);
         this.initializeScenarios();
@@ -55,7 +56,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
 
         return {
             minimal: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 publicId: generatePublicId(),
                 startTime: tomorrow,
                 endTime: new Date(tomorrow.getTime() + 60 * 60 * 1000), // 1 hour later
@@ -65,7 +66,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                 },
             },
             complete: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 publicId: generatePublicId(),
                 startTime: tomorrow,
                 endTime: new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000), // 2 hours later
@@ -76,7 +77,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                 exceptions: {
                     create: [
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             originalStartTime: new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000),
                             newStartTime: new Date(tomorrow.getTime() + 25 * 60 * 60 * 1000),
                             newEndTime: new Date(tomorrow.getTime() + 27 * 60 * 60 * 1000),
@@ -86,7 +87,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                 recurrences: {
                     create: [
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             recurrenceType: ScheduleRecurrenceType.Daily,
                             interval: 1,
                             endDate: nextMonth,
@@ -106,10 +107,10 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     startTime: "tomorrow", // Should be Date
                     endTime: "later", // Should be Date
                     timezone: null, // Should be string
-                    userId: "string-not-bigint", // Should be BigInt
+                    user: { connect: { id: this.generateId() } }, // Should be BigInt
                 },
                 invalidTimeRange: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     startTime: tomorrow,
                     endTime: now, // End time before start time
@@ -119,7 +120,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 invalidTimezone: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     startTime: tomorrow,
                     endTime: new Date(tomorrow.getTime() + 60 * 60 * 1000),
@@ -129,7 +130,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 conflictingOwnership: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     startTime: tomorrow,
                     endTime: new Date(tomorrow.getTime() + 60 * 60 * 1000),
@@ -145,7 +146,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
             },
             edgeCases: {
                 allDayEvent: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     startTime: new Date(tomorrow.setHours(0, 0, 0, 0)),
                     endTime: new Date(tomorrow.setHours(23, 59, 59, 999)),
@@ -155,7 +156,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 multiTimezoneEvent: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     startTime: tomorrow,
                     endTime: new Date(tomorrow.getTime() + 3 * 60 * 60 * 1000),
@@ -165,7 +166,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 complexRecurrence: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     startTime: tomorrow,
                     endTime: new Date(tomorrow.getTime() + 90 * 60 * 1000),
@@ -176,7 +177,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     recurrences: {
                         create: [
                             {
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 recurrenceType: ScheduleRecurrenceType.Weekly,
                                 interval: 2,
                                 dayOfWeek: 3, // Wednesday
@@ -184,7 +185,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                                 duration: 90,
                             },
                             {
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 recurrenceType: ScheduleRecurrenceType.Monthly,
                                 interval: 1,
                                 dayOfMonth: 15,
@@ -195,7 +196,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 manyExceptions: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     startTime: tomorrow,
                     endTime: new Date(tomorrow.getTime() + 60 * 60 * 1000),
@@ -205,7 +206,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     },
                     exceptions: {
                         create: Array.from({ length: 10 }, (_, i) => ({
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             originalStartTime: new Date(tomorrow.getTime() + (i + 1) * 24 * 60 * 60 * 1000),
                             newStartTime: new Date(tomorrow.getTime() + (i + 1) * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000),
                             newEndTime: new Date(tomorrow.getTime() + (i + 1) * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000),
@@ -213,7 +214,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 yearlyRecurrence: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     startTime: tomorrow,
                     endTime: new Date(tomorrow.getTime() + 4 * 60 * 60 * 1000),
@@ -224,7 +225,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     recurrences: {
                         create: [
                             {
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 recurrenceType: ScheduleRecurrenceType.Yearly,
                                 interval: 1,
                                 month: 12, // December
@@ -235,7 +236,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 teamSchedule: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     startTime: tomorrow,
                     endTime: new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000),
@@ -255,7 +256,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     timezone: "Europe/London",
                     exceptions: {
                         create: [{
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             originalStartTime: new Date(nextWeek.getTime() + 24 * 60 * 60 * 1000),
                             newStartTime: null, // Cancelled
                             newEndTime: null,
@@ -270,7 +271,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
         const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
         
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             publicId: generatePublicId(),
             startTime: tomorrow,
             endTime: new Date(tomorrow.getTime() + 60 * 60 * 1000),
@@ -286,7 +287,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
         const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
         
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             publicId: generatePublicId(),
             startTime: tomorrow,
             endTime: new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000),
@@ -297,7 +298,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
             exceptions: {
                 create: [
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         originalStartTime: new Date(tomorrow.getTime() + 7 * 24 * 60 * 60 * 1000),
                         newStartTime: new Date(tomorrow.getTime() + 7 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000),
                         newEndTime: new Date(tomorrow.getTime() + 7 * 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000),
@@ -307,7 +308,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
             recurrences: {
                 create: [
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         recurrenceType: ScheduleRecurrenceType.Weekly,
                         interval: 1,
                         endDate: new Date(tomorrow.getTime() + 90 * 24 * 60 * 60 * 1000),
@@ -414,7 +415,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
             user: { connect: { id: userId } },
             recurrences: {
                 create: [{
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     recurrenceType: ScheduleRecurrenceType.Weekly,
                     interval: 1,
                     dayOfWeek,
@@ -492,7 +493,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
             
             data.exceptions = {
                 create: Array.from({ length: exceptionCount }, (_, i) => ({
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     originalStartTime: new Date(startTime.getTime() + (i + 1) * 7 * 24 * 60 * 60 * 1000),
                     newStartTime: new Date(startTime.getTime() + (i + 1) * 7 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000),
                     newEndTime: new Date(startTime.getTime() + (i + 1) * 7 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000),
@@ -511,7 +512,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
             
             data.recurrences = {
                 create: Array.from({ length: recurrenceCount }, (_, i) => ({
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     recurrenceType: recurrenceTypes[i % recurrenceTypes.length],
                     interval: 1,
                     duration: 60,
@@ -652,7 +653,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
             user: { connect: { id: userId } },
             recurrences: {
                 create: [{
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     recurrenceType: type,
                     interval,
                     duration,
@@ -692,7 +693,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createScheduleDbFactory = (prisma: PrismaClient) => 
-    ScheduleDbFactory.getInstance("Schedule", prisma);
+    new ScheduleDbFactory(prisma);
 
 // Export the class for type usage
 export { ScheduleDbFactory as ScheduleDbFactoryClass };

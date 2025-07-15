@@ -1,13 +1,15 @@
-import { Box, Collapse, FormControl, FormLabel, IconButton, MenuItem, Select, Typography } from "@mui/material";
+import { Box, Collapse, FormControl, FormLabel, MenuItem, Select, Typography } from "@mui/material";
+import { IconButton } from "../buttons/IconButton.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { generatePK, ResourceSubType, type ResourceVersion, type RunStatus } from "@vrooli/shared";
-import { Component, ReactNode, useState } from "react";
+import { Component, type ReactNode, useState } from "react";
 import { signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { PageContainer } from "../Page/Page.js";
 import { FormGroup } from "../inputs/FormGroup.js";
 import { Radio } from "../inputs/Radio.js";
 import { Switch } from "../inputs/Switch/Switch.js";
 import { RoutineExecutor } from "./RoutineExecutor.js";
+import { pageWithBottomNavDecorator } from "../../__test/helpers/storybookDecorators.tsx";
 
 // Simple error boundary for debugging
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error?: Error }> {
@@ -41,27 +43,14 @@ const action = (name: string) => (...args: any[]) => console.log(`Action: ${name
 export default {
     title: "Components/Chat/RoutineExecutor",
     component: RoutineExecutor,
-    decorators: [
-        (Story) => (
-            <PageContainer size="fullSize">
-                <Box sx={{
-                    p: 2,
-                    height: "100%",
-                    overflow: "auto",
-                    paddingBottom: "120px" // Generous padding for BottomNav
-                }}>
-                    <Story />
-                </Box>
-            </PageContainer>
-        ),
-    ],
+    decorators: [pageWithBottomNavDecorator(120)],
 };
 
 // Mock ResourceVersion for testing
 function createMockResourceVersion(
-    name: string = "Data Processing Routine",
+    name = "Data Processing Routine",
     subType: ResourceSubType = ResourceSubType.RoutineMultiStep,
-    config?: any
+    config?: any,
 ): ResourceVersion {
     // Generate appropriate descriptions and configs based on routine type
     const routineTypeConfigs = {
@@ -74,51 +63,51 @@ function createMockResourceVersion(
                         { id: "step-1", data: { routine: { name: "Initialize Process" } } },
                         { id: "step-2", data: { routine: { name: "Process Data" } } },
                         { id: "step-3", data: { routine: { name: "Generate Report" } } },
-                        { id: "step-4", data: { routine: { name: "Send Notification" } } }
-                    ]
-                }
-            }
+                        { id: "step-4", data: { routine: { name: "Send Notification" } } },
+                    ],
+                },
+            },
         },
         [ResourceSubType.RoutineInternalAction]: {
             description: "Internal system action for managing Vrooli resources",
             defaultName: "Internal Action",
-            config: config || { callDataAction: { toolName: "ResourceManage" } }
+            config: config || { callDataAction: { toolName: "ResourceManage" } },
         },
         [ResourceSubType.RoutineApi]: {
             description: "REST API call routine for external service integration",
             defaultName: "API Call",
-            config: config || { callDataApi: { endpoint: "https://api.example.com/data", method: "POST" } }
+            config: config || { callDataApi: { endpoint: "https://api.example.com/data", method: "POST" } },
         },
         [ResourceSubType.RoutineCode]: {
             description: "Sandboxed code execution routine for data transformation",
             defaultName: "Code Execution",
-            config: config || { callDataCode: { inputTemplate: {}, outputMappings: [] } }
+            config: config || { callDataCode: { inputTemplate: {}, outputMappings: [] } },
         },
         [ResourceSubType.RoutineData]: {
             description: "Data processing and transformation routine",
             defaultName: "Data Processing",
-            config: config || { formInput: { elements: [] }, formOutput: { elements: [] } }
+            config: config || { formInput: { elements: [] }, formOutput: { elements: [] } },
         },
         [ResourceSubType.RoutineGenerate]: {
             description: "AI-powered content generation routine",
             defaultName: "AI Generation",
-            config: config || { callDataGenerate: { prompt: "Generate content based on input", maxTokens: 1000 } }
+            config: config || { callDataGenerate: { prompt: "Generate content based on input", maxTokens: 1000 } },
         },
         [ResourceSubType.RoutineInformational]: {
             description: "Information retrieval and display routine",
             defaultName: "Information Retrieval",
-            config: config || { formInput: { elements: [] }, formOutput: { elements: [] } }
+            config: config || { formInput: { elements: [] }, formOutput: { elements: [] } },
         },
         [ResourceSubType.RoutineSmartContract]: {
             description: "Blockchain smart contract interaction routine",
             defaultName: "Smart Contract",
-            config: config || { callDataSmartContract: { contractAddress: "0x...", chain: "ethereum", methodName: "transfer" } }
+            config: config || { callDataSmartContract: { contractAddress: "0x...", chain: "ethereum", methodName: "transfer" } },
         },
         [ResourceSubType.RoutineWeb]: {
             description: "Web search and content retrieval routine",
             defaultName: "Web Search",
-            config: config || { callDataWeb: { queryTemplate: "Search for {{input.query}}", outputMapping: {} } }
-        }
+            config: config || { callDataWeb: { queryTemplate: "Search for {{input.query}}", outputMapping: {} } },
+        },
     };
 
     const typeConfig = routineTypeConfigs[subType] || routineTypeConfigs[ResourceSubType.RoutineMultiStep];
@@ -183,7 +172,7 @@ export function Showcase() {
             gap: 3,
             maxWidth: 1400,
             mx: "auto",
-            minHeight: "100%"
+            minHeight: "100%",
         }}>
             {/* Controls Section */}
             <Box sx={{
@@ -191,7 +180,7 @@ export function Showcase() {
                 bgcolor: "background.paper",
                 borderRadius: 2,
                 boxShadow: 1,
-                height: "fit-content"
+                height: "fit-content",
             }}>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
                     <Typography variant="h5">Controls</Typography>
@@ -199,7 +188,7 @@ export function Showcase() {
                         onClick={() => setControlsOpen(!controlsOpen)}
                         sx={{
                             transform: controlsOpen ? "rotate(180deg)" : "rotate(0deg)",
-                            transition: "transform 0.2s"
+                            transition: "transform 0.2s",
                         }}
                     >
                         <IconCommon name="ExpandMore" />
@@ -295,14 +284,14 @@ export function Showcase() {
                 flex: 1,
                 display: "flex",
                 flexDirection: "column",
-                mb: 8
+                mb: 8,
             }}>
                 <Box sx={{
                     width: "100%",
                     mx: "auto",
                     display: "flex",
                     flexDirection: "column",
-                    px: 2
+                    px: 2,
                 }}>
                         <ErrorBoundary>
                             <RoutineExecutor

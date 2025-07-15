@@ -1,0 +1,54 @@
+# Health check configuration to bypass Cloudflare Worker
+# Add these to your values-prod.yaml
+
+services:
+  ui:
+    probes:
+      livenessPath: /health
+      readinessPath: /health
+      # Use longer intervals to reduce load
+      periodSeconds: 60  # Check every minute instead of every 10 seconds
+      initialDelaySeconds: 30
+      
+  server:
+    probes:
+      livenessPath: /api/health
+      readinessPath: /api/health
+      periodSeconds: 60
+      initialDelaySeconds: 30
+      
+  jobs:
+    probes:
+      livenessPath: /health
+      readinessPath: /health  
+      periodSeconds: 60
+      initialDelaySeconds: 30
+
+# Alternative: Configure ingress to expose health endpoints directly
+# Add a separate ingress for health checks that bypasses the worker
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vrooli-health-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+    - host: do-origin.vrooli.com
+      http:
+        paths:
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: vrooli-ui
+                port:
+                  number: 3000
+          - path: /api/health
+            pathType: Prefix
+            backend:
+              service:
+                name: vrooli-server
+                port:
+                  number: 5329

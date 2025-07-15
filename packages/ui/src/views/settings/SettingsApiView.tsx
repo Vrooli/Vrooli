@@ -1,4 +1,6 @@
 // AI_CHECK: TYPE_SAFETY=fixed-18-type-assertions-in-api-settings | LAST: 2025-06-30
+// AI_CHECK: REACT_PERF=optimized-6-style-objects-and-handlers | LAST: 2025-07-01
+/* eslint-disable import/extensions */
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
@@ -10,9 +12,8 @@ import Divider from "@mui/material/Divider";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormGroup from "@mui/material/FormGroup";
-import FormHelperText from "@mui/material/FormHelperText";
 import FormLabel from "@mui/material/FormLabel";
-import { IconButton } from "../../components/buttons/IconButton.js";
+import IconButton from "@mui/material/IconButton";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Radio from "@mui/material/Radio";
@@ -21,12 +22,13 @@ import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
-import { ApiKeyPermission, DeleteType, FormStructureType, ResourceType, type ResourceSearchInput, type ResourceSearchResult, type Resource, ApiVersionConfig, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, endpointsResource, endpointsAuth, noop, type ApiKey, type ApiKeyCreateInput, type ApiKeyCreated, type ApiKeyExternal, type ApiKeyExternalCreateInput, type ApiKeyExternalUpdateInput, type ApiKeyUpdateInput, type DeleteOneInput, type Success, type User, type OAuthInitiateInput, type OAuthInitiateResult } from "@vrooli/shared";
+import CircularProgress from "@mui/material/CircularProgress";
+/* eslint-enable import/extensions */
+import { ApiKeyPermission, DeleteType, FormStructureType, ResourceType, type ResourceSearchInput, type ResourceSearchResult, type Resource, ApiVersionConfig, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, endpointsResource, endpointsAuth, noop, type ApiKey, type ApiKeyCreateInput, type ApiKeyCreated, type ApiKeyExternal, type ApiKeyExternalCreateInput, type ApiKeyExternalUpdateInput, type ApiKeyUpdateInput, type DeleteOneInput, type Success, type OAuthInitiateInput, type OAuthInitiateResult } from "@vrooli/shared";
 import { Formik } from "formik";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
-import { type LazyRequestWithResult } from "../../api/types.js";
 import { PageContainer } from "../../components/Page/Page.js";
 import { DialogTitle } from "../../components/dialogs/DialogTitle/DialogTitle.js";
 import { PasswordTextInput } from "../../components/inputs/PasswordTextInput/PasswordTextInput.js";
@@ -46,11 +48,81 @@ import { type SettingsApiViewProps } from "./types.js";
 
 // Define known services and supported integrations
 const KNOWN_SERVICES = ["OpenAI", "Google Maps", "Microsoft"];
-const SUPPORTED_INTEGRATIONS = [
-    { name: "OpenAI", url: "https://openai.com/authorize" },
-    { name: "Microsoft", url: "https://microsoft.com/authorize" },
-    // Add more as needed (ensure logos are imported)
-];
+
+// Common style constants to avoid recreating objects in render
+export const DIALOG_PAPER_PROPS = {
+    sx: {
+        bgcolor: "background.default",
+        borderRadius: 3,
+        boxShadow: 24,
+    },
+} as const;
+
+export const DIALOG_TITLE_STYLES = { fontWeight: 600, color: "text.primary", mb: 2 } as const;
+
+// Style constants for React performance
+export const FORM_CONTROL_STYLES = { mt: 2 } as const;
+export const SELECT_STYLES = { mt: 1 } as const;
+export const RADIO_GROUP_STYLES = { gap: 1.5 } as const;
+export const RADIO_STYLES = { mt: -0.5 } as const;
+export const BOX_FLEX_STYLES = { display: "flex", alignItems: "center", gap: 1 } as const;
+export const FORM_LABEL_STYLES = { fontWeight: 600, color: "text.primary", mb: 2 } as const;
+export const TYPOGRAPHY_SUBTITLE_STYLES = { mt: 0.5 } as const;
+export const DIVIDER_STYLES = { mb: 2 } as const;
+export const FORM_GROUP_STYLES = { gap: 2 } as const;
+export const CHECKBOX_STYLES = {
+    p: 0,
+    mt: 0.25,
+    color: "primary.main",
+    "&.Mui-checked": {
+        color: "primary.main",
+    },
+} as const;
+export const CHIP_STYLES = {
+    fontSize: "0.7rem",
+    height: "20px",
+} as const;
+
+// Preset box styles
+export const PRESET_BOX_BASE_STYLES = {
+    border: 1,
+    borderRadius: 2,
+    p: 2,
+    transition: "all 0.2s ease",
+    cursor: "pointer",
+} as const;
+
+export const PRESET_BOX_HOVER_STYLES = {
+    borderColor: "primary.main",
+    bgcolor: "rgba(15, 170, 170, 0.08)",
+} as const;
+
+export const FORM_CONTROL_LABEL_STYLES = {
+    m: 0,
+    alignItems: "flex-start",
+    width: "100%",
+} as const;
+
+export const TYPOGRAPHY_BODY1_STYLES = { fontWeight: 600 } as const;
+export const TYPOGRAPHY_BODY2_STYLES = { mt: 0.5 } as const;
+export const BOX_FLEX_CENTER_STYLES = { flex: 1 } as const;
+export const BOX_CUSTOM_PERMISSION_STYLES = { mt: 3, pl: 4, pr: 1 } as const;
+export const PERMISSION_BOX_STYLES = {
+    p: 2,
+    border: 1,
+    borderColor: "divider",
+    borderRadius: 1,
+    bgcolor: "background.default",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 2,
+} as const;
+
+export const PERMISSION_BOX_HOVER_STYLES = {
+    borderColor: "primary.main",
+    bgcolor: "background.paper",
+} as const;
 
 /**
  * Display-friendly names for permissions
@@ -200,11 +272,6 @@ function getPermissionsDescription(apiKey: ApiKey): string {
     }
 }
 
-const dialogPaperProps = {
-    sx: {
-        bgcolor: "background.default",
-    },
-} as const;
 interface ApiKeyPermissionsSelectorProps {
     selectedPermissions: ApiKeyPermission[];
     onChange: (permissions: ApiKeyPermission[]) => void;
@@ -254,7 +321,7 @@ export function ApiKeyPermissionsSelector({
     }, [selectedPermissions, onChange]);
 
     // Get security level color
-    const getSecurityLevelColor = (level: PermissionSecurityLevel) => {
+    const getSecurityLevelColor = useCallback((level: PermissionSecurityLevel) => {
         switch (level) {
             case PermissionSecurityLevel.Low:
                 return palette.success.main;
@@ -265,17 +332,71 @@ export function ApiKeyPermissionsSelector({
             default:
                 return palette.text.primary;
         }
-    };
+    }, [palette]);
+
+    // Memoize the select onChange handler
+    const handleSelectChange = useCallback((e: any) => {
+        const syntheticEvent = {
+            target: { value: e.target.value },
+            currentTarget: { value: e.target.value } as HTMLInputElement,
+            preventDefault: noop,
+            stopPropagation: noop,
+        } as React.ChangeEvent<HTMLInputElement>;
+        handlePresetChange(syntheticEvent);
+    }, [handlePresetChange]);
+
+    // Memoize preset click handlers
+    const createPresetClickHandler = useCallback((key: string) => {
+        return () => handlePresetChange({ target: { value: key } } as React.ChangeEvent<HTMLInputElement>);
+    }, [handlePresetChange]);
+
+    const handleCustomBoxClick = useCallback((e: any) => {
+        // Don't trigger if clicking on a child checkbox
+        if ((e.target as HTMLElement).type !== "checkbox") {
+            handlePresetChange({ target: { value: "custom" } } as React.ChangeEvent<HTMLInputElement>);
+        }
+    }, [handlePresetChange]);
+
+    // Memoize permission toggle handler
+    const createPermissionToggleHandler = useCallback((permission: ApiKeyPermission) => {
+        return () => handlePermissionToggle(permission, !selectedPermissions.includes(permission));
+    }, [handlePermissionToggle, selectedPermissions]);
+
+    const createPermissionChangeHandler = useCallback((permission: ApiKeyPermission) => {
+        return (e: any) => {
+            e.stopPropagation();
+            handlePermissionToggle(permission, e.target.checked);
+        };
+    }, [handlePermissionToggle]);
+
+    // Memoize dynamic styles
+    const getPresetBoxStyles = useCallback((isSelected: boolean) => ({
+        ...PRESET_BOX_BASE_STYLES,
+        borderColor: isSelected ? "primary.main" : "divider",
+        bgcolor: isSelected ? "rgba(15, 170, 170, 0.08)" : "background.paper",
+        "&:hover": PRESET_BOX_HOVER_STYLES,
+    }), []);
+
+    const getPermissionBoxStyles = useCallback(() => ({
+        ...PERMISSION_BOX_STYLES,
+        "&:hover": PERMISSION_BOX_HOVER_STYLES,
+    }), []);
+
+    const getChipStyles = useCallback((level: PermissionSecurityLevel) => ({
+        ...CHIP_STYLES,
+        backgroundColor: getSecurityLevelColor(level),
+        color: "#fff",
+    }), [getSecurityLevelColor]);
 
     if (compact) {
         return (
-            <FormControl fullWidth sx={{ mt: 2 }}>
+            <FormControl fullWidth sx={FORM_CONTROL_STYLES}>
                 <FormLabel>API Key Permissions</FormLabel>
                 <Select
                     value={selectedPreset}
-                    onChange={(e) => handlePresetChange({ target: { value: e.target.value } } as React.ChangeEvent<HTMLInputElement>)}
+                    onChange={handleSelectChange}
                     fullWidth
-                    sx={{ mt: 1 }}
+                    sx={SELECT_STYLES}
                 >
                     {Object.entries(PERMISSION_PRESETS).map(([key, preset]) => (
                         <MenuItem key={key} value={key}>
@@ -307,15 +428,15 @@ export function ApiKeyPermissionsSelector({
     }
 
     return (
-        <Box sx={{ mt: 2 }}>
+        <Box sx={FORM_CONTROL_STYLES}>
             <FormControl component="fieldset" fullWidth>
-                <FormLabel component="legend" sx={{ fontWeight: 600, color: "text.primary", mb: 2 }}>
+                <FormLabel component="legend" sx={FORM_LABEL_STYLES}>
                     API Key Permission Level
                 </FormLabel>
                 <RadioGroup
                     value={selectedPreset}
                     onChange={handlePresetChange}
-                    sx={{ gap: 1.5 }}
+                    sx={RADIO_GROUP_STYLES}
                 >
                     {Object.entries(PERMISSION_PRESETS).map(([key, preset]) => (
                         <Box
@@ -631,7 +752,6 @@ export function ApiKeyDialog({
     onUpdateKey,
 }: ApiKeyDialogProps) {
     const { t } = useTranslation();
-    const { palette } = useTheme();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { onProfileUpdate, profile } = useProfileQuery();
     const [updateInternalKey] = useLazyFetch<ApiKeyUpdateInput, ApiKey>(endpointsApiKey.updateOne);
@@ -688,8 +808,9 @@ export function ApiKeyDialog({
                         fetch: updateInternalKey,
                         inputs: input,
                         onSuccess: (updatedKey) => {
-                            const updatedKeys = profile?.apiKeys?.map(k => k.id === updatedKey.id ? updatedKey : k) ?? [];
-                            onProfileUpdate({ ...(profile as User), apiKeys: updatedKeys });
+                            if (!profile) return;
+                            const updatedKeys = profile.apiKeys?.map(k => k.id === updatedKey.id ? updatedKey : k) ?? [];
+                            onProfileUpdate({ ...profile, apiKeys: updatedKeys });
                             onClose();
                         },
                     });
@@ -715,25 +836,13 @@ export function ApiKeyDialog({
         } finally {
             setIsSubmitting(false);
         }
-    }, [isEditMode, keyData, onUpdateKey, updateInternalKey, profile, onClose, onCreateKey]);
-
-    const dialogPaperProps = {
-        sx: {
-            bgcolor: "background.default",
-        },
-    };
+    }, [isEditMode, keyData, onUpdateKey, updateInternalKey, profile, onClose, onCreateKey, onProfileUpdate]);
 
     return (
         <Dialog
             open={open}
             onClose={onClose}
-            PaperProps={{
-                sx: {
-                    bgcolor: "background.default",
-                    borderRadius: 3,
-                    boxShadow: 24,
-                },
-            }}
+            PaperProps={DIALOG_PAPER_PROPS}
             maxWidth="lg"
             fullWidth
         >
@@ -935,16 +1044,18 @@ function ExternalKeyDialog({
                 resourceId: values.resourceId,
             };
             const fetchFunc = isCreate ? createExternalKey : updateExternalKey;
-            fetchLazyWrapper<typeof input, ApiKeyExternal>({
-                fetch: fetchFunc as LazyRequestWithResult<typeof input, ApiKeyExternal>,
+            fetchLazyWrapper({
+                fetch: fetchFunc,
                 inputs: input,
                 onSuccess: (data) => {
                     if (isCreate) {
-                        const updatedKeys = [...(profile?.apiKeysExternal ?? []), data];
-                        onProfileUpdate({ ...(profile as User), apiKeysExternal: updatedKeys });
+                        if (!profile) return;
+                        const updatedKeys = [...(profile.apiKeysExternal ?? []), data];
+                        onProfileUpdate({ ...profile, apiKeysExternal: updatedKeys });
                     } else {
-                        const updatedKeys = profile?.apiKeysExternal?.map(k => k.id === data.id ? data : k) ?? [];
-                        onProfileUpdate({ ...(profile as User), apiKeysExternal: updatedKeys });
+                        if (!profile) return;
+                        const updatedKeys = profile.apiKeysExternal?.map(k => k.id === data.id ? data : k) ?? [];
+                        onProfileUpdate({ ...profile, apiKeysExternal: updatedKeys });
                     }
                     setIsSubmitting(false);
                     onClose();
@@ -963,13 +1074,7 @@ function ExternalKeyDialog({
         <Dialog 
             open={open} 
             onClose={onClose} 
-            PaperProps={{
-                sx: {
-                    bgcolor: "background.default",
-                    borderRadius: 3,
-                    boxShadow: 24,
-                },
-            }}
+            PaperProps={DIALOG_PAPER_PROPS}
             maxWidth="sm"
             fullWidth
         >
@@ -1136,20 +1241,186 @@ function ExternalKeyDialog({
     );
 }
 
-export function SettingsApiView({
-    display,
-    onClose,
-}: SettingsApiViewProps) {
+// Empty state component for better UX
+type EmptyStateProps = {
+    type: "apiKeys" | "externalKeys";
+    onCreate: () => void;
+}
+function EmptyState({ type, onCreate }: EmptyStateProps) {
     const { t } = useTranslation();
     const { palette } = useTheme();
-    const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
-    const apiKeys = profile?.apiKeys || [];
+    
+    return (
+        <Box 
+            textAlign="center" 
+            py={6}
+            px={3}
+            sx={{
+                border: 2,
+                borderStyle: "dashed",
+                borderColor: "divider",
+                borderRadius: 2,
+                bgcolor: "background.paper",
+            }}
+        >
+            <IconCommon 
+                name="Key" 
+                size={64} 
+                sx={{ 
+                    opacity: 0.2,
+                    color: palette.text.secondary,
+                    mb: 3,
+                }} 
+            />
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+                {type === "apiKeys" ? "No API keys yet" : "No external keys yet"}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" mb={3}>
+                {type === "apiKeys" 
+                    ? "Create your first API key to start using our API"
+                    : "Add external API keys to integrate with other services"
+                }
+            </Typography>
+            <Button
+                variant="contained"
+                startIcon={<IconCommon name="Plus" />}
+                onClick={onCreate}
+                sx={{ borderRadius: 2 }}
+            >
+                {type === "apiKeys" ? t("CreateApiKey") : t("AddExternalKey")}
+            </Button>
+        </Box>
+    );
+}
+
+// Loading overlay component
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type LoadingOverlayProps = {
+    loading: boolean;
+    children: ReactNode;
+}
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function LoadingOverlay({ loading, children }: LoadingOverlayProps) {
+    return (
+        <Box position="relative">
+            {children}
+            {loading && (
+                <Box
+                    position="absolute"
+                    top={0}
+                    left={0}
+                    right={0}
+                    bottom={0}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    bgcolor="rgba(0, 0, 0, 0.5)"
+                    zIndex={1}
+                >
+                    <CircularProgress color="primary" />
+                </Box>
+            )}
+        </Box>
+    );
+}
+
+// API Key list item component
+type ApiKeyListItemProps = {
+    apiKey: ApiKey;
+    onEdit: (key: ApiKey) => void;
+    onRevoke: (keyId: string, keyName: string) => void;
+};
+function ApiKeyListItem({ apiKey, onEdit, onRevoke }: ApiKeyListItemProps) {
+    function handleEdit() {
+        onEdit(apiKey);
+    }
+    function handleRevoke() {
+        onRevoke(apiKey.id, apiKey.name);
+    }
+    
+    return (
+        <Box 
+            display="flex" 
+            justifyContent="space-between" 
+            alignItems="center" 
+            mb={2} 
+            p={2} 
+            border={1} 
+            borderColor="divider" 
+            borderRadius={2}
+            sx={{
+                transition: "all 0.2s ease",
+                "&:hover": {
+                    borderColor: "primary.main",
+                    bgcolor: "background.paper",
+                },
+            }}
+        >
+            <Box>
+                <Typography fontWeight={500}>{apiKey.name}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                    {getPermissionsDescription(apiKey)}
+                </Typography>
+                {apiKey.disabledAt && (
+                    <Chip 
+                        label="Disabled" 
+                        size="small" 
+                        color="error"
+                        sx={{ mt: 1 }}
+                    />
+                )}
+            </Box>
+            <Box display="flex" gap={1}>
+                <IconButton 
+                    onClick={handleEdit}
+                    aria-label="Edit API key"
+                    sx={{ 
+                        "&:hover": { 
+                            bgcolor: "primary.light",
+                            "& svg": { fill: "primary.main" },
+                        },
+                    }}
+                >
+                    <IconCommon name="Edit" fill="text.secondary" />
+                </IconButton>
+                <IconButton 
+                    onClick={handleRevoke}
+                    aria-label="Revoke API key"
+                    sx={{ 
+                        "&:hover": { 
+                            bgcolor: "error.light",
+                            "& svg": { fill: "error.main" },
+                        },
+                    }}
+                >
+                    <IconCommon name="Delete" fill="text.secondary" />
+                </IconButton>
+            </Box>
+        </Box>
+    );
+}
+
+export function SettingsApiView({
+    display: _display,
+    onClose: _onClose,
+}: SettingsApiViewProps) {
+    const { t } = useTranslation();
+    const { onProfileUpdate, profile } = useProfileQuery();
+    const apiKeys = useMemo(() => profile?.apiKeys || [], [profile?.apiKeys]);
+    
+    // Confirmation dialog for destructive actions
+    const [confirmDialog, setConfirmDialog] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+    }>({ open: false, title: "", message: "", onConfirm: noop });
 
     // API endpoints
     const [createInternalKey] = useLazyFetch<ApiKeyCreateInput, ApiKeyCreated>(endpointsApiKey.createOne);
     const [updateInternalKey] = useLazyFetch<ApiKeyUpdateInput, ApiKey>(endpointsApiKey.updateOne);
-    const [createExternalKey] = useLazyFetch<ApiKeyExternalCreateInput, ApiKeyExternal>(endpointsApiKeyExternal.createOne);
-    const [updateExternalKey] = useLazyFetch<ApiKeyExternalUpdateInput, ApiKeyExternal>(endpointsApiKeyExternal.updateOne);
+    const [_createExternalKey] = useLazyFetch<ApiKeyExternalCreateInput, ApiKeyExternal>(endpointsApiKeyExternal.createOne);
+    const [_updateExternalKey] = useLazyFetch<ApiKeyExternalUpdateInput, ApiKeyExternal>(endpointsApiKeyExternal.updateOne);
     const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
     const [findResources] = useLazyFetch<ResourceSearchInput, ResourceSearchResult>(endpointsResource.findMany);
     const [initiateOAuth] = useLazyFetch<OAuthInitiateInput, OAuthInitiateResult>(endpointsAuth.oauthInitiate);
@@ -1195,8 +1466,13 @@ export function SettingsApiView({
         });
     }, [apiKeys, createInternalKey, onProfileUpdate, profile]);
 
-    // Handler to revoke an API key
-    const revokeInternalKey = useCallback((keyId: string) => {
+    // Handler to revoke an API key with confirmation
+    const revokeInternalKey = useCallback((keyId: string, keyName: string) => {
+        setConfirmDialog({
+            open: true,
+            title: t("RevokeApiKey"),
+            message: t("AreYouSureRevokeApiKey", { name: keyName }),
+            onConfirm: () => {
         if (!profile) {
             console.error("This error shouldn't happen. Please report it.", { component: "SettingsApiView", function: "revokeInternalKey", profile });
             return;
@@ -1210,9 +1486,12 @@ export function SettingsApiView({
                     ...profile,
                     apiKeys: updatedKeys,
                 });
+                setConfirmDialog(prev => ({ ...prev, open: false }));
             },
         });
-    }, [apiKeys, deleteOne, onProfileUpdate, profile]);
+            },
+        });
+    }, [apiKeys, deleteOne, onProfileUpdate, profile, t]);
 
     const handleEditInternalKey = useCallback((key: ApiKey) => {
         setEditingInternalKey(key);
@@ -1224,8 +1503,9 @@ export function SettingsApiView({
             fetch: updateInternalKey,
             inputs: input,
             onSuccess: (updatedKey) => {
-                const updatedKeys = profile?.apiKeys?.map(k => k.id === updatedKey.id ? updatedKey : k) ?? [];
-                onProfileUpdate({ ...(profile as User), apiKeys: updatedKeys });
+                if (!profile) return;
+                const updatedKeys = profile.apiKeys?.map(k => k.id === updatedKey.id ? updatedKey : k) ?? [];
+                onProfileUpdate({ ...profile, apiKeys: updatedKeys });
                 setApiKeyDialogOpen(false);
                 setEditingInternalKey(null);
             },
@@ -1247,16 +1527,25 @@ export function SettingsApiView({
         setIsEditingExternalKey(true);
     }, []);
 
-    const handleDeleteExternalKey = useCallback((id: string) => {
+    const handleDeleteExternalKey = useCallback((id: string, keyName: string) => {
+        setConfirmDialog({
+            open: true,
+            title: t("DeleteExternalKey"),
+            message: t("AreYouSureDeleteExternalKey", { name: keyName }),
+            onConfirm: () => {
         fetchLazyWrapper<DeleteOneInput, Success>({
             fetch: deleteOne,
             inputs: { id, objectType: DeleteType.ApiKeyExternal },
             onSuccess: () => {
-                const updatedKeys = profile?.apiKeysExternal?.filter(k => k.id !== id) ?? [];
-                onProfileUpdate({ ...(profile as User), apiKeysExternal: updatedKeys });
+                if (!profile) return;
+                const updatedKeys = profile.apiKeysExternal?.filter(k => k.id !== id) ?? [];
+                onProfileUpdate({ ...profile, apiKeysExternal: updatedKeys });
+                setConfirmDialog(prev => ({ ...prev, open: false }));
             },
         });
-    }, [deleteOne, onProfileUpdate, profile]);
+            },
+        });
+    }, [deleteOne, onProfileUpdate, profile, t]);
 
     const handleExternalKeyEditClose = useCallback(() => {
         setIsEditingExternalKey(false);
@@ -1319,6 +1608,38 @@ export function SettingsApiView({
 
     return (
         <PageContainer size="fullSize">
+            {/* Confirmation Dialog */}
+            <Dialog 
+                open={confirmDialog.open} 
+                onClose={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
+                PaperProps={DIALOG_PAPER_PROPS}
+                maxWidth="sm"
+            >
+                <DialogTitle id="confirm-dialog-title" sxs={DIALOG_TITLE_STYLES}>
+                    {confirmDialog.title}
+                </DialogTitle>
+                <DialogContent sx={{ pt: 3 }}>
+                    <Typography>{confirmDialog.message}</Typography>
+                </DialogContent>
+                <DialogActions sx={{ p: 3, gap: 2 }}>
+                    <Button 
+                        onClick={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
+                        variant="outlined"
+                        sx={{ borderRadius: 2 }}
+                    >
+                        {t("Cancel")}
+                    </Button>
+                    <Button 
+                        onClick={confirmDialog.onConfirm}
+                        variant="contained"
+                        color="error"
+                        sx={{ borderRadius: 2 }}
+                    >
+                        {t("Confirm")}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+            
             <ApiKeyViewDialog apiKey={newKey} onClose={onNewKeyDialogClose} open={newKeyDialogOpen} />
             <ApiKeyDialog
                 open={apiKeyDialogOpen}
@@ -1361,35 +1682,19 @@ export function SettingsApiView({
                                 onDelete={noop}
                             />
                             {apiKeys.length > 0 ? (
-                                apiKeys.map((key) => {
-                                    function handleEdit() {
-                                        handleEditInternalKey(key);
-                                    }
-                                    function handleRevoke() {
-                                        revokeInternalKey(key.id);
-                                    }
-
-                                    return (
-                                        <Box key={key.id} display="flex" justifyContent="space-between" alignItems="center" mb={2} p={1} border={1} borderColor="divider" borderRadius={1}>
-                                            <Box>
-                                                <Typography>{key.name}</Typography>
-                                                <Typography variant="body2" color="text.secondary">
-                                                    {getPermissionsDescription(key)}
-                                                </Typography>
-                                            </Box>
-                                            <Box>
-                                                <IconButton onClick={handleEdit}>
-                                                    <IconCommon name="Edit" fill="secondary.main" />
-                                                </IconButton>
-                                                <IconButton onClick={handleRevoke}>
-                                                    <IconCommon name="Delete" fill="error.main" />
-                                                </IconButton>
-                                            </Box>
-                                        </Box>
-                                    );
-                                })
+                                apiKeys.map((key) => (
+                                    <ApiKeyListItem
+                                        key={key.id}
+                                        apiKey={key}
+                                        onEdit={handleEditInternalKey}
+                                        onRevoke={revokeInternalKey}
+                                    />
+                                ))
                             ) : (
-                                <Typography variant="body1" color="text.secondary">No API keys found</Typography>
+                                <EmptyState 
+                                    type="apiKeys" 
+                                    onCreate={handleOpenCreateDialog}
+                                />
                             )}
                             <Button
                                 onClick={handleOpenCreateDialog}
@@ -1421,8 +1726,9 @@ export function SettingsApiView({
                                         handleUpdateExternalKey(key);
                                     }
                                     function handleDelete() {
-                                        handleDeleteExternalKey(key.id);
+                                        handleDeleteExternalKey(key.id, key.service + (key.name ? `: ${key.name}` : ""));
                                     }
+                                    
                                     return (
                                         <Box key={key.id} display="flex" justifyContent="space-between" alignItems="center" mb={1}>
                                             <Typography>{key.service}{key.name ? `: ${key.name}` : ""}</Typography>
@@ -1438,7 +1744,14 @@ export function SettingsApiView({
                                     );
                                 })
                             ) : (
-                                <Typography variant="body1" color="text.secondary">No external API keys found</Typography>
+                                <EmptyState 
+                                    type="externalKeys" 
+                                    onCreate={() => {
+                                        setEditingExternalKey(null);
+                                        setIsEditingExternalKey(false);
+                                        setIsCreatingExternalKey(true);
+                                    }}
+                                />
                             )}
                             <Button 
                 onClick={() => {

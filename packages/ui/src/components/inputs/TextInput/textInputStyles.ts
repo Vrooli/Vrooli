@@ -25,7 +25,7 @@ export const BASE_TEXT_INPUT_STYLES = cn(
     "tw-outline-none",
     "disabled:tw-cursor-not-allowed disabled:tw-opacity-50",
     "placeholder:tw-text-text-secondary",
-    "tw-resize-none"  // For textarea elements
+    "tw-resize-none",  // For textarea elements
 );
 
 export const VARIANT_STYLES: Record<TextInputVariant, string> = {
@@ -37,7 +37,7 @@ export const VARIANT_STYLES: Record<TextInputVariant, string> = {
         "focus:tw-border-primary-main focus-within:tw-border-primary-main",
         "focus:tw-ring-2 focus:tw-ring-offset-2 focus-within:tw-ring-2 focus-within:tw-ring-offset-2",
         "focus:tw-ring-primary-main focus-within:tw-ring-primary-main",
-        "tw-text-text-primary"
+        "tw-text-text-primary",
     ),
     filled: cn(
         "tw-border tw-rounded-md",
@@ -48,7 +48,7 @@ export const VARIANT_STYLES: Record<TextInputVariant, string> = {
         "focus:tw-border-primary-main focus-within:tw-border-primary-main",
         "focus:tw-ring-2 focus:tw-ring-offset-2 focus-within:tw-ring-2 focus-within:tw-ring-offset-2",
         "focus:tw-ring-primary-main focus-within:tw-ring-primary-main",
-        "tw-text-text-primary"
+        "tw-text-text-primary",
     ),
     underline: cn(
         "tw-bg-transparent",
@@ -59,7 +59,7 @@ export const VARIANT_STYLES: Record<TextInputVariant, string> = {
         "focus:tw-border-primary-main focus-within:tw-border-primary-main",
         "focus:tw-ring-0 focus-within:tw-ring-0",
         "focus:tw-rounded-md focus-within:tw-rounded-md", // Add border radius when focused
-        "tw-text-text-primary"
+        "tw-text-text-primary",
     ),
 };
 
@@ -72,7 +72,7 @@ export const SIZE_STYLES: Record<TextInputSize, string> = {
 export const ERROR_STYLES = cn(
     "tw-border-danger-main",
     "focus:tw-border-danger-main focus-within:tw-border-danger-main",
-    "focus:tw-ring-danger-main focus-within:tw-ring-danger-main"
+    "focus:tw-ring-danger-main focus-within:tw-ring-danger-main",
 );
 
 export const FULL_WIDTH_STYLES = "tw-w-full";
@@ -97,7 +97,7 @@ export function buildTextInputClasses({
         VARIANT_STYLES[variant],
         SIZE_STYLES[size],
         error && ERROR_STYLES,
-        fullWidth && FULL_WIDTH_STYLES
+        fullWidth && FULL_WIDTH_STYLES,
     );
 }
 
@@ -124,6 +124,6 @@ export function buildContainerClasses({
         size === "lg" && TEXT_INPUT_CONFIG.HEIGHTS.lg,
         error && ERROR_STYLES,
         fullWidth && FULL_WIDTH_STYLES,
-        "tw-p-0" // Override all padding since adornments handle their own
+        "tw-p-0", // Override all padding since adornments handle their own
     );
 }

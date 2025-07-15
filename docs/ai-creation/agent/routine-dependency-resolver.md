@@ -11,7 +11,7 @@ Agents reference routines using human-readable names in their behavior definitio
 
 ```json
 {
-  "behaviours": [
+  "behaviors": [
     {
       "trigger": { "topic": "swarm/goal/created" },
       "action": {
@@ -217,7 +217,7 @@ When routines are unavailable, fall back to LLM reasoning:
 
 ```json
 {
-  "behaviours": [
+  "behaviors": [
     {
       "trigger": { "topic": "data/analysis/required" },
       "action": {

@@ -1,6 +1,6 @@
 import { AUTH_PROVIDERS, DAYS_2_MS, LINKS, MINUTES_15_MS, type Session, type TranslationKeyError, generatePK } from "@vrooli/shared";
 import { AccountStatus, type Prisma, type PrismaPromise, type credit_account, type email, type phone, type plan, type session, type user, type user_auth } from "@prisma/client";
-import bcrypt from "bcrypt";
+import { getBcryptService } from "./bcryptWrapper.js";
 import { type Request } from "express";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
@@ -111,7 +111,7 @@ export class PasswordAuthService {
      * @returns Hashed password
      */
     static hashPassword(password: string): string {
-        return bcrypt.hashSync(password, HASHING_ROUNDS);
+        return getBcryptService().hashSync(password, HASHING_ROUNDS);
     }
 
     static statusToError(status: AccountStatus): TranslationKeyError | null {
@@ -148,7 +148,7 @@ export class PasswordAuthService {
         const accountError = this.statusToError(user.status);
         if (accountError !== null) throw new CustomError("0050", accountError);
         // Validate plaintext password against hash
-        return bcrypt.compareSync(plaintext, passwordHash);
+        return getBcryptService().compareSync(plaintext, passwordHash);
     }
 
     static isLogInAttemptsResettable(user: Pick<UserDataForPasswordAuth, "lastLoginAttempt" | "status">): boolean {
@@ -442,8 +442,13 @@ export class PasswordAuthService {
             ...AUTH_EMAIL_TEMPLATES.VerificationLink(userPublicId, link),
         });
         // Warn of new verification email to existing devices (if applicable)
-        Notify(languages).pushNewEmailVerification().toUser(userId);
-        return success.success;
+        try {
+            await Notify(languages).pushNewEmailVerification().toUser(userId);
+        } catch (notificationError) {
+            // Log but don't fail the entire operation if notifications fail
+            console.warn("Failed to send email verification notification:", notificationError instanceof Error ? notificationError.message : String(notificationError));
+        }
+        return success?.success ?? false;
     }
 
     /**

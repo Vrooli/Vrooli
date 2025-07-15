@@ -171,9 +171,9 @@ describe("TopBar", () => {
         });
 
         it("passes all titleData props to DialogTitle", () => {
-            const iconInfo = { name: "TestIcon" };
+            const iconInfo = { name: "TestIcon", type: "Text" as const };
             const options = [
-                { iconInfo: { name: "Option1" }, label: "Option 1", onClick: vi.fn() },
+                { iconInfo: { name: "Option1", type: "Text" as const }, label: "Option 1", onClick: vi.fn() },
             ];
 
             render(
@@ -197,9 +197,9 @@ describe("TopBar", () => {
 
     describe("Props passing for Partial display", () => {
         it("passes all titleData props to PartialNavbar except titleBehavior", () => {
-            const iconInfo = { name: "TestIcon" };
+            const iconInfo = { name: "TestIcon", type: "Text" as const };
             const options = [
-                { iconInfo: { name: "Option1" }, label: "Option 1", onClick: vi.fn() },
+                { iconInfo: { name: "Option1", type: "Text" as const }, label: "Option 1", onClick: vi.fn() },
             ];
 
             render(
@@ -224,9 +224,9 @@ describe("TopBar", () => {
 
     describe("Props passing for Page display", () => {
         it("passes titleBehavior and all titleData props to Navbar", () => {
-            const iconInfo = { name: "TestIcon" };
+            const iconInfo = { name: "TestIcon", type: "Text" as const };
             const options = [
-                { iconInfo: { name: "Option1" }, label: "Option 1", onClick: vi.fn() },
+                { iconInfo: { name: "Option1", type: "Text" as const }, label: "Option 1", onClick: vi.fn() },
             ];
 
             render(

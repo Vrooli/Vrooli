@@ -5,6 +5,8 @@ import { QueueService } from "../tasks/queues.js";
 import { QueueTaskType } from "../tasks/taskTypes.js";
 import { randomString, validateCode } from "./codes.js";
 
+// AI_CHECK: TYPE_SAFETY=server-auth-credits-plan-migration | LAST: 2025-06-29
+
 export const PHONE_VERIFICATION_TIMEOUT_MS = MINUTES_15_S;
 const PHONE_VERIFICATION_RATE_LIMIT_MS = MINUTES_2_S;
 const DEFAULT_PHONE_VERIFICATION_CODE_LENGTH = 8;
@@ -144,8 +146,13 @@ export async function validatePhoneVerificationCode(
             plan: {
                 select: {
                     id: true,
-                    credits: true,
                     receivedFreeTrialAt: true,
+                },
+            },
+            creditAccount: {
+                select: {
+                    id: true,
+                    currentBalance: true,
                 },
             },
         },
@@ -153,6 +160,7 @@ export async function validatePhoneVerificationCode(
     if (userData) {
         const hasReceivedFreeTrial = userData.plan?.receivedFreeTrialAt !== null;
         if (!hasReceivedFreeTrial && !hasPhoneBeenVerifiedBefore) {
+            // Update plan to mark free trial received
             await DbProvider.get().user.update({
                 where: { id: BigInt(userId) },
                 data: {
@@ -161,16 +169,31 @@ export async function validatePhoneVerificationCode(
                             create: {
                                 id: generatePK(),
                                 receivedFreeTrialAt: new Date(),
-                                credits: API_CREDITS_FREE,
                             },
                             update: {
                                 receivedFreeTrialAt: new Date(),
-                                credits: (userData.plan?.credits ?? BigInt(0)) + API_CREDITS_FREE,
                             },
                         },
                     },
                 },
             });
+            // Add credits to credit account (separate operation)
+            if (userData.creditAccount) {
+                await DbProvider.get().credit_account.update({
+                    where: { id: userData.creditAccount.id },
+                    data: {
+                        currentBalance: userData.creditAccount.currentBalance + API_CREDITS_FREE,
+                    },
+                });
+            } else {
+                await DbProvider.get().credit_account.create({
+                    data: {
+                        id: generatePK(),
+                        currentBalance: API_CREDITS_FREE,
+                        userId: BigInt(userId),
+                    },
+                });
+            }
         }
     }
     return true;

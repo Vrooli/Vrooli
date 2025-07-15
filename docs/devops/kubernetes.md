@@ -17,7 +17,7 @@ graph TB
     
     subgraph "Vrooli Namespace"
         subgraph "Application Services"
-            UI[UI Service<br/>Port: 3000]
+            UI[UI Service<br/>Node.js + serve package<br/>Port: 3000]
             Server[Server Service<br/>Port: 5329]
             Jobs[Jobs Service<br/>Background Processing]
             NSFW[NSFW Detector<br/>steelcityamir/safe-content-ai]
@@ -78,7 +78,7 @@ graph TB
 ```mermaid
 graph LR
     subgraph "Frontend"
-        UI[UI Container<br/>React App<br/>Port: 3000]
+        UI[UI Container<br/>React App (built)<br/>Node.js + serve package<br/>Port: 3000]
     end
     
     subgraph "Backend Services"
@@ -366,9 +366,197 @@ This section provides specific details about the Vrooli Helm chart located in th
 
 ### Prerequisites
 
+#### Basic Requirements
 - Kubernetes 1.19+ cluster
 - Helm 3.x installed
+- kubectl configured to access your cluster
 - Container images (`ui`, `server`, `jobs`, etc.) available in your configured container registry (see `image.registry` value in `k8s/chart/values.yaml`)
+
+#### Required Kubernetes Operators
+
+The Vrooli application depends on three critical Kubernetes operators that must be installed before deployment:
+
+1. **CrunchyData PostgreSQL Operator (PGO)** - v5.8.2
+   - Manages high-availability PostgreSQL clusters with automatic failover
+   - Handles automated backups via pgBackRest (S3, PVC, or other storage)
+   - Provides connection pooling with pgBouncer for performance
+   - Includes pgMonitor for comprehensive observability
+   - Creates and manages the `vrooli-pg` PostgreSQL cluster
+   - **Installation Script:** [`k8s_cluster::install_pgo_operator`](../../scripts/helpers/setup/target/k8s_cluster.sh)
+
+2. **Spotahome Redis Operator** - v1.2.4
+   - Manages Redis master-replica configurations with automatic failover
+   - Uses Redis Sentinel for monitoring and failover decisions
+   - Supports persistent storage (PVC) or ephemeral storage (emptyDir)
+   - Includes Redis exporter for Prometheus metrics
+   - Creates and manages Redis cluster for caching and session storage
+   - **Installation Script:** [`k8s_cluster::install_spotahome_redis_operator`](../../scripts/helpers/setup/target/k8s_cluster.sh)
+
+3. **Vault Secrets Operator (VSO)** - Latest version
+   - Syncs secrets from HashiCorp Vault to Kubernetes Secrets automatically
+   - Supports multiple authentication methods (Token, AppRole, Kubernetes)
+   - Provides secret templating and data transformation capabilities
+   - Manages 5 distinct secret categories for Vrooli (see Vault Policies below)
+   - **Installation Script:** [`k8s_cluster::install_vso_helm_chart`](../../scripts/helpers/setup/target/k8s_cluster.sh)
+
+#### Automated Prerequisites Check
+
+The deployment scripts include comprehensive dependency checkers that verify all requirements:
+
+**Enhanced Dependency Check (Recommended):**
+```bash
+# Comprehensive check for all dependencies (operators, Vault, storage, networking)
+bash scripts/helpers/deploy/k8s-dependencies-check.sh --environment dev
+
+# Check for production environment
+bash scripts/helpers/deploy/k8s-dependencies-check.sh --environment prod
+
+# Check only (no setup instructions)
+bash scripts/helpers/deploy/k8s-dependencies-check.sh --check-only --environment dev
+```
+
+**Operators-Only Check:**
+```bash
+# Check operators only (non-destructive)
+bash scripts/helpers/deploy/k8s-prerequisites.sh --check-only yes
+
+# Install missing operators interactively
+bash scripts/helpers/deploy/k8s-prerequisites.sh
+
+# Install missing operators automatically (no prompts)
+bash scripts/helpers/deploy/k8s-prerequisites.sh --yes yes
+```
+
+**Automated Setup for Development:**
+For development environments, operators and dependencies are automatically installed when running:
+```bash
+# Full development setup with all dependencies
+export SECRETS_SOURCE=vault  # Enable Vault setup
+bash scripts/main/develop.sh --target k8s-cluster
+```
+
+**Note:** The `develop.sh` script automatically:
+- Installs all three required operators (PGO, Redis, VSO)
+- Sets up development Vault (if `SECRETS_SOURCE=vault`)
+- Configures Vault Kubernetes authentication
+- Creates the required Vault role (`vrooli-vso-sync-role`)
+
+For production environments, the k8s_cluster setup script automatically checks for and installs missing operators during deployment.
+
+#### Manual Operator Installation
+
+If you prefer to install operators manually, use these exact versions tested with Vrooli:
+
+```bash
+# Install CrunchyData PostgreSQL Operator v5.8.2
+helm repo add crunchydata https://charts.crunchydata.com
+helm repo update crunchydata
+helm install pgo crunchydata/pgo \
+  --version 5.8.2 \
+  --namespace postgres-operator \
+  --create-namespace \
+  --wait --timeout 10m
+
+# Install Spotahome Redis Operator v1.2.4
+helm repo add redis-operator https://spotahome.github.io/redis-operator
+helm repo update redis-operator
+helm install spotahome-redis-operator redis-operator/redis-operator \
+  --version 1.2.4 \
+  --namespace redis-operator \
+  --create-namespace \
+  --wait --timeout 10m
+
+# Install Vault Secrets Operator (latest stable)
+helm repo add hashicorp https://helm.releases.hashicorp.com
+helm repo update hashicorp
+helm install vault-secrets-operator hashicorp/vault-secrets-operator \
+  --namespace vault-secrets-operator-system \
+  --create-namespace \
+  --wait --timeout 5m
+
+# Verify installations
+kubectl get pods -n postgres-operator
+kubectl get pods -n redis-operator
+kubectl get pods -n vault-secrets-operator-system
+```
+
+#### Complete Development Environment Setup
+
+For a full development environment with all operators and Vault configuration:
+
+```bash
+# Set secrets source to use Vault (optional for dev)
+export SECRETS_SOURCE=vault
+
+# Complete setup including Minikube, operators, and Vault
+bash scripts/main/develop.sh --target k8s-cluster
+
+# Alternative: Just the Kubernetes setup portion
+bash scripts/helpers/setup/target/k8s_cluster.sh
+```
+
+This automatically:
+- Installs kubectl, Helm, and Minikube (if needed)
+- Installs all three required operators
+- Sets up development Vault with proper policies (if `SECRETS_SOURCE=vault`)
+- Configures Vault Kubernetes authentication
+- Creates the required Vault role for VSO (`vrooli-vso-sync-role`)
+
+#### Additional Prerequisites for Production
+
+- **HashiCorp Vault Instance**: Must be accessible from the cluster with:
+  - Kubernetes authentication enabled
+  - Required policies configured (see Vault Policies section below)
+  - Secrets populated at the correct paths
+- **Docker Registry Access**: Credentials configured for pulling private images
+- **Storage Classes**: Configured for PostgreSQL and Redis persistent volumes
+- **Ingress Controller**: If external access is required
+
+#### Vault Policies and Authentication
+
+The Vrooli application uses a granular approach to secrets management with 5 distinct Vault policies:
+
+**Policy Files Location:** [`/k8s/dev-support/vault-policies/`](../../k8s/dev-support/vault-policies/)
+
+1. **`vrooli-config-shared-all-read-policy.hcl`**
+   - **Path:** `secret/data/vrooli/config/shared-all`
+   - **Access:** UI, Server, Jobs services
+   - **Purpose:** Non-sensitive configuration (e.g., `VITE_GOOGLE_TRACKING_ID`, `VITE_STRIPE_PUBLISHABLE_KEY`)
+
+2. **`vrooli-secrets-shared-server-jobs-read-policy.hcl`**
+   - **Path:** `secret/data/vrooli/secrets/shared-server-jobs`
+   - **Access:** Server, Jobs services only
+   - **Purpose:** Sensitive API keys (e.g., `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `STRIPE_SECRET_KEY`)
+
+3. **`vrooli-secrets-postgres-read-policy.hcl`**
+   - **Path:** `secret/data/vrooli/secrets/postgres`
+   - **Access:** Server, Jobs services
+   - **Purpose:** Database credentials (`DB_NAME`, `DB_USER`, `DB_PASSWORD`)
+
+4. **`vrooli-secrets-redis-read-policy.hcl`**
+   - **Path:** `secret/data/vrooli/secrets/redis`
+   - **Access:** Server, Jobs services
+   - **Purpose:** Redis authentication (`REDIS_PASSWORD`)
+
+5. **`vrooli-secrets-dockerhub-read-policy.hcl`**
+   - **Path:** `secret/data/vrooli/dockerhub/*`
+   - **Access:** All services (as imagePullSecret)
+   - **Purpose:** Container registry credentials
+
+**Vault Role Configuration:**
+- **Role Name:** `vrooli-vso-sync-role`
+- **Authentication Method:** Kubernetes
+- **Bound Service Accounts:** `default` (configurable)
+- **Bound Namespaces:** `*` (configurable)
+- **Assigned Policies:** All 5 policies above
+
+**Automatic Configuration Script:** [`k8s_cluster::configure_dev_vault`](../../scripts/helpers/setup/target/k8s_cluster.sh)
+
+This function automatically:
+- Enables Kubernetes authentication in Vault
+- Applies all 5 Vault policies
+- Creates the `vrooli-vso-sync-role` with proper bindings
+- Enables KVv2 secrets engine at `secret/`
 
 ### Chart Structure (within [k8s/chart/](../../k8s/chart/))
 
@@ -608,7 +796,21 @@ The following table lists some of the key configurable parameters of the Vrooli 
         *   The UI deployment will only have access to `vrooli-config-shared-all`.
         *   The server and jobs deployments will have access to `vrooli-config-shared-all`, `vrooli-secrets-shared-server-jobs`, `vrooli-postgres-creds`, and `vrooli-redis-creds`.
         *   The `vrooli-dockerhub-pull-secret` is used as an `imagePullSecret` for all deployments.
-*   **Health Checks & Probes:** Ensure that the liveness and readiness probes defined in your Helm templates (e.g., in [templates/deployment.yaml](../../k8s/chart/templates/deployment.yaml), and configurable via `services.<name>.probes` in [values.yaml](../../k8s/chart/values.yaml)) correctly point to health check endpoints in your applications. The paths like `/healthcheck` or `/` are common defaults but might need adjustment based on your application's specific health endpoints.
+*   **UI Service Architecture:** The UI service uses a unified approach across all deployment methods (VPS, Docker Compose, Kubernetes):
+    *   **Build Process**: React app is built into static files during the Docker build process
+    *   **Serving**: Static files are served using the Node.js `serve` package on port 3000
+    *   **Container Base**: Uses the same Node.js base image as server/jobs services (not nginx)
+    *   **Routing**: SPA routing is handled by the `serve` package configuration
+    *   **Consistency**: This approach ensures identical behavior across development, VPS production, and Kubernetes deployments
+    *   **External Access**: In VPS deployments, Caddy reverse proxy routes traffic; in Kubernetes, Ingress controllers handle routing
+
+*   **Health Checks & Probes:** All Vrooli services implement comprehensive health check endpoints for Kubernetes monitoring:
+    *   **Server Service**: Implements `/healthcheck` endpoint on port 5329 with comprehensive system health monitoring including database, Redis, queues, external services, and more. See [packages/server/src/services/health.ts](../../packages/server/src/services/health.ts) for full implementation.
+    *   **Jobs Service**: Implements `/healthcheck` endpoint on port 4001 (same as main service port) that validates Redis connectivity and reports recent cron job execution status. See [packages/jobs/src/index.ts](../../packages/jobs/src/index.ts) lines 336-390.
+    *   **UI Service**: Uses HTTP probes on port 3000 to validate that the serve package is properly serving the React application.
+    *   **NSFW Detector**: External service using TCP socket probes on port 8000 for connectivity validation.
+    
+    Health check configuration in [templates/deployment.yaml](../../k8s/chart/templates/deployment.yaml) uses the `services.<name>.probes` section in [values.yaml](../../k8s/chart/values.yaml) to define probe paths, ports, and timing. All services use HTTP probes except NSFW Detector which uses TCP socket probes.
 *   **Resource Allocation:** The CPU and memory `requests` and `limits` defined in the chart's templates (and configurable via `services.<name>.resources` in `values.yaml` or environment-specific values files) are crucial for stable operation. Monitor your application's performance and adjust these as needed for each environment.
 *   **Stateful Services (PostgreSQL, Redis):**
     High availability and lifecycle management for PostgreSQL and Redis are handled by dedicated Kubernetes Operators:
@@ -769,4 +971,146 @@ The [develop.sh](../../scripts/main/develop.sh) --target k8s-cluster command is 
         *   The VSO configurations in [k8s/chart/values-dev.yaml](../../k8s/chart/values-dev.yaml) (e.g., `vso.enabled`, `vso.vaultAddr`, `vso.k8sAuthRole: "vrooli-vso-sync-role"`, and the granular `vso.secrets` structure) are used.
         *   Ensure these point to your local/dev Vault instance and the correct secret paths as defined by the policies (e.g., `secret/data/vrooli/config/shared-all`).
 
-This Helm chart provides a structured and maintainable way to manage your Kubernetes deployments as the Vrooli application evolves. 
+This Helm chart provides a structured and maintainable way to manage your Kubernetes deployments as the Vrooli application evolves.
+
+## Troubleshooting Kubernetes Operators
+
+### Operator Installation Issues
+
+#### Check Operator Status
+```bash
+# Verify all operators are running
+kubectl get pods -n postgres-operator
+kubectl get pods -n redis-operator
+kubectl get pods -n vault-secrets-operator-system
+
+# Check operator logs if pods are failing
+kubectl logs -n postgres-operator -l postgres-operator.crunchydata.com/control-plane=postgres-operator
+kubectl logs -n redis-operator -l app.kubernetes.io/name=redis-operator
+kubectl logs -n vault-secrets-operator-system -l app.kubernetes.io/name=vault-secrets-operator
+```
+
+#### Verify Custom Resource Definitions (CRDs)
+```bash
+# Check if CRDs are properly installed
+kubectl get crd postgresclusters.postgres-operator.crunchydata.com
+kubectl get crd redisfailovers.databases.spotahome.com
+kubectl get crd vaultsecrets.secrets.hashicorp.com
+kubectl get crd vaultauths.secrets.hashicorp.com
+kubectl get crd vaultconnections.secrets.hashicorp.com
+
+# If CRDs are missing, reinstall the operator
+./scripts/helpers/deploy/k8s-prerequisites.sh --yes yes
+```
+
+### PostgreSQL Operator (PGO) Troubleshooting
+
+#### Check PostgreSQL Cluster Status
+```bash
+# List PostgreSQL clusters
+kubectl get postgrescluster -A
+
+# Check cluster status and events
+kubectl describe postgrescluster vrooli-pg -n <namespace>
+
+# Check PGO operator logs
+kubectl logs -n postgres-operator -l postgres-operator.crunchydata.com/control-plane=postgres-operator
+
+# Check PostgreSQL pod logs
+kubectl logs -n <namespace> -l postgres-operator.crunchydata.com/cluster=vrooli-pg
+```
+
+#### Common PGO Issues
+- **Storage Class Issues:** Ensure the specified `storageClass` exists in your cluster
+- **Resource Constraints:** Check if cluster has sufficient CPU/memory for PostgreSQL instances
+- **Backup Failures:** Verify S3 credentials and bucket permissions for production backups
+
+### Redis Operator Troubleshooting
+
+#### Check Redis Failover Status
+```bash
+# List Redis failover instances
+kubectl get redisfailover -A
+
+# Check failover status
+kubectl describe redisfailover vrooli-rf -n <namespace>
+
+# Check Redis pods
+kubectl get pods -n <namespace> -l app.kubernetes.io/part-of=redis-failover
+kubectl logs -n <namespace> -l app.kubernetes.io/component=redis
+kubectl logs -n <namespace> -l app.kubernetes.io/component=sentinel
+```
+
+#### Redis Authentication Issues
+- **Secret Name Mismatch:** Ensure Redis operator `secretPath` matches VSO secret name (`vrooli-redis-creds`)
+- **Missing Password Key:** Verify the secret contains a `password` key with the Redis password
+- **Connection Failures:** Check if Redis services are accessible and authentication is working
+
+### Vault Secrets Operator (VSO) Troubleshooting
+
+#### Check VSO Custom Resources
+```bash
+# Check VaultAuth status
+kubectl get vaultauth -A
+kubectl describe vaultauth <name> -n <namespace>
+
+# Check VaultConnection status
+kubectl get vaultconnection -A
+kubectl describe vaultconnection <name> -n <namespace>
+
+# Check VaultSecret status
+kubectl get vaultsecret -A
+kubectl describe vaultsecret <name> -n <namespace>
+
+# Check VSO operator logs
+kubectl logs -n vault-secrets-operator-system -l app.kubernetes.io/name=vault-secrets-operator
+```
+
+#### Common VSO Issues
+- **Vault Connectivity:** Ensure Vault is accessible from the cluster at the configured address
+- **Authentication Failures:** Verify Kubernetes authentication is enabled and role exists in Vault
+- **Policy Issues:** Check if the Vault role has proper policies assigned for secret paths
+- **Path Errors:** Ensure secret paths include `/data/` for KVv2 engine (e.g., `secret/data/vrooli/config/shared-all`)
+
+#### VSO Secret Sync Debugging
+```bash
+# Check if secrets are being created
+kubectl get secrets -A | grep vrooli
+
+# Check secret content (base64 encoded)
+kubectl get secret vrooli-config-shared-all -n <namespace> -o yaml
+
+# Force secret refresh (delete VaultSecret to recreate)
+kubectl delete vaultsecret <name> -n <namespace>
+# Wait for operator to recreate it
+```
+
+### Quick Diagnosis Script
+
+For a comprehensive health check, use the prerequisites script:
+
+```bash
+# Check all operators and provide detailed status
+./scripts/helpers/deploy/k8s-prerequisites.sh --check-only yes
+
+# This script validates:
+# - CRD installations
+# - Operator pod status
+# - Vault connectivity (if applicable)
+# - Basic functionality tests
+```
+
+### Getting Help
+
+If you encounter persistent issues:
+
+1. **Check Logs:** Always start with operator logs and resource descriptions
+2. **Verify Prerequisites:** Ensure all dependencies are properly installed
+3. **Test Connectivity:** Verify network access between components
+4. **Review Configuration:** Double-check Helm values and secret paths
+5. **Operator Documentation:** Consult official documentation for each operator:
+   - [CrunchyData PGO Documentation](https://access.crunchydata.com/documentation/postgres-operator/5.8.2/)
+   - [Spotahome Redis Operator](https://github.com/spotahome/redis-operator)
+   - [Vault Secrets Operator](https://developer.hashicorp.com/vault/docs/platform/k8s/vso)
+
+The automated scripts in this repository provide robust error handling and logging to help diagnose issues quickly. 

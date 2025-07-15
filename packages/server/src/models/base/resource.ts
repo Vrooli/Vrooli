@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE, generatePublicId, getTranslation, MaxObjects, ResourceSortBy, resourceValidation, type ResourceVersion, type Tag } from "@vrooli/shared";
+import { DEFAULT_LANGUAGE, generatePublicId, getTranslation, MaxObjects, ResourceSortBy, resourceValidation, type ResourceVersion } from "@vrooli/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -9,7 +9,7 @@ import { ownerFields } from "../../utils/shapes/ownerFields.js";
 import { preShapeRoot, type PreShapeRootResult } from "../../utils/shapes/preShapeRoot.js";
 import { tagShapeHelper } from "../../utils/shapes/tagShapeHelper.js";
 import { afterMutationsRoot } from "../../utils/triggers/afterMutationsRoot.js";
-import { defaultPermissions, getSingleTypePermissions } from "../../validators/permissions.js";
+import { defaultPermissions, filterPermissions, getSingleTypePermissions } from "../../validators/permissions.js";
 import { ResourceFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
@@ -27,11 +27,14 @@ export const ResourceModel: ResourceModelLogic = ({
                 id: true,
                 isDeleted: true,
                 isPrivate: true,
-                versions: { select: { id: true, isLatestPublic: true, translations: { select: { language: true, name: true } } } },
+                versions: { select: { id: true, isLatest: true, isLatestPublic: true, translations: { select: { language: true, name: true } } } },
             }),
             get: (select, languages) => {
                 const latestVersion = select.versions.find((version) => version.isLatestPublic || version.isLatest);
-                return getTranslation(latestVersion as unknown as ResourceVersion, languages).name ?? "";
+                if (!latestVersion) return "";
+                // TypeScript needs help understanding that latestVersion has translations
+                const versionWithTranslations = latestVersion as typeof latestVersion & { translations: Array<{ language: string, name: string }> };
+                return getTranslation({ translations: versionWithTranslations.translations }, languages).name ?? "";
             },
         },
         embed: {
@@ -52,10 +55,11 @@ export const ResourceModel: ResourceModelLogic = ({
             }),
             get: ({ tags, versions }, languages) => {
                 const latestVersion = versions.find((version) => version.isLatestPublic || version.isLatest);
-                const trans = getTranslation(latestVersion as unknown as ResourceVersion, languages);
+                if (!latestVersion) return "";
+                const trans = getTranslation({ translations: latestVersion.translations } as Pick<ResourceVersion, "translations">, languages);
                 return EmbeddingService.getEmbeddableString({
                     name: trans.name,
-                    tags: (tags as unknown as Tag[]).map(({ tag }) => tag),
+                    tags: tags.map(({ tag }) => tag),
                     description: trans.description,
                 }, languages?.[0]);
             },
@@ -161,7 +165,7 @@ export const ResourceModel: ResourceModelLogic = ({
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted,
-        isPublic: (data, ...rest) =>
+        isPublic: (data, getParentInfo?) =>
             data.isPrivate === false &&
             data.isDeleted === false &&
             data.isInternal === false &&
@@ -170,15 +174,21 @@ export const ResourceModel: ResourceModelLogic = ({
                 oneIsPublic<ResourceModelInfo["DbSelect"]>([
                     ["ownedByTeam", "Team"],
                     ["ownedByUser", "User"],
-                ], data, ...rest)
+                ], data, getParentInfo)
             ),
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => ({
+        owner: (data, _userId) => ({
             Team: data?.ownedByTeam,
             User: data?.ownedByUser,
         }),
-        permissionResolvers: defaultPermissions,
+        permissionResolvers: ({ isAdmin, isDeleted, isLoggedIn, isPublic }) => {
+            const base = defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic });
+            return filterPermissions(base, [
+                "canBookmark", "canComment", "canDelete", "canReact", "canRead", "canTransfer", "canUpdate",
+                "canConnect", "canDisconnect",
+            ]);
+        },
         permissionsSelect: () => ({
             id: true,
             hasCompleteVersion: true,

@@ -4,18 +4,21 @@
  * This factory provides type-safe bookmark fixtures using real functions from @vrooli/shared.
  * It eliminates `any` types and integrates with actual validation and shape transformation logic.
  */
+// AI_CHECK: TYPE_SAFETY=fixed-typename-properties-and-msw-v2-migration | LAST: 2025-07-03 - Fixed missing __typename in BookmarkList, removed invalid properties from UserYou/ResourceYou, migrated MSW v1 to v2 syntax
 
 import type { 
     Bookmark, 
     BookmarkCreateInput, 
     BookmarkUpdateInput, 
     BookmarkFor,
-    BookmarkList, 
+    BookmarkList,
+    ResourceType,
 } from "@vrooli/shared";
 import { 
     bookmarkValidation, 
     shapeBookmark,
     BookmarkFor as BookmarkForEnum,
+    ResourceType as ResourceTypeEnum,
 } from "@vrooli/shared";
 import type { 
     FixtureFactory, 
@@ -25,7 +28,7 @@ import type {
     BookmarkUIState,
     BookmarkScenario, 
 } from "../types.js";
-import { rest } from "msw";
+import { http, HttpResponse } from "msw";
 
 /**
  * Type-safe bookmark fixture factory that uses real @vrooli/shared functions
@@ -66,8 +69,7 @@ export class BookmarkFixtureFactory implements FixtureFactory<
 
             case "invalid":
                 return {
-                    // @ts-expect-error - Intentionally invalid for error testing
-                    bookmarkFor: "InvalidType",
+                    bookmarkFor: "InvalidType" as any, // Intentionally invalid for error testing
                     forConnect: "", // Empty string should fail validation
                 };
 
@@ -120,7 +122,7 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                 __typename: formData.bookmarkFor, 
                 id: formData.forConnect, 
             },
-            list: formData.listId ? { id: formData.listId } : null,
+            list: formData.listId ? { __typename: "BookmarkList" as const, id: formData.listId } : null,
         };
 
         // Use real shape function from @vrooli/shared
@@ -182,46 +184,61 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                 isPrivate: false,
                 profileImage: null,
                 bannerImage: null,
-                premium: false,
-                premiumExpiration: null,
-                roles: [],
+                premium: null,
                 wallets: [],
                 translations: [],
                 translationsCount: 0,
                 you: {
                     __typename: "UserYou",
-                    isBlocked: false,
-                    isBlockedByYou: false,
                     canDelete: false,
                     canReport: false,
                     canUpdate: false,
                     isBookmarked: false,
-                    isReacted: false,
-                    reactionSummary: {
-                        __typename: "ReactionSummary",
-                        emotion: null,
-                        count: 0,
-                    },
+                    isViewed: false,
                 },
             },
             to: {
                 __typename: "Resource",
                 id: this.generateId(),
+                bookmarkedBy: [],
+                bookmarks: 0,
+                completedAt: null,
+                createdBy: null,
                 createdAt: now,
-                updatedAt: now,
+                hasCompleteVersion: false,
+                isDeleted: false,
                 isInternal: false,
                 isPrivate: false,
-                usedBy: [],
-                usedByCount: 0,
+                issues: [],
+                issuesCount: 0,
+                owner: null,
+                parent: null,
+                permissions: "{}",
+                publicId: this.generateId(),
+                pullRequests: [],
+                pullRequestsCount: 0,
+                resourceType: ResourceTypeEnum.Standard,
+                score: 0,
+                stats: [],
+                tags: [],
+                transfers: [],
+                transfersCount: 0,
+                translatedName: "Mock Resource",
+                updatedAt: now,
                 versions: [],
                 versionsCount: 0,
+                views: 0,
                 you: {
                     __typename: "ResourceYou",
+                    canBookmark: true,
+                    canComment: false,
                     canDelete: false,
+                    canReact: true,
+                    canRead: true,
+                    canTransfer: false,
                     canUpdate: false,
-                    canReport: false,
                     isBookmarked: false,
-                    isReacted: false,
+                    isViewed: false,
                     reaction: null,
                 },
             },
@@ -233,11 +250,6 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                 updatedAt: now,
                 bookmarks: [],
                 bookmarksCount: 1,
-                you: {
-                    __typename: "BookmarkListYou",
-                    canDelete: true,
-                    canUpdate: true,
-                },
             },
         };
 
@@ -256,7 +268,8 @@ export class BookmarkFixtureFactory implements FixtureFactory<
             const apiInput = this.transformToAPIInput(formData);
             
             // Use real validation schema from @vrooli/shared
-            await bookmarkValidation.create.validate(apiInput);
+            const schema = bookmarkValidation.create({ omitFields: [] });
+            await schema.validate(apiInput);
             
             return { isValid: true };
         } catch (error: any) {
@@ -282,19 +295,16 @@ export class BookmarkFixtureFactory implements FixtureFactory<
 
         return {
             success: [
-                rest.post(`${baseUrl}/api/bookmark`, async (req, res, ctx) => {
-                    const body = await req.json();
+                http.post(`${baseUrl}/api/bookmark`, async ({ request }) => {
+                    const body = await request.json() as BookmarkFormData;
                     
                     // Validate the request body
                     const validation = await this.validateFormData(body);
                     if (!validation.isValid) {
-                        return res(
-                            ctx.status(400),
-                            ctx.json({ 
-                                errors: validation.errors,
-                                fieldErrors: validation.fieldErrors, 
-                            }),
-                        );
+                        return HttpResponse.json({ 
+                            errors: validation.errors,
+                            fieldErrors: validation.fieldErrors, 
+                        }, { status: 400 });
                     }
 
                     // Return successful response
@@ -306,89 +316,67 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                         },
                     });
 
-                    return res(
-                        ctx.status(201),
-                        ctx.json(mockBookmark),
-                    );
+                    return HttpResponse.json(mockBookmark, { status: 201 });
                 }),
 
-                rest.put(`${baseUrl}/api/bookmark/:id`, async (req, res, ctx) => {
-                    const { id } = req.params;
-                    const body = await req.json();
+                http.put(`${baseUrl}/api/bookmark/:id`, async ({ request, params }) => {
+                    const { id } = params;
+                    const body = await request.json() as Partial<BookmarkFormData>;
 
                     const mockBookmark = this.createMockResponse({ 
                         id: id as string,
                         updatedAt: new Date().toISOString(),
                     });
 
-                    return res(
-                        ctx.status(200),
-                        ctx.json(mockBookmark),
-                    );
+                    return HttpResponse.json(mockBookmark, { status: 200 });
                 }),
 
-                rest.get(`${baseUrl}/api/bookmark/:id`, (req, res, ctx) => {
-                    const { id } = req.params;
+                http.get(`${baseUrl}/api/bookmark/:id`, ({ params }) => {
+                    const { id } = params;
                     const mockBookmark = this.createMockResponse({ id: id as string });
                     
-                    return res(
-                        ctx.status(200),
-                        ctx.json(mockBookmark),
-                    );
+                    return HttpResponse.json(mockBookmark, { status: 200 });
                 }),
 
-                rest.delete(`${baseUrl}/api/bookmark/:id`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(204),
-                    );
+                http.delete(`${baseUrl}/api/bookmark/:id`, () => {
+                    return new HttpResponse(null, { status: 204 });
                 }),
             ],
 
             error: [
-                rest.post(`${baseUrl}/api/bookmark`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(500),
-                        ctx.json({ 
-                            message: "Internal server error",
-                            code: "BOOKMARK_CREATE_FAILED", 
-                        }),
-                    );
+                http.post(`${baseUrl}/api/bookmark`, () => {
+                    return HttpResponse.json({ 
+                        message: "Internal server error",
+                        code: "BOOKMARK_CREATE_FAILED", 
+                    }, { status: 500 });
                 }),
 
-                rest.put(`${baseUrl}/api/bookmark/:id`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(404),
-                        ctx.json({ 
-                            message: "Bookmark not found",
-                            code: "BOOKMARK_NOT_FOUND", 
-                        }),
-                    );
+                http.put(`${baseUrl}/api/bookmark/:id`, () => {
+                    return HttpResponse.json({ 
+                        message: "Bookmark not found",
+                        code: "BOOKMARK_NOT_FOUND", 
+                    }, { status: 404 });
                 }),
 
-                rest.get(`${baseUrl}/api/bookmark/:id`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(404),
-                        ctx.json({ 
-                            message: "Bookmark not found",
-                            code: "BOOKMARK_NOT_FOUND", 
-                        }),
-                    );
+                http.get(`${baseUrl}/api/bookmark/:id`, () => {
+                    return HttpResponse.json({ 
+                        message: "Bookmark not found",
+                        code: "BOOKMARK_NOT_FOUND", 
+                    }, { status: 404 });
                 }),
             ],
 
             loading: [
-                rest.post(`${baseUrl}/api/bookmark`, (req, res, ctx) => {
-                    return res(
-                        ctx.delay(2000), // 2 second delay
-                        ctx.status(201),
-                        ctx.json(this.createMockResponse()),
-                    );
+                http.post(`${baseUrl}/api/bookmark`, async () => {
+                    // MSW v2 doesn't have ctx.delay, using setTimeout instead
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    return HttpResponse.json(this.createMockResponse(), { status: 201 });
                 }),
             ],
 
             networkError: [
-                rest.post(`${baseUrl}/api/bookmark`, (req, res, ctx) => {
-                    return res.networkError("Network connection failed");
+                http.post(`${baseUrl}/api/bookmark`, () => {
+                    return HttpResponse.error();
                 }),
             ],
         };

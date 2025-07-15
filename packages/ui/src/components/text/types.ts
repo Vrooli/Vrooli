@@ -1,3 +1,4 @@
+import type React from "react";
 import type { BoxProps } from "@mui/material";
 import { type ListObject, type Routine } from "@vrooli/shared";
 import { type IconInfo } from "../../icons/Icons.js";
@@ -42,7 +43,7 @@ export interface TitleProps {
     options?: {
         iconInfo?: IconInfo | null | undefined;
         label: string;
-        onClick: (e?: any) => unknown;
+        onClick: (e?: React.MouseEvent<HTMLElement>) => unknown;
     }[];
     sxs?: {
         stack?: SxType;
@@ -62,3 +63,5 @@ export interface VersionDisplayProps extends BoxProps {
     prefix?: string;
     versions?: { versionLabel: string }[];
 }
+
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed onClick event handler type from 'any' to React.MouseEvent<HTMLElement>

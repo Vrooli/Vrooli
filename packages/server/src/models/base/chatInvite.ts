@@ -73,10 +73,10 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
     },
     validate: () => ({
         isDeleted: () => false,
-        isPublic: () => false,
+        isPublic: (_data, _getParentInfo?) => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => ({
+        owner: (data, _userId) => ({
             Team: (data?.chat as ChatModelInfo["DbModel"])?.team,
             User: (data?.chat as ChatModelInfo["DbModel"])?.creator,
         }),

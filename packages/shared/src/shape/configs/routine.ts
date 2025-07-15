@@ -201,8 +201,9 @@ export interface ConfigCallDataSmartContract {
     methodName: string;
     /**
      * Arguments/params to pass to the contract's method.
+     * AI_CHECK: TYPE_SAFETY=shared-routine-config-type-safety-fixes | LAST: 2025-07-01 - Fixed 'any[]' to 'unknown[]' for smart contract args
      */
-    args?: any[];
+    args?: unknown[];
     /**
      * Optional overrides for transaction details such as gas limit, gas price, etc.
      */
@@ -292,7 +293,7 @@ export type FormOutputConfigObject = {
     schema: FormSchema;
 };
 
-type GraphType = "BPMN-2.0"; // Add more as needed
+type GraphType = "BPMN-2.0" | "Sequential"; // Add more as needed
 type GraphBaseConfigObject = {
     __version: string;
     __type: GraphType;
@@ -353,6 +354,49 @@ type RootContext = {
     inputMap: Record<string, string>;
     outputMap: Record<string, string>;
 };
+
+/**
+ * Represents a single step in a sequential routine
+ */
+export type SequentialStep = {
+    /** Unique identifier for this step */
+    id: string;
+    /** Human-readable name for the step */
+    name: string;
+    /** Optional description of what this step does */
+    description?: string;
+    /** The ID of the subroutine to execute */
+    subroutineId: string;
+    /** Maps step input names to subroutine input names */
+    inputMap: Record<string, string>;
+    /** Maps subroutine output names to step output names */
+    outputMap: Record<string, string>;
+    /** Optional condition expression to skip this step */
+    skipCondition?: string;
+    /** Optional retry configuration */
+    retryPolicy?: {
+        maxAttempts: number;
+        backoffMs: number;
+    };
+};
+
+/**
+ * Schema for sequential (array-based) routine execution
+ */
+export type SequentialSchema = {
+    /** Ordered array of steps to execute */
+    steps: SequentialStep[];
+    /** Maps routine inputs/outputs to first/last step */
+    rootContext: {
+        /** Maps routine input names to first step input names */
+        inputMap: Record<string, string>;
+        /** Maps last step output names to routine output names */
+        outputMap: Record<string, string>;
+    };
+    /** Execution mode - default is sequential */
+    executionMode?: "sequential" | "parallel";
+};
+
 export type BpmnSchema = {
     /** How the BPMN diagram data is stored */
     __format: "xml";
@@ -386,7 +430,11 @@ export type GraphBpmnConfigObject = GraphBaseConfigObject & {
     __type: "BPMN-2.0";
     schema: BpmnSchema;
 };
-export type GraphConfigObject = GraphBpmnConfigObject;
+export type GraphSequentialConfigObject = GraphBaseConfigObject & {
+    __type: "Sequential";
+    schema: SequentialSchema;
+};
+export type GraphConfigObject = GraphBpmnConfigObject | GraphSequentialConfigObject;
 
 /**
  * Represents the configuration for a routine version. 
@@ -532,28 +580,28 @@ function defaultSchemaOutputGenerate(): FormOutputConfigObject {
 
 export function defaultConfigFormInputMap() {
     return {
-    [ResourceSubType.RoutineInternalAction]: () => defaultSchemaInput(),
-    [ResourceSubType.RoutineApi]: () => defaultSchemaInput(),
-    [ResourceSubType.RoutineCode]: () => defaultSchemaInput(),
-    [ResourceSubType.RoutineData]: () => defaultSchemaInput(),
-    [ResourceSubType.RoutineGenerate]: () => defaultSchemaInput(),
-    [ResourceSubType.RoutineInformational]: () => defaultSchemaInput(),
-    [ResourceSubType.RoutineMultiStep]: () => defaultSchemaInput(),
-    [ResourceSubType.RoutineSmartContract]: () => defaultSchemaInput(),
+        [ResourceSubType.RoutineInternalAction]: () => defaultSchemaInput(),
+        [ResourceSubType.RoutineApi]: () => defaultSchemaInput(),
+        [ResourceSubType.RoutineCode]: () => defaultSchemaInput(),
+        [ResourceSubType.RoutineData]: () => defaultSchemaInput(),
+        [ResourceSubType.RoutineGenerate]: () => defaultSchemaInput(),
+        [ResourceSubType.RoutineInformational]: () => defaultSchemaInput(),
+        [ResourceSubType.RoutineMultiStep]: () => defaultSchemaInput(),
+        [ResourceSubType.RoutineSmartContract]: () => defaultSchemaInput(),
         [ResourceSubType.RoutineWeb]: () => defaultSchemaInput(),
     };
 }
 
 export function defaultConfigFormOutputMap() {
     return {
-    [ResourceSubType.RoutineInternalAction]: () => defaultSchemaOutput(),
-    [ResourceSubType.RoutineApi]: () => defaultSchemaOutput(),
-    [ResourceSubType.RoutineCode]: () => defaultSchemaOutput(),
-    [ResourceSubType.RoutineData]: () => defaultSchemaOutput(),
-    [ResourceSubType.RoutineGenerate]: () => defaultSchemaOutputGenerate(),
-    [ResourceSubType.RoutineInformational]: () => defaultSchemaOutput(),
-    [ResourceSubType.RoutineMultiStep]: () => defaultSchemaOutput(),
-    [ResourceSubType.RoutineSmartContract]: () => defaultSchemaOutput(),
+        [ResourceSubType.RoutineInternalAction]: () => defaultSchemaOutput(),
+        [ResourceSubType.RoutineApi]: () => defaultSchemaOutput(),
+        [ResourceSubType.RoutineCode]: () => defaultSchemaOutput(),
+        [ResourceSubType.RoutineData]: () => defaultSchemaOutput(),
+        [ResourceSubType.RoutineGenerate]: () => defaultSchemaOutputGenerate(),
+        [ResourceSubType.RoutineInformational]: () => defaultSchemaOutput(),
+        [ResourceSubType.RoutineMultiStep]: () => defaultSchemaOutput(),
+        [ResourceSubType.RoutineSmartContract]: () => defaultSchemaOutput(),
         [ResourceSubType.RoutineWeb]: () => defaultSchemaOutput(),
     };
 }
@@ -841,7 +889,7 @@ export class CallDataActionConfig {
     }
 }
 
-class CallDataApiConfig {
+export class CallDataApiConfig {
     __version: string;
     schema: ConfigCallDataApi;
 
@@ -1191,7 +1239,7 @@ export class CallDataWebConfig {
             // The path is expected to be relative to the `searchResult` object,
             // often starting with `results[...]` or `results[*].fieldName`.
             let value: unknown;
-            
+
             // Handle special [*] notation for getting all elements
             if (path.includes("[*]")) {
                 // Extract the property name after [*]
@@ -1296,6 +1344,8 @@ export abstract class GraphConfig {
         switch (data.__type) {
             case "BPMN-2.0":
                 return new GraphBpmnConfig(data);
+            case "Sequential":
+                return new GraphSequentialConfig(data);
             default:
                 throw new Error(`Unsupported __type: ${(data as { __type: string }).__type}`);
         }
@@ -1355,7 +1405,7 @@ export class GraphBpmnConfig extends GraphConfig {
     export(): GraphBpmnConfigObject {
         return {
             __version: this.__version,
-            __type: this.__type as GraphType,
+            __type: "BPMN-2.0",
             schema: this.schema,
         };
     }
@@ -1390,5 +1440,78 @@ export class GraphBpmnConfig extends GraphConfig {
             `${this.rootInputPrefix}.${key}`,
             value,
         ]));
+    }
+}
+
+export class GraphSequentialConfig extends GraphConfig {
+    schema: SequentialSchema;
+    rootInputPrefix = "root";
+
+    constructor(data: GraphSequentialConfigObject) {
+        super(data);
+        this.schema = data.schema;
+    }
+
+    export(): GraphSequentialConfigObject {
+        return {
+            __version: this.__version,
+            __type: this.__type as "Sequential",
+            schema: this.schema,
+        };
+    }
+
+    getIONamesToSubroutineInputNames(nodeId: string): Record<string, string> {
+        // For sequential routines, nodeId is the step index
+        const stepIndex = parseInt(nodeId);
+        if (!isNaN(stepIndex) && stepIndex >= 0 && stepIndex < this.schema.steps.length) {
+            return this.schema.steps[stepIndex].inputMap;
+        }
+        return {};
+    }
+
+    getIONamesToSubroutineOutputNames(nodeId: string): Record<string, string> {
+        // For sequential routines, nodeId is the step index
+        const stepIndex = parseInt(nodeId);
+        if (!isNaN(stepIndex) && stepIndex >= 0 && stepIndex < this.schema.steps.length) {
+            return this.schema.steps[stepIndex].outputMap;
+        }
+        return {};
+    }
+
+    getRootIONamesToRoutineInputNames(): Record<string, string> {
+        const inputMap = this.schema.rootContext.inputMap;
+        return Object.fromEntries(Object.entries(inputMap).map(([key, value]) => [
+            `${this.rootInputPrefix}.${key}`,
+            value,
+        ]));
+    }
+
+    getRootIONamesToRoutineOutputNames(): Record<string, string> {
+        const outputMap = this.schema.rootContext.outputMap;
+        return Object.fromEntries(Object.entries(outputMap).map(([key, value]) => [
+            `${this.rootInputPrefix}.${key}`,
+            value,
+        ]));
+    }
+
+    /**
+     * Get the step at a specific index
+     */
+    getStep(index: number): SequentialStep | undefined {
+        return this.schema.steps[index];
+    }
+
+    /**
+     * Get total number of steps
+     */
+    getTotalSteps(): number {
+        return this.schema.steps.length;
+    }
+
+    /**
+     * Check if we can execute steps in parallel
+     */
+    isParallelMode(): boolean {
+        return this.schema.executionMode === "parallel";
     }
 }

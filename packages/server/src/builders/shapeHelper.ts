@@ -108,7 +108,8 @@ export async function shapeHelper<
     Promise<ShapeHelperOutput<IsOneToOne, PrimaryKey>> {
     const isSeeding = adminFlags?.isSeeding ?? false;
     // Initialize result
-    let result: { [x: string]: any } = {};
+    // AI_CHECK: TYPE_SAFETY=server-type-safety-p1-2 | LAST: 2025-07-03 | Fixed Record<string, any> to Record<string, unknown>
+    let result: Record<string, unknown> = {};
     // Loop through relation types, and convert all to a Prisma-shaped array
     for (const t of relTypes) {
         // If not in data, skip
@@ -118,8 +119,10 @@ export async function shapeHelper<
         // Shape the data
         const currShaped = shapeRelationshipData(curr, [], false);
         // Add to result
-        result[lowercaseFirstLetter(t)] = Array.isArray(result[lowercaseFirstLetter(t)]) ?
-            [...result[lowercaseFirstLetter(t)], ...currShaped] :
+        const key = lowercaseFirstLetter(t);
+        const existing = result[key];
+        result[key] = Array.isArray(existing) ?
+            [...existing, ...currShaped] :
             currShaped;
     }
     const logic = ModelMap.getLogic(["idField"], objectType, false);
@@ -201,14 +204,14 @@ export async function shapeHelper<
         const resultWithJoin: Record<string, any> = { create: [], update: [], delete: [] };
         if (result.connect) {
             // ex: create: [ { tag: { connect: { id: 'asdf' } } } ] <-- A join table always creates on connects
-            for (const id of (result?.connect ?? [])) {
+            for (const id of (result.connect as any[] ?? [])) {
                 const curr = { id: generatePK(), [joinData.fieldName]: { connect: shapeId("id", id) } };
                 resultWithJoin.create.push(curr);
             }
         }
         if (result.disconnect) {
             // delete: [ { team_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } } ] <-- A join table always deletes on disconnects
-            for (const id of (result?.disconnect ?? [])) {
+            for (const id of (result.disconnect as any[] ?? [])) {
                 const curr = {
                     [joinData.uniqueFieldName]: {
                         [joinData.childIdFieldName]: shapeId(idField, id[idField]),
@@ -281,7 +284,7 @@ export async function shapeHelper<
         if (result[key] === undefined || (Array.isArray(result[key]) && result[key].length === 0)) return acc;
         acc[key] = result[key];
         return acc;
-    }, {} as any);
+    }, {} as Record<string, unknown>);
     // If result is empty, return undefined
     // NOTE: To please the type checker, we pretend that we're returning a non-undefined value
     if (Object.keys(result).length === 0) return undefined as unknown as ShapeHelperOutput<IsOneToOne, PrimaryKey>;

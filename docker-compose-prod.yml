@@ -5,10 +5,12 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile-prod
+      target: base
+      network: host
       args:
         PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
     container_name: ui
-    image: ui:prod
+    image: "ui:prod"
     restart: always
     environment:
       NODE_ENV: "production"
@@ -45,10 +47,12 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile-prod
+      target: server
+      network: host
       args:
         PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
     container_name: server
-    image: server:prod
+    image: "server:prod"
     restart: always
     environment:
       NODE_ENV: "production"
@@ -108,10 +112,12 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile-prod
+      target: jobs
+      network: host
       args:
         PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
     container_name: jobs
-    image: jobs:prod
+    image: "jobs:prod"
     restart: always
     environment:
       NODE_ENV: "production"

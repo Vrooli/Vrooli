@@ -1,3 +1,4 @@
+import { type Prisma } from "@prisma/client";
 import { DEFAULT_LANGUAGE, MaxObjects, TeamSortBy, generatePK, generatePublicId, getTranslation, teamValidation } from "@vrooli/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
@@ -8,7 +9,7 @@ import { tagShapeHelper } from "../../utils/shapes/tagShapeHelper.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
 import { handlesCheck } from "../../validators/handlesCheck.js";
 import { lineBreaksCheck } from "../../validators/lineBreaksCheck.js";
-import { defaultPermissions, getSingleTypePermissions } from "../../validators/permissions.js";
+import { defaultPermissions, filterPermissions, getSingleTypePermissions } from "../../validators/permissions.js";
 import { TeamFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
@@ -29,7 +30,11 @@ export const TeamModel: TeamModelLogic = ({
         embed: {
             select: () => ({ id: true, translations: { select: { id: true, embeddingExpiredAt: true, language: true, name: true, bio: true } } }),
             get: ({ translations }, languages) => {
-                const trans = getTranslation({ translations }, languages);
+                const trans = getTranslation({ translations }, languages) as Partial<{
+                    language: string;
+                    bio: string;
+                    name: string;
+                }>;
                 return EmbeddingService.getEmbeddableString({
                     bio: trans?.bio || "",
                     name: trans?.name || "",
@@ -41,7 +46,13 @@ export const TeamModel: TeamModelLogic = ({
     mutate: {
         shape: {
             pre: async ({ Create, Update }): Promise<TeamPre> => {
-                [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["bio"], "LineBreaksBio"));
+                [...Create, ...Update].map(d => d.input).forEach(input => {
+                    // Only check fields that exist on the input
+                    const fieldsToCheck = ["bio"].filter(field => field in input);
+                    if (fieldsToCheck.length > 0) {
+                        lineBreaksCheck(input as any, fieldsToCheck, "LineBreaksBio");
+                    }
+                });
                 await handlesCheck(__typename, Create, Update);
                 // Find translations that need text embeddings
                 const maps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
@@ -53,7 +64,9 @@ export const TeamModel: TeamModelLogic = ({
                     id: BigInt(data.id),
                     publicId: generatePublicId(),
                     bannerImage: typeof data.bannerImage === "string" ? data.bannerImage : null,
-                    config: noNull(data.config),
+                    // Cast to unknown first to satisfy Prisma's InputJsonValue type requirement
+                    // TeamConfigObject has specific properties but Prisma expects an index signature
+                    config: noNull(data.config) as unknown as Prisma.InputJsonValue,
                     handle: noNull(data.handle),
                     isOpenToNewMembers: noNull(data.isOpenToNewMembers),
                     isPrivate: data.isPrivate,
@@ -76,7 +89,9 @@ export const TeamModel: TeamModelLogic = ({
                 const preData = rest.preMap[__typename] as TeamPre;
                 return {
                     bannerImage: typeof data.bannerImage === "string" ? data.bannerImage : (data.bannerImage === null ? null : undefined),
-                    config: noNull(data.config),
+                    // Cast to unknown first to satisfy Prisma's InputJsonValue type requirement
+                    // TeamConfigObject has specific properties but Prisma expects an index signature
+                    config: noNull(data.config) as unknown as Prisma.InputJsonValue,
                     handle: noNull(data.handle),
                     isOpenToNewMembers: noNull(data.isOpenToNewMembers),
                     isPrivate: noNull(data.isPrivate),
@@ -138,16 +153,22 @@ export const TeamModel: TeamModelLogic = ({
     },
     validate: () => ({
         isDeleted: () => false,
-        isPublic: (data) => data.isPrivate === false,
+        isPublic: (data, _getParentInfo?) => data.isPrivate === false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => ({
+        owner: (data, _userId) => ({
             Team: data,
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isLoggedIn, isPublic }) => ({
-            ...defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic }),
-            canAddMembers: () => isLoggedIn && isAdmin,
-        }),
+        permissionResolvers: ({ isAdmin, isDeleted, isLoggedIn, isPublic }) => {
+            const base = defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic });
+            return {
+                ...filterPermissions(base, [
+                    "canBookmark", "canDelete", "canRead", "canReport", "canUpdate",
+                    "canConnect", "canDisconnect",
+                ]),
+                canAddMembers: () => isLoggedIn && isAdmin,
+            };
+        },
         permissionsSelect: (userId) => ({
             id: true,
             isOpenToNewMembers: true,

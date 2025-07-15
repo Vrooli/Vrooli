@@ -12,7 +12,7 @@ const MAX_RECURSION_DEPTH = 50;
  * will be ['c', 'e.f']
  */
 function removeFirstDotLayer(arr: string[]): string[] {
-    return arr.map(x => x.split(".").slice(1).join(".")).filter(x => x !== "");
+    return arr.map((x: string) => x.split(".").slice(1).join(".")).filter((x: string) => x !== "");
 }
 
 /**
@@ -23,7 +23,7 @@ function removeFirstDotLayer(arr: string[]): string[] {
  * @param omitFields Fields to omit from the selection. Supports dot notation.
  * @returns A Prisma select query
  */
-export function permissionsSelectHelper<Select extends { [x: string]: any }>(
+export function permissionsSelectHelper<Select extends Record<string, unknown>>(
     mapResolver: PermissionsMap<Select> | ((userId: string | null) => PermissionsMap<Select>),
     userId: string | null,
     recursionDepth = 0,
@@ -35,7 +35,7 @@ export function permissionsSelectHelper<Select extends { [x: string]: any }>(
     }
     const map = typeof mapResolver === "function" ? mapResolver(userId) : mapResolver;
     // Initialize result
-    const result: { [x: string]: any } = {};
+    const result: Record<string, unknown> = {};
     // For every key in the PermissionsMap object
     for (const key of Object.keys(map)) {
         // If the key is in the omitFields array, skip it
@@ -69,7 +69,7 @@ export function permissionsSelectHelper<Select extends { [x: string]: any }>(
             else {
                 // Child omit is curr omit with first dot level removed
                 const childOmitFields = removeFirstDotLayer(omitFields);
-                result[key] = value.map((x: any) => permissionsSelectHelper(x, userId, recursionDepth + 1), childOmitFields);
+                result[key] = value.map((x: unknown) => permissionsSelectHelper(x as PermissionsMap<Select>, userId, recursionDepth + 1, childOmitFields));
             }
         }
         // If the value is an object, recurse

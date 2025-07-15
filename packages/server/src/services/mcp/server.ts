@@ -241,7 +241,6 @@ export class McpServerApp {
         // Standard TransportManager for the main /mcp/sse endpoint
         this.transportManager = new TransportManager(
             this.mcpServer,
-            logger,
             { heartbeatInterval: this.config.heartbeatInterval, messagePath: this.config.messagePath },
         );
 
@@ -280,7 +279,6 @@ export class McpServerApp {
                 logger.info(`Creating dedicated TransportManager for tool ${toolId}`);
                 dynamicTransportManager = new TransportManager(
                     serverInstance, // Link to the specific single-tool server instance
-                    logger,
                     {
                         heartbeatInterval: this.config.heartbeatInterval,
                         // The message path should be specific to the tool

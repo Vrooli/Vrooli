@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=eliminated-5-any-types | LAST: 2025-06-30
 /* eslint-disable func-style */
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
@@ -5,6 +6,7 @@
 import { CodeLanguage, ResourceSubType, ResourceUsedFor, endpointsResource, generatePK, getObjectUrl, type Code, type CodeVersion, type CodeVersionTranslation } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
+import { getMockEndpoint, getStoryRoutePath } from "../../../__test/helpers/storybookMocking.js";
 import { SmartContractView } from "./SmartContractView.js";
 
 // Create simplified mock data for CodeVersion responses
@@ -74,7 +76,7 @@ contract SimpleStorage {
         id: generatePK().toString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        listFor: {} as any, // Circular reference
+        listFor: null as unknown as Code, // Circular reference handled with null
         resources: [
             {
                 __typename: "Resource" as const,
@@ -83,7 +85,7 @@ contract SimpleStorage {
                 updatedAt: new Date().toISOString(),
                 usedFor: ResourceUsedFor.Context,
                 link: "https://ethereum.org/en/developers/docs/smart-contracts/",
-                list: {} as any, // Circular reference
+                list: null as unknown as Code["resourceList"], // Circular reference handled with null
                 translations: [{
                     __typename: "ResourceTranslation" as const,
                     id: generatePK().toString(),
@@ -99,7 +101,7 @@ contract SimpleStorage {
                 updatedAt: new Date().toISOString(),
                 usedFor: ResourceUsedFor.Context,
                 link: "https://solidity.readthedocs.io/",
-                list: {} as any, // Circular reference
+                list: null as unknown as Code["resourceList"], // Circular reference handled with null
                 translations: [{
                     __typename: "ResourceTranslation" as const,
                     id: generatePK().toString(),
@@ -131,7 +133,7 @@ contract SimpleStorage {
         canUse: true,
         isBookmarked: false,
     },
-} as any;
+} as CodeVersion;
 
 // Create a second version with a different language for translation testing
 const mockCodeVersionWithHaskellData = {
@@ -185,7 +187,7 @@ data AuctionRedeemer = NewBid Bid | Payout`,
         } as CodeVersionTranslation,
     ],
     versionLabel: "2.1.0",
-} as any;
+} as CodeVersion;
 
 export default {
     title: "Views/Objects/SmartContract/SmartContractView",
@@ -212,7 +214,7 @@ Loading.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findSmartContractVersion.findOne.endpoint}`, async () => {
+            http.get(getMockEndpoint(endpointsResource.findSmartContractVersion), async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockCodeVersionData });
@@ -220,7 +222,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockCodeVersionData)}`,
+        path: getStoryRoutePath(mockCodeVersionData),
     },
 };
 
@@ -234,13 +236,13 @@ SignedInWithSolidity.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findSmartContractVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findSmartContractVersion), () => {
                 return HttpResponse.json({ data: mockCodeVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockCodeVersionData)}`,
+        path: getStoryRoutePath(mockCodeVersionData),
     },
 };
 
@@ -254,13 +256,13 @@ SignedInWithHaskell.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findSmartContractVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findSmartContractVersion), () => {
                 return HttpResponse.json({ data: mockCodeVersionWithHaskellData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockCodeVersionWithHaskellData)}`,
+        path: getStoryRoutePath(mockCodeVersionWithHaskellData),
     },
 };
 
@@ -280,13 +282,13 @@ DialogView.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findSmartContractVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findSmartContractVersion), () => {
                 return HttpResponse.json({ data: mockCodeVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockCodeVersionData)}`,
+        path: getStoryRoutePath(mockCodeVersionData),
     },
 };
 
@@ -300,12 +302,12 @@ LoggedOut.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findSmartContractVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findSmartContractVersion), () => {
                 return HttpResponse.json({ data: mockCodeVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockCodeVersionData)}`,
+        path: getStoryRoutePath(mockCodeVersionData),
     },
 }; 

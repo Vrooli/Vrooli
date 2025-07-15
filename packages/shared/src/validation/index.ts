@@ -5,6 +5,9 @@
  * The client uses validation to display errors to the user, and to simplify forms 
  * by using formik.
  */
+// Import yup augmentations at the top level to ensure they're available everywhere
+import "./utils/yupAugmentations.js";
+
 export * from "./forms/index.js";
 export * from "./models/index.js";
 export * from "./utils/index.js";

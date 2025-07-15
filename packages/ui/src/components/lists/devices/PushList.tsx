@@ -5,7 +5,7 @@ import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
-import { Tooltip } from "../../../Tooltip/Tooltip.js";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import { styled, useTheme } from "@mui/material";
 import { DeleteType, endpointsActions, endpointsPushDevice, updateArray, type DeleteOneInput, type PushDevice, type PushDeviceTestInput, type PushDeviceUpdateInput, type Success } from "@vrooli/shared";
 import { useCallback, useMemo, useState } from "react";

@@ -4,7 +4,7 @@ import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBui
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
-import { defaultPermissions, getSingleTypePermissions } from "../../validators/permissions.js";
+import { defaultPermissions, filterPermissions, getSingleTypePermissions } from "../../validators/permissions.js";
 import { IssueFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
@@ -18,7 +18,7 @@ const forMapper: { [key in IssueFor]: keyof Prisma.issueUpsertArgs["create"] } =
 };
 const reversedForMapper: { [key in keyof Prisma.issueUpsertArgs["create"]]: IssueFor } = Object.fromEntries(
     Object.entries(forMapper).map(([key, value]) => [value, key]),
-);
+) as { [key in keyof Prisma.issueUpsertArgs["create"]]: IssueFor };
 
 const __typename = "Issue" as const;
 export const IssueModel: IssueModelLogic = ({
@@ -94,16 +94,22 @@ export const IssueModel: IssueModelLogic = ({
     },
     validate: () => ({
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<IssueModelInfo["DbSelect"]>([
+        isPublic: (data, getParentInfo?) => oneIsPublic<IssueModelInfo["DbSelect"]>([
             ["resource", "Resource"],
             ["team", "Team"],
-        ], ...rest),
+        ], data, getParentInfo),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => ({
+        owner: (data, _userId) => ({
             User: data?.createdBy,
         }),
-        permissionResolvers: defaultPermissions,
+        permissionResolvers: ({ isAdmin, isDeleted, isLoggedIn, isPublic }) => {
+            const base = defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic });
+            return filterPermissions(base, [
+                "canBookmark", "canComment", "canDelete", "canReact", "canRead", "canReport", "canUpdate",
+                "canConnect", "canDisconnect",
+            ]);
+        },
         permissionsSelect: () => ({
             id: true,
             createdBy: "User",

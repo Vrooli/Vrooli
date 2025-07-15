@@ -125,7 +125,7 @@ function sleep(ms: number) {
  *
  * ### Technical Notes
  * - **Publish-Subscribe:** Services publish events and subscribe to receive them.
- * - **Backends:** InMemoryEventBus (testing), RedisStreamBus (production with exactly-once processing).
+ * - **Backends:** RedisStreamBus (production with exactly-once processing).
  * - **Singleton Rule:** Create one instance per Node.js process to manage resources efficiently.
  *
  * ### Best Practices
@@ -193,41 +193,6 @@ export abstract class EventBus {
         this.lifecycleEmitter.emit("close");
     }
 }
-
-/* ------------------------------------------------------------------
- * 1) In‑memory, single‑process implementation ---------------------- */
-
-/**
- * In‑memory, single‑process implementation.
- * 
- * WARNING: This implementation is not suitable for production use.
- * It is only intended for testing purposes and quick prototyping.
- */
-export class InMemoryEventBus extends EventBus {
-    private readonly emitter = new EventEmitter();
-
-    async init(): Promise<void> {
-        // No-op for in-memory bus
-        return Promise.resolve();
-    }
-
-    /** Register a listener. Duplicate registrations are allowed. */
-    subscribe(cb: EventCallback) {
-        this.emitter.on("evt", cb);
-    }
-
-    async publish(evt: AppEvent) {
-        this.emitter.emit("evt", evt);
-    }
-
-    async close() {
-        this.emitClose();
-        this.emitter.removeAllListeners();
-    }
-}
-
-/* ------------------------------------------------------------------
- * 2) Redis Streams implementation ----------------------------------- */
 
 /**
  * Interface defining comprehensive metrics for the RedisStreamBus.
@@ -784,10 +749,8 @@ export class BusService {
      */
     public async startEventBus(): Promise<void> {
         if (this.started) return;
-        this.bus = process.env.NODE_ENV === "test"
-            ? new InMemoryEventBus()
-            : new RedisStreamBus();
-        await this.bus.init(); // Await the init method
+        this.bus = new RedisStreamBus();
+        await this.bus.init();
         this.started = true;
     }
 

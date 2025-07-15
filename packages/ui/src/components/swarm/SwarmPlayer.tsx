@@ -1,6 +1,7 @@
-import { Box, IconButton, LinearProgress, Skeleton, Typography } from "@mui/material";
+import { Badge, Box, LinearProgress, Skeleton, Typography } from "@mui/material";
+import { IconButton } from "../buttons/IconButton.js";
 import { styled, useTheme } from "@mui/material/styles";
-import { ChatConfigObject, ExecutionStates, noop } from "@vrooli/shared";
+import { type ChatConfigObject, ExecutionStates, PendingToolCallStatus, noop } from "@vrooli/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../icons/Icons.js";
@@ -92,6 +93,7 @@ export interface SwarmPlayerProps {
     swarmConfig: ChatConfigObject | null;
     swarmStatus?: string;
     chatId?: string | null;
+    onStart?: () => void;
     onPause?: () => void;
     onResume?: () => void;
     onStop?: () => void;
@@ -106,6 +108,7 @@ export function SwarmPlayer({
     swarmConfig,
     swarmStatus = ExecutionStates.UNINITIALIZED,
     chatId,
+    onStart = noop,
     onPause = noop,
     onResume = noop,
     onStop = noop,
@@ -127,6 +130,14 @@ export function SwarmPlayer({
         const completed = swarmConfig.subtasks.filter(task => task.status === "done").length;
         return Math.round((completed / swarmConfig.subtasks.length) * 100);
     }, [swarmConfig?.subtasks]);
+
+    // Calculate pending approvals count
+    const pendingApprovalsCount = useMemo(() => {
+        if (!swarmConfig?.pendingToolCalls) return 0;
+        return swarmConfig.pendingToolCalls.filter(
+            tc => tc.status === PendingToolCallStatus.PENDING_APPROVAL,
+        ).length;
+    }, [swarmConfig?.pendingToolCalls]);
 
     // Format credits for display as USD
     const formattedCredits = useMemo(() => {
@@ -197,9 +208,13 @@ export function SwarmPlayer({
                     // TODO: Implement tool rejection via API
                     console.log("Reject tool:", pendingId, reason);
                 },
-            }
+                onStart,
+                onPause,
+                onResume,
+                onStop,
+            },
         });
-    }, [chatId, swarmConfig, swarmStatus]);
+    }, [chatId, swarmConfig, swarmStatus, onStart, onPause, onResume, onStop]);
 
     // Check if goal text overflows
     useEffect(() => {
@@ -226,7 +241,31 @@ export function SwarmPlayer({
     }
 
     return (
-        <PlayerContainer onClick={handlePlayerClick}>
+        <Badge 
+            badgeContent={pendingApprovalsCount} 
+            color="warning"
+            overlap="rectangular"
+            anchorOrigin={{
+                vertical: "top",
+                horizontal: "right",
+            }}
+            sx={{
+                display: "flex",
+                width: "100%",
+                maxWidth: "700px",
+                margin: "auto",
+                alignItems: "center",
+                justifyContent: "center",
+                "& .MuiBadge-badge": {
+                    right: 8,
+                    top: 8,
+                    fontSize: "0.875rem",
+                    fontWeight: "bold",
+                    display: pendingApprovalsCount > 0 ? "flex" : "none",
+                },
+            }}
+        >
+            <PlayerContainer onClick={handlePlayerClick}>
                 {isLoading ? (
                     <>
                         <PlayerContent>
@@ -273,7 +312,7 @@ export function SwarmPlayer({
                                         <Typography
                                             variant="caption"
                                             component="span"
-                                            className={`marquee-content ${isOverflowing ? 'scrolling' : ''}`}
+                                            className={`marquee-content ${isOverflowing ? "scrolling" : ""}`}
                                             data-text={swarmConfig.goal}
                                         >
                                             {swarmConfig.goal}
@@ -290,7 +329,8 @@ export function SwarmPlayer({
                                 {/* Pause/Resume button */}
                                 {(swarmStatus === ExecutionStates.RUNNING || swarmStatus === ExecutionStates.IDLE) && (
                                     <IconButton
-                                        size="small"
+                                        variant="transparent"
+                                        size="sm"
                                         onClick={(e) => handleControlClick(e, onPause)}
                                         title={t("PauseSwarm")}
                                     >
@@ -299,7 +339,8 @@ export function SwarmPlayer({
                                 )}
                                 {swarmStatus === ExecutionStates.PAUSED && (
                                     <IconButton
-                                        size="small"
+                                        variant="transparent"
+                                        size="sm"
                                         onClick={(e) => handleControlClick(e, onResume)}
                                         title={t("ResumeSwarm")}
                                     >
@@ -310,7 +351,8 @@ export function SwarmPlayer({
                                 {/* Stop button */}
                                 {[ExecutionStates.RUNNING, ExecutionStates.IDLE, ExecutionStates.PAUSED].includes(swarmStatus) && (
                                     <IconButton
-                                        size="small"
+                                        variant="transparent"
+                                        size="sm"
                                         onClick={(e) => handleControlClick(e, onStop)}
                                         title={t("StopSwarm")}
                                     >
@@ -347,5 +389,6 @@ export function SwarmPlayer({
                     </>
                 )}
             </PlayerContainer>
+        </Badge>
     );
 }

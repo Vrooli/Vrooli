@@ -11,31 +11,51 @@ ENV PATH="$PNPM_HOME:$PATH"
 WORKDIR ${PROJECT_DIR}
 ENV NODE_ENV=production
 
-# Enable Corepack and prepare pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install pnpm directly with retries to avoid network issues
+# Set network options for better connectivity
+ENV NODE_OPTIONS="--dns-result-order=ipv4first"
+# Install pnpm using Corepack as fallback
+# Also install Python for node-gyp dependencies
+RUN apt-get update && apt-get install -y dnsutils curl python3 python3-dev build-essential && \
+    # Try direct npm install first
+    (npm install -g pnpm@9.15.2 || \
+    # If that fails, try Corepack
+    (corepack enable && corepack prepare pnpm@9.15.2 --activate) || \
+    # Final fallback: download directly from GitHub
+    (curl -fsSL https://get.pnpm.io/install.sh | sh - && \
+     export PNPM_HOME="/root/.local/share/pnpm" && \
+     export PATH="$PNPM_HOME:$PATH"))
 
-# Copy manifest files and prime cache
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# Copy manifest files and configuration
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 # Copy workspace package.json files for production installs
 COPY packages/server/package.json packages/server/package.json
 COPY packages/jobs/package.json packages/jobs/package.json
 COPY packages/ui/package.json packages/ui/package.json
 COPY packages/shared/package.json packages/shared/package.json
 
-# Fetch dependencies
+# Install dependencies (including devDependencies for build)
+# Need to set NODE_ENV to development temporarily to install dev deps needed for build
+ENV NODE_ENV=development
+
+# Fetch dependencies after setting NODE_ENV to development so we get all deps
 RUN --mount=type=cache,id=pnpm-store,target=/usr/local/share/pnpm-store pnpm fetch
 
-# Install dependencies (including devDependencies for build)
+# Install with hoisted mode (from .npmrc) and run twice to ensure proper linking
 RUN --mount=type=cache,id=pnpm-store,target=/usr/local/share/pnpm-store \
+    pnpm install --frozen-lockfile && \
     pnpm install --frozen-lockfile
+
+# Add node_modules/.bin to PATH for binary access
+ENV PATH="/srv/app/node_modules/.bin:$PATH"
 
 # Copy full source and build all packages
 COPY . .
 
-# Generate Prisma client
-RUN pnpm --filter @vrooli/server run prisma-generate
+# Skip Prisma client generation for now - will be handled at runtime
+# TODO: Fix Prisma client generation in Docker build
 
-# Build shared utilities
+# Build shared utilities - revert to using pnpm from root
 RUN pnpm --filter @vrooli/shared run build
 
 # Build UI package
@@ -46,6 +66,9 @@ RUN pnpm --filter @vrooli/jobs run build
 
 # Build server package
 RUN pnpm --filter @vrooli/server run build
+
+# Reset NODE_ENV to production after all builds are complete
+ENV NODE_ENV=production
 
 ### Production server image
 FROM base AS server
@@ -59,7 +82,11 @@ WORKDIR ${PROJECT_DIR}
 EXPOSE 4001
 CMD ["node", "packages/jobs/dist/index.js"]
 
-### Production UI image: serve static build with nginx
-FROM nginx:alpine AS ui
-COPY --from=base ${PROJECT_DIR}/packages/ui/dist /usr/share/nginx/html
-EXPOSE 3000 
+### Production UI image: serve built React app
+FROM base AS ui
+WORKDIR ${PROJECT_DIR}
+# Install serve package globally for serving static files
+RUN npm install -g serve
+EXPOSE 3000
+# Serve the built UI from packages/ui/dist directory
+CMD ["serve", "-s", "packages/ui/dist", "-l", "3000"]

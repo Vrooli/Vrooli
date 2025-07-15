@@ -37,7 +37,7 @@ import { LeftHandedCheckbox } from "../../inputs/LeftHandedCheckbox/LeftHandedCh
 import { TextSizeButtons } from "../../inputs/TextSizeButtons/TextSizeButtons.js";
 import { ThemeSwitch } from "../../inputs/ThemeSwitch/ThemeSwitch.js";
 import { ContactInfo } from "../../navigation/ContactInfo.js";
-import { LargeDialog } from "../LargeDialog/LargeDialog.js";
+import { Dialog } from "../Dialog/Dialog.js";
 
 /**
  * Maximum accounts to sign in with. 
@@ -133,20 +133,11 @@ const dialogSxs = {
         overflowY: "auto",
     },
 } as const;
-
-const anchorOrigin = {
-    vertical: "bottom" as const,
-    horizontal: "right" as const,
-} as const;
-const transformOrigin = {
-    vertical: "top" as const,
-    horizontal: "right" as const,
-} as const;
 const profileAvatarStyle = {
     marginRight: 2,
 };
 
-const MonospaceTypography = styled(Typography)({
+const MonospaceSpan = styled("span")({
     fontFamily: "monospace",
 });
 
@@ -154,32 +145,32 @@ const CreditStack = styled(Stack)({
     marginTop: 1,
 });
 
-const PremiumBox = styled(Box)(({ theme }) => ({
+const PremiumSpanContainer = styled("span")(({ theme }) => ({
     backgroundColor: `${theme.palette.secondary.main}15`,
     color: theme.palette.secondary.main,
-    borderRadius: 1,
-    paddingLeft: 1,
-    paddingRight: 1,
-    paddingTop: 0.25,
-    paddingBottom: 0.25,
-    display: "flex",
+    borderRadius: theme.spacing(1),
+    paddingLeft: theme.spacing(1),
+    paddingRight: theme.spacing(1),
+    paddingTop: theme.spacing(0.25),
+    paddingBottom: theme.spacing(0.25),
+    display: "inline-flex",
     alignItems: "center",
-    gap: 0.5,
+    gap: theme.spacing(0.5),
     boxShadow: `0 0 0 1px ${theme.palette.secondary.main}40`,
 }));
 
-const PremiumTypography = styled(Typography)({
+const PremiumSpan = styled("span")({
     fontWeight: 500,
     fontSize: "0.75rem",
     lineHeight: 1,
 });
 
-const CreditTypography = styled(Typography)(({ theme }) => ({
+const CreditSpan = styled("span")(({ theme }) => ({
     color: theme.palette.background.textSecondary,
     fontSize: "0.75rem",
 }));
 
-const MonospaceHandleTypography = styled(MonospaceTypography)(({ theme }) => ({
+const MonospaceHandleSpan = styled(MonospaceSpan)(({ theme }) => ({
     color: theme.palette.background.textSecondary,
 }));
 
@@ -220,9 +211,8 @@ export function UserMenu() {
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     useEffect(() => {
         const subscription = PubSub.get().subscribe("menu", (data) => {
-            console.log("menu subscription", data);
-            if (data.id === ELEMENT_IDS.UserMenu && data.data?.anchorEl) {
-                setAnchorEl(data.data.anchorEl);
+            if (data?.id === ELEMENT_IDS.UserMenu && data?.data?.anchorEl) {
+                setAnchorEl(data?.data?.anchorEl || null);
             }
         });
         return subscription;
@@ -387,16 +377,16 @@ export function UserMenu() {
     }, [handleNavItemClick, t]);
 
     return (
-        <LargeDialog
-            id={ELEMENT_IDS.UserMenu}
+        <Dialog
             isOpen={isOpen}
             onClose={handleClose}
-            sxs={dialogSxs}
             anchorEl={anchorEl}
-            anchorOrigin={anchorOrigin}
-            transformOrigin={transformOrigin}
+            anchorPlacement="bottom"
+            size="md"
+            className={dialogSxs?.root ? "tw-max-w-md" : ""}
         >
-            <AccountList>
+            <React.Fragment>
+                <AccountList key="current-account">
                 {accounts
                     .filter(account => account.id === userId)
                     .map((account) => {
@@ -408,6 +398,7 @@ export function UserMenu() {
                             <StyledListItemButton
                                 key={account.id}
                                 onClick={handleClick}
+                                data-testid={`user-account-${account.id}`}
                             >
                                 <ProfileAvatar
                                     src={extractImageUrl(account.profileImage, account.updatedAt, AVATAR_SIZE_PX)}
@@ -422,34 +413,34 @@ export function UserMenu() {
                                 </ProfileAvatar>
                                 <ListItemText
                                     primary={
-                                        <Stack direction="column" spacing={0}>
-                                            <Typography variant="body1">{account.name}</Typography>
+                                        <span>
+                                            <span style={{ fontWeight: 400, fontSize: "1rem", lineHeight: 1.5, display: "block" }}>{account.name}</span>
                                             {account.handle && (
-                                                <MonospaceHandleTypography variant="body2">
+                                                <MonospaceHandleSpan style={{ display: "block" }}>
                                                     @{account.handle}
-                                                </MonospaceHandleTypography>
+                                                </MonospaceHandleSpan>
                                             )}
-                                        </Stack>
+                                        </span>
                                     }
                                     secondary={
-                                        <CreditStack direction="row" spacing={1} alignItems="center">
+                                        <span style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" }}>
                                             {account.hasPremium && (
-                                                <PremiumBox>
+                                                <PremiumSpanContainer>
                                                     <IconCommon
                                                         decorative
                                                         fill={palette.secondary.main}
                                                         name="Premium"
                                                         size={14}
                                                     />
-                                                    <PremiumTypography variant="body2">
+                                                    <PremiumSpan>
                                                         {t("Pro")}
-                                                    </PremiumTypography>
-                                                </PremiumBox>
+                                                    </PremiumSpan>
+                                                </PremiumSpanContainer>
                                             )}
-                                            <CreditTypography variant="body2">
+                                            <CreditSpan>
                                                 {t("Credit", { count: 2 })}: ${(Number(BigInt(account.credits ?? "0") / BigInt(API_CREDITS_MULTIPLIER)) / 100).toFixed(2)}
-                                            </CreditTypography>
-                                        </CreditStack>
+                                            </CreditSpan>
+                                        </span>
                                     }
                                 />
                             </StyledListItemButton>
@@ -457,19 +448,43 @@ export function UserMenu() {
                     })}
             </AccountList>
 
-            {/* User-specific navigation links and display settings */}
-            {isLoggedIn && (
-                <>
+            {/* Navigation links for non-logged-in users */}
+            {!isLoggedIn && (
+                <Box key="non-logged-in-content">
                     <List>
                         {navItems
                             .filter(item => item.label !== t("Tutorial"))
-                            .map((item, index) => {
+                            .map((item) => {
                                 function handleClick(event: React.MouseEvent<HTMLElement>) {
                                     handleNavItemClick(event, item);
                                 }
                                 return (
                                     <NavListItem
-                                        key={index}
+                                        key={item.label}
+                                        label={item.label}
+                                        iconInfo={item.iconInfo}
+                                        onClick={handleClick}
+                                        palette={palette}
+                                    />
+                                );
+                            })}
+                    </List>
+                </Box>
+            )}
+
+            {/* User-specific navigation links and display settings */}
+            {isLoggedIn && (
+                <Box key="logged-in-content">
+                    <List>
+                        {navItems
+                            .filter(item => item.label !== t("Tutorial"))
+                            .map((item) => {
+                                function handleClick(event: React.MouseEvent<HTMLElement>) {
+                                    handleNavItemClick(event, item);
+                                }
+                                return (
+                                    <NavListItem
+                                        key={item.label}
                                         label={item.label}
                                         iconInfo={item.iconInfo}
                                         onClick={handleClick}
@@ -505,7 +520,7 @@ export function UserMenu() {
                         </ExpandIcon>
                     </DisplayHeader>
                     <CollapseBox>
-                        <Collapse in={isDisplaySettingsOpen}>
+                        <Collapse in={isDisplaySettingsOpen} unmountOnExit>
                             <UserMenuDisplaySettingsBox id={ELEMENT_IDS.UserMenuDisplaySettings}>
                                 <ThemeSwitch updateServer />
                                 <TextSizeButtons />
@@ -517,13 +532,13 @@ export function UserMenu() {
                             </SeeAllLink>
                         </Collapse>
                     </CollapseBox>
-                </>
+                </Box>
             )}
 
-            <DividerStyled />
+            <DividerStyled key="divider-1" />
 
             {/* Other accounts and session actions */}
-            <List>
+            <List key="other-accounts">
                 {accounts
                     .filter(account => account.id !== userId)
                     .map((account) => {
@@ -535,6 +550,7 @@ export function UserMenu() {
                             <StyledListItemButton
                                 key={account.id}
                                 onClick={handleClick}
+                                data-testid={`user-account-${account.id}`}
                             >
                                 <ProfileAvatar
                                     src={extractImageUrl(account.profileImage, account.updatedAt, AVATAR_SIZE_PX)}
@@ -549,32 +565,34 @@ export function UserMenu() {
                                 </ProfileAvatar>
                                 <ListItemText
                                     primary={
-                                        <Stack direction="column" spacing={0}>
-                                            <Typography variant="body1">{account.name}</Typography>
-                                            <MonospaceHandleTypography variant="body2">
-                                                @{account.handle}
-                                            </MonospaceHandleTypography>
-                                        </Stack>
+                                        <span>
+                                            <span style={{ fontWeight: 400, fontSize: "1rem", lineHeight: 1.5, display: "block" }}>{account.name}</span>
+                                            {account.handle && (
+                                                <MonospaceHandleSpan style={{ display: "block" }}>
+                                                    @{account.handle}
+                                                </MonospaceHandleSpan>
+                                            )}
+                                        </span>
                                     }
                                     secondary={
-                                        <CreditStack direction="row" spacing={1} alignItems="center">
+                                        <span style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" }}>
                                             {account.hasPremium && (
-                                                <PremiumBox>
+                                                <PremiumSpanContainer>
                                                     <IconCommon
                                                         decorative
                                                         fill={palette.secondary.main}
                                                         name="Premium"
                                                         size={14}
                                                     />
-                                                    <PremiumTypography variant="body2">
+                                                    <PremiumSpan>
                                                         {t("Pro")}
-                                                    </PremiumTypography>
-                                                </PremiumBox>
+                                                    </PremiumSpan>
+                                                </PremiumSpanContainer>
                                             )}
-                                            <CreditTypography variant="body2">
+                                            <CreditSpan>
                                                 {t("Credit", { count: 2 })}: ${(Number(BigInt(account.credits ?? "0") / BigInt(API_CREDITS_MULTIPLIER)) / 100).toFixed(2)}
-                                            </CreditTypography>
-                                        </CreditStack>
+                                            </CreditSpan>
+                                        </span>
                                     }
                                 />
                             </StyledListItemButton>
@@ -632,9 +650,9 @@ export function UserMenu() {
                     </StyledListItemButton>
                 )}
             </List>
-            <DividerStyled />
+            <DividerStyled key="divider-2" />
             {/* Help and support content */}
-            <List>
+            <List key="help-support">
                 <NavListItem
                     label={t("Tutorial")}
                     iconInfo={helpIconInfo}
@@ -642,9 +660,10 @@ export function UserMenu() {
                     palette={palette}
                 />
             </List>
-            <DividerStyled />
-            <ContactInfo />
-        </LargeDialog>
+            <DividerStyled key="divider-3" />
+            <ContactInfo key="contact-info" />
+            </React.Fragment>
+        </Dialog>
     );
 }
 

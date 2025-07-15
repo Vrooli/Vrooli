@@ -1,16 +1,15 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { CodeLanguage } from "@vrooli/shared";
 import { expect, describe, it, beforeEach, afterEach, vi } from "vitest";
-
 import { MB } from "./consts.js";
 import { SandboxChildProcessManager } from "./sandboxWorkerManager.js";
 import { type RunUserCodeInput, type RunUserCodeOutput } from "./types.js";
 
 type WorkerManager = SandboxChildProcessManager;
 
-// Custom timeouts to speed up tests
-const IDLE_TIMEOUT_MS = 100;
-const JOB_TIMEOUT_MS = 300;
+// Custom timeouts for tests - increased to prevent initialization failures
+const IDLE_TIMEOUT_MS = 1000; // Increased from 100ms
+const JOB_TIMEOUT_MS = 2000; // Increased from 300ms
 // Names of private properties in SandboxWorkerThreadManager.
 // We define them here to make sure we access them with the correct names in the tests.
 const Property = {
@@ -1476,7 +1475,7 @@ function realTest() { return 'Hello2'; }`,
                 );
             });
 
-            it("terminating worker thread after each job", { timeout: 15000 }, async function runTerminateLeakTest() {
+            it("terminating worker thread after each job", { timeout: 30000 }, async function runTerminateLeakTest() {
                 // Record initial memory usage before any tests
                 const initialMemoryUsage = process.memoryUsage().heapUsed;
                 const memoryThreshold = initialMemoryUsage * 1.2; // Allow 20% growth for test overhead

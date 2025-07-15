@@ -236,10 +236,15 @@ const scrollBoxStyle = {
     position: "relative",
 } as const;
 export const ScrollBox = forwardRef<HTMLDivElement, BoxProps>((props, ref) => {
+    const { className, ...otherProps } = props;
+    const combinedClassName = className 
+        ? `${ELEMENT_CLASSES.ScrollBox} ${className}`
+        : ELEMENT_CLASSES.ScrollBox;
+    
     return <Box
-        className={ELEMENT_CLASSES.ScrollBox}
+        className={combinedClassName}
         sx={scrollBoxStyle}
-        {...props}
+        {...otherProps}
         ref={ref}
     />;
 });

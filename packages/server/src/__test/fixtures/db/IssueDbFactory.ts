@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId, nanoid, IssueStatus } from "@vrooli/shared";
+import { nanoid, IssueStatus } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -31,11 +31,12 @@ interface IssueRelationConfig extends RelationConfig {
  * - Comprehensive validation
  */
 export class IssueDbFactory extends EnhancedDatabaseFactory<
-    Prisma.issueCreateInput,
+    issue,
     Prisma.issueCreateInput,
     Prisma.issueInclude,
     Prisma.issueUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
         super("issue", prisma);
         this.initializeScenarios();
@@ -51,13 +52,13 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
     protected getFixtures(): DbTestFixtures<Prisma.issueCreateInput, Prisma.issueUpdateInput> {
         return {
             minimal: {
-                id: generatePK().toString(),
-                publicId: generatePublicId(),
+                id: this.generateId(),
+                publicId: this.generatePublicId(),
                 status: IssueStatus.Open,
-                createdById: generatePK().toString(),
+                createdBy: { connect: { id: this.generateId() } },
                 translations: {
                     create: [{
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         language: "en",
                         name: "Test Issue",
                         description: "This is a test issue",
@@ -65,25 +66,25 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                 },
             },
             complete: {
-                id: generatePK().toString(),
-                publicId: generatePublicId(),
+                id: this.generateId(),
+                publicId: this.generatePublicId(),
                 status: IssueStatus.Open,
                 score: 10,
                 bookmarks: 5,
                 views: 25,
-                resourceId: generatePK().toString(),
-                teamId: generatePK().toString(),
-                createdById: generatePK().toString(),
+                resourceVersion: { connect: { id: this.generateId() } },
+                team: { connect: { id: this.generateId() } },
+                createdBy: { connect: { id: this.generateId() } },
                 translations: {
                     create: [
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             name: "Complete Test Issue",
                             description: "This is a comprehensive test issue with all fields populated",
                         },
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "es",
                             name: "Problema de Prueba Completo",
                             description: "Este es un problema de prueba completo con todos los campos poblados",
@@ -104,38 +105,38 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                     views: true, // Should be number
                 },
                 missingTranslations: {
-                    id: generatePK().toString(),
-                    publicId: generatePublicId(),
+                    id: this.generateId(),
+                    publicId: this.generatePublicId(),
                     status: IssueStatus.Open,
-                    createdById: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
                     // Missing translations
                 },
                 invalidPublicId: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: "invalid_public_id_too_long", // Should be 12 chars
                     status: IssueStatus.Open,
-                    createdById: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
                 },
                 closedWithoutCloser: {
-                    id: generatePK().toString(),
-                    publicId: generatePublicId(),
+                    id: this.generateId(),
+                    publicId: this.generatePublicId(),
                     status: IssueStatus.Resolved,
                     closedAt: new Date(),
                     // Missing closedById when status is closed
-                    createdById: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
                 },
             },
             edgeCases: {
                 selfClosedIssue: {
-                    id: generatePK().toString(),
-                    publicId: generatePublicId(),
+                    id: this.generateId(),
+                    publicId: this.generatePublicId(),
                     status: IssueStatus.Resolved,
-                    createdById: generatePK().toString(),
-                    closedById: generatePK().toString(), // Same as createdById
+                    createdBy: { connect: { id: this.generateId() } },
+                    closedById: this.bigIntToString(this.generateId()), // Same as createdById
                     closedAt: new Date(),
                     translations: {
                         create: [{
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             name: "Self-resolved Issue",
                             description: "Issue created and closed by the same user",
@@ -143,15 +144,15 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 reopenedIssue: {
-                    id: generatePK().toString(),
-                    publicId: generatePublicId(),
+                    id: this.generateId(),
+                    publicId: this.generatePublicId(),
                     status: IssueStatus.Open,
-                    createdById: generatePK().toString(),
-                    closedById: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
+                    closedById: this.bigIntToString(this.generateId()),
                     closedAt: null, // Was closed but reopened
                     translations: {
                         create: [{
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             name: "Reopened Issue",
                             description: "This issue was closed but has been reopened",
@@ -159,16 +160,16 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 highActivityIssue: {
-                    id: generatePK().toString(),
-                    publicId: generatePublicId(),
+                    id: this.generateId(),
+                    publicId: this.generatePublicId(),
                     status: IssueStatus.Open,
                     score: 500,
                     bookmarks: 100,
                     views: 10000,
-                    createdById: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
                     translations: {
                         create: [{
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             name: "Critical Production Bug",
                             description: "High-priority issue affecting many users",
@@ -176,13 +177,13 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 maxLengthFields: {
-                    id: generatePK().toString(),
-                    publicId: generatePublicId(),
+                    id: this.generateId(),
+                    publicId: this.generatePublicId(),
                     status: IssueStatus.Open,
-                    createdById: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
                     translations: {
                         create: [{
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             name: "a".repeat(128), // Max length name
                             description: "b".repeat(2048), // Max length description
@@ -190,32 +191,32 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 multiLanguageIssue: {
-                    id: generatePK().toString(),
-                    publicId: generatePublicId(),
+                    id: this.generateId(),
+                    publicId: this.generatePublicId(),
                     status: IssueStatus.Open,
-                    createdById: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
                     translations: {
                         create: [
                             {
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "en",
                                 name: "Multi-language Support Issue",
                                 description: "Issue with translations in multiple languages",
                             },
                             {
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "es",
                                 name: "Problema de Soporte Multiidioma",
                                 description: "Problema con traducciones en múltiples idiomas",
                             },
                             {
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "fr",
                                 name: "Problème de Support Multilingue",
                                 description: "Problème avec des traductions dans plusieurs langues",
                             },
                             {
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "de",
                                 name: "Mehrsprachiges Support-Problem",
                                 description: "Problem mit Übersetzungen in mehreren Sprachen",
@@ -224,14 +225,14 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 orphanedIssue: {
-                    id: generatePK().toString(),
-                    publicId: generatePublicId(),
+                    id: this.generateId(),
+                    publicId: this.generatePublicId(),
                     status: IssueStatus.Open,
-                    createdById: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
                     // No resource or team association
                     translations: {
                         create: [{
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             name: "Orphaned Issue",
                             description: "Issue not associated with any resource or team",
@@ -246,7 +247,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                 complete: {
                     status: IssueStatus.Resolved,
                     closedAt: new Date(),
-                    closedById: generatePK().toString(),
+                    closedById: this.bigIntToString(this.generateId()),
                     score: 20,
                     bookmarks: 10,
                     views: 50,
@@ -254,7 +255,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                         update: [{
                             where: { 
                                 issueId_language: {
-                                    issueId: generatePK().toString(),
+                                    issue: { connect: { id: this.generateId() } },
                                     language: "en",
                                 },
                             },
@@ -264,7 +265,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                             },
                         }],
                         create: [{
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "ja",
                             name: "更新された問題",
                             description: "解決の詳細を含む更新された説明",
@@ -277,13 +278,13 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.issueCreateInput>): Prisma.issueCreateInput {
         return {
-            id: generatePK().toString(),
-            publicId: generatePublicId(),
+            id: this.generateId(),
+            publicId: this.generatePublicId(),
             status: IssueStatus.Open,
-            createdById: generatePK().toString(),
+            createdBy: { connect: { id: this.generateId() } },
             translations: {
                 create: [{
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     language: "en",
                     name: "Test Issue",
                     description: "Test issue description",
@@ -295,25 +296,25 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
 
     protected generateCompleteData(overrides?: Partial<Prisma.issueCreateInput>): Prisma.issueCreateInput {
         return {
-            id: generatePK().toString(),
-            publicId: generatePublicId(),
+            id: this.generateId(),
+            publicId: this.generatePublicId(),
             status: IssueStatus.Open,
             score: 0,
             bookmarks: 0,
             views: 0,
-            resourceId: generatePK().toString(),
-            teamId: generatePK().toString(),
-            createdById: generatePK().toString(),
+            resourceVersion: { connect: { id: this.generateId() } },
+            team: { connect: { id: this.generateId() } },
+            createdBy: { connect: { id: this.generateId() } },
             translations: {
                 create: [
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         language: "en",
                         name: "Complete Test Issue",
                         description: "This is a comprehensive test issue with detailed information",
                     },
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         language: "es",
                         name: "Problema de Prueba Completo",
                         description: "Este es un problema de prueba completo con información detallada",
@@ -337,7 +338,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                         status: IssueStatus.Open,
                         translations: {
                             create: [{
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "en",
                                 name: "Button not responding on mobile",
                                 description: "The submit button doesn't work on iOS Safari",
@@ -354,7 +355,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                         status: IssueStatus.Open,
                         translations: {
                             create: [{
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "en",
                                 name: "Add dark mode support",
                                 description: "It would be great to have a dark mode option",
@@ -371,7 +372,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                         status: IssueStatus.InProgress,
                         translations: {
                             create: [{
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "en",
                                 name: "Performance optimization",
                                 description: "Improving page load times",
@@ -387,10 +388,10 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         status: IssueStatus.Resolved,
                         closedAt: new Date(),
-                        closedById: generatePK().toString(),
+                        closedById: this.bigIntToString(this.generateId()),
                         translations: {
                             create: [{
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "en",
                                 name: "Fixed login error",
                                 description: "Login error has been resolved in v2.1.0",
@@ -404,10 +405,10 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                 description: "Team-managed issue",
                 config: {
                     overrides: {
-                        teamId: generatePK().toString(),
+                        team: { connect: { id: this.generateId() } },
                         translations: {
                             create: [{
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "en",
                                 name: "Team workspace improvements",
                                 description: "Various improvements for team collaboration",
@@ -428,7 +429,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
             status: IssueStatus.Open,
             translations: {
                 create: [{
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     language: "en",
                     name: title,
                     description,
@@ -443,7 +444,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
             status: IssueStatus.InProgress,
             translations: {
                 create: [{
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     language: "en",
                     name: title,
                     description,
@@ -460,7 +461,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
             closedAt: new Date(),
             translations: {
                 create: [{
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     language: "en",
                     name: title,
                     description: resolution,
@@ -472,13 +473,13 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create issue for specific contexts
      */
-    async createResourceIssue(resourceId: string, createdById: string, title: string, description: string): Promise<Prisma.issue> {
+    async createResourceIssue(resourceVersionId: string, createdById: string, title: string, description: string): Promise<Prisma.issue> {
         return await this.createMinimal({
             resourceId,
             createdById,
             translations: {
                 create: [{
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     language: "en",
                     name: title,
                     description,
@@ -493,7 +494,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
             createdById,
             translations: {
                 create: [{
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     language: "en",
                     name: title,
                     description,
@@ -560,25 +561,25 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
 
         // Handle resource relationship
         if (config.withResource) {
-            const resourceId = typeof config.withResource === "string" ? config.withResource : generatePK().toString();
+            const resourceId = typeof config.withResource === "string" ? config.withResource : this.bigIntToString(this.generateId());
             data.resourceId = resourceId;
         }
 
         // Handle team relationship
         if (config.withTeam) {
-            const teamId = typeof config.withTeam === "string" ? config.withTeam : generatePK().toString();
+            const teamId = typeof config.withTeam === "string" ? config.withTeam : this.bigIntToString(this.generateId());
             data.teamId = teamId;
         }
 
         // Handle createdBy relationship
         if (config.withCreatedBy) {
-            const createdById = typeof config.withCreatedBy === "string" ? config.withCreatedBy : generatePK().toString();
+            const createdById = typeof config.withCreatedBy === "string" ? config.withCreatedBy : this.bigIntToString(this.generateId());
             data.createdById = createdById;
         }
 
         // Handle closedBy relationship
         if (config.withClosedBy) {
-            const closedById = typeof config.withClosedBy === "string" ? config.withClosedBy : generatePK().toString();
+            const closedById = typeof config.withClosedBy === "string" ? config.withClosedBy : this.bigIntToString(this.generateId());
             data.closedById = closedById;
             data.closedAt = new Date();
             if (data.status === IssueStatus.Open) {
@@ -590,7 +591,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         if (config.withTranslations && Array.isArray(config.withTranslations)) {
             data.translations = {
                 create: config.withTranslations.map(trans => ({
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     ...trans,
                 })),
             };
@@ -749,7 +750,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get issues for a resource
      */
-    async getResourceIssues(resourceId: string, includeResolved = false): Promise<Prisma.issue[]> {
+    async getResourceIssues(resourceVersionId: string, includeResolved = false): Promise<Prisma.issue[]> {
         const whereClause: Prisma.issueWhereInput = { resourceId };
         
         if (!includeResolved) {
@@ -785,7 +786,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createIssueDbFactory = (prisma: PrismaClient) => 
-    IssueDbFactory.getInstance("issue", prisma);
+    new IssueDbFactory(prisma);
 
 // Export the class for type usage
 export { IssueDbFactory as IssueDbFactoryClass };

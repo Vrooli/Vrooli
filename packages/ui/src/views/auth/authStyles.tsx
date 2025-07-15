@@ -1,9 +1,9 @@
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Divider from "@mui/material/Divider";
 import InputAdornment from "@mui/material/InputAdornment";
 import { keyframes } from "@mui/material";
 import { styled } from "@mui/material";
+import { Button } from "../../components/buttons/Button.js";
+import { Divider } from "../../components/layout/Divider.js";
 import { OAUTH_PROVIDERS, getOAuthInitRoute } from "@vrooli/shared";
 import { IconCommon } from "../../icons/Icons.js";
 import { bottomNavHeight } from "../../styles.js";
@@ -132,7 +132,7 @@ export const AuthFormContainer = styled(Box)(({ theme }) => ({
     "& input:-webkit-autofill, & input:-webkit-autofill:hover, & input:-webkit-autofill:focus, & input:-webkit-autofill:active": {
         transition: "background-color 5000s ease-in-out 0s", // Hack to delay browser background styling
         boxShadow: `0 0 0 30px ${theme.palette.background.paper} inset !important`, // Use box-shadow to mimic background
-        "-webkit-text-fill-color": `${theme.palette.text.primary} !important`, // Ensure text color matches theme
+        WebkitTextFillColor: `${theme.palette.text.primary} !important`, // Ensure text color matches theme
         caretColor: theme.palette.text.primary, // Match cursor color
         borderRadius: "inherit", // Inherit border radius from the input element
     },
@@ -150,41 +150,48 @@ export const OAuthContainer = styled(Box)(({ theme }) => ({
     },
 }));
 
-export const OrDivider = styled(Divider)(({ theme }) => ({
-    color: theme.palette.background.textSecondary,
-    width: "100%",
-    margin: theme.spacing(2, 0),
-    "&::before, &::after": {
-        borderColor: theme.palette.divider,
-    },
-    [theme.breakpoints.up("md")]: {
-        display: "none",
-    },
-}));
+// Or divider component using our custom Divider
+export const OrDivider = ({ children, ...props }: React.ComponentProps<typeof Divider>) => {
+    return (
+        <Divider
+            {...props}
+            className="w-full my-4 md:hidden"
+        >
+            {typeof children === "string" ? children : "or"}
+        </Divider>
+    );
+};
 
-interface OAuthButtonProps {
+interface OAuthButtonProps extends React.ComponentProps<typeof Button> {
     providerStyle: OAuthProviderStyle;
 }
 
-export const OAuthButton = styled(Button, {
-    shouldForwardProp: (prop) => prop !== "providerStyle",
-})<OAuthButtonProps>(({ theme, providerStyle }) => ({
-    background: providerStyle.background,
-    color: providerStyle.color,
-    borderRadius: theme.spacing(2),
-    textTransform: "none",
-    border: providerStyle.border,
-    padding: theme.spacing(2),
-    transition: "all 0.2s ease-in-out",
-    "& .MuiButton-icon": {
-        marginRight: "auto",
-    },
-    "&:hover": {
-        background: providerStyle.hoverBackground,
-        transform: "translateY(-1px)",
-        boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
-    },
-}));
+// OAuth button component using our custom Button
+export const OAuthButton = ({ providerStyle, children, ...props }: OAuthButtonProps) => {
+    return (
+        <Button
+            {...props}
+            variant="outline"
+            size="lg"
+            className="w-full rounded-2xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg justify-start"
+            style={{
+                backgroundColor: providerStyle.background,
+                color: providerStyle.color,
+                border: providerStyle.border,
+            }}
+            onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = providerStyle.hoverBackground;
+                props.onMouseEnter?.(e);
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = providerStyle.background;
+                props.onMouseLeave?.(e);
+            }}
+        >
+            {children}
+        </Button>
+    );
+};
 
 export const OAuthSection = styled(Box)(({ theme }) => ({
     padding: theme.spacing(0, 2, 2),

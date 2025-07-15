@@ -1,5 +1,6 @@
-import { type ModelType } from "@vrooli/shared";
-import { type PrismaCreate, type PrismaSelect, type PrismaUpdate } from "../builders/types.js";
+// AI_CHECK: TYPE_SAFETY=cudinput-fix | LAST: 2025-07-04 - Fixed CudInputData with discriminated union supporting ModelType|template literals for Create/Update and DeleteType|template literals for Delete
+import { type DeleteType, type ModelType } from "@vrooli/shared";
+import { type PrismaSelect, type PrismaUpdate } from "../builders/types.js";
 import { type InputNode } from "./inputNode.js";
 
 export type QueryAction = "Connect" | "Create" | "Delete" | "Disconnect" | "Read" | "Update";
@@ -16,23 +17,13 @@ export type InputsByType = { [objectType in ModelType]?: {
 } };
 export type IdsByPlaceholder = { [placeholder: string]: string | bigint | null };
 export type IdsCreateToConnect = { [id: string]: string };
-// TODO add other types later. Reason is that this is used for cudHelper and cudInputsToMaps, which originally only supported the 3 types below. Ideally we want them to support all types, but baby steps :)
 export type CudInputData = {
-    action: "Delete"; //"Connect" | "Delete" | "Disconnect";
-    input: string;
+    action: "Create" | "Update";
+    input: unknown;
     objectType: ModelType | `${ModelType}`;
 } | {
-    action: "Create";
-    input: PrismaCreate;
-    objectType: ModelType | `${ModelType}`;
-} | {
-    action: "Update";
-    input: PrismaUpdate;
-    objectType: ModelType | `${ModelType}`;
+    action: "Delete";
+    input: unknown;
+    objectType: DeleteType | `${DeleteType}`;
 };
-// | {
-//     action: "Read";
-//     input: PrismaSelect;
-//     objectType: ModelType | `${ModelType}`;
-// };
 export type ResultsById = { [id: string]: unknown };

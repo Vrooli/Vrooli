@@ -1,14 +1,6 @@
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Collapse from "@mui/material/Collapse";
-import Divider from "@mui/material/Divider";
+// AI_CHECK: TYPE_SAFETY=fixed-mui-imports-and-theme-any-type | LAST: 2025-06-28
+import { Box, Button, Collapse, Divider, List, ListItem, ListItemIcon, ListItemText, Typography, styled, useTheme, type Theme } from "@mui/material";
 import { IconButton } from "../buttons/IconButton.js";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import ListItemText from "@mui/material/ListItemText";
-import Typography from "@mui/material/Typography";
-import { styled, useTheme } from "@mui/material";
 import { API_CREDITS_MULTIPLIER, LINKS, MyStuffPageTabOption, getObjectUrl, type Session as ChatSession } from "@vrooli/shared";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -165,7 +157,7 @@ function useScrollBoxStyles(showFooter: boolean) {
  * Gets the appropriate color for the credit display based on balance
  */
 function getCreditDisplayColor(
-    theme: any,
+    theme: Theme,
     creditsAsBigInt: bigint | null,
     showLowCreditBalance: boolean,
 ) {

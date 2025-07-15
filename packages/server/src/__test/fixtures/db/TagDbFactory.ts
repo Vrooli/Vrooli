@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
+import { generatePublicId, nanoid } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -28,11 +28,12 @@ interface TagRelationConfig extends RelationConfig {
  * - Comprehensive validation
  */
 export class TagDbFactory extends EnhancedDatabaseFactory<
-    Prisma.tagCreateInput,
+    tag,
     Prisma.tagCreateInput,
     Prisma.tagInclude,
     Prisma.tagUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
         super("tag", prisma);
         this.initializeScenarios();
@@ -48,23 +49,23 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
     protected getFixtures(): DbTestFixtures<Prisma.tagCreateInput, Prisma.tagUpdateInput> {
         return {
             minimal: {
-                id: generatePK().toString(),
-                tag: `tag_${nanoid(8)}`,
+                id: this.generateId(),
+                tag: `tag_${nanoid()}`,
             },
             complete: {
-                id: generatePK().toString(),
-                tag: `complete_tag_${nanoid(8)}`,
+                id: this.generateId(),
+                tag: `complete_tag_${nanoid()}`,
                 bookmarks: 10,
-                createdById: generatePK().toString(),
+                createdBy: { connect: { id: this.generateId() } },
                 translations: {
                     create: [
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             description: "A comprehensive tag with full description",
                         },
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "es",
                             description: "Una etiqueta completa con descripción completa",
                         },
@@ -74,7 +75,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
             invalid: {
                 missingRequired: {
                     // Missing id and tag
-                    createdById: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
                 },
                 invalidTypes: {
                     id: "not-a-bigint",
@@ -83,88 +84,88 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
                     createdById: true, // Should be string
                 },
                 missingTag: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     // Missing tag name
-                    createdById: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
                 },
                 duplicateTag: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     tag: "existing_tag", // Assumes this already exists
-                    createdById: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
                 },
                 exceedsTagLength: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     tag: "a".repeat(129), // Exceeds 128 character limit
-                    createdById: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
                 },
                 invalidTagFormat: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     tag: "tag with spaces", // Tags typically shouldn't have spaces
-                    createdById: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
                 },
             },
             edgeCases: {
                 minimalTag: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     tag: "a", // Single character tag
                 },
                 maxLengthTag: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     tag: "a".repeat(128), // Max length tag
                 },
                 unicodeTag: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     tag: "测试标签", // Unicode tag
                 },
                 specialCharacterTag: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     tag: "tag-with-hyphens_and_underscores",
                 },
                 numericTag: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     tag: "2024",
                 },
                 popularTag: {
-                    id: generatePK().toString(),
-                    tag: `popular_${nanoid(8)}`,
+                    id: this.generateId(),
+                    tag: `popular_${nanoid()}`,
                     bookmarks: 1000,
-                    createdById: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
                     translations: {
                         create: [{
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             description: "A highly popular tag used by many",
                         }],
                     },
                 },
                 multiLanguageTag: {
-                    id: generatePK().toString(),
-                    tag: `multilang_${nanoid(8)}`,
-                    createdById: generatePK().toString(),
+                    id: this.generateId(),
+                    tag: `multilang_${nanoid()}`,
+                    createdBy: { connect: { id: this.generateId() } },
                     translations: {
                         create: [
                             {
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "en",
                                 description: "English description",
                             },
                             {
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "es",
                                 description: "Descripción en español",
                             },
                             {
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "fr",
                                 description: "Description en français",
                             },
                             {
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "de",
                                 description: "Deutsche Beschreibung",
                             },
                             {
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "ja",
                                 description: "日本語の説明",
                             },
@@ -172,8 +173,8 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 orphanedTag: {
-                    id: generatePK().toString(),
-                    tag: `orphaned_${nanoid(8)}`,
+                    id: this.generateId(),
+                    tag: `orphaned_${nanoid()}`,
                     // No creator, no associations
                 },
             },
@@ -185,14 +186,14 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
                     bookmarks: 20,
                     translations: {
                         create: [{
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "fr",
                             description: "Description mise à jour",
                         }],
                         update: [{
                             where: { 
                                 tagId_language: {
-                                    tagId: generatePK().toString(),
+                                    tagId: this.generateId(),
                                     language: "en",
                                 },
                             },
@@ -207,32 +208,32 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected generateMinimalData(overrides?: Partial<Prisma.tagCreateInput>): Prisma.tagCreateInput {
-        const uniqueTag = `tag_${nanoid(8)}`.toLowerCase();
+        const uniqueTag = `tag_${nanoid()}`.toLowerCase();
         
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             tag: uniqueTag,
             ...overrides,
         };
     }
 
     protected generateCompleteData(overrides?: Partial<Prisma.tagCreateInput>): Prisma.tagCreateInput {
-        const uniqueTag = `complete_${nanoid(8)}`.toLowerCase();
+        const uniqueTag = `complete_${nanoid()}`.toLowerCase();
         
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             tag: uniqueTag,
             bookmarks: 0,
-            createdById: generatePK().toString(),
+            createdBy: { connect: { id: this.generateId() } },
             translations: {
                 create: [
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         language: "en",
                         description: "A comprehensive test tag",
                     },
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         language: "es",
                         description: "Una etiqueta de prueba completa",
                     },
@@ -252,10 +253,10 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
                 description: "Tag for categorization",
                 config: {
                     overrides: {
-                        tag: `category_${nanoid(6)}`,
+                        tag: `category_${nanoid()}`,
                         translations: {
                             create: [{
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "en",
                                 description: "Category tag for organizing content",
                             }],
@@ -268,10 +269,10 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
                 description: "Technology-related tag",
                 config: {
                     overrides: {
-                        tag: `tech_${nanoid(6)}`,
+                        tag: `tech_${nanoid()}`,
                         translations: {
                             create: [{
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "en",
                                 description: "Technology and programming related",
                             }],
@@ -287,7 +288,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
                         tag: "typescript",
                         translations: {
                             create: [{
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "en",
                                 description: "TypeScript programming language",
                             }],
@@ -300,11 +301,11 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
                 description: "General topic tag",
                 config: {
                     overrides: {
-                        tag: `topic_${nanoid(6)}`,
+                        tag: `topic_${nanoid()}`,
                         bookmarks: 50,
                         translations: {
                             create: [{
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "en",
                                 description: "General topic for discussion",
                             }],
@@ -317,11 +318,11 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
                 description: "Trending/popular tag",
                 config: {
                     overrides: {
-                        tag: `trending_${nanoid(6)}`,
+                        tag: `trending_${nanoid()}`,
                         bookmarks: 500,
                         translations: {
                             create: [{
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "en",
                                 description: "Currently trending topic",
                             }],
@@ -340,7 +341,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
             tag: name.toLowerCase().replace(/\s+/g, "-"),
             translations: description ? {
                 create: [{
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     language: "en",
                     description,
                 }],
@@ -353,7 +354,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
             tag: tech.toLowerCase(),
             translations: {
                 create: [{
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     language: "en",
                     description: `${tech} technology`,
                 }],
@@ -366,7 +367,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
             tag: language.toLowerCase(),
             translations: {
                 create: [{
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     language: "en",
                     description: `${language} programming language`,
                 }],
@@ -385,7 +386,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
                 tag: `${baseName}_${i + 1}`.toLowerCase(),
                 translations: {
                     create: [{
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         language: "en",
                         description: `${baseName} category ${i + 1}`,
                     }],
@@ -456,7 +457,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
 
         // Handle createdBy relationship
         if (config.withCreatedBy) {
-            const createdById = typeof config.withCreatedBy === "string" ? config.withCreatedBy : generatePK().toString();
+            const createdById = typeof config.withCreatedBy === "string" ? config.withCreatedBy : this.generateId();
             data.createdById = createdById;
         }
 
@@ -464,7 +465,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
         if (config.withTranslations && Array.isArray(config.withTranslations)) {
             data.translations = {
                 create: config.withTranslations.map(trans => ({
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     ...trans,
                 })),
             };
@@ -641,7 +642,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
      */
     async addToResources(tagId: string, resourceIds: string[]): Promise<number> {
         const data = resourceIds.map(resourceId => ({
-            id: generatePK().toString(),
+            id: this.generateId(),
             tagId,
             resourceId,
         }));
@@ -659,7 +660,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
      */
     async addToTeams(tagId: string, teamIds: string[]): Promise<number> {
         const data = teamIds.map(teamId => ({
-            id: generatePK().toString(),
+            id: this.generateId(),
             tagId,
             teamId,
         }));
@@ -701,7 +702,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createTagDbFactory = (prisma: PrismaClient) => 
-    TagDbFactory.getInstance("tag", prisma);
+    new TagDbFactory(prisma);
 
 // Export the class for type usage
 export { TagDbFactory as TagDbFactoryClass };

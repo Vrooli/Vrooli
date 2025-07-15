@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=5 | LAST: 2025-07-01
 import { type LINKS, type NotificationSettingsUpdateInput, type ProfileUpdateInput, type TranslationKeyCommon } from "@vrooli/shared";
 import { type FormikProps } from "formik";
 import { type IconInfo } from "../../icons/Icons.js";
@@ -22,7 +23,7 @@ export type SettingsPrivacyViewProps = ViewProps
 export type SettingsProfileViewProps = ViewProps
 
 interface SettingsFormBaseProps {
-    display: ViewDisplayType;
+    display: `${ViewDisplayType}`;
     isLoading: boolean;
     onCancel: () => unknown;
 }
@@ -36,20 +37,11 @@ export interface SettingsDataFormProps extends FormikProps<any>, SettingsFormBas
 export interface SettingsDisplayFormProps extends FormikProps<ProfileUpdateInput>, SettingsFormBaseProps { }
 export interface SettingsNotificationFormProps extends FormikProps<NotificationSettingsUpdateInput>, SettingsFormBaseProps { }
 export interface SettingsPrivacyFormProps extends FormikProps<ProfileUpdateInput>, SettingsFormBaseProps { }
-export type SettingsProfileFormInput = {
-    bannerImage: string | File | null;
-    handle: string | null;
-    id: string;
-    name: string;
-    profileImage: string | File | null;
-    translations: Array<{
-        id: string;
-        language: string;
-        bio: string;
-    }>;
-    updatedAt: string | null;
-};
-
-export interface SettingsProfileFormProps extends FormikProps<SettingsProfileFormInput>, SettingsFormBaseProps {
+export interface SettingsPrivacyFormProps extends FormikProps<ProfileUpdateInput>, SettingsFormBaseProps {
     numVerifiedWallets: number;
 }
+
+export type SettingsProfileFormInput = ProfileUpdateInput & { 
+    updatedAt?: string | null; // Used for cache busting on profile image
+};
+export interface SettingsProfileFormProps extends FormikProps<SettingsProfileFormInput>, SettingsFormBaseProps { }

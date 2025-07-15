@@ -1,7 +1,7 @@
 /* eslint-disable no-magic-numbers */
 import { handleRegex, urlRegex, urlRegexDev, walletAddressRegex } from "@vrooli/shared";
 import { type IconInfo } from "../../../icons/Icons.js";
-import { type AITaskDisplay } from "../../../types.js";
+import { type AITaskDisplay, type SxType } from "../../../types.js";
 
 export const advancedInputTextareaClassName = "advanced-input-field";
 
@@ -135,6 +135,40 @@ export const DEFAULT_FEATURES: AdvancedInputFeatures = {
     maxRowsExpanded: undefined,
 };
 
+/**
+ * Style overrides for different sections of the AdvancedInput component
+ */
+export interface AdvancedInputSxs {
+    /** Main outer container */
+    root?: SxType;
+    /** Toolbar row containing formatting buttons and settings */
+    toolbar?: SxType;
+    /** Context row displaying attached files/images */
+    contextRow?: SxType;
+    /** Individual context item styling */
+    contextItem?: SxType;
+    /** Title section above the input */
+    title?: SxType;
+    /** Input container wrapper */
+    inputContainer?: SxType;
+    /** Input wrapper with overflow handling */
+    inputWrapper?: SxType;
+    /** Bottom row containing tasks and controls */
+    bottomRow?: SxType;
+    /** Tasks container */
+    tasksContainer?: SxType;
+    /** Individual task chip styling */
+    taskChip?: SxType;
+    /** Submit button styling */
+    submitButton?: SxType;
+    /** Voice input button styling */
+    voiceButton?: SxType;
+    /** Character count progress indicator */
+    characterCount?: SxType;
+    /** Drag and drop overlay */
+    dragOverlay?: SxType;
+}
+
 export type AdvancedInputBaseProps = {
     contextData?: ContextItem[];
     disabled?: boolean;
@@ -144,6 +178,7 @@ export type AdvancedInputBaseProps = {
     isRequired?: boolean;
     name: string;
     placeholder?: string;
+    sxs?: AdvancedInputSxs; // Style overrides for different component sections
     tasks?: AITaskDisplay[];
     title?: string; // Optional title to display above the input area
     value: string;
@@ -154,6 +189,7 @@ export type AdvancedInputBaseProps = {
     onContextDataChange?: (updatedContext: ContextItem[]) => unknown;
     onSubmit?: (value: string) => unknown;
     tabIndex?: number;
+    "data-testid"?: string;
 }
 
 export interface AdvancedInputProps extends Omit<AdvancedInputBaseProps, "value" | "onChange" | "onBlur" | "error" | "helperText"> {

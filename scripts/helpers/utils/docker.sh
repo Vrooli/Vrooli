@@ -481,10 +481,11 @@ docker::tag_and_push_images() {
     fi
   
     for service in "${services[@]}"; do
-        image_name="@vrooli/${service}" # This is the local image name convention used by pnpm + Docker
+        # Local image name uses service:environment format
+        image_name="${service}:${floating_tag}"
         
         # Tag with specific version
-        version_tag="${DOCKERHUB_USERNAME}/${service}:${current_version}"
+        version_tag="${DOCKERHUB_USERNAME}/vrooli-${service}:${current_version}"
         log::info "Tagging image ${image_name} as ${version_tag}"
         if ! docker tag "${image_name}" "${version_tag}"; then
             log::error "Failed to tag image ${image_name} with version ${current_version}. Does the local image exist?"
@@ -499,7 +500,7 @@ docker::tag_and_push_images() {
         fi
 
         # Tag with floating tag (dev/prod)
-        local floating_tag_full="${DOCKERHUB_USERNAME}/${service}:${floating_tag}"
+        local floating_tag_full="${DOCKERHUB_USERNAME}/vrooli-${service}:${floating_tag}"
         log::info "Tagging image ${image_name} as ${floating_tag_full}"
         if ! docker tag "${image_name}" "${floating_tag_full}"; then
             log::error "Failed to tag image ${image_name} with floating tag ${floating_tag}."

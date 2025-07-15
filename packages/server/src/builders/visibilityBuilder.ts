@@ -169,7 +169,7 @@ export function visibilityBuilderPrisma({
 
     // 4. Execute the function
     const userId = userData?.id || DUMMY_ID; // Pass userId for context, even for Public visibility
-    const query = visibilityFunc({ searchInput, userId });
+    const query = visibilityFunc({ searchInput, userId }) as Record<string, unknown>;
 
     return { query, visibilityUsed: finalVisibilityUsed };
 }

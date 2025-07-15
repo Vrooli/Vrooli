@@ -49,7 +49,7 @@ describe("EndpointsBookmark - Improved with Shared Fixtures", () => {
             // Use shared fixtures for test setup
             const testUsers = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
             const tag = await DbProvider.get().tag.create({ 
-                data: { id: bookmarkResponseFactory.generateId(), tag: "test-tag" } 
+                data: { id: bookmarkResponseFactory.generateId(), tag: "test-tag" }, 
             });
 
             // Use shared fixture factory for input generation

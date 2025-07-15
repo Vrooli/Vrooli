@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with proper types
 import { generatePK, generatePublicId } from "@vrooli/shared";
 import { type PrismaClient } from "@prisma/client";
 import type { 
@@ -381,7 +382,7 @@ export abstract class DatabaseFixtureFactory<
     protected async applyRelationships(
         baseData: TPrismaCreateInput,
         config: RelationConfig,
-        tx: any,
+        tx: PrismaClient,
     ): Promise<TPrismaCreateInput> {
         // Default implementation - subclasses should override
         return baseData;
@@ -392,7 +393,7 @@ export abstract class DatabaseFixtureFactory<
      */
     protected async buildRelationshipUpdates(
         config: RelationConfig,
-        tx: any,
+        tx: PrismaClient,
     ): Promise<any> {
         // Default implementation - subclasses should override
         return {};
@@ -429,7 +430,7 @@ export abstract class DatabaseFixtureFactory<
     /**
      * Get Prisma delegate for transactions
      */
-    protected getTxPrismaDelegate(tx: any): any {
+    protected getTxPrismaDelegate(tx: PrismaClient): any {
         return tx[this.modelName.toLowerCase()];
     }
 
@@ -438,7 +439,7 @@ export abstract class DatabaseFixtureFactory<
      */
     protected async createScenarioRecord(
         scenario: TestScenario,
-        tx: any,
+        tx: PrismaClient,
         relatedIds: Record<string, string[]>,
     ): Promise<any> {
         // Default implementation - subclasses should override
@@ -467,7 +468,7 @@ export abstract class DatabaseFixtureFactory<
     /**
      * Cascade delete implementation
      */
-    protected async cascadeDelete(id: string, depth: number, tx: any): Promise<void> {
+    protected async cascadeDelete(id: string, depth: number, tx: PrismaClient): Promise<void> {
         if (depth <= 0) {
             // Just delete this record
             const txDelegate = this.getTxPrismaDelegate(tx);
@@ -506,7 +507,7 @@ export abstract class DatabaseFixtureFactory<
     protected async deleteRelatedRecords(
         record: TPrismaModel,
         remainingDepth: number,
-        tx: any,
+        tx: PrismaClient,
     ): Promise<void> {
         // Subclasses should implement based on their relationships
     }

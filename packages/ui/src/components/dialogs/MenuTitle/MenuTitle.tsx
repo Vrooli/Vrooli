@@ -1,8 +1,8 @@
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
 import { styled, useTheme } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../../icons/Icons.js";
+import { IconButton } from "../../buttons/IconButton.js";
 import { noSelect } from "../../../styles.js";
 import { Title } from "../../text/Title.js";
 import { type MenuTitleProps } from "../types.js";
@@ -19,7 +19,7 @@ const TitleContainer = styled(Box)(({ theme }) => ({
     textAlign: "center",
 }));
 
-const CloseButton = styled(IconButton)({
+const CloseButtonWrapper = styled(Box)({
     marginLeft: "auto",
 });
 
@@ -48,18 +48,21 @@ export function MenuTitle({
                 variant="subheader"
                 {...titleData}
             />
-            <CloseButton
-                aria-label={t("Close")}
-                edge="end"
-                onClick={onClose}
-                onKeyDown={handleKeyDown}
-            >
-                <IconCommon
-                    decorative
-                    fill={palette.text.secondary}
-                    name="Close"
-                />
-            </CloseButton>
+            <CloseButtonWrapper>
+                <IconButton
+                    aria-label={t("Close")}
+                    onClick={onClose}
+                    onKeyDown={handleKeyDown}
+                    variant="transparent"
+                    size="md"
+                >
+                    <IconCommon
+                        decorative
+                        fill={palette.text.secondary}
+                        name="Close"
+                    />
+                </IconButton>
+            </CloseButtonWrapper>
         </TitleContainer>
     );
 }

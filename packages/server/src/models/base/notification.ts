@@ -32,10 +32,10 @@ export const NotificationModel: NotificationModelLogic = ({
     },
     validate: () => ({
         isDeleted: () => false,
-        isPublic: () => true,
+        isPublic: (_data, _getParentInfo?) => true,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => ({
+        owner: (data, _userId) => ({
             User: data?.user,
         }),
         permissionResolvers: defaultPermissions,

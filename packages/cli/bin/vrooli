@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Vrooli CLI wrapper script
+# Use readlink to resolve the actual path when called through a symlink
+REAL_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(cd "$(dirname "${REAL_PATH}")" && pwd)"
+CLI_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Execute the Node.js CLI with proper environment
+exec node "${CLI_DIR}/dist/index.js" "$@"

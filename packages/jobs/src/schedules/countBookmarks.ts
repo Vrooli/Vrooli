@@ -1,4 +1,5 @@
 // AI_CHECK: TEST_COVERAGE=1 | LAST: 2025-06-24
+// AI_CHECK: TASK_ID=TYPE_SAFETY COUNT=1 | LAST: 2025-07-04
 import type { Prisma } from "@prisma/client";
 import { verifyCountField } from "../utils/verifyCountField.js";
 

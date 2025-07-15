@@ -17,12 +17,14 @@ vi.mock("../../services/execution/tier2/tierTwoOrchestrator.js", () => ({
     })),
 }));
 
-vi.mock("../../services/execution/cross-cutting/events/eventBus.js", () => ({
+vi.mock("../../services/events/eventBus.js", () => ({
     EventBus: vi.fn().mockImplementation(() => ({})),
 }));
 
-vi.mock("../../services/execution/tier3/TierThreeExecutor.js", () => ({
-    TierThreeExecutor: vi.fn().mockImplementation(() => ({})),
+vi.mock("../../services/execution/tier3/stepExecutor.js", () => ({
+    StepExecutor: vi.fn().mockImplementation(() => ({
+        execute: vi.fn().mockResolvedValue({ success: true, outputs: {} }),
+    })),
 }));
 
 // Import after mocking to avoid loading the heavy dependencies
@@ -473,7 +475,7 @@ describe("runProcess", () => {
 
         it("should return default status", () => {
             const adapter = new NewRunStateMachineAdapter("test-run-123", {} as any, "user-123");
-            expect(adapter.getCurrentSagaStatus()).toBe("RUNNING");
+            expect(adapter.getState()).toBe("RUNNING");
         });
 
         it("should handle pause requests", async () => {

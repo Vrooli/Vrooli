@@ -1,5 +1,5 @@
-import { generatePK, generatePublicId } from "./idHelpers.js";
 import { type Prisma, type PrismaClient } from "@prisma/client";
+import { type award } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
     DbTestFixtures, 
@@ -25,7 +25,7 @@ interface AwardRelationConfig extends RelationConfig {
  * - Predefined test scenarios
  */
 export class AwardDbFactory extends EnhancedDatabaseFactory<
-    Prisma.awardCreateInput,
+    award,
     Prisma.awardCreateInput,
     Prisma.awardInclude,
     Prisma.awardUpdateInput
@@ -40,10 +40,10 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.awardCreateInput>): Prisma.awardCreateInput {
         return {
-            id: generatePK(),
+            id: this.generateId(),
             category: "first_routine",
             progress: 1,
-            user: { connect: { id: generatePK() } },
+            user: { connect: { id: this.generateId() } },
             ...overrides,
         };
     }
@@ -53,7 +53,6 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
             ...this.generateMinimalData(),
             category: "api_master",
             progress: 25,
-            tier: 3,
             ...overrides,
         };
     }
@@ -62,7 +61,7 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
      * Get complete test fixtures for Award model
      */
     protected getFixtures(): DbTestFixtures<Prisma.awardCreateInput, Prisma.awardUpdateInput> {
-        const userId = generatePK();
+        const userId = this.generateId();
         
         return {
             minimal: this.generateMinimalData(),
@@ -79,7 +78,7 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
                     tierCompletedAt: "not-a-date" as any, // Should be Date
                 },
                 negativeProgress: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     category: "invalid_progress",
                     progress: -10,
                     user: {
@@ -89,7 +88,7 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
             },
             edgeCases: {
                 zeroProgress: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     category: "beginner_badge",
                     progress: 0,
                     user: {
@@ -97,7 +96,7 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 partialProgress: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     category: "collaboration_expert",
                     progress: 75,
                     user: {
@@ -105,7 +104,7 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 maxProgress: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     category: "super_achiever",
                     progress: 999999,
                     tierCompletedAt: new Date(),
@@ -114,7 +113,7 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 recentCompletion: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     category: "fresh_graduate",
                     progress: 100,
                     tierCompletedAt: new Date(Date.now() - 3600000), // 1 hour ago
@@ -123,7 +122,7 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 longTimeAchievement: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     category: "veteran_user",
                     progress: 100,
                     tierCompletedAt: new Date(Date.now() - 365 * 24 * 3600000), // 1 year ago
@@ -155,12 +154,12 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
     }) {
         const baseData = this.getFixtures().minimal;
         
-        return await this.create({
+        return await this.createMinimal({
             ...baseData,
             category: config.category,
             progress: config.progress,
             tierCompletedAt: config.completed ? new Date() : undefined,
-            user: { connect: { id: config.userId } },
+            user: { connect: { id: BigInt(config.userId) } },
         });
     }
 
@@ -174,12 +173,12 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
     }) {
         const baseData = this.getFixtures().complete;
         
-        return await this.create({
+        return await this.createMinimal({
             ...baseData,
             category: config.category,
             progress: 100,
             tierCompletedAt: config.completedAt || new Date(),
-            user: { connect: { id: config.userId } },
+            user: { connect: { id: BigInt(config.userId) } },
         });
     }
 

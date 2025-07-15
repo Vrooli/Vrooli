@@ -264,10 +264,10 @@ export class ResourceImportExport extends AbstractImportExport<ResourceImportDat
                     configJson = new ProjectVersionConfig({ config: config as ProjectVersionConfigObject }).export();
                     break;
                 case ResourceType.Routine:
-                    configJson = new RoutineVersionConfig({ config: config as RoutineVersionConfigObject, resourceSubType }).export();
+                    configJson = new RoutineVersionConfig({ config: config as RoutineVersionConfigObject, resourceSubType: resourceSubType! }).export();
                     break;
                 case ResourceType.Standard:
-                    configJson = new StandardVersionConfig({ config: config as StandardVersionConfigObject, resourceSubType }).export();
+                    configJson = new StandardVersionConfig({ config: config as StandardVersionConfigObject, resourceSubType: resourceSubType! }).export();
                     break;
                 default:
                     configJson = { __version: "0.0.0" } as BaseConfigObject;

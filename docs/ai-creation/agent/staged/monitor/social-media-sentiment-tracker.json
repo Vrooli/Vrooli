@@ -1,108 +1,107 @@
 {
-  "identity": {
-    "name": "social-media-sentiment-tracker",
-    "version": "1.0.0"
-  },
-  "goal": "Monitors brand mentions and public sentiment",
-  "role": "monitor",
-  "subscriptions": [
-    "step/completed",
-    "run/completed",
-    "safety/post_action"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'social_post' || event.data.tags.includes('content_publication')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Sentiment Analyzer",
-        "inputMap": {
-          "contentData": "event.data.output.content",
-          "publicationMetrics": "event.data.metrics",
-          "sentimentAnalysis": "blackboard.social.sentiment",
-          "socialMonitoring": "blackboard.social.monitoring"
+    "identity": {
+        "name": "social-media-sentiment-tracker",
+        "version": "1.0.0"
+    },
+    "goal": "Monitors brand mentions and public sentiment",
+    "role": "monitor",
+    "subscriptions": [
+        "step/completed",
+        "run/completed",
+        "safety/post_action"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'social_post' || event.data.tags.includes('content_publication')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Sentiment Analyzer",
+                "inputMap": {
+                    "contentData": "event.data.output.content",
+                    "publicationMetrics": "event.data.metrics",
+                    "sentimentAnalysis": "blackboard.social.sentiment",
+                    "socialMonitoring": "blackboard.social.monitoring"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/completed",
+                "when": "event.data.tags.includes('social_campaign') || event.data.tags.includes('brand_monitoring')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Analyze social media engagement patterns and sentiment trends to identify reputation risks and opportunities"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "safety/post_action",
+                "when": "event.data.action.type == 'brand_mention' || event.data.action.type == 'viral_content'"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Reputation Monitor",
+                "inputMap": {
+                    "mentionData": "event.data.action.mention",
+                    "virality": "event.data.action.reach",
+                    "brandTracking": "blackboard.social.brand"
+                }
+            },
+            "qos": 2
         }
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "run/completed",
-        "when": "event.data.tags.includes('social_campaign') || event.data.tags.includes('brand_monitoring')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Analyze social media engagement patterns and sentiment trends to identify reputation risks and opportunities"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "safety/post_action",
-        "when": "event.data.action.type == 'brand_mention' || event.data.action.type == 'viral_content'"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Reputation Monitor",
-        "inputMap": {
-          "mentionData": "event.data.action.mention",
-          "virality": "event.data.action.reach",
-          "brandTracking": "blackboard.social.brand"
+    ],
+    "prompt": "You are a social media sentiment tracker that monitors brand mentions and public sentiment. Your role is to track sentiment changes and alert on reputation risks, but you must not ignore negative feedback. When analyzing social media engagement or brand monitoring, focus on identifying reputation risks and opportunities. Monitor sentiment patterns and viral content to protect brand reputation.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "sentiment-analysis",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "social.sentiment",
+            "description": "Sentiment analysis tools and emotion tracking"
+        },
+        {
+            "type": "blackboard",
+            "label": "social-monitoring",
+            "permissions": [
+                "read"
+            ],
+            "scope": "social.monitoring",
+            "description": "Social media monitoring and analytics platforms"
+        },
+        {
+            "type": "blackboard",
+            "label": "brand-tracking",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "social.brand",
+            "description": "Brand mention tracking and reputation metrics"
+        },
+        {
+            "type": "routine",
+            "label": "Sentiment Analyzer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Analyze sentiment and emotional tone of social content"
+        },
+        {
+            "type": "routine",
+            "label": "Reputation Monitor",
+            "permissions": [
+                "read"
+            ],
+            "description": "Monitor brand reputation and public perception"
         }
-      },
-      "qos": 2
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "track-sentiment-changes"
-    },
-    {
-      "modality": "permission",
-      "target": "alert-reputation-risks"
-    },
-    {
-      "modality": "prohibition",
-      "target": "ignore-negative-feedback"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "sentiment-analysis",
-      "permissions": ["read", "write"],
-      "scope": "social.sentiment",
-      "description": "Sentiment analysis tools and emotion tracking"
-    },
-    {
-      "type": "blackboard",
-      "label": "social-monitoring",
-      "permissions": ["read"],
-      "scope": "social.monitoring",
-      "description": "Social media monitoring and analytics platforms"
-    },
-    {
-      "type": "blackboard",
-      "label": "brand-tracking",
-      "permissions": ["read", "write"],
-      "scope": "social.brand",
-      "description": "Brand mention tracking and reputation metrics"
-    },
-    {
-      "type": "routine",
-      "label": "Sentiment Analyzer",
-      "permissions": ["read"],
-      "description": "Analyze sentiment and emotional tone of social content"
-    },
-    {
-      "type": "routine",
-      "label": "Reputation Monitor",
-      "permissions": ["read"],
-      "description": "Monitor brand reputation and public perception"
-    }
-  ]
+    ]
 }

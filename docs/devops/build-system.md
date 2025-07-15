@@ -264,9 +264,9 @@ jobs:development
 #### Production Images
 ```bash
 # Production image tags
-ui:production
-server:production
-jobs:production
+ui:prod
+server:prod
+jobs:prod
 ```
 
 ### Docker Hub Integration
@@ -289,9 +289,9 @@ bash scripts/main/build.sh --artifacts k8s --version 1.2.3
 **Tags Created:**
 ```bash
 your-username/server:1.2.3    # Specific version
-your-username/server:production     # Floating tag (production)
+your-username/server:prod     # Floating tag (production)
 your-username/ui:1.2.3        # Specific version  
-your-username/ui:production         # Floating tag (production)
+your-username/ui:prod         # Floating tag (production)
 ```
 
 ### Resource Management

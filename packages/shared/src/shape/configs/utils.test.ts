@@ -13,7 +13,7 @@ describe("stringifyObject", () => {
         it("should stringify a simple object", () => {
             const obj = { name: "test", value: 123 };
             const result = stringifyObject(obj, "json");
-            expect(result).toBe('{"name":"test","value":123}');
+            expect(result).toBe("{\"name\":\"test\",\"value\":123}");
         });
 
         it("should stringify nested objects", () => {
@@ -22,36 +22,36 @@ describe("stringifyObject", () => {
                     id: 1,
                     profile: {
                         name: "John",
-                        active: true
-                    }
-                }
+                        active: true,
+                    },
+                },
             };
             const result = stringifyObject(obj, "json");
-            expect(result).toBe('{"user":{"id":1,"profile":{"name":"John","active":true}}}');
+            expect(result).toBe("{\"user\":{\"id\":1,\"profile\":{\"name\":\"John\",\"active\":true}}}");
         });
 
         it("should stringify arrays", () => {
             const obj = { items: [1, 2, 3], tags: ["tag1", "tag2"] };
             const result = stringifyObject(obj, "json");
-            expect(result).toBe('{"items":[1,2,3],"tags":["tag1","tag2"]}');
+            expect(result).toBe("{\"items\":[1,2,3],\"tags\":[\"tag1\",\"tag2\"]}");
         });
 
         it("should handle null and undefined values", () => {
             const obj = { nullValue: null, undefinedValue: undefined };
             const result = stringifyObject(obj, "json");
-            expect(result).toBe('{"nullValue":null}');
+            expect(result).toBe("{\"nullValue\":null}");
         });
 
         it("should handle empty objects and arrays", () => {
             const obj = { emptyObj: {}, emptyArray: [] };
             const result = stringifyObject(obj, "json");
-            expect(result).toBe('{"emptyObj":{},"emptyArray":[]}');
+            expect(result).toBe("{\"emptyObj\":{},\"emptyArray\":[]}");
         });
 
         it("should handle special characters in strings", () => {
             const obj = { message: "Hello \"world\"\nNew line\tTab" };
             const result = stringifyObject(obj, "json");
-            expect(result).toBe('{"message":"Hello \\"world\\"\\nNew line\\tTab"}');
+            expect(result).toBe("{\"message\":\"Hello \\\"world\\\"\\nNew line\\tTab\"}");
         });
 
         it("should handle numbers, booleans, and strings", () => {
@@ -61,10 +61,10 @@ describe("stringifyObject", () => {
                 negative: -100,
                 boolean: true,
                 falseBool: false,
-                string: "hello world"
+                string: "hello world",
             };
             const result = stringifyObject(obj, "json");
-            expect(result).toBe('{"number":42,"float":3.14,"negative":-100,"boolean":true,"falseBool":false,"string":"hello world"}');
+            expect(result).toBe("{\"number\":42,\"float\":3.14,\"negative\":-100,\"boolean\":true,\"falseBool\":false,\"string\":\"hello world\"}");
         });
     });
 
@@ -88,63 +88,63 @@ describe("parseObject", () => {
         mockLogger = {
             error: vi.fn(),
             info: vi.fn(),
-            warn: vi.fn()
+            warn: vi.fn(),
         };
     });
 
     describe("json mode - successful parsing", () => {
         it("should parse a simple JSON string", () => {
-            const jsonString = '{"name":"test","value":123}';
+            const jsonString = "{\"name\":\"test\",\"value\":123}";
             const result = parseObject(jsonString, "json", mockLogger);
             expect(result).toEqual({ name: "test", value: 123 });
             expect(mockLogger.error).not.toHaveBeenCalled();
         });
 
         it("should parse nested objects", () => {
-            const jsonString = '{"user":{"id":1,"profile":{"name":"John","active":true}}}';
+            const jsonString = "{\"user\":{\"id\":1,\"profile\":{\"name\":\"John\",\"active\":true}}}";
             const result = parseObject(jsonString, "json", mockLogger);
             expect(result).toEqual({
                 user: {
                     id: 1,
                     profile: {
                         name: "John",
-                        active: true
-                    }
-                }
+                        active: true,
+                    },
+                },
             });
             expect(mockLogger.error).not.toHaveBeenCalled();
         });
 
         it("should parse arrays", () => {
-            const jsonString = '{"items":[1,2,3],"tags":["tag1","tag2"]}';
+            const jsonString = "{\"items\":[1,2,3],\"tags\":[\"tag1\",\"tag2\"]}";
             const result = parseObject(jsonString, "json", mockLogger);
             expect(result).toEqual({ items: [1, 2, 3], tags: ["tag1", "tag2"] });
             expect(mockLogger.error).not.toHaveBeenCalled();
         });
 
         it("should handle null values", () => {
-            const jsonString = '{"nullValue":null}';
+            const jsonString = "{\"nullValue\":null}";
             const result = parseObject(jsonString, "json", mockLogger);
             expect(result).toEqual({ nullValue: null });
             expect(mockLogger.error).not.toHaveBeenCalled();
         });
 
         it("should handle empty objects and arrays", () => {
-            const jsonString = '{"emptyObj":{},"emptyArray":[]}';
+            const jsonString = "{\"emptyObj\":{},\"emptyArray\":[]}";
             const result = parseObject(jsonString, "json", mockLogger);
             expect(result).toEqual({ emptyObj: {}, emptyArray: [] });
             expect(mockLogger.error).not.toHaveBeenCalled();
         });
 
         it("should handle special characters", () => {
-            const jsonString = '{"message":"Hello \\"world\\"\\nNew line\\tTab"}';
+            const jsonString = "{\"message\":\"Hello \\\"world\\\"\\nNew line\\tTab\"}";
             const result = parseObject(jsonString, "json", mockLogger);
             expect(result).toEqual({ message: "Hello \"world\"\nNew line\tTab" });
             expect(mockLogger.error).not.toHaveBeenCalled();
         });
 
         it("should handle various data types", () => {
-            const jsonString = '{"number":42,"float":3.14,"negative":-100,"boolean":true,"falseBool":false,"string":"hello world"}';
+            const jsonString = "{\"number\":42,\"float\":3.14,\"negative\":-100,\"boolean\":true,\"falseBool\":false,\"string\":\"hello world\"}";
             const result = parseObject(jsonString, "json", mockLogger);
             expect(result).toEqual({
                 number: 42,
@@ -152,7 +152,7 @@ describe("parseObject", () => {
                 negative: -100,
                 boolean: true,
                 falseBool: false,
-                string: "hello world"
+                string: "hello world",
             });
             expect(mockLogger.error).not.toHaveBeenCalled();
         });
@@ -160,30 +160,30 @@ describe("parseObject", () => {
 
     describe("json mode - parsing errors", () => {
         it("should return null and log error for invalid JSON", () => {
-            const invalidJson = '{"name": invalid}';
+            const invalidJson = "{\"name\": invalid}";
             const result = parseObject(invalidJson, "json", mockLogger);
             expect(result).toBeNull();
             expect(mockLogger.error).toHaveBeenCalledWith(
-                expect.stringMatching(/^Error parsing data:/)
+                expect.stringMatching(/^Error parsing data:/),
             );
         });
 
         it("should handle malformed JSON with missing quotes", () => {
-            const invalidJson = '{name: "test"}';
+            const invalidJson = "{name: \"test\"}";
             const result = parseObject(invalidJson, "json", mockLogger);
             expect(result).toBeNull();
             expect(mockLogger.error).toHaveBeenCalled();
         });
 
         it("should handle JSON with trailing commas", () => {
-            const invalidJson = '{"name": "test",}';
+            const invalidJson = "{\"name\": \"test\",}";
             const result = parseObject(invalidJson, "json", mockLogger);
             expect(result).toBeNull();
             expect(mockLogger.error).toHaveBeenCalled();
         });
 
         it("should handle incomplete JSON", () => {
-            const invalidJson = '{"name": "test"';
+            const invalidJson = "{\"name\": \"test\"";
             const result = parseObject(invalidJson, "json", mockLogger);
             expect(result).toBeNull();
             expect(mockLogger.error).toHaveBeenCalled();
@@ -202,11 +202,11 @@ describe("parseObject", () => {
         });
 
         it("should include error details in log message", () => {
-            const invalidJson = '{"invalid": }';
+            const invalidJson = "{\"invalid\": }";
             parseObject(invalidJson, "json", mockLogger);
             
             expect(mockLogger.error).toHaveBeenCalledWith(
-                expect.stringMatching(/^Error parsing data: .*/)
+                expect.stringMatching(/^Error parsing data: .*/),
             );
             // Verify the logged message contains error information
             const loggedMessage = (mockLogger.error as any).mock.calls[0][0];
@@ -238,7 +238,7 @@ describe("parseObject", () => {
         });
 
         it("should parse valid JSON with extra whitespace", () => {
-            const jsonString = '  \n  {"name": "test"}  \n  ';
+            const jsonString = "  \n  {\"name\": \"test\"}  \n  ";
             const result = parseObject(jsonString, "json", mockLogger);
             expect(result).toEqual({ name: "test" });
             expect(mockLogger.error).not.toHaveBeenCalled();
@@ -252,7 +252,7 @@ describe("parseObject", () => {
                 count: number;
             }
             
-            const jsonString = '{"name":"test","count":123}';
+            const jsonString = "{\"name\":\"test\",\"count\":123}";
             const result = parseObject<TestType>(jsonString, "json", mockLogger);
             
             // TypeScript should infer correct type
@@ -271,7 +271,7 @@ describe("integration tests", () => {
         mockLogger = {
             error: vi.fn(),
             info: vi.fn(),
-            warn: vi.fn()
+            warn: vi.fn(),
         };
     });
 
@@ -286,9 +286,9 @@ describe("integration tests", () => {
                 config: {
                     setting1: "value1",
                     setting2: 42,
-                    setting3: null
-                }
-            }
+                    setting3: null,
+                },
+            },
         };
 
         const stringified = stringifyObject(originalObj, "json");
@@ -302,21 +302,21 @@ describe("integration tests", () => {
         const complexObj = {
             users: [
                 { id: 1, name: "John", roles: ["admin", "user"] },
-                { id: 2, name: "Jane", roles: ["user"] }
+                { id: 2, name: "Jane", roles: ["user"] },
             ],
             settings: {
                 theme: "dark",
                 notifications: {
                     email: true,
                     push: false,
-                    frequency: "daily"
-                }
+                    frequency: "daily",
+                },
             },
             statistics: {
                 totalUsers: 2,
                 activeUsers: 1,
-                averageAge: 25.5
-            }
+                averageAge: 25.5,
+            },
         };
 
         const stringified = stringifyObject(complexObj, "json");

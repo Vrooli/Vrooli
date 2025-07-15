@@ -6,7 +6,7 @@
  */
 import { ThemeProvider } from "@mui/material/styles";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { userEvent } from "@testing-library/user-event";
 import { emailSignUpFormValidation } from "@vrooli/shared";
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

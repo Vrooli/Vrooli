@@ -13,19 +13,20 @@ import { useLazyFetch } from "./useFetch.js";
 import { useStableCallback } from "./useStableCallback.js";
 import { useStableObject } from "./useStableObject.js";
 
-type UseFindManyProps = {
-    canSearch?: (where: any) => boolean; // Checking against "where" can be useful to ensure that it has been updated
+// AI_CHECK: TYPE_SAFETY=improved-find-many-types | LAST: 2025-06-28
+type UseFindManyProps<TData = Record<string, unknown>, TWhere = Record<string, unknown>> = {
+    canSearch?: (where: TWhere) => boolean; // Checking against "where" can be useful to ensure that it has been updated
     controlsUrl?: boolean; // If true, URL search params update to reflect search state
     searchType: SearchType | `${SearchType}`;
-    resolve?: (data: any) => any;
+    resolve?: (data: TData) => TData;
     take?: number;
-    where?: Record<string, any>;
+    where?: TWhere;
 }
 
-export type UseFindManyResult<DataType extends Record<string, any>> = {
+export type UseFindManyResult<DataType extends Record<string, unknown>> = {
     addItem: (item: DataType) => unknown;
-    advancedSearchParams: object | null;
-    advancedSearchSchema: any;
+    advancedSearchParams: Record<string, unknown> | null;
+    advancedSearchSchema: Record<string, unknown>;
     allData: DataType[];
     autocompleteOptions: AutocompleteOption[];
     defaultSortBy: string;
@@ -34,7 +35,7 @@ export type UseFindManyResult<DataType extends Record<string, any>> = {
     removeItem: (id: string, idField?: string) => unknown;
     searchString: string;
     searchType: SearchType | `${SearchType}`;
-    setAdvancedSearchParams: (advancedSearchParams: object | null) => unknown;
+    setAdvancedSearchParams: (advancedSearchParams: Record<string, unknown> | null) => unknown;
     setAllData: React.Dispatch<React.SetStateAction<DataType[]>>;
     setSortBy: (sortBy: string) => unknown;
     setSearchString: (searchString: string) => unknown;
@@ -46,7 +47,7 @@ export type UseFindManyResult<DataType extends Record<string, any>> = {
 }
 
 type FullSearchParams = Partial<SearchParams> & {
-    advancedSearchParams: object | null;
+    advancedSearchParams: Record<string, unknown> | null;
     canSearch: boolean;
     hasMore: boolean;
     loading: boolean;
@@ -70,10 +71,10 @@ const DEFAULT_TAKE = 20;
  * @param resolve function for resolving the data
  * @returns List of objects from the data, without any pagination information
  */
-export function parseData(
+export function parseData<T = Record<string, unknown>>(
     data: object | undefined,
-    resolve?: (data: any) => object[],
-) {
+    resolve?: (data: unknown) => T[],
+): T[] {
     // Ensure data is properly formatted
     if (!data || typeof data !== "object") return [];
     // If there is a custom resolver, use it
@@ -190,14 +191,14 @@ export function updateSearchUrl(
 /**
  * Logic for displaying search options and querying a findMany endpoint
  */
-export function useFindMany<DataType extends Record<string, any>>({
+export function useFindMany<DataType extends Record<string, unknown>, TWhere = Record<string, unknown>>({
     canSearch,
     controlsUrl = true,
     searchType,
     resolve,
     take = DEFAULT_TAKE,
     where,
-}: UseFindManyProps): UseFindManyResult<DataType> {
+}: UseFindManyProps<DataType, TWhere>): UseFindManyResult<DataType> {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
 

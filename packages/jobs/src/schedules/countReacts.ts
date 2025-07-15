@@ -1,4 +1,5 @@
 // AI_CHECK: TEST_COVERAGE=1 | LAST: 2025-06-24
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-04
 import { type Prisma } from "@prisma/client";
 import { DbProvider, batch, logger } from "@vrooli/server";
 import { generatePK, getReactionScore } from "@vrooli/shared";
@@ -89,7 +90,7 @@ async function processReactionsForObject(
 
     await batch<Prisma.reactionFindManyArgs, ReactionPayload>({
         objectType: "Reaction", // Reactions are always of objectType "Reaction"
-        processBatch: async (batch) => {
+        processBatch: async (batch: ReactionPayload[]) => {
             batch.forEach(reaction => {
                 totalScore += getReactionScore(reaction.emoji);
                 reactionSummaries.set(reaction.emoji, (reactionSummaries.get(reaction.emoji) || 0) + 1);
@@ -139,7 +140,7 @@ async function updateReactionsForTable(tableName: ProcessableReactionTableName):
         const db = DbProvider.get();
         await batch<UpdateArgs, ObjectPayload>({
             objectType: TABLE_NAME_TO_MODEL_TYPE_MAP[tableName],
-            processBatch: async (batch) => {
+            processBatch: async (batch: ObjectPayload[]) => {
                 for (const object of batch) {
                     try {
                         const { totalScore, reactionSummaries } = await processReactionsForObject(tableName, object.id);
@@ -165,7 +166,7 @@ async function updateReactionsForTable(tableName: ProcessableReactionTableName):
                             } else {
                                 // We already know the array has at least one element from the condition above
                                 const summaryToKeepAndUpdate = currentPersistentSummariesForEmoji[0];
-                                if (summaryToKeepAndUpdate.count !== newCount) {
+                                if (summaryToKeepAndUpdate && summaryToKeepAndUpdate.count !== newCount) {
                                     updates.push({ type: "update", id: summaryToKeepAndUpdate.id, count: newCount });
                                 }
                                 for (let i = 1; i < currentPersistentSummariesForEmoji.length; i++) {

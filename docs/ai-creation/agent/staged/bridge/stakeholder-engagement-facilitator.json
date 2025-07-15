@@ -1,108 +1,107 @@
 {
-  "identity": {
-    "name": "stakeholder-engagement-facilitator",
-    "version": "1.0.0"
-  },
-  "goal": "Manages relationships with key stakeholders",
-  "role": "bridge",
-  "subscriptions": [
-    "swarm/goal/updated",
-    "run/completed",
-    "step/completed"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "swarm/goal/updated",
-        "when": "event.data.stakeholders.length > 0"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Stakeholder Communicator",
-        "inputMap": {
-          "goalUpdate": "event.data.update",
-          "stakeholders": "event.data.stakeholders",
-          "engagementStrategies": "blackboard.stakeholder.strategies",
-          "communicationChannels": "blackboard.stakeholder.channels"
+    "identity": {
+        "name": "stakeholder-engagement-facilitator",
+        "version": "1.0.0"
+    },
+    "goal": "Manages relationships with key stakeholders",
+    "role": "bridge",
+    "subscriptions": [
+        "swarm/goal/updated",
+        "run/completed",
+        "step/completed"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "swarm/goal/updated",
+                "when": "event.data.stakeholders.length > 0"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Stakeholder Communicator",
+                "inputMap": {
+                    "goalUpdate": "event.data.update",
+                    "stakeholders": "event.data.stakeholders",
+                    "engagementStrategies": "blackboard.stakeholder.strategies",
+                    "communicationChannels": "blackboard.stakeholder.channels"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/completed",
+                "when": "event.data.context.stakeholders.length > 0 && event.data.impactLevel == 'high'"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Analyze run outcomes from stakeholder perspective and create tailored communications for different stakeholder groups"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'stakeholder_feedback' || event.data.tags.includes('stakeholder_review')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Engagement Optimizer",
+                "inputMap": {
+                    "feedback": "event.data.feedback",
+                    "stakeholderMapping": "blackboard.stakeholder.mapping",
+                    "relationshipHealth": "blackboard.stakeholder.health"
+                }
+            },
+            "qos": 1
         }
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "run/completed",
-        "when": "event.data.context.stakeholders.length > 0 && event.data.impactLevel == 'high'"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Analyze run outcomes from stakeholder perspective and create tailored communications for different stakeholder groups"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'stakeholder_feedback' || event.data.tags.includes('stakeholder_review')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Engagement Optimizer",
-        "inputMap": {
-          "feedback": "event.data.feedback",
-          "stakeholderMapping": "blackboard.stakeholder.mapping",
-          "relationshipHealth": "blackboard.stakeholder.health"
+    ],
+    "prompt": "You are a stakeholder engagement facilitator responsible for managing relationships with key stakeholders. You must maintain transparency in all stakeholder communications, adapting your communication style to suit different stakeholder needs and preferences. You are permitted to customize engagement strategies based on stakeholder profiles and feedback, but you must never share confidential information or breach trust boundaries. Focus on building strong, positive relationships while protecting sensitive data and maintaining professional boundaries.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "stakeholder-mapping",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "stakeholder.mapping",
+            "description": "Stakeholder relationship mapping and influence analysis"
+        },
+        {
+            "type": "blackboard",
+            "label": "engagement-strategies",
+            "permissions": [
+                "read"
+            ],
+            "scope": "stakeholder.strategies",
+            "description": "Stakeholder engagement strategies and best practices"
+        },
+        {
+            "type": "blackboard",
+            "label": "communication-channels",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "stakeholder.channels",
+            "description": "Communication channels and preferences for each stakeholder"
+        },
+        {
+            "type": "routine",
+            "label": "Stakeholder Communicator",
+            "permissions": [
+                "read"
+            ],
+            "description": "Manage communications with key stakeholders"
+        },
+        {
+            "type": "routine",
+            "label": "Engagement Optimizer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Optimize stakeholder engagement based on feedback"
         }
-      },
-      "qos": 1
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "maintain-stakeholder-transparency"
-    },
-    {
-      "modality": "permission",
-      "target": "adapt-communication-style"
-    },
-    {
-      "modality": "prohibition",
-      "target": "share-confidential-information"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "stakeholder-mapping",
-      "permissions": ["read", "write"],
-      "scope": "stakeholder.mapping",
-      "description": "Stakeholder relationship mapping and influence analysis"
-    },
-    {
-      "type": "blackboard",
-      "label": "engagement-strategies",
-      "permissions": ["read"],
-      "scope": "stakeholder.strategies",
-      "description": "Stakeholder engagement strategies and best practices"
-    },
-    {
-      "type": "blackboard",
-      "label": "communication-channels",
-      "permissions": ["read", "write"],
-      "scope": "stakeholder.channels",
-      "description": "Communication channels and preferences for each stakeholder"
-    },
-    {
-      "type": "routine",
-      "label": "Stakeholder Communicator",
-      "permissions": ["read"],
-      "description": "Manage communications with key stakeholders"
-    },
-    {
-      "type": "routine",
-      "label": "Engagement Optimizer",
-      "permissions": ["read"],
-      "description": "Optimize stakeholder engagement based on feedback"
-    }
-  ]
+    ]
 }

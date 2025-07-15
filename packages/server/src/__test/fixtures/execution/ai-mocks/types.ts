@@ -5,19 +5,17 @@
  * These types ensure type safety and consistency across all mock implementations.
  */
 
-import {
-    LLMErrorType} from "@vrooli/shared";
-import type { 
-    LLMRequest, 
-    LLMResponse, 
-    LLMMessage, 
-    LLMToolCall,
-    LLMStreamEvent,
-    LLMError,
-    LLMUsage,
+import type {
+    LLMMessage,
     LLMModelCapabilities,
+    LLMRequest,
+    LLMResponse,
+    LLMStreamEvent,
+    LLMUsage,
 } from "@vrooli/shared";
-import type { ToolCallResult } from "../../../../services/execution/integration/llmIntegrationService.js";
+import {
+    LLMErrorType,
+} from "@vrooli/shared";
 
 /**
  * Mock response configuration
@@ -30,16 +28,16 @@ export interface AIMockConfig {
     model?: string;
     finishReason?: LLMResponse["finishReason"];
     tokensUsed?: number;
-    
+
     /** Tool calling */
     toolCalls?: AIMockToolCall[];
-    
+
     /** Streaming configuration */
     streaming?: StreamingConfig;
-    
+
     /** Error simulation */
     error?: ErrorConfig;
-    
+
     /** Behavior modifiers */
     delay?: number;
     metadata?: Record<string, unknown>;
@@ -97,16 +95,16 @@ export interface ErrorConfig {
 export interface MockBehavior {
     /** Pattern to match against input */
     pattern?: RegExp | ((request: LLMRequest) => boolean);
-    
+
     /** Response generator */
     response: AIMockConfig | ((request: LLMRequest) => AIMockConfig);
-    
+
     /** Priority for pattern matching */
     priority?: number;
-    
+
     /** Maximum uses before exhaustion */
     maxUses?: number;
-    
+
     /** Behavior metadata */
     metadata?: {
         name?: string;
@@ -186,13 +184,13 @@ export interface MockCostTracking {
 export interface AIMockService {
     /** Execute a mock request */
     execute(request: LLMRequest): Promise<MockFactoryResult>;
-    
+
     /** Register a mock behavior */
     registerBehavior(id: string, behavior: MockBehavior): void;
-    
+
     /** Clear all behaviors */
     clearBehaviors(): void;
-    
+
     /** Get usage statistics */
     getStats(): {
         totalRequests: number;
@@ -220,19 +218,19 @@ export interface EmergentMockBehavior {
 export interface MockTestOptions {
     /** Enable debug logging */
     debug?: boolean;
-    
+
     /** Track costs */
     trackCosts?: boolean;
-    
+
     /** Validate all responses */
     validateResponses?: boolean;
-    
+
     /** Default model to use */
     defaultModel?: string;
-    
+
     /** Global delay for all responses */
     globalDelay?: number;
-    
+
     /** Capture all requests/responses */
     captureInteractions?: boolean;
 }

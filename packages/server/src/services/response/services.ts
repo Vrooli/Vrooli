@@ -687,4 +687,3 @@ export class OpenAIService extends AIService<OpenAIModel> {
         return nativeTools;
     }
 }
-

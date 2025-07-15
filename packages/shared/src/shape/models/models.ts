@@ -1,4 +1,5 @@
-import { CommentFor, type Bookmark, type BookmarkCreateInput, type BookmarkFor, type BookmarkList, type BookmarkListCreateInput, type BookmarkListUpdateInput, type BookmarkUpdateInput, type BotCreateInput, type BotUpdateInput, type Chat, type ChatCreateInput, type ChatInvite, type ChatInviteCreateInput, type ChatInviteStatus, type ChatInviteUpdateInput, type ChatInviteYou, type ChatMessage, type ChatMessageCreateInput, type ChatMessageParent, type ChatMessageUpdateInput, type ChatMessageYou, type ChatParticipant, type ChatParticipantUpdateInput, type ChatTranslation, type ChatTranslationCreateInput, type ChatTranslationUpdateInput, type ChatUpdateInput, type Comment, type CommentCreateInput, type CommentTranslation, type CommentTranslationCreateInput, type CommentTranslationUpdateInput, type CommentUpdateInput, type CommentedOn, type Issue, type IssueCreateInput, type IssueFor, type IssueTranslation, type IssueTranslationCreateInput, type IssueTranslationUpdateInput, type IssueUpdateInput, type Meeting, type MeetingCreateInput, type MeetingInvite, type MeetingInviteCreateInput, type MeetingInviteUpdateInput, type MeetingTranslation, type MeetingTranslationCreateInput, type MeetingTranslationUpdateInput, type MeetingUpdateInput, type Member, type MemberInvite, type MemberInviteCreateInput, type MemberInviteUpdateInput, type MemberUpdateInput, type ProfileUpdateInput, type PullRequest, type PullRequestCreateInput, type PullRequestTranslation, type PullRequestTranslationCreateInput, type PullRequestTranslationUpdateInput, type PullRequestUpdateInput, type ReactionSummary, type Reminder, type ReminderCreateInput, type ReminderItem, type ReminderItemCreateInput, type ReminderItemUpdateInput, type ReminderList, type ReminderListCreateInput, type ReminderListUpdateInput, type ReminderUpdateInput, type Report, type ReportCreateInput, type ReportFor, type ReportResponse, type ReportResponseCreateInput, type ReportResponseUpdateInput, type ReportUpdateInput, type Resource, type ResourceCreateInput, type ResourceUpdateInput, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionRelation, type ResourceVersionRelationCreateInput, type ResourceVersionRelationUpdateInput, type ResourceVersionTranslation, type ResourceVersionTranslationCreateInput, type ResourceVersionTranslationUpdateInput, type ResourceVersionUpdateInput, type Run, type RunCreateInput, type RunIO, type RunIOCreateInput, type RunIOUpdateInput, type RunStatus, type RunStep, type RunStepCreateInput, type RunStepUpdateInput, type RunUpdateInput, type Schedule, type ScheduleCreateInput, type ScheduleException, type ScheduleExceptionCreateInput, type ScheduleExceptionUpdateInput, type ScheduleRecurrence, type ScheduleRecurrenceCreateInput, type ScheduleRecurrenceUpdateInput, type ScheduleUpdateInput, type Tag, type TagCreateInput, type TagTranslation, type TagTranslationCreateInput, type TagTranslationUpdateInput, type TagUpdateInput, type Team, type TeamCreateInput, type TeamTranslation, type TeamTranslationCreateInput, type TeamTranslationUpdateInput, type TeamUpdateInput, type User, type UserTranslation, type UserTranslationCreateInput, type UserTranslationUpdateInput } from "../../api/types.js";
+// AI_CHECK: TYPE_SAFETY=shared-type-safety-fixes | LAST: 2025-07-01 - Fixed ReportResponseShape to remove 'as any' casts and added proper type imports
+import { CommentFor, ReportSuggestedAction, type Bookmark, type BookmarkCreateInput, type BookmarkFor, type BookmarkList, type BookmarkListCreateInput, type BookmarkListUpdateInput, type BookmarkUpdateInput, type BotCreateInput, type BotUpdateInput, type Chat, type ChatCreateInput, type ChatInvite, type ChatInviteCreateInput, type ChatInviteStatus, type ChatInviteUpdateInput, type ChatInviteYou, type ChatMessage, type ChatMessageCreateInput, type ChatMessageParent, type ChatMessageUpdateInput, type ChatMessageYou, type ChatParticipant, type ChatParticipantUpdateInput, type ChatTranslation, type ChatTranslationCreateInput, type ChatTranslationUpdateInput, type ChatUpdateInput, type Comment, type CommentCreateInput, type CommentTranslation, type CommentTranslationCreateInput, type CommentTranslationUpdateInput, type CommentUpdateInput, type CommentedOn, type Issue, type IssueCreateInput, type IssueFor, type IssueTranslation, type IssueTranslationCreateInput, type IssueTranslationUpdateInput, type IssueUpdateInput, type Meeting, type MeetingCreateInput, type MeetingInvite, type MeetingInviteCreateInput, type MeetingInviteUpdateInput, type MeetingTranslation, type MeetingTranslationCreateInput, type MeetingTranslationUpdateInput, type MeetingUpdateInput, type Member, type MemberInvite, type MemberInviteCreateInput, type MemberInviteUpdateInput, type MemberUpdateInput, type ProfileUpdateInput, type PullRequest, type PullRequestCreateInput, type PullRequestTranslation, type PullRequestTranslationCreateInput, type PullRequestTranslationUpdateInput, type PullRequestUpdateInput, type ReactionSummary, type Reminder, type ReminderCreateInput, type ReminderItem, type ReminderItemCreateInput, type ReminderItemUpdateInput, type ReminderList, type ReminderListCreateInput, type ReminderListUpdateInput, type ReminderUpdateInput, type Report, type ReportCreateInput, type ReportFor, type ReportResponse, type ReportResponseCreateInput, type ReportResponseUpdateInput, type ReportUpdateInput, type Resource, type ResourceCreateInput, type ResourceUpdateInput, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionRelation, type ResourceVersionRelationCreateInput, type ResourceVersionRelationUpdateInput, type ResourceVersionTranslation, type ResourceVersionTranslationCreateInput, type ResourceVersionTranslationUpdateInput, type ResourceVersionUpdateInput, type Run, type RunCreateInput, type RunIO, type RunIOCreateInput, type RunIOUpdateInput, type RunStep, type RunStepCreateInput, type RunStepUpdateInput, type RunUpdateInput, type Schedule, type ScheduleCreateInput, type ScheduleException, type ScheduleExceptionCreateInput, type ScheduleExceptionUpdateInput, type ScheduleRecurrence, type ScheduleRecurrenceCreateInput, type ScheduleRecurrenceUpdateInput, type ScheduleUpdateInput, type Tag, type TagCreateInput, type TagTranslation, type TagTranslationCreateInput, type TagTranslationUpdateInput, type TagUpdateInput, type Team, type TeamCreateInput, type TeamTranslation, type TeamTranslationCreateInput, type TeamTranslationUpdateInput, type TeamUpdateInput, type User, type UserTranslation, type UserTranslationCreateInput, type UserTranslationUpdateInput } from "../../api/types.js";
 import { type CanConnect, type ShapeModel } from "../../consts/commonTypes.js";
 import { DUMMY_ID } from "../../id/snowflake.js";
 import { LATEST_CONFIG_VERSION } from "../../shape/configs/utils.js";
@@ -41,22 +42,24 @@ export const shapeBookmarkList: ShapeModel<BookmarkListShape, BookmarkListCreate
 export type BotShape = Pick<User, "id" | "botSettings" | "handle" | "isBotDepictingPerson" | "isPrivate" | "name"> & {
     __typename: "User";
     bannerImage?: string | File | null;
+    creativity?: number;
     isBot?: true;
     profileImage?: string | File | null;
     translations?: UserTranslationShape[] | null;
+    verbosity?: number;
 }
 
 export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, "id", "bannerImage", "handle", "isBot", "isBotDepictingPerson", "isPrivate", "name", "profileImage"),
+        ...createPrims(d, "id", ["bannerImage", (val: unknown): File | undefined => (typeof File !== "undefined" && val instanceof File) ? val : undefined], "handle", "isBot", "isBotDepictingPerson", "isPrivate", "name", ["profileImage", (val: unknown): File | undefined => (typeof File !== "undefined" && val instanceof File) ? val : undefined]),
         botSettings: d.botSettings ?? { __version: LATEST_CONFIG_VERSION },
         ...createRel(d, "translations", ["Create"], "many", shapeUserTranslation),
-    }),
+    }) as BotCreateInput,
     update: (o, u) => shapeUpdate(u, {
-        ...updatePrims(o, u, "id", "bannerImage", "handle", "isBot", "isBotDepictingPerson", "isPrivate", "name", "profileImage"),
+        ...updatePrims(o, u, "id", ["bannerImage", (val: unknown): File | undefined => (typeof File !== "undefined" && val instanceof File) ? val : undefined], "handle", "isBot", "isBotDepictingPerson", "isPrivate", "name", ["profileImage", (val: unknown): File | undefined => (typeof File !== "undefined" && val instanceof File) ? val : undefined]),
         botSettings: u.botSettings ?? o.botSettings ?? { __version: LATEST_CONFIG_VERSION },
         ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeUserTranslation),
-    }),
+    } as BotUpdateInput),
 };
 
 export type ChatTranslationShape = Pick<ChatTranslation, "id" | "language" | "description" | "name"> & {
@@ -305,7 +308,7 @@ export const shapeProfileTranslation: ShapeModel<ProfileTranslationShape, UserTr
 export const shapeProfile: ShapeModel<ProfileShape, null, ProfileUpdateInput> = {
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, null,
-            "bannerImage",
+            ["bannerImage", (val: unknown): File | undefined => (typeof File !== "undefined" && val instanceof File) ? val : undefined],
             "handle",
             "id",
             "isPrivateMemberships",
@@ -316,11 +319,11 @@ export const shapeProfile: ShapeModel<ProfileShape, null, ProfileUpdateInput> = 
             "isPrivateBookmarks",
             "isPrivateVotes",
             "name",
-            "profileImage",
+            ["profileImage", (val: unknown): File | undefined => (typeof File !== "undefined" && val instanceof File) ? val : undefined],
             "theme",
         ),
         ...updateTransRel(o, u, shapeProfileTranslation),
-    }),
+    } as ProfileUpdateInput),
 };
 
 export type PullRequestTranslationShape = Pick<PullRequestTranslation, "id" | "language" | "text"> & {
@@ -407,7 +410,7 @@ export type ReportShape = Pick<Report, "id" | "details" | "language" | "reason">
 export const shapeReport: ShapeModel<ReportShape, ReportCreateInput, ReportUpdateInput> = {
     create: (d) => ({
         createdForConnect: d.createdFor?.id ?? DUMMY_ID,
-        createdForType: d.createdFor?.__typename ?? "RoutineVersion",
+        createdForType: d.createdFor?.__typename ?? "ResourceVersion",
         reason: d.otherReason?.trim() || d.reason,
         ...createPrims(d, "id", "details", "language"),
     }),
@@ -419,10 +422,22 @@ export const shapeReport: ShapeModel<ReportShape, ReportCreateInput, ReportUpdat
 
 export type ReportResponseShape = Pick<ReportResponse, "id"> & {
     __typename: "ReportResponse";
+    actionSuggested?: ReportSuggestedAction;
+    details?: string | null;
+    language?: string | null;
+    reportId?: string;
 }
 export const shapeReportResponse: ShapeModel<ReportResponseShape, ReportResponseCreateInput, ReportResponseUpdateInput> = {
-    create: (_d) => ({}) as any,
-    update: (o, u) => shapeUpdate(u, {}) as any,
+    create: (d) => ({
+        id: d.id ?? DUMMY_ID,
+        actionSuggested: d.actionSuggested ?? ReportSuggestedAction.NonIssue,
+        details: d.details,
+        language: d.language,
+        reportConnect: d.reportId ?? DUMMY_ID,
+    }),
+    update: (o, u) => shapeUpdate(u, {
+        ...updatePrims(o, u, "id", "details", "language", "actionSuggested"),
+    }),
 };
 
 export type ResourceShape = Pick<Resource, "id" | "isInternal" | "isPrivate" | "permissions" | "resourceType"> & {
@@ -446,7 +461,7 @@ export const shapeResource: ShapeModel<ResourceShape, ResourceCreateInput, Resou
         ...updateOwner(o, u, "ownedBy"),
         ...updateTagsRel(o, u, shapeTag),
         ...updateVersion(o, u, shapeResourceVersion),
-    }),
+    } as ResourceUpdateInput),
 };
 
 export type ResourceVersionTranslationShape = Pick<ResourceVersionTranslation, "id" | "language" | "description" | "details" | "instructions" | "name"> & {
@@ -665,21 +680,21 @@ export const shapeTeamTranslation: ShapeModel<TeamTranslationShape, TeamTranslat
 };
 export const shapeTeam: ShapeModel<TeamShape, TeamCreateInput, TeamUpdateInput> = {
     create: (d) => {
-        const prims = createPrims(d, "id", "bannerImage", "config", "handle", "isOpenToNewMembers", "isPrivate", "profileImage");
+        const prims = createPrims(d, "id", ["bannerImage", (val: unknown): File | undefined => (typeof File !== "undefined" && val instanceof File) ? val : undefined], "config", "handle", "isOpenToNewMembers", "isPrivate", ["profileImage", (val: unknown): File | undefined => (typeof File !== "undefined" && val instanceof File) ? val : undefined]);
         return {
             ...prims,
             ...createRel(d, "memberInvites", ["Create"], "many", shapeMemberInvite),
             ...createRel(d, "tags", ["Connect", "Create"], "many", shapeTag),
             ...createRel(d, "translations", ["Create"], "many", shapeTeamTranslation),
-        };
+        } as TeamCreateInput;
     },
     update: (o, u) => shapeUpdate(u, {
-        ...updatePrims(o, u, "id", "bannerImage", "config", "handle", "isOpenToNewMembers", "isPrivate", "profileImage"),
+        ...updatePrims(o, u, "id", ["bannerImage", (val: unknown): File | undefined => (typeof File !== "undefined" && val instanceof File) ? val : undefined], "config", "handle", "isOpenToNewMembers", "isPrivate", ["profileImage", (val: unknown): File | undefined => (typeof File !== "undefined" && val instanceof File) ? val : undefined]),
         ...updateRel(o, u, "memberInvites", ["Create", "Delete"], "many", shapeMemberInvite),
         ...updateTagsRel(o, u, shapeTag),
         ...updateTransRel(o, u, shapeTeamTranslation),
         ...(u.membersDelete ? { membersDelete: u.membersDelete.map(m => m.id) } : {}),
-    }),
+    } as TeamUpdateInput),
 };
 
 export type UserTranslationShape = Pick<UserTranslation, "id" | "language" | "bio"> & {

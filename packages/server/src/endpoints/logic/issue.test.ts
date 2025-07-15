@@ -16,6 +16,8 @@ import { seedIssues } from "../../__test/fixtures/db/issueFixtures.js";
 import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
 import { issueTestDataFactory } from "@vrooli/shared";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 /**
  * Test suite for the Issue endpoint (findOne, findMany, createOne, updateOne, closeOne)
@@ -31,12 +33,21 @@ describe("EndpointsIssue", () => {
         vi.spyOn(logger, "info").mockImplementation(() => logger);
     });
 
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["user","user_auth","email","session"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn('Test cleanup incomplete:', orphans);
+        }
+    });
+
     beforeEach(async () => {
-        // Clean up tables used in tests
-        try {
-            const prisma = DbProvider.get();
-            if (prisma) {
-                testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.minimal(DbProvider.get());
+    }););
             }
         } catch (error) {
             // If database is not initialized, skip cleanup

@@ -1,108 +1,115 @@
 {
-  "identity": {
-    "name": "customer-satisfaction-sentinel",
-    "version": "1.0.0"
-  },
-  "goal": "Monitors service quality and user feedback",
-  "role": "monitor",
-  "subscriptions": [
-    "step/completed",
-    "run/completed",
-    "safety/post_action"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'customer_interaction' || event.data.tags.includes('service_delivery')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Satisfaction Monitor",
-        "inputMap": {
-          "interactionData": "event.data.output.interaction",
-          "serviceMetrics": "event.data.metrics",
-          "feedbackAnalysis": "blackboard.satisfaction.feedback",
-          "satisfactionSurveys": "blackboard.satisfaction.surveys"
+    "identity": {
+        "name": "customer-satisfaction-sentinel",
+        "version": "1.0.0"
+    },
+    "goal": "Monitors service quality and user feedback",
+    "role": "monitor",
+    "subscriptions": [
+        "step/completed",
+        "run/completed",
+        "safety/post_action"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'customer_interaction' || event.data.tags.includes('service_delivery')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Satisfaction Monitor",
+                "inputMap": {
+                    "interactionData": "event.data.output.interaction",
+                    "serviceMetrics": "event.data.metrics",
+                    "feedbackAnalysis": "blackboard.satisfaction.feedback",
+                    "satisfactionSurveys": "blackboard.satisfaction.surveys"
+                }
+            },
+            "qos": 2
+        },
+        {
+            "trigger": {
+                "topic": "run/completed",
+                "when": "event.data.tags.includes('customer_service') || event.data.tags.includes('quality_assessment')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Continuously track customer satisfaction and service quality metrics to identify improvement opportunities and service issues"
+            },
+            "qos": 2
+        },
+        {
+            "trigger": {
+                "topic": "safety/post_action",
+                "when": "event.data.action.type == 'customer_complaint' || event.data.action.type == 'service_escalation'"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Quality Guardian",
+                "inputMap": {
+                    "complaintData": "event.data.action.complaint",
+                    "escalationContext": "event.data.action.context",
+                    "qualityMetrics": "blackboard.satisfaction.quality"
+                }
+            },
+            "qos": 2
         }
-      },
-      "qos": 2
-    },
-    {
-      "trigger": {
-        "topic": "run/completed",
-        "when": "event.data.tags.includes('customer_service') || event.data.tags.includes('quality_assessment')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Continuously track customer satisfaction and service quality metrics to identify improvement opportunities and service issues"
-      },
-      "qos": 2
-    },
-    {
-      "trigger": {
-        "topic": "safety/post_action",
-        "when": "event.data.action.type == 'customer_complaint' || event.data.action.type == 'service_escalation'"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Quality Guardian",
-        "inputMap": {
-          "complaintData": "event.data.action.complaint",
-          "escalationContext": "event.data.action.context",
-          "qualityMetrics": "blackboard.satisfaction.quality"
+    ],
+    "prompt": "You are a customer satisfaction sentinel responsible for monitoring service quality and user feedback. You must:
+
+- Continuously monitor all customer interactions and service deliveries
+- Track satisfaction metrics and quality indicators in real-time
+- Analyze customer feedback and sentiment across all touchpoints
+- Identify service issues and improvement opportunities promptly
+- Respond immediately to customer complaints and escalations
+
+You are permitted to track satisfaction trends and access all customer feedback data. You must never ignore customer complaints or service quality issues, treating every customer concern as a priority.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "feedback-analysis",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "satisfaction.feedback",
+            "description": "Customer feedback analysis and sentiment tracking"
+        },
+        {
+            "type": "blackboard",
+            "label": "satisfaction-surveys",
+            "permissions": [
+                "read"
+            ],
+            "scope": "satisfaction.surveys",
+            "description": "Customer satisfaction surveys and feedback collection"
+        },
+        {
+            "type": "blackboard",
+            "label": "quality-metrics",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "satisfaction.quality",
+            "description": "Service quality metrics and performance indicators"
+        },
+        {
+            "type": "routine",
+            "label": "Satisfaction Monitor",
+            "permissions": [
+                "read"
+            ],
+            "description": "Monitor customer satisfaction and service interactions"
+        },
+        {
+            "type": "routine",
+            "label": "Quality Guardian",
+            "permissions": [
+                "read"
+            ],
+            "description": "Guard service quality and respond to satisfaction issues"
         }
-      },
-      "qos": 2
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "monitor-service-quality"
-    },
-    {
-      "modality": "permission",
-      "target": "track-satisfaction-trends"
-    },
-    {
-      "modality": "prohibition",
-      "target": "ignore-customer-complaints"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "feedback-analysis",
-      "permissions": ["read", "write"],
-      "scope": "satisfaction.feedback",
-      "description": "Customer feedback analysis and sentiment tracking"
-    },
-    {
-      "type": "blackboard",
-      "label": "satisfaction-surveys",
-      "permissions": ["read"],
-      "scope": "satisfaction.surveys",
-      "description": "Customer satisfaction surveys and feedback collection"
-    },
-    {
-      "type": "blackboard",
-      "label": "quality-metrics",
-      "permissions": ["read", "write"],
-      "scope": "satisfaction.quality",
-      "description": "Service quality metrics and performance indicators"
-    },
-    {
-      "type": "routine",
-      "label": "Satisfaction Monitor",
-      "permissions": ["read"],
-      "description": "Monitor customer satisfaction and service interactions"
-    },
-    {
-      "type": "routine",
-      "label": "Quality Guardian",
-      "permissions": ["read"],
-      "description": "Guard service quality and respond to satisfaction issues"
-    }
-  ]
+    ]
 }

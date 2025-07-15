@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-19
 import React from "react";
 import { describe, test, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "../__test/testUtils.js";

@@ -70,7 +70,7 @@ describe('MyComponent', () => {
 ```typescript
 import { describe, it, expect } from 'vitest';
 import { BookmarkFixtureFactory } from './fixtures/factories/BookmarkFixtureFactory.js';
-import { renderWithProviders, waitForDatabaseRecord } from './testUtils.js';
+import { renderWithProviders } from './testUtils.js';
 
 describe('Bookmark Integration', () => {
     it('should save form data to database', async () => {
@@ -83,11 +83,8 @@ describe('Bookmark Integration', () => {
         await user.type(getByRole('textbox', { name: /list name/i }), formData.newListLabel);
         await user.click(getByRole('button', { name: /save/i }));
         
-        // Verify data was saved to real database
-        const saved = await waitForDatabaseRecord('bookmark', {
-            list: { label: formData.newListLabel }
-        });
-        expect(saved).toBeDefined();
+        // Note: For database verification, use packages/integration instead
+        // This example shows UI-only testing with mocked responses
     });
 });
 ```
@@ -281,3 +278,216 @@ When adding new test fixtures:
 4. **Document scenarios** - Provide clear scenario names and examples
 5. **Include error cases** - Test both success and failure paths
 6. **Update exports** - Add new fixtures to the central index files
+
+## Form Testing with Formik
+
+For components that integrate with Formik forms, we provide specialized test helpers that make form testing much simpler and more consistent.
+
+### Form Test Helpers
+
+Located in `helpers/formTestHelpers.tsx`, these utilities provide:
+
+- **`renderWithFormik()`** - Render components with Formik context
+- **`formInteractions`** - Common form interaction patterns  
+- **`formAssertions`** - Form-specific assertions
+- **`testValidationSchemas`** - Pre-configured validation schemas
+- **`formTestExamples`** - Ready-to-use form configurations
+
+### Basic Form Testing
+
+```typescript
+import { renderWithFormik, formInteractions, formAssertions } from "../helpers/formTestHelpers.js";
+
+describe("ContactForm", () => {
+    it("submits contact form with validation", async () => {
+        const { user, onSubmit } = renderWithFormik(
+            <>
+                <TextInput name="name" label="Name" isRequired />
+                <TextInput name="email" label="Email" type="email" isRequired />
+                <TextInput name="message" label="Message" multiline isRequired />
+            </>,
+            {
+                initialValues: { name: "", email: "", message: "" },
+                formikConfig: {
+                    validationSchema: yup.object({
+                        name: yup.string().required("Name is required"),
+                        email: yup.string().email("Invalid email").required("Email is required"),
+                        message: yup.string().required("Message is required"),
+                    }),
+                },
+            }
+        );
+
+        // Fill out the form
+        await formInteractions.fillMultipleFields(user, {
+            "Name": "John Doe",
+            "Email": "john@example.com",
+            "Message": "Hello world",
+        });
+
+        // Submit via Enter key
+        await formInteractions.submitByEnter(user, "Message");
+
+        // Verify submission
+        formAssertions.expectFormSubmitted(onSubmit, {
+            name: "John Doe",
+            email: "john@example.com", 
+            message: "Hello world",
+        });
+    });
+});
+```
+
+### Available Form Interactions
+
+```typescript
+// Fill individual fields
+await formInteractions.fillField(user, "Email", "test@example.com");
+
+// Fill multiple fields at once
+await formInteractions.fillMultipleFields(user, {
+    "First Name": "John",
+    "Last Name": "Doe",
+    "Email": "john@example.com",
+});
+
+// Submit form via button or Enter key
+await formInteractions.submitByButton(user, "Submit");
+await formInteractions.submitByEnter(user, "Email");
+
+// Trigger validation by focusing and blurring
+await formInteractions.triggerValidation(user, "Email");
+```
+
+### Form Assertions
+
+```typescript
+// Check field values
+formAssertions.expectFieldValue("Email", "john@example.com");
+
+// Check for validation errors
+formAssertions.expectFieldError("Invalid email");
+formAssertions.expectNoFieldError("Invalid email");
+
+// Verify form submission
+formAssertions.expectFormSubmitted(onSubmit, expectedValues);
+
+// Check field states
+formAssertions.expectFieldRequired("Email");
+formAssertions.expectFieldDisabled("Email");
+```
+
+### Pre-configured Validation Schemas
+
+```typescript
+import { testValidationSchemas } from "../helpers/formTestHelpers.js";
+
+const schema = yup.object({
+    username: testValidationSchemas.username(3, 16),
+    email: testValidationSchemas.email(),
+    password: testValidationSchemas.password(8),
+    website: testValidationSchemas.url(),
+    age: testValidationSchemas.number(18, 100),
+});
+```
+
+### Complete Form Examples
+
+Use pre-configured form setups for common scenarios:
+
+```typescript
+import { formTestExamples } from "../helpers/formTestHelpers.js";
+
+// Contact form with validation
+const contactTest = formTestExamples.contactForm();
+const { user, onSubmit } = contactTest.render(<ContactFormComponents />);
+
+// Registration form
+const registrationTest = formTestExamples.registrationForm();
+
+// Profile editing form with pre-filled values
+const profileTest = formTestExamples.profileForm();
+```
+
+### Testing Form State Management
+
+```typescript
+it("handles form state updates", async () => {
+    const { user, getFormValues, setFieldValue, resetForm } = renderWithFormik(
+        <ProfileForm />,
+        { initialValues: { name: "Original", email: "original@example.com" } }
+    );
+
+    // Modify fields
+    await formInteractions.fillField(user, "Name", "Modified");
+    expect(getFormValues().name).toBe("Modified");
+
+    // Programmatic updates
+    await setFieldValue("email", "new@example.com");
+    expect(getFormValues().email).toBe("new@example.com");
+
+    // Reset to original
+    resetForm();
+    expect(getFormValues().name).toBe("Original");
+});
+```
+
+### Advanced Validation Testing
+
+```typescript
+it("tests custom async validation", async () => {
+    const checkUsernameAvailable = async (username: string) => {
+        return username === "taken" ? "Username is already taken" : undefined;
+    };
+
+    const validationSchema = yup.object({
+        username: yup.string()
+            .required("Username is required")
+            .test("availability", "Username is already taken", async (value) => {
+                if (!value) return true;
+                const error = await checkUsernameAvailable(value);
+                return !error;
+            }),
+    });
+
+    const { user } = renderWithFormik(
+        <TextInput name="username" label="Username" />,
+        {
+            initialValues: { username: "" },
+            formikConfig: { validationSchema },
+        }
+    );
+
+    await formInteractions.fillField(user, "Username", "taken");
+    await formInteractions.triggerValidation(user, "Username");
+
+    // Wait for async validation
+    await new Promise(resolve => setTimeout(resolve, 100));
+    formAssertions.expectFieldError("Username is already taken");
+});
+```
+
+### Form Testing Best Practices
+
+#### DO's ✅
+- **Use real Formik integration** instead of mocking Formik
+- **Test complete user flows** from input to submission
+- **Use semantic queries** (getByRole, getByLabelText) for field access
+- **Test both success and validation error paths**
+- **Use form test helpers** to reduce boilerplate
+- **Test accessibility** with proper ARIA labels and keyboard navigation
+
+#### DON'Ts ❌
+- **Don't mock Formik** - test real form behavior
+- **Don't test styling or CSS classes** - use Storybook for visual testing
+- **Don't access form state directly** - test through user interactions
+- **Don't skip validation testing** - forms should be robust
+- **Don't forget error states** - test what happens when things go wrong
+
+### Examples
+
+See `examples/formTestHelpers.example.test.tsx` for comprehensive examples of all form testing patterns.
+
+For component-specific examples:
+- `TextInput.test.tsx` - Input component with Formik integration
+- `FormDivider.test.tsx` - Simple form component testing

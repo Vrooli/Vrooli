@@ -87,7 +87,7 @@ export class SessionService {
 
         // Check if user has any verified phone numbers
         const phoneNumberVerified = userData.phones?.some(phone => phone.verifiedAt !== null) ?? false;
-        
+
         // Check if user has received the phone verification reward
         const hasReceivedPhoneVerificationReward = userData.plan?.receivedFreeTrialAt !== null;
 
@@ -108,10 +108,10 @@ export class SessionService {
             session: {
                 __typename: "SessionUserSession" as const,
                 id: sessionData.id.toString(),
-                lastRefreshAt: sessionData.last_refresh_at,
+                lastRefreshAt: sessionData.last_refresh_at.toISOString(),
             },
             theme: userData.theme,
-            updatedAt: userData.updatedAt,
+            updatedAt: userData.updatedAt.toISOString(),
         };
         return result;
     }

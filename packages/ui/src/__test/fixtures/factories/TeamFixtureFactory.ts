@@ -24,13 +24,15 @@ import type {
     ValidationResult, 
     MSWHandlers,
 } from "../types.js";
-import { http } from "msw";
+import { http, HttpResponse } from "msw";
 
 // Define MemberRole locally since it's not exported from shared
 export enum MemberRole {
+    Owner = "owner",
     ADMIN = "admin",
     EDITOR = "editor",
     VIEWER = "viewer",
+    Member = "member",
 }
 
 /**
@@ -412,18 +414,18 @@ export class TeamFixtureFactory implements FixtureFactory<
         return {
             success: [
                 // Create team
-                http.post(`${baseUrl}/api/team`, async (req, res, ctx) => {
-                    const body = await req.json();
+                http.post(`${baseUrl}/api/team`, async ({ request }) => {
+                    const body = await request.json() as TeamFormData;
                     
                     // Validate the request body
                     const validation = await this.validateFormData(body);
                     if (!validation.isValid) {
-                        return res(
-                            ctx.status(400),
-                            ctx.json({ 
+                        return HttpResponse.json(
+                            { 
                                 errors: validation.errors,
                                 fieldErrors: validation.fieldErrors, 
-                            }),
+                            },
+                            { status: 400 }
                         );
                     }
 
@@ -434,16 +436,13 @@ export class TeamFixtureFactory implements FixtureFactory<
                         isPrivate: body.isPrivate,
                     });
 
-                    return res(
-                        ctx.status(201),
-                        ctx.json(mockTeam),
-                    );
+                    return HttpResponse.json(mockTeam, { status: 201 });
                 }),
 
                 // Update team
-                http.put(`${baseUrl}/api/team/:id`, async (req, res, ctx) => {
-                    const { id } = req.params;
-                    const body = await req.json();
+                http.put(`${baseUrl}/api/team/:id`, async ({ request, params }) => {
+                    const { id } = params;
+                    const body = await request.json() as Partial<TeamFormData>;
 
                     const mockTeam = this.createMockResponse({ 
                         id: id as string,
@@ -451,29 +450,23 @@ export class TeamFixtureFactory implements FixtureFactory<
                         updatedAt: new Date().toISOString(),
                     });
 
-                    return res(
-                        ctx.status(200),
-                        ctx.json(mockTeam),
-                    );
+                    return HttpResponse.json(mockTeam, { status: 200 });
                 }),
 
                 // Get team
-                http.get(`${baseUrl}/api/team/:handle`, (req, res, ctx) => {
-                    const { handle } = req.params;
+                http.get(`${baseUrl}/api/team/:handle`, ({ params }) => {
+                    const { handle } = params;
                     const mockTeam = this.createMockResponse({ 
                         handle: handle as string, 
                     });
                     
-                    return res(
-                        ctx.status(200),
-                        ctx.json(mockTeam),
-                    );
+                    return HttpResponse.json(mockTeam, { status: 200 });
                 }),
 
                 // Add member
-                http.post(`${baseUrl}/api/team/:id/member`, async (req, res, ctx) => {
-                    const { id } = req.params;
-                    const body = await req.json();
+                http.post(`${baseUrl}/api/team/:id/member`, async ({ request, params }) => {
+                    const { id } = params;
+                    const body = await request.json() as { userId: string; userEmail?: string; role?: MemberRole; permissions?: Record<string, boolean> };
 
                     const newMember: Member = {
                         __typename: "Member",
@@ -523,65 +516,58 @@ export class TeamFixtureFactory implements FixtureFactory<
                         },
                     };
 
-                    return res(
-                        ctx.status(201),
-                        ctx.json(newMember),
-                    );
+                    return HttpResponse.json(newMember, { status: 201 });
                 }),
 
                 // Delete team
-                http.delete(`${baseUrl}/api/team/:id`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(204),
-                    );
+                http.delete(`${baseUrl}/api/team/:id`, ({ params }) => {
+                    return new HttpResponse(null, { status: 204 });
                 }),
             ],
 
             error: [
-                http.post(`${baseUrl}/api/team`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(409),
-                        ctx.json({ 
+                http.post(`${baseUrl}/api/team`, ({ request }) => {
+                    return HttpResponse.json(
+                        { 
                             message: "Team handle already exists",
                             code: "HANDLE_EXISTS", 
-                        }),
+                        },
+                        { status: 409 }
                     );
                 }),
 
-                http.put(`${baseUrl}/api/team/:id`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(403),
-                        ctx.json({ 
+                http.put(`${baseUrl}/api/team/:id`, ({ request, params }) => {
+                    return HttpResponse.json(
+                        { 
                             message: "You do not have permission to update this team",
                             code: "PERMISSION_DENIED", 
-                        }),
+                        },
+                        { status: 403 }
                     );
                 }),
 
-                http.get(`${baseUrl}/api/team/:handle`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(404),
-                        ctx.json({ 
+                http.get(`${baseUrl}/api/team/:handle`, ({ params }) => {
+                    return HttpResponse.json(
+                        { 
                             message: "Team not found",
                             code: "TEAM_NOT_FOUND", 
-                        }),
+                        },
+                        { status: 404 }
                     );
                 }),
             ],
 
             loading: [
-                http.post(`${baseUrl}/api/team`, (req, res, ctx) => {
-                    return res(
-                        ctx.delay(2000), // 2 second delay
-                        ctx.status(201),
-                        ctx.json(this.createMockResponse()),
-                    );
+                http.post(`${baseUrl}/api/team`, async ({ request }) => {
+                    // 2 second delay
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    return HttpResponse.json(this.createMockResponse(), { status: 201 });
                 }),
             ],
 
             networkError: [
-                http.post(`${baseUrl}/api/team`, (req, res, ctx) => {
-                    return res.networkError("Network connection failed");
+                http.post(`${baseUrl}/api/team`, ({ request }) => {
+                    return HttpResponse.error();
                 }),
             ],
         };
@@ -667,7 +653,7 @@ export class TeamFixtureFactory implements FixtureFactory<
             id: this.generateId(),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            role: i === 0 ? MemberRole.Owner : i === 1 ? MemberRole.Admin : MemberRole.Member,
+            role: i === 0 ? MemberRole.Owner : i === 1 ? MemberRole.ADMIN : MemberRole.Member,
             permissions: JSON.stringify({
                 admin: i <= 1,
                 manageMembers: i <= 1,
@@ -762,7 +748,7 @@ export class TeamFixtureFactory implements FixtureFactory<
             userId: this.generateId(),
             userEmail: "newmember@example.com",
             role,
-            permissions: role === MemberRole.Admin ? 
+            permissions: role === MemberRole.ADMIN ? 
                 ["manageMembers", "manageProjects"] : 
                 ["viewProjects"],
         };
@@ -826,7 +812,7 @@ export const teamTestScenarios = {
     
     // Member scenarios
     addMember: () => teamFixtures.createMemberFormData(MemberRole.Member),
-    addAdmin: () => teamFixtures.createMemberFormData(MemberRole.Admin),
+    addAdmin: () => teamFixtures.createMemberFormData(MemberRole.ADMIN),
     
     // Mock responses
     basicTeamResponse: () => teamFixtures.createMockResponse(),

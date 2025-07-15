@@ -1,5 +1,5 @@
 /* c8 ignore start */
-import { type TranslationKeyService } from "../types.js";
+import { type TranslationKeyService } from "../types.d.js";
 
 export enum AIServiceName {
     OpenAI = "OpenAI",

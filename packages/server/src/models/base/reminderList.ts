@@ -42,7 +42,7 @@ export const ReminderListModel: ReminderListModelLogic = ({
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => ModelMap.get<UserModelLogic>("User").validate().owner(data?.user as UserModelInfo["DbModel"], userId),
         isDeleted: () => false,
-        isPublic: () => false,
+        isPublic: (_data, _getParentInfo?) => false,
         visibility: {
             own: function getOwn(data) {
                 return {

@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=35 | LAST: 2025-06-28
 import { type HttpMethod, type ServerResponse } from "@vrooli/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchData } from "../api/fetchData.js";
@@ -11,7 +12,7 @@ type RequestState<TData> = {
     errors: ServerResponse["errors"] | undefined;
 };
 
-type UseFetchProps<TInput extends Record<string, any> | undefined, TData> = {
+type UseFetchProps<TInput extends Record<string, unknown> | undefined, TData> = {
     debounceMs?: number;
     endpoint: string | undefined;
     inputs?: TInput;
@@ -32,14 +33,14 @@ type UseFetchProps<TInput extends Record<string, any> | undefined, TData> = {
  * @param options - Additional options to pass to the `fetch` function.
  * @returns An object containing the current state of the request, and a function to manually re-fetch the data.
  */
-export function useFetch<TInput extends Record<string, any> | undefined, TData>({
+export function useFetch<TInput extends Record<string, unknown> | undefined, TData>({
     endpoint,
     inputs = {} as TInput,
     method = "GET",
     options = {} as RequestInit,
     omitRestBase = false,
     debounceMs = 0,
-}: UseFetchProps<TInput, TData>, deps: any[] = []):
+}: UseFetchProps<TInput, TData>, deps: React.DependencyList = []):
     RequestState<TData> & { refetch: (input?: TInput) => unknown } {
     const [state, setState] = useState<RequestState<TData>>({
         loading: false,
@@ -92,7 +93,7 @@ export function useFetch<TInput extends Record<string, any> | undefined, TData>(
     return { ...state, refetch: debouncedRefetch };
 }
 
-export type UseLazyFetchProps<TInput extends Record<string, any> | undefined> = {
+export type UseLazyFetchProps<TInput extends Record<string, unknown> | undefined> = {
     /** The URL to make the request to */
     endpoint?: string | undefined;
     inputs?: TInput;
@@ -110,7 +111,7 @@ export type UseLazyFetchProps<TInput extends Record<string, any> | undefined> = 
  * @returns A tuple where the first element is a function to initiate the request and 
  * the second element is an object representing the current state of the request.
  */
-export function useLazyFetch<TInput extends Record<string, any> | undefined, TData>({
+export function useLazyFetch<TInput extends Record<string, unknown> | undefined, TData>({
     endpoint,
     inputs,
     method = "GET",

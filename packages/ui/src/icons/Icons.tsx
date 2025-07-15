@@ -140,9 +140,13 @@ export type IconInfo = CommonIconInfo | RoutineIconInfo | ServiceIconInfo | Text
 
 type IconProps = Omit<IconBaseProps, "href"> & {
     info: IconInfo;
+    /** Override the size prop with a specific value. Takes precedence over size prop. */
+    sizeOverride?: number | null | undefined;
 };
 export const Icon = forwardRef<SVGSVGElement, IconProps>(({
     info,
+    sizeOverride,
+    size,
     ...props
 }, ref) => {
     if (!info || typeof info !== "object" || !Object.prototype.hasOwnProperty.call(info, "name") || !Object.prototype.hasOwnProperty.call(info, "type")) {
@@ -150,7 +154,9 @@ export const Icon = forwardRef<SVGSVGElement, IconProps>(({
         return null;
     }
     const href = `${typeToHrefMap[info.type]}#${info.name}`;
-    return <IconBase ref={ref} href={href} data-icon-type={info.type.toLowerCase()} data-icon-name={info.name} {...props} />;
+    // Use sizeOverride if provided, otherwise use size
+    const finalSize = sizeOverride !== null && sizeOverride !== undefined ? sizeOverride : size;
+    return <IconBase ref={ref} href={href} size={finalSize} data-icon-type={info.type.toLowerCase()} data-icon-name={info.name} {...props} />;
 });
 Icon.displayName = "Icon";
 

@@ -1,6 +1,7 @@
 import { type ApiKeyCreateInput, type ApiKeyUpdateInput, type ApiKeyValidateInput, type FindByIdInput, ApiKeyPermission, generatePK } from "@vrooli/shared";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi, test } from "vitest";
 import { loggedInUserNoPremiumData, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
+import { assertRequiresAuth, AUTH_SCENARIOS } from "../../__test/authTestUtils.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -10,10 +11,13 @@ import { apiKey_updateOne } from "../generated/apiKey_updateOne.js";
 import { apiKey_validate } from "../generated/apiKey_validate.js";
 import { apiKey } from "./apiKey.js";
 // Import database fixtures for seeding
-import { ApiKeyDbFactory, seedTestApiKeys } from "../../__test/fixtures/db/apiKeyFixtures.js";
+import { ApiKeyDbFactory } from "../../__test/fixtures/db/apiKeyFixtures.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
 import { apiKeyTestDataFactory } from "@vrooli/shared";
+// Import new cleanup helpers
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsApiKey", () => {
     beforeAll(async () => {
@@ -24,12 +28,21 @@ describe("EndpointsApiKey", () => {
     });
 
     beforeEach(async () => {
-        // Clean up tables used in tests
-        const prisma = DbProvider.get();
-        await prisma.apiKey.deleteMany();
-        await prisma.user.deleteMany();
+        // Clean up tables used in tests - API key tests need user auth cleanup
+        await cleanupGroups.userAuth(DbProvider.get());
         // Clear Redis cache
         await CacheService.get().flushAll();
+    });
+
+    afterEach(async () => {
+        // Validate cleanup to catch any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ['user', 'user_auth', 'session', 'api_key', 'email'],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn(`API Key test cleanup incomplete:`, orphans);
+        }
     });
 
     afterAll(async () => {
@@ -43,174 +56,193 @@ describe("EndpointsApiKey", () => {
         const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
         
         // Create test API keys
-        const apiKeys = await seedTestApiKeys(DbProvider.get(), {
-            userId: testUsers[0].id,
-            count: 2,
-            withCredits: true,
-        });
+        const apiKeyFactory = new ApiKeyDbFactory();
+        const apiKeys = [
+            await DbProvider.get().api_key.create({
+                data: {
+                    ...apiKeyFactory.createMinimal(),
+                    user: { connect: { id: testUsers.records[0].id } },
+                    keyPartial: "test-key-partial-1",
+                },
+            }),
+            await DbProvider.get().api_key.create({
+                data: {
+                    ...apiKeyFactory.createComplete(),
+                    user: { connect: { id: testUsers.records[0].id } },
+                    keyPartial: "test-key-partial-2",
+                },
+            }),
+        ];
         
         return { testUsers, apiKeys };
     };
 
     describe("createOne", () => {
-        it("should create API key successfully for authenticated user", async () => {
-            const { testUsers } = await createTestData();
-            const { req, res } = await mockAuthenticatedSession({
-                ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id,
+        describe("authentication", () => {
+            // Hybrid approach: use direct assertion for simple auth check
+            it("not logged in", async () => {
+                const input: ApiKeyCreateInput = apiKeyTestDataFactory.createMinimal({
+                    name: "Test API Key",
+                    permissions: [ApiKeyPermission.ReadPublic],
+                });
+                await assertRequiresAuth(apiKey.createOne, input, apiKey_createOne);
             });
-            
-            const input: ApiKeyCreateInput = apiKeyTestDataFactory.createMinimal({
-                name: "Test API Key",
-                permissions: [ApiKeyPermission.ReadPublic, ApiKeyPermission.ReadPrivate],
-                creditsLimitHard: 1000,
-                creditsLimitSoft: 800,
-                stopAtLimit: true,
-            });
-            
-            const result = await apiKey.createOne({ input }, { req, res }, apiKey_createOne);
-            
-            expect(result).not.toBeNull();
-            expect(result.name).toBe(input.name);
-            expect(result.permissions).toEqual(input.permissions);
-            expect(result.creditsLimitHard).toBe(input.creditsLimitHard);
-            expect(result.key).toBeDefined(); // Should return the plain key for creation
         });
 
-        it("should throw error when not authenticated", async () => {
-            const { req, res } = await mockLoggedOutSession();
-            
-            const input: ApiKeyCreateInput = apiKeyTestDataFactory.createMinimal({
-                name: "Test API Key",
-                permissions: [ApiKeyPermission.ReadPublic],
+        describe("valid", () => {
+            it("creates API key successfully for authenticated user", async () => {
+                const { testUsers } = await createTestData();
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers.records[0].id,
+                });
+                
+                const input: ApiKeyCreateInput = apiKeyTestDataFactory.createMinimal({
+                    name: "Test API Key",
+                    permissions: [ApiKeyPermission.ReadPublic, ApiKeyPermission.ReadPrivate],
+                    creditsLimitHard: 1000,
+                    creditsLimitSoft: 800,
+                    stopAtLimit: true,
+                });
+                
+                const result = await apiKey.createOne({ input }, { req, res }, apiKey_createOne);
+                
+                expect(result).not.toBeNull();
+                expect(result.name).toBe(input.name);
+                expect(result.permissions).toEqual(input.permissions);
+                expect(result.creditsLimitHard).toBe(input.creditsLimitHard);
+                expect(result.key).toBeDefined(); // Should return the plain key for creation
             });
-            
-            await expect(async () => {
-                await apiKey.createOne({ input }, { req, res }, apiKey_createOne);
-            }).rejects.toThrow();
         });
 
-        it("should validate input requirements", async () => {
-            const { testUsers } = await createTestData();
-            const { req, res } = await mockAuthenticatedSession({
-                ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id,
+        describe("invalid", () => {
+            it("validates input requirements", async () => {
+                const { testUsers } = await createTestData();
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers.records[0].id,
+                });
+                
+                // Test missing name
+                const invalidInput = {
+                    permissions: [ApiKeyPermission.ReadPublic],
+                    // name is missing
+                } as ApiKeyCreateInput;
+                
+                await expect(async () => {
+                    await apiKey.createOne({ input: invalidInput }, { req, res }, apiKey_createOne);
+                }).rejects.toThrow();
             });
-            
-            // Test missing name
-            const invalidInput = {
-                permissions: [ApiKeyPermission.ReadPublic],
-                // name is missing
-            } as ApiKeyCreateInput;
-            
-            await expect(async () => {
-                await apiKey.createOne({ input: invalidInput }, { req, res }, apiKey_createOne);
-            }).rejects.toThrow();
         });
     });
 
     describe("validate", () => {
-        it("should validate correct API key", async () => {
-            const { testUsers, apiKeys } = await createTestData();
-            const { req, res } = await mockLoggedOutSession(); // validate doesn't require authentication
-            
-            const input: ApiKeyValidateInput = {
-                id: apiKeys[0].id,
-                secret: apiKeys[0].keyPartial, // This would be the full key in real usage
-            };
-            
-            // Note: This test might fail in real execution due to key encryption
-            // but it validates the endpoint structure and input validation
-            const result = await apiKey.validate({ input }, { req, res }, apiKey_validate);
-            expect(result).toBeDefined();
+        describe("valid", () => {
+            it("validates correct API key", async () => {
+                const { testUsers, apiKeys } = await createTestData();
+                const { req, res } = await mockLoggedOutSession(); // validate doesn't require authentication
+                
+                const input: ApiKeyValidateInput = {
+                    id: apiKeys[0].id,
+                    secret: apiKeys[0].keyPartial, // This would be the full key in real usage
+                };
+                
+                // Note: This test might fail in real execution due to key encryption
+                // but it validates the endpoint structure and input validation
+                const result = await apiKey.validate({ input }, { req, res }, apiKey_validate);
+                expect(result).toBeDefined();
+            });
         });
 
-        it("should reject invalid API key", async () => {
-            const { req, res } = await mockLoggedOutSession();
-            
-            const input: ApiKeyValidateInput = {
-                id: generatePK(),
-                secret: "invalid-secret",
-            };
-            
-            await expect(async () => {
-                await apiKey.validate({ input }, { req, res }, apiKey_validate);
-            }).rejects.toThrow();
-        });
-
-        it("should reject invalid input format", async () => {
-            const { req, res } = await mockLoggedOutSession();
-            
-            const invalidInputs = [
-                { id: "", secret: "valid-secret" },
-                { id: "valid-id", secret: "" },
-                { secret: "valid-secret" }, // missing id
-                { id: "valid-id" }, // missing secret
-            ];
-
-            for (const invalidInput of invalidInputs) {
+        describe("invalid", () => {
+            it("rejects invalid API key", async () => {
+                const { req, res } = await mockLoggedOutSession();
+                
+                const input: ApiKeyValidateInput = {
+                    id: generatePK(),
+                    secret: "invalid-secret",
+                };
+                
                 await expect(async () => {
-                    await apiKey.validate(
-                        { input: invalidInput as any },
-                        { req, res },
-                        apiKey_validate,
-                    );
+                    await apiKey.validate({ input }, { req, res }, apiKey_validate);
                 }).rejects.toThrow();
-            }
+            });
+
+            it("rejects invalid input format", async () => {
+                const { req, res } = await mockLoggedOutSession();
+                
+                const invalidInputs = [
+                    { id: "", secret: "valid-secret" },
+                    { id: "valid-id", secret: "" },
+                    { secret: "valid-secret" }, // missing id
+                    { id: "valid-id" }, // missing secret
+                ];
+
+                for (const invalidInput of invalidInputs) {
+                    await expect(async () => {
+                        await apiKey.validate(
+                            { input: invalidInput as any },
+                            { req, res },
+                            apiKey_validate,
+                        );
+                    }).rejects.toThrow();
+                }
+            });
         });
     });
 
     describe("updateOne", () => {
-        it("should update API key for owner", async () => {
-            const { testUsers, apiKeys } = await createTestData();
-            const { req, res } = await mockAuthenticatedSession({
-                ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id,
+        describe("authentication", () => {
+            // Hybrid approach: use direct assertion for simple auth check
+            it("not logged in", async () => {
+                const input: ApiKeyUpdateInput = {
+                    id: generatePK(),
+                    name: "Updated API Key Name",
+                };
+                await assertRequiresAuth(apiKey.updateOne, input, apiKey_updateOne);
             });
-            
-            const input: ApiKeyUpdateInput = {
-                id: apiKeys[0].id,
-                name: "Updated API Key Name",
-                creditsLimitHard: 2000,
-            };
-            
-            const result = await apiKey.updateOne({ input }, { req, res }, apiKey_updateOne);
-            
-            expect(result).not.toBeNull();
-            expect(result.id).toBe(input.id);
-            expect(result.name).toBe(input.name);
-            expect(result.creditsLimitHard).toBe(input.creditsLimitHard);
         });
 
-        it("should not update API key for non-owner", async () => {
-            const { testUsers, apiKeys } = await createTestData();
-            const { req, res } = await mockAuthenticatedSession({
-                ...loggedInUserNoPremiumData(),
-                id: testUsers[1].id, // Different user
+        describe("valid", () => {
+            it("updates API key for owner", async () => {
+                const { testUsers, apiKeys } = await createTestData();
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers.records[0].id,
+                });
+                
+                const input: ApiKeyUpdateInput = {
+                    id: apiKeys[0].id,
+                    name: "Updated API Key Name",
+                    creditsLimitHard: 2000,
+                };
+                
+                const result = await apiKey.updateOne({ input }, { req, res }, apiKey_updateOne);
+                
+                expect(result).not.toBeNull();
+                expect(result.id).toBe(input.id);
+                expect(result.name).toBe(input.name);
+                expect(result.creditsLimitHard).toBe(input.creditsLimitHard);
             });
-            
-            const input: ApiKeyUpdateInput = {
-                id: apiKeys[0].id, // Owned by testUsers[0]
-                name: "Updated API Key Name",
-            };
-            
-            await expect(async () => {
-                await apiKey.updateOne({ input }, { req, res }, apiKey_updateOne);
-            }).rejects.toThrow();
         });
 
-        it("should throw error when not authenticated", async () => {
-            const { apiKeys } = await createTestData();
-            const { req, res } = await mockLoggedOutSession();
-            
-            const input: ApiKeyUpdateInput = {
-                id: apiKeys[0].id,
-                name: "Updated API Key Name",
-            };
-            
-            await expect(async () => {
-                await apiKey.updateOne({ input }, { req, res }, apiKey_updateOne);
-            }).rejects.toThrow();
+        describe("invalid", () => {
+            it("cannot update API key for non-owner", async () => {
+                const { testUsers, apiKeys } = await createTestData();
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers.records[1].id, // Different user
+                });
+                
+                const input: ApiKeyUpdateInput = {
+                    id: apiKeys[0].id, // Owned by testUsers.records[0]
+                    name: "Updated API Key Name",
+                };
+                
+                await expect(async () => {
+                    await apiKey.updateOne({ input }, { req, res }, apiKey_updateOne);
+                }).rejects.toThrow();
+            });
         });
     });
 });

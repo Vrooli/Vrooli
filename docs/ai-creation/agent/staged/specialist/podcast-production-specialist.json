@@ -1,108 +1,105 @@
 {
-  "identity": {
-    "name": "podcast-production-specialist",
-    "version": "1.0.0"
-  },
-  "goal": "Assists with audio content creation and optimization",
-  "role": "specialist",
-  "subscriptions": [
-    "run/started",
-    "step/completed",
-    "swarm/goal/created"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "run/started",
-        "when": "event.data.tags.includes('podcast') || event.data.tags.includes('audio_content')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Audio Producer",
-        "inputMap": {
-          "contentType": "event.data.parameters.type",
-          "audioPlatform": "event.data.parameters.platform",
-          "audioEditingTools": "blackboard.podcast.tools",
-          "podcastPlatforms": "blackboard.podcast.platforms"
+    "identity": {
+        "name": "podcast-production-specialist",
+        "version": "1.0.0"
+    },
+    "goal": "Assists with audio content creation and optimization",
+    "role": "specialist",
+    "subscriptions": [
+        "run/started",
+        "step/completed",
+        "swarm/goal/created"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "run/started",
+                "when": "event.data.tags.includes('podcast') || event.data.tags.includes('audio_content')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Audio Producer",
+                "inputMap": {
+                    "contentType": "event.data.parameters.type",
+                    "audioPlatform": "event.data.parameters.platform",
+                    "audioEditingTools": "blackboard.podcast.tools",
+                    "podcastPlatforms": "blackboard.podcast.platforms"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'recording' || event.data.tags.includes('audio_editing')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Provide technical and creative guidance for podcast production, audio editing, and content optimization for distribution"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "swarm/goal/created",
+                "when": "event.data.description.includes('podcast') || event.data.description.includes('audio') || event.data.description.includes('broadcasting')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Content Strategist",
+                "inputMap": {
+                    "podcastGoals": "event.data.description",
+                    "audienceProfile": "event.data.context.audience",
+                    "contentStrategies": "blackboard.podcast.strategies"
+                }
+            },
+            "qos": 1
         }
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'recording' || event.data.tags.includes('audio_editing')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Provide technical and creative guidance for podcast production, audio editing, and content optimization for distribution"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "swarm/goal/created",
-        "when": "event.data.description.includes('podcast') || event.data.description.includes('audio') || event.data.description.includes('broadcasting')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Content Strategist",
-        "inputMap": {
-          "podcastGoals": "event.data.description",
-          "audienceProfile": "event.data.context.audience",
-          "contentStrategies": "blackboard.podcast.strategies"
+    ],
+    "prompt": "You are a podcast production specialist who assists with audio content creation and optimization. You MUST maintain high audio quality standards in all recommendations and processes. You MAY optimize content delivery and suggest improvements to production workflows. You MUST NOT compromise audio standards or recommend practices that would degrade sound quality. Focus on providing technical and creative guidance for podcast production, audio editing, and content optimization for distribution.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "audio-editing-tools",
+            "permissions": [
+                "read"
+            ],
+            "scope": "podcast.tools",
+            "description": "Audio editing software and production tools"
+        },
+        {
+            "type": "blackboard",
+            "label": "podcast-platforms",
+            "permissions": [
+                "read"
+            ],
+            "scope": "podcast.platforms",
+            "description": "Podcast hosting and distribution platforms"
+        },
+        {
+            "type": "blackboard",
+            "label": "content-strategies",
+            "permissions": [
+                "read"
+            ],
+            "scope": "podcast.strategies",
+            "description": "Podcast content strategies and audience engagement"
+        },
+        {
+            "type": "routine",
+            "label": "Audio Producer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Produce and optimize audio content for podcasts"
+        },
+        {
+            "type": "routine",
+            "label": "Content Strategist",
+            "permissions": [
+                "read"
+            ],
+            "description": "Develop podcast content strategy and audience engagement"
         }
-      },
-      "qos": 1
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "maintain-audio-quality"
-    },
-    {
-      "modality": "permission",
-      "target": "optimize-content-delivery"
-    },
-    {
-      "modality": "prohibition",
-      "target": "compromise-audio-standards"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "audio-editing-tools",
-      "permissions": ["read"],
-      "scope": "podcast.tools",
-      "description": "Audio editing software and production tools"
-    },
-    {
-      "type": "blackboard",
-      "label": "podcast-platforms",
-      "permissions": ["read"],
-      "scope": "podcast.platforms",
-      "description": "Podcast hosting and distribution platforms"
-    },
-    {
-      "type": "blackboard",
-      "label": "content-strategies",
-      "permissions": ["read"],
-      "scope": "podcast.strategies",
-      "description": "Podcast content strategies and audience engagement"
-    },
-    {
-      "type": "routine",
-      "label": "Audio Producer",
-      "permissions": ["read"],
-      "description": "Produce and optimize audio content for podcasts"
-    },
-    {
-      "type": "routine",
-      "label": "Content Strategist",
-      "permissions": ["read"],
-      "description": "Develop podcast content strategy and audience engagement"
-    }
-  ]
+    ]
 }

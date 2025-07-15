@@ -1,6 +1,4 @@
 // AI_CHECK: TEST_COVERAGE=2 | LAST: 2025-06-24
-import type { Prisma } from "@prisma/client";
-import pkg from "@prisma/client";
 import { DbProvider, batch, logger } from "@vrooli/server";
 import { camelCase, uppercaseFirstLetter, type ModelType, ModelType as ModelTypeEnum } from "@vrooli/shared";
 
@@ -12,7 +10,6 @@ function isValidModelType(value: string): value is ModelType {
     return modelTypeValues.includes(value);
 }
 
-const { PrismaClient } = pkg;
 
 /**
  * Generic interface for count verification payload
@@ -68,16 +65,32 @@ export async function verifyCountField<
             await batch<TFindManyArgs, TPayload>({
                 objectType: modelTypeCandidate,
                 processBatch: async (batchItems) => {
+                    // Type guards for safely accessing count fields
+                    function hasCountField(obj: unknown, field: string): obj is Record<string, unknown> {
+                        return obj !== null && typeof obj === "object" && field in obj;
+                    }
+                    
+                    function isValidNumber(value: unknown): value is number {
+                        return typeof value === "number";
+                    }
+                    
+                    // Type guard to check if dbProvider has the table property
+                    function hasTable(provider: unknown, table: string): provider is Record<string, unknown> {
+                        return provider !== null && 
+                               typeof provider === "object" && 
+                               table in provider;
+                    }
+                    
+                    // Type guard to check if dbModel has update method
+                    function hasUpdateMethod(model: unknown): model is { update: (args: { where: { id: bigint }; data: Record<string, unknown> }) => Promise<unknown> } {
+                        return model !== null &&
+                               typeof model === "object" &&
+                               "update" in model &&
+                               typeof model.update === "function";
+                    }
+
                     for (const item of batchItems) {
                         const actualCount = item._count[relationName];
-                        // Safely access the count field using type guards
-                        const hasCountField = (obj: unknown, field: string): obj is Record<string, unknown> => {
-                            return obj !== null && typeof obj === "object" && field in obj;
-                        };
-                        
-                        const isValidNumber = (value: unknown): value is number => {
-                            return typeof value === "number";
-                        };
                         
                         let cachedCount: number | undefined = undefined;
                         if (hasCountField(item, countField)) {
@@ -94,12 +107,6 @@ export async function verifyCountField<
                             );
                             
                             const dbProvider = DbProvider.get();
-                            // Type guard to check if dbProvider has the table property
-                            const hasTable = (provider: unknown, table: string): provider is Record<string, unknown> => {
-                                return provider !== null && 
-                                       typeof provider === "object" && 
-                                       table in provider;
-                            };
                             
                             if (!hasTable(dbProvider, tableName)) {
                                 logger.error(`Database provider does not have table: ${tableName}`, { trace: traceId });
@@ -107,14 +114,6 @@ export async function verifyCountField<
                             }
                             
                             const dbModel = dbProvider[tableName];
-                            
-                            // Type guard to check if dbModel has update method
-                            const hasUpdateMethod = (model: unknown): model is { update: Function } => {
-                                return model !== null &&
-                                       typeof model === "object" &&
-                                       "update" in model &&
-                                       typeof model.update === "function";
-                            };
                             
                             if (!hasUpdateMethod(dbModel)) {
                                 logger.error(`Database model for ${tableName} does not have update method`, { trace: traceId });
@@ -135,7 +134,7 @@ export async function verifyCountField<
                 },
                 select: select as TFindManyArgs["select"],
             });
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error(`verifyCountField processTableInBatches caught error for ${tableName}`, { 
                 error, 
                 trace: `${traceId}_batch_error`,

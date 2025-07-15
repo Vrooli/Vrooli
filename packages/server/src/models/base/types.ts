@@ -1,4 +1,4 @@
-// AI_CHECK: TYPE_SAFETY=server-type-safety-maintenance-phase2 | LAST: 2025-07-04 - Fixed missing semicolon in UserPermissions type definition
+// AI_CHECK: TYPE_SAFETY=phase3-model-logic | LAST: 2025-07-04 - Completed all ModelLogic type definitions with proper three-parameter structure
 import { type ApiKey, type ApiKeyCreateInput, type ApiKeyExternal, type ApiKeyExternalCreateInput, type ApiKeyExternalUpdateInput, type ApiKeyUpdateInput, type Award, type AwardSearchInput, type AwardSortBy, type Bookmark, type BookmarkCreateInput, type BookmarkList, type BookmarkListCreateInput, type BookmarkListSearchInput, type BookmarkListSortBy, type BookmarkListUpdateInput, type BookmarkSearchInput, type BookmarkSortBy, type BookmarkUpdateInput, type BotCreateInput, type BotUpdateInput, type Chat, type ChatCreateInput, type ChatInvite, type ChatInviteCreateInput, type ChatInviteSearchInput, type ChatInviteSortBy, type ChatInviteUpdateInput, type ChatInviteYou, type ChatMessage, type ChatMessageCreateInput, type ChatMessageSearchInput, type ChatMessageSortBy, type ChatMessageUpdateInput, type ChatMessageYou, type ChatParticipant, type ChatParticipantSearchInput, type ChatParticipantSortBy, type ChatParticipantUpdateInput, type ChatSearchInput, type ChatSortBy, type ChatUpdateInput, type ChatYou, type Comment, type CommentCreateInput, type CommentSearchInput, type CommentSortBy, type CommentUpdateInput, type CommentYou, type Email, type EmailCreateInput, type Issue, type IssueCreateInput, type IssueSearchInput, type IssueSortBy, type IssueUpdateInput, type IssueYou, type Meeting, type MeetingCreateInput, type MeetingInvite, type MeetingInviteCreateInput, type MeetingInviteSearchInput, type MeetingInviteSortBy, type MeetingInviteUpdateInput, type MeetingInviteYou, type MeetingSearchInput, type MeetingSortBy, type MeetingUpdateInput, type MeetingYou, type Member, type MemberInvite, type MemberInviteCreateInput, type MemberInviteSearchInput, type MemberInviteSortBy, type MemberInviteUpdateInput, type MemberInviteYou, type MemberSearchInput, type MemberSortBy, type MemberUpdateInput, type MemberYou, type Notification, type NotificationSearchInput, type NotificationSortBy, type NotificationSubscription, type NotificationSubscriptionCreateInput, type NotificationSubscriptionSearchInput, type NotificationSubscriptionSortBy, type NotificationSubscriptionUpdateInput, type Payment, type PaymentSearchInput, type PaymentSortBy, type Phone, type PhoneCreateInput, type ProfileUpdateInput, type PullRequest, type PullRequestCreateInput, type PullRequestSearchInput, type PullRequestSortBy, type PullRequestUpdateInput, type PullRequestYou, type PushDevice, type PushDeviceCreateInput, type PushDeviceUpdateInput, type ReactInput, type Reaction, type ReactionSearchInput, type ReactionSortBy, type ReactionSummary, type Reminder, type ReminderCreateInput, type ReminderItem, type ReminderItemCreateInput, type ReminderItemUpdateInput, type ReminderList, type ReminderListCreateInput, type ReminderListUpdateInput, type ReminderSearchInput, type ReminderSortBy, type ReminderUpdateInput, type Report, type ReportCreateInput, type ReportResponse, type ReportResponseCreateInput, type ReportResponseSearchInput, type ReportResponseSortBy, type ReportResponseUpdateInput, type ReportResponseYou, type ReportSearchInput, type ReportSortBy, type ReportUpdateInput, type ReportYou, type ResourceCreateInput, type ResourceSearchInput, type ResourceSortBy, type ResourceUpdateInput, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionRelation, type ResourceVersionRelationCreateInput, type ResourceVersionRelationUpdateInput, type ResourceVersionSearchInput, type ResourceVersionSortBy, type ResourceVersionUpdateInput, type ResourceVersionYou, type ResourceYou, type Run, type RunCreateInput, type RunIO, type RunIOCreateInput, type RunIOSearchInput, type RunIOSortBy, type RunIOUpdateInput, type RunSearchInput, type RunSortBy, type RunStep, type RunStepCreateInput, type RunStepUpdateInput, type RunUpdateInput, type RunYou, type Schedule, type ScheduleCreateInput, type ScheduleException, type ScheduleExceptionCreateInput, type ScheduleExceptionSearchInput, type ScheduleExceptionSortBy, type ScheduleExceptionUpdateInput, type ScheduleRecurrence, type ScheduleRecurrenceCreateInput, type ScheduleRecurrenceSearchInput, type ScheduleRecurrenceSortBy, type ScheduleRecurrenceUpdateInput, type ScheduleSearchInput, type ScheduleSortBy, type ScheduleUpdateInput, type Session, type StatsResource, type StatsResourceSearchInput, type StatsResourceSortBy, type StatsSite, type StatsSiteSearchInput, type StatsSiteSortBy, type StatsTeam, type StatsTeamSearchInput, type StatsTeamSortBy, type StatsUser, type StatsUserSearchInput, type StatsUserSortBy, type Tag, type TagCreateInput, type TagSearchInput, type TagSortBy, type TagUpdateInput, type Team, type TeamCreateInput, type TeamSearchInput, type TeamSortBy, type TeamUpdateInput, type TeamYou, type Transfer, type TransferRequestReceiveInput, type TransferRequestSendInput, type TransferSearchInput, type TransferSortBy, type TransferUpdateInput, type TransferYou, type User, type UserSearchInput, type UserSortBy, type UserYou, type View, type ViewSearchInput, type ViewSortBy, type Wallet, type WalletUpdateInput } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
 import { type Resource } from "i18next";
@@ -22,7 +22,7 @@ export type ApiKeyModelInfo = {
     DbSelect: Prisma.api_keySelect,
     DbWhere: Prisma.api_keyWhereInput,
 }
-export type ApiKeyModelLogic = ModelLogic<ApiKeyModelInfo, typeof SuppFields.ApiKey>;
+export type ApiKeyModelLogic = ModelLogic<ApiKeyModelInfo, typeof SuppFields.ApiKey, "id">;
 
 export type ApiKeyExternalModelInfo = {
     __typename: "ApiKeyExternal",
@@ -40,7 +40,7 @@ export type ApiKeyExternalModelInfo = {
     DbSelect: Prisma.api_key_externalSelect,
     DbWhere: Prisma.api_key_externalWhereInput,
 }
-export type ApiKeyExternalModelLogic = ModelLogic<ApiKeyExternalModelInfo, typeof SuppFields.ApiKeyExternal>;
+export type ApiKeyExternalModelLogic = ModelLogic<ApiKeyExternalModelInfo, typeof SuppFields.ApiKeyExternal, "id">;
 
 export type AwardModelInfo = {
     __typename: "Award",
@@ -58,7 +58,7 @@ export type AwardModelInfo = {
     DbSelect: Prisma.awardSelect,
     DbWhere: Prisma.awardWhereInput,
 }
-export type AwardModelLogic = ModelLogic<AwardModelInfo, typeof SuppFields.Award>;
+export type AwardModelLogic = ModelLogic<AwardModelInfo, typeof SuppFields.Award, "id">;
 
 export type BookmarkModelInfo = {
     __typename: "Bookmark",
@@ -76,7 +76,7 @@ export type BookmarkModelInfo = {
     DbSelect: Prisma.bookmarkSelect,
     DbWhere: Prisma.bookmarkWhereInput,
 }
-export type BookmarkModelLogic = ModelLogic<BookmarkModelInfo, typeof SuppFields.Bookmark>;
+export type BookmarkModelLogic = ModelLogic<BookmarkModelInfo, typeof SuppFields.Bookmark, "id">;
 
 export type BookmarkListModelInfo = {
     __typename: "BookmarkList",
@@ -94,7 +94,7 @@ export type BookmarkListModelInfo = {
     DbSelect: Prisma.bookmark_listSelect,
     DbWhere: Prisma.bookmark_listWhereInput,
 }
-export type BookmarkListModelLogic = ModelLogic<BookmarkListModelInfo, typeof SuppFields.BookmarkList>;
+export type BookmarkListModelLogic = ModelLogic<BookmarkListModelInfo, typeof SuppFields.BookmarkList, "id">;
 
 export type ChatPermissions = Omit<ChatYou, "__typename">;
 export type ChatModelInfo = {
@@ -113,7 +113,7 @@ export type ChatModelInfo = {
     DbSelect: Prisma.chatSelect,
     DbWhere: Prisma.chatWhereInput,
 }
-export type ChatModelLogic = ModelLogic<ChatModelInfo, typeof SuppFields.Chat>;
+export type ChatModelLogic = ModelLogic<ChatModelInfo, typeof SuppFields.Chat, "id">;
 
 export type ChatInvitePermissions = Omit<ChatInviteYou, "__typename">;
 export type ChatInviteModelInfo = {
@@ -132,7 +132,7 @@ export type ChatInviteModelInfo = {
     DbSelect: Prisma.chat_inviteSelect,
     DbWhere: Prisma.chat_inviteWhereInput,
 }
-export type ChatInviteModelLogic = ModelLogic<ChatInviteModelInfo, typeof SuppFields.ChatInvite>;
+export type ChatInviteModelLogic = ModelLogic<ChatInviteModelInfo, typeof SuppFields.ChatInvite, "id">;
 
 export type ChatMessagePermissions = Omit<ChatMessageYou, "__typename" | "reaction">;
 export type ChatMessageModelInfo = {
@@ -151,7 +151,7 @@ export type ChatMessageModelInfo = {
     DbSelect: Prisma.chat_messageSelect,
     DbWhere: Prisma.chat_messageWhereInput,
 }
-export type ChatMessageModelLogic = ModelLogic<ChatMessageModelInfo, typeof SuppFields.ChatMessage>;
+export type ChatMessageModelLogic = ModelLogic<ChatMessageModelInfo, typeof SuppFields.ChatMessage, "id">;
 
 export type ChatParticipantModelInfo = {
     __typename: "ChatParticipant",
@@ -169,7 +169,7 @@ export type ChatParticipantModelInfo = {
     DbSelect: Prisma.chat_participantsSelect,
     DbWhere: Prisma.chat_participantsWhereInput,
 }
-export type ChatParticipantModelLogic = ModelLogic<ChatParticipantModelInfo, typeof SuppFields.ChatParticipant>;
+export type ChatParticipantModelLogic = ModelLogic<ChatParticipantModelInfo, typeof SuppFields.ChatParticipant, "id">;
 
 export type CommentPermissions = Omit<CommentYou, "__typename" | "isBookmarked" | "reaction">;
 export type CommentModelInfo = {
@@ -188,7 +188,7 @@ export type CommentModelInfo = {
     DbSelect: Prisma.commentSelect,
     DbWhere: Prisma.commentWhereInput,
 }
-export type CommentModelLogic = ModelLogic<CommentModelInfo, typeof SuppFields.Comment>;
+export type CommentModelLogic = ModelLogic<CommentModelInfo, typeof SuppFields.Comment, "id">;
 
 export type EmailModelInfo = {
     __typename: "Email",
@@ -206,7 +206,7 @@ export type EmailModelInfo = {
     DbSelect: Prisma.emailSelect,
     DbWhere: Prisma.emailWhereInput,
 }
-export type EmailModelLogic = ModelLogic<EmailModelInfo, typeof SuppFields.Email>;
+export type EmailModelLogic = ModelLogic<EmailModelInfo, typeof SuppFields.Email, "id">;
 
 export type IssuePermissions = Omit<IssueYou, "__typename" | "isBookmarked" | "reaction">;
 export type IssueModelInfo = {
@@ -225,7 +225,7 @@ export type IssueModelInfo = {
     DbSelect: Prisma.issueSelect,
     DbWhere: Prisma.issueWhereInput,
 }
-export type IssueModelLogic = ModelLogic<IssueModelInfo, typeof SuppFields.Issue>;
+export type IssueModelLogic = ModelLogic<IssueModelInfo, typeof SuppFields.Issue, "id">;
 
 export type MeetingPermissions = Omit<MeetingYou, "__typename">;
 export type MeetingModelInfo = {
@@ -244,7 +244,7 @@ export type MeetingModelInfo = {
     DbSelect: Prisma.meetingSelect,
     DbWhere: Prisma.meetingWhereInput,
 }
-export type MeetingModelLogic = ModelLogic<MeetingModelInfo, typeof SuppFields.Meeting>;
+export type MeetingModelLogic = ModelLogic<MeetingModelInfo, typeof SuppFields.Meeting, "id">;
 
 export type MeetingInvitePermissions = Omit<MeetingInviteYou, "__typename">;
 export type MeetingInviteModelInfo = {
@@ -263,7 +263,7 @@ export type MeetingInviteModelInfo = {
     DbSelect: Prisma.meeting_inviteSelect,
     DbWhere: Prisma.meeting_inviteWhereInput,
 }
-export type MeetingInviteModelLogic = ModelLogic<MeetingInviteModelInfo, typeof SuppFields.MeetingInvite>;
+export type MeetingInviteModelLogic = ModelLogic<MeetingInviteModelInfo, typeof SuppFields.MeetingInvite, "id">;
 
 export type MemberPermissions = Omit<MemberYou, "__typename">;
 export type MemberModelInfo = {
@@ -282,7 +282,7 @@ export type MemberModelInfo = {
     DbSelect: Prisma.memberSelect,
     DbWhere: Prisma.memberWhereInput,
 }
-export type MemberModelLogic = ModelLogic<MemberModelInfo, typeof SuppFields.Member>;
+export type MemberModelLogic = ModelLogic<MemberModelInfo, typeof SuppFields.Member, "id">;
 
 export type MemberInvitePermissions = Omit<MemberInviteYou, "__typename">;
 export type MemberInviteModelInfo = {
@@ -301,7 +301,7 @@ export type MemberInviteModelInfo = {
     DbSelect: Prisma.member_inviteSelect,
     DbWhere: Prisma.member_inviteWhereInput,
 }
-export type MemberInviteModelLogic = ModelLogic<MemberInviteModelInfo, typeof SuppFields.MemberInvite>;
+export type MemberInviteModelLogic = ModelLogic<MemberInviteModelInfo, typeof SuppFields.MemberInvite, "id">;
 
 export type NotificationModelInfo = {
     __typename: "Notification",
@@ -319,7 +319,7 @@ export type NotificationModelInfo = {
     DbSelect: Prisma.notificationSelect,
     DbWhere: Prisma.notificationWhereInput,
 }
-export type NotificationModelLogic = ModelLogic<NotificationModelInfo, typeof SuppFields.Notification>;
+export type NotificationModelLogic = ModelLogic<NotificationModelInfo, typeof SuppFields.Notification, "id">;
 
 export type NotificationSubscriptionModelInfo = {
     __typename: "NotificationSubscription",
@@ -337,7 +337,7 @@ export type NotificationSubscriptionModelInfo = {
     DbSelect: Prisma.notification_subscriptionSelect,
     DbWhere: Prisma.notification_subscriptionWhereInput,
 }
-export type NotificationSubscriptionModelLogic = ModelLogic<NotificationSubscriptionModelInfo, typeof SuppFields.NotificationSubscription>;
+export type NotificationSubscriptionModelLogic = ModelLogic<NotificationSubscriptionModelInfo, typeof SuppFields.NotificationSubscription, "id">;
 
 export type PaymentModelInfo = {
     __typename: "Payment",
@@ -355,7 +355,7 @@ export type PaymentModelInfo = {
     DbSelect: Prisma.paymentSelect,
     DbWhere: Prisma.paymentWhereInput,
 }
-export type PaymentModelLogic = ModelLogic<PaymentModelInfo, typeof SuppFields.Payment>;
+export type PaymentModelLogic = ModelLogic<PaymentModelInfo, typeof SuppFields.Payment, "id">;
 
 export type PhoneModelInfo = {
     __typename: "Phone",
@@ -373,7 +373,7 @@ export type PhoneModelInfo = {
     DbSelect: Prisma.phoneSelect,
     DbWhere: Prisma.phoneWhereInput,
 }
-export type PhoneModelLogic = ModelLogic<PhoneModelInfo, typeof SuppFields.Phone>;
+export type PhoneModelLogic = ModelLogic<PhoneModelInfo, typeof SuppFields.Phone, "id">;
 
 
 export type PullRequestPermissions = Omit<PullRequestYou, "__typename">;
@@ -393,7 +393,7 @@ export type PullRequestModelInfo = {
     DbSelect: Prisma.pull_requestSelect,
     DbWhere: Prisma.pull_requestWhereInput,
 }
-export type PullRequestModelLogic = ModelLogic<PullRequestModelInfo, typeof SuppFields.PullRequest>;
+export type PullRequestModelLogic = ModelLogic<PullRequestModelInfo, typeof SuppFields.PullRequest, "id">;
 
 export type PushDeviceModelInfo = {
     __typename: "PushDevice",
@@ -411,7 +411,7 @@ export type PushDeviceModelInfo = {
     DbSelect: Prisma.push_deviceSelect,
     DbWhere: Prisma.push_deviceWhereInput,
 }
-export type PushDeviceModelLogic = ModelLogic<PushDeviceModelInfo, typeof SuppFields.PushDevice>;
+export type PushDeviceModelLogic = ModelLogic<PushDeviceModelInfo, typeof SuppFields.PushDevice, "id">;
 
 export type ReactionModelInfo = {
     __typename: "Reaction",
@@ -429,7 +429,7 @@ export type ReactionModelInfo = {
     DbSelect: Prisma.reactionSelect,
     DbWhere: Prisma.reactionWhereInput,
 }
-export type ReactionModelLogic = ModelLogic<ReactionModelInfo, typeof SuppFields.Reaction>;
+export type ReactionModelLogic = ModelLogic<ReactionModelInfo, typeof SuppFields.Reaction, "id">;
 
 export type ReactionSummaryModelInfo = {
     __typename: "ReactionSummary",
@@ -447,7 +447,7 @@ export type ReactionSummaryModelInfo = {
     DbSelect: Prisma.reaction_summarySelect,
     DbWhere: Prisma.reaction_summaryWhereInput,
 }
-export type ReactionSummaryModelLogic = ModelLogic<ReactionSummaryModelInfo, typeof SuppFields.ReactionSummary>;
+export type ReactionSummaryModelLogic = ModelLogic<ReactionSummaryModelInfo, typeof SuppFields.ReactionSummary, "id">;
 
 export type ReminderModelInfo = {
     __typename: "Reminder",
@@ -465,7 +465,7 @@ export type ReminderModelInfo = {
     DbSelect: Prisma.reminderSelect,
     DbWhere: Prisma.reminderWhereInput,
 }
-export type ReminderModelLogic = ModelLogic<ReminderModelInfo, typeof SuppFields.Reminder>;
+export type ReminderModelLogic = ModelLogic<ReminderModelInfo, typeof SuppFields.Reminder, "id">;
 
 export type ReminderItemModelInfo = {
     __typename: "ReminderItem",
@@ -483,7 +483,7 @@ export type ReminderItemModelInfo = {
     DbSelect: Prisma.reminder_itemSelect,
     DbWhere: Prisma.reminder_itemWhereInput,
 }
-export type ReminderItemModelLogic = ModelLogic<ReminderItemModelInfo, typeof SuppFields.ReminderItem>;
+export type ReminderItemModelLogic = ModelLogic<ReminderItemModelInfo, typeof SuppFields.ReminderItem, "id">;
 
 export type ReminderListModelInfo = {
     __typename: "ReminderList",
@@ -501,7 +501,7 @@ export type ReminderListModelInfo = {
     DbSelect: Prisma.reminder_listSelect,
     DbWhere: Prisma.reminder_listWhereInput,
 }
-export type ReminderListModelLogic = ModelLogic<ReminderListModelInfo, typeof SuppFields.ReminderList>;
+export type ReminderListModelLogic = ModelLogic<ReminderListModelInfo, typeof SuppFields.ReminderList, "id">;
 
 export type ReportPermissions = Omit<ReportYou, "__typename">;
 export type ReportModelInfo = {
@@ -520,7 +520,7 @@ export type ReportModelInfo = {
     DbSelect: Prisma.reportSelect,
     DbWhere: Prisma.reportWhereInput,
 }
-export type ReportModelLogic = ModelLogic<ReportModelInfo, typeof SuppFields.Report>;
+export type ReportModelLogic = ModelLogic<ReportModelInfo, typeof SuppFields.Report, "id">;
 
 export type ReportResponsePermissions = Omit<ReportResponseYou, "__typename">;
 export type ReportResponseModelInfo = {
@@ -539,7 +539,7 @@ export type ReportResponseModelInfo = {
     DbSelect: Prisma.report_responseSelect,
     DbWhere: Prisma.report_responseWhereInput,
 }
-export type ReportResponseModelLogic = ModelLogic<ReportResponseModelInfo, typeof SuppFields.ReportResponse>;
+export type ReportResponseModelLogic = ModelLogic<ReportResponseModelInfo, typeof SuppFields.ReportResponse, "id">;
 
 type ResourcePermissions = Omit<ResourceYou, "__typename" | "isBookmarked" | "isViewed" | "reaction">;
 export type ResourceModelInfo = {
@@ -558,7 +558,7 @@ export type ResourceModelInfo = {
     DbSelect: Prisma.resourceSelect,
     DbWhere: Prisma.resourceWhereInput,
 }
-export type ResourceModelLogic = ModelLogic<ResourceModelInfo, typeof SuppFields.Resource>;
+export type ResourceModelLogic = ModelLogic<ResourceModelInfo, typeof SuppFields.Resource, "id">;
 
 export type ResourceVersionPermissions = Omit<ResourceVersionYou, "__typename">;
 export type ResourceVersionModelInfo = {
@@ -577,7 +577,7 @@ export type ResourceVersionModelInfo = {
     DbSelect: Prisma.resource_versionSelect,
     DbWhere: Prisma.resource_versionWhereInput,
 }
-export type ResourceVersionModelLogic = ModelLogic<ResourceVersionModelInfo, typeof SuppFields.ResourceVersion>;
+export type ResourceVersionModelLogic = ModelLogic<ResourceVersionModelInfo, typeof SuppFields.ResourceVersion, "id">;
 
 export type ResourceVersionRelationModelInfo = {
     __typename: "ResourceVersionRelation",
@@ -595,7 +595,7 @@ export type ResourceVersionRelationModelInfo = {
     DbSelect: Prisma.resource_version_relationSelect,
     DbWhere: Prisma.resource_version_relationWhereInput,
 }
-export type ResourceVersionRelationModelLogic = ModelLogic<ResourceVersionRelationModelInfo, typeof SuppFields.ResourceVersionRelation>;
+export type ResourceVersionRelationModelLogic = ModelLogic<ResourceVersionRelationModelInfo, typeof SuppFields.ResourceVersionRelation, "id">;
 
 export type RunPermissions = Omit<RunYou, "__typename">;
 export type RunModelInfo = {
@@ -614,7 +614,7 @@ export type RunModelInfo = {
     DbSelect: Prisma.runSelect,
     DbWhere: Prisma.runWhereInput,
 }
-export type RunModelLogic = ModelLogic<RunModelInfo, typeof SuppFields.Run>;
+export type RunModelLogic = ModelLogic<RunModelInfo, typeof SuppFields.Run, "id">;
 
 export type RunIOModelInfo = {
     __typename: "RunIO",
@@ -632,7 +632,7 @@ export type RunIOModelInfo = {
     DbSelect: Prisma.run_ioSelect,
     DbWhere: Prisma.run_ioWhereInput,
 }
-export type RunIOModelLogic = ModelLogic<RunIOModelInfo, typeof SuppFields.RunIO>;
+export type RunIOModelLogic = ModelLogic<RunIOModelInfo, typeof SuppFields.RunIO, "id">;
 
 export type RunStepModelInfo = {
     __typename: "RunStep",
@@ -650,7 +650,7 @@ export type RunStepModelInfo = {
     DbSelect: Prisma.run_stepSelect,
     DbWhere: Prisma.run_stepWhereInput,
 }
-export type RunStepModelLogic = ModelLogic<RunStepModelInfo, typeof SuppFields.RunStep>;
+export type RunStepModelLogic = ModelLogic<RunStepModelInfo, typeof SuppFields.RunStep, "id">;
 
 export type ScheduleModelInfo = {
     __typename: "Schedule",
@@ -668,7 +668,7 @@ export type ScheduleModelInfo = {
     DbSelect: Prisma.scheduleSelect,
     DbWhere: Prisma.scheduleWhereInput,
 }
-export type ScheduleModelLogic = ModelLogic<ScheduleModelInfo, typeof SuppFields.Schedule>;
+export type ScheduleModelLogic = ModelLogic<ScheduleModelInfo, typeof SuppFields.Schedule, "id">;
 
 export type ScheduleExceptionModelInfo = {
     __typename: "ScheduleException",
@@ -686,7 +686,7 @@ export type ScheduleExceptionModelInfo = {
     DbSelect: Prisma.schedule_exceptionSelect,
     DbWhere: Prisma.schedule_exceptionWhereInput,
 }
-export type ScheduleExceptionModelLogic = ModelLogic<ScheduleExceptionModelInfo, typeof SuppFields.ScheduleException>;
+export type ScheduleExceptionModelLogic = ModelLogic<ScheduleExceptionModelInfo, typeof SuppFields.ScheduleException, "id">;
 
 export type ScheduleRecurrenceModelInfo = {
     __typename: "ScheduleRecurrence",
@@ -704,25 +704,7 @@ export type ScheduleRecurrenceModelInfo = {
     DbSelect: Prisma.schedule_recurrenceSelect,
     DbWhere: Prisma.schedule_recurrenceWhereInput,
 }
-export type ScheduleRecurrenceModelLogic = ModelLogic<ScheduleRecurrenceModelInfo, typeof SuppFields.ScheduleRecurrence>;
-
-export type SessionModelInfo = {
-    __typename: "Session",
-    IsTransferable: false,
-    IsVersioned: false,
-    ApiCreate: undefined,
-    ApiUpdate: undefined,
-    ApiModel: Session,
-    ApiPermission: never,
-    ApiSearch: undefined,
-    ApiSort: undefined,
-    DbCreate: Prisma.sessionUpsertArgs["create"],
-    DbUpdate: Prisma.sessionUpsertArgs["update"],
-    DbModel: Prisma.sessionGetPayload<SelectWrap<Prisma.sessionSelect>>,
-    DbSelect: Prisma.sessionSelect,
-    DbWhere: Prisma.sessionWhereInput,
-}
-export type SessionModelLogic = ModelLogic<SessionModelInfo, typeof SuppFields.Session>;
+export type ScheduleRecurrenceModelLogic = ModelLogic<ScheduleRecurrenceModelInfo, typeof SuppFields.ScheduleRecurrence, "id">;
 
 export type StatsTeamModelInfo = {
     __typename: "StatsTeam",
@@ -740,7 +722,7 @@ export type StatsTeamModelInfo = {
     DbSelect: Prisma.stats_teamSelect,
     DbWhere: Prisma.stats_teamWhereInput,
 }
-export type StatsTeamModelLogic = ModelLogic<StatsTeamModelInfo, typeof SuppFields.StatsTeam>;
+export type StatsTeamModelLogic = ModelLogic<StatsTeamModelInfo, typeof SuppFields.StatsTeam, "id">;
 
 export type StatsResourceModelInfo = {
     __typename: "StatsResource",
@@ -758,7 +740,7 @@ export type StatsResourceModelInfo = {
     DbSelect: Prisma.stats_resourceSelect,
     DbWhere: Prisma.stats_resourceWhereInput,
 }
-export type StatsResourceModelLogic = ModelLogic<StatsResourceModelInfo, typeof SuppFields.StatsResource>;
+export type StatsResourceModelLogic = ModelLogic<StatsResourceModelInfo, typeof SuppFields.StatsResource, "id">;
 
 export type StatsSiteModelInfo = {
     __typename: "StatsSite",
@@ -776,7 +758,7 @@ export type StatsSiteModelInfo = {
     DbSelect: Prisma.stats_siteSelect,
     DbWhere: Prisma.stats_siteWhereInput,
 }
-export type StatsSiteModelLogic = ModelLogic<StatsSiteModelInfo, typeof SuppFields.StatsSite>;
+export type StatsSiteModelLogic = ModelLogic<StatsSiteModelInfo, typeof SuppFields.StatsSite, "id">;
 
 export type StatsUserModelInfo = {
     __typename: "StatsUser",
@@ -794,7 +776,7 @@ export type StatsUserModelInfo = {
     DbSelect: Prisma.stats_userSelect,
     DbWhere: Prisma.stats_userWhereInput,
 }
-export type StatsUserModelLogic = ModelLogic<StatsUserModelInfo, typeof SuppFields.StatsUser>;
+export type StatsUserModelLogic = ModelLogic<StatsUserModelInfo, typeof SuppFields.StatsUser, "id">;
 
 export type TagModelInfo = {
     __typename: "Tag",
@@ -831,7 +813,7 @@ export type TeamModelInfo = {
     DbSelect: Prisma.teamSelect,
     DbWhere: Prisma.teamWhereInput,
 }
-export type TeamModelLogic = ModelLogic<TeamModelInfo, typeof SuppFields.Team>;
+export type TeamModelLogic = ModelLogic<TeamModelInfo, typeof SuppFields.Team, "id">;
 
 export type TransferPermissions = Omit<TransferYou, "__typename">;
 export type TransferModelInfo = {
@@ -850,7 +832,7 @@ export type TransferModelInfo = {
     DbSelect: Prisma.transferSelect,
     DbWhere: Prisma.transferWhereInput,
 }
-export type TransferModelLogic = ModelLogic<TransferModelInfo, typeof SuppFields.Transfer>;
+export type TransferModelLogic = ModelLogic<TransferModelInfo, typeof SuppFields.Transfer, "id">;
 
 export type UserPermissions = Omit<UserYou, "__typename" | "isBookmarked" | "isViewed">;
 export type UserModelInfo = {
@@ -869,7 +851,7 @@ export type UserModelInfo = {
     DbSelect: Prisma.userSelect,
     DbWhere: Prisma.userWhereInput,
 }
-export type UserModelLogic = ModelLogic<UserModelInfo, typeof SuppFields.User>;
+export type UserModelLogic = ModelLogic<UserModelInfo, typeof SuppFields.User, "id">;
 
 export type ViewModelInfo = {
     __typename: "View",
@@ -887,7 +869,7 @@ export type ViewModelInfo = {
     DbSelect: Prisma.viewSelect,
     DbWhere: Prisma.viewWhereInput,
 }
-export type ViewModelLogic = ModelLogic<ViewModelInfo, typeof SuppFields.View>;
+export type ViewModelLogic = ModelLogic<ViewModelInfo, typeof SuppFields.View, "id">;
 
 export type WalletModelInfo = {
     __typename: "Wallet",
@@ -905,4 +887,4 @@ export type WalletModelInfo = {
     DbSelect: Prisma.walletSelect,
     DbWhere: Prisma.walletWhereInput,
 }
-export type WalletModelLogic = ModelLogic<WalletModelInfo, typeof SuppFields.Wallet>;
+export type WalletModelLogic = ModelLogic<WalletModelInfo, typeof SuppFields.Wallet, "id">;

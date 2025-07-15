@@ -1,4 +1,4 @@
-import { generatePK } from "@vrooli/shared";
+// Using this.generateId() instead of generatePK
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -25,11 +25,12 @@ interface NotificationRelationConfig extends RelationConfig {
  * - Bulk notification operations
  */
 export class NotificationDbFactory extends EnhancedDatabaseFactory<
-    Prisma.NotificationCreateInput,
-    Prisma.NotificationCreateInput,
-    Prisma.NotificationInclude,
-    Prisma.NotificationUpdateInput
+    notification,
+    Prisma.notificationCreateInput,
+    Prisma.notificationInclude,
+    Prisma.notificationUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
         super("Notification", prisma);
         this.initializeScenarios();
@@ -42,10 +43,10 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get complete test fixtures for Notification model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.NotificationCreateInput, Prisma.NotificationUpdateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.notificationCreateInput, Prisma.notificationUpdateInput> {
         return {
             minimal: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 category: "system",
                 isRead: false,
                 title: "System Update",
@@ -53,7 +54,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                 user: { connect: { id: "user-123" } },
             },
             complete: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 category: "message",
                 isRead: false,
                 title: "New Message",
@@ -81,7 +82,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     user: null, // Should be object
                 },
                 titleTooLong: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     category: "system",
                     isRead: false,
                     title: "a".repeat(129), // Exceeds max length of 128
@@ -89,7 +90,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     user: { connect: { id: "user-123" } },
                 },
                 descriptionTooLong: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     category: "system",
                     isRead: false,
                     title: "Notification",
@@ -98,7 +99,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     user: { connect: { id: "user-123" } },
                 },
                 invalidCategory: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     category: "a".repeat(65), // Exceeds max length of 64
                     isRead: false,
                     title: "Invalid Category",
@@ -108,7 +109,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
             },
             edgeCases: {
                 maxLengthTitle: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     category: "system",
                     isRead: false,
                     title: "a".repeat(128), // Max length
@@ -116,7 +117,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     user: { connect: { id: "user-max" } },
                 },
                 maxLengthDescription: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     category: "system",
                     isRead: false,
                     title: "Long Description",
@@ -125,7 +126,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     user: { connect: { id: "user-max-desc" } },
                 },
                 unicodeNotification: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     category: "social",
                     isRead: false,
                     title: "👋 New follower!",
@@ -134,7 +135,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     user: { connect: { id: "user-unicode" } },
                 },
                 groupedNotification: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     category: "likes",
                     isRead: false,
                     title: "Your post received likes",
@@ -144,7 +145,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     user: { connect: { id: "user-grouped" } },
                 },
                 readNotification: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     category: "update",
                     isRead: true,
                     title: "App Update Available",
@@ -154,7 +155,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     user: { connect: { id: "user-read" } },
                 },
                 urgentNotification: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     category: "security",
                     isRead: false,
                     title: "⚠️ Security Alert",
@@ -165,7 +166,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     user: { connect: { id: "user-urgent" } },
                 },
                 noDescriptionNotification: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     category: "reminder",
                     isRead: false,
                     title: "Meeting in 15 minutes",
@@ -188,9 +189,9 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateMinimalData(overrides?: Partial<Prisma.NotificationCreateInput>): Prisma.NotificationCreateInput {
+    protected generateMinimalData(overrides?: Partial<Prisma.notificationCreateInput>): Prisma.notificationCreateInput {
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             category: "system",
             isRead: false,
             title: "Notification",
@@ -199,9 +200,9 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateCompleteData(overrides?: Partial<Prisma.NotificationCreateInput>): Prisma.NotificationCreateInput {
+    protected generateCompleteData(overrides?: Partial<Prisma.notificationCreateInput>): Prisma.notificationCreateInput {
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             category: "message",
             isRead: false,
             title: "New Activity",
@@ -229,7 +230,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                         link: "/messages/chat-alice",
                         imgLink: "https://example.com/avatars/alice.jpg",
                     },
-                    user: { userId: "user-message" },
+                    user: { user: { connect: { id: this.generateId() } } },
                 },
             },
             mentionNotification: {
@@ -242,7 +243,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                         description: "You were mentioned in a comment: 'Great work @you!'",
                         link: "/posts/post-123#comment-456",
                     },
-                    user: { userId: "user-mention" },
+                    user: { user: { connect: { id: this.generateId() } } },
                 },
             },
             likeNotification: {
@@ -256,7 +257,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                         count: 6,
                         link: "/posts/post-789",
                     },
-                    user: { userId: "user-like" },
+                    user: { user: { connect: { id: this.generateId() } } },
                 },
             },
             followNotification: {
@@ -270,7 +271,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                         link: "/profile/techguru",
                         imgLink: "https://example.com/avatars/techguru.jpg",
                     },
-                    user: { userId: "user-follow" },
+                    user: { user: { connect: { id: this.generateId() } } },
                 },
             },
             systemNotification: {
@@ -283,7 +284,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                         description: "Scheduled maintenance on Sunday 2-4 AM UTC",
                         link: "/announcements/maintenance",
                     },
-                    user: { userId: "user-system" },
+                    user: { user: { connect: { id: this.generateId() } } },
                 },
             },
             securityAlert: {
@@ -297,7 +298,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                         link: "/settings/security/sessions",
                         imgLink: "https://example.com/icons/security.png",
                     },
-                    user: { userId: "user-security" },
+                    user: { user: { connect: { id: this.generateId() } } },
                 },
             },
             achievementNotification: {
@@ -311,7 +312,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                         link: "/profile/achievements",
                         imgLink: "https://example.com/badges/contributor.png",
                     },
-                    user: { userId: "user-achievement" },
+                    user: { user: { connect: { id: this.generateId() } } },
                 },
             },
             reminderNotification: {
@@ -324,13 +325,13 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                         description: "Team standup in 10 minutes",
                         link: "/meetings/standup-daily",
                     },
-                    user: { userId: "user-reminder" },
+                    user: { user: { connect: { id: this.generateId() } } },
                 },
             },
         };
     }
 
-    protected getDefaultInclude(): Prisma.NotificationInclude {
+    protected getDefaultInclude(): Prisma.notificationInclude {
         return {
             user: {
                 select: {
@@ -344,10 +345,10 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async applyRelationships(
-        baseData: Prisma.NotificationCreateInput,
+        baseData: Prisma.notificationCreateInput,
         config: NotificationRelationConfig,
         tx: any,
-    ): Promise<Prisma.NotificationCreateInput> {
+    ): Promise<Prisma.notificationCreateInput> {
         const data = { ...baseData };
 
         // Handle user connection (required)
@@ -528,7 +529,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
         category: string,
         options?: { isRead?: boolean; limit?: number },
     ): Promise<Prisma.Notification[]> {
-        const where: Prisma.NotificationWhereInput = {
+        const where: Prisma.notificationWhereInput = {
             userId,
             category,
         };
@@ -659,7 +660,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createNotificationDbFactory = (prisma: PrismaClient) => 
-    NotificationDbFactory.getInstance("Notification", prisma);
+    new NotificationDbFactory(prisma);
 
 // Export the class for type usage
 export { NotificationDbFactory as NotificationDbFactoryClass };

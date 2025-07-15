@@ -1,14 +1,14 @@
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
 import { BookmarkFor, LINKS, TeamPageTabOption, getTranslation, validatePK, type ListObject, type ResourceList as ResourceListType, type Team } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { PageTabs } from "../../../components/PageTabs/PageTabs.js";
+import { Tooltip } from "../../../components/Tooltip/Tooltip.js";
 import { BookmarkButton } from "../../../components/buttons/BookmarkButton.js";
+import { IconButton } from "../../../components/buttons/IconButton.js";
 import { ReportsLink } from "../../../components/buttons/ReportsLink.js";
 import { SideActionsButtons } from "../../../components/buttons/SideActionsButtons.js";
 import { ObjectActionMenu } from "../../../components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
@@ -114,8 +114,8 @@ export function TeamView({
     }, [showSearchFilters]);
 
     // More menu
-    const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
-    const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
+    const [moreMenuAnchor, setMoreMenuAnchor] = useState<HTMLElement | null>(null);
+    const openMoreMenu = useCallback((ev: MouseEvent<HTMLElement>) => {
         setMoreMenuAnchor(ev.currentTarget);
         ev.preventDefault();
     }, []);
@@ -139,7 +139,7 @@ export function TeamView({
             <ObjectActionMenu
                 actionData={actionData}
                 anchorEl={moreMenuAnchor}
-                object={team as any}
+                object={team}
                 onClose={closeMoreMenu}
             />
             <BannerImageContainer sx={{

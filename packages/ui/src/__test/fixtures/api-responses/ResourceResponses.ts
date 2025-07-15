@@ -5,17 +5,18 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { http, type RestHandler } from "msw";
+// AI_CHECK: TYPE_SAFETY=fixed-msw-v2-handler-signatures-and-types | LAST: 2025-07-02
+
+import { http, HttpResponse, type HttpHandler } from "msw";
 import type { 
     Resource, 
     ResourceCreateInput, 
     ResourceUpdateInput,
     ResourceShape,
-    ResourceUsedFor, 
 } from "@vrooli/shared";
 import { 
     resourceValidation,
-    ResourceUsedFor as ResourceUsedForEnum, 
+    ResourceType,
 } from "@vrooli/shared";
 
 /**
@@ -76,14 +77,14 @@ export class ResourceResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique resource ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -248,21 +249,45 @@ export class ResourceResponseFactory {
         const defaultResource: Resource = {
             __typename: "Resource",
             id,
+            bookmarkedBy: [],
+            bookmarks: 0,
+            completedAt: null,
+            createdBy: null,
             createdAt: now,
-            updatedAt: now,
+            hasCompleteVersion: false,
+            isDeleted: false,
             isInternal: false,
             isPrivate: false,
-            usedBy: [],
-            usedByCount: 0,
+            issues: [],
+            issuesCount: 0,
+            owner: null,
+            parent: null,
+            permissions: JSON.stringify({}),
+            publicId: `public_${id}`,
+            pullRequests: [],
+            pullRequestsCount: 0,
+            resourceType: ResourceType.Api,
+            score: 0,
+            stats: [],
+            tags: [],
+            transfers: [],
+            transfersCount: 0,
+            translatedName: "Mock Resource",
+            updatedAt: now,
             versions: [],
             versionsCount: 0,
+            views: 0,
             you: {
                 __typename: "ResourceYou",
+                canBookmark: true,
+                canComment: true,
                 canDelete: true,
+                canReact: true,
+                canRead: true,
+                canTransfer: true,
                 canUpdate: true,
-                canReport: false,
                 isBookmarked: false,
-                isReacted: false,
+                isViewed: false,
                 reaction: null,
             },
         };
@@ -295,9 +320,10 @@ export class ResourceResponseFactory {
      * Create resources for different purposes
      */
     createResourcesForAllPurposes(): Resource[] {
-        return Object.values(ResourceUsedForEnum).map(usedFor => 
+        const purposes = ["api", "code", "data", "project", "routine"];
+        return purposes.map(purpose => 
             this.createMockResource({
-                id: `resource_${usedFor.toLowerCase()}_${this.generateId()}`,
+                id: `resource_${purpose}_${this.generateId()}`,
             }),
         );
     }
@@ -310,7 +336,7 @@ export class ResourceResponseFactory {
         errors?: Record<string, string>;
     }> {
         try {
-            await resourceValidation.create.validate(input);
+            await resourceValidation.create({}).validate(input);
             return { valid: true };
         } catch (error: any) {
             const fieldErrors: Record<string, string> = {};
@@ -346,18 +372,18 @@ export class ResourceMSWHandlers {
     /**
      * Create success handlers for all resource endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): HttpHandler[] {
         return [
             // Create resource
-            http.post(`${this.responseFactory["baseUrl"]}/api/resource`, async (req, res, ctx) => {
-                const body = await req.json() as ResourceCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource`, async ({ request }) => {
+                const body = await request.json() as ResourceCreateInput;
                 
                 // Validate input
                 const validation = await this.responseFactory.validateCreateInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
+                    return HttpResponse.json(
+                        this.responseFactory.createValidationErrorResponse(validation.errors || {}),
+                        { status: 400 }
                     );
                 }
                 
@@ -365,29 +391,23 @@ export class ResourceMSWHandlers {
                 const resource = this.responseFactory.createResourceFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(resource);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 201 });
             }),
             
             // Get resource by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/resource/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/resource/:id`, ({ params }) => {
+                const { id } = params;
                 
                 const resource = this.responseFactory.createMockResource({ id: id as string });
                 const response = this.responseFactory.createSuccessResponse(resource);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Update resource
-            http.put(`${this.responseFactory["baseUrl"]}/api/resource/:id`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const body = await req.json() as ResourceUpdateInput;
+            http.put(`${this.responseFactory["baseUrl"]}/api/resource/:id`, async ({ params, request }) => {
+                const { id } = params;
+                const body = await request.json() as ResourceUpdateInput;
                 
                 const resource = this.responseFactory.createMockResource({ 
                     id: id as string,
@@ -396,20 +416,17 @@ export class ResourceMSWHandlers {
                 
                 const response = this.responseFactory.createSuccessResponse(resource);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Delete resource
-            http.delete(`${this.responseFactory["baseUrl"]}/api/resource/:id`, (req, res, ctx) => {
-                return res(ctx.status(204));
+            http.delete(`${this.responseFactory["baseUrl"]}/api/resource/:id`, () => {
+                return new HttpResponse(null, { status: 204 });
             }),
             
             // List resources
-            http.get(`${this.responseFactory["baseUrl"]}/api/resource`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/resource`, ({ request }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 const isInternal = url.searchParams.get("isInternal") === "true";
@@ -434,10 +451,7 @@ export class ResourceMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -445,40 +459,40 @@ export class ResourceMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): HttpHandler[] {
         return [
             // Validation error
-            http.post(`${this.responseFactory["baseUrl"]}/api/resource`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource`, () => {
+                return HttpResponse.json(
+                    this.responseFactory.createValidationErrorResponse({
                         versions: "At least one version is required",
-                    })),
+                    }),
+                    { status: 400 }
                 );
             }),
             
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/resource/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
+            http.get(`${this.responseFactory["baseUrl"]}/api/resource/:id`, ({ params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string),
+                    { status: 404 }
                 );
             }),
             
             // Permission error
-            http.post(`${this.responseFactory["baseUrl"]}/api/resource`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource`, () => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("create"),
+                    { status: 403 }
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/resource`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource`, () => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse(),
+                    { status: 500 }
                 );
             }),
         ];
@@ -487,18 +501,17 @@ export class ResourceMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): HttpHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/resource`, async (req, res, ctx) => {
-                const body = await req.json() as ResourceCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource`, async ({ request }) => {
+                const body = await request.json() as ResourceCreateInput;
                 const resource = this.responseFactory.createResourceFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(resource);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                // Wait for the specified delay
+                await new Promise(resolve => setTimeout(resolve, delay));
+                
+                return HttpResponse.json(response, { status: 201 });
             }),
         ];
     }
@@ -506,14 +519,14 @@ export class ResourceMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): HttpHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/resource`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource`, () => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/resource/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/resource/:id`, () => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -527,18 +540,17 @@ export class ResourceMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): HttpHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        const handler = http[method.toLowerCase() as 'get' | 'post' | 'put' | 'delete'];
+        return handler(fullEndpoint, async () => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }

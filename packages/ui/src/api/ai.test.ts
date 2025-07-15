@@ -4,6 +4,7 @@ import { getPreferredModel, getPreferredAvailableModel, storageModelToAvailableM
 import { useModelPreferencesStore } from "../stores/modelPreferencesStore.js";
 
 // AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-01 - Fixed 7 'as any' type assertions with proper Storage and OpenAIModel types
 
 // Constants from ai.ts - we can't import them directly due to module boundaries
 const AI_SERVICE_CACHE_KEY = "AI_SERVICE_CACHE";
@@ -15,7 +16,7 @@ const localStorageMock = {
     removeItem: vi.fn(),
     clear: vi.fn(),
 };
-global.localStorage = localStorageMock as any;
+global.localStorage = localStorageMock as Storage;
 
 // Mock service info for testing
 const mockServiceInfo: AIServicesInfo = {
@@ -55,7 +56,7 @@ describe("model conversion utilities", () => {
     });
 
     it("should return null for invalid storage model", () => {
-        const result = storageModelToAvailableModel("invalid-model" as any, mockAvailableModels);
+        const result = storageModelToAvailableModel("invalid-model" as OpenAIModel, mockAvailableModels);
         expect(result).toBeNull();
     });
 });
@@ -77,7 +78,7 @@ describe("getPreferredAvailableModel", () => {
     });
 
     it("should clear invalid preference and return first available", () => {
-        const invalidModel = "invalid-model" as any;
+        const invalidModel = "invalid-model" as OpenAIModel;
         useModelPreferencesStore.getState().setPreferredModel(invalidModel);
         
         const result = getPreferredAvailableModel(mockAvailableModels);
@@ -120,13 +121,13 @@ describe("getPreferredModel (legacy)", () => {
                     models: {
                         [OpenAIModel.Gpt4o]: {
                             enabled: true,
-                            name: "GPT_4o_Name" as any,
-                            descriptionShort: "GPT_4o_Description_Short" as any,
+                            name: "GPT_4o_Name" as const,
+                            descriptionShort: "GPT_4o_Description_Short" as const,
                         },
                         [OpenAIModel.Gpt4o_Mini]: {
                             enabled: true,
-                            name: "GPT_4o_Mini_Name" as any,
-                            descriptionShort: "GPT_4o_Mini_Description_Short" as any,
+                            name: "GPT_4o_Mini_Name" as const,
+                            descriptionShort: "GPT_4o_Mini_Description_Short" as const,
                         },
                     },
                 },

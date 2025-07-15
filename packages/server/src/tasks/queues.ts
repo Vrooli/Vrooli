@@ -569,25 +569,31 @@ export class QueueService {
                 // Load actual limits asynchronously
                 const actualLimits = await getSwarmQueueLimits();
                 
+                const isTest = process.env.NODE_ENV === "test";
+                
                 if (this.swarmMonitorInterval) {
                     clearInterval(this.swarmMonitorInterval);
                 }
-                this.swarmMonitorInterval = setInterval(
-                    async () => {
-                        try {
-                            const { activeSwarmRegistry } = await getSwarmDependencies();
-                            await checkLongRunningTasksInRegistry(
-                                activeSwarmRegistry,
-                                actualLimits,
-                                "Swarm",
-                            );
-                        } catch (error) {
-                            logger.error("Error in swarm monitor interval", { error });
-                        }
-                    },
-                    actualLimits.highLoadCheckIntervalMs,
-                );
-                logger.info("Swarm queue is ready, swarm monitor started.");
+                
+                // Only start monitor in non-test environments
+                if (!isTest) {
+                    this.swarmMonitorInterval = setInterval(
+                        async () => {
+                            try {
+                                const { activeSwarmRegistry } = await getSwarmDependencies();
+                                await checkLongRunningTasksInRegistry(
+                                    activeSwarmRegistry,
+                                    actualLimits,
+                                    "Swarm",
+                                );
+                            } catch (error) {
+                                logger.error("Error in swarm monitor interval", { error });
+                            }
+                        },
+                        actualLimits.highLoadCheckIntervalMs,
+                    );
+                    logger.info("Swarm queue is ready, swarm monitor started.");
+                }
             },
         });
     }
@@ -613,25 +619,31 @@ export class QueueService {
                 // Load actual limits asynchronously
                 const actualLimits = await getRunQueueLimits();
                 
+                const isTest = process.env.NODE_ENV === "test";
+                
                 if (this.runMonitorInterval) {
                     clearInterval(this.runMonitorInterval);
                 }
-                this.runMonitorInterval = setInterval(
-                    async () => {
-                        try {
-                            const { activeRunRegistry } = await getRunDependencies();
-                            await checkLongRunningTasksInRegistry(
-                                activeRunRegistry,
-                                actualLimits,
-                                "Run",
-                            );
-                        } catch (error) {
-                            logger.error("Error in run monitor interval", { error });
-                        }
-                    },
-                    actualLimits.highLoadCheckIntervalMs,
-                );
-                logger.info("Run queue is ready, run monitor started.");
+                
+                // Only start monitor in non-test environments
+                if (!isTest) {
+                    this.runMonitorInterval = setInterval(
+                        async () => {
+                            try {
+                                const { activeRunRegistry } = await getRunDependencies();
+                                await checkLongRunningTasksInRegistry(
+                                    activeRunRegistry,
+                                    actualLimits,
+                                    "Run",
+                                );
+                            } catch (error) {
+                                logger.error("Error in run monitor interval", { error });
+                            }
+                        },
+                        actualLimits.highLoadCheckIntervalMs,
+                    );
+                    logger.info("Run queue is ready, run monitor started.");
+                }
             },
         });
         return runQueue;

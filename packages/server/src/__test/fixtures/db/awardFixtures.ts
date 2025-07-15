@@ -20,7 +20,7 @@ export const awardDbIds = {
 /**
  * Enhanced test fixtures for Award model following standard structure
  */
-export const awardDbFixtures: DbTestFixtures<Prisma.AwardCreateInput> = {
+export const awardDbFixtures: DbTestFixtures<Prisma.awardCreateInput> = {
     minimal: {
         id: generatePK(),
         user: { connect: { id: awardDbIds.user1 } },
@@ -111,12 +111,12 @@ export const awardDbFixtures: DbTestFixtures<Prisma.AwardCreateInput> = {
 /**
  * Enhanced factory for creating award database fixtures
  */
-export class AwardDbFactory extends EnhancedDbFactory<Prisma.AwardCreateInput> {
+export class AwardDbFactory extends EnhancedDbFactory<Prisma.awardCreateInput> {
     
     /**
      * Get the test fixtures for Award model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.AwardCreateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.awardCreateInput> {
         return awardDbFixtures;
     }
 
@@ -185,7 +185,7 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.AwardCreateInput> {
     /**
      * Award-specific validation
      */
-    protected validateSpecific(data: Prisma.AwardCreateInput): { errors: string[]; warnings: string[] } {
+    protected validateSpecific(data: Prisma.awardCreateInput): { errors: string[]; warnings: string[] } {
         const errors: string[] = [];
         const warnings: string[] = [];
 
@@ -227,8 +227,8 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.AwardCreateInput> {
     static createMinimal(
         userId: string,
         category: string,
-        overrides?: Partial<Prisma.AwardCreateInput>,
-    ): Prisma.AwardCreateInput {
+        overrides?: Partial<Prisma.awardCreateInput>,
+    ): Prisma.awardCreateInput {
         const factory = new AwardDbFactory();
         return factory.createMinimal({
             user: { connect: { id: userId } },
@@ -241,8 +241,8 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.AwardCreateInput> {
         userId: string,
         category: string,
         timeCompleted: Date,
-        overrides?: Partial<Prisma.AwardCreateInput>,
-    ): Prisma.AwardCreateInput {
+        overrides?: Partial<Prisma.awardCreateInput>,
+    ): Prisma.awardCreateInput {
         return this.createMinimal(userId, category, {
             progress: 100,
             timeCompleted,
@@ -254,8 +254,8 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.AwardCreateInput> {
         userId: string,
         category: string,
         progress: number,
-        overrides?: Partial<Prisma.AwardCreateInput>,
-    ): Prisma.AwardCreateInput {
+        overrides?: Partial<Prisma.awardCreateInput>,
+    ): Prisma.awardCreateInput {
         return this.createMinimal(userId, category, {
             progress,
             ...overrides,
@@ -279,7 +279,7 @@ export async function seedAwards(
     let startedCount = 0;
 
     for (const cat of options.categories) {
-        let awardData: Prisma.AwardCreateInput;
+        let awardData: Prisma.awardCreateInput;
 
         if (cat.completed) {
             awardData = AwardDbFactory.createCompleted(

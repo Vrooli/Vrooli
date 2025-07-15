@@ -23,7 +23,7 @@ import type {
     ValidationResult, 
     MSWHandlers,
 } from "../types.js";
-import { rest } from "msw";
+import { http, HttpResponse } from "msw";
 
 /**
  * UI-specific form data for user registration
@@ -471,18 +471,18 @@ export class UserFixtureFactory implements FixtureFactory<
         return {
             success: [
                 // Registration
-                rest.post(`${baseUrl}/api/auth/register`, async (req, res, ctx) => {
-                    const body = await req.json();
+                http.post(`${baseUrl}/api/auth/register`, async ({ request }) => {
+                    const body = await request.json() as UserFormData;
                     
                     // Validate the request body
                     const validation = await this.validateFormData(body);
                     if (!validation.isValid) {
-                        return res(
-                            ctx.status(400),
-                            ctx.json({ 
+                        return HttpResponse.json(
+                            { 
                                 errors: validation.errors,
                                 fieldErrors: validation.fieldErrors, 
-                            }),
+                            },
+                            { status: 400 }
                         );
                     }
 
@@ -494,45 +494,45 @@ export class UserFixtureFactory implements FixtureFactory<
                         emailVerified: false, // New users need to verify email
                     });
 
-                    return res(
-                        ctx.status(201),
-                        ctx.json({
+                    return HttpResponse.json(
+                        {
                             user: mockUser,
                             sessionToken: `test_session_${Date.now()}`,
-                        }),
+                        },
+                        { status: 201 }
                     );
                 }),
 
                 // Login
-                rest.post(`${baseUrl}/api/auth/login`, async (req, res, ctx) => {
-                    const body = await req.json();
+                http.post(`${baseUrl}/api/auth/login`, async ({ request }) => {
+                    const body = await request.json() as { email: string; password: string };
 
                     const mockUser = this.createMockResponse({
                         email: body.email,
                     });
 
-                    return res(
-                        ctx.status(200),
-                        ctx.json({
+                    return HttpResponse.json(
+                        {
                             user: mockUser,
                             sessionToken: `test_session_${Date.now()}`,
-                        }),
+                        },
+                        { status: 200 }
                     );
                 }),
 
                 // Profile update
-                rest.put(`${baseUrl}/api/user/:id`, async (req, res, ctx) => {
-                    const { id } = req.params;
-                    const body = await req.json();
+                http.put(`${baseUrl}/api/user/:id`, async ({ request, params }) => {
+                    const { id } = params;
+                    const body = await request.json() as UserProfileFormData;
 
                     const validation = await this.validateProfileFormData(body);
                     if (!validation.isValid) {
-                        return res(
-                            ctx.status(400),
-                            ctx.json({ 
+                        return HttpResponse.json(
+                            { 
                                 errors: validation.errors,
                                 fieldErrors: validation.fieldErrors, 
-                            }),
+                            },
+                            { status: 400 }
                         );
                     }
 
@@ -542,94 +542,86 @@ export class UserFixtureFactory implements FixtureFactory<
                         updatedAt: new Date().toISOString(),
                     });
 
-                    return res(
-                        ctx.status(200),
-                        ctx.json(mockUser),
-                    );
+                    return HttpResponse.json(mockUser, { status: 200 });
                 }),
 
                 // Get user
-                rest.get(`${baseUrl}/api/user/:id`, (req, res, ctx) => {
-                    const { id } = req.params;
+                http.get(`${baseUrl}/api/user/:id`, ({ params }) => {
+                    const { id } = params;
                     const mockUser = this.createMockResponse({ id: id as string });
                     
-                    return res(
-                        ctx.status(200),
-                        ctx.json(mockUser),
-                    );
+                    return HttpResponse.json(mockUser, { status: 200 });
                 }),
 
                 // Current user
-                rest.get(`${baseUrl}/api/auth/me`, (req, res, ctx) => {
-                    const authHeader = req.headers.get("Authorization");
+                http.get(`${baseUrl}/api/auth/me`, ({ request }) => {
+                    const authHeader = request.headers.get("Authorization");
                     
                     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-                        return res(
-                            ctx.status(401),
-                            ctx.json({ error: "Unauthorized" }),
+                        return HttpResponse.json(
+                            { error: "Unauthorized" },
+                            { status: 401 }
                         );
                     }
 
                     const mockUser = this.createMockResponse();
                     
-                    return res(
-                        ctx.status(200),
-                        ctx.json(mockUser),
-                    );
+                    return HttpResponse.json(mockUser, { status: 200 });
                 }),
             ],
 
             error: [
-                rest.post(`${baseUrl}/api/auth/register`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(409),
-                        ctx.json({ 
+                http.post(`${baseUrl}/api/auth/register`, ({ request }) => {
+                    return HttpResponse.json(
+                        { 
                             message: "Email already exists",
                             code: "EMAIL_EXISTS", 
-                        }),
+                        },
+                        { status: 409 }
                     );
                 }),
 
-                rest.post(`${baseUrl}/api/auth/login`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(401),
-                        ctx.json({ 
+                http.post(`${baseUrl}/api/auth/login`, ({ request }) => {
+                    return HttpResponse.json(
+                        { 
                             message: "Invalid credentials",
                             code: "INVALID_CREDENTIALS", 
-                        }),
+                        },
+                        { status: 401 }
                     );
                 }),
 
-                rest.put(`${baseUrl}/api/user/:id`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(403),
-                        ctx.json({ 
+                http.put(`${baseUrl}/api/user/:id`, ({ request, params }) => {
+                    return HttpResponse.json(
+                        { 
                             message: "Forbidden: Cannot update other users",
                             code: "FORBIDDEN", 
-                        }),
+                        },
+                        { status: 403 }
                     );
                 }),
             ],
 
             loading: [
-                rest.post(`${baseUrl}/api/auth/register`, (req, res, ctx) => {
-                    return res(
-                        ctx.delay(2000), // 2 second delay
-                        ctx.status(201),
-                        ctx.json({
+                http.post(`${baseUrl}/api/auth/register`, async ({ request }) => {
+                    // 2 second delay
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    return HttpResponse.json(
+                        {
                             user: this.createMockResponse(),
                             sessionToken: `test_session_${Date.now()}`,
-                        }),
+                        },
+                        { status: 201 }
                     );
                 }),
             ],
 
             networkError: [
-                rest.post(`${baseUrl}/api/auth/register`, (req, res, ctx) => {
-                    return res.networkError("Network connection failed");
+                http.post(`${baseUrl}/api/auth/register`, ({ request }) => {
+                    return HttpResponse.error();
                 }),
-                rest.post(`${baseUrl}/api/auth/login`, (req, res, ctx) => {
-                    return res.networkError("Network connection failed");
+                http.post(`${baseUrl}/api/auth/login`, ({ request }) => {
+                    return HttpResponse.error();
                 }),
             ],
         };

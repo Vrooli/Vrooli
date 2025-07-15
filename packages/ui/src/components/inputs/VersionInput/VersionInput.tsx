@@ -1,13 +1,14 @@
 import { IconButton } from "../../buttons/IconButton.js";
+// eslint-disable-next-line import/extensions
 import InputAdornment from "@mui/material/InputAdornment";
 import { Tooltip } from "../../Tooltip/Tooltip.js";
 import { styled, useTheme } from "@mui/material";
 import { calculateVersionsFromString, getMinVersion, meetsMinVersion } from "@vrooli/shared";
 import { useField } from "formik";
-import { useCallback, useMemo, useRef, useState } from "react";
+import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconCommon } from "../../../icons/Icons.js";
-import { TextInput } from "../TextInput/TextInput.js";
-import { type VersionInputProps } from "../types.js";
+import { TextInput, TextInputBase } from "../TextInput/TextInput.js";
+import { type VersionInputProps, type VersionInputBaseProps, type VersionInputFormikProps } from "../types.js";
 
 const textInputWithSideButtonStyle = {
     "& .MuiInputBase-root": {
@@ -27,28 +28,46 @@ const Outer = styled("div")(({ theme }) => ({
     overflow: "overlay",
 }));
 
-export function VersionInput({
-    isRequired = false,
+/**
+ * Base version input component without Formik integration.
+ * This is the pure visual component that handles all styling and interaction logic.
+ */
+export const VersionInputBase = forwardRef<HTMLDivElement, VersionInputBaseProps>(({
+    value,
+    onChange,
+    onBlur,
+    error,
+    helperText,
+    label,
     name = "versionLabel",
+    isRequired = false,
+    disabled,
     versions,
+    InputProps,
+    sx,
     ...props
-}: VersionInputProps) {
+}, ref) => {
     const { palette } = useTheme();
 
     const textFieldRef = useRef<HTMLDivElement | null>(null);
 
-    const [field, meta, helpers] = useField(name);
-    const [internalValue, setInternalValue] = useState<string>(field.value);
+    const [internalValue, setInternalValue] = useState<string>(value);
+    
+    // Sync internal value with external value
+    useEffect(() => {
+        setInternalValue(value);
+    }, [value]);
+
     const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = event.target.value;
         setInternalValue(newValue);
         // If value is a valid version (e.g. 1.0.0, 1.0, 1) and is at least the minimum value, then call onChange
         if (newValue.match(/^[0-9]+(\.[0-9]+){0,2}$/)) {
             if (meetsMinVersion(newValue, getMinVersion(versions))) {
-                helpers.setValue(newValue);
+                onChange(newValue);
             }
         }
-    }, [helpers, versions]);
+    }, [onChange, versions]);
 
     // Calculate major, moderate, and minor versions. 
     // Ex: 1.2.3 => major = 1, moderate = 2, minor = 3
@@ -60,29 +79,29 @@ export function VersionInput({
     const bumpMajor = useCallback(() => {
         const changedVersion = `${major + 1}.${moderate}.${minor}`;
         setInternalValue(changedVersion);
-        helpers.setValue(changedVersion);
-    }, [major, moderate, minor, helpers]);
+        onChange(changedVersion);
+    }, [major, moderate, minor, onChange]);
 
     const bumpModerate = useCallback(() => {
         const changedVersion = `${major}.${moderate + 1}.${minor}`;
         setInternalValue(changedVersion);
-        helpers.setValue(changedVersion);
-    }, [major, moderate, minor, helpers]);
+        onChange(changedVersion);
+    }, [major, moderate, minor, onChange]);
 
     const bumpMinor = useCallback(() => {
         const changedVersion = `${major}.${moderate}.${minor + 1}`;
         setInternalValue(changedVersion);
-        helpers.setValue(changedVersion);
-    }, [major, moderate, minor, helpers]);
+        onChange(changedVersion);
+    }, [major, moderate, minor, onChange]);
 
     /**
      * On blur, update value
      */
     const handleBlur = useCallback(function handleBlurCallback(event: React.FocusEvent<HTMLInputElement>) {
         const changedVersion = `${major}.${moderate}.${minor}`;
-        helpers.setValue(changedVersion);
-        field.onBlur(event);
-    }, [major, moderate, minor, helpers, field]);
+        onChange(changedVersion);
+        onBlur?.(event);
+    }, [major, moderate, minor, onChange, onBlur]);
 
     const bumpMajorIconButtonStyle = useMemo(function bumpMajorIconButtonStyleMemo() {
         return {
@@ -115,13 +134,13 @@ export function VersionInput({
 
     // Memoize InputProps to fix linter warning
     const textInputProps = useMemo(() => ({
-        ...props.InputProps,
+        ...InputProps,
         startAdornment: (
             <InputAdornment position="start">
                 v
             </InputAdornment>
         ),
-    }), [props.InputProps]);
+    }), [InputProps]);
 
     // Style for the button container
     const buttonContainerStyle = useMemo(() => ({
@@ -130,29 +149,34 @@ export function VersionInput({
     }), []);
 
     return (
-        <Outer>
-            <TextInput
+        <Outer data-testid="version-input" ref={ref}>
+            <TextInputBase
                 {...props}
-                id="versionLabel"
-                name="versionLabel"
+                id={name}
+                name={name}
+                label={label}
                 isRequired={isRequired}
                 value={internalValue}
                 onBlur={handleBlur}
                 onChange={handleChange}
-                error={meta.touched && !!meta.error}
-                helperText={meta.touched && meta.error}
+                error={error}
+                helperText={helperText}
+                disabled={disabled}
                 ref={textFieldRef}
-                sx={textInputWithSideButtonStyle}
+                sx={{ ...textInputWithSideButtonStyle, ...sx }}
                 InputProps={textInputProps}
                 variant="outlined"
             />
             {/* Wrap buttons in a stretching container */}
-            <div style={buttonContainerStyle}>{/* Use memoized style */}
+            <div style={buttonContainerStyle} data-testid="version-bump-buttons">{/* Use memoized style */}
                 <Tooltip placement="top" title="Major bump (increment the first number)">
                     <IconButton
                         onClick={bumpMajor}
                         variant="transparent"
-                        sx={bumpMajorIconButtonStyle}>
+                        sx={bumpMajorIconButtonStyle}
+                        aria-label="Major bump (increment the first number)"
+                        data-testid="major-bump-button"
+                        disabled={disabled}>
                         <IconCommon decorative name="BumpMajor" />
                     </IconButton>
                 </Tooltip>
@@ -160,7 +184,10 @@ export function VersionInput({
                     <IconButton
                         onClick={bumpModerate}
                         variant="transparent"
-                        sx={bumpModerateIconButtonStyle}>
+                        sx={bumpModerateIconButtonStyle}
+                        aria-label="Moderate bump (increment the middle number)"
+                        data-testid="moderate-bump-button"
+                        disabled={disabled}>
                         <IconCommon decorative name="BumpModerate" />
                     </IconButton>
                 </Tooltip>
@@ -168,11 +195,61 @@ export function VersionInput({
                     <IconButton
                         onClick={bumpMinor}
                         variant="transparent"
-                        sx={bumpMinorIconButtonStyle}>
+                        sx={bumpMinorIconButtonStyle}
+                        aria-label="Minor bump (increment the last number)"
+                        data-testid="minor-bump-button"
+                        disabled={disabled}>
                         <IconCommon decorative name="BumpMinor" />
                     </IconButton>
                 </Tooltip>
             </div>
         </Outer>
     );
-}
+});
+
+VersionInputBase.displayName = "VersionInputBase";
+
+/**
+ * Formik-integrated version input component.
+ * Automatically connects to Formik context using the field name.
+ * 
+ * @example
+ * ```tsx
+ * // Inside a Formik form
+ * <VersionInput name="version" label="Version" versions={["1.0.0", "1.1.0"]} />
+ * 
+ * // With validation
+ * <VersionInput 
+ *   name="versionLabel" 
+ *   label="Version"
+ *   versions={existingVersions}
+ *   validate={(value) => !value ? "Version is required" : undefined}
+ * />
+ * ```
+ */
+export const VersionInput = forwardRef<HTMLDivElement, VersionInputFormikProps>(({
+    name = "versionLabel",
+    validate,
+    ...props
+}, ref) => {
+    const [field, meta, helpers] = useField({ name, validate });
+
+    const handleChange = useCallback((value: string) => {
+        helpers.setValue(value);
+    }, [helpers]);
+
+    return (
+        <VersionInputBase
+            {...props}
+            ref={ref}
+            name={name}
+            value={field.value || ""}
+            onChange={handleChange}
+            onBlur={field.onBlur}
+            error={meta.touched && Boolean(meta.error)}
+            helperText={meta.touched && meta.error}
+        />
+    );
+});
+
+VersionInput.displayName = "VersionInput";

@@ -37,7 +37,7 @@ describe("yupTools", () => {
                 name: "ValidationError", 
                 message: "Test error",
                 inner: [],
-                path: "testField"
+                path: "testField",
             };
             expect(isYupValidationError(properError)).toBe(true);
         });

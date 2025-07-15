@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
+import { generatePublicId, nanoid } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -36,11 +36,12 @@ interface RoutineRelationConfig extends RelationConfig {
  * - Comprehensive validation
  */
 export class RoutineDbFactory extends EnhancedDatabaseFactory<
-    Prisma.RoutineCreateInput,
-    Prisma.RoutineCreateInput,
-    Prisma.RoutineInclude,
-    Prisma.RoutineUpdateInput
+    routine,
+    Prisma.routineCreateInput,
+    Prisma.routineInclude,
+    Prisma.routineUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
         super("Routine", prisma);
         this.initializeScenarios();
@@ -53,19 +54,19 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get complete test fixtures for Routine model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.RoutineCreateInput, Prisma.RoutineUpdateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.routineCreateInput, Prisma.routineUpdateInput> {
         return {
             minimal: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 publicId: generatePublicId(),
-                handle: `routine_${nanoid(8)}`,
+                handle: `routine_${nanoid()}`,
                 isPrivate: false,
                 isInternal: false,
             },
             complete: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 publicId: generatePublicId(),
-                handle: `complete_routine_${nanoid(8)}`,
+                handle: `complete_routine_${nanoid()}`,
                 isPrivate: false,
                 isInternal: false,
                 permissions: JSON.stringify({
@@ -77,14 +78,14 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
                 translations: {
                     create: [
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             name: "Complete Test Routine",
                             description: "A comprehensive automation routine with all features",
                             instructions: "Follow these steps to execute the routine",
                         },
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "es",
                             name: "Rutina de Prueba Completa",
                             description: "Una rutina de automatización integral con todas las características",
@@ -108,16 +109,16 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
                     permissions: { invalid: "object" }, // Should be string
                 },
                 duplicateHandle: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     handle: "existing_routine_handle", // Assumes this exists
                     isPrivate: false,
                     isInternal: false,
                 },
                 bothOwners: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
-                    handle: `routine_${nanoid(8)}`,
+                    handle: `routine_${nanoid()}`,
                     isPrivate: false,
                     isInternal: false,
                     ownedByUser: { connect: { id: "user123" } },
@@ -126,21 +127,21 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
             },
             edgeCases: {
                 maxLengthHandle: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     handle: "rout_" + "a".repeat(45), // Max length handle
                     isPrivate: false,
                     isInternal: false,
                 },
                 unicodeNameRoutine: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
-                    handle: `unicode_routine_${nanoid(8)}`,
+                    handle: `unicode_routine_${nanoid()}`,
                     isPrivate: false,
                     isInternal: false,
                     translations: {
                         create: [{
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             name: "ルーチン 🤖", // Unicode characters
                             description: "Unicode routine name",
@@ -148,9 +149,9 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 privateInternalRoutine: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
-                    handle: `private_routine_${nanoid(8)}`,
+                    handle: `private_routine_${nanoid()}`,
                     isPrivate: true,
                     isInternal: true,
                     permissions: JSON.stringify({
@@ -161,9 +162,9 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
                     }),
                 },
                 publicAutomationRoutine: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
-                    handle: `automation_${nanoid(8)}`,
+                    handle: `automation_${nanoid()}`,
                     isPrivate: false,
                     isInternal: false,
                     permissions: JSON.stringify({
@@ -174,14 +175,14 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
                     }),
                 },
                 multiLanguageRoutine: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
-                    handle: `multilang_routine_${nanoid(8)}`,
+                    handle: `multilang_routine_${nanoid()}`,
                     isPrivate: false,
                     isInternal: false,
                     translations: {
                         create: Array.from({ length: 5 }, (_, i) => ({
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: ["en", "es", "fr", "de", "ja"][i],
                             name: `Routine Name ${i}`,
                             description: `Routine description in language ${i}`,
@@ -216,11 +217,11 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateMinimalData(overrides?: Partial<Prisma.RoutineCreateInput>): Prisma.RoutineCreateInput {
-        const uniqueHandle = `routine_${nanoid(8)}`;
+    protected generateMinimalData(overrides?: Partial<Prisma.routineCreateInput>): Prisma.routineCreateInput {
+        const uniqueHandle = `routine_${nanoid()}`;
         
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             publicId: generatePublicId(),
             handle: uniqueHandle,
             isPrivate: false,
@@ -229,11 +230,11 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateCompleteData(overrides?: Partial<Prisma.RoutineCreateInput>): Prisma.RoutineCreateInput {
-        const uniqueHandle = `complete_routine_${nanoid(8)}`;
+    protected generateCompleteData(overrides?: Partial<Prisma.routineCreateInput>): Prisma.routineCreateInput {
+        const uniqueHandle = `complete_routine_${nanoid()}`;
         
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             publicId: generatePublicId(),
             handle: uniqueHandle,
             isPrivate: false,
@@ -247,14 +248,14 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
             translations: {
                 create: [
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         language: "en",
                         name: "Complete Test Routine",
                         description: "A comprehensive automation routine with all features",
                         instructions: "Follow these steps to execute the routine",
                     },
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         language: "es",
                         name: "Rutina de Prueba Completa",
                         description: "Una rutina de automatización integral con todas las características",
@@ -276,7 +277,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
                 description: "Simple action routine for basic automation",
                 config: {
                     overrides: {
-                        handle: `action_routine_${nanoid(8)}`,
+                        handle: `action_routine_${nanoid()}`,
                         isPrivate: false,
                     },
                     versions: [{
@@ -299,7 +300,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
                 description: "AI text generation routine",
                 config: {
                     overrides: {
-                        handle: `text_gen_${nanoid(8)}`,
+                        handle: `text_gen_${nanoid()}`,
                         isPrivate: false,
                     },
                     versions: [{
@@ -322,7 +323,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
                 description: "Complex multi-step workflow routine",
                 config: {
                     overrides: {
-                        handle: `workflow_${nanoid(8)}`,
+                        handle: `workflow_${nanoid()}`,
                         isPrivate: false,
                     },
                     versions: [{
@@ -345,7 +346,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
                 description: "Data transformation and processing routine",
                 config: {
                     overrides: {
-                        handle: `data_transform_${nanoid(8)}`,
+                        handle: `data_transform_${nanoid()}`,
                         isPrivate: false,
                     },
                     versions: [{
@@ -368,7 +369,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
                 description: "Manual process routine requiring human interaction",
                 config: {
                     overrides: {
-                        handle: `manual_process_${nanoid(8)}`,
+                        handle: `manual_process_${nanoid()}`,
                         isPrivate: false,
                     },
                     versions: [{
@@ -391,7 +392,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
                 description: "Private routine for team use only",
                 config: {
                     overrides: {
-                        handle: `team_routine_${nanoid(8)}`,
+                        handle: `team_routine_${nanoid()}`,
                         isPrivate: true,
                         isInternal: true,
                         permissions: JSON.stringify({
@@ -418,7 +419,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected getDefaultInclude(): Prisma.RoutineInclude {
+    protected getDefaultInclude(): Prisma.routineInclude {
         return {
             translations: true,
             ownedByUser: {
@@ -474,10 +475,10 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async applyRelationships(
-        baseData: Prisma.RoutineCreateInput,
+        baseData: Prisma.routineCreateInput,
         config: RoutineRelationConfig,
         tx: any,
-    ): Promise<Prisma.RoutineCreateInput> {
+    ): Promise<Prisma.routineCreateInput> {
         const data = { ...baseData };
 
         // Handle owner (user or team)
@@ -493,7 +494,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
         if (config.versions && Array.isArray(config.versions)) {
             data.versions = {
                 create: config.versions.map((version, index) => ({
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     versionLabel: version.versionLabel,
                     versionIndex: index + 1,
@@ -503,7 +504,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
                     isAutomatable: version.isAutomatable ?? true,
                     translations: version.translations ? {
                         create: version.translations.map(trans => ({
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             ...trans,
                         })),
                     } : undefined,
@@ -515,16 +516,16 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
         if (config.tags && Array.isArray(config.tags)) {
             data.tags = {
                 create: config.tags.map(tagName => ({
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     tag: {
                         connectOrCreate: {
                             where: { tag: tagName },
                             create: {
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 tag: tagName,
                                 translations: {
                                     create: [{
-                                        id: generatePK().toString(),
+                                        id: this.generateId(),
                                         language: "en",
                                         description: `Tag for ${tagName}`,
                                     }],
@@ -540,7 +541,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
         if (config.translations && Array.isArray(config.translations)) {
             data.translations = {
                 create: config.translations.map(trans => ({
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     ...trans,
                 })),
             };
@@ -591,7 +592,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
         return this.createWithRelations({
             owner: { teamId },
             overrides: {
-                handle: `team_routine_${nanoid(8)}`,
+                handle: `team_routine_${nanoid()}`,
                 isPrivate: true,
                 isInternal: true,
                 permissions: JSON.stringify({
@@ -622,7 +623,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
     async createRoutineWithVersionHistory(): Promise<Prisma.Routine> {
         return this.createWithRelations({
             overrides: {
-                handle: `versioned_routine_${nanoid(8)}`,
+                handle: `versioned_routine_${nanoid()}`,
             },
             versions: [
                 {
@@ -682,7 +683,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
         }
 
         // Check that routine has at least one version
-        const versions = await this.prisma.routineVersion.count({
+        const versions = await this.prisma.routine_version.count({
             where: { rootId: record.id },
         });
         
@@ -691,7 +692,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
         }
 
         // Check that only one version is marked as latest
-        const latestVersions = await this.prisma.routineVersion.count({
+        const latestVersions = await this.prisma.routine_version.count({
             where: {
                 rootId: record.id,
                 isLatest: true,
@@ -765,7 +766,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
             for (const version of record.versions) {
                 // Delete version translations
                 if (version.translations?.length) {
-                    await tx.routineVersionTranslation.deleteMany({
+                    await tx.routine_version_translation.deleteMany({
                         where: { routineVersionId: version.id },
                     });
                 }
@@ -784,7 +785,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
                 }
             }
             
-            await tx.routineVersion.deleteMany({
+            await tx.routine_version.deleteMany({
                 where: { rootId: record.id },
             });
         }
@@ -812,7 +813,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
 
         // Delete translations
         if (shouldDelete("translations") && record.translations?.length) {
-            await tx.routineTranslation.deleteMany({
+            await tx.routine_translation.deleteMany({
                 where: { routineId: record.id },
             });
         }
@@ -837,7 +838,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createRoutineDbFactory = (prisma: PrismaClient) => 
-    RoutineDbFactory.getInstance("Routine", prisma);
+    new RoutineDbFactory(prisma);
 
 // Export the class for type usage
 export { RoutineDbFactory as RoutineDbFactoryClass };

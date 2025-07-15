@@ -42,6 +42,26 @@ function getTransports() {
 }
 
 /**
+ * Get the log level from environment variables
+ * In tests, default to 'error' to reduce noise
+ * Otherwise, default to 'info'
+ */
+function getLogLevel(): string {
+    const envLevel = process.env.LOG_LEVEL?.toLowerCase();
+    const isTest = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === "test";
+    
+    // Valid winston syslog levels
+    const validLevels = ["emerg", "alert", "crit", "error", "warning", "notice", "info", "debug"];
+    
+    if (envLevel && validLevels.includes(envLevel)) {
+        return envLevel;
+    }
+    
+    // Default to 'error' in tests, 'info' otherwise
+    return isTest ? "error" : "info";
+}
+
+/**
  * Preferred logging method. Allows you to specify 
  * the level and output location(s). Includes timestamp 
  * with each log.
@@ -55,6 +75,7 @@ function getTransports() {
 export const logger = winston.createLogger({
     // Using `warn` instead of `warning` is a common enough mistake that it's best to support it.
     levels: { ...winston.config.syslog.levels, warn: winston.config.syslog.levels.warning },
+    level: getLogLevel(),
     format: winston.format.combine(
         winston.format.errors({ stack: true }),
         winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),

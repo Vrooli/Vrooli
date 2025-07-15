@@ -16,7 +16,7 @@ export const guestSession: Session = {
 /**
  * Parses session to find current user's data. 
  * @param session Session object
- * @returns data SessionUser object, or empty values
+ * @returns data SessionUser object, or empty object for invalid cases
  */
 export function getCurrentUser(session: Session | null | undefined): Partial<SessionUser> {
     if (!session || !session.isLoggedIn || !Array.isArray(session.users) || session.users.length === 0) {
@@ -25,7 +25,10 @@ export function getCurrentUser(session: Session | null | undefined): Partial<Ses
     const userData = session.users[0];
     // Make sure that user data is valid, by checking ID. 
     // Can add more checks in the future
-    return validatePK(userData.id) ? userData : {};
+    if (!validatePK(userData.id)) {
+        return {};
+    }
+    return userData;
 }
 
 /**

@@ -64,7 +64,7 @@ export const RunIOModel: RunIOModelLogic = ({
         profanityFields: ["data"],
         owner: (data, userId) => ModelMap.get<RunModelLogic>("Run").validate().owner(data?.run as RunModelInfo["DbModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<RunIOModelInfo["DbSelect"]>([["run", "Run"]], ...rest),
+        isPublic: (data, getParentInfo?) => oneIsPublic<RunIOModelInfo["DbSelect"]>([["run", "Run"]], data, getParentInfo),
         visibility: {
             own: function getOwn(data) {
                 return {

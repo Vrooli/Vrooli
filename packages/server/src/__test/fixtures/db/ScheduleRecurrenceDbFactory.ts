@@ -156,19 +156,19 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<Prisma.schedu
         return {
             constraints: {
                 uniqueViolation: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     recurrenceType: "Daily",
                     interval: 1,
                     schedule: { connect: { id: "schedule_placeholder_id" } },
                 },
                 foreignKeyViolation: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     recurrenceType: "Daily",
                     interval: 1,
                     schedule: { connect: { id: "non-existent-schedule-id" } },
                 },
                 checkConstraintViolation: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     recurrenceType: "Weekly",
                     interval: 1,
                     dayOfWeek: 0, // Invalid day (should be 1-7)
@@ -179,7 +179,7 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<Prisma.schedu
                 requiredFieldMissing: scheduleRecurrenceDbFixtures.invalid.missingRequired,
                 invalidDataType: scheduleRecurrenceDbFixtures.invalid.invalidTypes,
                 outOfRange: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     recurrenceType: "Monthly",
                     interval: 1,
                     dayOfMonth: 32, // Invalid day of month
@@ -188,20 +188,20 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<Prisma.schedu
             },
             businessLogic: {
                 invalidInterval: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     recurrenceType: "Daily",
                     interval: 0, // Should be at least 1
                     schedule: { connect: { id: "schedule_placeholder_id" } },
                 },
                 weeklyWithoutDayOfWeek: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     recurrenceType: "Weekly",
                     interval: 1,
                     dayOfWeek: null, // Weekly needs day of week
                     schedule: { connect: { id: "schedule_placeholder_id" } },
                 },
                 monthlyConflict: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     recurrenceType: "Monthly",
                     interval: 1,
                     dayOfWeek: 1, // Both day of week and day of month specified
@@ -209,7 +209,7 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<Prisma.schedu
                     schedule: { connect: { id: "schedule_placeholder_id" } },
                 },
                 yearlyWithoutMonthDay: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     recurrenceType: "Yearly",
                     interval: 1,
                     month: null, // Yearly needs month
@@ -225,7 +225,7 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<Prisma.schedu
      */
     protected generateFreshIdentifiers(): Record<string, any> {
         return {
-            id: generatePK(),
+            id: this.generateId(),
         };
     }
 

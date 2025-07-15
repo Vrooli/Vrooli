@@ -2,7 +2,7 @@ import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import { IconButton } from "../buttons/IconButton.js";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import type { BoxProps, CircularProgressProps } from "@mui/material";
 import { styled, useTheme } from "@mui/material";
@@ -30,9 +30,7 @@ import { type BranchMap } from "../../utils/localStorage.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { EmojiPicker } from "../EmojiPicker/EmojiPicker.js";
 import { ReportButton } from "../buttons/ReportButton.js";
-
 import { MarkdownDisplay } from "../text/MarkdownDisplay.js";
-
 import { type ChatBubbleProps } from "../types.js";
 
 // Lazy load heavy components
@@ -1024,7 +1022,7 @@ const VirtualizedMessageRow = React.memo(function VirtualizedMessageRow({ index,
     // Handle streaming message as last item
     if (index === messageData.length && streamingMessage && messageStream) {
         return (
-            <div ref={rowRef} style={{...style, height: 'auto'}}>
+            <div ref={rowRef} style={{...style, height: "auto"}}>
                 <ChatBubble
                     key="streamingMessage"
                     activeIndex={0}
@@ -1049,7 +1047,7 @@ const VirtualizedMessageRow = React.memo(function VirtualizedMessageRow({ index,
     if (!messageItem) return null;
 
     return (
-        <div ref={rowRef} style={{...style, height: 'auto'}}>
+        <div ref={rowRef} style={{...style, height: "auto"}}>
             <ChatBubble
                 key={messageItem.key}
                 activeIndex={messageItem.activeIndex}

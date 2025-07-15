@@ -12,8 +12,8 @@ import { generatePK, type ChatMessageShape, type ChatSocketEventPayloads } from 
 vi.mock("../../hooks/useDimensions.js", () => ({
     useDimensions: () => ({
         dimensions: { width: 800, height: 600 },
-        ref: { current: document.createElement('div') }
-    })
+        ref: { current: document.createElement("div") },
+    }),
 }));
 
 describe("NavigationArrows Component", () => {
@@ -24,8 +24,9 @@ describe("NavigationArrows Component", () => {
     });
 
     it("should not render if there are less than 2 siblings", () => {
-        const { container } = render(<NavigationArrows activeIndex={0} numSiblings={1} onIndexChange={handleIndexChangeMock} />);
-        expect(container.firstChild).toBeNull();
+        render(<NavigationArrows activeIndex={0} numSiblings={1} onIndexChange={handleIndexChangeMock} />);
+        // When numSiblings < 2, NavigationArrows returns null, so no navigation buttons should be present
+        expect(screen.queryByRole("button")).toBeNull();
     });
 
     it("should handle navigation between siblings", () => {
@@ -33,8 +34,8 @@ describe("NavigationArrows Component", () => {
         const buttons = screen.getAllByRole("button");
         
         // Test initial state
-        expect(buttons[0].hasAttribute('disabled')).toBe(true);
-        expect(buttons[1].hasAttribute('disabled')).toBe(false);
+        expect(buttons[0].hasAttribute("disabled")).toBe(true);
+        expect(buttons[1].hasAttribute("disabled")).toBe(false);
         expect(screen.getByText("1/3")).toBeTruthy();
         
         // Click next
@@ -47,8 +48,8 @@ describe("NavigationArrows Component", () => {
         
         // Recheck buttons
         const updatedButtons = screen.getAllByRole("button");
-        expect(updatedButtons[0].hasAttribute('disabled')).toBe(false);
-        expect(updatedButtons[1].hasAttribute('disabled')).toBe(false);
+        expect(updatedButtons[0].hasAttribute("disabled")).toBe(false);
+        expect(updatedButtons[1].hasAttribute("disabled")).toBe(false);
         
         // Click previous
         handleIndexChangeMock.mockClear();
@@ -58,8 +59,8 @@ describe("NavigationArrows Component", () => {
         // Update to last position
         rerender(<NavigationArrows activeIndex={2} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
         const finalButtons = screen.getAllByRole("button");
-        expect(finalButtons[0].hasAttribute('disabled')).toBe(false);
-        expect(finalButtons[1].hasAttribute('disabled')).toBe(true);
+        expect(finalButtons[0].hasAttribute("disabled")).toBe(false);
+        expect(finalButtons[1].hasAttribute("disabled")).toBe(true);
     });
 });
 
@@ -81,7 +82,7 @@ describe("ScrollToBottomButton", () => {
             scrollHeight: { value: 1000, writable: true, configurable: true },
             scrollTop: { value: 0, writable: true, configurable: true },
             clientHeight: { value: 500, writable: true, configurable: true },
-            scroll: { value: scrollMock, writable: true, configurable: true }
+            scroll: { value: scrollMock, writable: true, configurable: true },
         });
     });
 

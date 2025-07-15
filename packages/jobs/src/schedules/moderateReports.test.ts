@@ -1230,7 +1230,7 @@ describe("moderateReports integration tests", () => {
             expect.objectContaining({
                 objectOwner: expect.objectContaining({
                     __typename: "Team",
-                    id: team.id,
+                    id: team.id.toString(),
                 }),
             }),
         );

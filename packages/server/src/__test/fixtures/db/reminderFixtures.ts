@@ -23,7 +23,7 @@ export const reminderDbIds = {
 /**
  * Enhanced test fixtures for Reminder model following standard structure
  */
-export const reminderDbFixtures: DbTestFixtures<Prisma.ReminderCreateInput> = {
+export const reminderDbFixtures: DbTestFixtures<Prisma.reminderCreateInput> = {
     minimal: {
         id: generatePK(),
         publicId: generatePublicId(),
@@ -152,12 +152,12 @@ export const reminderDbFixtures: DbTestFixtures<Prisma.ReminderCreateInput> = {
 /**
  * Enhanced factory for creating reminder database fixtures
  */
-export class ReminderDbFactory extends EnhancedDbFactory<Prisma.ReminderCreateInput> {
+export class ReminderDbFactory extends EnhancedDbFactory<Prisma.reminderCreateInput> {
     
     /**
      * Get the test fixtures for Reminder model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.ReminderCreateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.reminderCreateInput> {
         return reminderDbFixtures;
     }
 
@@ -227,7 +227,7 @@ export class ReminderDbFactory extends EnhancedDbFactory<Prisma.ReminderCreateIn
     /**
      * Add user association to a reminder fixture
      */
-    protected addUserAssociation(data: Prisma.ReminderCreateInput, userId: string): Prisma.ReminderCreateInput {
+    protected addUserAssociation(data: Prisma.reminderCreateInput, userId: string): Prisma.reminderCreateInput {
         return {
             ...data,
             user: { connect: { id: userId } },
@@ -237,7 +237,7 @@ export class ReminderDbFactory extends EnhancedDbFactory<Prisma.ReminderCreateIn
     /**
      * Add list association to a reminder fixture
      */
-    protected addListAssociation(data: Prisma.ReminderCreateInput, listId: string): Prisma.ReminderCreateInput {
+    protected addListAssociation(data: Prisma.reminderCreateInput, listId: string): Prisma.reminderCreateInput {
         return {
             ...data,
             reminderList: { connect: { id: listId } },
@@ -247,13 +247,13 @@ export class ReminderDbFactory extends EnhancedDbFactory<Prisma.ReminderCreateIn
     /**
      * Add items to a reminder fixture
      */
-    protected addItems(data: Prisma.ReminderCreateInput, items: Array<{
+    protected addItems(data: Prisma.reminderCreateInput, items: Array<{
         name: string;
         description?: string;
         dueDate?: Date;
         index?: number;
         isComplete?: boolean;
-    }>): Prisma.ReminderCreateInput {
+    }>): Prisma.reminderCreateInput {
         return {
             ...data,
             reminderItems: {
@@ -272,7 +272,7 @@ export class ReminderDbFactory extends EnhancedDbFactory<Prisma.ReminderCreateIn
     /**
      * Reminder-specific validation
      */
-    protected validateSpecific(data: Prisma.ReminderCreateInput): { errors: string[]; warnings: string[] } {
+    protected validateSpecific(data: Prisma.reminderCreateInput): { errors: string[]; warnings: string[] } {
         const errors: string[] = [];
         const warnings: string[] = [];
 
@@ -313,8 +313,8 @@ export class ReminderDbFactory extends EnhancedDbFactory<Prisma.ReminderCreateIn
     // Static methods for backward compatibility
     static createMinimal(
         userId: string,
-        overrides?: Partial<Prisma.ReminderCreateInput>,
-    ): Prisma.ReminderCreateInput {
+        overrides?: Partial<Prisma.reminderCreateInput>,
+    ): Prisma.reminderCreateInput {
         const factory = new ReminderDbFactory();
         const data = factory.createMinimal(overrides);
         return factory.addUserAssociation(data, userId);
@@ -323,8 +323,8 @@ export class ReminderDbFactory extends EnhancedDbFactory<Prisma.ReminderCreateIn
     static createWithName(
         userId: string,
         name: string,
-        overrides?: Partial<Prisma.ReminderCreateInput>,
-    ): Prisma.ReminderCreateInput {
+        overrides?: Partial<Prisma.reminderCreateInput>,
+    ): Prisma.reminderCreateInput {
         const factory = new ReminderDbFactory();
         const data = factory.createMinimal({ name, ...overrides });
         return factory.addUserAssociation(data, userId);
@@ -333,8 +333,8 @@ export class ReminderDbFactory extends EnhancedDbFactory<Prisma.ReminderCreateIn
     static createInList(
         userId: string,
         listId: string,
-        overrides?: Partial<Prisma.ReminderCreateInput>,
-    ): Prisma.ReminderCreateInput {
+        overrides?: Partial<Prisma.reminderCreateInput>,
+    ): Prisma.reminderCreateInput {
         const factory = new ReminderDbFactory();
         let data = factory.createMinimal(overrides);
         data = factory.addUserAssociation(data, userId);
@@ -344,8 +344,8 @@ export class ReminderDbFactory extends EnhancedDbFactory<Prisma.ReminderCreateIn
     static createWithItem(
         userId: string,
         itemData: Partial<Prisma.ReminderItemCreateWithoutReminderInput>,
-        overrides?: Partial<Prisma.ReminderCreateInput>,
-    ): Prisma.ReminderCreateInput {
+        overrides?: Partial<Prisma.reminderCreateInput>,
+    ): Prisma.reminderCreateInput {
         const factory = new ReminderDbFactory();
         let data = factory.createMinimal(overrides);
         data = factory.addUserAssociation(data, userId);
@@ -605,7 +605,7 @@ export async function seedReminders(
     for (let i = 0; i < count; i++) {
         const reminderAt = new Date(startDate.getTime() + (i + 1) * 24 * 60 * 60 * 1000);
         
-        let reminderData: Prisma.ReminderCreateInput;
+        let reminderData: Prisma.reminderCreateInput;
         
         if (options.withItems) {
             reminderData = ReminderDbFactory.createWithItem(

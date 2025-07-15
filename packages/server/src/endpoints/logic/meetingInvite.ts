@@ -51,9 +51,10 @@ export const meetingInvite: EndpointsMeetingInvite = createStandardCrudEndpoints
         },
     },
     customEndpoints: {
-        acceptOne: async ({ input }, { req }, info) => {
+        acceptOne: async (data, { req }, info) => {
             await RequestService.get().rateLimit({ maxUser: 100, req });
             RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
+            const input = data?.input;
             if (!input || !input.id || !validatePK(input.id)) {
                 throw new CustomError("0400", "InvalidArgs");
             }
@@ -79,7 +80,7 @@ export const meetingInvite: EndpointsMeetingInvite = createStandardCrudEndpoints
                 }),
                 DbProvider.get().meeting_attendees.upsert({
                     where: { meeting_attendees_meetingid_userid_unique: { meetingId: invite.meetingId, userId: invite.userId } },
-                    create: { meetingId: invite.meetingId, userId: invite.userId },
+                    create: { id: invite.id, meetingId: invite.meetingId, userId: invite.userId },
                     update: {},
                     select: { id: true },
                 }),
@@ -88,9 +89,10 @@ export const meetingInvite: EndpointsMeetingInvite = createStandardCrudEndpoints
             const result = await readOneHelper({ info: partialInfo, input: { id: invite.id.toString() }, objectType, req });
             return result as MeetingInvite;
         },
-        declineOne: async ({ input }, { req }, info) => {
+        declineOne: async (data, { req }, info) => {
             await RequestService.get().rateLimit({ maxUser: 100, req });
             RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
+            const input = data?.input;
             if (!input || !input.id || !validatePK(input.id)) {
                 throw new CustomError("0400", "InvalidArgs");
             }

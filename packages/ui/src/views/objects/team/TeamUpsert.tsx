@@ -23,6 +23,8 @@ import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { FormContainer, FormSection } from "../../../styles.js";
 import { type TeamFormProps, type TeamUpsertProps } from "./types.js";
 
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-01 - Fixed 1 'as any' type assertion with proper Partial<TeamShape>
+
 
 const relationshipListStyle = { marginBottom: 4 } as const;
 const formSectionStyle = { overflowX: "hidden", marginBottom: 2 } as const;
@@ -96,7 +98,7 @@ function TeamForm({
 
     const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback(data: Parameters<UseAutoFillProps["shapeAutoFillResult"]>[0]) {
         const originalValues = { ...values };
-        const updatedValues = {} as any; //TODO
+        const updatedValues: Partial<TeamShape> = {}; //TODO
         return { originalValues, updatedValues };
     }, [language, values]);
 

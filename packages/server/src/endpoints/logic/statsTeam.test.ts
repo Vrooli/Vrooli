@@ -8,6 +8,8 @@ import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { statsTeam_findMany } from "../generated/statsTeam_findMany.js";
 import { statsTeam } from "./statsTeam.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsStatsTeam", () => {
     let loggerErrorStub: any;
@@ -19,13 +21,20 @@ describe("EndpointsStatsTeam", () => {
     });
 
     beforeEach(async () => {
-        // Clean up tables used in tests
-        const prisma = DbProvider.get();
-        await prisma.member.deleteMany();
-        await prisma.stats_team.deleteMany();
-        await prisma.team.deleteMany();
-        await prisma.user.deleteMany();
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.team(DbProvider.get());
     });
+
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["team","member","member_invite","meeting","user"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn('Test cleanup incomplete:', orphans);
+        }
+    }););
 
     afterAll(async () => {
         loggerErrorStub.mockRestore();
@@ -121,17 +130,12 @@ describe("EndpointsStatsTeam", () => {
                         periodStart: new Date("2023-01-01"),
                         periodEnd: new Date("2023-01-31"),
                         periodType: PeriodType.Monthly,
-                        apis: 0,
-                        codes: 0,
+                        resources: 0,
                         members: 2,
-                        notes: 0,
-                        projects: 0,
-                        routines: 0,
-                        standards: 0,
-                        runRoutinesStarted: 0,
-                        runRoutinesCompleted: 0,
-                        runRoutineCompletionTimeAverage: 0.0,
-                        runRoutineContextSwitchesAverage: 0.0,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
                     },
                 });
 
@@ -142,17 +146,12 @@ describe("EndpointsStatsTeam", () => {
                         periodStart: new Date("2023-02-01"),
                         periodEnd: new Date("2023-02-28"),
                         periodType: PeriodType.Monthly,
-                        apis: 0,
-                        codes: 0,
+                        resources: 0,
                         members: 1,
-                        notes: 0,
-                        projects: 0,
-                        routines: 0,
-                        standards: 0,
-                        runRoutinesStarted: 0,
-                        runRoutinesCompleted: 0,
-                        runRoutineCompletionTimeAverage: 0.0,
-                        runRoutineContextSwitchesAverage: 0.0,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
                     },
                 });
 
@@ -163,17 +162,12 @@ describe("EndpointsStatsTeam", () => {
                         periodStart: new Date("2023-03-01"),
                         periodEnd: new Date("2023-03-31"),
                         periodType: PeriodType.Monthly,
-                        apis: 0,
-                        codes: 0,
+                        resources: 0,
                         members: 1,
-                        notes: 0,
-                        projects: 0,
-                        routines: 0,
-                        standards: 0,
-                        runRoutinesStarted: 0,
-                        runRoutinesCompleted: 0,
-                        runRoutineCompletionTimeAverage: 0.0,
-                        runRoutineContextSwitchesAverage: 0.0,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
                     },
                 });
 
@@ -189,7 +183,7 @@ describe("EndpointsStatsTeam", () => {
                 expect(result).not.toBeNull();
                 expect(result).toHaveProperty("edges");
                 expect(result.edges).toBeInstanceOf(Array);
-                const resultIds = result.edges!.map(edge => edge?.node?.id);
+                const resultIds = result.edges!.map(edge => edge?.node?.id?.toString());
 
                 // User 1 should see stats for public team and their private team 1
                 expect(resultIds).toContain(publicTeamStats.id.toString());
@@ -285,17 +279,12 @@ describe("EndpointsStatsTeam", () => {
                         periodStart: new Date("2023-01-01"),
                         periodEnd: new Date("2023-01-31"),
                         periodType: PeriodType.Monthly,
-                        apis: 0,
-                        codes: 0,
+                        resources: 0,
                         members: 2,
-                        notes: 0,
-                        projects: 0,
-                        routines: 0,
-                        standards: 0,
-                        runRoutinesStarted: 0,
-                        runRoutinesCompleted: 0,
-                        runRoutineCompletionTimeAverage: 0.0,
-                        runRoutineContextSwitchesAverage: 0.0,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
                     },
                 });
 
@@ -306,17 +295,12 @@ describe("EndpointsStatsTeam", () => {
                         periodStart: new Date("2023-02-01"),
                         periodEnd: new Date("2023-02-28"),
                         periodType: PeriodType.Monthly,
-                        apis: 0,
-                        codes: 0,
+                        resources: 0,
                         members: 1,
-                        notes: 0,
-                        projects: 0,
-                        routines: 0,
-                        standards: 0,
-                        runRoutinesStarted: 0,
-                        runRoutinesCompleted: 0,
-                        runRoutineCompletionTimeAverage: 0.0,
-                        runRoutineContextSwitchesAverage: 0.0,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
                     },
                 });
 
@@ -327,17 +311,12 @@ describe("EndpointsStatsTeam", () => {
                         periodStart: new Date("2023-03-01"),
                         periodEnd: new Date("2023-03-31"),
                         periodType: PeriodType.Monthly,
-                        apis: 0,
-                        codes: 0,
+                        resources: 0,
                         members: 1,
-                        notes: 0,
-                        projects: 0,
-                        routines: 0,
-                        standards: 0,
-                        runRoutinesStarted: 0,
-                        runRoutinesCompleted: 0,
-                        runRoutineCompletionTimeAverage: 0.0,
-                        runRoutineContextSwitchesAverage: 0.0,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
                     },
                 });
 
@@ -353,7 +332,7 @@ describe("EndpointsStatsTeam", () => {
                 expect(result).not.toBeNull();
                 expect(result).toHaveProperty("edges");
                 expect(result.edges).toBeInstanceOf(Array);
-                const resultIds = result.edges!.map(edge => edge?.node?.id);
+                const resultIds = result.edges!.map(edge => edge?.node?.id?.toString());
 
                 // User 2 should see stats for public team and their private team 2
                 expect(resultIds).toContain(publicTeamStats.id.toString());
@@ -412,17 +391,12 @@ describe("EndpointsStatsTeam", () => {
                         periodStart: new Date("2023-01-01"),
                         periodEnd: new Date("2023-01-31"),
                         periodType: PeriodType.Monthly,
-                        apis: 0,
-                        codes: 0,
+                        resources: 0,
                         members: 0,
-                        notes: 0,
-                        projects: 0,
-                        routines: 0,
-                        standards: 0,
-                        runRoutinesStarted: 0,
-                        runRoutinesCompleted: 0,
-                        runRoutineCompletionTimeAverage: 0.0,
-                        runRoutineContextSwitchesAverage: 0.0,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
                     },
                 });
 
@@ -433,17 +407,12 @@ describe("EndpointsStatsTeam", () => {
                         periodStart: new Date("2023-01-01"),
                         periodEnd: new Date("2023-01-31"),
                         periodType: PeriodType.Monthly,
-                        apis: 0,
-                        codes: 0,
+                        resources: 0,
                         members: 0,
-                        notes: 0,
-                        projects: 0,
-                        routines: 0,
-                        standards: 0,
-                        runRoutinesStarted: 0,
-                        runRoutinesCompleted: 0,
-                        runRoutineCompletionTimeAverage: 0.0,
-                        runRoutineContextSwitchesAverage: 0.0,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
                     },
                 });
 
@@ -456,7 +425,7 @@ describe("EndpointsStatsTeam", () => {
                 expect(result).not.toBeNull();
                 expect(result).toHaveProperty("edges");
                 expect(result.edges).toBeInstanceOf(Array);
-                const resultIds = result.edges!.map(edge => edge?.node?.id);
+                const resultIds = result.edges!.map(edge => edge?.node?.id?.toString());
 
                 // User 3 should only see stats for public team
                 expect(resultIds).toContain(publicTeamStats.id.toString());
@@ -505,17 +474,12 @@ describe("EndpointsStatsTeam", () => {
                         periodStart: new Date("2023-01-01"),
                         periodEnd: new Date("2023-01-31"),
                         periodType: PeriodType.Monthly,
-                        apis: 0,
-                        codes: 0,
+                        resources: 0,
                         members: 1,
-                        notes: 0,
-                        projects: 0,
-                        routines: 0,
-                        standards: 0,
-                        runRoutinesStarted: 0,
-                        runRoutinesCompleted: 0,
-                        runRoutineCompletionTimeAverage: 0.0,
-                        runRoutineContextSwitchesAverage: 0.0,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
                     },
                 });
 
@@ -528,7 +492,7 @@ describe("EndpointsStatsTeam", () => {
                 expect(result).not.toBeNull();
                 expect(result).toHaveProperty("edges");
                 expect(result.edges).toBeInstanceOf(Array);
-                const resultIds = result.edges!.map(edge => edge?.node?.id);
+                const resultIds = result.edges!.map(edge => edge?.node?.id?.toString());
                 expect(resultIds).toContain(monthlyStats.id.toString());
             });
 
@@ -574,17 +538,12 @@ describe("EndpointsStatsTeam", () => {
                         periodStart: new Date("2023-01-01"),
                         periodEnd: new Date("2023-01-31"),
                         periodType: PeriodType.Monthly,
-                        apis: 0,
-                        codes: 0,
+                        resources: 0,
                         members: 1,
-                        notes: 0,
-                        projects: 0,
-                        routines: 0,
-                        standards: 0,
-                        runRoutinesStarted: 0,
-                        runRoutinesCompleted: 0,
-                        runRoutineCompletionTimeAverage: 0.0,
-                        runRoutineContextSwitchesAverage: 0.0,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
                     },
                 });
 
@@ -595,17 +554,12 @@ describe("EndpointsStatsTeam", () => {
                         periodStart: new Date("2023-02-01"),
                         periodEnd: new Date("2023-02-28"),
                         periodType: PeriodType.Monthly,
-                        apis: 0,
-                        codes: 0,
+                        resources: 0,
                         members: 1,
-                        notes: 0,
-                        projects: 0,
-                        routines: 0,
-                        standards: 0,
-                        runRoutinesStarted: 0,
-                        runRoutinesCompleted: 0,
-                        runRoutineCompletionTimeAverage: 0.0,
-                        runRoutineContextSwitchesAverage: 0.0,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
                     },
                 });
 
@@ -624,7 +578,7 @@ describe("EndpointsStatsTeam", () => {
                 expect(result).not.toBeNull();
                 expect(result).toHaveProperty("edges");
                 expect(result.edges).toBeInstanceOf(Array);
-                const resultIds = result.edges!.map(edge => edge?.node?.id);
+                const resultIds = result.edges!.map(edge => edge?.node?.id?.toString());
                 expect(resultIds).toContain(janStats.id.toString());
                 expect(resultIds).not.toContain(febStats.id.toString());
             });
@@ -677,17 +631,12 @@ describe("EndpointsStatsTeam", () => {
                         periodStart: new Date("2023-01-01"),
                         periodEnd: new Date("2023-01-31"),
                         periodType: PeriodType.Monthly,
-                        apis: 0,
-                        codes: 0,
+                        resources: 0,
                         members: 0,
-                        notes: 0,
-                        projects: 0,
-                        routines: 0,
-                        standards: 0,
-                        runRoutinesStarted: 0,
-                        runRoutinesCompleted: 0,
-                        runRoutineCompletionTimeAverage: 0.0,
-                        runRoutineContextSwitchesAverage: 0.0,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
                     },
                 });
 
@@ -698,17 +647,12 @@ describe("EndpointsStatsTeam", () => {
                         periodStart: new Date("2023-01-01"),
                         periodEnd: new Date("2023-01-31"),
                         periodType: PeriodType.Monthly,
-                        apis: 0,
-                        codes: 0,
+                        resources: 0,
                         members: 0,
-                        notes: 0,
-                        projects: 0,
-                        routines: 0,
-                        standards: 0,
-                        runRoutinesStarted: 0,
-                        runRoutinesCompleted: 0,
-                        runRoutineCompletionTimeAverage: 0.0,
-                        runRoutineContextSwitchesAverage: 0.0,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
                     },
                 });
 
@@ -726,7 +670,7 @@ describe("EndpointsStatsTeam", () => {
                 expect(result).not.toBeNull();
                 expect(result).toHaveProperty("edges");
                 expect(result.edges).toBeInstanceOf(Array);
-                const resultIds = result.edges!.map(edge => edge?.node?.id);
+                const resultIds = result.edges!.map(edge => edge?.node?.id?.toString());
 
                 // Only public team stats should be returned
                 expect(resultIds).toContain(publicTeamStats.id.toString());
@@ -773,17 +717,12 @@ describe("EndpointsStatsTeam", () => {
                         periodStart: new Date("2023-01-01"),
                         periodEnd: new Date("2023-01-31"),
                         periodType: PeriodType.Monthly,
-                        apis: 0,
-                        codes: 0,
+                        resources: 0,
                         members: 0,
-                        notes: 0,
-                        projects: 0,
-                        routines: 0,
-                        standards: 0,
-                        runRoutinesStarted: 0,
-                        runRoutinesCompleted: 0,
-                        runRoutineCompletionTimeAverage: 0.0,
-                        runRoutineContextSwitchesAverage: 0.0,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
                     },
                 });
 
@@ -794,17 +733,12 @@ describe("EndpointsStatsTeam", () => {
                         periodStart: new Date("2023-01-01"),
                         periodEnd: new Date("2023-01-31"),
                         periodType: PeriodType.Monthly,
-                        apis: 0,
-                        codes: 0,
+                        resources: 0,
                         members: 0,
-                        notes: 0,
-                        projects: 0,
-                        routines: 0,
-                        standards: 0,
-                        runRoutinesStarted: 0,
-                        runRoutinesCompleted: 0,
-                        runRoutineCompletionTimeAverage: 0.0,
-                        runRoutineContextSwitchesAverage: 0.0,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
                     },
                 });
 
@@ -819,7 +753,7 @@ describe("EndpointsStatsTeam", () => {
                 expect(result).not.toBeNull();
                 expect(result).toHaveProperty("edges");
                 expect(result.edges).toBeInstanceOf(Array);
-                const resultIds = result.edges!.map(edge => edge?.node?.id);
+                const resultIds = result.edges!.map(edge => edge?.node?.id?.toString());
 
                 expect(resultIds).toContain(publicTeamStats.id.toString());
                 expect(resultIds).not.toContain(privateTeamStats.id.toString());
@@ -906,17 +840,12 @@ describe("EndpointsStatsTeam", () => {
                         periodStart: new Date("2023-01-01"),
                         periodEnd: new Date("2023-01-31"),
                         periodType: PeriodType.Monthly,
-                        apis: 0,
-                        codes: 0,
+                        resources: 0,
                         members: 0,
-                        notes: 0,
-                        projects: 0,
-                        routines: 0,
-                        standards: 0,
-                        runRoutinesStarted: 0,
-                        runRoutinesCompleted: 0,
-                        runRoutineCompletionTimeAverage: 0.0,
-                        runRoutineContextSwitchesAverage: 0.0,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
                     },
                 });
                 

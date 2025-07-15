@@ -1,0 +1,124 @@
+# Auto-generated values for current deployment
+nameOverride: ""
+fullnameOverride: "vrooli"
+
+image:
+  registry: "docker.io/matthalloran8"
+  tag: "2.0.0"
+  pullPolicy: Always
+
+imagePullSecrets:
+  - name: "dockerhub-secret"
+
+replicaCount:
+  ui: 2
+  server: 2
+  jobs: 1
+
+services:
+  ui:
+    type: ClusterIP
+    port: 3000
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+    
+  server:
+    type: ClusterIP
+    port: 5329
+    env:
+      NODE_ENV: "production"
+      PORT_API: "5329"
+      API_URL: "https://vrooli.com/api"
+      UI_URL: "https://vrooli.com"
+      CREATE_MOCK_DATA: "false"
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "256Mi"
+      limits:
+        cpu: "1000m"
+        memory: "1Gi"
+    
+  jobs:
+    type: ClusterIP
+    port: 4001
+    env:
+      NODE_ENV: "production"
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+
+# External database configuration
+postgresql:
+  enabled: false
+
+redis:
+  enabled: false
+
+# Disable operator CRDs since we're using managed databases
+pgoPostgresql:
+  enabled: false
+
+spotahomeRedis:
+  enabled: false
+
+vso:
+  enabled: false
+
+externalDatabase:
+  enabled: true
+  existingSecret: "postgres-credentials"
+
+externalRedis:
+  enabled: true
+  existingSecret: "redis-credentials"
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+  hosts:
+    - host: vrooli.com
+      paths:
+        - path: /api
+          pathType: Prefix
+          service: server
+          port: 5329
+        - path: /
+          pathType: Prefix
+          service: ui
+          port: 3000
+  tls:
+    - secretName: vrooli-tls
+      hosts:
+        - vrooli.com
+
+# Security
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+# Health checks
+healthChecks:
+  enabled: true
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  readinessProbe:
+    initialDelaySeconds: 15
+    periodSeconds: 5

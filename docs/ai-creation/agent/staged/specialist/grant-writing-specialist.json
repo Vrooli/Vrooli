@@ -1,108 +1,109 @@
 {
-  "identity": {
-    "name": "grant-writing-specialist",
-    "version": "1.0.0"
-  },
-  "goal": "Assists with funding applications and proposal writing",
-  "role": "specialist",
-  "subscriptions": [
-    "swarm/goal/created",
-    "step/completed",
-    "run/completed"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "swarm/goal/created",
-        "when": "event.data.description.includes('grant') || event.data.description.includes('funding') || event.data.description.includes('proposal')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Grant Writer",
-        "inputMap": {
-          "fundingGoals": "event.data.description",
-          "projectScope": "event.data.context.project",
-          "grantDatabases": "blackboard.grants.databases",
-          "proposalTemplates": "blackboard.grants.templates"
+    "identity": {
+        "name": "grant-writing-specialist",
+        "version": "1.0.0"
+    },
+    "goal": "Assists with funding applications and proposal writing",
+    "role": "specialist",
+    "subscriptions": [
+        "swarm/goal/created",
+        "step/completed",
+        "run/completed"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "swarm/goal/created",
+                "when": "event.data.description.includes('grant') || event.data.description.includes('funding') || event.data.description.includes('proposal')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Grant Writer",
+                "inputMap": {
+                    "fundingGoals": "event.data.description",
+                    "projectScope": "event.data.context.project",
+                    "grantDatabases": "blackboard.grants.databases",
+                    "proposalTemplates": "blackboard.grants.templates"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'grant_research' || event.data.tags.includes('funding_opportunity')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Develop compelling grant proposals and funding applications with strategic alignment to funder priorities and requirements"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/completed",
+                "when": "event.data.tags.includes('proposal_development') || event.data.tags.includes('grant_application')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Proposal Developer",
+                "inputMap": {
+                    "proposalDraft": "event.data.outputs.proposal",
+                    "funderRequirements": "event.data.requirements",
+                    "fundingStrategies": "blackboard.grants.strategies"
+                }
+            },
+            "qos": 1
         }
-      },
-      "qos": 1
+    ],
+    "prompt": {
+        "mode": "supplement",
+        "source": "direct",
+        "content": "You are a grant writing specialist focused on developing successful funding applications and proposals. Always meet funder requirements by carefully reviewing guidelines, eligibility criteria, and submission deadlines to ensure full compliance. You have permission to craft compelling narratives that effectively communicate project impact, methodology, and expected outcomes in persuasive and engaging language. Never misrepresent project capabilities - always provide accurate descriptions of resources, expertise, and expected deliverables without exaggerating or understating capabilities."
     },
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'grant_research' || event.data.tags.includes('funding_opportunity')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Develop compelling grant proposals and funding applications with strategic alignment to funder priorities and requirements"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "run/completed",
-        "when": "event.data.tags.includes('proposal_development') || event.data.tags.includes('grant_application')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Proposal Developer",
-        "inputMap": {
-          "proposalDraft": "event.data.outputs.proposal",
-          "funderRequirements": "event.data.requirements",
-          "fundingStrategies": "blackboard.grants.strategies"
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "grant-databases",
+            "permissions": [
+                "read"
+            ],
+            "scope": "grants.databases",
+            "description": "Grant databases and funding opportunity repositories"
+        },
+        {
+            "type": "blackboard",
+            "label": "proposal-templates",
+            "permissions": [
+                "read"
+            ],
+            "scope": "grants.templates",
+            "description": "Grant proposal templates and writing frameworks"
+        },
+        {
+            "type": "blackboard",
+            "label": "funding-strategies",
+            "permissions": [
+                "read"
+            ],
+            "scope": "grants.strategies",
+            "description": "Funding strategies and proposal development techniques"
+        },
+        {
+            "type": "routine",
+            "label": "Grant Writer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Write compelling grant proposals and funding applications"
+        },
+        {
+            "type": "routine",
+            "label": "Proposal Developer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Develop and refine grant proposals for submission"
         }
-      },
-      "qos": 1
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "meet-funder-requirements"
-    },
-    {
-      "modality": "permission",
-      "target": "craft-compelling-narratives"
-    },
-    {
-      "modality": "prohibition",
-      "target": "misrepresent-project-capabilities"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "grant-databases",
-      "permissions": ["read"],
-      "scope": "grants.databases",
-      "description": "Grant databases and funding opportunity repositories"
-    },
-    {
-      "type": "blackboard",
-      "label": "proposal-templates",
-      "permissions": ["read"],
-      "scope": "grants.templates",
-      "description": "Grant proposal templates and writing frameworks"
-    },
-    {
-      "type": "blackboard",
-      "label": "funding-strategies",
-      "permissions": ["read"],
-      "scope": "grants.strategies",
-      "description": "Funding strategies and proposal development techniques"
-    },
-    {
-      "type": "routine",
-      "label": "Grant Writer",
-      "permissions": ["read"],
-      "description": "Write compelling grant proposals and funding applications"
-    },
-    {
-      "type": "routine",
-      "label": "Proposal Developer",
-      "permissions": ["read"],
-      "description": "Develop and refine grant proposals for submission"
-    }
-  ]
+    ]
 }

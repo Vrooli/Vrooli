@@ -1,4 +1,6 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
+import { nanoid } from "@vrooli/shared";
+import { type chat } from "@prisma/client";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type {
@@ -6,7 +8,7 @@ import type {
     RelationConfig,
     TestScenario,
 } from "./types.js";
-import { chatConfigFixtures } from "@vrooli/shared/test-fixtures";
+import { chatConfigFixtures } from "../../../../../shared/src/__test/fixtures/config/chatConfigFixtures.js";
 
 interface ChatRelationConfig extends RelationConfig {
     withCreator?: { userId: string };
@@ -31,11 +33,12 @@ interface ChatRelationConfig extends RelationConfig {
  * - Predefined test scenarios
  */
 export class ChatDbFactory extends EnhancedDatabaseFactory<
-    Prisma.chatCreateInput,
+    chat,
     Prisma.chatCreateInput,
     Prisma.chatInclude,
     Prisma.chatUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
         super("chat", prisma);
         this.initializeScenarios();
@@ -51,28 +54,28 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
     protected getFixtures(): DbTestFixtures<Prisma.chatCreateInput, Prisma.chatUpdateInput> {
         return {
             minimal: {
-                id: generatePK().toString(),
-                publicId: generatePublicId(),
+                id: this.generateId(),
+                publicId: this.generatePublicId(),
                 isPrivate: true,
                 openToAnyoneWithInvite: false,
-                config: chatConfigFixtures.minimal,
+                config: chatConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
             },
             complete: {
-                id: generatePK().toString(),
-                publicId: generatePublicId(),
+                id: this.generateId(),
+                publicId: this.generatePublicId(),
                 isPrivate: false,
                 openToAnyoneWithInvite: true,
-                config: chatConfigFixtures.complete,
+                config: chatConfigFixtures.complete as unknown as Prisma.InputJsonValue,
                 translations: {
                     create: [
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             name: "General Discussion",
                             description: "A chat room for general discussions",
                         },
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "es",
                             name: "Discusión General",
                             description: "Una sala de chat para discusiones generales",
@@ -94,15 +97,15 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
                     config: "not-an-object", // Should be object
                 },
                 conflictingSettings: {
-                    id: generatePK().toString(),
-                    publicId: generatePublicId(),
+                    id: this.generateId(),
+                    publicId: this.generatePublicId(),
                     isPrivate: true,
                     openToAnyoneWithInvite: true, // Conflict with isPrivate
                     config: {},
                 },
                 invalidConfig: {
-                    id: generatePK().toString(),
-                    publicId: generatePublicId(),
+                    id: this.generateId(),
+                    publicId: this.generatePublicId(),
                     isPrivate: false,
                     openToAnyoneWithInvite: false,
                     config: chatConfigFixtures.invalid.malformedStructure,
@@ -110,27 +113,27 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
             },
             edgeCases: {
                 maxParticipants: {
-                    id: generatePK().toString(),
-                    publicId: generatePublicId(),
+                    id: this.generateId(),
+                    publicId: this.generatePublicId(),
                     isPrivate: false,
                     openToAnyoneWithInvite: true,
-                    config: {
+                    config: { 
                         ...chatConfigFixtures.complete,
                         limits: {
                             ...chatConfigFixtures.complete.limits,
                             maxParticipants: 1000,
                         },
-                    },
+                    } as unknown as Prisma.InputJsonValue,
                 },
                 unicodeName: {
-                    id: generatePK().toString(),
-                    publicId: generatePublicId(),
+                    id: this.generateId(),
+                    publicId: this.generatePublicId(),
                     isPrivate: false,
                     openToAnyoneWithInvite: false,
-                    config: chatConfigFixtures.minimal,
+                    config: chatConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
                     translations: {
                         create: [{
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             name: "チャット 💬 🌍",
                             description: "Unicode test chat with emojis",
@@ -138,25 +141,23 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 teamOnlyChat: {
-                    id: generatePK().toString(),
-                    publicId: generatePublicId(),
+                    id: this.generateId(),
+                    publicId: this.generatePublicId(),
                     isPrivate: true,
                     openToAnyoneWithInvite: false,
-                    config: {
-                        ...chatConfigFixtures.complete,
-                        teamId: "team-123",
-                    },
+                    config: { ...chatConfigFixtures.complete } as unknown as Prisma.InputJsonValue,
+                    team: { connect: { id: this.generateId() } },
                 },
                 publicOpenChat: {
-                    id: generatePK().toString(),
-                    publicId: generatePublicId(),
+                    id: this.generateId(),
+                    publicId: this.generatePublicId(),
                     isPrivate: false,
                     openToAnyoneWithInvite: true,
-                    config: chatConfigFixtures.minimal,
+                    config: chatConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
                 },
                 highLimitsChat: {
-                    id: generatePK().toString(),
-                    publicId: generatePublicId(),
+                    id: this.generateId(),
+                    publicId: this.generatePublicId(),
                     isPrivate: false,
                     openToAnyoneWithInvite: false,
                     config: chatConfigFixtures.variants.highLimitSwarm,
@@ -169,10 +170,10 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
                 complete: {
                     isPrivate: true,
                     openToAnyoneWithInvite: false,
-                    config: chatConfigFixtures.complete,
+                    config: chatConfigFixtures.complete as unknown as Prisma.InputJsonValue,
                     translations: {
                         update: [{
-                            where: { id: "translation_id" },
+                            where: { id: this.generateId() },
                             data: {
                                 name: "Updated Chat Name",
                                 description: "Updated chat description",
@@ -186,32 +187,32 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.chatCreateInput>): Prisma.chatCreateInput {
         return {
-            id: generatePK().toString(),
-            publicId: generatePublicId(),
+            id: this.generateId(),
+            publicId: this.generatePublicId(),
             isPrivate: true,
             openToAnyoneWithInvite: false,
-            config: chatConfigFixtures.minimal,
+            config: chatConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
             ...overrides,
         };
     }
 
     protected generateCompleteData(overrides?: Partial<Prisma.chatCreateInput>): Prisma.chatCreateInput {
         return {
-            id: generatePK().toString(),
-            publicId: generatePublicId(),
+            id: this.generateId(),
+            publicId: this.generatePublicId(),
             isPrivate: false,
             openToAnyoneWithInvite: true,
-            config: chatConfigFixtures.complete,
+            config: chatConfigFixtures.complete as unknown as Prisma.InputJsonValue,
             translations: {
                 create: [
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         language: "en",
                         name: "General Discussion",
                         description: "A chat room for general discussions",
                     },
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         language: "es",
                         name: "Discusión General",
                         description: "Una sala de chat para discusiones generales",
@@ -236,8 +237,8 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
                         openToAnyoneWithInvite: false,
                     },
                     participants: [
-                        { userId: "user-1" },
-                        { userId: "user-2" },
+                        { user: { connect: { id: this.generateId() } } },
+                        { user: { connect: { id: this.generateId() } } },
                     ],
                 },
             },
@@ -249,11 +250,11 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
                         isPrivate: true,
                         openToAnyoneWithInvite: false,
                     },
-                    withTeam: { teamId: "team-123" },
+                    withTeam: { team: { connect: { id: this.generateId() } } },
                     participants: [
-                        { userId: "team-member-1" },
-                        { userId: "team-member-2" },
-                        { userId: "team-member-3" },
+                        { user: { connect: { id: this.generateId() } } },
+                        { user: { connect: { id: this.generateId() } } },
+                        { user: { connect: { id: this.generateId() } } },
                     ],
                 },
             },
@@ -280,14 +281,14 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         isPrivate: true,
                         openToAnyoneWithInvite: false,
-                        config: {
+                        config: { 
                             ...chatConfigFixtures.complete,
                             swarmLeader: "support-bot",
-                        },
+                        } as unknown as Prisma.InputJsonValue,
                     },
                     participants: [
-                        { userId: "user-needing-help" },
-                        { userId: "support-bot" },
+                        { user: { connect: { id: this.generateId() } } },
+                        { user: { connect: { id: this.generateId() } } },
                     ],
                 },
             },
@@ -369,21 +370,21 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.chatCreateInput,
         config: ChatRelationConfig,
-        tx: any,
+        tx: PrismaClient,
     ): Promise<Prisma.chatCreateInput> {
         const data = { ...baseData };
 
         // Handle creator
         if (config.withCreator) {
             data.creator = {
-                connect: { id: config.withCreator.userId },
+                connect: { id: BigInt(config.withCreator.userId) },
             };
         }
 
         // Handle team
         if (config.withTeam) {
             data.team = {
-                connect: { id: config.withTeam.teamId },
+                connect: { id: BigInt(config.withTeam.teamId) },
             };
         }
 
@@ -391,8 +392,8 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
         if (config.participants && Array.isArray(config.participants)) {
             data.participants = {
                 create: config.participants.map(participant => ({
-                    id: generatePK().toString(),
-                    userId: participant.userId,
+                    id: this.generateId(),
+                    userId: BigInt(participant.userId),
                     hasUnread: participant.hasUnread ?? true,
                 })),
             };
@@ -402,8 +403,8 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
         if (config.invites && Array.isArray(config.invites)) {
             data.invites = {
                 create: config.invites.map(invite => ({
-                    id: generatePK().toString(),
-                    userId: invite.userId,
+                    id: this.generateId(),
+                    userId: BigInt(invite.userId),
                     status: invite.status || "Pending",
                     message: "You've been invited to join this chat",
                 })),
@@ -414,7 +415,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
         if (config.translations && Array.isArray(config.translations)) {
             data.translations = {
                 create: config.translations.map(trans => ({
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     ...trans,
                 })),
             };
@@ -426,7 +427,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a private chat between users
      */
-    async createPrivateChat(userIds: string[]): Promise<Prisma.chat> {
+    async createPrivateChat(userIds: string[]): Promise<chat> {
         return await this.createWithRelations({
             overrides: {
                 isPrivate: true,
@@ -439,7 +440,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a team chat
      */
-    async createTeamChat(teamId: string, memberIds: string[]): Promise<Prisma.chat> {
+    async createTeamChat(teamId: string, memberIds: string[]): Promise<chat> {
         return await this.createWithRelations({
             overrides: {
                 isPrivate: true,
@@ -453,7 +454,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a public community chat
      */
-    async createPublicChat(name: string, description?: string): Promise<Prisma.chat> {
+    async createPublicChat(name: string, description?: string): Promise<chat> {
         return await this.createWithRelations({
             overrides: {
                 isPrivate: false,
@@ -467,7 +468,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    protected async checkModelConstraints(record: Prisma.chat): Promise<string[]> {
+    protected async checkModelConstraints(record: chat): Promise<string[]> {
         const violations: string[] = [];
 
         // Check conflicting privacy settings
@@ -518,9 +519,9 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.Chat,
+        record: chat,
         remainingDepth: number,
-        tx: any,
+        tx: PrismaClient,
         includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
@@ -571,7 +572,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
     async addParticipants(chatId: string, userIds: string[]): Promise<void> {
         await this.prisma.chat_participants.createMany({
             data: userIds.map(userId => ({
-                id: generatePK().toString(),
+                id: this.generateId(),
                 chatId,
                 userId,
                 hasUnread: true,
@@ -586,7 +587,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
     async createInvites(chatId: string, userIds: string[], message?: string): Promise<void> {
         await this.prisma.chat_invite.createMany({
             data: userIds.map(userId => ({
-                id: generatePK().toString(),
+                id: this.generateId(),
                 chatId,
                 userId,
                 status: "Pending",
@@ -600,10 +601,10 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
      * Create different chat scenarios for testing
      */
     async createTestingScenarios(): Promise<{
-        privateChat: Prisma.chat;
-        teamChat: Prisma.chat;
-        publicChat: Prisma.chat;
-        supportChat: Prisma.chat;
+        privateChat: chat;
+        teamChat: chat;
+        publicChat: chat;
+        supportChat: chat;
     }> {
         const [privateChat, teamChat, publicChat, supportChat] = await Promise.all([
             this.seedScenario("privateChat"),
@@ -613,17 +614,17 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
         ]);
 
         return {
-            privateChat: privateChat as unknown as Prisma.chat,
-            teamChat: teamChat as unknown as Prisma.chat,
-            publicChat: publicChat as unknown as Prisma.chat,
-            supportChat: supportChat as unknown as Prisma.chat,
+            privateChat: privateChat as chat,
+            teamChat: teamChat as chat,
+            publicChat: publicChat as chat,
+            supportChat: supportChat as chat,
         };
     }
 }
 
 // Export factory creator function
 export const createChatDbFactory = (prisma: PrismaClient) =>
-    ChatDbFactory.getInstance("chat", prisma);
+    new ChatDbFactory(prisma);
 
 // Export the class for type usage
 export { ChatDbFactory as ChatDbFactoryClass };

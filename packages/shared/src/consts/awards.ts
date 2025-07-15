@@ -1,6 +1,6 @@
 /* eslint-disable no-magic-numbers */
 import { type AwardCategory } from "../api/types.js";
-import { type TranslationKeyAward } from "../types.js";
+import { type TranslationKeyAward } from "../types.d.js";
 
 /**
  * Maps award categories to their tiers, if applicable. Special cases are handled

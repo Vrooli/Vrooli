@@ -56,8 +56,8 @@ export interface ChatInterfaceProps {
 const ChatInterfaceContainer = styled(Box)<{ compact?: boolean }>(({ theme, compact }) => ({
     display: "flex",
     flexDirection: "column",
-    height: compact ? "auto" : "100%",
-    minHeight: compact ? "300px" : "400px",
+    height: compact ? "auto" : "100vh",
+    minHeight: compact ? "300px" : "100vh",
     overflow: "hidden",
     backgroundColor: theme.palette.background.default,
 }));
@@ -74,6 +74,12 @@ const ChatMessagesContainer = styled(Box)(({ theme }) => ({
     paddingTop: theme.spacing(2),
     paddingBottom: theme.spacing(4), // Extra space at bottom
 }));
+
+const EmptyStateWrapper = styled(Box)({
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+});
 
 const MESSAGE_LIST_ID = "chatInterface";
 
@@ -119,7 +125,7 @@ export function ChatInterface({
     const [shareSettings, setShareSettings] = useState<ShareSettings>({ enabled: false });
 
     // Default integration settings for dashboard
-    const [integrationSettings, setIntegrationSettings] = useState<IntegrationSettings>({ projects: [] });
+    const [integrationSettings, setIntegrationSettings] = useState<IntegrationSettings>({ projects: [], externalApps: [] });
 
     // Placeholder chat object for the menu props
     const settingsChat = useMemo(() => ({
@@ -256,8 +262,16 @@ export function ChatInterface({
     return (
         <ChatInterfaceContainer compact={compact}>
             <ChatMessagesContainer>
-                {isLoading && loadingContent}
-                {!isLoading && !hasMessages && noMessagesContent}
+                {isLoading && (
+                    <EmptyStateWrapper>
+                        {loadingContent}
+                    </EmptyStateWrapper>
+                )}
+                {!isLoading && !hasMessages && (
+                    <EmptyStateWrapper>
+                        {noMessagesContent}
+                    </EmptyStateWrapper>
+                )}
                 {!isLoading && hasMessages && (
                     <ChatBubbleTree
                         branches={messageTree.branches}

@@ -21,7 +21,7 @@ export function EditableText<T extends EditTextComponent>({
         <>
             {/* Editing components */}
             {isEditing && component === "Markdown" && <AdvancedInput name="name" {...(props as PropsByComponentType["Markdown"])} />}
-            {isEditing && component === "TranslatedMarkdown" && <TranslatedAdvancedInput name="name" {...(props as PropsByComponentType["TranslatedMarkdown"])} />}
+            {isEditing && component === "TranslatedMarkdown" && <TranslatedAdvancedInput name="name" language={props.language || "en"} {...(props as PropsByComponentType["TranslatedMarkdown"])} />}
             {isEditing && component === "TranslatedTextInput" && <TranslatedTextInput name={name} {...(props as PropsByComponentType["TranslatedTextInput"])} />}
             {isEditing && component === "TextInput" && <Field name={name} as={TextInput} {...(props as PropsByComponentType["TextInput"])} />}
             {/* Display components */}

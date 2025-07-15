@@ -1,107 +1,104 @@
 {
-  "identity": {
-    "name": "decision-support-agent",
-    "version": "1.0.0"
-  },
-  "goal": "Assist with complex decisions by analyzing options when runs require user input",
-  "role": "specialist",
-  "subscriptions": [
-    "run/decision/requested",
-    "safety/pre_action",
-    "step/completed"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "run/decision/requested"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Decision Analyzer",
-        "inputMap": {
-          "decision": "event.data.decision",
-          "options": "event.data.options",
-          "decisionFrameworks": "blackboard.decisions.frameworks",
-          "analysisTools": "blackboard.decisions.tools"
+    "identity": {
+        "name": "decision-support-agent",
+        "version": "1.0.0"
+    },
+    "goal": "Assist with complex decisions by analyzing options when runs require user input",
+    "role": "specialist",
+    "subscriptions": [
+        "run/decision/requested",
+        "safety/pre_action",
+        "step/completed"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "run/decision/requested"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Decision Analyzer",
+                "inputMap": {
+                    "decision": "event.data.decision",
+                    "options": "event.data.options",
+                    "decisionFrameworks": "blackboard.decisions.frameworks",
+                    "analysisTools": "blackboard.decisions.tools"
+                }
+            },
+            "qos": 2
+        },
+        {
+            "trigger": {
+                "topic": "safety/pre_action",
+                "when": "event.data.action.requiresDecision == true"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Analyze complex action decisions and provide risk-benefit analysis with recommendations"
+            },
+            "qos": 2
+        },
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'decision_analysis' && event.data.complexity > 7"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Recommendation Engine",
+                "inputMap": {
+                    "analysisResults": "event.data.results",
+                    "decisionContext": "event.data.context",
+                    "recommendationEngines": "blackboard.decisions.engines"
+                }
+            },
+            "qos": 1
         }
-      },
-      "qos": 2
-    },
-    {
-      "trigger": {
-        "topic": "safety/pre_action",
-        "when": "event.data.action.requiresDecision == true"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Analyze complex action decisions and provide risk-benefit analysis with recommendations"
-      },
-      "qos": 2
-    },
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'decision_analysis' && event.data.complexity > 7"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Recommendation Engine",
-        "inputMap": {
-          "analysisResults": "event.data.results",
-          "decisionContext": "event.data.context",
-          "recommendationEngines": "blackboard.decisions.engines"
+    ],
+    "prompt": "You are a decision support agent assisting with complex decisions by analyzing options when runs require user input. You must provide objective analysis free from bias and personal opinions. You may recommend the best options based on your analysis and available data. You must never make decisions autonomously - your role is to support human decision-making, not replace it. Focus on thorough analysis, clear presentation of options, and evidence-based recommendations.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "decision-frameworks",
+            "permissions": [
+                "read"
+            ],
+            "scope": "decisions.frameworks",
+            "description": "Decision-making frameworks and methodologies"
+        },
+        {
+            "type": "blackboard",
+            "label": "analysis-tools",
+            "permissions": [
+                "read"
+            ],
+            "scope": "decisions.tools",
+            "description": "Decision analysis tools and techniques"
+        },
+        {
+            "type": "blackboard",
+            "label": "recommendation-engines",
+            "permissions": [
+                "read"
+            ],
+            "scope": "decisions.engines",
+            "description": "Recommendation engines and scoring systems"
+        },
+        {
+            "type": "routine",
+            "label": "Decision Analyzer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Analyze complex decisions and evaluate options"
+        },
+        {
+            "type": "routine",
+            "label": "Recommendation Engine",
+            "permissions": [
+                "read"
+            ],
+            "description": "Generate decision recommendations based on analysis"
         }
-      },
-      "qos": 1
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "provide-objective-analysis"
-    },
-    {
-      "modality": "permission",
-      "target": "recommend-best-options"
-    },
-    {
-      "modality": "prohibition",
-      "target": "make-decisions-autonomously"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "decision-frameworks",
-      "permissions": ["read"],
-      "scope": "decisions.frameworks",
-      "description": "Decision-making frameworks and methodologies"
-    },
-    {
-      "type": "blackboard",
-      "label": "analysis-tools",
-      "permissions": ["read"],
-      "scope": "decisions.tools",
-      "description": "Decision analysis tools and techniques"
-    },
-    {
-      "type": "blackboard",
-      "label": "recommendation-engines",
-      "permissions": ["read"],
-      "scope": "decisions.engines",
-      "description": "Recommendation engines and scoring systems"
-    },
-    {
-      "type": "routine",
-      "label": "Decision Analyzer",
-      "permissions": ["read"],
-      "description": "Analyze complex decisions and evaluate options"
-    },
-    {
-      "type": "routine",
-      "label": "Recommendation Engine",
-      "permissions": ["read"],
-      "description": "Generate decision recommendations based on analysis"
-    }
-  ]
+    ]
 }

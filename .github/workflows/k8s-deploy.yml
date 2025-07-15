@@ -1,0 +1,170 @@
+name: Kubernetes Deployment
+
+concurrency:
+  group: k8s-${{ github.event.inputs.environment }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment (dev, staging, prod)"
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+        default: dev
+      version:
+        description: "Version to deploy (leave empty for latest from package.json)"
+        required: false
+        type: string
+      run_lint:
+        description: "Run linting step"
+        required: false
+        type: boolean
+        default: false
+      run_test:
+        description: "Run tests step"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build-and-deploy-k8s:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    env:
+      SECRETS_SOURCE: file
+      ENVIRONMENT: ${{ github.event.inputs.environment }}
+      RUN_LINT: ${{ github.event.inputs.run_lint == true }}
+      RUN_TEST: ${{ github.event.inputs.run_test == true }}
+      VERSION: ${{ github.event.inputs.version }}
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up environment files
+        run: |
+          # Create environment-specific .env file
+          echo "${{ secrets.ENV_FILE_CONTENT }}" > .env-${{ env.ENVIRONMENT }}
+          
+          # Create JWT keys for the environment
+          echo "${{ secrets.JWT_PRIV_PEM }}" > jwt_priv_${{ env.ENVIRONMENT }}.pem
+          echo "${{ secrets.JWT_PUB_PEM }}" > jwt_pub_${{ env.ENVIRONMENT }}.pem
+
+      - name: Install Kubernetes tools
+        run: |
+          # Install kubectl
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+          
+          # Install Helm
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      - name: Configure Kubernetes access
+        run: |
+          # Set up kubeconfig from secret (base64 encoded)
+          if [ -n "${{ secrets.KUBECONFIG_CONTENT_BASE64 }}" ]; then
+            mkdir -p ~/.kube
+            echo "${{ secrets.KUBECONFIG_CONTENT_BASE64 }}" | base64 -d > ~/.kube/config
+            chmod 600 ~/.kube/config
+          else
+            echo "KUBECONFIG_CONTENT_BASE64 secret not found. Using individual K8s credentials..."
+            # Alternative: programmatic cluster configuration
+            if [ -n "${{ secrets.KUBE_API_SERVER }}" ]; then
+              kubectl config set-cluster vrooli-cluster --server="${{ secrets.KUBE_API_SERVER }}"
+              kubectl config set-cluster vrooli-cluster --certificate-authority-data="${{ secrets.KUBE_CA_CERT_BASE64 }}"
+              kubectl config set-credentials vrooli-user --token="${{ secrets.KUBE_BEARER_TOKEN }}"
+              kubectl config set-context vrooli-context --cluster=vrooli-cluster --user=vrooli-user
+              kubectl config use-context vrooli-context
+            else
+              echo "ERROR: No Kubernetes credentials found in secrets"
+              exit 1
+            fi
+          fi
+          
+          # Verify connection
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker images
+        run: |
+          # Build for Kubernetes deployment
+          bash scripts/main/build.sh \
+            --environment ${{ env.ENVIRONMENT }} \
+            --ci-cd yes \
+            --bundles zip \
+            --artifacts k8s \
+            --binaries none \
+            --dest local \
+            --yes yes \
+            --version "${{ env.VERSION }}" \
+            --lint "${{ env.RUN_LINT == 'true' && 'yes' || 'no' }}" \
+            --test "${{ env.RUN_TEST == 'true' && 'yes' || 'no' }}"
+
+      - name: Deploy to Kubernetes
+        run: |
+          # Get version for deployment
+          if [ -z "${{ env.VERSION }}" ]; then
+            export VERSION=$(node -p "require('./package.json').version")
+          else
+            export VERSION="${{ env.VERSION }}"
+          fi
+          
+          echo "Deploying version $VERSION to ${{ env.ENVIRONMENT }} environment"
+          
+          # Deploy using the deploy script
+          bash scripts/main/deploy.sh \
+            --source k8s \
+            --environment ${{ env.ENVIRONMENT }} \
+            --version $VERSION \
+            --yes yes
+
+      - name: Verify deployment
+        run: |
+          # Wait for deployment to be ready
+          kubectl rollout status deployment/vrooli-${{ env.ENVIRONMENT }}-ui -n ${{ env.ENVIRONMENT }} --timeout=600s
+          kubectl rollout status deployment/vrooli-${{ env.ENVIRONMENT }}-server -n ${{ env.ENVIRONMENT }} --timeout=600s
+          kubectl rollout status deployment/vrooli-${{ env.ENVIRONMENT }}-jobs -n ${{ env.ENVIRONMENT }} --timeout=600s
+          
+          # Show pod status
+          kubectl get pods -n ${{ env.ENVIRONMENT }}
+          
+          # Show services
+          kubectl get services -n ${{ env.ENVIRONMENT }}
+          
+          # Run Helm tests if available
+          helm test vrooli-${{ env.ENVIRONMENT }} -n ${{ env.ENVIRONMENT }} || true
+
+      - name: Post-deployment status
+        if: always()
+        run: |
+          echo "=== Deployment Summary ==="
+          echo "Environment: ${{ env.ENVIRONMENT }}"
+          echo "Version: ${VERSION:-$(node -p "require('./package.json').version")}"
+          echo "Namespace: ${{ env.ENVIRONMENT }}"
+          
+          echo "=== Pod Status ==="
+          kubectl get pods -n ${{ env.ENVIRONMENT }} || true
+          
+          echo "=== Service Status ==="
+          kubectl get services -n ${{ env.ENVIRONMENT }} || true
+          
+          echo "=== Ingress Status ==="
+          kubectl get ingress -n ${{ env.ENVIRONMENT }} || true
+          
+          if [ "${{ env.ENVIRONMENT }}" = "prod" ]; then
+            echo "=== Production Deployment Notes ==="
+            echo "- Verify external DNS points to ingress"
+            echo "- Check SSL certificate status"
+            echo "- Monitor application logs for errors"
+            echo "- Validate health endpoints"
+          fi

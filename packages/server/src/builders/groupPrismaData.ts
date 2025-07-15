@@ -1,14 +1,31 @@
 import { type ModelType, type OrArray, isObject } from "@vrooli/shared";
-import pkg from "lodash";
 import { isRelationshipObject } from "./isOfType.js";
 import { type PartialApiInfo } from "./types.js";
 
-const { merge } = pkg;
+// Simple merge function since lodash.merge is not available
+// AI_CHECK: TYPE_SAFETY=server-builders-group-prisma-type-safety-maintenance-1 | LAST: 2025-07-03 - Replaced any types with Record<string, unknown>
+function merge(target: Record<string, unknown>, ...sources: Record<string, unknown>[]): Record<string, unknown> {
+    if (!sources.length) return target;
+    const source = sources.shift();
+
+    if (isObject(target) && isObject(source)) {
+        for (const key in source) {
+            if (isObject(source[key])) {
+                if (!target[key]) Object.assign(target, { [key]: {} });
+                merge(target[key] as Record<string, unknown>, source[key] as Record<string, unknown>);
+            } else {
+                Object.assign(target, { [key]: source[key] });
+            }
+        }
+    }
+
+    return merge(target, ...sources);
+}
 
 type GroupPrismaDataReturn = {
     objectTypesIdsDict: { [x: string]: string[] },
-    selectFieldsDict: { [x: string]: { [x: string]: any } },
-    objectIdsDataDict: { [x: string]: ({ id: string } & { [x: string]: any }) },
+    selectFieldsDict: { [x: string]: { [x: string]: unknown } },
+    objectIdsDataDict: { [x: string]: ({ id: string } & { [x: string]: unknown }) },
 }
 
 /**
@@ -26,9 +43,9 @@ function combineDicts(dict1: GroupPrismaDataReturn, dict2: GroupPrismaDataReturn
         result.objectTypesIdsDict[childType].push(...childObjects);
     }
     // Update selectFieldsDict
-    result.selectFieldsDict = merge(result.selectFieldsDict, dict2.selectFieldsDict);
+    result.selectFieldsDict = merge(result.selectFieldsDict, dict2.selectFieldsDict) as { [x: string]: { [x: string]: unknown } };
     // Update objectIdsDataDict
-    result.objectIdsDataDict = merge(result.objectIdsDataDict, dict2.objectIdsDataDict);
+    result.objectIdsDataDict = merge(result.objectIdsDataDict, dict2.objectIdsDataDict) as { [x: string]: ({ id: string } & { [x: string]: unknown }) };
     return result;
 }
 
@@ -43,8 +60,8 @@ function combineDicts(dict1: GroupPrismaDataReturn, dict2: GroupPrismaDataReturn
  * @param data GraphQL-shaped data, where each object contains at least an ID
  * @param partialInfo API endpoint info object
  */
-export function groupPrismaData(
-    data: OrArray<{ [x: string]: any }>,
+export function groupPrismaData<T extends Record<string, unknown>>(
+    data: OrArray<T>,
     partialInfo: OrArray<PartialApiInfo>,
 ): GroupPrismaDataReturn {
     // Check for valid input
@@ -70,7 +87,7 @@ export function groupPrismaData(
     }
     // Loop through each key/value pair in data
     for (const [key, value] of Object.entries(data)) {
-        let childPartialInfo: PartialApiInfo = partialInfo[key] as any;
+        let childPartialInfo: PartialApiInfo = partialInfo[key] as PartialApiInfo;
         if (childPartialInfo && value) {
             // If every key in childPartialInfo starts with a capital letter, then it is a union.
             // In this case, we must determine which union to use based on the shape of value
@@ -82,7 +99,7 @@ export function groupPrismaData(
                 // Find the union type which matches the shape of value
                 let matchingType: string | undefined;
                 for (const unionType of Object.keys(childPartialInfo)) {
-                    if (value.__typename === unionType) {
+                    if (isObject(value) && "__typename" in value && value.__typename === unionType) {
                         matchingType = unionType;
                         break;
                     }
@@ -105,7 +122,7 @@ export function groupPrismaData(
         // If value is an object (and not date)
         else if (isRelationshipObject(value)) {
             // Pass value through groupPrismaData
-            const childDicts = groupPrismaData(value, childPartialInfo);
+            const childDicts = groupPrismaData(value as Record<string, unknown>, childPartialInfo);
             // Update result with childDicts
             result = combineDicts(result, childDicts);
         }
@@ -114,21 +131,22 @@ export function groupPrismaData(
             const type = (partialInfo as PartialApiInfo).__typename as `${ModelType}`;
             // Add to objectTypesIdsDict
             result.objectTypesIdsDict[type] = result.objectTypesIdsDict[type] ?? [];
-            result.objectTypesIdsDict[type].push(value);
+            result.objectTypesIdsDict[type].push(String(value));
         }
     }
     // Add keys to selectFieldsDict
     const currType = (partialInfo as PartialApiInfo)?.__typename as `${ModelType}`;
     if (currType) {
-        result.selectFieldsDict[currType] = merge(result.selectFieldsDict[currType] ?? {}, partialInfo);
+        result.selectFieldsDict[currType] = merge(result.selectFieldsDict[currType] ?? {}, partialInfo as Record<string, unknown>) as { [x: string]: unknown };
     }
     // Add data to objectIdsDataDict
-    if (currType && (data as Record<string, any>).id) {
-        result.objectIdsDataDict[(data as Record<string, any>).id.toString()] = merge(result.objectIdsDataDict[(data as Record<string, any>).id.toString()] ?? {}, data);
+    if (currType && !Array.isArray(data) && isObject(data) && "id" in data && data.id) {
+        const dataId = String(data.id);
+        result.objectIdsDataDict[dataId] = merge(result.objectIdsDataDict[dataId] ?? {}, data as Record<string, unknown>) as ({ id: string } & { [x: string]: unknown });
     }
     // Before returning, remove duplicate IDs from objectTypesIdsDict
     for (const [type, ids] of Object.entries(result.objectTypesIdsDict)) {
-        result.objectTypesIdsDict[type] = [...new Set(ids.map(id => id.toString()))];
+        result.objectTypesIdsDict[type] = [...new Set(ids.map((id: string | number | bigint) => id.toString()))];
     }
     // Return dictionaries
     return result;

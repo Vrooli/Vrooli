@@ -21,7 +21,7 @@ export const notificationDbIds = {
 /**
  * Enhanced test fixtures for Notification model following standard structure
  */
-export const notificationDbFixtures: DbTestFixtures<Prisma.NotificationCreateInput> = {
+export const notificationDbFixtures: DbTestFixtures<Prisma.notificationCreateInput> = {
     minimal: {
         id: generatePK(),
         category: "Update",
@@ -118,12 +118,12 @@ export const notificationDbFixtures: DbTestFixtures<Prisma.NotificationCreateInp
 /**
  * Enhanced factory for creating notification database fixtures
  */
-export class NotificationDbFactory extends EnhancedDbFactory<Prisma.NotificationCreateInput> {
+export class NotificationDbFactory extends EnhancedDbFactory<Prisma.notificationCreateInput> {
     
     /**
      * Get the test fixtures for Notification model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.NotificationCreateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.notificationCreateInput> {
         return notificationDbFixtures;
     }
 
@@ -184,7 +184,7 @@ export class NotificationDbFactory extends EnhancedDbFactory<Prisma.Notification
     /**
      * Add object association to a notification fixture
      */
-    protected addObjectAssociation(data: Prisma.NotificationCreateInput, objectId: string, objectType: string): Prisma.NotificationCreateInput {
+    protected addObjectAssociation(data: Prisma.notificationCreateInput, objectId: string, objectType: string): Prisma.notificationCreateInput {
         const connections: Record<string, any> = {
             Comment: { comment: { connect: { id: objectId } } },
             Issue: { issue: { connect: { id: objectId } } },
@@ -205,7 +205,7 @@ export class NotificationDbFactory extends EnhancedDbFactory<Prisma.Notification
     /**
      * Notification-specific validation
      */
-    protected validateSpecific(data: Prisma.NotificationCreateInput): { errors: string[]; warnings: string[] } {
+    protected validateSpecific(data: Prisma.notificationCreateInput): { errors: string[]; warnings: string[] } {
         const errors: string[] = [];
         const warnings: string[] = [];
 
@@ -251,8 +251,8 @@ export class NotificationDbFactory extends EnhancedDbFactory<Prisma.Notification
     static createMinimal(
         userId: string,
         category: string,
-        overrides?: Partial<Prisma.NotificationCreateInput>,
-    ): Prisma.NotificationCreateInput {
+        overrides?: Partial<Prisma.notificationCreateInput>,
+    ): Prisma.notificationCreateInput {
         const factory = new NotificationDbFactory();
         return factory.createMinimal({
             category,
@@ -266,8 +266,8 @@ export class NotificationDbFactory extends EnhancedDbFactory<Prisma.Notification
         category: string,
         objectId: string,
         objectType: string,
-        overrides?: Partial<Prisma.NotificationCreateInput>,
-    ): Prisma.NotificationCreateInput {
+        overrides?: Partial<Prisma.notificationCreateInput>,
+    ): Prisma.notificationCreateInput {
         const factory = new NotificationDbFactory();
         const data = factory.createMinimal({
             category,
@@ -280,8 +280,8 @@ export class NotificationDbFactory extends EnhancedDbFactory<Prisma.Notification
     static createRead(
         userId: string,
         category: string,
-        overrides?: Partial<Prisma.NotificationCreateInput>,
-    ): Prisma.NotificationCreateInput {
+        overrides?: Partial<Prisma.notificationCreateInput>,
+    ): Prisma.notificationCreateInput {
         const factory = new NotificationDbFactory();
         return factory.createMinimal({
             category,

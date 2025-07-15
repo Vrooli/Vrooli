@@ -1,7 +1,7 @@
 import { type FindByIdInput, type PaymentSearchInput, generatePK } from "@vrooli/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockAuthenticatedSession, mockLoggedOutSession, mockApiSession, mockReadPrivatePermissions, mockWritePrivatePermissions } from "../../__test/session.js";
-import { testEndpointRequiresAuth, testEndpointRequiresApiKeyReadPermissions, testEndpointRequiresApiKeyWritePermissions } from "../../__test/endpoints.js";
+import { assertEndpointRequiresAuth, assertEndpointRequiresApiKeyReadPermissions, assertEndpointRequiresApiKeyWritePermissions } from "../../__test/endpoints.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { CacheService } from "../../redisConn.js";
@@ -12,6 +12,8 @@ import { payment } from "./payment.js";
 import { PaymentDbFactory, seedTestPayments } from "../../__test/fixtures/db/paymentFixtures.js";
 import { seedTestUsers, UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
 import { TeamDbFactory } from "../../__test/fixtures/db/teamFixtures.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsPayment", () => {
     beforeAll(async () => {
@@ -21,17 +23,21 @@ describe("EndpointsPayment", () => {
         vi.spyOn(logger, "warning").mockImplementation(() => logger);
     });
 
-    beforeEach(async () => {
-        // Clean up tables used in tests
-        const prisma = DbProvider.get();
-        await prisma.payment.deleteMany();
-        await prisma.team_member.deleteMany();
-        await prisma.team.deleteMany();
-        await prisma.credit_account.deleteMany();
-        await prisma.user.deleteMany();
-        // Clear Redis cache
-        await CacheService.get().flushAll();
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["team","member","member_invite","meeting","user"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn('Test cleanup incomplete:', orphans);
+        }
     });
+
+    beforeEach(async () => {
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.team(DbProvider.get());
+    }););
 
     afterAll(async () => {
         // Restore all mocks
@@ -105,16 +111,16 @@ describe("EndpointsPayment", () => {
 
     describe("findOne", () => {
         describe("authentication", () => {
-            it("requires authentication", async () => {
-                await testEndpointRequiresAuth(
+            it("not logged in", async () => {
+                await assertEndpointRequiresAuth(
                     payment.findOne,
                     { id: generatePK() },
                     payment_findOne,
                 );
             });
 
-            it("requires API key with read permissions", async () => {
-                await testEndpointRequiresApiKeyReadPermissions(
+            it("API key - no read permissions", async () => {
+                await assertEndpointRequiresApiKeyReadPermissions(
                     payment.findOne,
                     { id: generatePK() },
                     payment_findOne,
@@ -215,16 +221,16 @@ describe("EndpointsPayment", () => {
 
     describe("findMany", () => {
         describe("authentication", () => {
-            it("requires authentication", async () => {
-                await testEndpointRequiresAuth(
+            it("not logged in", async () => {
+                await assertEndpointRequiresAuth(
                     payment.findMany,
                     {},
                     payment_findMany,
                 );
             });
 
-            it("requires API key with read permissions", async () => {
-                await testEndpointRequiresApiKeyReadPermissions(
+            it("API key - no read permissions", async () => {
+                await assertEndpointRequiresApiKeyReadPermissions(
                     payment.findMany,
                     {},
                     payment_findMany,

@@ -4,6 +4,7 @@
 import { DUMMY_ID, endpointsResource, generatePK, getObjectUrl, type NoteVersion, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
+import { getMockUrl, getStoryRoutePath, getStoryRouteEditPath } from "../../../__test/helpers/storybookMocking.js";
 import { NoteCrud } from "./NoteCrud.js";
 
 // Create simplified mock data for Note responses
@@ -121,13 +122,13 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findNoteVersion.endpoint}`, () => {
+            http.get(getMockUrl(endpointsResource.findNoteVersion), () => {
                 return HttpResponse.json({ data: mockNoteVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockNoteVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockNoteVersionData),
     },
 };
 
@@ -149,13 +150,13 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findNoteVersion.endpoint}`, () => {
+            http.get(getMockUrl(endpointsResource.findNoteVersion), () => {
                 return HttpResponse.json({ data: mockNoteVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockNoteVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockNoteVersionData),
     },
 };
 
@@ -169,7 +170,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findNoteVersion.endpoint}`, async () => {
+            http.get(getMockUrl(endpointsResource.findNoteVersion), async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockNoteVersionData });
@@ -177,7 +178,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockNoteVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockNoteVersionData),
     },
 };
 
@@ -201,7 +202,7 @@ ViewMode.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findNoteVersion.endpoint}`, () => {
+            http.get(getMockUrl(endpointsResource.findNoteVersion), () => {
                 const viewOnlyData = {
                     ...mockNoteVersionData,
                     you: {
@@ -214,7 +215,7 @@ ViewMode.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockNoteVersionData)}`,
+        path: getStoryRoutePath(mockNoteVersionData),
     },
 };
 

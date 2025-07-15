@@ -16,6 +16,8 @@ import { ReportResponseDbFactory, seedTestReportResponses } from "../../__test/f
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
 import { reportResponseTestDataFactory } from "@vrooli/shared";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsReportResponse", () => {
     beforeAll(async () => {
@@ -25,15 +27,21 @@ describe("EndpointsReportResponse", () => {
         vi.spyOn(logger, "warning").mockImplementation(() => logger);
     });
 
-    beforeEach(async () => {
-        // Clean up tables used in tests
-        const prisma = DbProvider.get();
-        await prisma.report_response.deleteMany();
-        await prisma.report.deleteMany();
-        await prisma.user.deleteMany();
-        // Clear Redis cache
-        await CacheService.get().flushAll();
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["user","user_auth","email","session"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn('Test cleanup incomplete:', orphans);
+        }
     });
+
+    beforeEach(async () => {
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.minimal(DbProvider.get());
+    }););
 
     afterAll(async () => {
         // Restore all mocks

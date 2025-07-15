@@ -7,6 +7,8 @@
  * 2. If the pull request is references report or is on an object without an owner, users can vote on whether the pull request should be accepted or rejected.
  * 3. Once a pull request is accepted/rejected, a notification is sent to the requestor. The requestor's reputation is updated accordingly.
  */
-export function moderatePullRequests() {
+// AI_CHECK: TASK_ID=TYPE_SAFETY COUNT=1 | LAST: 2025-07-04
+export function moderatePullRequests(): Promise<void> {
     //TODO
+    return Promise.resolve();
 }

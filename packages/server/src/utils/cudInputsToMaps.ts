@@ -634,13 +634,14 @@ export function inputToMaps<
 
     // Add the current ID to idsByAction and idsByType
     idsByAction[action]?.push(id.toString());
-    idsByType[format.apiRelMap.__typename]?.push(id.toString());
+    const typename = format.apiRelMap.__typename as ModelType;
+    idsByType[typename]?.push(id.toString());
 
     // Update closestWithId for generating placeholders
     closestWithId = updateClosestWithId(action, input, idField, format.apiRelMap.__typename, closestWithId);
 
     // Initialize object to store processed input info
-    const inputInfo: { node: InputNode, input: Record<string, unknown> } = { node: rootNode, input: {} };
+    const inputInfo: { node: InputNode, input: unknown } = { node: rootNode, input: {} };
 
     // If input is not an object (i.e. an ID)
     if (!isRelationshipObject(input)) {
@@ -660,7 +661,7 @@ export function inputToMaps<
         console.warn("TODO Not sure if this is a problem");
     }
     inputsById[id] = inputInfo;
-    inputsByType[format.apiRelMap.__typename]?.[action]?.push(inputInfo);
+    inputsByType[typename]?.[action]?.push(inputInfo);
     // Return the root node
     return rootNode;
 }
@@ -748,10 +749,16 @@ export async function cudInputsToMaps({
 
     // Remove duplicate IDs from idsByAction and idsByType
     for (const type in idsByType) {
-        idsByType[type] = [...new Set(idsByType[type])];
+        const currentArray = idsByType[type as ModelType];
+        if (currentArray) {
+            idsByType[type as ModelType] = [...new Set(currentArray)];
+        }
     }
     for (const action in idsByAction) {
-        idsByAction[action] = [...new Set(idsByAction[action])];
+        const currentArray = idsByAction[action as QueryAction];
+        if (currentArray) {
+            idsByAction[action as QueryAction] = [...new Set(currentArray)];
+        }
     }
 
     return {

@@ -1,16 +1,18 @@
 import { type FormSchema } from "@vrooli/shared";
 
+// AI_CHECK: TYPE_SAFETY=fixed-search-schemas-types | LAST: 2025-06-28
+
 export type SearchParams = {
     /** Schema to display advanced search dialog */
     advancedSearchSchema: FormSchema | null;
     /** What sort option to use by default */
-    defaultSortBy: any;
+    defaultSortBy: string;
     /** Endpoint to use for findMany */
     findManyEndpoint: string;
     /** Endpoint to use for findOne */
     findOneEndpoint: string | undefined;
     /** All possible sort options */
-    sortByOptions: any;
+    sortByOptions: Record<string, string>;
 }
 
 /**

@@ -24,7 +24,7 @@ export const scheduleDbIds = {
 /**
  * Enhanced test fixtures for Schedule model following standard structure
  */
-export const scheduleDbFixtures: DbTestFixtures<Prisma.ScheduleCreateInput> = {
+export const scheduleDbFixtures: DbTestFixtures<Prisma.scheduleCreateInput> = {
     minimal: {
         id: generatePK(),
         publicId: generatePublicId(),
@@ -275,12 +275,12 @@ export const RRuleHelpers = {
 /**
  * Enhanced factory for creating schedule database fixtures
  */
-export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.ScheduleCreateInput> {
+export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.scheduleCreateInput> {
     
     /**
      * Get the test fixtures for Schedule model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.ScheduleCreateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.scheduleCreateInput> {
         return scheduleDbFixtures;
     }
 
@@ -348,7 +348,7 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.ScheduleCreateIn
     /**
      * Add object association to a schedule fixture
      */
-    protected addObjectAssociation(data: Prisma.ScheduleCreateInput, forId: string, forType: string): Prisma.ScheduleCreateInput {
+    protected addObjectAssociation(data: Prisma.scheduleCreateInput, forId: string, forType: string): Prisma.scheduleCreateInput {
         const connections: Record<string, any> = {
             FocusMode: { focusMode: { connect: { id: forId } } },
             Meeting: { meeting: { connect: { id: forId } } },
@@ -365,7 +365,7 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.ScheduleCreateIn
     /**
      * Add recurrence to a schedule fixture
      */
-    protected addRecurrence(data: Prisma.ScheduleCreateInput, recurrence: Partial<Prisma.ScheduleRecurrenceCreateWithoutScheduleInput>): Prisma.ScheduleCreateInput {
+    protected addRecurrence(data: Prisma.scheduleCreateInput, recurrence: Partial<Prisma.ScheduleRecurrenceCreateWithoutScheduleInput>): Prisma.scheduleCreateInput {
         return {
             ...data,
             recurrences: {
@@ -386,7 +386,7 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.ScheduleCreateIn
     /**
      * Add recurrence from RRULE string
      */
-    protected addRecurrenceFromRRule(data: Prisma.ScheduleCreateInput, rrule: string): Prisma.ScheduleCreateInput {
+    protected addRecurrenceFromRRule(data: Prisma.scheduleCreateInput, rrule: string): Prisma.scheduleCreateInput {
         const recurrence = RRuleHelpers.parseToRecurrence(rrule);
         return this.addRecurrence(data, recurrence);
     }
@@ -395,9 +395,9 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.ScheduleCreateIn
      * Create schedule with multiple recurrences
      */
     protected createWithRecurrences(
-        baseSchedule: Prisma.ScheduleCreateInput,
+        baseSchedule: Prisma.scheduleCreateInput,
         recurrencePatterns: Array<Partial<Prisma.ScheduleRecurrenceCreateWithoutScheduleInput> | string>,
-    ): Prisma.ScheduleCreateInput {
+    ): Prisma.scheduleCreateInput {
         const recurrences = recurrencePatterns.map(pattern => {
             if (typeof pattern === "string") {
                 // RRULE string
@@ -542,7 +542,7 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.ScheduleCreateIn
     /**
      * Schedule-specific validation
      */
-    protected validateSpecific(data: Prisma.ScheduleCreateInput): { errors: string[]; warnings: string[] } {
+    protected validateSpecific(data: Prisma.scheduleCreateInput): { errors: string[]; warnings: string[] } {
         const errors: string[] = [];
         const warnings: string[] = [];
 
@@ -582,8 +582,8 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.ScheduleCreateIn
     static createMinimal(
         forId: string,
         forType: string,
-        overrides?: Partial<Prisma.ScheduleCreateInput>,
-    ): Prisma.ScheduleCreateInput {
+        overrides?: Partial<Prisma.scheduleCreateInput>,
+    ): Prisma.scheduleCreateInput {
         const factory = new ScheduleDbFactory();
         const data = factory.createMinimal(overrides);
         return factory.addObjectAssociation(data, forId, forType);
@@ -593,8 +593,8 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.ScheduleCreateIn
         forId: string,
         forType: string,
         recurrence: Partial<Prisma.ScheduleRecurrenceCreateWithoutScheduleInput>,
-        overrides?: Partial<Prisma.ScheduleCreateInput>,
-    ): Prisma.ScheduleCreateInput {
+        overrides?: Partial<Prisma.scheduleCreateInput>,
+    ): Prisma.scheduleCreateInput {
         const factory = new ScheduleDbFactory();
         let data = factory.createMinimal(overrides);
         data = factory.addObjectAssociation(data, forId, forType);
@@ -605,8 +605,8 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.ScheduleCreateIn
         forId: string,
         forType: string,
         rrule: string,
-        overrides?: Partial<Prisma.ScheduleCreateInput>,
-    ): Prisma.ScheduleCreateInput {
+        overrides?: Partial<Prisma.scheduleCreateInput>,
+    ): Prisma.scheduleCreateInput {
         const factory = new ScheduleDbFactory();
         let data = factory.createMinimal(overrides);
         data = factory.addObjectAssociation(data, forId, forType);
@@ -617,8 +617,8 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.ScheduleCreateIn
         forId: string,
         forType: string,
         recurrencePatterns: Array<Partial<Prisma.ScheduleRecurrenceCreateWithoutScheduleInput> | string>,
-        overrides?: Partial<Prisma.ScheduleCreateInput>,
-    ): Prisma.ScheduleCreateInput {
+        overrides?: Partial<Prisma.scheduleCreateInput>,
+    ): Prisma.scheduleCreateInput {
         const factory = new ScheduleDbFactory();
         let data = factory.createMinimal(overrides);
         data = factory.addObjectAssociation(data, forId, forType);
@@ -629,8 +629,8 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.ScheduleCreateIn
         forId: string,
         forType: string,
         exceptions: Array<{ date: Date; newStartTime?: Date; newEndTime?: Date }>,
-        overrides?: Partial<Prisma.ScheduleCreateInput>,
-    ): Prisma.ScheduleCreateInput {
+        overrides?: Partial<Prisma.scheduleCreateInput>,
+    ): Prisma.scheduleCreateInput {
         const factory = new ScheduleDbFactory();
         let data = factory.createMinimal(overrides);
         data = factory.addObjectAssociation(data, forId, forType);
@@ -657,8 +657,8 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.ScheduleCreateIn
         forId: string,
         forType: string,
         labelIds: string[],
-        overrides?: Partial<Prisma.ScheduleCreateInput>,
-    ): Prisma.ScheduleCreateInput {
+        overrides?: Partial<Prisma.scheduleCreateInput>,
+    ): Prisma.scheduleCreateInput {
         const factory = new ScheduleDbFactory();
         const data = factory.createMinimal({
             labels: {
@@ -689,7 +689,7 @@ export async function seedSchedules(
     let labelCount = 0;
 
     for (const obj of options.forObjects) {
-        let scheduleData: Prisma.ScheduleCreateInput;
+        let scheduleData: Prisma.scheduleCreateInput;
 
         if (options.withRecurrence) {
             scheduleData = ScheduleDbFactory.createRecurring(

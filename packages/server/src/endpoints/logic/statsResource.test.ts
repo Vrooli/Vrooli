@@ -11,6 +11,8 @@ import { statsResource } from "./statsResource.js";
 import { ResourceDbFactory, seedTestResources } from "../../__test/fixtures/db/resourceFixtures.js";
 import { seedTestStatsResource } from "../../__test/fixtures/db/statsResourceFixtures.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsStatsResource", () => {
     beforeAll(async () => {
@@ -20,16 +22,21 @@ describe("EndpointsStatsResource", () => {
         vi.spyOn(logger, "warning").mockImplementation(() => logger);
     });
 
-    beforeEach(async () => {
-        // Clean up tables used in tests
-        const prisma = DbProvider.get();
-        await prisma.stats_resource.deleteMany();
-        await prisma.resourceVersion.deleteMany();
-        await prisma.resource.deleteMany();
-        await prisma.user.deleteMany();
-        // Clear Redis cache
-        await CacheService.get().flushAll();
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["run","run_step","run_io","resource","resource_version","user"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn('Test cleanup incomplete:', orphans);
+        }
     });
+
+    beforeEach(async () => {
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.execution(DbProvider.get());
+    }););
 
     afterAll(async () => {
         // Restore all mocks

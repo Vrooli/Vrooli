@@ -46,7 +46,7 @@ export const ApiKeyExternalModel: ApiKeyExternalModelLogic = ({
         isPublic: () => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => ({
+        owner: (data, userId) => ({
             Team: data?.team,
             User: data?.user,
         }),

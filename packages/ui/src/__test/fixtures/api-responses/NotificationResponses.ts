@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { http, type RestHandler } from "msw";
+import { http, HttpResponse, type RequestHandler } from "msw";
 import {
     NotificationSortBy, 
 } from "@vrooli/shared";
@@ -102,14 +102,14 @@ export class NotificationResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique resource ID
      */
     private generateId(): string {
-        return `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `notif_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -687,24 +687,24 @@ export class NotificationMSWHandlers {
     /**
      * Create success handlers for all notification endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): RequestHandler[] {
         return [
             // Get notification by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/notification/:id`, ({ request, params }) => {
+                const { id } = params;
                 
                 const notification = this.responseFactory.createMockNotification({ id: id as string });
                 const response = this.responseFactory.createSuccessResponse(notification);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
+                return HttpResponse.json(
+                    response,
+                    { status: 200 }
                 );
             }),
             
             // Update notification (mark as read/unread)
-            http.put(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.put(`${this.responseFactory["baseUrl"]}/api/notification/:id`, ({ request, params }) => {
+                const { id } = params;
                 
                 const notification = this.responseFactory.createMockNotification({ 
                     id: id as string,
@@ -713,15 +713,15 @@ export class NotificationMSWHandlers {
                 
                 const response = this.responseFactory.createSuccessResponse(notification);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
+                return HttpResponse.json(
+                    response,
+                    { status: 200 }
                 );
             }),
             
             // Mark notification as read
-            http.patch(`${this.responseFactory["baseUrl"]}/api/notification/:id/read`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.patch(`${this.responseFactory["baseUrl"]}/api/notification/:id/read`, ({ request, params }) => {
+                const { id } = params;
                 
                 const notification = this.responseFactory.createMockNotification({ 
                     id: id as string,
@@ -730,15 +730,15 @@ export class NotificationMSWHandlers {
                 
                 const response = this.responseFactory.createSuccessResponse(notification);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
+                return HttpResponse.json(
+                    response,
+                    { status: 200 }
                 );
             }),
             
             // Mark notification as unread
-            http.patch(`${this.responseFactory["baseUrl"]}/api/notification/:id/unread`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.patch(`${this.responseFactory["baseUrl"]}/api/notification/:id/unread`, ({ request, params }) => {
+                const { id } = params;
                 
                 const notification = this.responseFactory.createMockNotification({ 
                     id: id as string,
@@ -747,20 +747,20 @@ export class NotificationMSWHandlers {
                 
                 const response = this.responseFactory.createSuccessResponse(notification);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
+                return HttpResponse.json(
+                    response,
+                    { status: 200 }
                 );
             }),
             
             // Delete notification
-            http.delete(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
-                return res(ctx.status(204));
+            http.delete(`${this.responseFactory["baseUrl"]}/api/notification/:id`, ({ request, params }) => {
+                return new HttpResponse(null, { status: 204 });
             }),
             
             // List notifications
-            http.get(`${this.responseFactory["baseUrl"]}/api/notification`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/notification`, ({ request, params }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 const searchString = url.searchParams.get("searchString");
@@ -802,22 +802,22 @@ export class NotificationMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
+                return HttpResponse.json(
+                    response,
+                    { status: 200 }
                 );
             }),
             
             // Bulk update notifications
-            http.post(`${this.responseFactory["baseUrl"]}/api/notification/bulk-update`, async (req, res, ctx) => {
-                const body = await req.json() as NotificationBulkUpdateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/notification/bulk-update`, async ({ request, params }) => {
+                const body = await request.json() as NotificationBulkUpdateInput;
                 
                 // Validate input
                 const validation = this.responseFactory.validateBulkUpdateInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
+                    return HttpResponse.json(
+                        this.responseFactory.createValidationErrorResponse(validation.errors || {}),
+                        { status: 400 }
                     );
                 }
                 
@@ -831,35 +831,35 @@ export class NotificationMSWHandlers {
                 
                 const response = this.responseFactory.createBulkUpdateResponse(updatedNotifications);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
+                return HttpResponse.json(
+                    response,
+                    { status: 200 }
                 );
             }),
             
             // Mark all as read
-            http.post(`${this.responseFactory["baseUrl"]}/api/notification/mark-all-read`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/notification/mark-all-read`, ({ request, params }) => {
                 const notifications = this.responseFactory.createNotificationsForAllCategories()
                     .map(n => ({ ...n, isRead: true }));
                 
                 const response = this.responseFactory.createBulkUpdateResponse(notifications);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
+                return HttpResponse.json(
+                    response,
+                    { status: 200 }
                 );
             }),
             
             // Get notification count
-            http.get(`${this.responseFactory["baseUrl"]}/api/notification/count`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/notification/count`, ({ request, params }) => {
                 const totalCount = 25;
                 const unreadCount = 8;
                 
                 const response = this.responseFactory.createNotificationCountResponse(unreadCount, totalCount);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
+                return HttpResponse.json(
+                    response,
+                    { status: 200 }
                 );
             }),
         ];
@@ -868,49 +868,49 @@ export class NotificationMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): RequestHandler[] {
         return [
             // Validation error for bulk update
-            http.post(`${this.responseFactory["baseUrl"]}/api/notification/bulk-update`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
+            http.post(`${this.responseFactory["baseUrl"]}/api/notification/bulk-update`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createValidationErrorResponse({
                         operations: "Operations array is required",
                         "operations[0].id": "Operation ID is required",
-                    })),
+                    }),
+                    { status: 400 }
                 );
             }),
             
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
+            http.get(`${this.responseFactory["baseUrl"]}/api/notification/:id`, ({ request, params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string),
+                    { status: 404 }
                 );
             }),
             
             // Permission error
-            http.put(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("update")),
+            http.put(`${this.responseFactory["baseUrl"]}/api/notification/:id`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("update"),
+                    { status: 403 }
                 );
             }),
             
             // Rate limit error
-            http.get(`${this.responseFactory["baseUrl"]}/api/notification`, (req, res, ctx) => {
-                return res(
-                    ctx.status(429),
-                    ctx.json(this.responseFactory.createRateLimitErrorResponse()),
+            http.get(`${this.responseFactory["baseUrl"]}/api/notification`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createRateLimitErrorResponse(),
+                    { status: 429 }
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/notification/mark-all-read`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/notification/mark-all-read`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse(),
+                    { status: 500 }
                 );
             }),
         ];
@@ -919,21 +919,21 @@ export class NotificationMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RequestHandler[] {
         return [
-            http.get(`${this.responseFactory["baseUrl"]}/api/notification`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/notification`, async ({ request, params }) => {
                 const notifications = this.responseFactory.createNotificationsForAllCategories();
                 const response = this.responseFactory.createNotificationListResponse(notifications);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(200),
-                    ctx.json(response),
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return HttpResponse.json(
+                    response,
+                    { status: 200 }
                 );
             }),
             
-            http.post(`${this.responseFactory["baseUrl"]}/api/notification/bulk-update`, async (req, res, ctx) => {
-                const body = await req.json() as NotificationBulkUpdateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/notification/bulk-update`, async ({ request, params }) => {
+                const body = await request.json() as NotificationBulkUpdateInput;
                 const updatedNotifications = body.operations.map(op => 
                     this.responseFactory.createMockNotification({
                         id: op.id,
@@ -943,10 +943,10 @@ export class NotificationMSWHandlers {
                 
                 const response = this.responseFactory.createBulkUpdateResponse(updatedNotifications);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(200),
-                    ctx.json(response),
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return HttpResponse.json(
+                    response,
+                    { status: 200 }
                 );
             }),
         ];
@@ -955,18 +955,18 @@ export class NotificationMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): RequestHandler[] {
         return [
-            http.get(`${this.responseFactory["baseUrl"]}/api/notification`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.get(`${this.responseFactory["baseUrl"]}/api/notification`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/notification/:id`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
             
-            http.post(`${this.responseFactory["baseUrl"]}/api/notification/bulk-update`, (req, res, ctx) => {
-                return res.networkError("Request timeout");
+            http.post(`${this.responseFactory["baseUrl"]}/api/notification/bulk-update`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -980,18 +980,17 @@ export class NotificationMSWHandlers {
         status: number;
         response: unknown;
         delay?: number;
-    }): RestHandler {
+    }): RequestHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        const httpMethod = method.toLowerCase() as keyof typeof http;
+        return http[httpMethod](fullEndpoint, async ({ request, params }) => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }

@@ -164,9 +164,9 @@ export class PremiumDbFactory {
  */
 export function createUserWithPremium(
     prisma: any,
-    userOverrides?: Partial<Prisma.UserCreateInput>,
+    userOverrides?: Partial<Prisma.userCreateInput>,
     premiumData = minimalPremiumDb,
-): Prisma.UserCreateInput {
+): Prisma.userCreateInput {
     return {
         id: generatePK(),
         publicId: generatePK(),

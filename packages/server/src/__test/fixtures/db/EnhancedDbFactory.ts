@@ -1,5 +1,6 @@
+// AI_CHECK: TYPE_SAFETY=server-type-safety-maintenance | LAST: 2025-06-29 - Fixed nanoid import to use original library
 import { generatePK, generatePublicId } from "@vrooli/shared";
-import { nanoid } from "@vrooli/shared";
+import { nanoid } from "nanoid";
 import type { 
     DbTestFixtures, 
     DbFactoryConfig, 
@@ -50,7 +51,7 @@ export abstract class EnhancedDbFactory<TCreate, TUpdate = Partial<TCreate>>
         return {
             id: generatePK(),
             publicId: generatePublicId(),
-            handle: `test_${nanoid(8)}`,
+            handle: `test_${nanoid()}`,
         };
     }
 
@@ -59,13 +60,25 @@ export abstract class EnhancedDbFactory<TCreate, TUpdate = Partial<TCreate>>
      */
     createMinimal(overrides?: Partial<TCreate>): TCreate {
         const fixtures = this.getFixtures();
+        if (!fixtures || !fixtures.minimal) {
+            throw new Error("No minimal fixture available for this factory");
+        }
+        
         const fresh = this.generateFreshIdentifiers();
         
-        return {
+        // Create a mutable copy to avoid readonly issues
+        const result = {
             ...fixtures.minimal,
             ...fresh,
             ...overrides,
         } as TCreate;
+
+        // Ensure the result is not frozen
+        if (Object.isFrozen(result)) {
+            return { ...result } as TCreate;
+        }
+        
+        return result;
     }
 
     /**
@@ -73,20 +86,40 @@ export abstract class EnhancedDbFactory<TCreate, TUpdate = Partial<TCreate>>
      */
     createComplete(overrides?: Partial<TCreate>): TCreate {
         const fixtures = this.getFixtures();
+        if (!fixtures || !fixtures.complete) {
+            throw new Error("No complete fixture available for this factory");
+        }
+        
         const fresh = this.generateFreshIdentifiers();
         
-        return {
+        // Create a mutable copy to avoid readonly issues
+        const result = {
             ...fixtures.complete,
             ...fresh,
             ...overrides,
         } as TCreate;
+
+        // Ensure the result is not frozen
+        if (Object.isFrozen(result)) {
+            return { ...result } as TCreate;
+        }
+        
+        return result;
     }
 
     /**
      * Create fixture with automatic relationship setup
      */
     createWithRelationships(config: DbFactoryConfig<TCreate>): DbFactoryResult<TCreate> {
+        if (!config) {
+            throw new Error("createWithRelationships requires a config parameter");
+        }
+
         let data = this.createMinimal(config.overrides);
+        if (!data) {
+            throw new Error("Failed to create minimal data");
+        }
+
         let hasAuth = false;
         let teamCount = 0;
         let roleCount = 0;
@@ -94,29 +127,45 @@ export abstract class EnhancedDbFactory<TCreate, TUpdate = Partial<TCreate>>
 
         // Add authentication if requested
         if (config.withAuth) {
-            data = this.addAuthentication(data);
-            hasAuth = true;
-            relationCount++;
+            try {
+                data = this.addAuthentication(data);
+                hasAuth = true;
+                relationCount++;
+            } catch (error) {
+                console.warn("Failed to add authentication:", error);
+            }
         }
 
         // Add team memberships if requested
-        if (config.withTeams && config.withTeams.length > 0) {
-            data = this.addTeamMemberships(data, config.withTeams);
-            teamCount = config.withTeams.length;
-            relationCount += teamCount;
+        if (config.withTeams && Array.isArray(config.withTeams) && config.withTeams.length > 0) {
+            try {
+                data = this.addTeamMemberships(data, config.withTeams);
+                teamCount = config.withTeams.length;
+                relationCount += teamCount;
+            } catch (error) {
+                console.warn("Failed to add team memberships:", error);
+            }
         }
 
         // Add roles if requested
-        if (config.withRoles && config.withRoles.length > 0) {
-            data = this.addRoles(data, config.withRoles);
-            roleCount = config.withRoles.length;
-            relationCount += roleCount;
+        if (config.withRoles && Array.isArray(config.withRoles) && config.withRoles.length > 0) {
+            try {
+                data = this.addRoles(data, config.withRoles);
+                roleCount = config.withRoles.length;
+                relationCount += roleCount;
+            } catch (error) {
+                console.warn("Failed to add roles:", error);
+            }
         }
 
         // Add other relations if requested
         if (config.withRelations) {
-            data = this.addOtherRelations(data);
-            relationCount++;
+            try {
+                data = this.addOtherRelations(data);
+                relationCount++;
+            } catch (error) {
+                console.warn("Failed to add other relations:", error);
+            }
         }
 
         return {

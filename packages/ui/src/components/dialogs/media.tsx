@@ -1,5 +1,5 @@
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../buttons/IconButton.js";
 import Modal from "@mui/material/Modal";
 import type { ModalProps } from "@mui/material";
 import { styled } from "@mui/material";
@@ -92,6 +92,7 @@ export function ImagePopup({
                 <CloseIconButton
                     aria-label={t("Close")}
                     onClick={onClose}
+                    variant="transparent"
                 >
                     <IconCommon
                         decorative
@@ -164,6 +165,7 @@ export function VideoPopup({
                 <CloseIconButton
                     aria-label={t("Close")}
                     onClick={onClose}
+                    variant="transparent"
                 >
                     <IconCommon
                         decorative

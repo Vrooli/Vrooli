@@ -1,4 +1,5 @@
 // AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-24
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-04
 import { generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { scheduleNotify } from "./scheduleNotify.js";
@@ -27,7 +28,7 @@ vi.mock("@vrooli/server", async () => {
                 toUsers: vi.fn().mockResolvedValue(undefined),
             }),
         })),
-        findFirstRel: vi.fn().mockImplementation((obj, fields) => {
+        findFirstRel: vi.fn().mockImplementation((obj: Record<string, unknown>, fields: string[]) => {
             for (const field of fields) {
                 if (obj[field] && obj[field].length > 0) {
                     return [field, obj[field]];
@@ -35,7 +36,7 @@ vi.mock("@vrooli/server", async () => {
             }
             return [null, null];
         }),
-        parseJsonOrDefault: vi.fn().mockImplementation((json, defaultValue) => {
+        parseJsonOrDefault: vi.fn().mockImplementation((json: string | null | undefined, defaultValue: unknown) => {
             if (!json) return defaultValue;
             try {
                 return JSON.parse(json);

@@ -209,7 +209,7 @@ build_template_examples() {
   "goal": "Orchestrate multi-step workflows across specialist agents",
   "role": "coordinator",
   "subscriptions": ["workflow.started", "task.completed"],
-  "behaviours": [
+  "behaviors": [
     {
       "trigger": { "topic": "workflow.started" },
       "action": { "type": "routine", "label": "task-decomposer" }
@@ -225,7 +225,7 @@ build_template_examples() {
   "goal": "Perform deep data analysis and generate insights",
   "role": "specialist", 
   "subscriptions": ["data.analysis.requested"],
-  "behaviours": [
+  "behaviors": [
     {
       "trigger": { "topic": "data.analysis.requested" },
       "action": { "type": "routine", "label": "comprehensive-data-analyzer" }

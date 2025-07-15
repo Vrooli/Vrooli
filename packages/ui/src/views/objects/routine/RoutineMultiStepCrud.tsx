@@ -1,15 +1,15 @@
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
 import Grid from "@mui/material/Grid";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../../components/buttons/IconButton.js";
 import { styled } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
-import { DUMMY_ID, addToArray, deleteArrayIndex, exists, generatePK, getTranslation, shapeResourceVersion, updateArray, type DefinedArrayElement, type ResourceVersion, type ResourceVersionShape, type Session } from "@vrooli/shared";
+import { DUMMY_ID, ResourceSubType, addToArray, deleteArrayIndex, exists, generatePK, getTranslation, shapeResourceVersion, updateArray, type DefinedArrayElement, type ResourceVersion, type ResourceVersionShape, type RoutineVersion, type Session } from "@vrooli/shared";
 // eslint-disable-next-line import/extensions
 // import Modeler from "bpmn-js/lib/Modeler";
 import { BottomActionsGrid } from "../../../components/buttons/BottomActionsGrid.js";
-import { LoadableButton } from "../../../components/buttons/LoadableButton.js";
+import { getUserLanguages } from "../../../utils/display/translationTools.js";
+import { Button } from "../../../components/buttons/Button.js";
 import { type StatusMessageArray } from "../../../components/buttons/types.js";
 // eslint-disable-next-line import/extensions
 // import Canvas from "diagram-js/lib/core/Canvas";
@@ -22,22 +22,92 @@ import { type FormErrors, type FormProps } from "../../../types.js";
 import { type RoutineMultiStepCrudProps } from "./types.js";
 
 enum NodeType {
+    Start = "Start",
     Redirect = "Redirect",
     RoutineList = "RoutineList",
     End = "End",
 }
 
-export type NodeLink = any;//DefinedArrayElement<RoutineVersionShape["nodeLinks"]>;
+// AI_CHECK: TYPE_SAFETY=fixed-routine-node-types-and-resourcesubtype | LAST: 2025-06-30
 
-type Node = any;//DefinedArrayElement<RoutineVersionShape["nodes"]>;
-export type NodeEnd = any;//Node & { nodeType: NodeType.End, end: NonNullable<NodeShape["end"]> };
+// Extended ResourceVersionShape with node-related properties
+type RoutineVersionShape = ResourceVersionShape & {
+    nodes?: Node[];
+    nodeLinks?: NodeLink[];
+};
+
+// Base node structure
+type NodeBase = {
+    __typename: "Node";
+    id: string;
+    nodeType: NodeType;
+    rowIndex: number;
+    columnIndex: number;
+    translations?: Array<{
+        __typename: "NodeTranslation";
+        id: string;
+        language: string;
+        name: string;
+        description: string;
+    }>;
+};
+
+// Node link structure
+export type NodeLink = {
+    __typename: "NodeLink";
+    id: string;
+    from: { __typename: "Node"; id: string };
+    to: { __typename: "Node"; id: string };
+};
+
+// Node End type
+export type NodeEnd = NodeBase & {
+    nodeType: NodeType.End;
+    end: {
+        __typename: "NodeEnd";
+        id: string;
+        wasSuccessful: boolean;
+    };
+};
+
+// Node Routine List type
+export type NodeRoutineList = NodeBase & {
+    nodeType: NodeType.RoutineList;
+    routineList: {
+        __typename: "NodeRoutineList";
+        id: string;
+        isOrdered: boolean;
+        isOptional: boolean;
+        items: RoutineListItem[];
+    };
+};
+
+// Node Start type
+export type NodeStart = NodeBase & {
+    nodeType: NodeType.Start;
+};
+
+// Other node types
+type Node = NodeBase;
 export type NodeLoop = Node;
 export type NodeRedirect = Node & { nodeType: NodeType.Redirect };
-export type NodeRoutineList = any;//Node & { nodeType: NodeType.RoutineList, routineList: NonNullable<NodeShape["routineList"]> };
-export type NodeStart = any;//Node & { nodeType: NodeType.Start };
 export type SomeNode = NodeEnd | NodeLoop | NodeRedirect | NodeRoutineList | NodeStart;
 
-export type RoutineListItem = DefinedArrayElement<NodeRoutineList["routineList"]["items"]>;
+// Routine list item type
+export type RoutineListItem = {
+    __typename: "NodeRoutineListItem";
+    id: string;
+    index: number;
+    isOptional: boolean;
+    routineVersion: ResourceVersion;
+    translations?: Array<{
+        __typename: "NodeRoutineListItemTranslation";
+        id: string;
+        language: string;
+        name?: string;
+        description?: string;
+    }>;
+};
 
 type GraphElementOperation = "create" | "update" | "delete";
 // type GraphOperation = Exclude<keyof typeof OperationManager, "prototype">;
@@ -113,26 +183,26 @@ class GenerateManager {
         language: string,
     ): NodeRoutineList {
         return {
-            // __typename: "Node" as const,
-            // id: uuid(),
-            // nodeType: NodeType.RoutineList,
-            // rowIndex: 0, // Deprecated
-            // columnIndex: 0, // Deprecated
-            // routineList: {
-            //     __typename: "NodeRoutineList" as const,
-            //     id: uuid(),
-            //     isOrdered: false,
-            //     isOptional: false,
-            //     items: [],
-            // },
-            // translations: [{
-            //     __typename: "NodeTranslation" as const,
-            //     id: uuid(),
-            //     language,
-            //     name: `Node ${(routine.nodes?.length ?? 0) - 1}`,
-            //     description: "",
-            // }],
-        } as any;
+            __typename: "Node" as const,
+            id: generatePK(),
+            nodeType: NodeType.RoutineList,
+            rowIndex: 0, // Deprecated
+            columnIndex: 0, // Deprecated
+            routineList: {
+                __typename: "NodeRoutineList" as const,
+                id: generatePK(),
+                isOrdered: false,
+                isOptional: false,
+                items: [],
+            },
+            translations: [{
+                __typename: "NodeTranslation" as const,
+                id: generatePK(),
+                language,
+                name: `Node ${(routine.nodes?.length ?? 0) - 1}`,
+                description: "",
+            }],
+        };
     }
 
     /**
@@ -182,13 +252,12 @@ class NodeManager {
      * @returns A new routineVersion with the created node.
      */
     static create(routine: RoutineVersionShape, node: Node): RoutineVersionShape {
-        // const nodes = routine.nodes ?? [];
+        const nodes = routine.nodes ?? [];
 
-        // return {
-        //     ...routine,
-        //     nodes: addToArray(nodes, node),
-        // };
-        return {} as any;
+        return {
+            ...routine,
+            nodes: addToArray(nodes, node),
+        };
     }
 
     /**
@@ -199,15 +268,14 @@ class NodeManager {
      * @returns A new routineVersion with the updated node.
      */
     static update(routine: RoutineVersionShape, node: Node): RoutineVersionShape {
-        // const nodes = routine.nodes ?? [];
-        // const nodeIndex = nodes.findIndex(n => n.id === node.id);
-        // if (nodeIndex === -1) return routine;
+        const nodes = routine.nodes ?? [];
+        const nodeIndex = nodes.findIndex(n => n.id === node.id);
+        if (nodeIndex === -1) return routine;
 
-        // return {
-        //     ...routine,
-        //     nodes: updateArray(nodes, nodeIndex, node),
-        // };
-        return {} as any;
+        return {
+            ...routine,
+            nodes: updateArray(nodes, nodeIndex, node),
+        };
     }
 
     /**
@@ -218,34 +286,33 @@ class NodeManager {
      * @returns A new routineVersion without the specified node.
      */
     static delete(routine: RoutineVersionShape, node: Pick<Node, "id">): RoutineVersionShape {
-        // const nodes = routine.nodes ?? [];
-        // const nodeIndex = nodes.findIndex(n => n.id === node.id);
-        // if (nodeIndex === -1) return routine;
+        const nodes = routine.nodes ?? [];
+        const nodeIndex = nodes.findIndex(n => n.id === node.id);
+        if (nodeIndex === -1) return routine;
 
-        // // Handle links that reference the node
-        // const newLinks: ReturnType<typeof Graph.generate.link>[] = [];
-        // const deletingLinks = routine.nodeLinks?.filter(l => l.from.id === node.id || l.to.id === node.id) ?? [];
-        // // Find all "from" and "to" nodes in the deleting links
-        // const fromNodeIds = deletingLinks.map(l => l.from.id).filter(id => id !== node.id);
-        // const toNodeIds = deletingLinks.map(l => l.to.id).filter(id => id !== node.id);
-        // // If there is only one "from" node, create a link between it and every "to" node
-        // if (fromNodeIds.length === 1) {
-        //     toNodeIds.forEach(toId => { newLinks.push(Graph.generate.link(fromNodeIds[0], toId)); });
-        // }
-        // // If there is only one "to" node, create a link between it and every "from" node
-        // else if (toNodeIds.length === 1) {
-        //     fromNodeIds.forEach(fromId => { newLinks.push(Graph.generate.link(fromId, toNodeIds[0])); });
-        // }
-        // // NOTE: Every other case is ambiguous, so we can't auto-create create links
-        // // Delete old links
-        // const keptLinks = routine.nodeLinks?.filter(l => !deletingLinks.includes(l)) ?? [];
+        // Handle links that reference the node
+        const newLinks: NodeLink[] = [];
+        const deletingLinks = routine.nodeLinks?.filter(l => l.from.id === node.id || l.to.id === node.id) ?? [];
+        // Find all "from" and "to" nodes in the deleting links
+        const fromNodeIds = deletingLinks.map(l => l.from.id).filter(id => id !== node.id);
+        const toNodeIds = deletingLinks.map(l => l.to.id).filter(id => id !== node.id);
+        // If there is only one "from" node, create a link between it and every "to" node
+        if (fromNodeIds.length === 1) {
+            toNodeIds.forEach(toId => { newLinks.push(GenerateManager.link(fromNodeIds[0], toId)); });
+        }
+        // If there is only one "to" node, create a link between it and every "from" node
+        else if (toNodeIds.length === 1) {
+            fromNodeIds.forEach(fromId => { newLinks.push(GenerateManager.link(fromId, toNodeIds[0])); });
+        }
+        // NOTE: Every other case is ambiguous, so we can't auto-create create links
+        // Delete old links
+        const keptLinks = routine.nodeLinks?.filter(l => !deletingLinks.includes(l)) ?? [];
 
-        // return {
-        //     ...routine,
-        //     nodes: deleteArrayIndex(nodes, nodeIndex),
-        //     nodeLinks: keptLinks.concat(newLinks),
-        // };
-        return {} as any;
+        return {
+            ...routine,
+            nodes: deleteArrayIndex(nodes, nodeIndex),
+            nodeLinks: keptLinks.concat(newLinks),
+        };
     }
 
     static operate(routine: RoutineVersionShape, node: Node, operation: GraphElementOperation): RoutineVersionShape {
@@ -270,14 +337,12 @@ class NodeManager {
     }
 
     static isNodeStart(node: Node): node is NodeStart {
-        // return node.nodeType === NodeType.Start;
-        return false;
+        return node.nodeType === NodeType.Start;
     }
 
     static find(routine: RoutineVersionShape, nodeId: string): Node | undefined {
-        // const node = routine.nodes?.find(n => n.id === nodeId);
-        // return node;
-        return undefined;
+        const node = routine.nodes?.find(n => n.id === nodeId);
+        return node;
     }
 
     /**
@@ -306,13 +371,12 @@ class LinkManager {
      * @returns A new routineVersion with the created link.
      */
     static create(routine: RoutineVersionShape, link: NodeLink): RoutineVersionShape {
-        // const nodeLinks = routine.nodeLinks ?? [];
+        const nodeLinks = routine.nodeLinks ?? [];
 
-        // return {
-        //     ...routine,
-        //     nodeLinks: addToArray(nodeLinks, link),
-        // };
-        return {} as any;
+        return {
+            ...routine,
+            nodeLinks: addToArray(nodeLinks, link),
+        };
     }
 
     /**
@@ -323,15 +387,14 @@ class LinkManager {
      * @returns A new routineVersion with the updated link.
      */
     static update(routine: RoutineVersionShape, link: NodeLink): RoutineVersionShape {
-        // const nodeLinks = routine.nodeLinks ?? [];
-        // const nodeLinkIndex = nodeLinks.findIndex(n => n.id === link.id);
-        // if (nodeLinkIndex !== -1) return routine;
+        const nodeLinks = routine.nodeLinks ?? [];
+        const nodeLinkIndex = nodeLinks.findIndex(n => n.id === link.id);
+        if (nodeLinkIndex === -1) return routine;
 
-        // return {
-        //     ...routine,
-        //     nodeLinks: updateArray(nodeLinks, nodeLinkIndex, link),
-        // };
-        return {} as any;
+        return {
+            ...routine,
+            nodeLinks: updateArray(nodeLinks, nodeLinkIndex, link),
+        };
     }
 
     /**
@@ -342,15 +405,14 @@ class LinkManager {
      * @returns A new routineVersion without the specified link.
      */
     static delete(routine: RoutineVersionShape, link: Pick<NodeLink, "id">): RoutineVersionShape {
-        // const nodeLinks = routine.nodeLinks ?? [];
-        // const nodeLinkIndex = nodeLinks.findIndex(n => n.id === link.id);
-        // if (nodeLinkIndex === -1) return routine;
+        const nodeLinks = routine.nodeLinks ?? [];
+        const nodeLinkIndex = nodeLinks.findIndex(n => n.id === link.id);
+        if (nodeLinkIndex === -1) return routine;
 
-        // return {
-        //     ...routine,
-        //     nodeLinks: deleteArrayIndex(nodeLinks, nodeLinkIndex),
-        // };
-        return {} as any;
+        return {
+            ...routine,
+            nodeLinks: deleteArrayIndex(nodeLinks, nodeLinkIndex),
+        };
     }
 
     static operate(routine: RoutineVersionShape, link: NodeLink, operation: GraphElementOperation): RoutineVersionShape {
@@ -440,34 +502,33 @@ class OperationManager {
         nodeToMove: Node,
         dropOnNode: Node,
     ): RoutineVersionShape {
-        // // Remove the node from its old position
-        // routine = Graph.node.delete(routine, nodeToMove);
+        // Remove the node from its old position
+        routine = NodeManager.delete(routine, nodeToMove);
 
-        // // Re-add the node to the routine
-        // routine = Graph.node.create(routine, nodeToMove);
+        // Re-add the node to the routine
+        routine = NodeManager.create(routine, nodeToMove);
 
-        // // Find all links that currently point TO the dropOnNode
-        // const incomingLinks = (routine.nodeLinks ?? []).filter(
-        //     (l) => l.to.id === dropOnNode.id,
-        // );
+        // Find all links that currently point TO the dropOnNode
+        const incomingLinks = (routine.nodeLinks ?? []).filter(
+            (l) => l.to.id === dropOnNode.id,
+        );
 
-        // // Redirect each incoming link to nodeToMove instead of dropOnNode
-        // for (const incomingLink of incomingLinks) {
-        //     // Delete the old link pointing to dropOnNode
-        //     routine = Graph.link.delete(routine, incomingLink);
+        // Redirect each incoming link to nodeToMove instead of dropOnNode
+        for (const incomingLink of incomingLinks) {
+            // Delete the old link pointing to dropOnNode
+            routine = LinkManager.delete(routine, incomingLink);
 
-        //     // Create a new link that points to nodeToMove
-        //     const redirectedLink = Graph.generate.link(incomingLink.from.id, nodeToMove.id);
-        //     routine = Graph.link.create(routine, redirectedLink);
-        // }
+            // Create a new link that points to nodeToMove
+            const redirectedLink = GenerateManager.link(incomingLink.from.id, nodeToMove.id);
+            routine = LinkManager.create(routine, redirectedLink);
+        }
 
-        // // Now that nodeToMove has all the incoming links that dropOnNode had,
-        // // we create a single link from nodeToMove to dropOnNode.
-        // const bridgeLink = Graph.generate.link(nodeToMove.id, dropOnNode.id);
-        // routine = Graph.link.create(routine, bridgeLink);
+        // Now that nodeToMove has all the incoming links that dropOnNode had,
+        // we create a single link from nodeToMove to dropOnNode.
+        const bridgeLink = GenerateManager.link(nodeToMove.id, dropOnNode.id);
+        routine = LinkManager.create(routine, bridgeLink);
 
-        // return routine;
-        return {} as any;
+        return routine;
     }
 
     /**
@@ -540,44 +601,46 @@ class OperationManager {
         mergeNode: Node,
         keepMergeNode: boolean,
     ): RoutineVersionShape {
-        return {} as any;
-        // const nodeToRemove = keepMergeNode ? link.to : mergeNode;
-        // const nodeToKeep = keepMergeNode ? mergeNode : link.to;
+        const linkToNode = NodeManager.find(routine, link.to.id);
+        if (!linkToNode) return routine;
+        
+        const nodeToRemove = keepMergeNode ? linkToNode : mergeNode;
+        const nodeToKeep = keepMergeNode ? mergeNode : linkToNode;
 
-        // // Redirect incoming links of nodeToRemove to nodeToKeep
-        // const incomingLinks = (routine.nodeLinks ?? []).filter(
-        //     (l) => l.to.id === nodeToRemove.id,
-        // );
+        // Redirect incoming links of nodeToRemove to nodeToKeep
+        const incomingLinks = (routine.nodeLinks ?? []).filter(
+            (l) => l.to.id === nodeToRemove.id,
+        );
 
-        // for (const incomingLink of incomingLinks) {
-        //     // Remove old link
-        //     routine = Graph.link.delete(routine, incomingLink);
-        //     // Create new link to nodeToKeep if not linking a node to itself
-        //     if (incomingLink.from.id !== nodeToKeep.id) {
-        //         const newLink = Graph.generate.link(incomingLink.from.id, nodeToKeep.id);
-        //         routine = Graph.link.create(routine, newLink);
-        //     }
-        // }
+        for (const incomingLink of incomingLinks) {
+            // Remove old link
+            routine = LinkManager.delete(routine, incomingLink);
+            // Create new link to nodeToKeep if not linking a node to itself
+            if (incomingLink.from.id !== nodeToKeep.id) {
+                const newLink = GenerateManager.link(incomingLink.from.id, nodeToKeep.id);
+                routine = LinkManager.create(routine, newLink);
+            }
+        }
 
-        // // Redirect outgoing links of nodeToRemove to originate from nodeToKeep
-        // const outgoingLinks = (routine.nodeLinks ?? []).filter(
-        //     (l) => l.from.id === nodeToRemove.id,
-        // );
+        // Redirect outgoing links of nodeToRemove to originate from nodeToKeep
+        const outgoingLinks = (routine.nodeLinks ?? []).filter(
+            (l) => l.from.id === nodeToRemove.id,
+        );
 
-        // for (const outgoingLink of outgoingLinks) {
-        //     // Remove old link
-        //     routine = Graph.link.delete(routine, outgoingLink);
-        //     // Create new link from nodeToKeep if not linking a node to itself
-        //     if (outgoingLink.to.id !== nodeToKeep.id) {
-        //         const newLink = Graph.generate.link(nodeToKeep.id, outgoingLink.to.id);
-        //         routine = Graph.link.create(routine, newLink);
-        //     }
-        // }
+        for (const outgoingLink of outgoingLinks) {
+            // Remove old link
+            routine = LinkManager.delete(routine, outgoingLink);
+            // Create new link from nodeToKeep if not linking a node to itself
+            if (outgoingLink.to.id !== nodeToKeep.id) {
+                const newLink = GenerateManager.link(nodeToKeep.id, outgoingLink.to.id);
+                routine = LinkManager.create(routine, newLink);
+            }
+        }
 
-        // // Remove the node we decided not to keep
-        // routine = Graph.node.delete(routine, nodeToRemove);
+        // Remove the node we decided not to keep
+        routine = NodeManager.delete(routine, nodeToRemove);
 
-        // return routine;
+        return routine;
     }
 }
 
@@ -733,20 +796,27 @@ export class Graph {
         session: Session | undefined,
         existing?: Partial<RoutineVersion> | null | undefined,
     ): RoutineVersionShape {
-        // let result = routineSingleStepInitialValues(session, existing);
-        // result.routineType = RoutineType.MultiStep;
-        // const shouldGenerateGraph = !existing || !existing.nodes || !existing.nodeLinks;
-        // if (!shouldGenerateGraph) {
-        //     return {
-        //         ...result,
-        //         nodes: existing.nodes,
-        //         nodeLinks: existing.nodeLinks,
-        //     };
-        // }
+        // For now, return the existing shape or create a minimal one
+        const result = (existing as RoutineVersionShape) || shapeResourceVersion.create({
+            __typename: "ResourceVersion" as const,
+            id: generatePK(),
+            isPrivate: false,
+            isComplete: false,
+            isAutomatable: false,
+            resourceSubType: ResourceSubType.RoutineMultiStep,
+            versionLabel: "1.0.0",
+        }) as RoutineVersionShape;
+        
+        const shouldGenerateGraph = !existing || !existing.nodes || !existing.nodeLinks;
+        if (!shouldGenerateGraph && existing) {
+            return {
+                ...result,
+                nodes: existing.nodes as Node[],
+                nodeLinks: existing.nodeLinks as NodeLink[],
+            };
+        }
 
-        // result = this.addSwimLane(session, result);
-        // return result;
-        return {} as any;
+        return this.addSwimLane(session, result);
     }
 
     /**
@@ -759,80 +829,76 @@ export class Graph {
         session: Session | undefined,
         resourceVersion: ResourceVersionShape,
     ): RoutineVersionShape {
-        // const language = getUserLanguages(session)[0];
-        // const startNode: NodeStart = {
-        //     __typename: "Node" as const,
-        //     id: uuid(),
-        //     nodeType: NodeType.Start,
-        //     columnIndex: 0, // Deprecated
-        //     rowIndex: 0, // Deprecated
-        //     translations: [],
-        // };
-        // const routineListNodeId = uuid();
-        // const routineListNode: NodeRoutineList = {
-        //     __typename: "Node",
-        //     id: routineListNodeId,
-        //     nodeType: NodeType.RoutineList,
-        //     columnIndex: 0, // Deprecated
-        //     rowIndex: 0, // Deprecated
-        //     routineList: {
-        //         __typename: "NodeRoutineList",
-        //         id: uuid(),
-        //         isOptional: false,
-        //         isOrdered: false,
-        //         items: [],
-        //     },
-        //     translations: [{
-        //         __typename: "NodeTranslation",
-        //         id: uuid(),
-        //         language,
-        //         name: "Subroutine",
-        //     }] as Node["translations"],
-        // };
-        // const endNodeId = uuid();
-        // const endNode: NodeEnd = {
-        //     __typename: "Node",
-        //     id: endNodeId,
-        //     nodeType: NodeType.End,
-        //     columnIndex: 0, // Deprecated
-        //     rowIndex: 0, // Deprecated
-        //     end: {
-        //         __typename: "NodeEnd",
-        //         id: uuid(),
-        //         wasSuccessful: true,
-        //     },
-        //     translations: [{
-        //         __typename: "NodeTranslation" as const,
-        //         id: uuid(),
-        //         language,
-        //         name: "End",
-        //         description: "",
-        //     }],
-        // };
-        // const link1: NodeLink = {
-        //     __typename: "NodeLink",
-        //     id: uuid(),
-        //     from: startNode,
-        //     to: routineListNode,
-        //     whens: [],
-        //     operation: null,
-        // };
-        // const link2: NodeLink = {
-        //     __typename: "NodeLink",
-        //     id: uuid(),
-        //     from: routineListNode,
-        //     to: endNode,
-        //     whens: [],
-        //     operation: null,
-        // };
+        const language = getUserLanguages(session)[0];
+        const startNode: NodeStart = {
+            __typename: "Node" as const,
+            id: generatePK(),
+            nodeType: NodeType.Start,
+            columnIndex: 0, // Deprecated
+            rowIndex: 0, // Deprecated
+            translations: [],
+        };
+        const routineListNodeId = generatePK();
+        const routineListNode: NodeRoutineList = {
+            __typename: "Node",
+            id: routineListNodeId,
+            nodeType: NodeType.RoutineList,
+            columnIndex: 0, // Deprecated
+            rowIndex: 0, // Deprecated
+            routineList: {
+                __typename: "NodeRoutineList",
+                id: generatePK(),
+                isOptional: false,
+                isOrdered: false,
+                items: [],
+            },
+            translations: [{
+                __typename: "NodeTranslation",
+                id: generatePK(),
+                language,
+                name: "Subroutine",
+                description: "",
+            }],
+        };
+        const endNodeId = generatePK();
+        const endNode: NodeEnd = {
+            __typename: "Node",
+            id: endNodeId,
+            nodeType: NodeType.End,
+            columnIndex: 0, // Deprecated
+            rowIndex: 0, // Deprecated
+            end: {
+                __typename: "NodeEnd",
+                id: generatePK(),
+                wasSuccessful: true,
+            },
+            translations: [{
+                __typename: "NodeTranslation" as const,
+                id: generatePK(),
+                language,
+                name: "End",
+                description: "",
+            }],
+        };
+        const link1: NodeLink = {
+            __typename: "NodeLink",
+            id: generatePK(),
+            from: { __typename: "Node", id: startNode.id },
+            to: { __typename: "Node", id: routineListNode.id },
+        };
+        const link2: NodeLink = {
+            __typename: "NodeLink",
+            id: generatePK(),
+            from: { __typename: "Node", id: routineListNode.id },
+            to: { __typename: "Node", id: endNode.id },
+        };
 
-        // const result = {
-        //     ...routineVersion,
-        //     nodes: [...(routineVersion.nodes ?? []), startNode, routineListNode, endNode],
-        //     nodeLinks: [...(routineVersion.nodeLinks ?? []), link1, link2],
-        // };
-        // return result;
-        return {} as any;
+        const result: RoutineVersionShape = {
+            ...resourceVersion,
+            nodes: [...(resourceVersion.nodes ?? []), startNode, routineListNode, endNode],
+            nodeLinks: [...(resourceVersion.nodeLinks ?? []), link1, link2],
+        };
+        return result;
     }
 
     /**
@@ -1245,13 +1311,14 @@ function FormButtons({
                     <Popover />
                     <Grid item xs={6}>
                         <Box onClick={onSubmit}>
-                            <LoadableButton
+                            <Button
                                 aria-label={t(isCreate ? "Create" : "Save")}
                                 disabled={isSubmitDisabled}
                                 isLoading={loading}
                                 startIcon={<IconCommon name={isCreate ? "Create" : "Save"} />}
-                                variant="contained"
-                            >{t(isCreate ? "Create" : "Save")}</LoadableButton>
+                                variant="primary"
+                                fullWidth
+                            >{t(isCreate ? "Create" : "Save")}</Button>
                         </Box>
                     </Grid>
                     <Grid item xs={6}>
@@ -1789,14 +1856,7 @@ function RoutineMultiStepCrudForm({
     return null;
 }
 
-export function RoutineMultiStepCrud({
-    // display,
-    // isCreate,
-    // isOpen,
-    // onClose,
-    // overrideObject,
-    // ...props
-}: RoutineMultiStepCrudProps) {
+export function RoutineMultiStepCrud(_props: RoutineMultiStepCrudProps) {
     // const session = useContext(SessionContext);
     // const languages = useMemo(() => getUserLanguages(session), [session]);
     // const [, setLocation] = useLocation();

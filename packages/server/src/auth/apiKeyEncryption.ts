@@ -1,4 +1,4 @@
-import * as bcrypt from "bcrypt";
+import { getBcryptService } from "./bcryptWrapper.js";
 import * as crypto from "crypto";
 import { randomString } from "./codes.js";
 
@@ -98,18 +98,28 @@ export class ApiKeyEncryptionService {
         // Generate a random 16-byte initialization vector
         const iv = crypto.randomBytes(ApiKeyEncryptionService.IV_LENGTH);
 
+        // Convert Buffer to Uint8Array for proper type compatibility
+        const keyArray = new Uint8Array(this.keyBuffer);
+        const ivArray = new Uint8Array(iv);
+
         // Create cipher with AES-256-CBC algorithm
-        const cipher = crypto.createCipheriv("aes-256-cbc", this.keyBuffer, iv);
+        const cipher = crypto.createCipheriv("aes-256-cbc", keyArray, ivArray);
 
         // Encrypt the plaintext
-        const encrypted = Buffer.concat([
-            cipher.update(plaintext, "utf8"),
-            cipher.final(),
-        ]);
+        const updateResult = cipher.update(plaintext, "utf8");
+        const finalResult = cipher.final();
 
-        // Combine IV and encrypted data, encode as base64
-        const result = Buffer.concat([iv, encrypted]);
-        return result.toString("base64");
+        // Combine encrypted parts
+        const encrypted = new Uint8Array(updateResult.length + finalResult.length);
+        encrypted.set(updateResult, 0);
+        encrypted.set(finalResult, updateResult.length);
+
+        // Combine IV and encrypted data
+        const result = new Uint8Array(iv.length + encrypted.length);
+        result.set(iv, 0);
+        result.set(encrypted, iv.length);
+
+        return Buffer.from(result).toString("base64");
     }
 
     /**
@@ -127,16 +137,24 @@ export class ApiKeyEncryptionService {
         const iv = buffer.slice(0, ApiKeyEncryptionService.IV_LENGTH);
         const ciphertext = buffer.slice(ApiKeyEncryptionService.IV_LENGTH);
 
+        // Convert Buffer to Uint8Array for proper type compatibility
+        const keyArray = new Uint8Array(this.keyBuffer);
+        const ivArray = new Uint8Array(iv);
+        const ciphertextArray = new Uint8Array(ciphertext);
+
         // Create decipher
-        const decipher = crypto.createDecipheriv("aes-256-cbc", this.keyBuffer, iv);
+        const decipher = crypto.createDecipheriv("aes-256-cbc", keyArray, ivArray);
 
         // Decrypt the ciphertext
-        const decrypted = Buffer.concat([
-            decipher.update(ciphertext),
-            decipher.final(),
-        ]);
+        const updateResult = decipher.update(ciphertextArray);
+        const finalResult = decipher.final();
 
-        return decrypted.toString("utf8");
+        // Combine decrypted parts
+        const decrypted = new Uint8Array(updateResult.length + finalResult.length);
+        decrypted.set(updateResult, 0);
+        decrypted.set(finalResult, updateResult.length);
+
+        return Buffer.from(decrypted).toString("utf8");
     }
 
     /**
@@ -160,7 +178,7 @@ export class ApiKeyEncryptionService {
         if (!this.isValidKey(plaintext)) {
             throw new Error("Invalid API key for hashing.");
         }
-        return await bcrypt.hash(plaintext, this.SALT_ROUNDS);
+        return await getBcryptService().hash(plaintext, this.SALT_ROUNDS);
     }
 
     /**
@@ -175,6 +193,6 @@ export class ApiKeyEncryptionService {
         if (!this.isValidKey(plaintext)) {
             return false;
         }
-        return await bcrypt.compare(plaintext, storedHash);
+        return await getBcryptService().compare(plaintext, storedHash);
     }
 }

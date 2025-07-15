@@ -5,6 +5,19 @@ import { logger } from "../../events/logger.js";
 import { CacheService } from "../../redisConn.js";
 import { type ApiEndpoint } from "../../types.js";
 
+// AI_CHECK: admin_endpoint_types=1 | LAST: 2025-06-29 - Fixed userUpdateStatus return type to match User interface
+
+// Constants for date calculations
+const MONTHS_IN_HALF_YEAR = 6;
+const DAYS_IN_MONTH = 30;
+const HOURS_IN_DAY = 24;
+const MINUTES_IN_HOUR = 60;
+const SECONDS_IN_MINUTE = 60;
+const MS_IN_SECOND = 1000;
+const DAYS_IN_MONTH_MS = DAYS_IN_MONTH * HOURS_IN_DAY * MINUTES_IN_HOUR * SECONDS_IN_MINUTE * MS_IN_SECOND;
+const STRING_SLICE_DATE_MONTH = 7;
+const DEFAULT_PAGE_SIZE = 50;
+
 // Admin-specific input types
 export interface AdminUserListInput {
     searchTerm?: string;
@@ -81,14 +94,15 @@ export type EndpointsAdmin = {
 /**
  * Helper to extract userId from session (handles both API key and user sessions)
  */
-function getUserIdFromSession(session: any): string | null {
+function getUserIdFromSession(session: unknown): string | null {
     // API key sessions have userId directly
-    if (session?.userId) {
-        return session.userId.toString();
+    const sessionObj = session as { userId?: string | number; users?: Array<{ id: string | number }> };
+    if (sessionObj?.userId) {
+        return sessionObj.userId.toString();
     }
     // User sessions have users array
-    if (session?.users?.[0]?.id) {
-        return session.users[0].id.toString();
+    if (sessionObj?.users?.[0]?.id) {
+        return sessionObj.users[0].id.toString();
     }
     return null;
 }
@@ -100,7 +114,7 @@ export const admin: EndpointsAdmin = {
     /**
      * Get site-wide statistics for admin dashboard
      */
-    siteStats: async ({ input }, { req }) => {
+    siteStats: async ({ input: _input }, { req }) => {
         // Check admin permissions
         const userData = req.session;
         const currentUserId = getUserIdFromSession(userData);
@@ -110,16 +124,16 @@ export const admin: EndpointsAdmin = {
 
         const isAdmin = false; //TODO there is a function somewhere for this - NOT isOwnerAdminCheck
         if (!isAdmin) {
-            throw new CustomError("0192", "Forbidden", { message: "Admin privileges required" });
+            throw new CustomError("0192", "Unauthorized", { message: "Admin privileges required" });
         }
 
         const prisma = DbProvider.get();
-        const redis = CacheService.get().redis;
+        const redis = CacheService.get();
 
         // Calculate current month for credit queries
-        const currentMonth = new Date().toISOString().substring(0, 7);
+        const currentMonth = new Date().toISOString().substring(0, STRING_SLICE_DATE_MONTH);
         const sixMonthsAgo = new Date();
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - MONTHS_IN_HALF_YEAR);
 
         // Calculate statistics with optimized queries
         const [
@@ -140,7 +154,7 @@ export const admin: EndpointsAdmin = {
             }>>`
                 SELECT 
                     COUNT(*)::text as total_users,
-                    COUNT(CASE WHEN "lastLoginAttempt" >= ${new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)} THEN 1 END)::text as active_users,
+                    COUNT(CASE WHEN "lastLoginAttempt" >= ${new Date(Date.now() - DAYS_IN_MONTH_MS)} THEN 1 END)::text as active_users,
                     COUNT(CASE WHEN "createdAt" >= ${new Date(new Date().setHours(0, 0, 0, 0))} THEN 1 END)::text as new_users_today
                 FROM "user"
             `,
@@ -221,7 +235,7 @@ export const admin: EndpointsAdmin = {
         // Parse job status from Redis
         let jobStatus: "success" | "partial" | "failed" | "never_run" = "never_run";
         let jobTime: string | null = null;
-        if (lastJobStatus) {
+        if (lastJobStatus && typeof lastJobStatus === "string") {
             try {
                 const jobData = JSON.parse(lastJobStatus);
                 if (jobData && typeof jobData === "object") {
@@ -270,7 +284,7 @@ export const admin: EndpointsAdmin = {
                 lastRolloverJobTime: jobTime,
                 nextScheduledRollover: nextMonth.toISOString(),
                 donationsByMonth: donationsByMonth.map(row => ({
-                    month: row.month.toISOString().substring(0, 7),
+                    month: row.month.toISOString().substring(0, STRING_SLICE_DATE_MONTH),
                     amount: row.total,
                     donors: parseInt(row.donors, 10),
                 })),
@@ -289,9 +303,9 @@ export const admin: EndpointsAdmin = {
             throw new CustomError("0191", "Unauthorized", { message: "Authentication required" });
         }
 
-        const isAdmin = await asdfasdf(currentUserId); //TODO
+        const isAdmin = false; //TODO there is a function somewhere for this - NOT isOwnerAdminCheck
         if (!isAdmin) {
-            throw new CustomError("0192", "Forbidden", { message: "Admin privileges required" });
+            throw new CustomError("0192", "Unauthorized", { message: "Admin privileges required" });
         }
 
         const prisma = DbProvider.get();
@@ -299,13 +313,13 @@ export const admin: EndpointsAdmin = {
             searchTerm,
             status,
             skip = 0,
-            take = 50,
+            take = DEFAULT_PAGE_SIZE,
             sortBy = "createdAt",
             sortOrder = "desc",
         } = input || {};
 
         // Build where clause
-        const where: any = {};
+        const where: Record<string, unknown> = {};
 
         if (searchTerm) {
             where.OR = [
@@ -319,7 +333,7 @@ export const admin: EndpointsAdmin = {
         }
 
         // Build order by clause
-        const orderBy: any = {};
+        const orderBy: Record<string, string> = {};
         orderBy[sortBy] = sortOrder;
 
         // Get users with counts
@@ -330,6 +344,9 @@ export const admin: EndpointsAdmin = {
                 take: Math.min(take, 100), // Limit to 100 for performance
                 orderBy,
                 include: {
+                    emails: {
+                        take: 1,
+                    },
                     _count: {
                         select: {
                             apiKeysExternal: true,
@@ -346,12 +363,12 @@ export const admin: EndpointsAdmin = {
             users: users.map(user => ({
                 id: user.id.toString(),
                 name: user.name || undefined,
-                email: user.email || undefined,
-                status: user.status || AccountStatus.Unlocked,
+                email: user.emails?.[0]?.emailAddress || undefined,
+                status: (user.status || AccountStatus.Unlocked) as AccountStatus,
                 createdAt: user.createdAt.toISOString(),
-                lastActiveAt: user.lastActive?.toISOString(),
-                apiKeyCount: user._count.apiKeys,
-                routineCount: user._count.routines,
+                lastActiveAt: user.lastLoginAttempt?.toISOString(),
+                apiKeyCount: user._count.apiKeysExternal,
+                routineCount: user._count.runs,
                 teamCount: user._count.memberships,
             })),
             totalCount,
@@ -369,9 +386,9 @@ export const admin: EndpointsAdmin = {
             throw new CustomError("0191", "Unauthorized", { message: "Authentication required" });
         }
 
-        const isAdmin = await asdfasdf(currentUserId); //TODO
+        const isAdmin = false; //TODO there is a function somewhere for this - NOT isOwnerAdminCheck
         if (!isAdmin) {
-            throw new CustomError("0192", "Forbidden", { message: "Admin privileges required" });
+            throw new CustomError("0192", "Unauthorized", { message: "Admin privileges required" });
         }
 
         const { userId, status, reason } = input;
@@ -388,7 +405,7 @@ export const admin: EndpointsAdmin = {
 
         // Prevent admin from disabling themselves
         if (userId === currentUserId) {
-            throw new CustomError("0194", "Forbidden", { message: "Cannot modify your own account status" });
+            throw new CustomError("0194", "Unauthorized", { message: "Cannot modify your own account status" });
         }
 
         // Update user status
@@ -411,8 +428,72 @@ export const admin: EndpointsAdmin = {
             timestamp: new Date().toISOString(),
         });
 
-        // Return updated user
-        return updatedUser;
+        // Fetch the complete user data to return a valid User type
+        const completeUser = await prisma.user.findUnique({
+            where: { id: BigInt(userId) },
+            include: {
+                emails: true,
+                translations: true,
+                plan: true,
+            },
+        });
+
+        if (!completeUser) {
+            throw new CustomError("0196", "NotFound", { message: "User not found after update" });
+        }
+
+        // Return user matching the User type from shared package
+        return {
+            __typename: "User" as const,
+            id: completeUser.id.toString(),
+            name: completeUser.name || "",
+            handle: completeUser.handle,
+            publicId: completeUser.publicId || "",
+            isPrivate: completeUser.isPrivate || false,
+            isPrivateBookmarks: completeUser.isPrivateBookmarks || true,
+            isPrivateMemberships: completeUser.isPrivateMemberships || true,
+            isPrivatePullRequests: completeUser.isPrivatePullRequests || true,
+            isPrivateResources: completeUser.isPrivateResources || true,
+            isPrivateResourcesCreated: completeUser.isPrivateResourcesCreated || true,
+            isPrivateTeamsCreated: completeUser.isPrivateTeamsCreated || true,
+            isPrivateVotes: completeUser.isPrivateVotes || true,
+            isBot: completeUser.isBot || false,
+            isBotDepictingPerson: completeUser.isBotDepictingPerson || false,
+            botSettings: completeUser.botSettings as import("@vrooli/shared").BotConfigObject | null,
+            creditSettings: completeUser.creditSettings as import("@vrooli/shared").CreditConfigObject | null,
+            bannerImage: completeUser.bannerImage,
+            profileImage: completeUser.profileImage,
+            theme: completeUser.theme,
+            notificationSettings: completeUser.notificationSettings,
+            status: (completeUser.status || AccountStatus.Unlocked) as AccountStatus,
+            createdAt: completeUser.createdAt.toISOString(),
+            updatedAt: completeUser.updatedAt.toISOString(),
+            bookmarks: 0,
+            membershipsCount: 0,
+            reportsReceivedCount: 0,
+            resourcesCount: 0,
+            views: 0,
+            bookmarkedBy: [],
+            reportsReceived: [],
+            translations: completeUser.translations.map(t => ({
+                __typename: "UserTranslation" as const,
+                id: t.id.toString(),
+                language: t.language,
+                bio: t.bio,
+            })),
+            you: {
+                __typename: "UserYou" as const,
+                canBookmark: false,
+                canDelete: false,
+                canReport: false,
+                canUpdate: false,
+                canUpdateApiKeys: false,
+                canUpdateEmailSettings: false,
+                canUpdatePrivacySettings: false,
+                isBookmarked: false,
+                isViewed: false,
+            },
+        };
     },
 
     /**
@@ -426,9 +507,9 @@ export const admin: EndpointsAdmin = {
             throw new CustomError("0191", "Unauthorized", { message: "Authentication required" });
         }
 
-        const isAdmin = await asdfasdf(currentUserId); //TODO
+        const isAdmin = false; //TODO there is a function somewhere for this - NOT isOwnerAdminCheck
         if (!isAdmin) {
-            throw new CustomError("0192", "Forbidden", { message: "Admin privileges required" });
+            throw new CustomError("0192", "Unauthorized", { message: "Admin privileges required" });
         }
 
         const { userId, reason } = input;
@@ -445,7 +526,7 @@ export const admin: EndpointsAdmin = {
         }
 
         if (!targetUser.emails || targetUser.emails.length === 0) {
-            throw new CustomError("0195", "BadRequest", { message: "User has no email address for password reset" });
+            throw new CustomError("0195", "InvalidArgs", { message: "User has no email address for password reset" });
         }
 
         // Invalidate all existing sessions for the user

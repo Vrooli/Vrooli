@@ -1,12 +1,11 @@
-// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-19
 import { type AITaskInfo } from "@vrooli/shared";
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { isTaskStale, STALE_TASK_THRESHOLD_MS } from "./chatTools.js";
 
 // Mock the chatTools module to inject our mocked Date
 vi.mock("./chatTools.js", async () => {
-    const actual = await vi.importActual("./chatTools.js") as any;
-    
+    const actual = await vi.importActual("./chatTools.js") as typeof import("./chatTools.js");
+
     return {
         ...actual,
         isTaskStale: (taskInfo: AITaskInfo): boolean => {
@@ -26,20 +25,20 @@ vi.mock("./chatTools.js", async () => {
 
 describe("isTaskStale", () => {
     const mockNow = new Date("2024-01-01T12:00:00.000Z");
-    
+
     beforeEach(() => {
         // Mock Date constructor to return a consistent time
         vi.useFakeTimers();
         vi.setSystemTime(mockNow);
     });
-    
+
     afterEach(() => {
         vi.useRealTimers();
     });
 
     it("should return false for a task with a status that is not \"Running\" or \"Canceling\"", () => {
-        const taskInfo = { 
-            status: "Completed", 
+        const taskInfo = {
+            status: "Completed",
             lastUpdated: mockNow.toISOString(),
             label: "Test Task",
             task: "Start",
@@ -50,20 +49,20 @@ describe("isTaskStale", () => {
     });
 
     it("should return false for a task without a lastUpdated timestamp", () => {
-        const taskInfo = { 
+        const taskInfo = {
             status: "Running",
             label: "Test Task",
             task: "Start",
             taskId: "task-123",
             properties: null,
-        } as any;
+        } as AITaskInfo; // Testing task without lastUpdated
         expect(isTaskStale(taskInfo)).toBe(false);
     });
 
     it("should return true for a \"Running\" task that is stale", () => {
         const staleTime = new Date(mockNow.getTime() - STALE_TASK_THRESHOLD_MS - 1 * 60 * 1000).toISOString(); // 1 minutes after stale
-        const taskInfo = { 
-            status: "Running", 
+        const taskInfo = {
+            status: "Running",
             lastUpdated: staleTime,
             label: "Test Task",
             task: "Start",
@@ -75,8 +74,8 @@ describe("isTaskStale", () => {
 
     it("should return false for a \"Running\" task that is not stale", () => {
         const notStaleTime = new Date(mockNow.getTime() - STALE_TASK_THRESHOLD_MS + 1 * 60 * 1000).toISOString(); // 1 minutes before stale
-        const taskInfo = { 
-            status: "Running", 
+        const taskInfo = {
+            status: "Running",
             lastUpdated: notStaleTime,
             label: "Test Task",
             task: "Start",
@@ -88,8 +87,8 @@ describe("isTaskStale", () => {
 
     it("should return true for a \"Canceling\" task that is stale", () => {
         const staleTime = new Date(mockNow.getTime() - STALE_TASK_THRESHOLD_MS - 1 * 60 * 1000).toISOString(); // 1 minutes after stale
-        const taskInfo = { 
-            status: "Canceling", 
+        const taskInfo = {
+            status: "Canceling",
             lastUpdated: staleTime,
             label: "Test Task",
             task: "Start",
@@ -101,8 +100,8 @@ describe("isTaskStale", () => {
 
     it("should return false for a \"Canceling\" task that is not stale", () => {
         const notStaleTime = new Date(mockNow.getTime() - STALE_TASK_THRESHOLD_MS + 1 * 60 * 1000).toISOString(); // 1 minutes before stale
-        const taskInfo = { 
-            status: "Canceling", 
+        const taskInfo = {
+            status: "Canceling",
             lastUpdated: notStaleTime,
             label: "Test Task",
             task: "Start",

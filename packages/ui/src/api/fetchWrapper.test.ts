@@ -1,5 +1,14 @@
-// AI_CHECK: TEST_COVERAGE=1 | LAST: 2025-06-18
-import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
+// AI_CHECK: TEST_COVERAGE=1,TEST_QUALITY=1 | LAST: 2025-06-19
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock, beforeAll } from "vitest";
+
+// Clear the global mock for fetchWrapper so we can test the actual implementation
+beforeAll(() => {
+    vi.unmock("./fetchWrapper.js");
+    vi.unmock("../api/fetchWrapper.js");
+    vi.unmock("../../api/fetchWrapper.js");
+    vi.unmock("../../api/fetchWrapper");
+});
+
 import { ServerResponseParser } from "./responseParser.js";
 import { PubSub } from "../utils/pubsub.js";
 import { fetchData } from "./fetchData.js";
@@ -26,16 +35,12 @@ vi.mock("./fetchData.js", () => ({
     fetchData: vi.fn(),
 }));
 
-vi.mock("i18next", () => ({
-    default: {
-        t: vi.fn(),
-    },
-}));
+// i18next is already mocked in setup.vitest.ts via react-i18next mock
 
 describe("fetchWrapper module", () => {
     const mockPubSubPublish = vi.fn();
     const mockFetchData = fetchData as Mock;
-    const mockI18nT = i18next.t as Mock;
+    const mockI18nT = vi.mocked(i18next.t);
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -282,7 +287,7 @@ describe("fetchWrapper module", () => {
 
             // Verify spinner was not shown/hidden
             const spinnerCalls = mockPubSubPublish.mock.calls.filter(
-                call => call[0] === "menu" && call[1].id === "full-page-spinner"
+                call => call[0] === "menu" && call[1].id === "full-page-spinner",
             );
             expect(spinnerCalls).toHaveLength(0);
         });
@@ -359,7 +364,7 @@ describe("fetchWrapper module", () => {
                 useSubmitHelper({
                     fetch: vi.fn(),
                     isCreate: true,
-                })
+                }),
             );
 
             expect(typeof result.current).toBe("function");
@@ -371,7 +376,7 @@ describe("fetchWrapper module", () => {
                     fetch: vi.fn(),
                     disabled: true,
                     isCreate: true,
-                })
+                }),
             );
 
             result.current();
@@ -388,7 +393,7 @@ describe("fetchWrapper module", () => {
                     fetch: vi.fn(),
                     isCreate: false,
                     existing: [],
-                })
+                }),
             );
 
             result.current();
@@ -405,7 +410,7 @@ describe("fetchWrapper module", () => {
                     fetch: vi.fn(),
                     isCreate: false,
                     existing: null,
-                })
+                }),
             );
 
             result.current();
@@ -426,14 +431,14 @@ describe("fetchWrapper module", () => {
                     inputs,
                     isCreate: true,
                     disabled: false,
-                })
+                }),
             );
 
             await result.current();
 
             // Should not show any error messages
             const errorCalls = mockPubSubPublish.mock.calls.filter(
-                call => call[0] === "snack" && call[1].severity === "Error"
+                call => call[0] === "snack" && call[1].severity === "Error",
             );
             expect(errorCalls).toHaveLength(0);
         });
@@ -446,14 +451,14 @@ describe("fetchWrapper module", () => {
                     fetch: mockFetch,
                     isCreate: true,
                     existing: undefined,
-                })
+                }),
             );
 
             await result.current();
 
             // Should not show any error messages
             const errorCalls = mockPubSubPublish.mock.calls.filter(
-                call => call[0] === "snack" && call[1].severity === "Error"
+                call => call[0] === "snack" && call[1].severity === "Error",
             );
             expect(errorCalls).toHaveLength(0);
         });
@@ -466,14 +471,14 @@ describe("fetchWrapper module", () => {
                     fetch: mockFetch,
                     isCreate: false,
                     existing: { id: "123" },
-                })
+                }),
             );
 
             await result.current();
 
             // Should not show any error messages
             const errorCalls = mockPubSubPublish.mock.calls.filter(
-                call => call[0] === "snack" && call[1].severity === "Error"
+                call => call[0] === "snack" && call[1].severity === "Error",
             );
             expect(errorCalls).toHaveLength(0);
         });
@@ -487,7 +492,7 @@ describe("fetchWrapper module", () => {
             const inputs = { 
                 file,
                 createdAt: date,
-                name: "test" 
+                name: "test", 
             };
             
             const mockFetch = vi.fn().mockResolvedValue({ data: { success: true } });
@@ -514,9 +519,9 @@ describe("fetchWrapper module", () => {
                     name: "John",
                     age: 30,
                     profile: {
-                        bio: "Developer"
-                    }
-                }
+                        bio: "Developer",
+                    },
+                },
             };
             
             const mockFetch = vi.fn().mockResolvedValue({ data: { success: true } });
@@ -542,7 +547,7 @@ describe("fetchWrapper module", () => {
                 name: "test",
                 nullValue: null,
                 undefinedValue: undefined,
-                emptyString: ""
+                emptyString: "",
             };
             
             const mockFetch = vi.fn().mockResolvedValue({ data: { success: true } });

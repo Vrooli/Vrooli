@@ -41,6 +41,8 @@ import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "../..
 import { smartContractInitialValues } from "./SmartContractUpsert.js";
 import { type SmartContractViewProps } from "./types.js";
 
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-01 - Fixed 4 type assertions (removed 'as any', fixed resource list types)
+
 const TAGS_MAX_CHARS = 200;
 const codeLimitTo = [CodeLanguage.Javascript] as const;
 
@@ -93,11 +95,11 @@ export function SmartContractView({
     const closeAddCommentDialog = useCallback(() => { setIsAddCommentOpen(false); }, []);
 
     const initialValues = useMemo(() => smartContractInitialValues(session, codeVersion), [codeVersion, session]);
-    const resourceList = useMemo<ResourceListShape | null | undefined>(() =>
-        initialValues.resourceList as ResourceListShape | null | undefined,
+    const resourceList = useMemo<ResourceListType | null | undefined>(() =>
+        initialValues.resourceList as ResourceListType | null | undefined,
         [initialValues]);
-    const tags = useMemo<TagShape[] | null | undefined>(() =>
-        (initialValues.root as Resource)?.tags as TagShape[] | null | undefined,
+    const tags = useMemo<Tag[] | null | undefined>(() =>
+        (initialValues.root as Resource)?.tags as Tag[] | null | undefined,
         [initialValues]);
 
     // More menu
@@ -140,7 +142,7 @@ export function SmartContractView({
                 <ObjectActionMenu
                     actionData={actionData}
                     anchorEl={moreMenuAnchor}
-                    object={codeVersion as any}
+                    object={codeVersion}
                     onClose={closeMoreMenu}
                 />
 
@@ -319,7 +321,7 @@ export function SmartContractView({
                                         </Typography>
                                         <ResourceList
                                             horizontal
-                                            list={resourceList as unknown as ResourceListType}
+                                            list={resourceList}
                                             canUpdate={permissions.canUpdate}
                                             handleUpdate={(updatedList) => {
                                                 if (!codeVersion) return;

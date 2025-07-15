@@ -29,7 +29,7 @@ class ModelSelectionErrorBoundaryClass extends Component<Props, State> {
     static getDerivedStateFromError(error: Error): State {
         return { 
             hasError: true, 
-            errorMessage: error.message || "Failed to load AI models"
+            errorMessage: error.message || "Failed to load AI models",
         };
     }
 
@@ -88,7 +88,7 @@ function ModelSelectionErrorFallback({ errorMessage, onReset }: FallbackProps) {
             <Typography variant="body2" color="textSecondary" sx={{ maxWidth: 400 }}>
                 {errorMessage || t("ModelsUnavailable", { 
                     ns: "error", 
-                    defaultValue: "AI models are temporarily unavailable. Please check your connection and try again."
+                    defaultValue: "AI models are temporarily unavailable. Please check your connection and try again.",
                 })}
             </Typography>
             <Button 

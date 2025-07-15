@@ -1,5 +1,6 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-04
 import { type PeriodType, type Prisma } from "@prisma/client";
-import { DbProvider, batch, batchGroup, logger } from "@vrooli/server";
+import { DbProvider, batch, logger } from "@vrooli/server";
 import { generatePK } from "@vrooli/shared";
 
 // Select shape for resource version batching
@@ -16,6 +17,18 @@ type BatchRunCountsResult = Record<string, {
     runCompletionTimeAverage: number;
     runContextSwitchesAverage: number;
 }>
+
+// Define the type for run records as returned by the select clause
+type RunRecord = {
+    id: bigint;
+    resourceVersion: {
+        id: bigint;
+    } | null;
+    completedAt: string | null;
+    contextSwitches: number | null;
+    startedAt: string | null;
+    timeElapsed: number | null;
+}
 
 /**
  * Batch collects run counts for a list of resource versions
@@ -36,9 +49,11 @@ async function batchRunCounts(
         runContextSwitchesAverage: 0,
     }]));
     try {
-        return await batchGroup<Prisma.runFindManyArgs, BatchRunCountsResult>({
-            initialResult,
-            processBatch: async (batch, result) => {
+        const result = initialResult;
+        
+        await batch<Prisma.runFindManyArgs, RunRecord>({
+            objectType: "Run",
+            processBatch: async (batch: RunRecord[]) => {
                 // For each run, increment the counts for the routine version
                 batch.forEach(run => {
                     const versionId = run.resourceVersion?.id;
@@ -58,22 +73,12 @@ async function batchRunCounts(
                     if (run.completedAt !== null && new Date(run.completedAt) >= new Date(periodStart)) {
                         currResult.runsCompleted += 1;
                         if (run.timeElapsed !== null) currResult.runCompletionTimeAverage += run.timeElapsed;
-                        currResult.runContextSwitchesAverage += run.contextSwitches;
+                        if (run.contextSwitches !== null && run.contextSwitches !== undefined) {
+                            currResult.runContextSwitchesAverage += run.contextSwitches;
+                        }
                     }
                 });
             },
-            finalizeResult: (result) => {
-                // For the averages, divide by the number of runs completed
-                Object.entries(result).forEach(([versionId, currResult]) => {
-                    if (!currResult || typeof versionId !== "string") return;
-                    if (currResult.runsCompleted > 0) {
-                        currResult.runCompletionTimeAverage /= currResult.runsCompleted;
-                        currResult.runContextSwitchesAverage /= currResult.runsCompleted;
-                    }
-                });
-                return result;
-            },
-            objectType: "Run",
             select: {
                 id: true,
                 resourceVersion: {
@@ -92,6 +97,17 @@ async function batchRunCounts(
                 ],
             },
         });
+        
+        // For the averages, divide by the number of runs completed
+        Object.entries(result).forEach(([versionId, currResult]) => {
+            if (!currResult || typeof versionId !== "string") return;
+            if (currResult.runsCompleted > 0) {
+                currResult.runCompletionTimeAverage /= currResult.runsCompleted;
+                currResult.runContextSwitchesAverage /= currResult.runsCompleted;
+            }
+        });
+        
+        return result;
     } catch (error) {
         logger.error("batchRunCounts caught error", { error });
     }
@@ -112,7 +128,7 @@ export async function logResourceStats(
     try {
         await batch<Prisma.resource_versionFindManyArgs, ResourceVersionPayload>({
             objectType: "ResourceVersion",
-            processBatch: async (batch) => {
+            processBatch: async (batch: ResourceVersionPayload[]) => {
                 // Find and count all runs associated with the latest routine versions, which 
                 // have been started or completed within the period
                 const runCountsByVersion = await batchRunCounts(batch.map(version => version.id.toString()), periodStart, periodEnd);

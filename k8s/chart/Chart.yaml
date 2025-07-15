@@ -13,7 +13,7 @@ type: application
 version: 0.1.0
 # The version of the application being deployed by this chart. Also follows SemVer.
 # This can be independent of the chart's version if, for example, you update the app without changing the chart structure.
-appVersion: "0.1.0" # Changed automatically during build process by version.sh
+appVersion: "2.0.2" # Changed automatically during build process by version.sh
 # Chart maintainer metadata
 # Lists the individuals or teams responsible for maintaining this Helm chart.
 maintainers:

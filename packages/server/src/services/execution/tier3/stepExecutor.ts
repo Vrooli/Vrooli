@@ -12,30 +12,37 @@
  */
 
 import {
-    type ChatMessage,
-    type CodeLanguage,
-    type ExecutionResult,
-    type StepExecutionInput,
-    type TierCommunicationInterface,
-    type TierExecutionRequest,
-    type ConfigCallDataApi,
-    type RoutineVersionConfigObject,
-    type SubroutineIOMapping,
     CallDataApiConfig,
-    ApiVersionConfig,
     nanoid,
+    type CodeLanguage,
+    type ConfigCallDataApi,
+    type ExecutionResult,
+    type RoutineVersionConfigObject,
+    type StepExecutionInput,
+    type SubroutineIOMapping,
+    type TierExecutionRequest,
 } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
 import { runUserCode } from "../../../tasks/sandbox/process.js";
-import { HTTPClient, type APICallOptions } from "../../http/httpClient.js";
+import { type ToolMeta } from "../../conversation/types.js";
 import { APIKeyService, type UserContext } from "../../http/apiKeyService.js";
-import { MCPClient } from "./tools/mcpClient.js";
+import { HTTPClient, type APICallOptions } from "../../http/httpClient.js";
+import { type SwarmTools } from "../../mcp/tools.js";
+import { McpToolRunner } from "../../response/toolRunner.js";
 
 // Default configuration constants
 const MOCK_TOKEN_COUNT = 100;
 const MOCK_EXECUTION_TIME = 500;
 
-//TODO: Remove this once we have a proper step definition
+// Simplified message interface for internal use
+interface SimpleMessage {
+    id: string;
+    text: string;
+    role: string;
+    language?: string;
+}
+
+// Step definition interface - will be replaced with proper types from @vrooli/shared
 export interface StepDefinition {
     id: string;
     type: "llm_call" | "tool_call" | "code_execution" | "api_call";
@@ -63,6 +70,11 @@ export interface StepResult {
         tokensUsed?: number;
         executionTime?: number;
         model?: string;
+        creditsUsed?: string;
+        toolCalls?: number;
+        url?: string;
+        method?: string;
+        retries?: number;
     };
 }
 
@@ -71,13 +83,15 @@ export interface StepResult {
  * 
  * This replaces 5,000+ lines of complex code with ~200 lines of focused execution logic.
  */
-export class StepExecutor implements TierCommunicationInterface {
-    private readonly mcpClient: MCPClient;
+export class StepExecutor {
+    private readonly mcpToolRunner: McpToolRunner;
     private readonly httpClient: HTTPClient;
     private readonly apiKeyService: APIKeyService;
+    private readonly swarmTools?: SwarmTools;
 
-    constructor() {
-        this.mcpClient = new MCPClient();
+    constructor(swarmTools?: SwarmTools) {
+        this.swarmTools = swarmTools;
+        this.mcpToolRunner = new McpToolRunner(swarmTools);
         this.httpClient = new HTTPClient();
         this.apiKeyService = new APIKeyService();
     }
@@ -89,32 +103,45 @@ export class StepExecutor implements TierCommunicationInterface {
         request: TierExecutionRequest<TInput>,
     ): Promise<ExecutionResult<TOutput>> {
         const startTime = Date.now();
-        
+
         try {
             // Convert TierExecutionRequest to simple StepDefinition
             const step: StepDefinition = {
                 id: request.input.stepId || `step-${Date.now()}`,
                 type: this.inferStepType(request.input),
                 strategy: request.input.strategy,
-                inputs: request.input.inputs || {},
-                config: request.input.config,
+                inputs: request.input.parameters || {},
+                config: request.options,
+                // Pass through additional configuration from input
+                routineConfig: request.input.routineConfig,
+                userLanguages: request.context.userData?.languages,
             };
 
             // Execute the step
             const result = await this.executeStep(step);
 
             // Convert StepResult to ExecutionResult
+            const duration = Date.now() - startTime;
             return {
                 success: result.success,
-                outputs: result.outputs as TOutput,
+                result: result.outputs as TOutput,
+                outputs: result.outputs,
                 error: result.error ? {
                     code: "EXECUTION_ERROR",
                     message: result.error,
-                    tier: "tier3",
+                    tier: "tier3" as const,
                     type: "StepExecutionError",
                 } : undefined,
+                resourcesUsed: {
+                    creditsUsed: result.metadata?.creditsUsed || String(result.metadata?.tokensUsed || 0),
+                    durationMs: duration,
+                    memoryUsedMB: 50, // Default estimate
+                    stepsExecuted: 1,
+                    toolCalls: result.metadata?.toolCalls || 0,
+                },
+                duration,
                 metadata: {
-                    executionTime: Date.now() - startTime,
+                    executionTime: duration,
                     ...result.metadata,
                 },
             };
@@ -123,16 +150,25 @@ export class StepExecutor implements TierCommunicationInterface {
                 error: error instanceof Error ? error.message : String(error),
             });
 
+            const duration = Date.now() - startTime;
             return {
                 success: false,
                 error: {
                     code: "EXECUTION_ERROR",
                     message: error instanceof Error ? error.message : String(error),
-                    tier: "tier3",
+                    tier: "tier3" as const,
                     type: "StepExecutionError",
                 },
+                resourcesUsed: {
+                    creditsUsed: "0",
+                    durationMs: duration,
+                    memoryUsedMB: 0,
+                    stepsExecuted: 0,
+                    toolCalls: 0,
+                },
+                duration,
                 metadata: {
-                    executionTime: Date.now() - startTime,
+                    executionTime: duration,
                 },
             } as ExecutionResult<TOutput>;
         }
@@ -154,16 +190,16 @@ export class StepExecutor implements TierCommunicationInterface {
             switch (step.type) {
                 case "llm_call":
                     return await this.executeLLMCall(step);
-                
+
                 case "tool_call":
                     return await this.executeToolCall(step);
-                
+
                 case "code_execution":
                     return await this.executeCode(step);
-                
+
                 case "api_call":
                     return await this.executeAPICall(step);
-                
+
                 default:
                     throw new Error(`Unknown step type: ${step.type}`);
             }
@@ -191,7 +227,7 @@ export class StepExecutor implements TierCommunicationInterface {
         try {
             // Build conversation history from inputs
             const messages = this.buildConversationHistory(step);
-            
+
             // Log the LLM call details
             logger.info("[StepExecutor] Executing LLM call", {
                 stepId: step.id,
@@ -205,7 +241,7 @@ export class StepExecutor implements TierCommunicationInterface {
             // Different mock responses based on strategy
             let mockResponse: string;
             const strategy = step.strategy || "reasoning";
-            
+
             switch (strategy) {
                 case "conversational":
                     mockResponse = `Conversational response for step ${step.id}. I understand your request and would engage in natural dialogue.`;
@@ -259,14 +295,24 @@ export class StepExecutor implements TierCommunicationInterface {
         const toolName = step.inputs.tool || step.inputs.name;
         const toolArgs = step.inputs.arguments || step.inputs.args || {};
 
-        const result = await this.mcpClient.callTool(toolName, toolArgs);
-        
+        // Create tool metadata from step inputs
+        const meta: ToolMeta = {
+            conversationId: step.inputs.conversationId,
+            sessionUser: step.inputs.sessionUser,
+            callerBotId: step.inputs.callerBotId,
+            // Add any other metadata fields that might be available in step.inputs
+        };
+
+        const result = await this.mcpToolRunner.run(toolName, toolArgs, meta);
+
         return {
-            success: result.success,
-            outputs: result.result,
-            error: result.error,
+            success: result.ok,
+            outputs: result.ok ? (result.data.output as Record<string, any>) : undefined,
+            error: result.ok ? undefined : result.error.message,
             metadata: {
                 executionTime: 0, // Will be set by caller
+                creditsUsed: String(result.ok ? result.data.creditsUsed : result.error.creditsUsed || 0),
+                toolCalls: 1,
             },
         };
     }
@@ -350,7 +396,7 @@ export class StepExecutor implements TierCommunicationInterface {
 
             // Build API call from config
             const apiCallOptions = await this.buildConfigDrivenAPICall(step);
-            
+
             // Get user context and apply authentication if configured
             const userContext = this.getUserContext(step);
             const credentials = await this.getAPICredentials(apiCallOptions.url, userContext, step);
@@ -410,13 +456,9 @@ export class StepExecutor implements TierCommunicationInterface {
         // Build the API call using template processing
         const processedCall = this.processAPITemplate(apiConfig.schema, step.ioMapping, userLanguages);
 
-        // Get timeout and retry settings from API config or routine config
-        const timeout = processedCall.timeoutMs || 
-                       step.routineConfig.timeout?.request || 
-                       step.config?.timeout;
-                       
-        const retries = step.routineConfig.retry?.maxAttempts || 
-                       step.config?.retries;
+        // Get timeout and retry settings from API config or step config
+        const timeout = processedCall.timeoutMs || step.config?.timeout;
+        const retries = step.config?.retries;
 
         return {
             url: processedCall.endpoint,
@@ -432,8 +474,8 @@ export class StepExecutor implements TierCommunicationInterface {
      * Process API templates with dynamic values
      */
     private processAPITemplate(
-        apiSchema: ConfigCallDataApi, 
-        ioMapping: SubroutineIOMapping, 
+        apiSchema: ConfigCallDataApi,
+        ioMapping: SubroutineIOMapping,
         userLanguages: string[],
     ): ConfigCallDataApi {
         const templateConfig = {
@@ -456,7 +498,7 @@ export class StepExecutor implements TierCommunicationInterface {
     /**
      * Get user context from step or create default
      */
-    private getUserContext(step: StepDefinition): UserContext {
+    private getUserContext(_step: StepDefinition): UserContext {
         // In production, this would come from TierExecutionRequest.context
         return {
             userId: "step-executor-user", // Would come from actual context
@@ -470,40 +512,10 @@ export class StepExecutor implements TierCommunicationInterface {
      */
     private async getAPICredentials(url: string, userContext: UserContext, step: StepDefinition): Promise<any> {
         try {
-            // Check if authentication is configured in the API config
-            const authConfig = step.routineConfig?.callDataApi?.schema?.authentication;
-            if (!authConfig || authConfig.type === "none") {
-                return undefined;
-            }
-
-            // Service must be explicitly configured
-            if (!authConfig.settings?.service) {
-                logger.warn("[StepExecutor] Authentication configured but no service specified", {
-                    url,
-                    authType: authConfig.type,
-                });
-                return undefined;
-            }
-
-            // Look up API key for the configured service
-            const apiKey = await this.apiKeyService.getApiKey(authConfig.settings.service, userContext);
-            if (apiKey) {
-                // Override auth type and header from configuration
-                apiKey.authType = authConfig.type || apiKey.authType;
-                apiKey.headerName = authConfig.parameterName;
-                
-                logger.debug("[StepExecutor] Retrieved API credentials", {
-                    service: apiKey.service,
-                    authType: apiKey.authType,
-                    headerName: apiKey.headerName,
-                    isTeamKey: apiKey.isTeamKey,
-                });
-                
-                return this.apiKeyService.createAuthConfig(apiKey);
-            }
-
-            logger.debug("[StepExecutor] No API credentials found for service", { 
-                service: authConfig.settings.service, 
+            // For now, API authentication is not configured in ConfigCallDataApi
+            // This would need to be added to the interface or handled through headers
+            logger.debug("[StepExecutor] API authentication not yet supported in ConfigCallDataApi", {
+                url,
             });
             return undefined;
 
@@ -606,20 +618,20 @@ export class StepExecutor implements TierCommunicationInterface {
             },
         };
 
-        // Apply output mapping if configured
-        if (step.routineConfig?.callDataApi?.schema?.outputMapping && step.ioMapping) {
-            const outputMapping = step.routineConfig.callDataApi.schema.outputMapping;
-            
+        // Apply output mapping if configured in callDataAction (API calls don't have outputMapping)
+        if (step.routineConfig?.callDataAction?.schema?.outputMapping && step.ioMapping) {
+            const outputMapping = step.routineConfig.callDataAction.schema.outputMapping;
+
             // Process each output mapping
             for (const [outputName, sourcePath] of Object.entries(outputMapping)) {
                 // Get value from response using dot notation
                 const value = this.getValueFromPath(response, sourcePath);
-                
+
                 // Update ioMapping outputs
                 if (step.ioMapping.outputs && step.ioMapping.outputs[outputName]) {
                     step.ioMapping.outputs[outputName].value = value;
                 }
-                
+
                 // Also include in result outputs
                 result.outputs![outputName] = value;
             }
@@ -643,12 +655,12 @@ export class StepExecutor implements TierCommunicationInterface {
     private getValueFromPath(obj: any, path: string): any {
         const parts = path.split(".");
         let current = obj;
-        
+
         for (const part of parts) {
             if (current === null || current === undefined) {
                 return undefined;
             }
-            
+
             // Handle array notation like "data.items[0]"
             const arrayMatch = part.match(/^(.+)\[(\d+)\]$/);
             if (arrayMatch) {
@@ -658,7 +670,7 @@ export class StepExecutor implements TierCommunicationInterface {
                 current = current[part];
             }
         }
-        
+
         return current;
     }
 
@@ -668,15 +680,27 @@ export class StepExecutor implements TierCommunicationInterface {
     private inferStepType(input: StepExecutionInput): StepDefinition["type"] {
         // Check for explicit type in input
         if (input.type) return input.type as StepDefinition["type"];
+
+        // Check based on presence of specific fields in input or parameters
+        if (input.messages || input.prompt || input.parameters.messages || input.parameters.prompt) {
+            return "llm_call";
+        }
         
-        // Check based on presence of specific inputs
-        if (input.messages || input.prompt) return "llm_call";
-        if (input.tool || input.toolName) return "tool_call";
-        if (input.code || input.script) return "code_execution";
+        if (input.toolName || input.parameters.tool || input.parameters.toolName) {
+            return "tool_call";
+        }
         
-        // For API calls, require explicit type or config
-        if (input.routineConfig?.callDataApi) return "api_call";
-        
+        if (input.code || input.parameters.code || input.parameters.script) {
+            return "code_execution";
+        }
+
+        // For API calls, check for API configuration
+        if (input.routineConfig?.callDataApi || 
+            (input.parameters.routineConfig && typeof input.parameters.routineConfig === "object" && 
+             "callDataApi" in input.parameters.routineConfig)) {
+            return "api_call";
+        }
+
         // Default to LLM call if unclear
         return "llm_call";
     }
@@ -695,38 +719,36 @@ export class StepExecutor implements TierCommunicationInterface {
     /**
      * Helper method to build conversation history from step inputs
      */
-    private buildConversationHistory(step: StepDefinition): ChatMessage[] {
-        const messages: ChatMessage[] = [];
+    private buildConversationHistory(step: StepDefinition): SimpleMessage[] {
+        const messages: SimpleMessage[] = [];
 
-        // Handle various input formats
-        if (step.inputs.messages && Array.isArray(step.inputs.messages)) {
+        // Handle various input formats - check multiple possible locations
+        const inputMessages = step.inputs.messages || 
+                            step.inputs.parameters?.messages;
+                            
+        if (inputMessages && Array.isArray(inputMessages)) {
             // Direct messages array
-            return step.inputs.messages.map((msg: any) => ({
-                id: `${step.id}-${Date.now()}`,
-                config: {
-                    text: msg.content || msg.text || String(msg),
-                    language: "en",
-                },
+            return inputMessages.map((msg: any) => ({
+                id: `${step.id}-${Date.now()}-${Math.random()}`,
+                text: msg.content || msg.text || String(msg),
                 role: msg.role || "user",
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                userId: msg.userId || "step-executor-user",
+                language: msg.language || "en",
             }));
-        } 
+        }
 
-        if (step.inputs.prompt || step.inputs.message) {
+        // Check for prompt in various locations
+        const prompt = step.inputs.prompt || 
+                      step.inputs.message || 
+                      step.inputs.parameters?.prompt ||
+                      step.inputs.parameters?.message;
+                      
+        if (prompt) {
             // Single prompt/message
-            const text = step.inputs.prompt || step.inputs.message;
             messages.push({
                 id: `${step.id}-prompt`,
-                config: {
-                    text: String(text),
-                    language: "en",
-                },
+                text: String(prompt),
                 role: "user",
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                userId: "step-executor-user",
+                language: "en",
             });
         }
 
@@ -739,14 +761,9 @@ export class StepExecutor implements TierCommunicationInterface {
 
             messages.push({
                 id: `${step.id}-generic`,
-                config: {
-                    text: inputs || "Please process this step.",
-                    language: "en",
-                },
+                text: inputs || "Please process this step.",
                 role: "user",
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                userId: "step-executor-user",
+                language: "en",
             });
         }
 

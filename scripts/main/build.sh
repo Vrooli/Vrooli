@@ -25,6 +25,8 @@ source "${MAIN_DIR}/../helpers/utils/version.sh"
 # shellcheck disable=SC1091
 source "${MAIN_DIR}/../helpers/utils/zip.sh"
 # shellcheck disable=SC1091
+source "${MAIN_DIR}/../helpers/utils/exit_codes.sh"
+# shellcheck disable=SC1091
 source "${MAIN_DIR}/../helpers/build/index.sh"
 # shellcheck disable=SC1091
 source "${MAIN_DIR}/../helpers/build/package.sh"
@@ -206,13 +208,17 @@ build::parse_arguments() {
 build::main() {
     build::parse_arguments "$@"
     log::header "🔨 Starting build for ${ENVIRONMENT} environment..."
+    
+    # Load environment file based on build environment
+    export NODE_ENV="${ENVIRONMENT}"
+    env::load_env_file
 
     # Mandate --version for production builds and warn/confirm if same as current
     if env::in_production; then # Checks if $ENVIRONMENT is "prod" or "production"
         if [ "${VERSION_SPECIFIED_BY_USER}" != "yes" ]; then
             log::error "ERROR: For production builds (environment: ${ENVIRONMENT}), the --version <version> flag is mandatory."
             log::error "Please specify the exact version to build and deploy."
-            exit "${exit_codes_ERROR_USAGE}"
+            exit "${ERROR_USAGE}"
         else
             # Version was specified for a production build, check if it's the same as current
             local current_project_version
@@ -224,11 +230,16 @@ build::main() {
                 log::warning "!!          ARTIFACTS AND DOCKER IMAGES PUBLISHED FOR THIS VERSION.                 !!"
                 log::warning "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
                 
-                local confirm_overwrite
-                log::prompt "Are you sure you want to proceed with building version $VERSION? (y/N): " confirm_overwrite
-                if ! flow::is_yes "${confirm_overwrite:-no}"; then # Default to 'no' if user just presses Enter
-                    log::info "Build aborted by user."
-                    exit "${exit_codes_SUCCESS}"
+                # Check if --yes flag was provided
+                if [ "$YES" = "yes" ]; then
+                    log::info "Auto-confirming version override due to --yes flag."
+                else
+                    local confirm_overwrite
+                    log::prompt "Are you sure you want to proceed with building version $VERSION? (y/N): " confirm_overwrite
+                    if ! flow::is_yes "${confirm_overwrite:-no}"; then # Default to 'no' if user just presses Enter
+                        log::info "Build aborted by user."
+                        exit "${EXIT_SUCCESS}"
+                    fi
                 fi
                 log::info "User confirmed proceeding with version $VERSION."
             fi
@@ -311,7 +322,7 @@ build::main() {
                 ;;
             cli)
                 log::info "Building CLI executables..."
-                package_cli
+                package::package_cli
                 ;;
             *)
                 log::warning "Unknown bundle type: $b"
@@ -323,6 +334,8 @@ build::main() {
     for a in "${ARTIFACTS[@]}"; do
         case "$a" in
             docker)
+                # Login to Docker Hub to avoid rate limits when pulling base images
+                docker::login_to_dockerhub
                 docker::build_artifacts
                 docker::save_images "$artifacts_dir"
                 ;;

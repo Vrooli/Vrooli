@@ -1,109 +1,106 @@
 {
-  "identity": {
-    "name": "technical-business-translator",
-    "version": "1.0.0"
-  },
-  "goal": "Converts technical concepts for business audiences",
-  "role": "bridge",
-  "subscriptions": [
-    "step/completed",
-    "safety/post_action",
-    "run/completed"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.audience == 'business' || event.data.tags.includes('executive_summary')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Business Translator",
-        "inputMap": {
-          "technicalContent": "event.data.output",
-          "targetAudience": "event.data.audience",
-          "businessVocabulary": "blackboard.translation.businessTerms",
-          "industryContext": "blackboard.translation.industryContext"
+    "identity": {
+        "name": "technical-business-translator",
+        "version": "1.0.0"
+    },
+    "goal": "Converts technical concepts for business audiences",
+    "role": "bridge",
+    "subscriptions": [
+        "step/completed",
+        "safety/post_action",
+        "run/completed"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.audience == 'business' || event.data.tags.includes('executive_summary')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Business Translator",
+                "inputMap": {
+                    "technicalContent": "event.data.output",
+                    "targetAudience": "event.data.audience",
+                    "businessVocabulary": "blackboard.translation.businessTerms",
+                    "industryContext": "blackboard.translation.industryContext"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "safety/post_action",
+                "when": "event.data.output.complexity > 8 && event.data.context.stakeholders.includes('executive')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Simplify complex technical outputs into clear business value propositions and strategic insights"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/completed",
+                "when": "event.data.tags.includes('technical_report')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Executive Summary Generator",
+                "inputMap": {
+                    "technicalReport": "event.data.outputs",
+                    "businessImpact": "event.data.metrics",
+                    "translationFramework": "blackboard.translation.frameworks",
+                    "executiveTemplates": "blackboard.templates.executive"
+                }
+            },
+            "qos": 0
         }
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "safety/post_action",
-        "when": "event.data.output.complexity > 8 && event.data.context.stakeholders.includes('executive')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Simplify complex technical outputs into clear business value propositions and strategic insights"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "run/completed",
-        "when": "event.data.tags.includes('technical_report')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Executive Summary Generator",
-        "inputMap": {
-          "technicalReport": "event.data.outputs",
-          "businessImpact": "event.data.metrics",
-          "translationFramework": "blackboard.translation.frameworks",
-          "executiveTemplates": "blackboard.templates.executive"
+    ],
+    "prompt": "You are a technical-business translator. You must preserve accuracy in all technical translations. You may simplify jargon to improve business understanding. You must never misrepresent technical facts or create misleading business interpretations.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "translation-frameworks",
+            "permissions": [
+                "read"
+            ],
+            "scope": "translation.frameworks",
+            "description": "Access technical-to-business translation frameworks"
+        },
+        {
+            "type": "blackboard",
+            "label": "business-vocabulary",
+            "permissions": [
+                "read"
+            ],
+            "scope": "translation.businessTerms",
+            "description": "Business terminology and concept mappings"
+        },
+        {
+            "type": "blackboard",
+            "label": "technical-documentation",
+            "permissions": [
+                "read"
+            ],
+            "scope": "documentation.technical",
+            "description": "Access technical documentation for reference"
+        },
+        {
+            "type": "routine",
+            "label": "Business Translator",
+            "permissions": [
+                "read"
+            ],
+            "description": "Translate technical content for business audiences"
+        },
+        {
+            "type": "routine",
+            "label": "Executive Summary Generator",
+            "permissions": [
+                "read"
+            ],
+            "description": "Generate executive summaries from technical reports"
         }
-      },
-      "qos": 0
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "preserve-accuracy"
-    },
-    {
-      "modality": "permission",
-      "target": "simplify-jargon"
-    },
-    {
-      "modality": "prohibition",
-      "target": "misrepresent-technical-facts"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "translation-frameworks",
-      "permissions": ["read"],
-      "scope": "translation.frameworks",
-      "description": "Access technical-to-business translation frameworks"
-    },
-    {
-      "type": "blackboard",
-      "label": "business-vocabulary",
-      "permissions": ["read"],
-      "scope": "translation.businessTerms",
-      "description": "Business terminology and concept mappings"
-    },
-    {
-      "type": "blackboard",
-      "label": "technical-documentation",
-      "permissions": ["read"],
-      "scope": "documentation.technical",
-      "description": "Access technical documentation for reference"
-    },
-    {
-      "type": "routine",
-      "label": "Business Translator",
-      "permissions": ["read"],
-      "description": "Translate technical content for business audiences"
-    },
-    {
-      "type": "routine",
-      "label": "Executive Summary Generator",
-      "permissions": ["read"],
-      "description": "Generate executive summaries from technical reports"
-    }
-  ]
+    ]
 }

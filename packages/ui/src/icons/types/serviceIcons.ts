@@ -15,6 +15,6 @@ export const iconNames = [
   "DefaultSocial",
   "ChatGPT",
   "Apple",
-] as const
+] as const;
 
 export type IconName = typeof iconNames[number]

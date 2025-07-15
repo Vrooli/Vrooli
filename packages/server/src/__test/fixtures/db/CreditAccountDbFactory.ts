@@ -1,7 +1,7 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: removed temporary any type parameter, improved invalid type casts
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { DbTestFixtures } from "./types.js";
-import { generatePK } from "./idHelpers.js";
 
 /**
  * Enhanced database fixture factory for Credit Account model
@@ -15,7 +15,7 @@ import { generatePK } from "./idHelpers.js";
  * - Predefined test scenarios
  */
 export class CreditAccountDbFactory extends EnhancedDatabaseFactory<
-    any, // Using any temporarily to avoid type issues
+    Prisma.credit_accountCreateInput,
     Prisma.credit_accountCreateInput,
     Prisma.credit_accountInclude,
     Prisma.credit_accountUpdateInput
@@ -30,9 +30,9 @@ export class CreditAccountDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.credit_accountCreateInput>): Prisma.credit_accountCreateInput {
         return {
-            id: generatePK(),
+            id: this.generateId(),
             currentBalance: BigInt(1000),
-            user: { connect: { id: generatePK() } },
+            user: { connect: { id: this.generateId() } },
             ...overrides,
         };
     }
@@ -49,8 +49,8 @@ export class CreditAccountDbFactory extends EnhancedDatabaseFactory<
      * Get complete test fixtures for Credit Account model
      */
     protected getFixtures(): DbTestFixtures<Prisma.credit_accountCreateInput, Prisma.credit_accountUpdateInput> {
-        const userId = generatePK();
-        const teamId = generatePK();
+        const userId = this.generateId();
+        const teamId = this.generateId();
         
         return {
             minimal: this.generateMinimalData(),
@@ -59,37 +59,37 @@ export class CreditAccountDbFactory extends EnhancedDatabaseFactory<
             
             edgeCases: {
                 zeroBalance: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     currentBalance: BigInt(0),
                     user: { connect: { id: userId } },
                 },
                 
                 highBalance: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     currentBalance: BigInt(10000000), // 10 million credits
                     user: { connect: { id: userId } },
                 },
                 
                 teamAccount: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     currentBalance: BigInt(50000),
                     team: { connect: { id: teamId } },
                 },
                 
                 userWithLowBalance: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     currentBalance: BigInt(10),
                     user: { connect: { id: userId } },
                 },
                 
                 maxBalance: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     currentBalance: BigInt("9223372036854775807"), // Max bigint value
                     user: { connect: { id: userId } },
                 },
                 
                 bothUserAndTeam: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     currentBalance: BigInt(1000),
                     user: { connect: { id: userId } },
                     team: { connect: { id: teamId } },
@@ -98,16 +98,16 @@ export class CreditAccountDbFactory extends EnhancedDatabaseFactory<
             
             invalid: {
                 missingRequired: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     currentBalance: BigInt(1000),
                     // Missing user or team connection
-                } as any,
+                } as Prisma.credit_accountCreateInput,
                 
                 invalidTypes: {
-                    id: "not-a-bigint" as any,
-                    currentBalance: "not-a-number" as any,
+                    id: "not-a-bigint" as unknown as bigint,
+                    currentBalance: "not-a-number" as unknown as bigint,
                     user: { connect: { id: userId } },
-                } as any,
+                } as Prisma.credit_accountCreateInput,
             },
             
             updates: {
@@ -167,7 +167,7 @@ export class CreditAccountDbFactory extends EnhancedDatabaseFactory<
      */
     async createForTeam(teamId: bigint, balance = BigInt(1000), overrides?: Partial<Prisma.credit_accountCreateInput>) {
         const data = {
-            id: generatePK(),
+            id: this.generateId(),
             currentBalance: balance,
             team: { connect: { id: teamId } },
             user: undefined, // Clear user connection

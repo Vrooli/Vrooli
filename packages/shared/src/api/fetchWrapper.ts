@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=2 | LAST: 2025-06-26
 import { HttpStatus } from "../consts/api.js";
 
 export interface FetchWrapperOptions {
@@ -30,10 +31,11 @@ interface CacheEntry {
     error?: Error;
 }
 
-const DEFAULT_OPTIONS: Required<Omit<FetchWrapperOptions, "transformResponse" | "transformError" | "defaultHeaders">> = {
+// Note: shouldRetry is handled separately in fetchWrapper function
+const DEFAULT_OPTIONS = {
     maxRetries: 3,
     retryDelay: 1000,
-    shouldRetry: undefined as any, // Will be set in fetchWrapper
+    shouldRetry: undefined as ((error: Error, attempt: number) => boolean) | undefined,
     timeout: 30000,
 };
 

@@ -18,29 +18,10 @@
  * - Strategy-agnostic conversation handling
  */
 
-import type {
-    BotId,
-    BotParticipant,
-    ChatMessage,
-    ConversationContext,
-    ConversationEngineConfig,
-    ConversationParams,
-    ConversationResult,
-    ConversationTrigger,
-    ExecutionResourceUsage,
-    ExecutionStrategy,
-    ResponseContext,
-    ResponseResult,
-    SwarmId,
-    TurnExecutionParams,
-    TurnExecutionResult,
-    TurnId,
-} from "@vrooli/shared";
+import type { BotId, BotParticipant, ChatMessage, ConversationContext, ConversationEngineConfig, ConversationParams, ConversationResult, ConversationTrigger, ExecutionResourceUsage, ExecutionStrategy, ResponseContext, ResponseResult, SwarmId, TurnExecutionParams, TurnExecutionResult, TurnId } from "@vrooli/shared";
 import { toTurnId } from "@vrooli/shared";
 import { logger } from "../../events/logger.js";
-import type { EventBus } from "../events/eventBus.js";
-import type { SwarmContextManager } from "../execution/shared/SwarmContextManager.js";
-import type { UnifiedSwarmContext } from "../execution/shared/UnifiedSwarmContext.js";
+import type { ISwarmContextManager } from "../execution/shared/SwarmContextManager.js";
 import type { ResponseService } from "../response/responseService.js";
 import { CompositeGraph as UnifiedCompositeGraph, type AgentSelectionResult } from "./agentGraph.js";
 
@@ -50,8 +31,6 @@ import { CompositeGraph as UnifiedCompositeGraph, type AgentSelectionResult } fr
 const DEFAULT_CONFIG: ConversationEngineConfig = {
     maxConcurrentTurns: 5,
     defaultTimeoutMs: 300000, // 5 minutes
-    enableBotSelection: true,
-    enableMetrics: true,
     fallbackBehavior: "most_capable",
 };
 
@@ -68,7 +47,7 @@ export class ConversationEngine {
 
     constructor(
         private readonly responseService: ResponseService,
-        private readonly contextManager: SwarmContextManager,
+        private readonly contextManager: ISwarmContextManager,
         config?: Partial<ConversationEngineConfig>,
     ) {
         this.config = { ...DEFAULT_CONFIG, ...config };
@@ -154,7 +133,8 @@ export class ConversationEngine {
                     botSelection: {
                         requested: params.context.participants.map(p => p.id),
                         selected: selectionResult.responders.map(p => p.id),
-                        selectionStrategy: selectionResult.strategy,
+                        selectionReason: selectionResult.strategy,
+                        fallbackUsed: selectionResult.strategy === "fallback",
                     },
                     turnMetrics: turnResult.turnMetrics,
                 },
@@ -200,10 +180,10 @@ export class ConversationEngine {
      * 
      * Public method to allow SwarmStateMachine to use bot selection logic.
      */
-    public async selectRespondingBots(event: ConversationTrigger, context: UnifiedSwarmContext): Promise<AgentSelectionResult> {
+    public async selectRespondingBots(trigger: ConversationTrigger, context: ConversationContext): Promise<AgentSelectionResult> {
         try {
-            // Get UnifiedSwarmContext from contextManager
-            const swarmId = (context as unknown as ConversationContext).swarmId;
+            // Get SwarmState from contextManager
+            const swarmId = context.swarmId;
             const unifiedContext = await this.contextManager.getContext(swarmId);
 
             if (!unifiedContext) {
@@ -217,7 +197,7 @@ export class ConversationEngine {
             // Use UnifiedAgentGraph for selection
             const selectionResult = await this.agentGraph.selectResponders(
                 unifiedContext,
-                event,
+                trigger,
             );
 
             return selectionResult;
@@ -298,7 +278,7 @@ export class ConversationEngine {
         totalResourcesUsed: ExecutionResourceUsage,
     ): Promise<void> {
         const responsePromises = params.participants.map(async (participant) => {
-            const responseContext = this.createResponseContext(participant, params);
+            const responseContext = await this.createResponseContext(participant, params);
             const result = await this.responseService.generateResponse({
                 context: responseContext,
                 abortSignal: undefined,
@@ -337,7 +317,7 @@ export class ConversationEngine {
         totalResourcesUsed: ExecutionResourceUsage,
     ): Promise<void> {
         for (const participant of params.participants) {
-            const responseContext = this.createResponseContext(participant, params, messages);
+            const responseContext = await this.createResponseContext(participant, params, messages);
             const result = await this.responseService.generateResponse({
                 context: responseContext,
                 abortSignal: undefined,
@@ -362,23 +342,25 @@ export class ConversationEngine {
      * Create ResponseContext for a specific bot participant
      * This is the zero-transformation delegation to ResponseService
      */
-    private createResponseContext(
+    private async createResponseContext(
         participant: BotParticipant,
         params: TurnExecutionParams,
         additionalMessages: ChatMessage[] = [],
-    ): ResponseContext {
+    ): Promise<ResponseContext> {
         // Build complete conversation history including new messages from this turn
         const fullConversationHistory = [
             ...params.context.conversationHistory,
             ...additionalMessages,
         ];
 
+        // Get comprehensive SwarmState from contextManager
+        const swarmState = await this.contextManager.getContext(params.context.swarmId) || undefined;
+
         return {
             swarmId: params.context.swarmId,
             userData: params.context.userData,
             timestamp: new Date(),
-            botId: participant.id,
-            botConfig: participant.config,
+            bot: participant,
             conversationHistory: fullConversationHistory,
             availableTools: params.context.availableTools,
             strategy: params.strategy,
@@ -388,6 +370,7 @@ export class ConversationEngine {
                 timeoutMs: this.config.defaultTimeoutMs,
                 maxCredits: "2000", // Default credit limit per bot response
             },
+            swarmState,
         };
     }
 
@@ -489,12 +472,11 @@ export class ConversationEngine {
                 success: result?.success ?? false,
                 message: result?.success ? result.message : undefined,
                 updatedState: {
-                    isProcessing: false,
-                    isWaiting: false,
-                    hasResponded: result?.success ?? false,
-                    error: result?.error?.message,
-                    lastActive: new Date(),
-                },
+                    ...participant,
+                    // Update state based on result - if bot responded successfully, it's ready for more
+                    // If it failed, mark as unavailable
+                    state: result?.success ? "ready" : (result?.error ? "unavailable" : participant.state),
+                } as BotParticipant,
                 resourcesUsed: result?.resourcesUsed ?? {
                     creditsUsed: "0",
                     durationMs: 0,
@@ -548,17 +530,5 @@ export class ConversationEngine {
                 errorMessage: error.message,
             },
         };
-    }
-
-    /**
-     * Factory method to create ConversationEngine with proper dependencies
-     */
-    static create(
-        responseService: ResponseService,
-        contextManager: SwarmContextManager,
-        _eventBus: EventBus, // Kept for interface compatibility, not used
-        config?: Partial<ConversationEngineConfig>,
-    ): ConversationEngine {
-        return new ConversationEngine(responseService, contextManager, config);
     }
 }

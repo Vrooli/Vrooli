@@ -1,14 +1,12 @@
 import Box from "@mui/material/Box";
-import { useTheme } from "@mui/material";
 import { type TranslationKeyCommon } from "@vrooli/shared";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type IconInfo } from "../../../icons/Icons.js";
 import { CardGrid } from "../../lists/CardGrid/CardGrid.js";
 import { TIDCard } from "../../lists/TIDCard/TIDCard.js";
-import { TopBar } from "../../navigation/TopBar.js";
 import { Title } from "../../text/Title.js";
-import { LargeDialog } from "../LargeDialog/LargeDialog.js";
+import { Dialog, DialogContent } from "../Dialog/Dialog.js";
 import { type SubroutineCreateDialogProps } from "../types.js";
 
 type SubroutineType = "Api" | "Code" | "Data" | "Generate" | "Prompt" | "SmartContract" | "WebContent";
@@ -68,9 +66,7 @@ export function SubroutineCreateDialog({
     isOpen,
     onClose,
 }: SubroutineCreateDialogProps) {
-    const { palette } = useTheme();
     const { t } = useTranslation();
-    const display = "Dialog";
 
     const [selectedType, setSelectedType] = useState<SubroutineType | null>(null);
     const [page, setPage] = useState<"select" | "create">("select");
@@ -94,61 +90,40 @@ export function SubroutineCreateDialog({
     }, [selectedType]);
 
     return (
-        <LargeDialog
-            id="subroutine-select-dialog"
-            onClose={onClose}
+        <Dialog
             isOpen={isOpen}
-            titleId={""}
-            sxs={{ paper: { width: "min(100%, 1200px)" } }}
+            onClose={onClose}
+            title={t("CreateSubroutine")}
+            size="xl"
         >
-            <TopBar
-                display={display}
-                onClose={onClose}
-            // startComponent={selectedType ? <IconButton
-            //     aria-label={t("Back")}
-            //     onClick={restart}
-            //     sx={{
-            //         width: "48px",
-            //         height: "48px",
-            //         marginLeft: 1,
-            //         marginRight: 1,
-            //         cursor: "pointer",
-            //     }}
-            // >
-            //     <IconCommon
-            //         decorative
-            //         fill={palette.primary.contrastText}
-            //         name="ArrowLeft"
-            //     />
-            // </IconButton> : undefined}
-            // title={t("CreateSubroutine")}
-            />
-            {selectedForm}
-            {!selectedForm && <Box p={2} display="flex" flexDirection="column" gap={2}>
-                <Title
-                    title={t("SelectSubroutineType")}
-                    variant="subheader"
-                />
-                <CardGrid minWidth={300} disableMargin>
-                    {subroutineTypes.map(({ objectType, description, iconInfo, id }, index) => {
-                        function handleClick() {
-                            setSelectedType(objectType);
-                        }
+            <DialogContent>
+                {selectedForm}
+                {!selectedForm && <Box display="flex" flexDirection="column" gap={2}>
+                    <Title
+                        title={t("SelectSubroutineType")}
+                        variant="subheader"
+                    />
+                    <CardGrid minWidth={300} disableMargin>
+                        {subroutineTypes.map(({ objectType, description, iconInfo, id }, index) => {
+                            function handleClick() {
+                                setSelectedType(objectType);
+                            }
 
-                        return (
-                            <TIDCard
-                                buttonText={t("Create")}
-                                description={description}
-                                iconInfo={iconInfo}
-                                id={id}
-                                key={index}
-                                onClick={handleClick}
-                                title={t(objectType, { count: 1, defaultValue: objectType })}
-                            />
-                        );
-                    })}
-                </CardGrid>
-            </Box>}
-        </LargeDialog>
+                            return (
+                                <TIDCard
+                                    buttonText={t("Create")}
+                                    description={description}
+                                    iconInfo={iconInfo}
+                                    id={id}
+                                    key={index}
+                                    onClick={handleClick}
+                                    title={t(objectType, { count: 1, defaultValue: objectType })}
+                                />
+                            );
+                        })}
+                    </CardGrid>
+                </Box>}
+            </DialogContent>
+        </Dialog>
     );
 }

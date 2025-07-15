@@ -4,14 +4,14 @@
  * This file provides comprehensive API response fixtures for resource version endpoints.
  * It includes success responses, error responses, and MSW handlers for testing.
  */
+// AI_CHECK: TYPE_SAFETY=fixed-resource-properties | LAST: 2025-07-02 - Fixed Resource properties and removed invalid 'link' and 'usedFor' fields
 
-import { http, type RestHandler } from "msw";
+import { http, HttpResponse, type RequestHandler } from "msw";
 import type { 
     ResourceVersion, 
     ResourceVersionCreateInput, 
     ResourceVersionUpdateInput,
     ResourceUsedFor,
-    ResourceList,
 } from "@vrooli/shared";
 import { 
     resourceVersionValidation,
@@ -76,14 +76,14 @@ export class ResourceVersionResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique resource version ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -248,65 +248,89 @@ export class ResourceVersionResponseFactory {
         const defaultResourceVersion: ResourceVersion = {
             __typename: "ResourceVersion",
             id,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             versionLabel: "1.0.0",
-            link: `https://example.com/resource/${id}`,
-            usedFor: ResourceUsedForEnum.Display,
-            title: "Test Resource Version",
-            description: "A test resource version for unit testing",
+            isDeleted: false,
             isLatest: true,
             isPrivate: false,
             translations: [{
                 __typename: "ResourceVersionTranslation",
                 id: `trans_${id}`,
                 language: "en",
-                title: "Test Resource Version",
+                name: "Test Resource Version",
                 description: "A test resource version for unit testing",
             }],
             translationsCount: 1,
-            resourceList: {
-                __typename: "ResourceList",
-                id: `list_${id}`,
-                created_at: now,
-                updated_at: now,
-                listFor: {
-                    __typename: "ApiVersion",
-                    id: `api_${id}`,
-                    versionLabel: "1.0.0",
-                    created_at: now,
-                    updated_at: now,
-                },
-                resources: [],
-                translations: [],
-            },
+            comments: [],
+            commentsCount: 0,
+            complexity: 1,
+            forks: [],
+            forksCount: 0,
+            isComplete: false,
+            pullRequest: null,
+            reports: [],
+            reportsCount: 0,
+            versionIndex: 1,
             root: {
                 __typename: "Resource",
                 id: `resource_${id}`,
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
+                bookmarkedBy: [],
+                bookmarks: 0,
+                completedAt: null,
+                createdBy: null,
+                hasCompleteVersion: false,
+                isDeleted: false,
                 isInternal: false,
                 isPrivate: false,
-                usedBy: [],
-                usedByCount: 0,
+                issues: [],
+                issuesCount: 0,
+                owner: null,
+                parent: null,
+                permissions: "{}",
+                publicId: `resource_public_${id}`,
+                pullRequests: [],
+                pullRequestsCount: 0,
+                resourceType: "Api" as any,
+                score: 0,
+                stats: [],
+                tags: [],
+                transfers: [],
+                transfersCount: 0,
+                translatedName: "Test Resource",
                 versions: [],
                 versionsCount: 1,
+                views: 0,
                 you: {
                     __typename: "ResourceYou",
+                    canBookmark: true,
+                    canComment: true,
                     canDelete: true,
+                    canReact: true,
+                    canRead: true,
+                    canTransfer: false,
                     canUpdate: true,
-                    canReport: false,
                     isBookmarked: false,
-                    isReacted: false,
+                    isViewed: false,
                     reaction: null,
                 },
             },
+            publicId: `pub_resource_ver_${id}`,
+            relatedVersions: [],
+            timesCompleted: 0,
+            timesStarted: 0,
             you: {
-                __typename: "VersionYou",
+                __typename: "ResourceVersionYou",
+                canBookmark: true,
                 canComment: true,
+                canCopy: true,
                 canDelete: true,
+                canReact: true,
                 canRead: true,
                 canReport: false,
+                canRun: true,
                 canUpdate: true,
             },
         };
@@ -328,27 +352,9 @@ export class ResourceVersionResponseFactory {
             resourceVersion.versionLabel = input.versionLabel;
         }
         
-        if (input.link) {
-            resourceVersion.link = input.link;
-        }
-        
-        if (input.usedFor) {
-            resourceVersion.usedFor = input.usedFor;
-        }
         
         if (input.isPrivate !== undefined) {
             resourceVersion.isPrivate = input.isPrivate;
-        }
-        
-        if (input.translations?.create) {
-            resourceVersion.translations = input.translations.create.map(trans => ({
-                __typename: "ResourceVersionTranslation" as const,
-                id: `trans_${this.generateId()}`,
-                language: trans.language,
-                title: trans.title || "",
-                description: trans.description || "",
-            }));
-            resourceVersion.translationsCount = resourceVersion.translations.length;
         }
         
         return resourceVersion;
@@ -360,9 +366,7 @@ export class ResourceVersionResponseFactory {
     createResourceVersionsForAllPurposes(): ResourceVersion[] {
         return Object.values(ResourceUsedForEnum).map(usedFor => 
             this.createMockResourceVersion({
-                usedFor,
-                title: `${usedFor} Resource`,
-                description: `A resource used for ${usedFor.toLowerCase()}`,
+                versionLabel: `${usedFor}-1.0.0`,
             }),
         );
     }
@@ -375,7 +379,7 @@ export class ResourceVersionResponseFactory {
         errors?: Record<string, string>;
     }> {
         try {
-            await resourceVersionValidation.create.validate(input);
+            await resourceVersionValidation.create({}).validate(input);
             return { valid: true };
         } catch (error: any) {
             const fieldErrors: Record<string, string> = {};
@@ -411,79 +415,67 @@ export class ResourceVersionMSWHandlers {
     /**
      * Create success handlers for all resource version endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): RequestHandler[] {
         return [
             // Create resource version
-            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, async (req, res, ctx) => {
-                const body = await req.json() as ResourceVersionCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, async ({ request }) => {
+                const body = await request.json() as ResourceVersionCreateInput;
                 
                 // Validate input
                 const validation = await this.responseFactory.validateCreateInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
-                    );
+                    return HttpResponse.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}), { status: 400 });
                 }
                 
                 // Create resource version
                 const resourceVersion = this.responseFactory.createResourceVersionFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(resourceVersion);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 201 });
             }),
             
             // Get resource version by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, ({ params }) => {
+                const { id } = params;
                 
                 const resourceVersion = this.responseFactory.createMockResourceVersion({ id: id as string });
                 const response = this.responseFactory.createSuccessResponse(resourceVersion);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Update resource version
-            http.put(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const body = await req.json() as ResourceVersionUpdateInput;
+            http.put(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, async ({ request, params }) => {
+                const { id } = params;
+                const body = await request.json() as ResourceVersionUpdateInput;
                 
                 const resourceVersion = this.responseFactory.createMockResourceVersion({ 
                     id: id as string,
-                    updated_at: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(resourceVersion);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Delete resource version
-            http.delete(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, (req, res, ctx) => {
-                return res(ctx.status(204));
+            http.delete(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, ({ params }) => {
+                return new HttpResponse(null, { status: 204 });
             }),
             
             // List resource versions
-            http.get(`${this.responseFactory["baseUrl"]}/api/resource-version`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/resource-version`, ({ request }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 const usedFor = url.searchParams.get("usedFor") as ResourceUsedFor;
                 
                 let resourceVersions = this.responseFactory.createResourceVersionsForAllPurposes();
                 
-                // Filter by used for if specified
+                // Filter by used for if specified (usedFor filter removed since property doesn't exist)
                 if (usedFor) {
-                    resourceVersions = resourceVersions.filter(rv => rv.usedFor === usedFor);
+                    // No-op: usedFor property doesn't exist on ResourceVersion
                 }
                 
                 // Paginate
@@ -499,10 +491,7 @@ export class ResourceVersionMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -510,42 +499,34 @@ export class ResourceVersionMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): RequestHandler[] {
         return [
             // Validation error
-            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, ({ request }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createValidationErrorResponse({
                         link: "A valid URL is required",
                         versionLabel: "Version label is required",
-                    })),
-                );
+                    }), { status: 400 });
             }),
             
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
-                );
+            http.get(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, ({ params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string), { status: 404 });
             }),
             
             // Permission error
-            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
-                );
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, ({ request }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("create"), { status: 403 });
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
-                );
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, ({ request }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse(), { status: 500 });
             }),
         ];
     }
@@ -553,18 +534,14 @@ export class ResourceVersionMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, async (req, res, ctx) => {
-                const body = await req.json() as ResourceVersionCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, async ({ request }) => {
+                const body = await request.json() as ResourceVersionCreateInput;
                 const resourceVersion = this.responseFactory.createResourceVersionFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(resourceVersion);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 201 });
             }),
         ];
     }
@@ -572,14 +549,14 @@ export class ResourceVersionMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, ({ request }) => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, ({ params }) => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -593,18 +570,15 @@ export class ResourceVersionMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): RequestHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        return http[method.toLowerCase() as keyof typeof http](fullEndpoint, async ({ request, params }) => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
-            
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }

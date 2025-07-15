@@ -67,7 +67,7 @@ export const pushDevice: EndpointsPushDevice = createStandardCrudEndpoints({
                 throw new CustomError("0588", "Unauthorized");
             }
             const { Notify } = await import("../../notify/notify.js");
-            const success = await Notify(userData.languages).testPushDevice(requestedDevice, userData);
+            const success = await Notify(userData.languages).testPushDevice(requestedDevice.id.toString(), userData.id);
             return success;
         },
     },

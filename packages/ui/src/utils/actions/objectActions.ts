@@ -1,4 +1,4 @@
-import { BookmarkFor, CommentFor, CopyType, DeleteType, ReactionFor, ReportFor, getReactionScore, type Bookmark, type CopyResult, type ListObject, type Session, type Success, type TranslationKeyCommon } from "@vrooli/shared";
+import { BookmarkFor, CommentFor, CopyType, DeleteType, ReactionFor, ReportFor, getReactionScore, type Bookmark, type Comment, type CopyResult, type ListObject, type Report, type Session, type Success, type TranslationKeyCommon } from "@vrooli/shared";
 import { type ListMenuItemData } from "../../components/dialogs/types.js";
 import { type IconInfo } from "../../icons/Icons.js";
 import { checkIfLoggedIn } from "../../utils/authentication/session.js";
@@ -30,6 +30,7 @@ export enum ObjectAction {
 export enum ObjectActionComplete {
     Bookmark = "Bookmark",
     BookmarkUndo = "BookmarkUndo",
+    Comment = "Comment",
     Delete = "Delete",
     EditComplete = "EditComplete",
     EditCancel = "EditCanel",
@@ -60,11 +61,13 @@ export interface ActionStartPayloads {
 export interface ActionCompletePayloads {
     Bookmark: Bookmark;
     BookmarkUndo: Success;
+    Comment: Comment;
     Delete: Success;
     EditComplete: unknown; // Not used yet
     EditCancel: unknown; // Not used yet
     Fork: CopyResult;
-    Report: unknown; // Not used yet
+    Report: Report;
+    Share: Success;
     VoteDown: Success;
     VoteUp: Success;
 }

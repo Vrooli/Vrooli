@@ -5,17 +5,11 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { http, type RestHandler } from "msw";
-import type { 
-    RunRoutineInput,
-    RunRoutineOutput,
-    RunRoutineInputCreateInput,
-    RunRoutineOutputCreateInput,
-    RunRoutineInputUpdateInput,
-    RunRoutineOutputUpdateInput,
-} from "@vrooli/shared";
+import { http, HttpResponse, type RequestHandler } from "msw";
 import { 
-    runIOValidation, 
+    type RunIO,
+    type RunIOCreateInput,
+    type RunIOUpdateInput,
 } from "@vrooli/shared";
 
 /**
@@ -76,20 +70,20 @@ export class RunIOResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique run IO ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Create successful run input response
      */
-    createInputSuccessResponse(input: RunRoutineInput): APIResponse<RunRoutineInput> {
+    createInputSuccessResponse(input: RunIO): APIResponse<RunIO> {
         return {
             data: input,
             meta: {
@@ -99,8 +93,8 @@ export class RunIOResponseFactory {
                 links: {
                     self: `${this.baseUrl}/api/run-input/${input.id}`,
                     related: {
-                        run: `${this.baseUrl}/api/run/${input.runRoutine?.id}`,
-                        input: input.input?.id ? `${this.baseUrl}/api/routine-input/${input.input.id}` : undefined,
+                        run: `${this.baseUrl}/api/run/${input.run.id}`,
+                        node: `${this.baseUrl}/api/node/${input.nodeName}`,
                     },
                 },
             },
@@ -110,7 +104,7 @@ export class RunIOResponseFactory {
     /**
      * Create successful run output response
      */
-    createOutputSuccessResponse(output: RunRoutineOutput): APIResponse<RunRoutineOutput> {
+    createOutputSuccessResponse(output: RunIO): APIResponse<RunIO> {
         return {
             data: output,
             meta: {
@@ -120,8 +114,8 @@ export class RunIOResponseFactory {
                 links: {
                     self: `${this.baseUrl}/api/run-output/${output.id}`,
                     related: {
-                        run: `${this.baseUrl}/api/run/${output.runRoutine?.id}`,
-                        output: output.output?.id ? `${this.baseUrl}/api/routine-output/${output.output.id}` : undefined,
+                        run: `${this.baseUrl}/api/run/${output.run.id}`,
+                        node: `${this.baseUrl}/api/node/${output.nodeName}`,
                     },
                 },
             },
@@ -131,11 +125,11 @@ export class RunIOResponseFactory {
     /**
      * Create run input list response
      */
-    createInputListResponse(inputs: RunRoutineInput[], pagination?: {
+    createInputListResponse(inputs: RunIO[], pagination?: {
         page: number;
         pageSize: number;
         totalCount: number;
-    }): PaginatedAPIResponse<RunRoutineInput> {
+    }): PaginatedAPIResponse<RunIO> {
         const paginationData = pagination || {
             page: 1,
             pageSize: inputs.length,
@@ -164,11 +158,11 @@ export class RunIOResponseFactory {
     /**
      * Create run output list response
      */
-    createOutputListResponse(outputs: RunRoutineOutput[], pagination?: {
+    createOutputListResponse(outputs: RunIO[], pagination?: {
         page: number;
         pageSize: number;
         totalCount: number;
-    }): PaginatedAPIResponse<RunRoutineOutput> {
+    }): PaginatedAPIResponse<RunIO> {
         const paginationData = pagination || {
             page: 1,
             pageSize: outputs.length,
@@ -295,44 +289,43 @@ export class RunIOResponseFactory {
     /**
      * Create mock run input data
      */
-    createMockRunInput(overrides?: Partial<RunRoutineInput>): RunRoutineInput {
+    createMockRunInput(overrides?: Partial<RunIO>): RunIO {
         const now = new Date().toISOString();
         const id = this.generateId();
         
-        const defaultInput: RunRoutineInput = {
-            __typename: "RunRoutineInput",
+        const defaultInput: RunIO = {
+            __typename: "RunIO",
             id,
             data: JSON.stringify({
                 value: "test input value",
                 type: "string",
             }),
-            input: {
-                __typename: "RoutineVersionInput",
-                id: `input_${id}`,
-                index: 0,
-                isRequired: true,
-                name: "testInput",
-                translations: [{
-                    __typename: "RoutineVersionInputTranslation",
-                    id: `trans_${id}`,
-                    language: "en",
-                    description: "Test input for the routine",
-                    helpText: "Enter a test value",
-                }],
-            },
-            runRoutine: {
-                __typename: "RunRoutine",
+            nodeInputName: "testInput",
+            nodeName: "TestNode",
+            run: {
+                __typename: "Run",
                 id: `run_${id}`,
+                createdAt: now,
+                updatedAt: now,
                 completedAt: null,
                 startedAt: now,
-                isPrivate: false,
+                status: "InProgress",
                 timeElapsed: 0,
-                title: "Test Run",
-                runProject: null,
+                name: "Test Run",
+                contextSwitches: 0,
                 steps: [],
                 inputs: [],
-                outputs: [],
-            },
+                lastStep: null,
+                runProject: null,
+                runRoutine: null,
+                user: null,
+                you: {
+                    __typename: "RunYou",
+                    canDelete: true,
+                    canUpdate: true,
+                    canRead: true,
+                },
+            } as any,
         };
         
         return {
@@ -344,43 +337,43 @@ export class RunIOResponseFactory {
     /**
      * Create mock run output data
      */
-    createMockRunOutput(overrides?: Partial<RunRoutineOutput>): RunRoutineOutput {
+    createMockRunOutput(overrides?: Partial<RunIO>): RunIO {
         const now = new Date().toISOString();
         const id = this.generateId();
         
-        const defaultOutput: RunRoutineOutput = {
-            __typename: "RunRoutineOutput",
+        const defaultOutput: RunIO = {
+            __typename: "RunIO",
             id,
             data: JSON.stringify({
                 result: "test output value",
                 type: "string",
             }),
-            output: {
-                __typename: "RoutineVersionOutput",
-                id: `output_${id}`,
-                index: 0,
-                name: "testOutput",
-                translations: [{
-                    __typename: "RoutineVersionOutputTranslation",
-                    id: `trans_${id}`,
-                    language: "en",
-                    description: "Test output from the routine",
-                    helpText: "This is the result",
-                }],
-            },
-            runRoutine: {
-                __typename: "RunRoutine",
+            nodeInputName: "testOutput",
+            nodeName: "TestNode",
+            run: {
+                __typename: "Run",
                 id: `run_${id}`,
+                createdAt: new Date(Date.now() - 3600000).toISOString(),
+                updatedAt: now,
                 completedAt: now,
                 startedAt: new Date(Date.now() - 3600000).toISOString(),
-                isPrivate: false,
+                status: "Completed",
                 timeElapsed: 3600,
-                title: "Test Run",
-                runProject: null,
+                name: "Test Run",
+                contextSwitches: 2,
                 steps: [],
                 inputs: [],
-                outputs: [],
-            },
+                lastStep: null,
+                runProject: null,
+                runRoutine: null,
+                user: null,
+                you: {
+                    __typename: "RunYou",
+                    canDelete: true,
+                    canUpdate: false,
+                    canRead: true,
+                },
+            } as any,
         };
         
         return {
@@ -392,7 +385,7 @@ export class RunIOResponseFactory {
     /**
      * Create run input from API input
      */
-    createRunInputFromInput(input: RunRoutineInputCreateInput): RunRoutineInput {
+    createRunInputFromInput(input: RunIOCreateInput): RunIO {
         const runInput = this.createMockRunInput();
         
         // Update run input based on input
@@ -400,12 +393,12 @@ export class RunIOResponseFactory {
             runInput.data = input.data;
         }
         
-        if (input.inputConnect) {
-            runInput.input.id = input.inputConnect;
+        if (input.nodeInputName) {
+            runInput.nodeInputName = input.nodeInputName;
         }
         
-        if (input.runRoutineConnect) {
-            runInput.runRoutine.id = input.runRoutineConnect;
+        if (input.runConnect) {
+            runInput.run.id = input.runConnect;
         }
         
         return runInput;
@@ -414,7 +407,7 @@ export class RunIOResponseFactory {
     /**
      * Create run output from API input
      */
-    createRunOutputFromInput(input: RunRoutineOutputCreateInput): RunRoutineOutput {
+    createRunOutputFromInput(input: RunIOCreateInput): RunIO {
         const runOutput = this.createMockRunOutput();
         
         // Update run output based on input
@@ -422,12 +415,12 @@ export class RunIOResponseFactory {
             runOutput.data = input.data;
         }
         
-        if (input.outputConnect) {
-            runOutput.output.id = input.outputConnect;
+        if (input.nodeInputName) {
+            runOutput.nodeInputName = input.nodeInputName;
         }
         
-        if (input.runRoutineConnect) {
-            runOutput.runRoutine.id = input.runRoutineConnect;
+        if (input.runConnect) {
+            runOutput.run.id = input.runConnect;
         }
         
         return runOutput;
@@ -436,15 +429,12 @@ export class RunIOResponseFactory {
     /**
      * Create multiple run inputs
      */
-    createMultipleRunInputs(count = 5): RunRoutineInput[] {
+    createMultipleRunInputs(count = 5): RunIO[] {
         return Array.from({ length: count }, (_, index) => 
             this.createMockRunInput({
                 id: `input_${index}_${this.generateId()}`,
-                input: {
-                    ...this.createMockRunInput().input,
-                    index,
-                    name: `input${index + 1}`,
-                },
+                nodeInputName: `input${index + 1}`,
+                nodeName: `Node${index + 1}`,
             }),
         );
     }
@@ -452,15 +442,12 @@ export class RunIOResponseFactory {
     /**
      * Create multiple run outputs
      */
-    createMultipleRunOutputs(count = 5): RunRoutineOutput[] {
+    createMultipleRunOutputs(count = 5): RunIO[] {
         return Array.from({ length: count }, (_, index) => 
             this.createMockRunOutput({
                 id: `output_${index}_${this.generateId()}`,
-                output: {
-                    ...this.createMockRunOutput().output,
-                    index,
-                    name: `output${index + 1}`,
-                },
+                nodeInputName: `output${index + 1}`,
+                nodeName: `Node${index + 1}`,
             }),
         );
     }
@@ -468,12 +455,12 @@ export class RunIOResponseFactory {
     /**
      * Validate run input create input
      */
-    async validateInputCreateInput(input: RunRoutineInputCreateInput): Promise<{
+    async validateInputCreateInput(input: RunIOCreateInput): Promise<{
         valid: boolean;
         errors?: Record<string, string>;
     }> {
         try {
-            await runIOValidation.runRoutineInputCreate.validate(input);
+            // Validation would be done here
             return { valid: true };
         } catch (error: any) {
             const fieldErrors: Record<string, string> = {};
@@ -498,12 +485,12 @@ export class RunIOResponseFactory {
     /**
      * Validate run output create input
      */
-    async validateOutputCreateInput(input: RunRoutineOutputCreateInput): Promise<{
+    async validateOutputCreateInput(input: RunIOCreateInput): Promise<{
         valid: boolean;
         errors?: Record<string, string>;
     }> {
         try {
-            await runIOValidation.runRoutineOutputCreate.validate(input);
+            // Validation would be done here
             return { valid: true };
         } catch (error: any) {
             const fieldErrors: Record<string, string> = {};
@@ -539,18 +526,18 @@ export class RunIOMSWHandlers {
     /**
      * Create success handlers for all run IO endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): RequestHandler[] {
         return [
             // Create run input
-            http.post(`${this.responseFactory["baseUrl"]}/api/run-input`, async (req, res, ctx) => {
-                const body = await req.json() as RunRoutineInputCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/run-input`, async ({ request, params }) => {
+                const body = await request.json() as RunIOCreateInput;
                 
                 // Validate input
                 const validation = await this.responseFactory.validateInputCreateInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
+                    return HttpResponse.json(
+                        this.responseFactory.createValidationErrorResponse(validation.errors || {}),
+                        { status: 400 }
                     );
                 }
                 
@@ -558,22 +545,19 @@ export class RunIOMSWHandlers {
                 const runInput = this.responseFactory.createRunInputFromInput(body);
                 const response = this.responseFactory.createInputSuccessResponse(runInput);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 201 });
             }),
             
             // Create run output
-            http.post(`${this.responseFactory["baseUrl"]}/api/run-output`, async (req, res, ctx) => {
-                const body = await req.json() as RunRoutineOutputCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/run-output`, async ({ request, params }) => {
+                const body = await request.json() as RunIOCreateInput;
                 
                 // Validate input
                 const validation = await this.responseFactory.validateOutputCreateInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
+                    return HttpResponse.json(
+                        this.responseFactory.createValidationErrorResponse(validation.errors || {}),
+                        { status: 400 }
                     );
                 }
                 
@@ -581,42 +565,33 @@ export class RunIOMSWHandlers {
                 const runOutput = this.responseFactory.createRunOutputFromInput(body);
                 const response = this.responseFactory.createOutputSuccessResponse(runOutput);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 201 });
             }),
             
             // Get run input by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/run-input/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/run-input/:id`, ({ request, params }) => {
+                const { id } = params;
                 
                 const runInput = this.responseFactory.createMockRunInput({ id: id as string });
                 const response = this.responseFactory.createInputSuccessResponse(runInput);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Get run output by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/run-output/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/run-output/:id`, ({ request, params }) => {
+                const { id } = params;
                 
                 const runOutput = this.responseFactory.createMockRunOutput({ id: id as string });
                 const response = this.responseFactory.createOutputSuccessResponse(runOutput);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Update run input
-            http.put(`${this.responseFactory["baseUrl"]}/api/run-input/:id`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const body = await req.json() as RunRoutineInputUpdateInput;
+            http.put(`${this.responseFactory["baseUrl"]}/api/run-input/:id`, async ({ request, params }) => {
+                const { id } = params;
+                const body = await request.json() as RunIOUpdateInput;
                 
                 const runInput = this.responseFactory.createMockRunInput({ 
                     id: id as string,
@@ -625,16 +600,13 @@ export class RunIOMSWHandlers {
                 
                 const response = this.responseFactory.createInputSuccessResponse(runInput);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Update run output
-            http.put(`${this.responseFactory["baseUrl"]}/api/run-output/:id`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const body = await req.json() as RunRoutineOutputUpdateInput;
+            http.put(`${this.responseFactory["baseUrl"]}/api/run-output/:id`, async ({ request, params }) => {
+                const { id } = params;
+                const body = await request.json() as RunIOUpdateInput;
                 
                 const runOutput = this.responseFactory.createMockRunOutput({ 
                     id: id as string,
@@ -643,25 +615,22 @@ export class RunIOMSWHandlers {
                 
                 const response = this.responseFactory.createOutputSuccessResponse(runOutput);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Delete run input
-            http.delete(`${this.responseFactory["baseUrl"]}/api/run-input/:id`, (req, res, ctx) => {
-                return res(ctx.status(204));
+            http.delete(`${this.responseFactory["baseUrl"]}/api/run-input/:id`, ({ request, params }) => {
+                return new HttpResponse(null, { status: 204 });
             }),
             
             // Delete run output
-            http.delete(`${this.responseFactory["baseUrl"]}/api/run-output/:id`, (req, res, ctx) => {
-                return res(ctx.status(204));
+            http.delete(`${this.responseFactory["baseUrl"]}/api/run-output/:id`, ({ request, params }) => {
+                return new HttpResponse(null, { status: 204 });
             }),
             
             // List run inputs
-            http.get(`${this.responseFactory["baseUrl"]}/api/run-input`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/run-input`, ({ request, params }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 const runId = url.searchParams.get("runId");
@@ -670,7 +639,7 @@ export class RunIOMSWHandlers {
                 
                 // Filter by run ID if specified
                 if (runId) {
-                    inputs = inputs.filter(i => i.runRoutine.id === runId);
+                    inputs = inputs.filter(i => i.run.id === runId);
                 }
                 
                 // Paginate
@@ -686,15 +655,12 @@ export class RunIOMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // List run outputs
-            http.get(`${this.responseFactory["baseUrl"]}/api/run-output`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/run-output`, ({ request, params }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 const runId = url.searchParams.get("runId");
@@ -703,7 +669,7 @@ export class RunIOMSWHandlers {
                 
                 // Filter by run ID if specified
                 if (runId) {
-                    outputs = outputs.filter(o => o.runRoutine.id === runId);
+                    outputs = outputs.filter(o => o.run.id === runId);
                 }
                 
                 // Paginate
@@ -719,10 +685,7 @@ export class RunIOMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -730,61 +693,61 @@ export class RunIOMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): RequestHandler[] {
         return [
             // Validation error for input
-            http.post(`${this.responseFactory["baseUrl"]}/api/run-input`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
+            http.post(`${this.responseFactory["baseUrl"]}/api/run-input`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createValidationErrorResponse({
                         data: "Input data is required",
-                        inputConnect: "Input reference is required",
-                    })),
+                        nodeInputName: "Node input name is required",
+                    }),
+                    { status: 400 }
                 );
             }),
             
             // Validation error for output
-            http.post(`${this.responseFactory["baseUrl"]}/api/run-output`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
+            http.post(`${this.responseFactory["baseUrl"]}/api/run-output`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createValidationErrorResponse({
                         data: "Output data is required",
-                        outputConnect: "Output reference is required",
-                    })),
+                        nodeInputName: "Node input name is required",
+                    }),
+                    { status: 400 }
                 );
             }),
             
             // Not found error for input
-            http.get(`${this.responseFactory["baseUrl"]}/api/run-input/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse("input", id as string)),
+            http.get(`${this.responseFactory["baseUrl"]}/api/run-input/:id`, ({ request, params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse("input", id as string),
+                    { status: 404 }
                 );
             }),
             
             // Not found error for output
-            http.get(`${this.responseFactory["baseUrl"]}/api/run-output/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse("output", id as string)),
+            http.get(`${this.responseFactory["baseUrl"]}/api/run-output/:id`, ({ request, params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse("output", id as string),
+                    { status: 404 }
                 );
             }),
             
             // Permission error
-            http.post(`${this.responseFactory["baseUrl"]}/api/run-input`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/run-input`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("create"),
+                    { status: 403 }
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/run-output`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/run-output`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse(),
+                    { status: 500 }
                 );
             }),
         ];
@@ -793,30 +756,24 @@ export class RunIOMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/run-input`, async (req, res, ctx) => {
-                const body = await req.json() as RunRoutineInputCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/run-input`, async ({ request, params }) => {
+                const body = await request.json() as RunIOCreateInput;
                 const runInput = this.responseFactory.createRunInputFromInput(body);
                 const response = this.responseFactory.createInputSuccessResponse(runInput);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return HttpResponse.json(response, { status: 201 });
             }),
             
-            http.post(`${this.responseFactory["baseUrl"]}/api/run-output`, async (req, res, ctx) => {
-                const body = await req.json() as RunRoutineOutputCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/run-output`, async ({ request, params }) => {
+                const body = await request.json() as RunIOCreateInput;
                 const runOutput = this.responseFactory.createRunOutputFromInput(body);
                 const response = this.responseFactory.createOutputSuccessResponse(runOutput);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return HttpResponse.json(response, { status: 201 });
             }),
         ];
     }
@@ -824,22 +781,22 @@ export class RunIOMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/run-input`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/run-input`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/run-input/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/run-input/:id`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
             
-            http.post(`${this.responseFactory["baseUrl"]}/api/run-output`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/run-output`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/run-output/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/run-output/:id`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -853,18 +810,16 @@ export class RunIOMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): RequestHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        const httpMethod = http[method.toLowerCase() as keyof typeof http] as any;
+        return httpMethod(fullEndpoint, async ({ request, params }) => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
-            
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }
@@ -874,28 +829,28 @@ export class RunIOMSWHandlers {
  */
 export const runIOResponseScenarios = {
     // Success scenarios
-    createInputSuccess: (input?: RunRoutineInput) => {
+    createInputSuccess: (input?: RunIO) => {
         const factory = new RunIOResponseFactory();
         return factory.createInputSuccessResponse(
             input || factory.createMockRunInput(),
         );
     },
     
-    createOutputSuccess: (output?: RunRoutineOutput) => {
+    createOutputSuccess: (output?: RunIO) => {
         const factory = new RunIOResponseFactory();
         return factory.createOutputSuccessResponse(
             output || factory.createMockRunOutput(),
         );
     },
     
-    listInputsSuccess: (inputs?: RunRoutineInput[]) => {
+    listInputsSuccess: (inputs?: RunIO[]) => {
         const factory = new RunIOResponseFactory();
         return factory.createInputListResponse(
             inputs || factory.createMultipleRunInputs(),
         );
     },
     
-    listOutputsSuccess: (outputs?: RunRoutineOutput[]) => {
+    listOutputsSuccess: (outputs?: RunIO[]) => {
         const factory = new RunIOResponseFactory();
         return factory.createOutputListResponse(
             outputs || factory.createMultipleRunOutputs(),

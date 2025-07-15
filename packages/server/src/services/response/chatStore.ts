@@ -83,17 +83,6 @@ export abstract class ChatStore {
     }
 
     /**
-     * Loads the canonical config for `conversationId` into memory (if not
-     * already cached) and returns a **deep clone** that callers may mutate
-     * freely without affecting the cache until `saveState` is invoked.
-     * @deprecated Use loadState instead
-     */
-    public async loadConfig(conversationId: string): Promise<ChatConfigObject> {
-        const state = await this.loadState(conversationId);
-        return state.config;
-    }
-
-    /**
      * Mark a **previously cloned & mutated** state as the new source of
      * truth and schedule a debounced persist.
      */
@@ -191,8 +180,8 @@ function mapParticipant(participant: ParticipantDbData): BotParticipant {
     return {
         id: id.toString(),
         config: BotConfig.parse(participant.user as Pick<User, "botSettings">, logger),
-        name: participant.user.name,
-        meta: {}, //TODO need to get this somewhere else, since it contains information calculated by the current conversation/swarm/routine, rather than information tied to the bot object itself and stored in the database
+        name,
+        state: "ready",
     };
 }
 
@@ -485,3 +474,6 @@ export class CachedConversationStateStore implements ConversationStateStore {
         }
     }
 }
+
+// Singleton instance for global use
+export const conversationStateStore = new CachedConversationStateStore(new PrismaChatStore());

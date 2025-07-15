@@ -108,11 +108,11 @@ export const MeetingModel: MeetingModelLogic = ({
             ...defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic }),
             canInvite: () => isLoggedIn && isAdmin,
         }),
-        owner: (data) => ({
+        owner: (data, _userId) => ({
             Team: data?.team,
         }),
         isDeleted: () => false,
-        isPublic: (data) => data.showOnTeamProfile === true,
+        isPublic: (data, _getParentInfo?) => data.showOnTeamProfile === true,
         visibility: {
             own: function getOwn(data) {
                 return {

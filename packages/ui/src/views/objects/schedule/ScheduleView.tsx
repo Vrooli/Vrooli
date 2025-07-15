@@ -1,12 +1,12 @@
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
 import { useTheme } from "@mui/material/styles";
 import { endpointsSchedule, type Schedule } from "@vrooli/shared";
 import { useCallback, useMemo, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { IconButton } from "../../../components/buttons/IconButton.js";
 import { ObjectActionMenu } from "../../../components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
+import { Tooltip } from "../../../components/Tooltip/Tooltip.js";
 import { useObjectActions } from "../../../hooks/objectActions.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { IconCommon } from "../../../icons/Icons.js";
@@ -28,8 +28,8 @@ export function ScheduleView({
     });
 
     // More menu
-    const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
-    const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
+    const [moreMenuAnchor, setMoreMenuAnchor] = useState<HTMLElement | null>(null);
+    const openMoreMenu = useCallback((ev: MouseEvent<HTMLElement>) => {
         setMoreMenuAnchor(ev.currentTarget);
         ev.preventDefault();
     }, []);
@@ -52,6 +52,7 @@ export function ScheduleView({
                     aria-label={t("MoreOptions")}
                     size="small"
                     onClick={openMoreMenu}
+                    variant="transparent"
                     sx={{
                         display: "block",
                         marginLeft: "auto",
@@ -75,7 +76,7 @@ export function ScheduleView({
             <ObjectActionMenu
                 actionData={actionData}
                 anchorEl={moreMenuAnchor}
-                object={schedule as any}
+                object={schedule}
                 onClose={closeMoreMenu}
             />
             <Box sx={{

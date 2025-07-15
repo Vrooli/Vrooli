@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { http, type RestHandler } from "msw";
+import { http, HttpResponse, type RequestHandler } from "msw";
 import { 
     PaymentStatus,
     PaymentType} from "@vrooli/shared";
@@ -95,14 +95,14 @@ export class PaymentResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique resource ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
 
     /**
@@ -312,8 +312,9 @@ export class PaymentResponseFactory {
         const now = new Date().toISOString();
         const id = this.generateId();
         
-        const defaultUser: User = {
-            __typename: "User",
+        // Create a minimal user object with required properties
+        const defaultUser = {
+            __typename: "User" as const,
             id: `user_${id}`,
             handle: "testuser",
             name: "Test User",
@@ -323,33 +324,21 @@ export class PaymentResponseFactory {
             isPrivate: false,
             profileImage: null,
             bannerImage: null,
-            premium: false,
-            premiumExpiration: null,
-            roles: [],
-            wallets: [],
-            translations: [],
-            translationsCount: 0,
+            premium: null,
             you: {
-                __typename: "UserYou",
-                isBlocked: false,
-                isBlockedByYou: false,
+                __typename: "UserYou" as const,
                 canDelete: false,
                 canReport: false,
                 canUpdate: false,
                 isBookmarked: false,
-                isReacted: false,
-                reactionSummary: {
-                    __typename: "ReactionSummary",
-                    emotion: null,
-                    count: 0,
-                },
+                isViewed: true,
             },
         };
         
         return {
             ...defaultUser,
             ...overrides,
-        };
+        } as User;
     }
 
     /**
@@ -359,42 +348,34 @@ export class PaymentResponseFactory {
         const now = new Date().toISOString();
         const id = this.generateId();
         
-        const defaultTeam: Team = {
-            __typename: "Team",
+        // Create a minimal team object with required properties
+        const defaultTeam = {
+            __typename: "Team" as const,
             id: `team_${id}`,
             handle: "test-team",
-            name: "Test Team",
             createdAt: now,
             updatedAt: now,
             isOpenToNewMembers: true,
             isPrivate: false,
             profileImage: null,
             bannerImage: null,
-            translations: [],
-            translationsCount: 0,
-            paymentHistory: [],
-            members: [],
-            membersCount: 1,
-            permissions: "{}",
             you: {
-                __typename: "TeamYou",
+                __typename: "TeamYou" as const,
+                canAddMembers: false,
+                canBookmark: true,
                 canDelete: false,
-                canUpdate: false,
+                canRead: true,
                 canReport: false,
+                canUpdate: false,
                 isBookmarked: false,
-                isReacted: false,
-                reactionSummary: {
-                    __typename: "ReactionSummary",
-                    emotion: null,
-                    count: 0,
-                },
+                isViewed: true,
             },
         };
         
         return {
             ...defaultTeam,
             ...overrides,
-        };
+        } as Team;
     }
     
     /**
@@ -616,18 +597,18 @@ export class PaymentMSWHandlers {
     /**
      * Create success handlers for all payment endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): RequestHandler[] {
         return [
             // Create payment
-            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, async (req, res, ctx) => {
-                const body = await req.json() as PaymentCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, async ({ request, params }) => {
+                const body = await request.json() as PaymentCreateInput;
                 
                 // Validate input
                 const validation = await this.responseFactory.validateCreateInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
+                    return HttpResponse.json(
+                        this.responseFactory.createValidationErrorResponse(validation.errors || {}),
+                        { status: 400 }
                     );
                 }
                 
@@ -635,29 +616,29 @@ export class PaymentMSWHandlers {
                 const payment = this.responseFactory.createPaymentFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(payment);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
+                return HttpResponse.json(
+                    response,
+                    { status: 201 }
                 );
             }),
             
             // Get payment by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/payment/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/payment/:id`, ({ request, params }) => {
+                const { id } = params;
                 
                 const payment = this.responseFactory.createMockPayment({ id: id as string });
                 const response = this.responseFactory.createSuccessResponse(payment);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
+                return HttpResponse.json(
+                    response,
+                    { status: 200 }
                 );
             }),
             
             // Update payment
-            http.put(`${this.responseFactory["baseUrl"]}/api/payment/:id`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const body = await req.json() as PaymentUpdateInput;
+            http.put(`${this.responseFactory["baseUrl"]}/api/payment/:id`, async ({ request, params }) => {
+                const { id } = params;
+                const body = await request.json() as PaymentUpdateInput;
                 
                 const payment = this.responseFactory.createMockPayment({ 
                     id: id as string,
@@ -668,15 +649,15 @@ export class PaymentMSWHandlers {
                 
                 const response = this.responseFactory.createSuccessResponse(payment);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
+                return HttpResponse.json(
+                    response,
+                    { status: 200 }
                 );
             }),
             
             // List payments
-            http.get(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/payment`, ({ request, params }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 const status = url.searchParams.get("status") as PaymentStatus;
@@ -707,15 +688,15 @@ export class PaymentMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
+                return HttpResponse.json(
+                    response,
+                    { status: 200 }
                 );
             }),
 
             // Get payment receipt
-            http.get(`${this.responseFactory["baseUrl"]}/api/payment/:id/receipt`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/payment/:id/receipt`, ({ request, params }) => {
+                const { id } = params;
                 
                 const receipt = {
                     paymentId: id,
@@ -724,22 +705,19 @@ export class PaymentMSWHandlers {
                     generatedAt: new Date().toISOString(),
                 };
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json({
-                        data: receipt,
-                        meta: {
-                            timestamp: new Date().toISOString(),
-                            requestId: this.responseFactory["generateRequestId"](),
-                            version: "1.0",
-                        },
-                    }),
-                );
+                return HttpResponse.json({
+                    data: receipt,
+                    meta: {
+                        timestamp: new Date().toISOString(),
+                        requestId: this.responseFactory["generateRequestId"](),
+                        version: "1.0",
+                    },
+                }, { status: 200 });
             }),
 
             // Process refund
-            http.post(`${this.responseFactory["baseUrl"]}/api/payment/:id/refund`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.post(`${this.responseFactory["baseUrl"]}/api/payment/:id/refund`, ({ request, params }) => {
+                const { id } = params;
                 
                 const refundPayment = this.responseFactory.createMockPayment({
                     id: `refund_${id}`,
@@ -750,9 +728,9 @@ export class PaymentMSWHandlers {
                 
                 const response = this.responseFactory.createSuccessResponse(refundPayment);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
+                return HttpResponse.json(
+                    response,
+                    { status: 201 }
                 );
             }),
         ];
@@ -761,58 +739,58 @@ export class PaymentMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): RequestHandler[] {
         return [
             // Validation error
-            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
+            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createValidationErrorResponse({
                         amount: "Amount must be greater than 0",
                         currency: "Currency is required",
                         paymentType: "Payment type must be specified",
-                    })),
+                    }),
+                    { status: 400 }
                 );
             }),
             
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/payment/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
+            http.get(`${this.responseFactory["baseUrl"]}/api/payment/:id`, ({ request, params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string),
+                    { status: 404 }
                 );
             }),
             
             // Permission error
-            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("create"),
+                    { status: 403 }
                 );
             }),
 
             // Payment failed error
-            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
-                return res(
-                    ctx.status(402),
-                    ctx.json(this.responseFactory.createPaymentFailedErrorResponse("Card declined")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createPaymentFailedErrorResponse("Card declined"),
+                    { status: 402 }
                 );
             }),
 
             // Subscription error
-            http.post(`${this.responseFactory["baseUrl"]}/api/payment/subscription`, (req, res, ctx) => {
-                return res(
-                    ctx.status(409),
-                    ctx.json(this.responseFactory.createSubscriptionErrorResponse("User already has an active subscription")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/payment/subscription`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createSubscriptionErrorResponse("User already has an active subscription"),
+                    { status: 409 }
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse(),
+                    { status: 500 }
                 );
             }),
         ];
@@ -821,17 +799,17 @@ export class PaymentMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 3000): RestHandler[] {
+    createLoadingHandlers(delay = 3000): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, async (req, res, ctx) => {
-                const body = await req.json() as PaymentCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, async ({ request, params }) => {
+                const body = await request.json() as PaymentCreateInput;
                 const payment = this.responseFactory.createPaymentFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(payment);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(201),
-                    ctx.json(response),
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return HttpResponse.json(
+                    response,
+                    { status: 201 }
                 );
             }),
         ];
@@ -840,14 +818,14 @@ export class PaymentMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
-                return res.networkError("Payment service unavailable");
+            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/payment/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/payment/:id`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -861,18 +839,17 @@ export class PaymentMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): RequestHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        const httpMethod = method.toLowerCase() as keyof typeof http;
+        return http[httpMethod](fullEndpoint, async ({ request, params }) => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }

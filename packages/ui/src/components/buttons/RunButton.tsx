@@ -1,8 +1,7 @@
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../Tooltip/Tooltip.js";
 import { styled } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import { HistoryPageTabOption, LINKS, RunStatus, Status, camelCase, funcFalse, getTranslation, noop, type ListObject, type ProjectVersionTranslation, type RoutineVersionTranslation, type RunProject, type RunRoutine, type RunViewSearchParams } from "@vrooli/shared";
@@ -13,13 +12,17 @@ import { useUpsertRunProject, useUpsertRunRoutine } from "../../hooks/runs.js";
 import { useFindMany } from "../../hooks/useFindMany.js";
 import { usePopover } from "../../hooks/usePopover.js";
 import { IconCommon } from "../../icons/Icons.js";
+import { IconButton } from "./IconButton.js";
 import { useLocation } from "../../route/router.js";
 import { type ArgsType } from "../../types.js";
 import { getDummyListLength } from "../../utils/consts.js";
 import { getUserLanguages } from "../../utils/display/translationTools.js";
 import { PubSub } from "../../utils/pubsub.js";
-import { createRunPath } from "../../views/runs/RunView.js";
 import { ListContainer } from "../containers/ListContainer.js";
+
+function createRunPath(runIdOrTest: string, _runnableObject?: any): string {
+    return `${LINKS.Run}/${runIdOrTest}`;
+}
 import { MenuTitle } from "../dialogs/MenuTitle/MenuTitle.js";
 import { PopoverWithArrow } from "../dialogs/PopoverWithArrow/PopoverWithArrow.js";
 import { ObjectList } from "../lists/ObjectList/ObjectList.js";
@@ -321,6 +324,8 @@ export function RunButton({
                 <Box onClick={runStart}>
                     <IconButton
                         disabled={status === Status.Invalid}
+                        variant="transparent"
+                        size="md"
                     >
                         <IconCommon name="Play" />
                     </IconButton>

@@ -1,10 +1,12 @@
 import { exists, type ModelType, type SessionUser } from "@vrooli/shared";
-// AI_CHECK: TYPE_SAFETY=phase1-2 | LAST: 2025-07-03 - Replaced Record<string, any> and any[] with unknown types
+// AI_CHECK: TYPE_SAFETY=preShapeRoot-fixes | LAST: 2025-07-06 - Fixed all unknown type handling and missing property issues
+import { type Prisma } from "@prisma/client";
 import { type PrismaDelegate } from "../../builders/types.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { ModelMap } from "../../models/base/index.js";
 import { transfer } from "../../models/base/transfer.js";
+import { hasProperty } from "../typeGuards.js";
 
 type HasCompleteVersionData = {
     hasCompleteVersion: boolean,
@@ -20,6 +22,24 @@ type ObjectTriggerData = {
         id: string,
         __typename: "User" | "Team",
     }
+};
+
+// Type for version data from the database
+type VersionData = {
+    id: string,
+    isComplete: boolean,
+    isPrivate: boolean,
+};
+
+// Type for the original data query result
+type OriginalDataResult = {
+    id: string,
+    hasBeenTransferred: boolean,
+    isPrivate: boolean,
+    ownedByTeam: { id: string } | null,
+    ownedByUser: { id: string } | null,
+    parent: { id: string } | null,
+    versions: VersionData[],
 };
 
 type PreShapeRootParams = {
@@ -86,6 +106,26 @@ const originalDataSelect = {
     },
 } as const;
 
+// Helper function to safely check if an object has version properties
+function isVersionData(obj: unknown): obj is VersionData {
+    return obj !== null &&
+           typeof obj === "object" &&
+           hasProperty(obj, "id") &&
+           hasProperty(obj, "isComplete") &&
+           hasProperty(obj, "isPrivate") &&
+           typeof obj.id === "string" &&
+           typeof obj.isComplete === "boolean" &&
+           typeof obj.isPrivate === "boolean";
+}
+
+// Helper function to safely get ID from owner object
+function getOwnerId(owner: unknown): string {
+    if (owner !== null && typeof owner === "object" && hasProperty(owner, "id") && typeof owner.id === "string") {
+        return owner.id;
+    }
+    throw new CustomError("0414", "InternalError", { owner });
+}
+
 /**
  * Used in mutate.shape.pre of root objects. Has three purposes:
  * 1. Calculate hasCompleteVersion flag and completedAt date to update object in database)
@@ -127,10 +167,11 @@ export async function preShapeRoot({
     // For updateList (much more complicated)
     if (Update.length > 0) {
         // Find original data
-        const originalData = await (DbProvider.get()[dbTable] as PrismaDelegate).findMany({
+        const originalDataRaw = await (DbProvider.get()[dbTable] as PrismaDelegate).findMany({
             where: { id: { in: Update.map(u => u.input.id) } },
             select: originalDataSelect,
         });
+        const originalData = originalDataRaw as OriginalDataResult[];
         // Loop through updates
         for (const { input } of Update) {
             // Find original
@@ -138,18 +179,30 @@ export async function preShapeRoot({
             if (!original) throw new CustomError("0412", "InternalError", { id: input?.id });
             const isRootPrivate = input.isPrivate ?? original.isPrivate;
             // Convert original versions to map for easy lookup
-            const updatedWithOriginal = original.versions.reduce((acc, v) => ({ ...acc, [v.id]: v }), {} as Record<string, unknown>);
+            const updatedWithOriginal = original.versions.reduce((acc, v) => {
+                if (isVersionData(v)) {
+                    return { ...acc, [v.id]: v };
+                }
+                throw new CustomError("0415", "InternalError", { version: v });
+            }, {} as Record<string, VersionData>);
             // Combine updated versions with original versions
             if (Array.isArray(input.versionsUpdate)) {
                 for (const v of input.versionsUpdate) {
+                    const existing = updatedWithOriginal[v.id];
                     updatedWithOriginal[v.id] = {
-                        ...updatedWithOriginal[v.id],
-                        ...v,
+                        id: v.id,
+                        isComplete: v.isComplete ?? existing?.isComplete ?? false,
+                        isPrivate: v.isPrivate ?? existing?.isPrivate ?? false,
                     };
                 }
             }
             // Combine new, updated, and original versions. Then remove deleting versions
-            const allVersions: unknown[] = Object.values(updatedWithOriginal).concat(input.versionsCreate ?? []);
+            const newVersions: VersionData[] = (input.versionsCreate ?? []).map(v => ({
+                id: v.id,
+                isComplete: v.isComplete ?? false,
+                isPrivate: v.isPrivate ?? false,
+            }));
+            const allVersions: VersionData[] = [...Object.values(updatedWithOriginal), ...newVersions];
             const versions = allVersions.filter(v => !input.versionsDelete?.includes(v.id));
             // Calculate flags
             const hasCompleteVersion = versions.some(v => v.isComplete);
@@ -165,7 +218,7 @@ export async function preShapeRoot({
                 // TODO owner might be changed here depending on how triggers are implemented.
                 // For now, using original owner
                 owner: {
-                    id: original.ownedByUser?.id ?? original.ownedByTeam?.id,
+                    id: original.ownedByUser ? getOwnerId(original.ownedByUser) : (original.ownedByTeam ? getOwnerId(original.ownedByTeam) : ""),
                     __typename: original.ownedByUser ? "User" : "Team",
                 },
             };
@@ -174,10 +227,11 @@ export async function preShapeRoot({
     // For deleteList (fairly simple)
     if (Delete.length > 0) {
         // Find original data
-        const originalData = await (DbProvider.get()[dbTable] as PrismaDelegate).findMany({
+        const originalDataRaw = await (DbProvider.get()[dbTable] as PrismaDelegate).findMany({
             where: { id: { in: Delete.map(d => d.input) } },
             select: originalDataSelect,
         });
+        const originalData = originalDataRaw as OriginalDataResult[];
         // Loop through deletes
         for (const { input: id } of Delete) {
             // Find original
@@ -191,7 +245,7 @@ export async function preShapeRoot({
                 // TODO owner might be changed here depending on how triggers are implemented.
                 // For now, using original owner
                 owner: {
-                    id: original.ownedByUser?.id ?? original.ownedByTeam?.id,
+                    id: original.ownedByUser ? getOwnerId(original.ownedByUser) : (original.ownedByTeam ? getOwnerId(original.ownedByTeam) : ""),
                     __typename: original.ownedByUser ? "User" : "Team",
                 },
             };

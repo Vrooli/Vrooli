@@ -1,4 +1,4 @@
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemIcon from "@mui/material/ListItemIcon";
@@ -57,7 +57,7 @@ export function ListMenu<T>({
             </ListItemIcon>
         ) : null;
         const helpIcon = helpData ? (
-            <IconButton edge="end" onClick={stopPropagation} >
+            <IconButton edge="end" onClick={stopPropagation} variant="transparent">
                 <HelpButton {...helpData} />
             </IconButton>
         ) : null;

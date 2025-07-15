@@ -16,10 +16,10 @@ type CombineQueriesOptions = {
  * @returns Combined query object, with all fields combined
  */
 export function combineQueries(
-    queries: ({ [x: string]: any } | null | undefined)[],
+    queries: (Record<string, unknown> | null | undefined)[],
     options?: CombineQueriesOptions,
-): { [x: string]: any } {
-    const conditions: Array<{ [x: string]: any }> = [];
+): Record<string, unknown> {
+    const conditions: Array<Record<string, unknown>> = [];
     // Default to "strict" mode for safety
     const optionsWithDefaults = { mergeMode: "strict", ...options } as const;
 
@@ -34,10 +34,10 @@ export function combineQueries(
 }
 
 function mergeConditions(
-    conditions: Array<{ [x: string]: any }>,
+    conditions: Array<Record<string, unknown>>,
     options: CombineQueriesOptions,
-): { [x: string]: any } {
-    let result: { [x: string]: any } = {};
+): Record<string, unknown> {
+    let result: Record<string, unknown> = {};
 
     for (const condition of conditions) {
         const merged = mergeTwoConditions(result, condition, options);
@@ -48,11 +48,11 @@ function mergeConditions(
 }
 
 function mergeTwoConditions(
-    cond1: { [x: string]: any },
-    cond2: { [x: string]: any },
+    cond1: Record<string, unknown>,
+    cond2: Record<string, unknown>,
     options: CombineQueriesOptions,
-): { result: { [x: string]: any }, conflict?: boolean } {
-    const result: { [x: string]: any } = {};
+): { result: Record<string, unknown>, conflict?: boolean } {
+    const result: Record<string, unknown> = {};
     let conflict = false;
 
     const keys = new Set([...Object.keys(cond1), ...Object.keys(cond2)]);
@@ -70,7 +70,7 @@ function mergeTwoConditions(
             if (key === "OR" && options.mergeMode === "strict") {
                 const hasORsInAnd =
                     Array.isArray(result["AND"]) &&
-                    result["AND"].some((item: { [x: string]: any }) =>
+                    result["AND"].some((item: Record<string, unknown>) =>
                         Object.prototype.hasOwnProperty.call(item, "OR") && Object.keys(item).length === 1,
                     );
                 const shouldAddCurrValue = currValue.length > 0;
@@ -115,11 +115,11 @@ function mergeTwoConditions(
             !Array.isArray(val2)
         ) {
             // Both are objects, could be field conditions or nested objects
-            const isFieldCond1 = isFieldCondition(val1);
-            const isFieldCond2 = isFieldCondition(val2);
+            const isFieldCond1 = isFieldCondition(val1 as Record<string, unknown>);
+            const isFieldCond2 = isFieldCondition(val2 as Record<string, unknown>);
 
             if (isFieldCond1 && isFieldCond2) {
-                const merged = mergeFieldConditions(val1, val2);
+                const merged = mergeFieldConditions(val1 as Record<string, unknown>, val2 as Record<string, unknown>);
                 if (merged.conflict) {
                     conflict = true;
                 } else {
@@ -127,7 +127,7 @@ function mergeTwoConditions(
                 }
             } else {
                 // Nested objects
-                const merged = mergeTwoConditions(val1, val2, options);
+                const merged = mergeTwoConditions(val1 as Record<string, unknown>, val2 as Record<string, unknown>, options);
                 if (merged.conflict) {
                     result[key] = { AND: [val1, val2] };
                 } else {
@@ -161,7 +161,7 @@ function mergeTwoConditions(
             andConditions.push(cond2WithoutOR);
         }
 
-        const newResult: { [x: string]: any } = {};
+        const newResult: Record<string, unknown> = {};
         if (mergedORs.length > 0) {
             newResult.OR = mergedORs;
         }
@@ -175,10 +175,10 @@ function mergeTwoConditions(
 }
 
 function mergeFieldConditions(
-    condition1: { [x: string]: any },
-    condition2: { [x: string]: any },
-): { result?: { [x: string]: any }; conflict?: boolean } {
-    const result: { [x: string]: any } = { ...condition1 };
+    condition1: Record<string, unknown>,
+    condition2: Record<string, unknown>,
+): { result?: Record<string, unknown>; conflict?: boolean } {
+    const result: Record<string, unknown> = { ...condition1 };
 
     for (const [op, val] of Object.entries(condition2)) {
         if (op in result) {
@@ -195,7 +195,7 @@ function mergeFieldConditions(
     return { result };
 }
 
-function isFieldCondition(obj: { [x: string]: any }): boolean {
+function isFieldCondition(obj: Record<string, unknown>): boolean {
     const operators = new Set([
         "equals", "in", "notIn", "lt", "lte", "gt", "gte",
         "contains", "startsWith", "endsWith", "mode", "not",

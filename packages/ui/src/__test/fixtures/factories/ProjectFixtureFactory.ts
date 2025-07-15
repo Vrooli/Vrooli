@@ -21,14 +21,21 @@ import {
     resourceValidation,
     shapeResource,
     ResourceType,
-    MemberRole,
 } from "@vrooli/shared";
+
+// Define MemberRole locally since it's not exported from shared
+export enum MemberRole {
+    Owner = "owner",
+    ADMIN = "admin",
+    EDITOR = "editor",
+    VIEWER = "viewer",
+}
 import type { 
     FixtureFactory, 
     ValidationResult, 
     MSWHandlers,
 } from "../types.js";
-import { rest } from "msw";
+import { http, HttpResponse } from "msw";
 
 /**
  * UI-specific form data for project creation
@@ -146,8 +153,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
                 return {
                     handle: "", // Empty handle
                     name: "", // Empty name
-                    // @ts-expect-error - Testing invalid version label
-                    versionLabel: null,
+                    versionLabel: null as any, // Testing invalid version label
                     isPrivate: false,
                 };
 
@@ -481,19 +487,16 @@ export class ProjectFixtureFactory implements FixtureFactory<
         return {
             success: [
                 // Create project
-                rest.post(`${baseUrl}/api/project`, async (req, res, ctx) => {
-                    const body = await req.json();
+                http.post(`${baseUrl}/api/project`, async ({ request }) => {
+                    const body = await request.json() as ProjectFormData;
                     
                     // Validate the request body
                     const validation = await this.validateFormData(body);
                     if (!validation.isValid) {
-                        return res(
-                            ctx.status(400),
-                            ctx.json({ 
-                                errors: validation.errors,
-                                fieldErrors: validation.fieldErrors, 
-                            }),
-                        );
+                        return HttpResponse.json({ 
+                            errors: validation.errors,
+                            fieldErrors: validation.fieldErrors, 
+                        }, { status: 400 });
                     }
 
                     // Return successful response
@@ -509,44 +512,35 @@ export class ProjectFixtureFactory implements FixtureFactory<
                         }],
                     });
 
-                    return res(
-                        ctx.status(201),
-                        ctx.json(mockProject),
-                    );
+                    return HttpResponse.json(mockProject, { status: 201 });
                 }),
 
                 // Update project
-                rest.put(`${baseUrl}/api/project/:id`, async (req, res, ctx) => {
-                    const { id } = req.params;
-                    const body = await req.json();
+                http.put(`${baseUrl}/api/project/:id`, async ({ request, params }) => {
+                    const { id } = params;
+                    const body = await request.json();
 
                     const mockProject = this.createMockResponse({ 
                         id: id as string,
                         updatedAt: new Date().toISOString(),
                     });
 
-                    return res(
-                        ctx.status(200),
-                        ctx.json(mockProject),
-                    );
+                    return HttpResponse.json(mockProject, { status: 200 });
                 }),
 
                 // Get project
-                rest.get(`${baseUrl}/api/project/:handle`, (req, res, ctx) => {
-                    const { handle } = req.params;
+                http.get(`${baseUrl}/api/project/:handle`, ({ request, params }) => {
+                    const { handle } = params;
                     const mockProject = this.createMockResponse({ 
                         handle: handle as string, 
                     });
                     
-                    return res(
-                        ctx.status(200),
-                        ctx.json(mockProject),
-                    );
+                    return HttpResponse.json(mockProject, { status: 200 });
                 }),
 
                 // Complete project
-                rest.post(`${baseUrl}/api/project/:id/complete`, (req, res, ctx) => {
-                    const { id } = req.params;
+                http.post(`${baseUrl}/api/project/:id/complete`, ({ request, params }) => {
+                    const { id } = params;
                     
                     const mockProject = this.createMockResponse({ 
                         id: id as string,
@@ -557,65 +551,48 @@ export class ProjectFixtureFactory implements FixtureFactory<
                         }],
                     });
 
-                    return res(
-                        ctx.status(200),
-                        ctx.json(mockProject),
-                    );
+                    return HttpResponse.json(mockProject, { status: 200 });
                 }),
 
                 // Delete project
-                rest.delete(`${baseUrl}/api/project/:id`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(204),
-                    );
+                http.delete(`${baseUrl}/api/project/:id`, ({ request, params }) => {
+                    return new HttpResponse(null, { status: 204 });
                 }),
             ],
 
             error: [
-                rest.post(`${baseUrl}/api/project`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(409),
-                        ctx.json({ 
-                            message: "Project handle already exists",
-                            code: "HANDLE_EXISTS", 
-                        }),
-                    );
+                http.post(`${baseUrl}/api/project`, ({ request, params }) => {
+                    return HttpResponse.json({ 
+                        message: "Project handle already exists",
+                        code: "HANDLE_EXISTS", 
+                    }, { status: 409 });
                 }),
 
-                rest.put(`${baseUrl}/api/project/:id`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(403),
-                        ctx.json({ 
-                            message: "You do not have permission to update this project",
-                            code: "PERMISSION_DENIED", 
-                        }),
-                    );
+                http.put(`${baseUrl}/api/project/:id`, ({ request, params }) => {
+                    return HttpResponse.json({ 
+                        message: "You do not have permission to update this project",
+                        code: "PERMISSION_DENIED", 
+                    }, { status: 403 });
                 }),
 
-                rest.get(`${baseUrl}/api/project/:handle`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(404),
-                        ctx.json({ 
-                            message: "Project not found",
-                            code: "PROJECT_NOT_FOUND", 
-                        }),
-                    );
+                http.get(`${baseUrl}/api/project/:handle`, ({ request, params }) => {
+                    return HttpResponse.json({ 
+                        message: "Project not found",
+                        code: "PROJECT_NOT_FOUND", 
+                    }, { status: 404 });
                 }),
             ],
 
             loading: [
-                rest.post(`${baseUrl}/api/project`, (req, res, ctx) => {
-                    return res(
-                        ctx.delay(2000), // 2 second delay
-                        ctx.status(201),
-                        ctx.json(this.createMockResponse()),
-                    );
+                http.post(`${baseUrl}/api/project`, async ({ request, params }) => {
+                    await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+                    return HttpResponse.json(this.createMockResponse(), { status: 201 });
                 }),
             ],
 
             networkError: [
-                rest.post(`${baseUrl}/api/project`, (req, res, ctx) => {
-                    return res.networkError("Network connection failed");
+                http.post(`${baseUrl}/api/project`, ({ request, params }) => {
+                    return HttpResponse.error();
                 }),
             ],
         };

@@ -147,6 +147,6 @@ export const iconNames = [
   "Add",
   "Action",
   "HeartOutline",
-] as const
+] as const;
 
 export type IconName = typeof iconNames[number]

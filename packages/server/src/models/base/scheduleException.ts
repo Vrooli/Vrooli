@@ -48,7 +48,7 @@ export const ScheduleExceptionModel: ScheduleExceptionModelLogic = ({
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => ModelMap.get<ScheduleModelLogic>("Schedule").validate().owner(data?.schedule as ScheduleModelInfo["DbModel"], userId),
         isDeleted: (data) => ModelMap.get<ScheduleModelLogic>("Schedule").validate().isDeleted(data.schedule as ScheduleModelInfo["DbModel"]),
-        isPublic: (...rest) => oneIsPublic<ScheduleExceptionModelInfo["DbSelect"]>([["schedule", "Schedule"]], ...rest),
+        isPublic: (data, getParentInfo?) => oneIsPublic<ScheduleExceptionModelInfo["DbSelect"]>([["schedule", "Schedule"]], data, getParentInfo),
         visibility: {
             own: function getOwn(data) {
                 return {

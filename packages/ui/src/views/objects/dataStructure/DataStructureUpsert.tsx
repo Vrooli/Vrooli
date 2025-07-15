@@ -4,40 +4,47 @@ import Divider from "@mui/material/Divider";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
-import { CodeLanguage, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, ResourceSubType, endpointsResource, noopSubmit, orDefault, shapeResourceVersion, resourceVersionTranslationValidation, resourceVersionValidation, type Session, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionShape, type ResourceVersionUpdateInput } from "@vrooli/shared";
+import { CodeLanguage, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, ResourceSubType, dataStructureFormConfig, endpointsResource, noopSubmit, orDefault, type Session, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionShape, type ResourceVersionUpdateInput } from "@vrooli/shared";
 import { Formik, useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useSubmitHelper } from "../../../api/fetchWrapper.js";
 import { PageContainer } from "../../../components/Page/Page.js";
 import { AutoFillButton } from "../../../components/buttons/AutoFillButton.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
 import { SearchExistingButton } from "../../../components/buttons/SearchExistingButton.js";
-import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
+import { Dialog } from "../../../components/dialogs/Dialog/Dialog.js";
 import { TranslatedAdvancedInput } from "../../../components/inputs/AdvancedInput/AdvancedInput.js";
 import { detailsInputFeatures, nameInputFeatures } from "../../../components/inputs/AdvancedInput/styles.js";
 import { CodeInput } from "../../../components/inputs/CodeInput/CodeInput.js";
 import { LanguageInput } from "../../../components/inputs/LanguageInput/LanguageInput.js";
 import { TagSelector } from "../../../components/inputs/TagSelector/TagSelector.js";
-import { ToggleSwitch } from "../../../components/inputs/ToggleSwitch/ToggleSwitch.js";
+import { Switch } from "../../../components/inputs/Switch/Switch.js";
 import { VersionInput } from "../../../components/inputs/VersionInput/VersionInput.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
 import { ResourceListInput } from "../../../components/lists/ResourceList/ResourceList.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
-import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
+import { useStandardUpsertForm } from "../../../hooks/useStandardUpsertForm.js";
 import { getAutoFillTranslationData, useAutoFill, type UseAutoFillProps } from "../../../hooks/tasks.js";
 import { useDimensions } from "../../../hooks/useDimensions.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
-import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
-import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { FormContainer, ScrollBox } from "../../../styles.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
 import { type DataStructureFormProps, type DataStructureUpsertProps } from "./types.js";
+
+export function transformDataStructureVersionValues(
+    values: ResourceVersionShape,
+    existing?: ResourceVersionShape,
+    isCreate?: boolean,
+): ResourceVersionCreateInput | ResourceVersionUpdateInput {
+    return isCreate 
+        ? values as ResourceVersionCreateInput
+        : values as ResourceVersionUpdateInput;
+}
 
 export function dataStructureInitialValues(
     session: Session | undefined,
@@ -82,9 +89,6 @@ export function dataStructureInitialValues(
     };
 }
 
-function transformDataStructureVersionValues(values: ResourceVersionShape, existing: ResourceVersionShape, isCreate: boolean) {
-    return isCreate ? shapeResourceVersion.create(values) : shapeResourceVersion.update(existing, values);
-}
 
 const exampleStandardJson = `
 {
@@ -118,48 +122,48 @@ function DataStructureForm({
     versions,
     ...props
 }: DataStructureFormProps) {
-    const session = useContext(SessionContext);
     const { t } = useTranslation();
     const theme = useTheme();
     const { dimensions, ref } = useDimensions<HTMLDivElement>();
     const isStacked = dimensions.width < theme.breakpoints.values.lg;
 
-    // Handle translations
+    // Use the standardized form hook
     const {
-        handleAddLanguage,
-        handleDeleteLanguage,
+        session,
+        isLoading,
+        handleCancel,
+        handleCompleted,
+        onSubmit,
+        validateValues,
         language,
         languages,
+        handleAddLanguage,
+        handleDeleteLanguage,
         setLanguage,
         translationErrors,
-    } = useTranslatedFields({
-        defaultLanguage: getUserLanguages(session)[0],
-        validationSchema: resourceVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
+    } = useStandardUpsertForm({
+        ...dataStructureFormConfig,
+        rootObjectType: "Resource",
+    }, {
+        values,
+        existing,
+        isCreate,
+        display,
+        disabled,
+        isReadLoading,
+        isSubmitting: props.isSubmitting,
+        handleUpdate,
+        setSubmitting: props.setSubmitting,
+        onCancel: props.onCancel,
+        onCompleted: props.onCompleted,
+        onDeleted: props.onDeleted,
+        onAction: props.onAction,
+        onClose,
     });
 
     const resourceListParent = useMemo(function resourceListParentMemo() {
         return { __typename: "ResourceVersion", id: values.id } as const;
     }, [values]);
-
-    const { handleCancel, handleCompleted } = useUpsertActions<ResourceVersion>({
-        display,
-        isCreate,
-        objectId: values.id,
-        objectType: "ResourceVersion",
-        rootObjectId: values.root?.id,
-        ...props,
-    });
-    const {
-        fetch,
-        isCreateLoading,
-        isUpdateLoading,
-    } = useUpsertFetch<ResourceVersion, ResourceVersionCreateInput, ResourceVersionUpdateInput>({
-        isCreate,
-        isMutate: true,
-        endpointCreate: endpointsResource.createOne,
-        endpointUpdate: endpointsResource.updateOne,
-    });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "ResourceVersion" });
 
     const getAutoFillInput = useCallback(function getAutoFillInput() {
         return {
@@ -181,17 +185,8 @@ function DataStructureForm({
         task: isCreate ? LlmTask.StandardAdd : LlmTask.StandardUpdate,
     });
 
-    const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
-
-    const onSubmit = useSubmitHelper<ResourceVersionCreateInput | ResourceVersionUpdateInput, ResourceVersion>({
-        disabled,
-        existing,
-        fetch,
-        inputs: transformDataStructureVersionValues(values, existing, isCreate),
-        isCreate,
-        onSuccess: (data) => { handleCompleted(data); },
-        onCompleted: () => { props.setSubmitting(false); },
-    });
+    // Combine our hook's loading state with autofill loading
+    const combinedIsLoading = useMemo(() => isAutoFillLoading || isLoading, [isAutoFillLoading, isLoading]);
 
     // Toggle preview/edit mode
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
@@ -207,125 +202,247 @@ function DataStructureForm({
     }, [standardTypeField.value, propsHelpers]);
 
     return (
-        <MaybeLargeDialog
-            display={display}
-            id="standard-upsert-dialog"
-            isOpen={isOpen}
-            onClose={onClose}
-        >
-            <TopBar
-                display={display}
-                onClose={onClose}
-                title={t(isCreate ? "CreateDataStructure" : "UpdateDataStructure")}
-            />
-            <SearchExistingButton
-                href={`${LINKS.Search}?type="${SearchPageTabOption.DataStructure}"`}
-                text="Search existing standards"
-            />
-            <BaseForm
-                display={display}
-                isLoading={isLoading}
-                maxWidth={1200}
-                ref={ref}
-            >
-                <FormContainer>
-                    <Grid container spacing={2}>
-                        <Grid item xs={12} lg={isStacked ? 12 : 6}>
-                            <Box width="100%" padding={2}>
-                                <Typography variant="h4" sx={formSectionTitleStyle}>Basic info</Typography>
-                                <Box display="flex" flexDirection="column" gap={4}>
-                                    <RelationshipList
-                                        isEditing={true}
-                                        objectType={"Resource"}
-                                    />
-                                    <ResourceListInput
-                                        horizontal
-                                        isCreate={true}
-                                        parent={resourceListParent}
-                                        sxs={resourceListStyle}
-                                    />
-                                    <TranslatedAdvancedInput
-                                        features={nameInputFeatures}
-                                        isRequired={true}
-                                        language={language}
-                                        name="name"
-                                        title={t("Name")}
-                                        placeholder={"User Profile Schema..."}
-                                    />
-                                    <TranslatedAdvancedInput
-                                        features={detailsInputFeatures}
-                                        isRequired={false}
-                                        language={language}
-                                        name="description"
-                                        title={t("Description")}
-                                        placeholder={"Defines the structure for user data including name, email, and preferences..."}
-                                    />
-                                    <LanguageInput
-                                        currentLanguage={language}
-                                        flexDirection="row-reverse"
-                                        handleAdd={handleAddLanguage}
-                                        handleDelete={handleDeleteLanguage}
-                                        handleCurrent={setLanguage}
-                                        languages={languages}
-                                    />
-                                    <TagSelector name="root.tags" sx={tagSelectorStyle} />
-                                    <VersionInput
-                                        fullWidth
-                                        versions={versions}
-                                    />
-                                </Box>
-                            </Box>
-                        </Grid>
-                        <Grid item xs={12} lg={isStacked ? 12 : 6}>
-                            <Divider sx={dividerStyle} />
-                            <Box width="100%" padding={2}>
-                                <Box display="flex" alignItems="center" sx={formSectionTitleStyle}>
-                                    <Typography variant="h4">Standard</Typography>
-                                    <ToggleSwitch
-                                        checked={isPreviewOn}
-                                        onChange={onPreviewChange}
-                                        offIconInfo={offIconInfo}
-                                        onIconInfo={onIconInfo}
-                                        tooltip={isPreviewOn ? "Switch to edit" : "Switch to preview"}
-                                    />
-                                    <Button
-                                        variant="outlined"
-                                        onClick={showExample}
-                                        startIcon={<IconCommon name="Help" />}
-                                        sx={exampleButtonStyle}
-                                    >
-                                        Show example
-                                    </Button>
-                                </Box>
-                                {/* TODO replace with FormInputStandard */}
-                                <CodeInput
-                                    disabled={false}
-                                    codeLanguageField="config.schemaLanguage"
-                                    // format={isPreviewOn ? "TODO" : undefined}
-                                    // limitTo={isPreviewOn ? [CodeLanguage.JsonStandard] : [CodeLanguage.Json]}
-                                    limitTo={codeLimitTo}
-                                    name="config.schema"
-                                />
-                            </Box>
-                        </Grid>
-                    </Grid>
-                </FormContainer>
-            </BaseForm>
-            <BottomActionsButtons
-                display={display}
-                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
-                hideButtons={disabled}
-                isCreate={isCreate}
-                loading={isLoading}
-                onCancel={handleCancel}
-                onSetSubmitting={props.setSubmitting}
-                onSubmit={onSubmit}
-                sideActionButtons={<AutoFillButton
-                    handleAutoFill={autoFill}
-                    isAutoFillLoading={isAutoFillLoading}
-                />}
-            />
-        </MaybeLargeDialog >
+        <>
+            {display === "Dialog" ? (
+                <Dialog
+                    isOpen={isOpen ?? false}
+                    onClose={onClose ?? (() => console.warn("onClose not passed to dialog"))}
+                    size="md"
+                >
+                    <TopBar
+                        display={display}
+                        onClose={onClose}
+                        title={t(isCreate ? "CreateDataStructure" : "UpdateDataStructure")}
+                    />
+                    <SearchExistingButton
+                        href={`${LINKS.Search}?type="${SearchPageTabOption.DataStructure}"`}
+                        text="Search existing standards"
+                    />
+                    <BaseForm
+                        display={display}
+                        isLoading={combinedIsLoading}
+                        maxWidth={1200}
+                        ref={ref}
+                    >
+                        <FormContainer>
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} lg={isStacked ? 12 : 6}>
+                                    <Box width="100%" padding={2}>
+                                        <Typography variant="h4" sx={formSectionTitleStyle}>Basic info</Typography>
+                                        <Box display="flex" flexDirection="column" gap={4}>
+                                            <RelationshipList
+                                                isEditing={true}
+                                                objectType={"Resource"}
+                                            />
+                                            <ResourceListInput
+                                                horizontal
+                                                isCreate={true}
+                                                parent={resourceListParent}
+                                                sxs={resourceListStyle}
+                                            />
+                                            <TranslatedAdvancedInput
+                                                features={nameInputFeatures}
+                                                isRequired={true}
+                                                language={language}
+                                                name="name"
+                                                title={t("Name")}
+                                                placeholder={"User Profile Schema..."}
+                                            />
+                                            <TranslatedAdvancedInput
+                                                features={detailsInputFeatures}
+                                                isRequired={false}
+                                                language={language}
+                                                name="description"
+                                                title={t("Description")}
+                                                placeholder={"Defines the structure for user data including name, email, and preferences..."}
+                                            />
+                                            <LanguageInput
+                                                currentLanguage={language}
+                                                flexDirection="row-reverse"
+                                                handleAdd={handleAddLanguage}
+                                                handleDelete={handleDeleteLanguage}
+                                                handleCurrent={setLanguage}
+                                                languages={languages}
+                                            />
+                                            <TagSelector name="root.tags" sx={tagSelectorStyle} />
+                                            <VersionInput
+                                                fullWidth
+                                                versions={versions}
+                                            />
+                                        </Box>
+                                    </Box>
+                                </Grid>
+                                <Grid item xs={12} lg={isStacked ? 12 : 6}>
+                                    <Divider sx={dividerStyle} />
+                                    <Box width="100%" padding={2}>
+                                        <Box display="flex" alignItems="center" sx={formSectionTitleStyle}>
+                                            <Typography variant="h4">Standard</Typography>
+                                            <Switch
+                                                checked={isPreviewOn}
+                                                onChange={(checked, event) => onPreviewChange(event)}
+                                                offIcon={offIconInfo}
+                                                onIcon={onIconInfo}
+                                                tooltip={isPreviewOn ? "Switch to edit" : "Switch to preview"}
+                                                size="md"
+                                                labelPosition="none"
+                                            />
+                                            <Button
+                                                variant="outlined"
+                                                onClick={showExample}
+                                                startIcon={<IconCommon name="Help" />}
+                                                sx={exampleButtonStyle}
+                                            >
+                                                Show example
+                                            </Button>
+                                        </Box>
+                                        {/* TODO replace with FormInputStandard */}
+                                        <CodeInput
+                                            disabled={false}
+                                            codeLanguageField="config.schemaLanguage"
+                                            // format={isPreviewOn ? "TODO" : undefined}
+                                            // limitTo={isPreviewOn ? [CodeLanguage.JsonStandard] : [CodeLanguage.Json]}
+                                            limitTo={codeLimitTo}
+                                            name="config.schema"
+                                        />
+                                    </Box>
+                                </Grid>
+                            </Grid>
+                        </FormContainer>
+                    </BaseForm>
+                    <BottomActionsButtons
+                        display={display}
+                        errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                        hideButtons={disabled}
+                        isCreate={isCreate}
+                        loading={combinedIsLoading}
+                        onCancel={handleCancel}
+                        onSetSubmitting={props.setSubmitting}
+                        onSubmit={onSubmit}
+                        sideActionButtons={<AutoFillButton
+                            handleAutoFill={autoFill}
+                            isAutoFillLoading={isAutoFillLoading}
+                        />}
+                    />
+                </Dialog>
+            ) : (
+                <>
+                    <TopBar
+                        display={display}
+                        onClose={onClose}
+                        title={t(isCreate ? "CreateDataStructure" : "UpdateDataStructure")}
+                    />
+                    <SearchExistingButton
+                        href={`${LINKS.Search}?type="${SearchPageTabOption.DataStructure}"`}
+                        text="Search existing standards"
+                    />
+                    <BaseForm
+                        display={display}
+                        isLoading={combinedIsLoading}
+                        maxWidth={1200}
+                        ref={ref}
+                    >
+                        <FormContainer>
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} lg={isStacked ? 12 : 6}>
+                                    <Box width="100%" padding={2}>
+                                        <Typography variant="h4" sx={formSectionTitleStyle}>Basic info</Typography>
+                                        <Box display="flex" flexDirection="column" gap={4}>
+                                            <RelationshipList
+                                                isEditing={true}
+                                                objectType={"Resource"}
+                                            />
+                                            <ResourceListInput
+                                                horizontal
+                                                isCreate={true}
+                                                parent={resourceListParent}
+                                                sxs={resourceListStyle}
+                                            />
+                                            <TranslatedAdvancedInput
+                                                features={nameInputFeatures}
+                                                isRequired={true}
+                                                language={language}
+                                                name="name"
+                                                title={t("Name")}
+                                                placeholder={"User Profile Schema..."}
+                                            />
+                                            <TranslatedAdvancedInput
+                                                features={detailsInputFeatures}
+                                                isRequired={false}
+                                                language={language}
+                                                name="description"
+                                                title={t("Description")}
+                                                placeholder={"Defines the structure for user data including name, email, and preferences..."}
+                                            />
+                                            <LanguageInput
+                                                currentLanguage={language}
+                                                flexDirection="row-reverse"
+                                                handleAdd={handleAddLanguage}
+                                                handleDelete={handleDeleteLanguage}
+                                                handleCurrent={setLanguage}
+                                                languages={languages}
+                                            />
+                                            <TagSelector name="root.tags" sx={tagSelectorStyle} />
+                                            <VersionInput
+                                                fullWidth
+                                                versions={versions}
+                                            />
+                                        </Box>
+                                    </Box>
+                                </Grid>
+                                <Grid item xs={12} lg={isStacked ? 12 : 6}>
+                                    <Divider sx={dividerStyle} />
+                                    <Box width="100%" padding={2}>
+                                        <Box display="flex" alignItems="center" sx={formSectionTitleStyle}>
+                                            <Typography variant="h4">Standard</Typography>
+                                            <Switch
+                                                checked={isPreviewOn}
+                                                onChange={(checked, event) => onPreviewChange(event)}
+                                                offIcon={offIconInfo}
+                                                onIcon={onIconInfo}
+                                                tooltip={isPreviewOn ? "Switch to edit" : "Switch to preview"}
+                                                size="md"
+                                                labelPosition="none"
+                                            />
+                                            <Button
+                                                variant="outlined"
+                                                onClick={showExample}
+                                                startIcon={<IconCommon name="Help" />}
+                                                sx={exampleButtonStyle}
+                                            >
+                                                Show example
+                                            </Button>
+                                        </Box>
+                                        {/* TODO replace with FormInputStandard */}
+                                        <CodeInput
+                                            disabled={false}
+                                            codeLanguageField="config.schemaLanguage"
+                                            // format={isPreviewOn ? "TODO" : undefined}
+                                            // limitTo={isPreviewOn ? [CodeLanguage.JsonStandard] : [CodeLanguage.Json]}
+                                            limitTo={codeLimitTo}
+                                            name="config.schema"
+                                        />
+                                    </Box>
+                                </Grid>
+                            </Grid>
+                        </FormContainer>
+                    </BaseForm>
+                    <BottomActionsButtons
+                        display={display}
+                        errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                        hideButtons={disabled}
+                        isCreate={isCreate}
+                        loading={combinedIsLoading}
+                        onCancel={handleCancel}
+                        onSetSubmitting={props.setSubmitting}
+                        onSubmit={onSubmit}
+                        sideActionButtons={<AutoFillButton
+                            handleAutoFill={autoFill}
+                            isAutoFillLoading={isAutoFillLoading}
+                        />}
+                    />
+                </>
+            )}
+        </>
     );
 }
 
@@ -348,7 +465,7 @@ export function DataStructureUpsert({
     });
 
     async function validateValues(values: ResourceVersionShape) {
-        return await validateFormValues(values, existing, isCreate, transformDataStructureVersionValues, resourceVersionValidation);
+        return await validateFormValues(values, existing, isCreate, dataStructureFormConfig.transformFunction, dataStructureFormConfig.validation);
     }
 
     return (

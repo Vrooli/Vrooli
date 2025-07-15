@@ -8,63 +8,53 @@
  * Subclasses implement specific state transitions and event handling logic.
  */
 
-import { generatePK } from "@vrooli/shared";
+import { EventTypes, generatePK, RunState, type SocketEvent, type SocketEventPayloads } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
 import type { ManagedTaskStateMachine } from "../../../tasks/activeTaskRegistry.js";
 import { getEventBus } from "../../events/eventBus.js";
-import type { BaseServiceEvent } from "../../events/types.js";
-import { EventUtils } from "../../events/utils.js";
-import { ErrorHandler, type ComponentErrorHandler } from "./ErrorHandler.js";
-
-/**
- * Common states shared by all state machines
- */
-export const BaseStates = {
-    UNINITIALIZED: "UNINITIALIZED",
-    STARTING: "STARTING",
-    RUNNING: "RUNNING",
-    IDLE: "IDLE",
-    PAUSED: "PAUSED",
-    STOPPED: "STOPPED",
-    FAILED: "FAILED",
-    TERMINATED: "TERMINATED",
-} as const;
+import { EventPublisher } from "../../events/publisher.js";
+import type { EventMetadata, ServiceEvent } from "../../events/types.js";
+import { ErrorHandler } from "./ErrorHandler.js";
+import type { SwarmContextManager } from "./SwarmContextManager.js";
 
 const DEFAULT_MAX_QUEUE_SIZE = 1000;
 const DEFAULT_QUEUE_DROP_PERCENT = 0.1;
-
-export type BaseState = (typeof BaseStates)[keyof typeof BaseStates];
 
 /**
  * Configuration for event-driven coordination
  */
 export interface StateMachineCoordinationConfig {
+    contextId?: string;
     swarmId?: string;
+    chatId?: string;
 }
 
 /**
  * Abstract base class for state machines with event-driven coordination
  */
-export abstract class BaseStateMachine<
-    TState extends string = BaseState,
-    TEvent extends BaseServiceEvent = BaseServiceEvent,
-> implements ManagedTaskStateMachine {
-    protected state: TState;
+export abstract class BaseStateMachine<TEvent extends ServiceEvent = ServiceEvent> implements ManagedTaskStateMachine {
+    protected state: RunState;
     protected readonly eventQueue: TEvent[] = [];
 
     protected disposed = false;
     protected pendingDrainTimeout: NodeJS.Timeout | null = null;
     protected readonly componentName: string;
-    protected readonly errorHandler: ComponentErrorHandler;
+    protected readonly errorHandler: ErrorHandler;
     protected readonly maxQueueSize: number = DEFAULT_MAX_QUEUE_SIZE; // Prevent unbounded growth
 
     // Event-driven coordination
     protected readonly coordinationConfig: StateMachineCoordinationConfig;
-    protected readonly swarmContextManager: any | null = null; // Lazy-loaded
+    protected readonly swarmContextManager: SwarmContextManager | null = null;
     protected currentDistributedLock: string | null = null;
 
+    // Event subscription tracking
+    private eventSubscriptions: Array<{
+        pattern: string;
+        unsubscribe: () => Promise<void>;
+    }> = [];
+
     constructor(
-        initialState: TState = BaseStates.UNINITIALIZED as TState,
+        initialState: RunState = RunState.UNINITIALIZED,
         componentName?: string,
         coordinationConfig: StateMachineCoordinationConfig = {},
     ) {
@@ -75,17 +65,20 @@ export abstract class BaseStateMachine<
         };
 
         // Create error handler for consistent error management
-        this.errorHandler = new ErrorHandler().createComponentHandler(this.componentName);
+        this.errorHandler = new ErrorHandler({
+            component: this.componentName,
+            chatId: coordinationConfig.chatId,
+        });
 
         logger.info(`[${this.componentName}] Initialized`, {
-            swarmId: this.coordinationConfig.swarmId,
+            chatId: this.coordinationConfig.chatId,
         });
     }
 
     /**
      * Get the current state
      */
-    public getState(): TState {
+    public getState(): RunState {
         return this.state;
     }
 
@@ -93,11 +86,16 @@ export abstract class BaseStateMachine<
      * Queue an event for processing
      */
     public async handleEvent(event: TEvent): Promise<void> {
-        if (this.disposed || this.state === BaseStates.TERMINATED) {
+        if (this.disposed || this.state === RunState.CANCELLED) {
             logger.debug(`[${this.constructor.name}] Ignoring event in terminated state`, {
                 event: event.type,
                 state: this.state,
             });
+            return;
+        }
+
+        // Skip if not relevant to this instance
+        if (!this.shouldHandleEvent(event)) {
             return;
         }
 
@@ -117,8 +115,8 @@ export abstract class BaseStateMachine<
 
         this.eventQueue.push(event);
 
-        // If idle, start processing
-        if (this.state === BaseStates.IDLE as TState) {
+        // If ready, start processing
+        if (this.state === RunState.READY) {
             this.scheduleDrain();
         }
     }
@@ -127,12 +125,11 @@ export abstract class BaseStateMachine<
      * Pause the state machine
      */
     public async pause(): Promise<boolean> {
-        const pausableStates = [BaseStates.RUNNING, BaseStates.IDLE] as TState[];
+        const pausableStates = [RunState.RUNNING, RunState.READY];
 
         if (pausableStates.includes(this.state)) {
             this.clearPendingDrainTimeout();
-            this.state = BaseStates.PAUSED as TState;
-            logger.info(`[${this.constructor.name}] Paused from state ${this.state}`);
+            await this.applyStateTransition(RunState.PAUSED, "user_requested_pause");
             await this.onPause();
             return true;
         }
@@ -145,9 +142,8 @@ export abstract class BaseStateMachine<
      * Resume the state machine
      */
     public async resume(): Promise<boolean> {
-        if (this.state === BaseStates.PAUSED as TState) {
-            this.state = BaseStates.IDLE as TState;
-            logger.info(`[${this.constructor.name}] Resumed`);
+        if (this.state === RunState.PAUSED || this.state === RunState.SUSPENDED) {
+            await this.applyStateTransition(RunState.READY, "user_requested_resume");
             await this.onResume();
             this.scheduleDrain();
             return true;
@@ -185,13 +181,15 @@ export abstract class BaseStateMachine<
         error?: string;
     }> {
         const stoppableStates = [
-            BaseStates.RUNNING,
-            BaseStates.IDLE,
-            BaseStates.PAUSED,
-            BaseStates.STARTING,
-        ] as TState[];
+            RunState.RUNNING,
+            RunState.READY,
+            RunState.PAUSED,
+            RunState.SUSPENDED,
+            RunState.LOADING,
+            RunState.CONFIGURING,
+        ];
 
-        if (this.state === BaseStates.STOPPED || this.state === BaseStates.TERMINATED) {
+        if (this.state === RunState.COMPLETED || this.state === RunState.CANCELLED) {
             return {
                 success: true,
                 message: `Already in state ${this.state}`,
@@ -213,19 +211,18 @@ export abstract class BaseStateMachine<
                 // Clear any pending operations
                 this.clearPendingDrainTimeout();
 
+                // Clean up event subscriptions
+                await this.cleanupEventSubscriptions();
+
                 // Clean up coordination resources
                 await this.releaseDistributedProcessingLock();
 
                 // Let subclass handle cleanup
                 const finalState = await this.onStop(mode, reason);
 
-                // Update state and emit final state change
-                const newState = (mode === "force" ? BaseStates.TERMINATED : BaseStates.STOPPED) as TState;
-                await this.emitStateChange(this.state, newState, {
-                    reason: `stop_${mode}`,
-                    stopReason: reason,
-                });
-                this.state = newState;
+                // Update state through event-driven transition
+                const newState = (mode === "force" ? RunState.CANCELLED : RunState.COMPLETED);
+                await this.applyStateTransition(newState, `stop_${mode}: ${reason || "no reason"}`);
                 this.disposed = true;
 
                 return {
@@ -234,12 +231,18 @@ export abstract class BaseStateMachine<
                     finalState,
                 };
             },
-            "stop",
-            { mode, reason },
+            {
+                component: this.componentName,
+                operation: "stop",
+                reason,
+                metadata: {
+                    mode,
+                },
+            },
         );
 
         if (!result.success) {
-            this.state = BaseStates.FAILED as TState;
+            await this.applyStateTransition(RunState.FAILED, "error_during_stop");
             const errorResult = result as { success: false; error: Error };
             return {
                 success: false,
@@ -255,7 +258,7 @@ export abstract class BaseStateMachine<
      * Process queued events with event-driven coordination
      */
     protected async drain(): Promise<void> {
-        const drainableStates = [BaseStates.RUNNING, BaseStates.IDLE] as TState[];
+        const drainableStates = [RunState.RUNNING, RunState.READY];
 
         if (!drainableStates.includes(this.state) || this.disposed) {
             logger.debug(`[${this.constructor.name}] Cannot drain in state ${this.state}`);
@@ -277,65 +280,41 @@ export abstract class BaseStateMachine<
         }
 
         try {
-            await this.emitStateChange(this.state, BaseStates.RUNNING as TState, {
-                reason: "drain_started",
-                queueSize: this.eventQueue.length,
-            });
-            this.state = BaseStates.RUNNING as TState;
-
-            // Emit processing start event for emergent monitoring
-            await this.publishEvent("state_machine.processing.started", {
-                taskId: this.getTaskId(),
-                queueSize: this.eventQueue.length,
-                processingMode: "event-driven",
-            }, {
-                priority: "low",
-                tags: ["state-machine", "processing", "emergent"],
-            });
+            await this.applyStateTransition(RunState.RUNNING, "drain_started");
 
             while (this.eventQueue.length > 0 && !this.disposed) {
-                const event = this.eventQueue.shift()!;
+                const event = this.eventQueue.shift();
+                if (!event) continue;
 
                 const result = await this.errorHandler.wrap(
                     () => this.processEvent(event),
-                    "processEvent",
-                    { eventType: event.type },
+                    {
+                        component: this.componentName,
+                        operation: "processEvent",
+                        metadata: { eventType: event.type },
+                    },
                 );
 
                 if (!result.success) {
                     const errorResult = result as { success: false; error: Error };
                     // Let subclass decide if error is fatal
                     if (await this.isErrorFatal(errorResult.error, event)) {
-                        await this.emitStateChange(this.state, BaseStates.FAILED as TState, {
-                            reason: "fatal_error",
-                            error: errorResult.error.message,
-                        });
-                        this.state = BaseStates.FAILED as TState;
+                        await this.applyStateTransition(
+                            RunState.FAILED,
+                            `fatal_error: ${errorResult.error.message}`,
+                        );
                         return;
                     }
                 }
             }
 
             if (!this.disposed && this.eventQueue.length === 0) {
-                await this.emitStateChange(this.state, BaseStates.IDLE as TState, {
-                    reason: "drain_completed",
-                });
-                this.state = BaseStates.IDLE as TState;
+                await this.applyStateTransition(RunState.READY, "drain_completed");
                 await this.onIdle();
             } else {
                 // More events arrived while processing
                 this.scheduleDrain();
             }
-
-            // Emit processing completion event for emergent monitoring
-            await this.publishEvent("state_machine.processing.completed", {
-                taskId: this.getTaskId(),
-                finalQueueSize: this.eventQueue.length,
-                processingMode: "event-driven",
-            }, {
-                priority: "low",
-                tags: ["state-machine", "processing", "emergent"],
-            });
 
         } finally {
             // Always release the distributed lock
@@ -347,7 +326,7 @@ export abstract class BaseStateMachine<
      * Schedule the next drain cycle
      */
     protected scheduleDrain(delayMs = 0): void {
-        if (this.disposed || this.state === BaseStates.PAUSED as TState) {
+        if (this.disposed || this.state === RunState.PAUSED) {
             return;
         }
 
@@ -386,34 +365,22 @@ export abstract class BaseStateMachine<
     /**
      * Helper method for publishing events using unified event system
      */
-    protected async publishEvent(
+    protected async publishEvent<T extends SocketEventPayloads[SocketEvent]>(
         eventType: string,
-        data: any,
-        options?: {
-            deliveryGuarantee?: "fire-and-forget" | "reliable" | "barrier-sync";
-            priority?: "low" | "medium" | "high" | "critical";
-            tags?: string[];
-            userId?: string;
-            conversationId?: string;
-        },
+        data: T,
+        meta?: EventMetadata,
     ): Promise<void> {
         try {
-            const event = EventUtils.createBaseEvent(
-                eventType,
-                data,
-                EventUtils.createEventSource("cross-cutting", this.componentName, generatePK().toString()),
-                EventUtils.createEventMetadata(
-                    options?.deliveryGuarantee || "fire-and-forget",
-                    options?.priority || "medium",
-                    {
-                        tags: options?.tags,
-                        userId: options?.userId,
-                        conversationId: options?.conversationId,
-                    },
-                ),
-            );
+            const { proceed, reason } = await EventPublisher.emit(eventType, data, meta);
 
-            await getEventBus().publish(event);
+            if (!proceed) {
+                // Log but don't throw - internal state machine events are generally informational
+                logger.debug(`[${this.componentName}] Event emission blocked: ${eventType}`, {
+                    reason,
+                    eventType,
+                    data,
+                });
+            }
         } catch (error) {
             logger.error(`[${this.componentName}] Failed to publish unified event`, {
                 eventType,
@@ -423,36 +390,80 @@ export abstract class BaseStateMachine<
     }
 
     /**
-     * Emit an event to the event bus using BaseServiceEventSystem
+     * Emit a state change event (common pattern for state machines)
+     * Now using EventPublisher for consistent event publishing
      */
-    protected async emitEvent(type: string, data: unknown): Promise<void> {
-        await this.publishEvent(
-            `state.machine.${type}`,
-            data,
-            {
-                priority: "medium",
-                deliveryGuarantee: "reliable",
-            },
-        );
+    protected async emitStateChange(fromState: RunState, toState: RunState, context?: Record<string, any>): Promise<void> {
+        const { proceed, reason } = await EventPublisher.emit(EventTypes.SYSTEM.STATE_CHANGED, {
+            chatId: this.coordinationConfig.chatId,
+            taskId: this.getTaskId(),
+            componentName: this.componentName,
+            previousState: fromState,
+            newState: toState,
+            context,
+        });
+
+        if (!proceed) {
+            // State change events are critical - log as warning
+            logger.warn(`[${this.componentName}] State transition event blocked`, {
+                fromState,
+                toState,
+                reason,
+                context,
+            });
+            // Don't throw - state has already changed internally
+        }
     }
 
     /**
-     * Emit a state change event (common pattern for state machines)
+     * Apply a state transition (called from event handler)
+     * This centralizes all state changes
      */
-    protected async emitStateChange(fromState: TState, toState: TState, context?: Record<string, any>): Promise<void> {
-        await this.publishEvent(
-            "state_machine.state.changed",
-            {
-                taskId: this.getTaskId(),
-                previousState: fromState,
-                newState: toState,
-                ...context,
-            },
-            {
-                priority: "medium",
-                deliveryGuarantee: "reliable",
-            },
-        );
+    protected async applyStateTransition(toState: RunState, reason: string): Promise<void> {
+        const fromState = this.state;
+
+        // Validate transition
+        if (!this.isValidTransition(fromState, toState)) {
+            logger.warn(`[${this.componentName}] Invalid state transition attempted`, {
+                from: fromState,
+                to: toState,
+                reason,
+            });
+            return;
+        }
+
+        // Apply the transition
+        this.state = toState;
+
+        // Emit state change event
+        await this.emitStateChange(fromState, toState, { reason });
+
+        logger.info(`[${this.componentName}] State transitioned`, {
+            from: fromState,
+            to: toState,
+            reason,
+        });
+    }
+
+    /**
+     * Check if a state transition is valid
+     */
+    protected isValidTransition(from: RunState, to: RunState): boolean {
+        // Define valid state transitions
+        const validTransitions: Record<RunState, RunState[]> = {
+            [RunState.UNINITIALIZED]: [RunState.LOADING, RunState.FAILED, RunState.CANCELLED],
+            [RunState.LOADING]: [RunState.CONFIGURING, RunState.READY, RunState.FAILED, RunState.CANCELLED],
+            [RunState.CONFIGURING]: [RunState.READY, RunState.FAILED, RunState.CANCELLED],
+            [RunState.READY]: [RunState.RUNNING, RunState.PAUSED, RunState.COMPLETED, RunState.FAILED, RunState.CANCELLED],
+            [RunState.RUNNING]: [RunState.READY, RunState.PAUSED, RunState.COMPLETED, RunState.FAILED, RunState.CANCELLED],
+            [RunState.PAUSED]: [RunState.READY, RunState.CANCELLED],
+            [RunState.SUSPENDED]: [RunState.READY, RunState.CANCELLED],
+            [RunState.COMPLETED]: [], // Terminal state
+            [RunState.FAILED]: [], // Terminal state
+            [RunState.CANCELLED]: [], // Terminal state
+        };
+
+        return validTransitions[from]?.includes(to) || false;
     }
 
     /**
@@ -517,6 +528,72 @@ export abstract class BaseStateMachine<
      */
     protected abstract isErrorFatal(error: unknown, event: TEvent): Promise<boolean>;
 
+    /**
+     * Get event patterns this state machine should subscribe to
+     * @returns Array of event patterns
+     */
+    protected abstract getEventPatterns(): Array<{
+        pattern: string;
+    }>;
+
+    /**
+     * Determine if this state machine instance should handle a specific event
+     * @param event - The event to check
+     * @returns true if this instance should process the event
+     */
+    protected abstract shouldHandleEvent(event: TEvent): boolean;
+
+    // Event subscription methods
+
+    /**
+     * Setup event subscriptions based on patterns from getEventPatterns()
+     */
+    protected async setupEventSubscriptions(): Promise<void> {
+        const patterns = this.getEventPatterns();
+        const eventBus = getEventBus();
+
+        for (const { pattern } of patterns) {
+            // Subscribe to pattern with this instance's handleEvent method
+            const subscriptionId = await eventBus.subscribe(
+                pattern,
+                async (event: ServiceEvent) => {
+                    // Route to handleEvent which queues for processing
+                    await this.handleEvent(event as TEvent);
+                },
+            );
+
+            // Create unsubscribe function
+            const unsubscribe = async (): Promise<void> => {
+                await eventBus.unsubscribe(subscriptionId);
+            };
+
+            this.eventSubscriptions.push({ pattern, unsubscribe });
+
+            logger.info(`[${this.componentName}] Subscribed to event pattern`, {
+                pattern,
+                subscriptionId,
+            });
+        }
+    }
+
+    /**
+     * Cleanup all event subscriptions
+     */
+    protected async cleanupEventSubscriptions(): Promise<void> {
+        for (const { pattern, unsubscribe } of this.eventSubscriptions) {
+            try {
+                await unsubscribe();
+                logger.debug(`[${this.componentName}] Unsubscribed from pattern`, { pattern });
+            } catch (error) {
+                logger.error(`[${this.componentName}] Failed to unsubscribe`, {
+                    pattern,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        }
+        this.eventSubscriptions = [];
+    }
+
     // Event-driven coordination methods
 
     /**
@@ -535,7 +612,7 @@ export abstract class BaseStateMachine<
             // For now, simulate successful lock acquisition
             logger.debug(`[${this.componentName}] Acquired distributed processing lock`, {
                 lockId,
-                swarmId: this.coordinationConfig.swarmId,
+                chatId: this.coordinationConfig.chatId,
             });
 
             return true;
@@ -543,7 +620,7 @@ export abstract class BaseStateMachine<
         } catch (error) {
             logger.warn(`[${this.componentName}] Failed to acquire distributed processing lock`, {
                 error: error instanceof Error ? error.message : String(error),
-                swarmId: this.coordinationConfig.swarmId,
+                chatId: this.coordinationConfig.chatId,
             });
 
             return false;
@@ -562,7 +639,7 @@ export abstract class BaseStateMachine<
             // In a full implementation, this would release the Redis-based lock
             logger.debug(`[${this.componentName}] Released distributed processing lock`, {
                 lockId: this.currentDistributedLock,
-                swarmId: this.coordinationConfig.swarmId,
+                chatId: this.coordinationConfig.chatId,
             });
 
             this.currentDistributedLock = null;
@@ -583,11 +660,11 @@ export abstract class BaseStateMachine<
      */
     public getCoordinationStatus(): {
         currentLock: string | null;
-        swarmId?: string;
+        chatId?: string;
     } {
         return {
             currentLock: this.currentDistributedLock,
-            swarmId: this.coordinationConfig.swarmId,
+            chatId: this.coordinationConfig.chatId,
         };
     }
 }

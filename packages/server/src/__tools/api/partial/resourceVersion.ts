@@ -50,6 +50,7 @@ export const resourceVersion: ApiPartial<ResourceVersion> = {
         you: () => rel(routineVersionYou, "common"),
     },
     full: {
+        // @ts-expect-error - JSONB field - select entire JSON object
         config: true,
         versionNotes: true,
         pullRequest: async () => rel((await import("./pullRequest.js")).pullRequest, "full", { omit: ["from", "to"] }),

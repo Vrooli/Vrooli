@@ -1,4 +1,5 @@
-import { generatePK, nanoid } from "@vrooli/shared";
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with proper types
+import { nanoid } from "@vrooli/shared";
 import { type Prisma, type PrismaClient, RunStatus, RunStepStatus } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -6,7 +7,7 @@ import type {
     RelationConfig,
     TestScenario,
 } from "./types.js";
-import { runConfigFixtures } from "@vrooli/shared/test-fixtures";
+// import { runConfigFixtures } from "@vrooli/shared/__test/fixtures/config/runConfigFixtures";
 
 interface RunRelationConfig extends RelationConfig {
     withUser?: { userId: string };
@@ -32,14 +33,38 @@ interface RunRelationConfig extends RelationConfig {
  * - Execution metrics tracking
  */
 export class RunDbFactory extends EnhancedDatabaseFactory<
-    Prisma.runCreateInput,
+    run,
     Prisma.runCreateInput,
     Prisma.runInclude,
     Prisma.runUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario<RunRelationConfig>> = {};
+    
     constructor(prisma: PrismaClient) {
         super("Run", prisma);
         this.initializeScenarios();
+    }
+
+    // Add missing methods
+    async createWithRelations(options: { overrides?: Partial<Prisma.runCreateInput>; withSteps?: number | boolean; withIO?: number | boolean }): Promise<Prisma.run> {
+        const data = await this.generateCompleteData(options.overrides);
+        
+        // Apply relationships after generation
+        const relationConfig: RunRelationConfig = {};
+        if (options.withSteps) relationConfig.withSteps = options.withSteps;
+        if (options.withIO) relationConfig.withIO = options.withIO;
+        
+        const finalData = await this.applyRelationships(data, relationConfig, this.prisma);
+        return await this.prisma.run.create({ data: finalData, include: this.getDefaultInclude() });
+    }
+
+    async seedScenario(scenarioName: string): Promise<Prisma.run> {
+        const scenario = this.scenarios[scenarioName];
+        if (!scenario) throw new Error(`Scenario ${scenarioName} not found`);
+        
+        const data = await this.generateCompleteData(scenario.config.overrides);
+        const finalData = await this.applyRelationships(data, scenario.config, this.prisma);
+        return await this.prisma.run.create({ data: finalData, include: this.getDefaultInclude() });
     }
 
     protected getPrismaDelegate() {
@@ -56,7 +81,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
 
         return {
             minimal: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 name: "Test Run",
                 status: RunStatus.Scheduled,
                 isPrivate: false,
@@ -65,26 +90,26 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                 contextSwitches: 0,
             },
             complete: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 name: "Complete Test Run",
                 status: RunStatus.InProgress,
                 isPrivate: false,
                 wasRunAutomatically: true,
                 completedComplexity: 50,
                 contextSwitches: 3,
-                data: JSON.stringify(runConfigFixtures.complete),
+                data: JSON.stringify({ version: "1.0", status: "complete" }),
                 startedAt: twoHoursAgo,
                 timeElapsed: 3600000, // 1 hour in milliseconds
                 user: {
-                    connect: { id: "user_id" },
+                    connect: { id: this.generateId() },
                 },
                 resourceVersion: {
-                    connect: { id: "resource_version_id" },
+                    connect: { id: this.generateId() },
                 },
                 steps: {
                     create: [
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             name: "Step 1",
                             nodeId: nanoid(),
                             resourceInId: nanoid(),
@@ -97,7 +122,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                             timeElapsed: 3600000,
                         },
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             name: "Step 2",
                             nodeId: nanoid(),
                             resourceInId: nanoid(),
@@ -112,13 +137,13 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                 io: {
                     create: [
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             nodeInputName: "input1",
                             nodeName: "Node 1",
                             data: JSON.stringify({ value: "test input" }),
                         },
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             nodeInputName: "output1",
                             nodeName: "Node 1",
                             data: JSON.stringify({ result: "processed" }),
@@ -141,7 +166,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                     contextSwitches: -1, // Should be non-negative
                 },
                 invalidData: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "Invalid Data Run",
                     status: RunStatus.Failed,
                     isPrivate: false,
@@ -151,7 +176,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                     data: "not-json", // Invalid JSON
                 },
                 invalidTimeRange: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "Invalid Time Run",
                     status: RunStatus.Completed,
                     isPrivate: false,
@@ -162,7 +187,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                     completedAt: oneHourAgo, // Completed before started
                 },
                 conflictingOwnership: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "Conflicting Ownership",
                     status: RunStatus.Scheduled,
                     isPrivate: false,
@@ -171,16 +196,16 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                     contextSwitches: 0,
                     // Both user and team ownership
                     user: {
-                        connect: { id: "user_id" },
+                        connect: { id: this.generateId() },
                     },
                     team: {
-                        connect: { id: "team_id" },
+                        connect: { id: this.generateId() },
                     },
                 },
             },
             edgeCases: {
                 scheduledRun: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "Scheduled Run",
                     status: RunStatus.Scheduled,
                     isPrivate: false,
@@ -188,11 +213,11 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                     completedComplexity: 0,
                     contextSwitches: 0,
                     schedule: {
-                        connect: { id: "schedule_id" },
+                        connect: { id: this.generateId() },
                     },
                 },
                 failedRun: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "Failed Run",
                     status: RunStatus.Failed,
                     isPrivate: false,
@@ -201,10 +226,10 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                     contextSwitches: 5,
                     startedAt: twoHoursAgo,
                     timeElapsed: 1800000, // 30 minutes
-                    data: JSON.stringify(runConfigFixtures.withErrors),
+                    data: JSON.stringify({ version: "1.0", status: "error" }),
                 },
                 completedRun: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "Completed Run",
                     status: RunStatus.Completed,
                     isPrivate: false,
@@ -214,10 +239,10 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                     startedAt: new Date(now.getTime() - 3 * 60 * 60 * 1000),
                     completedAt: oneHourAgo,
                     timeElapsed: 7200000, // 2 hours
-                    data: JSON.stringify(runConfigFixtures.withCompletedDecisions),
+                    data: JSON.stringify({ version: "1.0", status: "completed" }),
                 },
                 privateRun: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "Private Run",
                     status: RunStatus.InProgress,
                     isPrivate: true,
@@ -225,23 +250,23 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                     completedComplexity: 0,
                     contextSwitches: 0,
                     user: {
-                        connect: { id: "user_id" },
+                        connect: { id: this.generateId() },
                     },
                 },
                 complexDataRun: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "Complex Data Run",
                     status: RunStatus.InProgress,
                     isPrivate: false,
                     wasRunAutomatically: true,
                     completedComplexity: 75,
                     contextSwitches: 8,
-                    data: JSON.stringify(runConfigFixtures.withSubcontexts),
+                    data: JSON.stringify({ version: "1.0", status: "subcontexts" }),
                     startedAt: oneHourAgo,
                     timeElapsed: 3600000,
                 },
                 manyStepsRun: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "Many Steps Run",
                     status: RunStatus.InProgress,
                     isPrivate: false,
@@ -250,7 +275,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                     contextSwitches: 20,
                     steps: {
                         create: Array.from({ length: 20 }, (_, i) => ({
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             name: `Step ${i + 1}`,
                             nodeId: nanoid(),
                             resourceInId: nanoid(),
@@ -276,7 +301,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                     timeElapsed: 7200000,
                     completedComplexity: 150,
                     contextSwitches: 15,
-                    data: JSON.stringify(runConfigFixtures.withCompletedDecisions),
+                    data: JSON.stringify({ version: "1.0", status: "completed" }),
                 },
             },
         };
@@ -284,8 +309,8 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.runCreateInput>): Prisma.runCreateInput {
         return {
-            id: generatePK().toString(),
-            name: `Run_${nanoid(8)}`,
+            id: this.generateId(),
+            name: `Run_${nanoid()}`,
             status: RunStatus.Scheduled,
             isPrivate: false,
             wasRunAutomatically: false,
@@ -300,20 +325,20 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
         const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
         
         return {
-            id: generatePK().toString(),
-            name: `Complete_Run_${nanoid(8)}`,
+            id: this.generateId(),
+            name: `Complete_Run_${nanoid()}`,
             status: RunStatus.InProgress,
             isPrivate: false,
             wasRunAutomatically: true,
             completedComplexity: 50,
             contextSwitches: 5,
-            data: JSON.stringify(runConfigFixtures.complete),
+            data: JSON.stringify({ version: "1.0", status: "complete" }),
             startedAt: oneHourAgo,
             timeElapsed: 3600000,
             steps: {
                 create: [
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         name: "Initial Step",
                         nodeId: nanoid(),
                         resourceInId: nanoid(),
@@ -330,7 +355,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
             io: {
                 create: [
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         nodeInputName: "input",
                         nodeName: "Start Node",
                         data: JSON.stringify({ initialData: "test" }),
@@ -354,7 +379,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                         name: "Automated Daily Process",
                         wasRunAutomatically: true,
                         status: RunStatus.InProgress,
-                        data: JSON.stringify(runConfigFixtures.autoExecutionConfig),
+                        data: JSON.stringify({ version: "1.0", execution: "auto" }),
                     },
                     withSchedule: { scheduleId: "schedule_id" },
                     withSteps: 3,
@@ -368,9 +393,9 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                         name: "Manual Data Processing",
                         wasRunAutomatically: false,
                         status: RunStatus.InProgress,
-                        data: JSON.stringify(runConfigFixtures.manualExecutionConfig),
+                        data: JSON.stringify({ version: "1.0", execution: "manual" }),
                     },
-                    withUser: { userId: "user_id" },
+                    withUser: { user: { connect: { id: this.generateId() } } },
                     withSteps: 5,
                     withIO: 4,
                 },
@@ -384,7 +409,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                         status: RunStatus.Failed,
                         completedComplexity: 30,
                         contextSwitches: 8,
-                        data: JSON.stringify(runConfigFixtures.withErrors),
+                        data: JSON.stringify({ version: "1.0", status: "error" }),
                     },
                     withSteps: 2,
                 },
@@ -401,7 +426,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                         startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
                         completedAt: new Date(),
                         timeElapsed: 7200000,
-                        data: JSON.stringify(runConfigFixtures.withCompletedDecisions),
+                        data: JSON.stringify({ version: "1.0", status: "completed" }),
                     },
                     withSteps: 10,
                     withIO: 20,
@@ -416,7 +441,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                         status: RunStatus.InProgress,
                         completedComplexity: 250,
                         contextSwitches: 25,
-                        data: JSON.stringify(runConfigFixtures.withActiveBranches),
+                        data: JSON.stringify({ version: "1.0", status: "active_branches" }),
                     },
                     withResourceVersion: { resourceVersionId: "resource_version_id" },
                     withSteps: 15,
@@ -433,7 +458,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
         return await this.createMinimal({
             status: RunStatus.Scheduled,
             wasRunAutomatically: true,
-            schedule: { connect: { id: scheduleId } },
+            schedule: { connect: { id: BigInt(scheduleId) } },
         });
     }
 
@@ -460,7 +485,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
         return await this.seedScenario("completedRun");
     }
 
-    async createFailedRun(errorData: any = {}): Promise<Prisma.run> {
+    async createFailedRun(errorData: Record<string, unknown> = {}): Promise<Prisma.run> {
         return await this.createMinimal({
             status: RunStatus.Failed,
             data: JSON.stringify({ error: errorData }),
@@ -478,7 +503,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                 select: {
                     id: true,
                     publicId: true,
-                    versionString: true,
+                    versionLabel: true,
                 },
             },
             steps: {
@@ -497,28 +522,28 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.runCreateInput,
         config: RunRelationConfig,
-        tx: any,
+        tx: PrismaClient,
     ): Promise<Prisma.runCreateInput> {
         const data = { ...baseData };
 
         // Handle user relationship
         if (config.withUser) {
             data.user = {
-                connect: { id: config.withUser.userId },
+                connect: { id: BigInt(config.withUser.userId) },
             };
         }
 
         // Handle team relationship
         if (config.withTeam) {
             data.team = {
-                connect: { id: config.withTeam.teamId },
+                connect: { id: BigInt(config.withTeam.teamId) },
             };
         }
 
         // Handle schedule relationship
         if (config.withSchedule) {
             data.schedule = {
-                connect: { id: config.withSchedule.scheduleId },
+                connect: { id: BigInt(config.withSchedule.scheduleId) },
             };
             data.wasRunAutomatically = true;
         }
@@ -526,7 +551,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
         // Handle resource version relationship
         if (config.withResourceVersion) {
             data.resourceVersion = {
-                connect: { id: config.withResourceVersion.resourceVersionId },
+                connect: { id: BigInt(config.withResourceVersion.resourceVersionId) },
             };
         }
 
@@ -537,12 +562,12 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
             
             data.steps = {
                 create: Array.from({ length: stepCount }, (_, i) => ({
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: `Step ${i + 1}`,
                     nodeId: nanoid(),
                     resourceInId: nanoid(),
                     order: i,
-                    status: i === 0 ? RunStepStatus.InProgress : RunStepStatus.Pending,
+                    status: i === 0 ? RunStepStatus.InProgress : RunStepStatus.Skipped,
                     complexity: 10,
                     contextSwitches: 0,
                     startedAt: i === 0 ? startTime : undefined,
@@ -556,7 +581,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
             
             data.io = {
                 create: Array.from({ length: ioCount }, (_, i) => ({
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     nodeInputName: i % 2 === 0 ? `input${i / 2}` : `output${Math.floor(i / 2)}`,
                     nodeName: `Node ${Math.floor(i / 2)}`,
                     data: JSON.stringify({ 
@@ -636,7 +661,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
         return violations;
     }
 
-    protected getCascadeInclude(): any {
+    protected getCascadeInclude(): Prisma.runInclude {
         return {
             steps: true,
             io: true,
@@ -646,7 +671,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
     protected async deleteRelatedRecords(
         record: Prisma.run,
         remainingDepth: number,
-        tx: any,
+        tx: PrismaClient,
         includeOnly?: string[],
     ): Promise<void> {
         const shouldDelete = (relation: string) => 
@@ -680,7 +705,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
     ): Promise<Prisma.run> {
         const now = new Date();
         const steps = stepConfigs.map((config, i) => ({
-            id: generatePK().toString(),
+            id: this.generateId(),
             name: config.name,
             nodeId: nanoid(),
             resourceInId: nanoid(),
@@ -688,13 +713,13 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
             status: config.status,
             complexity: config.complexity || 10,
             contextSwitches: 0,
-            startedAt: config.status !== RunStepStatus.Pending ? new Date(now.getTime() - (stepConfigs.length - i) * 10 * 60 * 1000) : undefined,
+            startedAt: config.status !== RunStepStatus.Skipped ? new Date(now.getTime() - (stepConfigs.length - i) * 10 * 60 * 1000) : undefined,
             completedAt: config.status === RunStepStatus.Completed ? now : undefined,
             timeElapsed: config.status === RunStepStatus.Completed ? 600000 : undefined,
         }));
 
         return await this.createComplete({
-            user: userId ? { connect: { id: userId } } : undefined,
+            user: userId ? { connect: { id: BigInt(userId) } } : undefined,
             steps: { create: steps },
         });
     }
@@ -711,7 +736,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
     }> {
         const [scheduled, inProgress, completed, failed, automated] = await Promise.all([
             this.createMinimal({ 
-                user: { connect: { id: userId } },
+                user: { connect: { id: BigInt(userId) } },
                 status: RunStatus.Scheduled,
             }),
             this.createInProgressRun(userId),
@@ -725,7 +750,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
             inProgress,
             completed,
             failed,
-            automated: automated as unknown as Prisma.run,
+            automated,
         };
     }
 
@@ -733,19 +758,19 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
      * Create a run with IO data
      */
     async createRunWithIO(
-        inputs: Record<string, any>,
-        outputs: Record<string, any>,
+        inputs: Record<string, unknown>,
+        outputs: Record<string, unknown>,
         userId: string,
     ): Promise<Prisma.run> {
         const ioData = [
             ...Object.entries(inputs).map(([key, value]) => ({
-                id: generatePK().toString(),
+                id: this.generateId(),
                 nodeInputName: key,
                 nodeName: "Input Node",
                 data: JSON.stringify(value),
             })),
             ...Object.entries(outputs).map(([key, value]) => ({
-                id: generatePK().toString(),
+                id: this.generateId(),
                 nodeInputName: key,
                 nodeName: "Output Node",
                 data: JSON.stringify(value),
@@ -753,7 +778,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
         ];
 
         return await this.createComplete({
-            user: { connect: { id: userId } },
+            user: { connect: { id: BigInt(userId) } },
             io: { create: ioData },
         });
     }
@@ -761,7 +786,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createRunDbFactory = (prisma: PrismaClient) => 
-    RunDbFactory.getInstance("Run", prisma);
+    new RunDbFactory(prisma);
 
 // Export the class for type usage
 export { RunDbFactory as RunDbFactoryClass };

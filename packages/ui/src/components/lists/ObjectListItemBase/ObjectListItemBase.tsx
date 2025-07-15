@@ -306,9 +306,9 @@ export function ObjectListItemBase<T extends ListObject>({
     }, [data, isSelecting, handleToggleSelect, onClick, canNavigate, setLocation, link]);
 
     const editUrl = useMemo(() => data ? getObjectEditUrl(data) : "", [data]);
-    const handleEditClick = useCallback((event: any) => {
+    const handleEditClick = useCallback((event: React.MouseEvent<HTMLAnchorElement>) => {
         event.preventDefault();
-        const target = event.target;
+        const target = event.target as HTMLElement;
         if (!target.id || !target.id.startsWith(EDIT_PREFIX)) return;
         // If data not supplied, don't open
         if (!data) return;
@@ -335,7 +335,9 @@ export function ObjectListItemBase<T extends ListObject>({
         // Show icons for teams, users, and objects with display teams/users
         if (isOfType(object, "Team", "User", "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) {
             type OrgOrUser = { __typename: "Team" | "User", profileImage: string, updatedAt: string, isBot?: boolean };
-            const orgOrUser: OrgOrUser = (isOfType(object, "Member", "MemberInvite", "ChatParticipant", "ChatInvite") ? (object as unknown as (Member | MemberInvite | ChatParticipant | ChatInvite)).user : object) as unknown as OrgOrUser;
+            const orgOrUser: OrgOrUser = (isOfType(object, "Member", "MemberInvite", "ChatParticipant", "ChatInvite") 
+                ? (object as Member | MemberInvite | ChatParticipant | ChatInvite).user 
+                : object) as OrgOrUser;
             const isBot = orgOrUser.isBot;
             let iconInfo: IconInfo;
             if (object.__typename === "Team") {
@@ -363,12 +365,12 @@ export function ObjectListItemBase<T extends ListObject>({
         // Show multiple icons for chats and meetings
         if (isOfType(object, "Chat", "Meeting")) {
             // Filter yourself out of participants
-            const attendeesOrParticipants = ((object as unknown as Meeting).attendees ?? (object as unknown as Chat).participants)?.filter((p: Meeting["attendees"][0] | Chat["participants"][0]) => (p as Meeting["attendees"][0])?.id !== getCurrentUser(session)?.id && (p as Chat["participants"][0])?.user?.id !== getCurrentUser(session)?.id) ?? [];
+            const attendeesOrParticipants = ((object as Meeting).attendees ?? (object as Chat).participants)?.filter((p: Meeting["attendees"][0] | Chat["participants"][0]) => (p as Meeting["attendees"][0])?.id !== getCurrentUser(session)?.id && (p as Chat["participants"][0])?.user?.id !== getCurrentUser(session)?.id) ?? [];
             // If no participants, show nothing
             if (attendeesOrParticipants.length === 0) return null;
             // If only one participant, show their profile picture instead of a group
             if (attendeesOrParticipants.length === 1) {
-                const firstUser = (attendeesOrParticipants as unknown as Chat["participants"])[0]?.user ?? (attendeesOrParticipants as unknown as Meeting["attendees"])[0];
+                const firstUser = (attendeesOrParticipants as Chat["participants"])[0]?.user ?? (attendeesOrParticipants as Meeting["attendees"])[0];
                 return (
                     <ObjectListProfileAvatar
                         alt={`${getDisplay(firstUser).title}'s profile picture`}
@@ -388,7 +390,7 @@ export function ObjectListItemBase<T extends ListObject>({
             return (
                 <AvatarGroup max={4} total={attendeesOrParticipants.length}>
                     {attendeesOrParticipants.slice(0, MAX_AVATARS_IN_GROUP).map((p: Meeting["attendees"][0] | Chat["participants"][0], index: number) => {
-                        const user = (p as Chat["participants"][0])?.user ?? p as Meeting["attendees"][0];
+                        const user = (p as Chat["participants"][0])?.user ?? (p as Meeting["attendees"][0]);
                         return (
                             <ObjectListProfileAvatar
                                 key={user.id || index}
@@ -428,7 +430,7 @@ export function ObjectListItemBase<T extends ListObject>({
                     objectId={object?.id ?? ""}
                     voteFor={object.__typename as ReactionFor}
                     score={score}
-                    onChange={(newEmoji: string | null, newScore: number) => { }}
+                    onChange={() => { /* Vote change handler */ }}
                 />
             );
         }
@@ -459,8 +461,6 @@ export function ObjectListItemBase<T extends ListObject>({
                         aria-label={t("Edit")}
                         component="a"
                         id={`${EDIT_PREFIX}button-${id}`}
-                        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                        // @ts-ignore
                         href={editUrl}
                         isMobile={isMobile}
                         onClick={handleEditClick}
@@ -479,7 +479,7 @@ export function ObjectListItemBase<T extends ListObject>({
                         objectId={object?.id ?? ""}
                         voteFor={object.__typename as ReactionFor}
                         score={score}
-                        onChange={(newEmoji: string | null, newScore: number) => { }}
+                        onChange={() => { /* Vote change handler */ }}
                     />
                 )}
                 {willShowBookmarkButton && <BookmarkButton
@@ -504,9 +504,15 @@ export function ObjectListItemBase<T extends ListObject>({
 
     const titleId = `${LIST_PREFIX}title-stack-${id}`;
 
-    const showIncompleteChip = useMemo(() => data && data.__typename !== "Reminder" && (data as any).isComplete === false, [data]);
-    const showInternalChip = useMemo(() => data && (data as any).isInternal === true, [data]);
-    const showTags = useMemo(() => Array.isArray((data as any)?.tags) && (data as any)?.tags.length > 0, [data]);
+    const showIncompleteChip = useMemo(() => {
+        return data && data.__typename !== "Reminder" && "isComplete" in data && (data as { isComplete: boolean }).isComplete === false;
+    }, [data]);
+    const showInternalChip = useMemo(() => {
+        return data && "isInternal" in data && (data as { isInternal: boolean }).isInternal === true;
+    }, [data]);
+    const showTags = useMemo(() => {
+        return data && "tags" in data && Array.isArray((data as { tags: unknown[] }).tags) && (data as { tags: unknown[] }).tags.length > 0;
+    }, [data]);
 
     return (
         <>
@@ -514,9 +520,7 @@ export function ObjectListItemBase<T extends ListObject>({
             <StyledListItem
                 id={`${LIST_PREFIX}${id}`}
                 disablePadding
-                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                // @ts-ignore
-                button
+                {...(link.length > 0 ? {} : { role: "button" })}
                 component={link.length > 0 ? "a" : "div"}
                 href={link.length > 0 ? link : undefined}
                 isMobile={isMobile}
@@ -582,7 +586,7 @@ export function ObjectListItemBase<T extends ListObject>({
                         </Tooltip>}
                         {showTags &&
                             <TagList
-                                tags={(data as any).tags}
+                                tags={(data as { tags: unknown[] }).tags}
                             />}
                         {belowTags}
                     </Stack>}

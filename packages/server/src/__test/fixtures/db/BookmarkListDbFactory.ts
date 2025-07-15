@@ -1,4 +1,5 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
+import { nanoid } from "@vrooli/shared";
+import { type bookmark_list } from "@prisma/client";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -25,11 +26,13 @@ interface BookmarkListRelationConfig extends RelationConfig {
  * - Comprehensive validation
  */
 export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
-    Prisma.bookmark_listCreateInput,
+    bookmark_list,
     Prisma.bookmark_listCreateInput,
     Prisma.bookmark_listInclude,
     Prisma.bookmark_listUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
+
     constructor(prisma: PrismaClient) {
         super("bookmark_list", prisma);
         this.initializeScenarios();
@@ -45,27 +48,27 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     protected getFixtures(): DbTestFixtures<Prisma.bookmark_listCreateInput, Prisma.bookmark_listUpdateInput> {
         return {
             minimal: {
-                id: generatePK().toString(),
-                label: `Bookmarks_${nanoid(8)}`,
-                userId: generatePK().toString(),
+                id: this.generateId(),
+                label: `Bookmarks_${nanoid()}`,
+                user: { connect: { id: this.generateId() } },
             },
             complete: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 label: "My Favorite Resources",
-                userId: generatePK().toString(),
+                user: { connect: { id: this.generateId() } },
                 bookmarks: {
                     create: [
                         {
-                            id: generatePK().toString(),
-                            resourceId: generatePK().toString(),
+                            id: this.generateId(),
+                            resourceId: this.generateId(),
                         },
                         {
-                            id: generatePK().toString(),
-                            resourceId: generatePK().toString(),
+                            id: this.generateId(),
+                            resourceId: this.generateId(),
                         },
                         {
-                            id: generatePK().toString(),
-                            commentId: generatePK().toString(),
+                            id: this.generateId(),
+                            commentId: this.generateId(),
                         },
                     ],
                 },
@@ -80,70 +83,70 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
                     userId: true, // Should be string
                 },
                 missingLabel: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     // Missing label
-                    userId: generatePK().toString(),
+                    user: { connect: { id: this.generateId() } },
                 },
                 missingUserId: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     label: "Orphaned List",
                     // Missing userId
                 },
                 duplicateLabel: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     label: "existing_label", // Assumes this exists for the same user
-                    userId: "existing_user_id",
+                    user: { connect: { id: BigInt("1234567890") } }, // Fixed ID for testing duplicate detection
                 },
                 exceedsLabelLength: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     label: "a".repeat(129), // Exceeds 128 character limit
-                    userId: generatePK().toString(),
+                    user: { connect: { id: this.generateId() } },
                 },
             },
             edgeCases: {
                 emptyList: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     label: "Empty List",
-                    userId: generatePK().toString(),
+                    user: { connect: { id: this.generateId() } },
                     // No bookmarks
                 },
                 maxLengthLabel: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     label: "a".repeat(128), // Max length label
-                    userId: generatePK().toString(),
+                    user: { connect: { id: this.generateId() } },
                 },
                 unicodeLabel: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     label: "📚 My Reading List 🌟",
-                    userId: generatePK().toString(),
+                    user: { connect: { id: this.generateId() } },
                 },
                 specialCharactersLabel: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     label: "List with @#$% special chars!",
-                    userId: generatePK().toString(),
+                    user: { connect: { id: this.generateId() } },
                 },
                 largeBookmarkCollection: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     label: "Large Collection",
-                    userId: generatePK().toString(),
+                    user: { connect: { id: this.generateId() } },
                     bookmarks: {
                         create: Array.from({ length: 100 }, () => ({
-                            id: generatePK().toString(),
-                            resourceId: generatePK().toString(),
+                            id: this.generateId(),
+                            resourceId: this.generateId(),
                         })),
                     },
                 },
                 mixedBookmarkTypes: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     label: "Mixed Types",
-                    userId: generatePK().toString(),
+                    user: { connect: { id: this.generateId() } },
                     bookmarks: {
                         create: [
-                            { id: generatePK().toString(), resourceId: generatePK().toString() },
-                            { id: generatePK().toString(), commentId: generatePK().toString() },
-                            { id: generatePK().toString(), issueId: generatePK().toString() },
-                            { id: generatePK().toString(), tagId: generatePK().toString() },
-                            { id: generatePK().toString(), teamId: generatePK().toString() },
+                            { id: this.generateId(), resourceId: this.generateId() },
+                            { id: this.generateId(), commentId: this.generateId() },
+                            { id: this.generateId(), issueId: this.generateId() },
+                            { id: this.generateId(), tagId: this.generateId() },
+                            { id: this.generateId(), teamId: this.generateId() },
                         ],
                     },
                 },
@@ -157,12 +160,12 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
                     bookmarks: {
                         create: [
                             {
-                                id: generatePK().toString(),
-                                resourceId: generatePK().toString(),
+                                id: this.generateId(),
+                                resourceId: this.generateId(),
                             },
                         ],
                         deleteMany: {
-                            listId: generatePK().toString(),
+                            listId: this.generateId(),
                         },
                     },
                 },
@@ -171,36 +174,36 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected generateMinimalData(overrides?: Partial<Prisma.bookmark_listCreateInput>): Prisma.bookmark_listCreateInput {
-        const uniqueLabel = `List_${nanoid(8)}`;
+        const uniqueLabel = `List_${nanoid()}`;
         
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             label: uniqueLabel,
-            userId: generatePK().toString(),
+            user: { connect: { id: this.generateId() } },
             ...overrides,
         };
     }
 
     protected generateCompleteData(overrides?: Partial<Prisma.bookmark_listCreateInput>): Prisma.bookmark_listCreateInput {
-        const uniqueLabel = `Complete_List_${nanoid(8)}`;
+        const uniqueLabel = `Complete_List_${nanoid()}`;
         
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             label: uniqueLabel,
-            userId: generatePK().toString(),
+            user: { connect: { id: this.generateId() } },
             bookmarks: {
                 create: [
                     {
-                        id: generatePK().toString(),
-                        resourceId: generatePK().toString(),
+                        id: this.generateId(),
+                        resourceId: this.generateId(),
                     },
                     {
-                        id: generatePK().toString(),
-                        resourceId: generatePK().toString(),
+                        id: this.generateId(),
+                        resourceId: this.generateId(),
                     },
                     {
-                        id: generatePK().toString(),
-                        commentId: generatePK().toString(),
+                        id: this.generateId(),
+                        commentId: this.generateId(),
                     },
                 ],
             },
@@ -268,14 +271,14 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a list with a specific number of bookmarks
      */
-    async createWithBookmarks(userId: string, label: string, bookmarkCount: number): Promise<Prisma.bookmark_list> {
+    async createWithBookmarks(userId: string | bigint, label: string, bookmarkCount: number) {
         const bookmarks = Array.from({ length: bookmarkCount }, () => ({
-            id: generatePK().toString(),
-            resourceId: generatePK().toString(),
+            id: this.generateId(),
+            resourceId: this.generateId(),
         }));
 
         return await this.createMinimal({
-            userId,
+            user: { connect: { id: typeof userId === "string" ? BigInt(userId) : userId } },
             label,
             bookmarks: {
                 create: bookmarks,
@@ -286,12 +289,12 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create multiple lists for a user
      */
-    async createUserLists(userId: string, count = 3): Promise<Prisma.bookmark_list[]> {
-        const lists: Prisma.bookmark_list[] = [];
+    async createUserLists(userId: string | bigint, count = 3) {
+        const lists = [];
         
         for (let i = 0; i < count; i++) {
             const list = await this.createMinimal({
-                userId,
+                user: { connect: { id: typeof userId === "string" ? BigInt(userId) : userId } },
                 label: `List ${i + 1}`,
             });
             lists.push(list);
@@ -303,23 +306,23 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create predefined list templates
      */
-    async createReadingList(userId: string): Promise<Prisma.bookmark_list> {
+    async createReadingList(userId: string | bigint) {
         return await this.createMinimal({
-            userId,
+            user: { connect: { id: typeof userId === "string" ? BigInt(userId) : userId } },
             label: "📚 Reading List",
         });
     }
 
-    async createFavoritesList(userId: string): Promise<Prisma.bookmark_list> {
+    async createFavoritesList(userId: string | bigint) {
         return await this.createMinimal({
-            userId,
+            user: { connect: { id: typeof userId === "string" ? BigInt(userId) : userId } },
             label: "⭐ Favorites",
         });
     }
 
-    async createWatchLaterList(userId: string): Promise<Prisma.bookmark_list> {
+    async createWatchLaterList(userId: string | bigint) {
         return await this.createMinimal({
-            userId,
+            user: { connect: { id: typeof userId === "string" ? BigInt(userId) : userId } },
             label: "⏰ Watch Later",
         });
     }
@@ -354,8 +357,8 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
 
         // Handle user relationship
         if (config.withUser) {
-            const userId = typeof config.withUser === "string" ? config.withUser : generatePK().toString();
-            data.userId = userId;
+            const userId = typeof config.withUser === "string" ? BigInt(config.withUser) : this.generateId();
+            data.user = { connect: { id: userId } };
         }
 
         // Handle bookmarks
@@ -363,8 +366,8 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
             const bookmarkCount = typeof config.withBookmarks === "number" ? config.withBookmarks : 3;
             data.bookmarks = {
                 create: Array.from({ length: bookmarkCount }, () => ({
-                    id: generatePK().toString(),
-                    resourceId: generatePK().toString(),
+                    id: this.generateId(),
+                    resourceId: this.generateId(),
                 })),
             };
         }
@@ -372,7 +375,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
         return data;
     }
 
-    protected async checkModelConstraints(record: Prisma.bookmark_list): Promise<string[]> {
+    protected async checkModelConstraints(record: any): Promise<string[]> {
         const violations: string[] = [];
         
         // Check label length
@@ -411,7 +414,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.bookmark_list,
+        record: bookmark_list,
         remainingDepth: number,
         tx: any,
         includeOnly?: string[],
@@ -421,7 +424,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
             !includeOnly || includeOnly.includes(relation);
 
         // Delete bookmarks in this list
-        if (shouldDelete("bookmarks") && record.bookmarks?.length) {
+        if (shouldDelete("bookmarks")) {
             await tx.bookmark.deleteMany({
                 where: { listId: record.id },
             });
@@ -431,10 +434,10 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     /**
      * Check if a user already has a list with a given label
      */
-    async hasListWithLabel(userId: string, label: string): Promise<boolean> {
+    async hasListWithLabel(userId: string | bigint, label: string): Promise<boolean> {
         const list = await this.prisma.bookmark_list.findFirst({
             where: {
-                userId,
+                userId: typeof userId === "string" ? BigInt(userId) : userId,
                 label,
             },
         });
@@ -445,9 +448,9 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get all lists for a user
      */
-    async getUserLists(userId: string, includeBookmarks = false): Promise<Prisma.bookmark_list[]> {
+    async getUserLists(userId: string | bigint, includeBookmarks = false) {
         return await this.prisma.bookmark_list.findMany({
-            where: { userId },
+            where: { userId: typeof userId === "string" ? BigInt(userId) : userId },
             include: {
                 bookmarks: includeBookmarks,
                 _count: {
@@ -463,11 +466,11 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     /**
      * Add a bookmark to a list
      */
-    async addBookmarkToList(listId: string, bookmarkData: Partial<Prisma.bookmarkCreateInput>): Promise<Prisma.bookmark> {
+    async addBookmarkToList(listId: string | bigint, bookmarkData: Partial<Prisma.bookmarkUncheckedCreateInput>) {
         return await this.prisma.bookmark.create({
             data: {
-                id: generatePK().toString(),
-                listId,
+                id: this.generateId(),
+                listId: typeof listId === "string" ? BigInt(listId) : listId,
                 ...bookmarkData,
             },
         });
@@ -476,14 +479,14 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     /**
      * Move bookmarks between lists
      */
-    async moveBookmarks(fromListId: string, toListId: string, bookmarkIds: string[]): Promise<number> {
+    async moveBookmarks(fromListId: string | bigint, toListId: string | bigint, bookmarkIds: (string | bigint)[]): Promise<number> {
         const result = await this.prisma.bookmark.updateMany({
             where: {
-                id: { in: bookmarkIds },
-                listId: fromListId,
+                id: { in: bookmarkIds.map(id => typeof id === "string" ? BigInt(id) : id) },
+                listId: typeof fromListId === "string" ? BigInt(fromListId) : fromListId,
             },
             data: {
-                listId: toListId,
+                listId: typeof toListId === "string" ? BigInt(toListId) : toListId,
             },
         });
         
@@ -493,7 +496,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createBookmarkListDbFactory = (prisma: PrismaClient) => 
-    BookmarkListDbFactory.getInstance("bookmark_list", prisma);
+    new BookmarkListDbFactory(prisma);
 
 // Export the class for type usage
 export { BookmarkListDbFactory as BookmarkListDbFactoryClass };

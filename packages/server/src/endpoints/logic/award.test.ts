@@ -1,4 +1,4 @@
-import { AwardCategory, type AwardSearchInput } from "@vrooli/shared";
+import { AwardCategory, type AwardSearchInput, type User, type Award } from "@vrooli/shared";
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
@@ -10,11 +10,15 @@ import { award_findMany } from "../generated/award_findMany.js";
 import { award } from "./award.js";
 import { AwardDbFactory, seedAwards } from "../../__test/fixtures/db/awardFixtures.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
+
+// AI_CHECK: TYPE_SAFETY=phase1-test-4 | LAST: 2025-07-04 - Replaced any[] with proper User[] and Award types
 
 describe("EndpointsAward", () => {
-    let testUsers: any[];
-    let userAward1: any;
-    let userAward2: any;
+    let testUsers: User[];
+    let userAward1: Award;
+    let userAward2: Award;
 
     beforeAll(() => {
         // Use Vitest spies to suppress logger output during tests
@@ -22,13 +26,21 @@ describe("EndpointsAward", () => {
         vi.spyOn(logger, "info").mockImplementation(() => logger);
     });
 
-    beforeEach(async () => {
-        // Reset Redis and database tables
-        await CacheService.get().flushAll();
-        await DbProvider.deleteAll();
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["user","user_auth","email","session"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn('Test cleanup incomplete:', orphans);
+        }
+    });
 
-        // Seed test users using database fixtures
-        testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+    beforeEach(async () => {
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.minimal(DbProvider.get());
+    }););
 
         // Seed awards using database fixtures
         const awards1 = await seedAwards(DbProvider.get(), {

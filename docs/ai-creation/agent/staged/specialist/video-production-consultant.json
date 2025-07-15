@@ -1,108 +1,115 @@
 {
-  "identity": {
-    "name": "video-production-consultant",
-    "version": "1.0.0"
-  },
-  "goal": "Provides guidance on video content creation",
-  "role": "specialist",
-  "subscriptions": [
-    "swarm/goal/created",
-    "step/completed",
-    "run/completed"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "swarm/goal/created",
-        "when": "event.data.description.includes('video') || event.data.description.includes('filming') || event.data.description.includes('visual content')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Video Planner",
-        "inputMap": {
-          "videoGoals": "event.data.description",
-          "productionScope": "event.data.context.production",
-          "videoEditingTools": "blackboard.video.tools",
-          "productionTechniques": "blackboard.video.production"
+    "identity": {
+        "name": "video-production-consultant",
+        "version": "1.0.0"
+    },
+    "goal": "Provides guidance on video content creation",
+    "role": "specialist",
+    "subscriptions": [
+        "swarm/goal/created",
+        "step/completed",
+        "run/completed"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "swarm/goal/created",
+                "when": "event.data.description.includes('video') || event.data.description.includes('filming') || event.data.description.includes('visual content')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Video Planner",
+                "inputMap": {
+                    "videoGoals": "event.data.description",
+                    "productionScope": "event.data.context.production",
+                    "videoEditingTools": "blackboard.video.tools",
+                    "productionTechniques": "blackboard.video.production"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'video_planning' || event.data.tags.includes('production_setup')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Guide video planning, production, and optimization for various platforms and distribution channels"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/completed",
+                "when": "event.data.tags.includes('video_production') || event.data.tags.includes('post_production')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Production Optimizer",
+                "inputMap": {
+                    "videoContent": "event.data.outputs.video",
+                    "productionData": "event.data.production",
+                    "distributionPlatforms": "blackboard.video.distribution"
+                }
+            },
+            "qos": 1
         }
-      },
-      "qos": 1
+    ],
+    "prompt": {
+        "system": "You are a Video Production Consultant agent specialized in providing guidance on video content creation. Your role is to help users create high-quality video content optimized for various platforms and distribution channels.",
+        "instructions": [
+            "You MUST maintain high production quality standards in all recommendations",
+            "You MAY optimize content delivery strategies for different platforms",
+            "You MUST NOT compromise visual standards or suggest low-quality approaches",
+            "Always consider target audience and platform requirements when providing guidance",
+            "Provide practical, actionable advice for video planning and production",
+            "Stay current with video production trends and best practices"
+        ]
     },
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'video_planning' || event.data.tags.includes('production_setup')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Guide video planning, production, and optimization for various platforms and distribution channels"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "run/completed",
-        "when": "event.data.tags.includes('video_production') || event.data.tags.includes('post_production')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Production Optimizer",
-        "inputMap": {
-          "videoContent": "event.data.outputs.video",
-          "productionData": "event.data.production",
-          "distributionPlatforms": "blackboard.video.distribution"
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "video-editing-tools",
+            "permissions": [
+                "read"
+            ],
+            "scope": "video.tools",
+            "description": "Video editing software and production tools"
+        },
+        {
+            "type": "blackboard",
+            "label": "production-techniques",
+            "permissions": [
+                "read"
+            ],
+            "scope": "video.production",
+            "description": "Video production techniques and cinematography principles"
+        },
+        {
+            "type": "blackboard",
+            "label": "distribution-platforms",
+            "permissions": [
+                "read"
+            ],
+            "scope": "video.distribution",
+            "description": "Video distribution platforms and optimization strategies"
+        },
+        {
+            "type": "routine",
+            "label": "Video Planner",
+            "permissions": [
+                "read"
+            ],
+            "description": "Plan video production and content strategy"
+        },
+        {
+            "type": "routine",
+            "label": "Production Optimizer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Optimize video production and distribution"
         }
-      },
-      "qos": 1
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "maintain-production-quality"
-    },
-    {
-      "modality": "permission",
-      "target": "optimize-content-delivery"
-    },
-    {
-      "modality": "prohibition",
-      "target": "compromise-visual-standards"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "video-editing-tools",
-      "permissions": ["read"],
-      "scope": "video.tools",
-      "description": "Video editing software and production tools"
-    },
-    {
-      "type": "blackboard",
-      "label": "production-techniques",
-      "permissions": ["read"],
-      "scope": "video.production",
-      "description": "Video production techniques and cinematography principles"
-    },
-    {
-      "type": "blackboard",
-      "label": "distribution-platforms",
-      "permissions": ["read"],
-      "scope": "video.distribution",
-      "description": "Video distribution platforms and optimization strategies"
-    },
-    {
-      "type": "routine",
-      "label": "Video Planner",
-      "permissions": ["read"],
-      "description": "Plan video production and content strategy"
-    },
-    {
-      "type": "routine",
-      "label": "Production Optimizer",
-      "permissions": ["read"],
-      "description": "Optimize video production and distribution"
-    }
-  ]
+    ]
 }

@@ -1,6 +1,6 @@
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
+import { IconButton } from "./buttons/index.js";
+import { Tooltip } from "./Tooltip/Tooltip.js";
 import { styled } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { type CalendarEvent } from "@vrooli/shared";
@@ -103,17 +103,17 @@ export function CalendarPreviewToolbar({
         <ToolbarBox>
             <ToolbarSection>
                 <Tooltip title={t("Today")}>
-                    <IconButton onClick={() => navigate(Navigate.TODAY)}>
+                    <IconButton onClick={() => navigate(Navigate.TODAY)} variant="transparent">
                         <IconCommon decorative fill={palette.secondary.main} name="Today" />
                     </IconButton>
                 </Tooltip>
                 <Tooltip title={t("Previous")}>
-                    <IconButton onClick={() => navigate(Navigate.PREVIOUS)}>
+                    <IconButton onClick={() => navigate(Navigate.PREVIOUS)} variant="transparent">
                         <IconCommon decorative fill={palette.secondary.main} name="ArrowLeft" />
                     </IconButton>
                 </Tooltip>
                 <Tooltip title={t("Next")}>
-                    <IconButton onClick={() => navigate(Navigate.NEXT)}>
+                    <IconButton onClick={() => navigate(Navigate.NEXT)} variant="transparent">
                         <IconCommon decorative fill={palette.secondary.main} name="ArrowRight" />
                     </IconButton>
                 </Tooltip>
@@ -132,17 +132,17 @@ export function CalendarPreviewToolbar({
             </ToolbarSection>
             <ToolbarSection>
                 <Tooltip title={t("Month")}>
-                    <IconButton onClick={() => changeView(Views.MONTH)}>
+                    <IconButton onClick={() => changeView(Views.MONTH)} variant="transparent">
                         <IconCommon decorative fill={palette.secondary.main} name="Month" />
                     </IconButton>
                 </Tooltip>
                 <Tooltip title={t("Week")}>
-                    <IconButton onClick={() => changeView(Views.WEEK)}>
+                    <IconButton onClick={() => changeView(Views.WEEK)} variant="transparent">
                         <IconCommon decorative fill={palette.secondary.main} name="Week" />
                     </IconButton>
                 </Tooltip>
                 <Tooltip title={t("Day")}>
-                    <IconButton onClick={() => changeView(Views.DAY)}>
+                    <IconButton onClick={() => changeView(Views.DAY)} variant="transparent">
                         <IconCommon decorative fill={palette.secondary.main} name="Day" />
                     </IconButton>
                 </Tooltip>

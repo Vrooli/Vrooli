@@ -1,8 +1,5 @@
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Dialog from "@mui/material/Dialog";
-import DialogContent from "@mui/material/DialogContent";
-import IconButton from "@mui/material/IconButton";
 import Typography from "@mui/material/Typography";
 import { keyframes } from "@mui/material";
 import { styled } from "@mui/material";
@@ -10,10 +7,12 @@ import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, LINKS } from "@vrooli/shar
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../../icons/Icons.js";
+import { IconButton } from "../../buttons/IconButton.js";
 import { useLocation } from "../../../route/router.js";
 import { ELEMENT_IDS } from "../../../utils/consts.js";
 import { PricingTierType } from "../../../views/ProView/ProView.js";
 import { BreadcrumbsBase } from "../../breadcrumbs/BreadcrumbsBase.js";
+import { Dialog } from "../Dialog/Dialog.js";
 
 type TriangleProps = {
     size?: number;
@@ -92,30 +91,21 @@ function Triangle({
     );
 }
 
-const StyledDialog = styled(Dialog)(({ theme }) => ({
-    "& .MuiPaper-root": {
-        borderRadius: 16,
-        overflow: "hidden",
-        background: "linear-gradient(to bottom right, #565656, #809ba2)",
-        position: "relative",
-        maxWidth: "28rem",
-        margin: theme.spacing(2),
-    },
-    "& .MuiBackdrop-root": {
-        backdropFilter: "blur(4px)",
-    },
+const CustomDialogContent = styled(Box)(({ theme }) => ({
+    borderRadius: 16,
+    overflow: "hidden",
+    background: "linear-gradient(to bottom right, #565656, #809ba2)",
+    position: "relative",
+    maxWidth: "28rem",
+    width: "100%",
+    margin: "0 auto",
 }));
 
-const CloseButton = styled(IconButton)(({ theme }) => ({
+const CloseButtonWrapper = styled(Box)(({ theme }) => ({
     position: "absolute",
     right: theme.spacing(2),
     top: theme.spacing(2),
-    color: theme.palette.text.secondary,
     zIndex: 1,
-    transition: "opacity 0.2s",
-    "&:hover": {
-        opacity: 0.7,
-    },
 }));
 
 const ContentContainer = styled(Box)(({ theme }) => ({
@@ -239,22 +229,30 @@ export function ProDialog({ isOpen, onClose }: ProDialogProps) {
     }, [onClose, setLocation]);
 
     return (
-        <StyledDialog
-            open={isOpen}
+        <Dialog
+            isOpen={isOpen}
             onClose={onClose}
+            size="md"
+            showCloseButton={false}
+            enableBackgroundBlur={true}
         >
-            <CloseButton
-                aria-label={t("Close")}
-                onClick={onClose}
-            >
-                <IconCommon
-                    decorative
-                    name="Close"
-                />
-            </CloseButton>
-            <Triangle {...largeTriangeProps} />
-            <Triangle {...smallTriangleProps} />
-            <DialogContent>
+            <CustomDialogContent>
+                <CloseButtonWrapper>
+                    <IconButton
+                        aria-label={t("Close")}
+                        onClick={onClose}
+                        variant="transparent"
+                        size="md"
+                    >
+                        <IconCommon
+                            decorative
+                            name="Close"
+                            fill="#ffffff"
+                        />
+                    </IconButton>
+                </CloseButtonWrapper>
+                <Triangle {...largeTriangeProps} />
+                <Triangle {...smallTriangleProps} />
                 <ContentContainer>
                     <TitleText variant="h4">
                         Unlock Pro Features
@@ -289,7 +287,7 @@ export function ProDialog({ isOpen, onClose }: ProDialogProps) {
                         />
                     </ButtonContainer>
                 </ContentContainer>
-            </DialogContent>
-        </StyledDialog>
+            </CustomDialogContent>
+        </Dialog>
     );
 }

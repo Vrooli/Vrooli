@@ -29,7 +29,7 @@ export function objectToYaml(obj: Record<string, unknown>, indentLevel = 0): str
         }
         // Recurse for nested objects 
         else if (typeof value === "object" && !Array.isArray(value)) {
-            yaml += `${indent}${key}:\n${objectToYaml(value, indentLevel + SPACES_IN_TAB)}`;
+            yaml += `${indent}${key}:\n${objectToYaml(value as Record<string, unknown>, indentLevel + SPACES_IN_TAB)}`;
         }
         // Recurse each item in an array 
         else if (Array.isArray(value)) {
@@ -61,8 +61,8 @@ export function arrayToYaml(arr: Array<unknown>, indentLevel = 0): string {
     const indent = " ".repeat(indentLevel);
 
     for (const item of arr) {
-        if (typeof item === "object" && !Array.isArray(item)) {
-            let nestedYaml = objectToYaml(item, indentLevel + SPACES_IN_TAB);
+        if (typeof item === "object" && !Array.isArray(item) && item !== null) {
+            let nestedYaml = objectToYaml(item as Record<string, unknown>, indentLevel + SPACES_IN_TAB);
             nestedYaml = nestedYaml.replace(" ".repeat(indentLevel + SPACES_IN_TAB), indent + "- ");
             yaml += nestedYaml;
         } else if (Array.isArray(item)) {

@@ -1,108 +1,106 @@
 {
-  "identity": {
-    "name": "budget-overspend-guardian",
-    "version": "1.0.0"
-  },
-  "goal": "Tracks expenses and warns of budget violations",
-  "role": "monitor",
-  "subscriptions": [
-    "swarm/resource/updated",
-    "step/completed",
-    "run/completed"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "swarm/resource/updated",
-        "when": "event.data.type == 'credits' && event.data.spent > event.data.budgeted * 0.8"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Budget Alert Generator",
-        "inputMap": {
-          "currentSpend": "event.data.spent",
-          "budget": "event.data.budgeted",
-          "burnRate": "event.data.burnRate",
-          "alertThreshold": "blackboard.budget.alertThreshold"
+    "identity": {
+        "name": "budget-overspend-guardian",
+        "version": "1.0.0"
+    },
+    "goal": "Tracks expenses and warns of budget violations",
+    "role": "monitor",
+    "subscriptions": [
+        "swarm/resource/updated",
+        "step/completed",
+        "run/completed"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "swarm/resource/updated",
+                "when": "event.data.type == 'credits' && event.data.spent > event.data.budgeted * 0.8"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Budget Alert Generator",
+                "inputMap": {
+                    "currentSpend": "event.data.spent",
+                    "budget": "event.data.budgeted",
+                    "burnRate": "event.data.burnRate",
+                    "alertThreshold": "blackboard.budget.alertThreshold"
+                }
+            },
+            "qos": 2
+        },
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.cost > blackboard.budget.stepLimit"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Analyze expensive operations and recommend cost optimization strategies"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/completed"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Expense Tracker",
+                "inputMap": {
+                    "runCost": "event.data.totalCost",
+                    "runId": "event.data.runId",
+                    "budgetCategories": "blackboard.budget.categories",
+                    "expenseHistory": "blackboard.expenses.history"
+                }
+            },
+            "qos": 0
         }
-      },
-      "qos": 2
-    },
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.cost > blackboard.budget.stepLimit"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Analyze expensive operations and recommend cost optimization strategies"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "run/completed"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Expense Tracker",
-        "inputMap": {
-          "runCost": "event.data.totalCost",
-          "runId": "event.data.runId",
-          "budgetCategories": "blackboard.budget.categories",
-          "expenseHistory": "blackboard.expenses.history"
+    ],
+    "prompt": "You are a budget overspend guardian responsible for tracking expenses and preventing budget violations. Your core obligation is to monitor and track all expenses across the system. You have permission to halt operations that would exceed budget limits. You must never ignore established budget constraints or allow unauthorized overspending. Alert stakeholders when spending approaches thresholds (80% warning, 90% critical) and provide cost optimization recommendations.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "budget-tracking",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "budget.*",
+            "description": "Track budgets, expenses, and financial metrics"
+        },
+        {
+            "type": "blackboard",
+            "label": "expense-categories",
+            "permissions": [
+                "read"
+            ],
+            "scope": "budget.categories",
+            "description": "Read expense categorization rules"
+        },
+        {
+            "type": "blackboard",
+            "label": "alert-thresholds",
+            "permissions": [
+                "read"
+            ],
+            "scope": "budget.thresholds",
+            "description": "Read budget alert thresholds and rules"
+        },
+        {
+            "type": "routine",
+            "label": "Budget Alert Generator",
+            "permissions": [
+                "read"
+            ],
+            "description": "Generate alerts for budget threshold violations"
+        },
+        {
+            "type": "routine",
+            "label": "Expense Tracker",
+            "permissions": [
+                "read"
+            ],
+            "description": "Track and categorize expenses"
         }
-      },
-      "qos": 0
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "track-all-expenses"
-    },
-    {
-      "modality": "permission",
-      "target": "halt-expensive-operations"
-    },
-    {
-      "modality": "prohibition",
-      "target": "ignore-budget-limits"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "budget-tracking",
-      "permissions": ["read", "write"],
-      "scope": "budget.*",
-      "description": "Track budgets, expenses, and financial metrics"
-    },
-    {
-      "type": "blackboard",
-      "label": "expense-categories",
-      "permissions": ["read"],
-      "scope": "budget.categories",
-      "description": "Read expense categorization rules"
-    },
-    {
-      "type": "blackboard",
-      "label": "alert-thresholds",
-      "permissions": ["read"],
-      "scope": "budget.thresholds",
-      "description": "Read budget alert thresholds and rules"
-    },
-    {
-      "type": "routine",
-      "label": "Budget Alert Generator",
-      "permissions": ["read"],
-      "description": "Generate alerts for budget threshold violations"
-    },
-    {
-      "type": "routine",
-      "label": "Expense Tracker",
-      "permissions": ["read"],
-      "description": "Track and categorize expenses"
-    }
-  ]
+    ]
 }

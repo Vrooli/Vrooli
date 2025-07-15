@@ -2,6 +2,11 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=react,node
 # NOTE: Currently identical to the `.cursorignore` file. If you change one, consider changing the other
 
+### Kubernetes configs ###
+k8s/kubeconfig-*.yaml
+k8s/ca-certificate.crt
+k8s/simple-deploy.yaml
+
 ### Zipped ###
 *.tar
 *.tar.gz
@@ -17,6 +22,10 @@ lerna-debug.log*
 
 # Source map analytics
 source-tree*.html
+
+# TypeScript build info
+*.tsbuildinfo
+.tsbuildinfo
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
@@ -65,9 +74,13 @@ typings/
 
 # Optional npm cache directory
 .npm
+.pnpm-store
 
 # Optional eslint cache
 .eslintcache
+.eslintcache.test
+packages/**/.eslintcache
+packages/**/.eslintcache.test
 
 # Optional stylelint cache
 .stylelintcache
@@ -156,6 +169,9 @@ sketch
 
 # End of https://www.toptal.com/developers/gitignore/api/react,node
 
+# Windows Zone.Identifier files
+*:Zone.Identifier
+
 build/
 
 #Database
@@ -200,3 +216,6 @@ scripts/tests/helpers
 scripts/tests/tmp
 
 /scripts/__tests/helpers
+
+# Local execution configuration (keep example files, ignore local settings)
+.vrooli/execution.local.json

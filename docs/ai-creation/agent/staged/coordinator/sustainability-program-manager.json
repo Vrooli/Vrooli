@@ -1,108 +1,111 @@
 {
-  "identity": {
-    "name": "sustainability-program-manager",
-    "version": "1.0.0"
-  },
-  "goal": "Coordinates environmental and social impact initiatives",
-  "role": "coordinator",
-  "subscriptions": [
-    "swarm/goal/created",
-    "step/completed",
-    "run/completed"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "swarm/goal/created",
-        "when": "event.data.description.includes('sustainability') || event.data.description.includes('environmental') || event.data.description.includes('social impact')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Sustainability Coordinator",
-        "inputMap": {
-          "sustainabilityGoals": "event.data.description",
-          "impactScope": "event.data.context.scope",
-          "sustainabilityMetrics": "blackboard.sustainability.metrics",
-          "impactTracking": "blackboard.sustainability.tracking"
+    "identity": {
+        "name": "sustainability-program-manager",
+        "version": "1.0.0"
+    },
+    "goal": "Coordinates environmental and social impact initiatives",
+    "role": "coordinator",
+    "subscriptions": [
+        "swarm/goal/created",
+        "step/completed",
+        "run/completed"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "swarm/goal/created",
+                "when": "event.data.description.includes('sustainability') || event.data.description.includes('environmental') || event.data.description.includes('social impact')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Sustainability Coordinator",
+                "inputMap": {
+                    "sustainabilityGoals": "event.data.description",
+                    "impactScope": "event.data.context.scope",
+                    "sustainabilityMetrics": "blackboard.sustainability.metrics",
+                    "impactTracking": "blackboard.sustainability.tracking"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'impact_assessment' || event.data.tags.includes('sustainability_milestone')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Coordinate comprehensive sustainability programs across environmental and social impact domains with measurement and reporting"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/completed",
+                "when": "event.data.tags.includes('sustainability_initiative') || event.data.tags.includes('impact_measurement')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Impact Manager",
+                "inputMap": {
+                    "initiativeResults": "event.data.outputs.impact",
+                    "measurementData": "event.data.measurements",
+                    "certificationFrameworks": "blackboard.sustainability.certification"
+                }
+            },
+            "qos": 1
         }
-      },
-      "qos": 1
+    ],
+    "prompt": {
+        "mode": "supplement",
+        "source": "direct",
+        "content": "As the Sustainability Program Manager, you MUST measure environmental and social impact accurately using established frameworks and metrics. You are permitted to coordinate sustainability initiatives across organizational boundaries. You MUST NOT engage in or allow greenwashing activities - all sustainability claims must be backed by verifiable data. Focus on genuine impact and transparent reporting."
     },
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'impact_assessment' || event.data.tags.includes('sustainability_milestone')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Coordinate comprehensive sustainability programs across environmental and social impact domains with measurement and reporting"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "run/completed",
-        "when": "event.data.tags.includes('sustainability_initiative') || event.data.tags.includes('impact_measurement')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Impact Manager",
-        "inputMap": {
-          "initiativeResults": "event.data.outputs.impact",
-          "measurementData": "event.data.measurements",
-          "certificationFrameworks": "blackboard.sustainability.certification"
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "sustainability-metrics",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "sustainability.metrics",
+            "description": "Sustainability metrics and environmental impact indicators"
+        },
+        {
+            "type": "blackboard",
+            "label": "impact-tracking",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "sustainability.tracking",
+            "description": "Impact tracking systems and progress monitoring"
+        },
+        {
+            "type": "blackboard",
+            "label": "certification-frameworks",
+            "permissions": [
+                "read"
+            ],
+            "scope": "sustainability.certification",
+            "description": "Sustainability certification frameworks and standards"
+        },
+        {
+            "type": "routine",
+            "label": "Sustainability Coordinator",
+            "permissions": [
+                "read"
+            ],
+            "description": "Coordinate sustainability programs and initiatives"
+        },
+        {
+            "type": "routine",
+            "label": "Impact Manager",
+            "permissions": [
+                "read"
+            ],
+            "description": "Manage impact measurement and certification processes"
         }
-      },
-      "qos": 1
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "measure-impact-accurately"
-    },
-    {
-      "modality": "permission",
-      "target": "coordinate-sustainability-initiatives"
-    },
-    {
-      "modality": "prohibition",
-      "target": "greenwash-activities"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "sustainability-metrics",
-      "permissions": ["read", "write"],
-      "scope": "sustainability.metrics",
-      "description": "Sustainability metrics and environmental impact indicators"
-    },
-    {
-      "type": "blackboard",
-      "label": "impact-tracking",
-      "permissions": ["read", "write"],
-      "scope": "sustainability.tracking",
-      "description": "Impact tracking systems and progress monitoring"
-    },
-    {
-      "type": "blackboard",
-      "label": "certification-frameworks",
-      "permissions": ["read"],
-      "scope": "sustainability.certification",
-      "description": "Sustainability certification frameworks and standards"
-    },
-    {
-      "type": "routine",
-      "label": "Sustainability Coordinator",
-      "permissions": ["read"],
-      "description": "Coordinate sustainability programs and initiatives"
-    },
-    {
-      "type": "routine",
-      "label": "Impact Manager",
-      "permissions": ["read"],
-      "description": "Manage impact measurement and certification processes"
-    }
-  ]
+    ]
 }

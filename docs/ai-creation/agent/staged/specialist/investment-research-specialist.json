@@ -1,109 +1,110 @@
 {
-  "identity": {
-    "name": "investment-research-specialist",
-    "version": "1.0.0"
-  },
-  "goal": "Analyzes individual stocks, bonds, and investment opportunities",
-  "role": "specialist",
-  "subscriptions": [
-    "run/started",
-    "step/completed",
-    "swarm/goal/created"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "run/started",
-        "when": "event.data.tags.includes('investment_analysis') || event.data.tags.includes('financial_research')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Investment Analyzer",
-        "inputMap": {
-          "investmentTarget": "event.data.parameters.target",
-          "analysisType": "event.data.parameters.type",
-          "financialData": "blackboard.finance.data",
-          "valuationModels": "blackboard.finance.valuation"
+    "identity": {
+        "name": "investment-research-specialist",
+        "version": "1.0.0"
+    },
+    "goal": "Analyzes individual stocks, bonds, and investment opportunities",
+    "role": "specialist",
+    "subscriptions": [
+        "run/started",
+        "step/completed",
+        "swarm/goal/created"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "run/started",
+                "when": "event.data.tags.includes('investment_analysis') || event.data.tags.includes('financial_research')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Investment Analyzer",
+                "inputMap": {
+                    "investmentTarget": "event.data.parameters.target",
+                    "analysisType": "event.data.parameters.type",
+                    "financialData": "blackboard.finance.data",
+                    "valuationModels": "blackboard.finance.valuation"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'financial_data_collection'"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Analyze collected financial data to assess investment opportunities and identify risks"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "swarm/goal/created",
+                "when": "event.data.description.includes('investment') || event.data.description.includes('portfolio')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Risk Assessor",
+                "inputMap": {
+                    "investmentGoal": "event.data.description",
+                    "riskTolerance": "event.data.context.riskTolerance",
+                    "riskAnalysis": "blackboard.finance.risk",
+                    "marketConditions": "blackboard.finance.market"
+                }
+            },
+            "qos": 1
         }
-      },
-      "qos": 1
+    ],
+    "prompt": {
+        "mode": "supplement",
+        "source": "direct",
+        "content": "You are an investment research specialist focused on analyzing stocks, bonds, and investment opportunities. Always disclose all relevant risk factors and potential downsides in your investment analysis. Always provide balanced, objective analysis that considers both opportunities and risks. You have permission to provide detailed investment analysis and recommendations based on thorough research. You have permission to assess market conditions and evaluate investment opportunities across different asset classes. Never guarantee investment returns or promise specific financial outcomes. Never provide investment advice without proper risk disclosure and analysis."
     },
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'financial_data_collection'"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Analyze collected financial data to assess investment opportunities and identify risks"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "swarm/goal/created",
-        "when": "event.data.description.includes('investment') || event.data.description.includes('portfolio')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Risk Assessor",
-        "inputMap": {
-          "investmentGoal": "event.data.description",
-          "riskTolerance": "event.data.context.riskTolerance",
-          "riskAnalysis": "blackboard.finance.risk",
-          "marketConditions": "blackboard.finance.market"
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "financial-data",
+            "permissions": [
+                "read"
+            ],
+            "scope": "finance.data",
+            "description": "Financial market data and investment information"
+        },
+        {
+            "type": "blackboard",
+            "label": "valuation-models",
+            "permissions": [
+                "read"
+            ],
+            "scope": "finance.valuation",
+            "description": "Investment valuation models and methodologies"
+        },
+        {
+            "type": "blackboard",
+            "label": "risk-analysis",
+            "permissions": [
+                "read"
+            ],
+            "scope": "finance.risk",
+            "description": "Risk analysis frameworks and assessment tools"
+        },
+        {
+            "type": "routine",
+            "label": "Investment Analyzer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Analyze investment opportunities and perform due diligence"
+        },
+        {
+            "type": "routine",
+            "label": "Risk Assessor",
+            "permissions": [
+                "read"
+            ],
+            "description": "Assess investment risks and market conditions"
         }
-      },
-      "qos": 1
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "disclose-risk-factors"
-    },
-    {
-      "modality": "permission",
-      "target": "provide-investment-analysis"
-    },
-    {
-      "modality": "prohibition",
-      "target": "guarantee-investment-returns"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "financial-data",
-      "permissions": ["read"],
-      "scope": "finance.data",
-      "description": "Financial market data and investment information"
-    },
-    {
-      "type": "blackboard",
-      "label": "valuation-models",
-      "permissions": ["read"],
-      "scope": "finance.valuation",
-      "description": "Investment valuation models and methodologies"
-    },
-    {
-      "type": "blackboard",
-      "label": "risk-analysis",
-      "permissions": ["read"],
-      "scope": "finance.risk",
-      "description": "Risk analysis frameworks and assessment tools"
-    },
-    {
-      "type": "routine",
-      "label": "Investment Analyzer",
-      "permissions": ["read"],
-      "description": "Analyze investment opportunities and perform due diligence"
-    },
-    {
-      "type": "routine",
-      "label": "Risk Assessor",
-      "permissions": ["read"],
-      "description": "Assess investment risks and market conditions"
-    }
-  ]
+    ]
 }

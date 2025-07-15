@@ -78,11 +78,11 @@ export const EmailModel: EmailModelLogic = ({
             user: "User",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data) => ({
+        owner: (data, _userId) => ({
             User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: () => false,
+        isPublic: (_data, _getParentInfo?) => false,
         profanityFields: ["emailAddress"],
         visibility: {
             own: function getOwn(data) {

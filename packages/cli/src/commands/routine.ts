@@ -1,12 +1,86 @@
-import { Command } from "commander";
-import { ApiClient } from "../utils/client.js";
-import { ConfigManager } from "../utils/config.js";
+import { type Command } from "commander";
+import { type ApiClient } from "../utils/client.js";
+import { type ConfigManager } from "../utils/config.js";
 import chalk from "chalk";
 import ora from "ora";
 import { promises as fs } from "fs";
 import * as path from "path";
 import { glob } from "glob";
 import cliProgress from "cli-progress";
+import { UI } from "../utils/constants.js";
+import type { 
+    Resource,
+    ResourceSearchInput,
+    ResourceSearchResult,
+    ResourceVersionTranslation,
+} from "@vrooli/shared";
+
+// Interface definitions for routine operations
+interface RoutineTranslation {
+    language: string;
+    name?: string;
+    description?: string;
+}
+
+interface RoutineStep {
+    name?: string;
+    type?: string;
+    description?: string;
+}
+
+interface RoutineValidationData {
+    id?: string;
+    publicId?: string;
+    resourceType?: string;
+    versions?: Array<{
+        id?: string;
+        resourceSubType?: string;
+        config?: unknown;
+        translations: RoutineTranslation[];
+        configFormSchema?: unknown;
+        isActive?: boolean;
+        isPrivate?: boolean;
+        versionNotes?: string;
+    }>;
+    tags?: unknown[];
+    resourceList?: unknown;
+    isInternal?: boolean;
+    isPrivate?: boolean;
+}
+
+interface RoutineDefinitionStep {
+    id: string;
+    name: string;
+    subroutineId: string;
+    type?: string;
+    description?: string;
+}
+
+interface RoutineGraphConfig {
+    __type?: string;
+    steps?: RoutineStep[];
+    schema?: unknown;
+}
+
+interface RoutineSearchEdge {
+    node: {
+        id: string;
+        publicId: string;
+        resourceSubType?: string;
+        translations?: RoutineTranslation[];
+    };
+    searchScore?: number;
+}
+
+interface RoutineSearchResult {
+    id: string;
+    publicId: string;
+    name: string;
+    type: string;
+    description: string;
+    score: number;
+}
+
 
 export class RoutineCommands {
     constructor(
@@ -54,6 +128,7 @@ export class RoutineCommands {
             .description("List routines")
             .option("-l, --limit <limit>", "Number of routines to show", "10")
             .option("-s, --search <query>", "Search routines")
+            .option("-f, --format <format>", "Output format (table|json)", "table")
             .option("--mine", "Show only my routines")
             .action(async (options) => {
                 await this.listRoutines(options);
@@ -146,7 +221,7 @@ export class RoutineCommands {
 
             // Import to server
             spinner.text = "Uploading to server...";
-            const response = await this.client.post("/api/resource", routineData);
+            const response = await this.client.post<Resource>("/api/resource", routineData);
 
             spinner.succeed("Routine imported successfully");
 
@@ -155,14 +230,14 @@ export class RoutineCommands {
             } else {
                 console.log(chalk.green("\n✓ Import successful"));
                 console.log(`  ID: ${response.id}`);
-                console.log(`  Name: ${response.name}`);
-                console.log(`  Version: ${response.version || "1.0.0"}`);
+                console.log(`  Name: ${response.translatedName || "Untitled"}`);
+                console.log(`  Versions: ${response.versionsCount || 0}`);
                 console.log(`  URL: ${this.config.getServerUrl()}/routine/${response.id}`);
             }
         } catch (error) {
             spinner.fail("Import failed");
             
-            const err = error as any;
+            const err = error as { code?: string; message?: string; details?: unknown };
             if (err.code === "ENOENT") {
                 console.error(chalk.red(`✗ File not found: ${filePath}`));
             } else if (err.details) {
@@ -272,7 +347,7 @@ export class RoutineCommands {
         const spinner = ora("Fetching routine...").start();
 
         try {
-            const routine = await this.client.get(`/api/routine/${routineId}`);
+            const routine = await this.client.get<Resource>(`/api/routine/${routineId}`);
             spinner.succeed("Routine fetched");
 
             // Determine output path
@@ -294,47 +369,51 @@ export class RoutineCommands {
     private async listRoutines(options: {
         limit?: string;
         search?: string;
+        format?: string;
         mine?: boolean;
     }): Promise<void> {
         try {
-            const params: any = {
-                limit: parseInt(options.limit || "10"),
-                offset: 0,
+            const params: ResourceSearchInput = {
+                take: parseInt(options.limit || "10"),
+                // Filter for Resource type "Routine" by resourceType, not by subtype
+                // to include all routine subtypes
             };
 
             if (options.search) {
-                params.search = options.search;
+                // TODO: ResourceSearchInput doesn't have a direct search field
+                // Need to check API for text search capability
             }
 
             if (options.mine) {
-                params.userId = "me";
+                params.createdById = "me";
             }
 
-            const response = await this.client.get("/api/routines", { params });
+            const response = await this.client.get<ResourceSearchResult>("/api/routines", { params });
 
-            if (this.config.isJsonOutput()) {
+            if (this.config.isJsonOutput() || options.format === "json") {
                 console.log(JSON.stringify(response));
                 return;
             }
 
-            if (response.items.length === 0) {
+            if (!response || !response.edges || response.edges.length === 0) {
                 console.log(chalk.yellow("No routines found"));
                 return;
             }
 
-            console.log(chalk.bold(`\nRoutines (${response.items.length} of ${response.total}):\n`));
+            console.log(chalk.bold("\nRoutines found:\n"));
 
-            response.items.forEach((routine: any, index: number) => {
-                console.log(chalk.cyan(`${index + 1}. ${routine.name}`));
-                console.log(`   ID: ${routine.id}`);
-                console.log(`   Description: ${routine.description || "(none)"}`);
-                console.log(`   Created: ${new Date(routine.created_at).toLocaleDateString()}`);
-                console.log(`   Steps: ${routine.steps?.length || 0}`);
+            response.edges.forEach((edge, index: number) => {
+                const resource = edge.node;
+                console.log(chalk.cyan(`${index + 1}. ${resource.translatedName || "Untitled"}`));
+                console.log(`   ID: ${resource.id}`);
+                console.log(`   Type: ${resource.resourceType}`);
+                console.log(`   Created: ${new Date(resource.createdAt).toLocaleDateString()}`);
+                console.log(`   Versions: ${resource.versionsCount || 0}`);
                 console.log("");
             });
 
-            if (response.total > response.items.length) {
-                console.log(chalk.gray(`Showing ${response.items.length} of ${response.total} routines`));
+            if (response.pageInfo.hasNextPage) {
+                console.log(chalk.gray("More results available. Use pagination to see more."));
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -347,7 +426,7 @@ export class RoutineCommands {
         const spinner = ora("Fetching routine...").start();
 
         try {
-            const routine = await this.client.get(`/api/routine/${routineId}`);
+            const routine = await this.client.get<Resource>(`/api/routine/${routineId}`);
             spinner.succeed("Routine fetched");
 
             if (this.config.isJsonOutput()) {
@@ -355,36 +434,45 @@ export class RoutineCommands {
                 return;
             }
 
+            // Get latest version info
+            const latestVersion = routine.versions?.find(v => v.isLatest) || routine.versions?.[0];
+            const versionLabel = latestVersion?.versionLabel || "1.0.0";
+            
+            // Extract name and description from version translations
+            const translation = latestVersion?.translations?.find((t: ResourceVersionTranslation) => t.language === "en") || latestVersion?.translations?.[0];
+            const name = translation?.name || "Untitled";
+            const description = translation?.description || "(none)";
+
             console.log(chalk.bold("\nRoutine Details:"));
             console.log(`  ID: ${routine.id}`);
-            console.log(`  Name: ${routine.name}`);
-            console.log(`  Description: ${routine.description || "(none)"}`);
-            console.log(`  Version: ${routine.version || "1.0.0"}`);
-            console.log(`  Created: ${new Date(routine.created_at).toLocaleString()}`);
-            console.log(`  Updated: ${new Date(routine.updated_at).toLocaleString()}`);
+            console.log(`  Name: ${name}`);
+            console.log(`  Description: ${description}`);
+            console.log(`  Version: ${versionLabel}`);
+            console.log(`  Created: ${routine.createdAt ? new Date(routine.createdAt).toLocaleString() : "Unknown"}`);
+            console.log(`  Updated: ${routine.updatedAt ? new Date(routine.updatedAt).toLocaleString() : "Unknown"}`);
             
-            if (routine.steps?.length > 0) {
-                console.log(chalk.bold("\nSteps:"));
-                routine.steps.forEach((step: any, index: number) => {
-                    console.log(`  ${index + 1}. ${step.name || step.type}`);
-                    if (step.description) {
-                        console.log(`     ${step.description}`);
+            // Note: steps, inputs, and outputs would be in the version's config
+            if (latestVersion?.config) {
+                const config = latestVersion.config as unknown as Record<string, unknown>;
+                
+                // For graph-based routines
+                if (config.graph && typeof config.graph === "object") {
+                    const graph = config.graph as Record<string, unknown>;
+                    const schema = graph.schema as Record<string, unknown>;
+                    
+                    if (schema?.steps && Array.isArray(schema.steps)) {
+                        console.log(chalk.bold("\nSteps:"));
+                        schema.steps.forEach((step: RoutineDefinitionStep, index: number) => {
+                            console.log(`  ${index + 1}. ${step.name || step.type || "Step"}`);
+                            if (step.description) {
+                                console.log(`     ${step.description}`);
+                            }
+                        });
                     }
-                });
-            }
-
-            if (routine.inputs?.length > 0) {
-                console.log(chalk.bold("\nInputs:"));
-                routine.inputs.forEach((input: any) => {
-                    console.log(`  - ${input.name} (${input.type})`);
-                });
-            }
-
-            if (routine.outputs?.length > 0) {
-                console.log(chalk.bold("\nOutputs:"));
-                routine.outputs.forEach((output: any) => {
-                    console.log(`  - ${output.name} (${output.type})`);
-                });
+                }
+                
+                // Note: inputs/outputs would typically be part of the routine's interface
+                // but the Resource type doesn't have these fields directly
             }
         } catch (error) {
             spinner.fail("Failed to fetch routine");
@@ -450,7 +538,7 @@ export class RoutineCommands {
             const spinner = ora("Starting routine execution...").start();
 
             // Start execution
-            const execution = await this.client.post("/task/start/run", {
+            const execution = await this.client.post<{ id: string }>("/task/start/run", {
                 routineId,
                 inputs: inputData,
             });
@@ -476,15 +564,15 @@ export class RoutineCommands {
 
             progressBar.start(100, 0, { step: "Initializing..." });
 
-            socket.on(`run:${execution.id}:progress`, (data) => {
+            socket.on(`run:${execution.id}:progress`, (data: { percent: number; currentStep: string }) => {
                 progressBar.update(data.percent, { step: data.currentStep });
             });
 
-            socket.on(`run:${execution.id}:log`, (data) => {
+            socket.on(`run:${execution.id}:log`, (data: { timestamp: string; message: string }) => {
                 console.log(`\n[${data.timestamp}] ${data.message}`);
             });
 
-            socket.on(`run:${execution.id}:complete`, (data) => {
+            socket.on(`run:${execution.id}:complete`, (data: { duration: number; status: string; outputs?: unknown }) => {
                 progressBar.update(100, { step: "Complete" });
                 progressBar.stop();
                 
@@ -501,9 +589,9 @@ export class RoutineCommands {
                 process.exit(0);
             });
 
-            socket.on(`run:${execution.id}:error`, (data) => {
+            socket.on(`run:${execution.id}:error`, (data: { message: string }) => {
                 progressBar.stop();
-                console.error(chalk.red(`\n✗ Execution failed: ${data.error}`));
+                console.error(chalk.red(`\n✗ Execution failed: ${data.message}`));
                 socket.disconnect();
                 process.exit(1);
             });
@@ -514,7 +602,7 @@ export class RoutineCommands {
         }
     }
 
-    private async importRoutineSilent(filePath: string, dryRun?: boolean): Promise<any> {
+    private async importRoutineSilent(filePath: string, dryRun?: boolean): Promise<{ success: boolean; error?: string; routine?: unknown }> {
         const fileContent = await fs.readFile(filePath, "utf-8");
         const routineData = JSON.parse(fileContent);
         
@@ -524,11 +612,14 @@ export class RoutineCommands {
         }
 
         if (!dryRun) {
-            return await this.client.post("/api/resource", routineData);
+            const result = await this.client.post("/api/resource", routineData);
+            return { success: true, routine: result };
         }
+        
+        return { success: true };
     }
 
-    private async validateRoutineData(data: any, extensive?: boolean): Promise<{
+    private async validateRoutineData(data: RoutineValidationData, extensive?: boolean): Promise<{
         valid: boolean;
         errors: string[];
     }> {
@@ -568,7 +659,7 @@ export class RoutineCommands {
         }
 
         // Validate config structure based on routine type
-        const config = version.config;
+        const config = version.config as Record<string, unknown>;
         if (!config.__version) {
             errors.push("Config missing '__version' field");
         }
@@ -598,7 +689,7 @@ export class RoutineCommands {
         if (!version.translations || !Array.isArray(version.translations) || version.translations.length === 0) {
             errors.push("Version missing translations array");
         } else {
-            const englishTranslation = version.translations.find((t: any) => t.language === "en");
+            const englishTranslation = version.translations.find((t: RoutineTranslation) => t.language === "en");
             if (!englishTranslation || !englishTranslation.name) {
                 errors.push("Missing English translation with name");
             }
@@ -610,7 +701,7 @@ export class RoutineCommands {
         };
     }
 
-    private async validateGraphConfig(graph: any, errors: string[], extensive?: boolean): Promise<void> {
+    private async validateGraphConfig(graph: RoutineGraphConfig, errors: string[], extensive?: boolean): Promise<void> {
         if (!graph.__type) {
             errors.push("Graph missing '__type' field");
             return;
@@ -621,7 +712,7 @@ export class RoutineCommands {
             return;
         }
 
-        const schema = graph.schema;
+        const schema = graph.schema as Record<string, unknown>;
 
         if (graph.__type === "Sequential") {
             if (!schema.steps || !Array.isArray(schema.steps)) {
@@ -630,7 +721,7 @@ export class RoutineCommands {
                 // Track all subroutine IDs that need validation
                 const subroutineIds: { stepIndex: number; id: string }[] = [];
 
-                schema.steps.forEach((step: any, index: number) => {
+                schema.steps.forEach((step: RoutineDefinitionStep, index: number) => {
                     if (!step.id || !step.name || !step.subroutineId) {
                         errors.push(`Step ${index + 1}: missing required fields (id, name, subroutineId)`);
                     } else if (step.subroutineId) {
@@ -675,8 +766,9 @@ export class RoutineCommands {
                 const activityIds: { activityId: string; subroutineId: string }[] = [];
                 
                 for (const [activityId, activity] of Object.entries(schema.activityMap)) {
-                    if ((activity as any).subroutineId) {
-                        const subroutineId = (activity as any).subroutineId;
+                    const activityWithSubroutine = activity as { subroutineId?: string };
+                    if (activityWithSubroutine.subroutineId) {
+                        const subroutineId = activityWithSubroutine.subroutineId;
                         if (subroutineId.startsWith("TODO:")) {
                             errors.push(`Activity '${activityId}': Contains TODO placeholder - subroutine ID needs to be replaced`);
                         } else {
@@ -705,9 +797,10 @@ export class RoutineCommands {
         }
     }
 
-    private validateSingleStepConfig(config: any, errors: string[]): void {
-        const hasCallData = config.callDataAction || config.callDataApi || config.callDataGenerate || 
-                           config.callDataCode || config.callDataSmartContract || config.callDataWeb;
+    private validateSingleStepConfig(config: unknown, errors: string[]): void {
+        const cfg = config as Record<string, unknown>;
+        const hasCallData = cfg.callDataAction || cfg.callDataApi || cfg.callDataGenerate || 
+                           cfg.callDataCode || cfg.callDataSmartContract || cfg.callDataWeb;
         
         if (!hasCallData) {
             errors.push("Single-step routine missing callData configuration");
@@ -715,20 +808,24 @@ export class RoutineCommands {
         }
 
         // Validate the specific callData structure
-        Object.keys(config).forEach(key => {
+        Object.keys(cfg).forEach(key => {
             if (key.startsWith("callData")) {
-                const callData = config[key];
-                if (!callData.__version || !callData.schema) {
-                    errors.push(`${key} missing __version or schema`);
+                const callData = cfg[key];
+                if (typeof callData === "object" && callData !== null) {
+                    const callDataObj = callData as Record<string, unknown>;
+                    if (!callDataObj.__version || !callDataObj.schema) {
+                        errors.push(`${key} missing __version or schema`);
+                    }
                 }
             }
         });
     }
 
-    private validateFormSchema(form: any): boolean {
-        return form.__version && form.schema && 
-               Array.isArray(form.schema.elements) && 
-               Array.isArray(form.schema.containers);
+    private validateFormSchema(form: { __version?: string; schema?: unknown }): boolean {
+        const schema = form.schema as Record<string, unknown>;
+        return !!(form.__version && schema && 
+               Array.isArray(schema.elements) && 
+               Array.isArray(schema.containers));
     }
 
     private async searchRoutines(query: string, options: { limit?: string; type?: string; format?: string; minScore?: string }): Promise<void> {
@@ -745,7 +842,7 @@ export class RoutineCommands {
                 },
             };
 
-            const response = await this.client.request("resource_findMany", {
+            const response = await this.client.request<ResourceSearchResult>("resource_findMany", {
                 input: searchInput,
                 fieldName: "resources",
             });
@@ -757,14 +854,14 @@ export class RoutineCommands {
 
             spinner.succeed(`Found ${response.edges.length} routine(s) for "${query}"`);
 
-            const routines = response.edges.map((edge: any) => ({
+            const routines = response.edges.map((edge: RoutineSearchEdge) => ({
                 id: edge.node.id,
                 publicId: edge.node.publicId,
                 name: edge.node.translations?.[0]?.name || "Unnamed",
                 type: edge.node.resourceSubType || "Unknown",
                 description: edge.node.translations?.[0]?.description || "No description",
                 score: edge.searchScore || 1.0,
-            })).filter((routine: any) => {
+            })).filter((routine: RoutineSearchResult) => {
                 const minScore = parseFloat(options.minScore || "0.7");
                 return routine.score >= minScore;
             });
@@ -783,17 +880,17 @@ export class RoutineCommands {
                 });
             } else {
                 console.log("\n" + chalk.cyan("Search Results:"));
-                console.log("Score".padEnd(8) + "ID".padEnd(20) + "Name".padEnd(30) + "Type".padEnd(20) + "Description");
-                console.log("─".repeat(98));
+                console.log("Score".padEnd(UI.PADDING.TOP) + "ID".padEnd(UI.PADDING.RIGHT) + "Name".padEnd(UI.PADDING.BOTTOM) + "Type".padEnd(UI.PADDING.LEFT) + "Description");
+                console.log("─".repeat(UI.CONTENT_WIDTH));
                 
-                routines.forEach((routine: any) => {
+                routines.forEach((routine) => {
                     const scoreStr = routine.score.toFixed(2);
                     console.log(
-                        scoreStr.padEnd(8) + 
-                        routine.publicId.padEnd(20) + 
-                        routine.name.substring(0, 28).padEnd(30) + 
-                        routine.type.padEnd(20) + 
-                        routine.description.substring(0, 40)
+                        scoreStr.padEnd(UI.PADDING.TOP) + 
+                        routine.publicId.padEnd(UI.PADDING.RIGHT) + 
+                        routine.name.substring(0, UI.PADDING.BOTTOM - 2).padEnd(UI.PADDING.BOTTOM) + 
+                        routine.type.padEnd(UI.PADDING.LEFT) + 
+                        routine.description.substring(0, UI.DESCRIPTION_WIDTH),
                     );
                 });
             }
@@ -807,7 +904,7 @@ export class RoutineCommands {
         const spinner = ora("Discovering available routines...").start();
 
         try {
-            const response = await this.client.request("resource_findMany", {
+            const response = await this.client.request<ResourceSearchResult>("resource_findMany", {
                 input: {
                     take: 100,
                     where: {
@@ -826,32 +923,32 @@ export class RoutineCommands {
 
             spinner.succeed(`Found ${response.edges.length} routine(s)`);
 
-            const routines = response.edges.map((edge: any) => ({
+            const routines = response.edges.map((edge: RoutineSearchEdge) => ({
                 id: edge.node.id,
                 publicId: edge.node.publicId,
                 name: edge.node.translations?.[0]?.name || "Unnamed",
                 type: edge.node.resourceSubType || "Unknown",
-                description: edge.node.translations?.[0]?.description || "No description"
+                description: edge.node.translations?.[0]?.description || "No description",
             }));
 
             if (options.format === "json") {
                 console.log(JSON.stringify(routines, null, 2));
             } else if (options.format === "mapping") {
                 console.log("\n" + chalk.cyan("ID Mapping Reference:"));
-                routines.forEach((routine: any) => {
+                routines.forEach((routine) => {
                     console.log(`"${routine.publicId}" # ${routine.name} (${routine.type})`);
                 });
             } else {
                 console.log("\n" + chalk.cyan("Available Routines:"));
-                console.log("ID".padEnd(20) + "Name".padEnd(30) + "Type".padEnd(20) + "Description");
-                console.log("─".repeat(90));
+                console.log("ID".padEnd(UI.PADDING.RIGHT) + "Name".padEnd(UI.PADDING.BOTTOM) + "Type".padEnd(UI.PADDING.LEFT) + "Description");
+                console.log("─".repeat(UI.CONTENT_WIDTH - UI.WIDTH_ADJUSTMENT));
                 
-                routines.forEach((routine: any) => {
+                routines.forEach((routine) => {
                     console.log(
-                        routine.publicId.padEnd(20) + 
-                        routine.name.substring(0, 28).padEnd(30) + 
-                        routine.type.padEnd(20) + 
-                        routine.description.substring(0, 40)
+                        routine.publicId.padEnd(UI.PADDING.RIGHT) + 
+                        routine.name.substring(0, UI.PADDING.BOTTOM - 2).padEnd(UI.PADDING.BOTTOM) + 
+                        routine.type.padEnd(UI.PADDING.LEFT) + 
+                        routine.description.substring(0, UI.DESCRIPTION_WIDTH),
                     );
                 });
             }

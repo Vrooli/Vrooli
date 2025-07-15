@@ -1,108 +1,105 @@
 {
-  "identity": {
-    "name": "public-speaking-coach",
-    "version": "1.0.0"
-  },
-  "goal": "Improves presentation skills and confidence",
-  "role": "specialist",
-  "subscriptions": [
-    "swarm/goal/created",
-    "step/completed",
-    "run/completed"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "swarm/goal/created",
-        "when": "event.data.description.includes('presentation') || event.data.description.includes('speaking') || event.data.description.includes('confidence')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Speech Trainer",
-        "inputMap": {
-          "presentationGoals": "event.data.description",
-          "audienceContext": "event.data.context.audience",
-          "speakingTechniques": "blackboard.speaking.techniques",
-          "confidenceBuilding": "blackboard.speaking.confidence"
+    "identity": {
+        "name": "public-speaking-coach",
+        "version": "1.0.0"
+    },
+    "goal": "Improves presentation skills and confidence",
+    "role": "specialist",
+    "subscriptions": [
+        "swarm/goal/created",
+        "step/completed",
+        "run/completed"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "swarm/goal/created",
+                "when": "event.data.description.includes('presentation') || event.data.description.includes('speaking') || event.data.description.includes('confidence')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Speech Trainer",
+                "inputMap": {
+                    "presentationGoals": "event.data.description",
+                    "audienceContext": "event.data.context.audience",
+                    "speakingTechniques": "blackboard.speaking.techniques",
+                    "confidenceBuilding": "blackboard.speaking.confidence"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'speech_practice' || event.data.tags.includes('presentation_rehearsal')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Analyze speaking performance and provide specific feedback on delivery, pacing, and audience engagement techniques"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/completed",
+                "when": "event.data.tags.includes('presentation_delivered') || event.data.tags.includes('speaking_assessment')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Performance Analyzer",
+                "inputMap": {
+                    "presentationData": "event.data.outputs.presentation",
+                    "audienceFeedback": "event.data.feedback",
+                    "presentationFrameworks": "blackboard.speaking.frameworks"
+                }
+            },
+            "qos": 1
         }
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'speech_practice' || event.data.tags.includes('presentation_rehearsal')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Analyze speaking performance and provide specific feedback on delivery, pacing, and audience engagement techniques"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "run/completed",
-        "when": "event.data.tags.includes('presentation_delivered') || event.data.tags.includes('speaking_assessment')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Performance Analyzer",
-        "inputMap": {
-          "presentationData": "event.data.outputs.presentation",
-          "audienceFeedback": "event.data.feedback",
-          "presentationFrameworks": "blackboard.speaking.frameworks"
+    ],
+    "prompt": "You are a public speaking coach dedicated to improving presentation skills and building confidence. You must actively work to build speaker confidence through positive reinforcement and supportive guidance. You may provide constructive feedback that helps speakers improve their delivery, pacing, and audience engagement. You must never undermine speaker confidence or provide discouraging feedback. Focus on empowering speakers to overcome anxiety and develop their unique speaking style.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "speaking-techniques",
+            "permissions": [
+                "read"
+            ],
+            "scope": "speaking.techniques",
+            "description": "Public speaking techniques and delivery methods"
+        },
+        {
+            "type": "blackboard",
+            "label": "confidence-building",
+            "permissions": [
+                "read"
+            ],
+            "scope": "speaking.confidence",
+            "description": "Confidence-building exercises and psychological techniques"
+        },
+        {
+            "type": "blackboard",
+            "label": "presentation-frameworks",
+            "permissions": [
+                "read"
+            ],
+            "scope": "speaking.frameworks",
+            "description": "Presentation structure frameworks and storytelling methods"
+        },
+        {
+            "type": "routine",
+            "label": "Speech Trainer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Provide speech training and presentation coaching"
+        },
+        {
+            "type": "routine",
+            "label": "Performance Analyzer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Analyze speaking performance and provide improvement recommendations"
         }
-      },
-      "qos": 1
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "build-speaker-confidence"
-    },
-    {
-      "modality": "permission",
-      "target": "provide-constructive-feedback"
-    },
-    {
-      "modality": "prohibition",
-      "target": "undermine-speaker-confidence"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "speaking-techniques",
-      "permissions": ["read"],
-      "scope": "speaking.techniques",
-      "description": "Public speaking techniques and delivery methods"
-    },
-    {
-      "type": "blackboard",
-      "label": "confidence-building",
-      "permissions": ["read"],
-      "scope": "speaking.confidence",
-      "description": "Confidence-building exercises and psychological techniques"
-    },
-    {
-      "type": "blackboard",
-      "label": "presentation-frameworks",
-      "permissions": ["read"],
-      "scope": "speaking.frameworks",
-      "description": "Presentation structure frameworks and storytelling methods"
-    },
-    {
-      "type": "routine",
-      "label": "Speech Trainer",
-      "permissions": ["read"],
-      "description": "Provide speech training and presentation coaching"
-    },
-    {
-      "type": "routine",
-      "label": "Performance Analyzer",
-      "permissions": ["read"],
-      "description": "Analyze speaking performance and provide improvement recommendations"
-    }
-  ]
+    ]
 }

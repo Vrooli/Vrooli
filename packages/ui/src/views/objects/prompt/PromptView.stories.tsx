@@ -2,6 +2,7 @@
 import { CodeLanguage, DUMMY_ID, ResourceUsedFor, ResourceSubType, endpointsResource, generatePK, getObjectUrl, type Resource, type StandardVersion, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
+import { getMockEndpoint, getStoryRoutePath } from "../../../__test/helpers/storybookMocking.js";
 import { PromptView } from "./PromptView.js";
 
 // Create simplified mock data for Prompt responses
@@ -181,7 +182,7 @@ Loading.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findPromptVersion.findOne.endpoint}`, async () => {
+            http.get(getMockEndpoint(endpointsResource.findPromptVersion), async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockPromptVersionData });
@@ -189,7 +190,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockPromptVersionData)}`,
+        path: getStoryRoutePath(mockPromptVersionData),
     },
 };
 
@@ -202,13 +203,13 @@ SignInWithResults.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findPromptVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findPromptVersion), () => {
                 return HttpResponse.json({ data: mockPromptVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockPromptVersionData)}`,
+        path: getStoryRoutePath(mockPromptVersionData),
     },
 };
 
@@ -221,12 +222,12 @@ LoggedOutWithResults.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findPromptVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findPromptVersion), () => {
                 return HttpResponse.json({ data: mockPromptVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockPromptVersionData)}`,
+        path: getStoryRoutePath(mockPromptVersionData),
     },
 }; 

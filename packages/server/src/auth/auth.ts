@@ -3,11 +3,7 @@ import { type ApiKeyPermission, COOKIE, HttpStatus, mergeDeep, SECONDS_1_MS } fr
 import cookie from "cookie";
 import type { NextFunction, Request, Response } from "express";
 import { type JwtPayload } from "jsonwebtoken";
-import { type Socket } from "socket.io";
-// eslint-disable-next-line import/extensions
-import type { ExtendedError } from "socket.io/dist/namespace";
-// eslint-disable-next-line import/extensions
-import type { DefaultEventsMap } from "socket.io/dist/typed-events";
+import { type DefaultEventsMap, type ExtendedError, type Socket } from "socket.io";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
 import { logger } from "../events/logger.js";
@@ -154,15 +150,58 @@ export class AuthTokensService {
         }
         // Verify the token. This will throw an error if the token is invalid or expired 
         // (expired as in fully expired, not the accessExpiresAt part)
-        const payload = await JsonWebToken.get().verify(token) as SessionToken;
+        const payload = await JsonWebToken.get().verify(token);
+        
+        // AI_CHECK: TYPE_SAFETY=server-type-safety-fixes | LAST: 2025-07-02 - Added proper JWT payload validation to prevent runtime errors from malformed tokens
+        // Validate that the payload has the required SessionToken structure
+        if (!payload || typeof payload !== "object") {
+            throw new Error("InvalidTokenPayload");
+        }
+        
+        // Type guard to ensure payload matches SessionToken interface
+        function isSessionToken(p: unknown): p is SessionToken {
+            if (!p || typeof p !== "object") return false;
+            const token = p as Record<string, unknown>;
+            
+            // Check required BasicToken fields
+            if (typeof token.iat !== "number" || 
+                typeof token.iss !== "string" || 
+                typeof token.exp !== "number") {
+                return false;
+            }
+            
+            // Check required AccessToken fields
+            if (typeof token.accessExpiresAt !== "number") {
+                return false;
+            }
+            
+            // Check required SessionToken fields
+            if (typeof token.isLoggedIn !== "boolean" || 
+                !Array.isArray(token.users)) {
+                return false;
+            }
+            
+            // Validate users array structure
+            const users = token.users as unknown[];
+            return users.every(user => 
+                user && typeof user === "object" && 
+                "id" in user && typeof (user as Record<string, unknown>).id === "string",
+            );
+        }
+        
+        if (!isSessionToken(payload)) {
+            throw new Error("InvalidSessionTokenStructure");
+        }
+        
+        const validatedPayload: SessionToken = payload;
         // Check if the token is expired
-        const isExpired = AuthTokensService.isAccessTokenExpired(payload);
+        const isExpired = AuthTokensService.isAccessTokenExpired(validatedPayload);
         // Return early if the token is not expired
         if (!isExpired) {
-            const maxAge = JsonWebToken.getMaxAge(payload);
+            const maxAge = JsonWebToken.getMaxAge(validatedPayload);
             // If we're adding additional data, sign a new token without extending the expiration
             if (hasAdditionalDataModifer) {
-                const withAdditionalData = getPayloadWithAdditionalData(payload);
+                const withAdditionalData = getPayloadWithAdditionalData(validatedPayload);
                 const newToken = JsonWebToken.get().sign(withAdditionalData, true);
                 return {
                     maxAge,
@@ -173,18 +212,18 @@ export class AuthTokensService {
             // Otherwise, return the existing token
             return {
                 maxAge,
-                payload,
+                payload: validatedPayload,
                 token,
             };
         }
         // Try to refresh the token if it's expired
-        const isRefreshable = await this.canRefreshToken(payload);
+        const isRefreshable = await this.canRefreshToken(validatedPayload);
         if (!isRefreshable) {
             throw new CustomError("0573", "SessionExpired");
         }
         // Issue a new access token
         const withAdditionalData = {
-            ...getPayloadWithAdditionalData(payload),
+            ...getPayloadWithAdditionalData(validatedPayload),
             ...JsonWebToken.createAccessExpiresAt(),
         };
         const newToken = JsonWebToken.get().sign(withAdditionalData);
@@ -330,8 +369,9 @@ export class AuthService {
             fromSafeOrigin: RequestService.get().isSafeOrigin(req),
             languages: RequestService.parseAcceptLanguage(req),
         };
-        // If from unsafe origin, deny access.
-        if (!req.session.fromSafeOrigin && req.originalUrl !== "/healthcheck") {
+        // If from unsafe origin, deny access (except for system endpoints).
+        const systemEndpoints = ["/healthcheck", "/metrics"];
+        if (!req.session.fromSafeOrigin && !systemEndpoints.includes(req.originalUrl)) {
             const trace = "0451";
             logger.error("Error authenticating request", { trace });
             return ResponseService.sendError(res, { trace, code: "UnsafeOrigin" }, HttpStatus.Forbidden);
@@ -369,6 +409,13 @@ export class AuthService {
             }
             return undefined;
         })();
+
+        // Skip API key authentication for system endpoints
+        if (req.originalUrl === "/healthcheck" || req.originalUrl === "/metrics") {
+            // Continue without authentication
+            next();
+            return;
+        }
 
         if (candidateKey) {
             try {
@@ -536,7 +583,8 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
  * @param req The request object
  * @param payload The token payload
  */
-export function updateSessionWithTokenPayload(req: { session: SessionData }, payload: JwtPayload) {
+// AI_CHECK: TYPE_SAFETY=server-auth-type-safety-maintenance-1 | LAST: 2025-07-03 - Added missing return type annotation: void
+export function updateSessionWithTokenPayload(req: { session: SessionData }, payload: JwtPayload): void {
     // Set token and role variables for other middleware to use
     req.session.apiToken = payload.apiToken ?? null;
     req.session.isLoggedIn = payload.isLoggedIn === true && Array.isArray(payload.users) && payload.users.length > 0;

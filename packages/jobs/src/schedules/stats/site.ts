@@ -1,6 +1,9 @@
+// AI_CHECK: TASK_ID=TYPE_SAFETY COUNT=3 | LAST: 2025-07-06
 import { Prisma, type PeriodType } from "@prisma/client";
 import { DbProvider, logger } from "@vrooli/server";
-import { ResourceType, generatePK } from "@vrooli/shared";
+import { DAYS_90_MS, ResourceType, generatePK } from "@vrooli/shared";
+
+const ACTIVE_USER_DURATION_MS = DAYS_90_MS;
 
 /**
  * Creates periodic site-wide stats
@@ -12,7 +15,7 @@ export async function logSiteStats(
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) {
+): Promise<void> {
     // Initialize stats object with new structure
     const data: Prisma.stats_siteCreateInput = {
         id: generatePK(),
@@ -41,20 +44,21 @@ export async function logSiteStats(
 
     try {
         // --- Active Users (Use groupBy for distinct IDs, then filter bots) ---
-        const DAYS_90_MS = 1000 * 60 * 60 * 24 * 90;
-        const ninetyDaysAgo = new Date(new Date().getTime() - DAYS_90_MS);
+        // Active users are those who have logged in within the last 90 days from the period end
+        const periodEndDate = new Date(periodEnd);
+        const ninetyDaysBeforePeriodEnd = new Date(periodEndDate.getTime() - ACTIVE_USER_DURATION_MS);
 
-        // Get distinct user IDs active in the period
+        // Get distinct user IDs active in the 90 days before period end
         const activeUserGroups = await DbProvider.get().session.groupBy({
             by: ["user_id"],
             where: {
                 last_refresh_at: {
-                    gte: periodStart,
+                    gte: ninetyDaysBeforePeriodEnd.toISOString(),
                     lte: periodEnd,
                 },
             },
         });
-        const activeUserIds = activeUserGroups.map(group => group.user_id);
+        const activeUserIds = activeUserGroups.map((group: { user_id: bigint }) => group.user_id);
 
         // Count non-bot users among the active ones
         if (activeUserIds.length > 0) {
@@ -145,7 +149,7 @@ export async function logSiteStats(
 
             const routineAggregates = await DbProvider.get().resource_version.aggregate({
                 where: {
-                    id: { in: latestCompletedRoutineVersions.map(v => v.id) },
+                    id: { in: latestCompletedRoutineVersions.map((v: { id: bigint }) => v.id) },
                 },
                 _sum: {
                     complexity: true,

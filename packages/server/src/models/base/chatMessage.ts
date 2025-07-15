@@ -81,7 +81,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 }
                 return {
                     id: BigInt(data.id),
-                    config: data.config as Prisma.InputJsonValue,
+                    config: data.config as unknown as Prisma.InputJsonValue,
                     language: userData.languages[0] ?? DEFAULT_LANGUAGE,
                     parent: parentId ? { connect: { id: BigInt(parentId) } } : undefined,
                     user: { connect: { id: BigInt(data.userConnect ?? userData.id) } }, // Can create messages for bots. This is authenticated in the "pre" function.
@@ -99,7 +99,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     parentId = messageData.parentId;
                 }
                 return {
-                    config: noNull(data.config as Prisma.InputJsonValue),
+                    config: noNull(data.config as unknown as Prisma.InputJsonValue),
                     parent: parentId ? { connect: { id: BigInt(parentId) } } : undefined,
                     text: noNull(data.text),
                 };
@@ -154,8 +154,24 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                             userData,
                             taskContexts: taskContexts ?? [],
                             model: modelForTask,
+                            allocation: {
+                                maxCredits: userData.hasPremium ? "200" : "100",
+                                maxDurationMs: 60000,
+                                maxMemoryMB: 256,
+                                maxConcurrentSteps: 1,
+                            },
+                            options: {
+                                priority: userData.hasPremium ? "high" : "medium",
+                                timeout: 60000,
+                                retryPolicy: {
+                                    maxRetries: 3,
+                                    backoffMs: 1000,
+                                    backoffMultiplier: 2,
+                                    maxBackoffMs: 30000,
+                                },
+                            },
                         };
-                        QueueService.get().llm.addTask(llmTaskPayload);
+                        QueueService.get().swarm.addTask(llmTaskPayload);
                         logger.info(`LLM task ${llmTaskPayload.id} added to queue for message ${objectId}.`);
                     }
                 }
@@ -470,14 +486,19 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
     },
     validate: () => ({
         isDeleted: () => false,
-        isPublic: () => false,
+        isPublic: (_data, _getParentInfo?) => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => ({
+        owner: (data, _userId) => ({
             User: data?.user,
         }),
         permissionResolvers: ({ data, isAdmin: isMessageOwner, isDeleted, isLoggedIn, userId }) => {
-            const isChatAdmin = userId ? isOwnerAdminCheck(ModelMap.get<ChatModelLogic>("Chat").validate().owner(data.chat as ChatModelInfo["DbModel"], userId), userId) : false;
+            const chatOwnerData = ModelMap.get<ChatModelLogic>("Chat").validate().owner(data.chat as ChatModelInfo["DbModel"], userId ?? null);
+            const ownerDataWithStringIds = {
+                Team: chatOwnerData.Team ? { ...chatOwnerData.Team, id: chatOwnerData.Team.id.toString() } : null,
+                User: chatOwnerData.User ? { ...chatOwnerData.User, id: chatOwnerData.User.id.toString() } : null,
+            };
+            const isChatAdmin = userId ? isOwnerAdminCheck(ownerDataWithStringIds, userId) : false;
             const isParticipant = validatePK(userId) && (data.chat as Record<string, any>).participants?.some((p) => p.user?.id.toString() === userId || p.userId.toString() === userId);
             return {
                 canConnect: () => isLoggedIn && !isDeleted && isParticipant,

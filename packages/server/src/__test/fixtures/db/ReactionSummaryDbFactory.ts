@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
+import { generatePublicId, nanoid } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -31,6 +31,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
     Prisma.reaction_summaryInclude,
     Prisma.reaction_summaryUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
         super("reaction_summary", prisma);
         this.initializeScenarios();
@@ -46,17 +47,17 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
     protected getFixtures(): DbTestFixtures<Prisma.reaction_summaryCreateInput, Prisma.reaction_summaryUpdateInput> {
         return {
             minimal: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 emoji: "👍",
                 count: 1,
                 // Must have at least one target
-                resourceId: generatePK().toString(),
+                resourceId: this.generateId(),
             },
             complete: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 emoji: "❤️",
                 count: 42,
-                resourceId: generatePK().toString(),
+                resourceId: this.generateId(),
                 createdAt: new Date(),
                 updatedAt: new Date(),
             },
@@ -71,73 +72,73 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
                     resourceId: true, // Should be string
                 },
                 noTarget: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji: "👍",
                     count: 1,
                     // No target specified
                 },
                 multipleTargets: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji: "👍",
                     count: 1,
-                    resourceId: generatePK().toString(),
-                    chatMessageId: generatePK().toString(), // Multiple targets not allowed
+                    resourceId: this.generateId(),
+                    chatMessageId: this.generateId(), // Multiple targets not allowed
                 },
                 negativeCount: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji: "👍",
                     count: -1, // Count should not be negative
-                    resourceId: generatePK().toString(),
+                    resourceId: this.generateId(),
                 },
                 invalidEmoji: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji: "not_an_emoji", // Invalid emoji format
                     count: 1,
-                    resourceId: generatePK().toString(),
+                    resourceId: this.generateId(),
                 },
             },
             edgeCases: {
                 zeroCount: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji: "👍",
                     count: 0, // Zero reactions
-                    resourceId: generatePK().toString(),
+                    resourceId: this.generateId(),
                 },
                 largeCount: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji: "❤️",
                     count: 999999, // Very large count
-                    resourceId: generatePK().toString(),
+                    resourceId: this.generateId(),
                 },
                 unicodeEmoji: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji: "🏳️‍🌈", // Complex unicode emoji
                     count: 10,
-                    resourceId: generatePK().toString(),
+                    resourceId: this.generateId(),
                 },
                 summaryForComment: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji: "💬",
                     count: 5,
-                    commentId: generatePK().toString(),
+                    comment: { connect: { id: this.generateId() } },
                 },
                 summaryForIssue: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji: "🐛",
                     count: 3,
-                    issueId: generatePK().toString(),
+                    issue: { connect: { id: this.generateId() } },
                 },
                 summaryForChatMessage: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji: "👋",
                     count: 7,
-                    chatMessageId: generatePK().toString(),
+                    chatMessageId: this.generateId(),
                 },
                 multipleEmojisForSameTarget: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji: "🎉",
                     count: 15,
-                    resourceId: generatePK().toString(),
+                    resourceId: this.generateId(),
                 },
             },
             updates: {
@@ -154,20 +155,20 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.reaction_summaryCreateInput>): Prisma.reaction_summaryCreateInput {
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             emoji: "👍",
             count: 1,
-            resourceId: generatePK().toString(), // Default to resource
+            resourceId: this.generateId(), // Default to resource
             ...overrides,
         };
     }
 
     protected generateCompleteData(overrides?: Partial<Prisma.reaction_summaryCreateInput>): Prisma.reaction_summaryCreateInput {
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             emoji: "❤️",
             count: 10,
-            resourceId: generatePK().toString(),
+            resourceId: this.generateId(),
             createdAt: new Date(),
             updatedAt: new Date(),
             ...overrides,
@@ -482,7 +483,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
             } else {
                 // Create new summary
                 const data: any = {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji,
                     count: actualCount,
                 };
@@ -519,7 +520,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createReactionSummaryDbFactory = (prisma: PrismaClient) => 
-    ReactionSummaryDbFactory.getInstance("reaction_summary", prisma);
+    new ReactionSummaryDbFactory(prisma);
 
 // Export the class for type usage
 export { ReactionSummaryDbFactory as ReactionSummaryDbFactoryClass };

@@ -1,4 +1,5 @@
-import { generatePK, nanoid } from "@vrooli/shared";
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
+import { nanoid } from "@vrooli/shared";
 import { type Prisma, type PrismaClient, RunStepStatus } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -31,6 +32,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
     Prisma.run_stepInclude,
     Prisma.run_stepUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
         super("RunStep", prisma);
         this.initializeScenarios();
@@ -51,7 +53,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
 
         return {
             minimal: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 name: "Test Step",
                 nodeId: nanoid(),
                 resourceInId: nanoid(),
@@ -64,7 +66,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                 },
             },
             complete: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 name: "Complete Test Step",
                 nodeId: nanoid(),
                 resourceInId: nanoid(),
@@ -100,7 +102,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     runId: "string-not-bigint", // Should be BigInt
                 },
                 tooLongName: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "a".repeat(129), // Exceeds 128 character limit
                     nodeId: nanoid(),
                     resourceInId: nanoid(),
@@ -113,7 +115,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 invalidTimeRange: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "Invalid Time Step",
                     nodeId: nanoid(),
                     resourceInId: nanoid(),
@@ -128,7 +130,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 invalidUuid: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "Invalid UUID Step",
                     nodeId: "not-a-uuid",
                     resourceInId: "also-not-a-uuid",
@@ -141,7 +143,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 negativeOrder: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "Negative Order Step",
                     nodeId: nanoid(),
                     resourceInId: nanoid(),
@@ -156,7 +158,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
             },
             edgeCases: {
                 pendingStep: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "Pending Step",
                     nodeId: nanoid(),
                     resourceInId: nanoid(),
@@ -169,7 +171,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 inProgressStep: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "In Progress Step",
                     nodeId: nanoid(),
                     resourceInId: nanoid(),
@@ -183,7 +185,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 completedStep: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "Completed Step",
                     nodeId: nanoid(),
                     resourceInId: nanoid(),
@@ -199,7 +201,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 failedStep: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "Failed Step",
                     nodeId: nanoid(),
                     resourceInId: nanoid(),
@@ -215,7 +217,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 skippedStep: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "Skipped Step",
                     nodeId: nanoid(),
                     resourceInId: nanoid(),
@@ -228,7 +230,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 highComplexityStep: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "High Complexity Step",
                     nodeId: nanoid(),
                     resourceInId: nanoid(),
@@ -244,7 +246,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 quickStep: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "Quick Step",
                     nodeId: nanoid(),
                     resourceInId: nanoid(),
@@ -260,7 +262,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 highOrderStep: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     name: "High Order Step",
                     nodeId: nanoid(),
                     resourceInId: nanoid(),
@@ -291,8 +293,8 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.run_stepCreateInput>): Prisma.run_stepCreateInput {
         return {
-            id: generatePK().toString(),
-            name: `Step_${nanoid(8)}`,
+            id: this.generateId(),
+            name: `Step_${nanoid()}`,
             nodeId: nanoid(),
             resourceInId: nanoid(),
             order: 0,
@@ -311,8 +313,8 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
         const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
         
         return {
-            id: generatePK().toString(),
-            name: `Complete_Step_${nanoid(8)}`,
+            id: this.generateId(),
+            name: `Complete_Step_${nanoid()}`,
             nodeId: nanoid(),
             resourceInId: nanoid(),
             order: 0,
@@ -486,7 +488,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.run_stepCreateInput,
         config: RunStepRelationConfig,
-        tx: any,
+        tx: PrismaClient,
     ): Promise<Prisma.run_stepCreateInput> {
         const data = { ...baseData };
 
@@ -585,7 +587,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
     protected async deleteRelatedRecords(
         record: Prisma.run_step,
         remainingDepth: number,
-        tx: any,
+        tx: PrismaClient,
         includeOnly?: string[],
     ): Promise<void> {
         // RunStep has no dependent records to delete
@@ -685,7 +687,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createRunStepDbFactory = (prisma: PrismaClient) => 
-    RunStepDbFactory.getInstance("RunStep", prisma);
+    new RunStepDbFactory(prisma);
 
 // Export the class for type usage
 export { RunStepDbFactory as RunStepDbFactoryClass };

@@ -3,11 +3,11 @@ import Button from "@mui/material/Button";
 import Collapse from "@mui/material/Collapse";
 import Container from "@mui/material/Container";
 import Grid from "@mui/material/Grid";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../../components/buttons/IconButton.js";
 import LinearProgress from "@mui/material/LinearProgress";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../../components/Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
 import { BookmarkFor, CodeLanguage, CodeVersionConfig, CommentFor, getTranslation, type ResourceList as ResourceListType, type Tag } from "@vrooli/shared";
@@ -37,6 +37,8 @@ import { ObjectAction } from "../../../utils/actions/objectActions.js";
 import { firstString } from "../../../utils/display/stringTools.js";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { type DataConverterViewProps } from "./types.js";
+
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-01 - Fixed 2 'any[]' type assertions with proper TestResult type
 
 const RANDOM_PASS_THRESHOLD = 0.3;
 const RANDOM_ERROR_THRESHOLD = 0.7;
@@ -95,7 +97,13 @@ export function DataConverterView({
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
 
     // State for test cases and results
-    const [testResults, setTestResults] = useState<any[]>([]);
+    type TestResult = {
+        description: string;
+        passed: boolean;
+        actualOutput: unknown;
+        error?: string;
+    };
+    const [testResults, setTestResults] = useState<TestResult[]>([]);
     const [isRunningTest, setIsRunningTest] = useState<boolean>(false);
     const [expandedTestCase, setExpandedTestCase] = useState<number | null>(null);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -249,7 +257,7 @@ export function DataConverterView({
 
         try {
             // Run all tests in sequence
-            const results: any[] = [];
+            const results: TestResult[] = [];
             for (let i = 0; i < testCases.length; i++) {
                 // Simulate test execution
                 await new Promise(resolve => setTimeout(resolve, TEST_BATCH_DELAY));

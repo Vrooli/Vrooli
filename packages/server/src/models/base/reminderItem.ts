@@ -43,7 +43,7 @@ export const ReminderItemModel: ReminderItemModelLogic = ({
     search: undefined,
     validate: () => ({
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<ReminderItemModelInfo["DbSelect"]>([["reminder", "Reminder"]], ...rest),
+        isPublic: (data, getParentInfo?) => oneIsPublic<ReminderItemModelInfo["DbSelect"]>([["reminder", "Reminder"]], data, getParentInfo),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => ModelMap.get<ReminderModelLogic>("Reminder").validate().owner(data?.reminder as ReminderModelInfo["DbModel"], userId),

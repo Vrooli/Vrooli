@@ -1,108 +1,109 @@
 {
-  "identity": {
-    "name": "travel-experience-coordinator",
-    "version": "1.0.0"
-  },
-  "goal": "Manages complex travel itineraries with multiple bookings",
-  "role": "coordinator",
-  "subscriptions": [
-    "run/completed",
-    "swarm/goal/updated",
-    "run/failed"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "run/completed",
-        "when": "event.data.tags.includes('travel') || event.data.tags.includes('booking') || event.data.tags.includes('itinerary')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Travel Coordinator",
-        "inputMap": {
-          "travelResults": "event.data.outputs.travel",
-          "bookingProgress": "event.data.progress",
-          "bookingSystems": "blackboard.travel.systems",
-          "travelAPIs": "blackboard.travel.apis"
+    "identity": {
+        "name": "travel-experience-coordinator",
+        "version": "1.0.0"
+    },
+    "goal": "Manages complex travel itineraries with multiple bookings",
+    "role": "coordinator",
+    "subscriptions": [
+        "run/completed",
+        "swarm/goal/updated",
+        "run/failed"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "run/completed",
+                "when": "event.data.tags.includes('travel') || event.data.tags.includes('booking') || event.data.tags.includes('itinerary')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Travel Coordinator",
+                "inputMap": {
+                    "travelResults": "event.data.outputs.travel",
+                    "bookingProgress": "event.data.progress",
+                    "bookingSystems": "blackboard.travel.systems",
+                    "travelAPIs": "blackboard.travel.apis"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "swarm/goal/updated",
+                "when": "event.data.description.includes('travel') || event.data.description.includes('trip') || event.data.description.includes('vacation')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Coordinate complex travel arrangements by managing flight, hotel, and activity bookings with comprehensive contingency planning"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/failed",
+                "when": "event.data.failure_reason.includes('booking_conflict') || event.data.failure_reason.includes('travel_disruption')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Contingency Planner",
+                "inputMap": {
+                    "failedBookings": "event.data.failure",
+                    "travelDisruptions": "event.data.disruptions",
+                    "itineraryTemplates": "blackboard.travel.templates"
+                }
+            },
+            "qos": 1
         }
-      },
-      "qos": 1
+    ],
+    "prompt": {
+        "mode": "supplement",
+        "source": "direct",
+        "content": "As the Travel Experience Coordinator, you MUST coordinate seamless travel experiences by managing all aspects of trip planning and execution. You are permitted to manage booking conflicts and make necessary changes to ensure smooth travel. You MUST NOT ignore travel disruptions - always proactively address issues and provide contingency plans. Focus on creating comprehensive, well-coordinated travel experiences with robust backup plans."
     },
-    {
-      "trigger": {
-        "topic": "swarm/goal/updated",
-        "when": "event.data.description.includes('travel') || event.data.description.includes('trip') || event.data.description.includes('vacation')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Coordinate complex travel arrangements by managing flight, hotel, and activity bookings with comprehensive contingency planning"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "run/failed",
-        "when": "event.data.failure_reason.includes('booking_conflict') || event.data.failure_reason.includes('travel_disruption')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Contingency Planner",
-        "inputMap": {
-          "failedBookings": "event.data.failure",
-          "travelDisruptions": "event.data.disruptions",
-          "itineraryTemplates": "blackboard.travel.templates"
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "booking-systems",
+            "permissions": [
+                "read"
+            ],
+            "scope": "travel.systems",
+            "description": "Travel booking systems and reservation platforms"
+        },
+        {
+            "type": "blackboard",
+            "label": "travel-apis",
+            "permissions": [
+                "read"
+            ],
+            "scope": "travel.apis",
+            "description": "Travel API integrations and booking interfaces"
+        },
+        {
+            "type": "blackboard",
+            "label": "itinerary-templates",
+            "permissions": [
+                "read"
+            ],
+            "scope": "travel.templates",
+            "description": "Travel itinerary templates and planning frameworks"
+        },
+        {
+            "type": "routine",
+            "label": "Travel Coordinator",
+            "permissions": [
+                "read"
+            ],
+            "description": "Coordinate multi-booking travel arrangements"
+        },
+        {
+            "type": "routine",
+            "label": "Contingency Planner",
+            "permissions": [
+                "read"
+            ],
+            "description": "Plan contingencies for travel disruptions and conflicts"
         }
-      },
-      "qos": 1
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "coordinate-seamless-travel"
-    },
-    {
-      "modality": "permission",
-      "target": "manage-booking-conflicts"
-    },
-    {
-      "modality": "prohibition",
-      "target": "ignore-travel-disruptions"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "booking-systems",
-      "permissions": ["read"],
-      "scope": "travel.systems",
-      "description": "Travel booking systems and reservation platforms"
-    },
-    {
-      "type": "blackboard",
-      "label": "travel-apis",
-      "permissions": ["read"],
-      "scope": "travel.apis",
-      "description": "Travel API integrations and booking interfaces"
-    },
-    {
-      "type": "blackboard",
-      "label": "itinerary-templates",
-      "permissions": ["read"],
-      "scope": "travel.templates",
-      "description": "Travel itinerary templates and planning frameworks"
-    },
-    {
-      "type": "routine",
-      "label": "Travel Coordinator",
-      "permissions": ["read"],
-      "description": "Coordinate multi-booking travel arrangements"
-    },
-    {
-      "type": "routine",
-      "label": "Contingency Planner",
-      "permissions": ["read"],
-      "description": "Plan contingencies for travel disruptions and conflicts"
-    }
-  ]
+    ]
 }

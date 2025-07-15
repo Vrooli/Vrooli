@@ -61,6 +61,8 @@ const useStyles = makeStyles((theme: Theme) => ({
     },
 }));
 
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-01 - Fixed 1 'any[]' type assertion with proper FileWithPreview type, added event type
+
 export function Dropzone({
     acceptedFileTypes = ["image/*", ".heic", ".heif"],
     dropzoneText = "Drag 'n' drop files here or click",
@@ -72,7 +74,8 @@ export function Dropzone({
     disabled = false,
 }: DropzoneProps) {
     const classes = useStyles();
-    const [files, setFiles] = useState<any[]>([]);
+    type FileWithPreview = File & { preview: string };
+    const [files, setFiles] = useState<FileWithPreview[]>([]);
     const { getRootProps, getInputProps } = useDropzone({
         accept: acceptedFileTypes.length > 0 ? acceptedFileTypes : undefined,
         maxFiles,
@@ -87,7 +90,7 @@ export function Dropzone({
         },
     });
 
-    function upload(e) {
+    function upload(e: React.MouseEvent) {
         if (disabled) return;
         e.stopPropagation();
         if (files.length === 0) {

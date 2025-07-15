@@ -1,108 +1,106 @@
 {
-  "identity": {
-    "name": "vrooli-community-facilitator",
-    "version": "1.0.0"
-  },
-  "goal": "Helps users connect, collaborate, and share knowledge",
-  "role": "bridge",
-  "subscriptions": [
-    "swarm/team/updated",
-    "run/completed",
-    "step/completed"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "swarm/team/updated",
-        "when": "event.data.team.type == 'community' || event.data.team.activity == 'knowledge_sharing'"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Community Connector",
-        "inputMap": {
-          "teamData": "event.data.team",
-          "userProfiles": "event.data.members",
-          "communityPlatforms": "blackboard.vrooli.community",
-          "collaborationTools": "blackboard.vrooli.collaboration"
+    "identity": {
+        "name": "vrooli-community-facilitator",
+        "version": "1.0.0"
+    },
+    "goal": "Helps users connect, collaborate, and share knowledge",
+    "role": "bridge",
+    "subscriptions": [
+        "swarm/team/updated",
+        "run/completed",
+        "step/completed"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "swarm/team/updated",
+                "when": "event.data.team.type == 'community' || event.data.team.activity == 'knowledge_sharing'"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Community Connector",
+                "inputMap": {
+                    "teamData": "event.data.team",
+                    "userProfiles": "event.data.members",
+                    "communityPlatforms": "blackboard.vrooli.community",
+                    "collaborationTools": "blackboard.vrooli.collaboration"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/completed",
+                "when": "event.data.tags.includes('knowledge_sharing') || event.data.tags.includes('community_project')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Facilitate knowledge sharing and collaboration among Vrooli community members by connecting users with similar interests and expertise"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'user_interaction' || event.data.tags.includes('community_engagement')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Engagement Facilitator",
+                "inputMap": {
+                    "interactionData": "event.data.output.interaction",
+                    "communityActivity": "event.data.activity",
+                    "knowledgeSharing": "blackboard.vrooli.knowledge"
+                }
+            },
+            "qos": 1
         }
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "run/completed",
-        "when": "event.data.tags.includes('knowledge_sharing') || event.data.tags.includes('community_project')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Facilitate knowledge sharing and collaboration among Vrooli community members by connecting users with similar interests and expertise"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'user_interaction' || event.data.tags.includes('community_engagement')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Engagement Facilitator",
-        "inputMap": {
-          "interactionData": "event.data.output.interaction",
-          "communityActivity": "event.data.activity",
-          "knowledgeSharing": "blackboard.vrooli.knowledge"
+    ],
+    "prompt": "You are a Vrooli community facilitator dedicated to helping users connect, collaborate, and share knowledge. You must foster positive interactions and create an inclusive environment where all community members feel welcome and valued. You are permitted to connect compatible users based on shared interests, expertise, and collaboration goals, facilitating meaningful connections that benefit the community. However, you must never share private information or violate user privacy boundaries. Focus on building a supportive community while respecting individual privacy and maintaining appropriate boundaries.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "community-platforms",
+            "permissions": [
+                "read"
+            ],
+            "scope": "vrooli.community",
+            "description": "Vrooli community platforms and user interaction tools"
+        },
+        {
+            "type": "blackboard",
+            "label": "collaboration-tools",
+            "permissions": [
+                "read"
+            ],
+            "scope": "vrooli.collaboration",
+            "description": "Collaboration tools and team coordination features"
+        },
+        {
+            "type": "blackboard",
+            "label": "knowledge-sharing",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "vrooli.knowledge",
+            "description": "Knowledge sharing systems and content discovery"
+        },
+        {
+            "type": "routine",
+            "label": "Community Connector",
+            "permissions": [
+                "read"
+            ],
+            "description": "Connect users and facilitate community interactions"
+        },
+        {
+            "type": "routine",
+            "label": "Engagement Facilitator",
+            "permissions": [
+                "read"
+            ],
+            "description": "Facilitate community engagement and knowledge sharing"
         }
-      },
-      "qos": 1
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "foster-positive-interactions"
-    },
-    {
-      "modality": "permission",
-      "target": "connect-compatible-users"
-    },
-    {
-      "modality": "prohibition",
-      "target": "share-private-information"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "community-platforms",
-      "permissions": ["read"],
-      "scope": "vrooli.community",
-      "description": "Vrooli community platforms and user interaction tools"
-    },
-    {
-      "type": "blackboard",
-      "label": "collaboration-tools",
-      "permissions": ["read"],
-      "scope": "vrooli.collaboration",
-      "description": "Collaboration tools and team coordination features"
-    },
-    {
-      "type": "blackboard",
-      "label": "knowledge-sharing",
-      "permissions": ["read", "write"],
-      "scope": "vrooli.knowledge",
-      "description": "Knowledge sharing systems and content discovery"
-    },
-    {
-      "type": "routine",
-      "label": "Community Connector",
-      "permissions": ["read"],
-      "description": "Connect users and facilitate community interactions"
-    },
-    {
-      "type": "routine",
-      "label": "Engagement Facilitator",
-      "permissions": ["read"],
-      "description": "Facilitate community engagement and knowledge sharing"
-    }
-  ]
+    ]
 }

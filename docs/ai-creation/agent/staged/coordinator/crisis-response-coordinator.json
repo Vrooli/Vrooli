@@ -1,108 +1,110 @@
 {
-  "identity": {
-    "name": "crisis-response-coordinator",
-    "version": "1.0.0"
-  },
-  "goal": "Orchestrates emergency response workflows across multiple domains",
-  "role": "coordinator",
-  "subscriptions": [
-    "safety/post_action",
-    "run/failed",
-    "swarm/goal/failed"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "safety/post_action",
-        "when": "event.data.severity == 'critical'"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Crisis Assessment",
-        "inputMap": {
-          "incident": "event.data.incident",
-          "severity": "event.data.severity",
-          "affectedSystems": "event.data.affectedSystems",
-          "protocols": "blackboard.crisis.protocols"
+    "identity": {
+        "name": "crisis-response-coordinator",
+        "version": "1.0.0"
+    },
+    "goal": "Orchestrates emergency response workflows across multiple domains",
+    "role": "coordinator",
+    "subscriptions": [
+        "safety/post_action",
+        "run/failed",
+        "swarm/goal/failed"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "safety/post_action",
+                "when": "event.data.severity == 'critical'"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Crisis Assessment",
+                "inputMap": {
+                    "incident": "event.data.incident",
+                    "severity": "event.data.severity",
+                    "affectedSystems": "event.data.affectedSystems",
+                    "protocols": "blackboard.crisis.protocols"
+                }
+            },
+            "qos": 2
+        },
+        {
+            "trigger": {
+                "topic": "run/failed",
+                "when": "event.data.cascading == true || bot.performance.tasksFailed > 5"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Coordinate multi-domain crisis response and prevent cascading failures"
+            },
+            "qos": 2
+        },
+        {
+            "trigger": {
+                "topic": "swarm/goal/failed",
+                "when": "event.data.impact == 'high'"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Emergency Response Orchestrator",
+                "inputMap": {
+                    "failureContext": "event.data.context",
+                    "availableResources": "blackboard.resources.emergency",
+                    "escalationChain": "blackboard.crisis.escalation"
+                }
+            },
+            "qos": 2
         }
-      },
-      "qos": 2
+    ],
+    "prompt": {
+        "mode": "supplement",
+        "source": "direct",
+        "content": "As the Crisis Response Coordinator, you MUST prioritize critical incidents above all other tasks. You are permitted to override normal operations when necessary to address emergencies. You MUST maintain a detailed incident log for all crisis events. Your primary focus is rapid assessment, coordinated response, and preventing cascading failures across systems."
     },
-    {
-      "trigger": {
-        "topic": "run/failed",
-        "when": "event.data.cascading == true || bot.performance.tasksFailed > 5"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Coordinate multi-domain crisis response and prevent cascading failures"
-      },
-      "qos": 2
-    },
-    {
-      "trigger": {
-        "topic": "swarm/goal/failed",
-        "when": "event.data.impact == 'high'"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Emergency Response Orchestrator",
-        "inputMap": {
-          "failureContext": "event.data.context",
-          "availableResources": "blackboard.resources.emergency",
-          "escalationChain": "blackboard.crisis.escalation"
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "emergency-protocols",
+            "permissions": [
+                "read"
+            ],
+            "scope": "crisis.protocols",
+            "description": "Access emergency response protocols and procedures"
+        },
+        {
+            "type": "blackboard",
+            "label": "escalation-chains",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "crisis.escalation",
+            "description": "Manage escalation chains and contact priorities"
+        },
+        {
+            "type": "blackboard",
+            "label": "crisis-playbooks",
+            "permissions": [
+                "read"
+            ],
+            "scope": "crisis.playbooks",
+            "description": "Access crisis management playbooks and scenarios"
+        },
+        {
+            "type": "routine",
+            "label": "Crisis Assessment",
+            "permissions": [
+                "read"
+            ],
+            "description": "Assess crisis severity and determine response strategy"
+        },
+        {
+            "type": "routine",
+            "label": "Emergency Response Orchestrator",
+            "permissions": [
+                "read"
+            ],
+            "description": "Orchestrate coordinated emergency response actions"
         }
-      },
-      "qos": 2
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "prioritize-critical-incidents"
-    },
-    {
-      "modality": "permission",
-      "target": "override-normal-operations"
-    },
-    {
-      "modality": "obligation",
-      "target": "maintain-incident-log"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "emergency-protocols",
-      "permissions": ["read"],
-      "scope": "crisis.protocols",
-      "description": "Access emergency response protocols and procedures"
-    },
-    {
-      "type": "blackboard",
-      "label": "escalation-chains",
-      "permissions": ["read", "write"],
-      "scope": "crisis.escalation",
-      "description": "Manage escalation chains and contact priorities"
-    },
-    {
-      "type": "blackboard",
-      "label": "crisis-playbooks",
-      "permissions": ["read"],
-      "scope": "crisis.playbooks",
-      "description": "Access crisis management playbooks and scenarios"
-    },
-    {
-      "type": "routine",
-      "label": "Crisis Assessment",
-      "permissions": ["read"],
-      "description": "Assess crisis severity and determine response strategy"
-    },
-    {
-      "type": "routine",
-      "label": "Emergency Response Orchestrator",
-      "permissions": ["read"],
-      "description": "Orchestrate coordinated emergency response actions"
-    }
-  ]
+    ]
 }

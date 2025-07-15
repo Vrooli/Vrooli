@@ -4,14 +4,16 @@
  * This file provides comprehensive API response fixtures for bookmark endpoints.
  * It includes success responses, error responses, and MSW handlers for testing.
  */
+// AI_CHECK: TYPE_SAFETY=fixed-bookmark-types | LAST: 2025-07-02 - Fixed User/Resource properties, MSW v2 syntax, and BookmarkTo type compatibility
 
-import { http, type RestHandler } from "msw";
+import { http, HttpResponse, type RequestHandler } from "msw";
 import type { 
     Bookmark, 
     BookmarkCreateInput, 
     BookmarkUpdateInput,
     BookmarkList,
-    BookmarkFor, 
+    BookmarkFor,
+    BookmarkTo,
 } from "@vrooli/shared";
 import { 
     bookmarkValidation,
@@ -76,14 +78,14 @@ export class BookmarkResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique resource ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -259,29 +261,35 @@ export class BookmarkResponseFactory {
                 createdAt: now,
                 updatedAt: now,
                 isBot: false,
+                isBotDepictingPerson: false,
                 isPrivate: false,
+                isPrivateBookmarks: true,
+                isPrivateMemberships: true,
+                isPrivatePullRequests: true,
+                isPrivateResources: false,
+                isPrivateResourcesCreated: false,
+                isPrivateTeamsCreated: true,
+                isPrivateVotes: true,
+                bookmarkedBy: [],
+                bookmarks: 0,
                 profileImage: null,
                 bannerImage: null,
-                premium: false,
-                premiumExpiration: null,
-                roles: [],
+                publicId: `user_public_${id}`,
+                views: 0,
+                premium: null,
                 wallets: [],
                 translations: [],
-                translationsCount: 0,
+                membershipsCount: 0,
+                reportsReceived: [],
+                reportsReceivedCount: 0,
+                resourcesCount: 0,
                 you: {
                     __typename: "UserYou",
-                    isBlocked: false,
-                    isBlockedByYou: false,
                     canDelete: false,
                     canReport: false,
                     canUpdate: false,
                     isBookmarked: false,
-                    isReacted: false,
-                    reactionSummary: {
-                        __typename: "ReactionSummary",
-                        emotion: null,
-                        count: 0,
-                    },
+                    isViewed: false,
                 },
             },
             to: {
@@ -289,19 +297,43 @@ export class BookmarkResponseFactory {
                 id: `resource_${id}`,
                 createdAt: now,
                 updatedAt: now,
+                bookmarkedBy: [],
+                bookmarks: 0,
+                completedAt: null,
+                createdBy: null,
+                hasCompleteVersion: false,
+                isDeleted: false,
                 isInternal: false,
                 isPrivate: false,
-                usedBy: [],
-                usedByCount: 0,
+                issues: [],
+                issuesCount: 0,
+                owner: null,
+                parent: null,
+                permissions: "{}",
+                publicId: `resource_public_${id}`,
+                pullRequests: [],
+                pullRequestsCount: 0,
+                resourceType: "Api" as any,
+                score: 0,
+                stats: [],
+                tags: [],
+                transfers: [],
+                transfersCount: 0,
+                translatedName: "Test Resource",
                 versions: [],
                 versionsCount: 0,
+                views: 0,
                 you: {
                     __typename: "ResourceYou",
+                    canBookmark: true,
+                    canComment: true,
                     canDelete: false,
+                    canReact: true,
+                    canRead: true,
+                    canTransfer: false,
                     canUpdate: false,
-                    canReport: false,
                     isBookmarked: true,
-                    isReacted: false,
+                    isViewed: false,
                     reaction: null,
                 },
             },
@@ -313,11 +345,6 @@ export class BookmarkResponseFactory {
                 updatedAt: now,
                 bookmarks: [],
                 bookmarksCount: 1,
-                you: {
-                    __typename: "BookmarkListYou",
-                    canDelete: true,
-                    canUpdate: true,
-                },
             },
         };
         
@@ -351,15 +378,104 @@ export class BookmarkResponseFactory {
      * Create multiple bookmarks for different object types
      */
     createBookmarksForAllTypes(): Bookmark[] {
-        return Object.values(BookmarkForEnum).map(bookmarkFor => 
-            this.createMockBookmark({
-                to: {
-                    ...this.createMockBookmark().to,
-                    __typename: bookmarkFor,
-                    id: `${bookmarkFor.toLowerCase()}_${this.generateId()}`,
-                },
-            }),
-        );
+        return Object.values(BookmarkForEnum).map(bookmarkFor => {
+            const now = new Date().toISOString();
+            const id = `${(bookmarkFor as string).toLowerCase()}_${this.generateId()}`;
+            
+            let to: BookmarkTo;
+            
+            // Create appropriate object based on type
+            if (bookmarkFor === "User") {
+                to = {
+                    __typename: "User",
+                    id,
+                    handle: "testuser",
+                    name: "Test User",
+                    createdAt: now,
+                    updatedAt: now,
+                    isBot: false,
+                    isPrivate: false,
+                    profileImage: null,
+                    bannerImage: null,
+                    premium: null,
+                        wallets: [],
+                    translations: [],
+                    bookmarkedBy: [],
+                    bookmarks: 0,
+                    publicId: `user_public_${id}`,
+                    views: 0,
+                    membershipsCount: 0,
+                    reportsReceived: [],
+                    reportsReceivedCount: 0,
+                    resourcesCount: 0,
+                    isBotDepictingPerson: false,
+                    isPrivateBookmarks: true,
+                    isPrivateMemberships: true,
+                    isPrivatePullRequests: true,
+                    isPrivateResources: false,
+                    isPrivateResourcesCreated: false,
+                    isPrivateTeamsCreated: true,
+                    isPrivateVotes: true,
+                    you: {
+                        __typename: "UserYou",
+                        canDelete: false,
+                        canReport: false,
+                        canUpdate: false,
+                        isBookmarked: false,
+                        isViewed: false,
+                    },
+                };
+            } else {
+                // For now, default to Resource for other types
+                to = {
+                    __typename: "Resource",
+                    id,
+                    createdAt: now,
+                    updatedAt: now,
+                    bookmarkedBy: [],
+                    bookmarks: 0,
+                    completedAt: null,
+                    createdBy: null,
+                    hasCompleteVersion: false,
+                    isDeleted: false,
+                    isInternal: false,
+                    isPrivate: false,
+                    issues: [],
+                    issuesCount: 0,
+                    owner: null,
+                    parent: null,
+                    permissions: "{}",
+                    publicId: `resource_public_${id}`,
+                    pullRequests: [],
+                    pullRequestsCount: 0,
+                    resourceType: "Api" as any,
+                    score: 0,
+                    stats: [],
+                    tags: [],
+                    transfers: [],
+                    transfersCount: 0,
+                    translatedName: "Test Resource",
+                    versions: [],
+                    versionsCount: 0,
+                    views: 0,
+                    you: {
+                        __typename: "ResourceYou",
+                        canBookmark: true,
+                        canComment: true,
+                        canDelete: false,
+                        canReact: true,
+                        canRead: true,
+                        canTransfer: false,
+                        canUpdate: false,
+                        isBookmarked: true,
+                        isViewed: false,
+                        reaction: null,
+                    },
+                };
+            }
+            
+            return this.createMockBookmark({ to });
+        });
     }
     
     /**
@@ -370,7 +486,7 @@ export class BookmarkResponseFactory {
         errors?: Record<string, string>;
     }> {
         try {
-            await bookmarkValidation.create.validate(input);
+            await bookmarkValidation.create({}).validate(input);
             return { valid: true };
         } catch (error: any) {
             const fieldErrors: Record<string, string> = {};
@@ -406,18 +522,18 @@ export class BookmarkMSWHandlers {
     /**
      * Create success handlers for all bookmark endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): RequestHandler[] {
         return [
             // Create bookmark
-            http.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, async (req, res, ctx) => {
-                const body = await req.json() as BookmarkCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, async ({ request, params }) => {
+                const body = await request.json() as BookmarkCreateInput;
                 
                 // Validate input
                 const validation = await this.responseFactory.validateCreateInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
+                    return HttpResponse.json(
+                        this.responseFactory.createValidationErrorResponse(validation.errors || {}),
+                        { status: 400 }
                     );
                 }
                 
@@ -425,29 +541,23 @@ export class BookmarkMSWHandlers {
                 const bookmark = this.responseFactory.createBookmarkFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(bookmark);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 201 });
             }),
             
             // Get bookmark by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, ({ request, params }) => {
+                const { id } = params;
                 
                 const bookmark = this.responseFactory.createMockBookmark({ id: id as string });
                 const response = this.responseFactory.createSuccessResponse(bookmark);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Update bookmark
-            http.put(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const body = await req.json() as BookmarkUpdateInput;
+            http.put(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, async ({ request, params }) => {
+                const { id } = params;
+                const body = await request.json() as BookmarkUpdateInput;
                 
                 const bookmark = this.responseFactory.createMockBookmark({ 
                     id: id as string,
@@ -456,20 +566,17 @@ export class BookmarkMSWHandlers {
                 
                 const response = this.responseFactory.createSuccessResponse(bookmark);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Delete bookmark
-            http.delete(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, (req, res, ctx) => {
-                return res(ctx.status(204));
+            http.delete(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, ({ request, params }) => {
+                return new HttpResponse(null, { status: 204 });
             }),
             
             // List bookmarks
-            http.get(`${this.responseFactory["baseUrl"]}/api/bookmark`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/bookmark`, ({ request, params }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 const bookmarkFor = url.searchParams.get("bookmarkFor") as BookmarkFor;
@@ -494,10 +601,7 @@ export class BookmarkMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -505,41 +609,41 @@ export class BookmarkMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): RequestHandler[] {
         return [
             // Validation error
-            http.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
+            http.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createValidationErrorResponse({
                         forConnect: "Target object ID is required",
                         bookmarkFor: "Bookmark type must be specified",
-                    })),
+                    }),
+                    { status: 400 }
                 );
             }),
             
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
+            http.get(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, ({ request, params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string),
+                    { status: 404 }
                 );
             }),
             
             // Permission error
-            http.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("create"),
+                    { status: 403 }
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse(),
+                    { status: 500 }
                 );
             }),
         ];
@@ -548,18 +652,15 @@ export class BookmarkMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, async (req, res, ctx) => {
-                const body = await req.json() as BookmarkCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, async ({ request, params }) => {
+                const body = await request.json() as BookmarkCreateInput;
                 const bookmark = this.responseFactory.createBookmarkFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(bookmark);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return HttpResponse.json(response, { status: 201 });
             }),
         ];
     }
@@ -567,14 +668,14 @@ export class BookmarkMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -588,18 +689,17 @@ export class BookmarkMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): RequestHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        const httpMethod = method.toLowerCase() as keyof typeof http;
+        return http[httpMethod](fullEndpoint, async ({ request, params }) => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }

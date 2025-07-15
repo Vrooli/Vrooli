@@ -1,9 +1,10 @@
-import { Command } from "commander";
-import { ApiClient } from "../utils/client.js";
-import { ConfigManager } from "../utils/config.js";
+import { type Command } from "commander";
+import { type ApiClient } from "../utils/client.js";
+import { type ConfigManager } from "../utils/config.js";
 import chalk from "chalk";
 import inquirer from "inquirer";
 import ora from "ora";
+import type { Session } from "@vrooli/shared";
 
 export class AuthCommands {
     constructor(
@@ -60,16 +61,20 @@ export class AuthCommands {
 
             try {
                 // Call login endpoint
-                const response = await this.client.post("/auth/login", {
+                const session = await this.client.post<Session>("/auth/login", {
                     email: credentials.email,
                     password: credentials.password,
                 });
 
-                const { accessToken, refreshToken, user, expiresIn } = response;
+                const user = session.users?.[0];
+                if (!user) {
+                    throw new Error("No user data in login response");
+                }
 
-                // Save tokens if requested
+                // Tokens are handled via HTTP-only cookies automatically
+                // Save session info if requested
                 if (options.save !== false) {
-                    this.config.setAuth(accessToken, refreshToken, expiresIn);
+                    this.config.setSession(session);
                 }
 
                 spinner.succeed("Logged in successfully");
@@ -79,14 +84,14 @@ export class AuthCommands {
                         success: true,
                         user: {
                             id: user.id,
-                            email: user.email,
+                            handle: user.handle,
                             name: user.name,
                         },
                     }));
                 } else {
                     console.log(chalk.green("\n✓ Authentication successful"));
-                    console.log(`  User: ${user.name || user.email}`);
-                    console.log(`  Email: ${user.email}`);
+                    console.log(`  User: ${user.name || user.handle}`);
+                    console.log(`  Handle: ${user.handle}`);
                     if (options.save !== false) {
                         console.log(`  Profile: ${this.config.getActiveProfileName()}`);
                     }
@@ -164,8 +169,14 @@ export class AuthCommands {
             const spinner = ora("Checking authentication...").start();
             
             try {
-                const user = await this.client.get("/auth/me");
+                const session = await this.client.get<Session>("/auth/me");
                 spinner.succeed("Authenticated");
+
+                const user = session.users?.[0];
+                if (!user) {
+                    spinner.fail("No user data found in session");
+                    return;
+                }
 
                 if (this.config.isJsonOutput()) {
                     console.log(JSON.stringify({
@@ -173,14 +184,14 @@ export class AuthCommands {
                         profile: this.config.getActiveProfileName(),
                         user: {
                             id: user.id,
-                            email: user.email,
+                            handle: user.handle,
                             name: user.name,
                         },
                     }));
                 } else {
                     console.log(chalk.green("\n✓ Authenticated"));
-                    console.log(`  User: ${user.name || user.email}`);
-                    console.log(`  Email: ${user.email}`);
+                    console.log(`  User: ${user.name || user.handle}`);
+                    console.log(`  Handle: ${user.handle}`);
                     console.log(`  Profile: ${this.config.getActiveProfileName()}`);
                     console.log(`  Server: ${this.config.getServerUrl()}`);
                 }
@@ -213,25 +224,26 @@ export class AuthCommands {
         try {
             const spinner = ora("Fetching user information...").start();
 
-            const user = await this.client.get("/auth/me");
+            const session = await this.client.get<Session>("/auth/me");
             spinner.succeed("User information retrieved");
+
+            const user = session.users?.[0];
+            if (!user) {
+                console.log(chalk.yellow("No user data found"));
+                return;
+            }
 
             if (this.config.isJsonOutput()) {
                 console.log(JSON.stringify(user));
             } else {
                 console.log(chalk.bold("\nUser Information:"));
                 console.log(`  ID: ${user.id}`);
-                console.log(`  Email: ${user.email}`);
+                console.log(`  Handle: ${user.handle || "(not set)"}`);
                 console.log(`  Name: ${user.name || "(not set)"}`);
-                console.log(`  Roles: ${user.roles?.join(", ") || "user"}`);
-                console.log(`  Created: ${new Date(user.created_at).toLocaleString()}`);
-                
-                if (user.organizations?.length > 0) {
-                    console.log(chalk.bold("\nOrganizations:"));
-                    user.organizations.forEach((org: any) => {
-                        console.log(`  - ${org.name} (${org.role})`);
-                    });
-                }
+                console.log(`  Languages: ${user.languages?.join(", ") || "none"}`);
+                console.log(`  Credits: ${user.credits || "0"}`);
+                console.log(`  Premium: ${user.hasPremium ? "Yes" : "No"}`);
+                console.log(`  Last Updated: ${new Date(user.updatedAt).toLocaleString()}`);
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -248,10 +260,10 @@ export class AuthCommands {
         email?: string;
         password?: string;
     }): Promise<{ email: string; password: string }> {
-        const questions = [];
+        const answers: { email?: string; password?: string } = {};
 
         if (!options.email) {
-            questions.push({
+            const emailAnswer = await inquirer.prompt([{
                 type: "input",
                 name: "email",
                 message: "Email:",
@@ -259,11 +271,12 @@ export class AuthCommands {
                     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                     return emailRegex.test(input) || "Please enter a valid email address";
                 },
-            });
+            }]);
+            answers.email = emailAnswer.email;
         }
 
         if (!options.password) {
-            questions.push({
+            const passwordAnswer = await inquirer.prompt([{
                 type: "password",
                 name: "password",
                 message: "Password:",
@@ -271,14 +284,13 @@ export class AuthCommands {
                 validate: (input: string) => {
                     return input.length > 0 || "Password is required";
                 },
-            });
+            }]);
+            answers.password = passwordAnswer.password;
         }
 
-        const answers = questions.length > 0 ? await inquirer.prompt(questions as any) : {};
-
         return {
-            email: options.email || answers.email,
-            password: options.password || answers.password,
+            email: options.email || answers.email || "",
+            password: options.password || answers.password || "",
         };
     }
 }

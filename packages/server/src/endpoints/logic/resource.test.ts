@@ -1,7 +1,7 @@
 import { type FindByPublicIdInput, type ResourceVersionCreateInput, type ResourceVersionSearchInput, type ResourceVersionUpdateInput, resourceVersionTestDataFactory, generatePK } from "@vrooli/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockAuthenticatedSession, mockLoggedOutSession, mockApiSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
-import { testEndpointRequiresAuth, testEndpointRequiresApiKeyReadPermissions, testEndpointRequiresApiKeyWritePermissions } from "../../__test/endpoints.js";
+import { assertEndpointRequiresAuth, assertEndpointRequiresApiKeyReadPermissions, assertEndpointRequiresApiKeyWritePermissions } from "../../__test/endpoints.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
@@ -15,6 +15,8 @@ import { resource } from "./resource.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { ResourceDbFactory } from "../../__test/fixtures/db/resourceFixtures.js";
 import { TeamDbFactory } from "../../__test/fixtures/db/teamFixtures.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsResource", () => {
     beforeAll(async () => {
@@ -24,18 +26,21 @@ describe("EndpointsResource", () => {
         vi.spyOn(logger, "warning").mockImplementation(() => logger);
     });
 
-    beforeEach(async () => {
-        // Clean up tables used in tests
-        const prisma = DbProvider.get();
-        await prisma.resource_version.deleteMany();
-        await prisma.resource.deleteMany();
-        await prisma.member.deleteMany();
-        await prisma.team.deleteMany();
-        await prisma.tag.deleteMany();
-        await prisma.user.deleteMany();
-        // Clear Redis cache
-        await CacheService.get().flushAll();
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["team","member","member_invite","meeting","user"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn('Test cleanup incomplete:', orphans);
+        }
     });
+
+    beforeEach(async () => {
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.team(DbProvider.get());
+    }););
 
     afterAll(async () => {
         // Restore all mocks
@@ -368,16 +373,16 @@ describe("EndpointsResource", () => {
 
     describe("createOne", () => {
         describe("authentication", () => {
-            it("requires authentication", async () => {
-                await testEndpointRequiresAuth(
+            it("not logged in", async () => {
+                await assertEndpointRequiresAuth(
                     resource.createOne,
                     resourceVersionTestDataFactory.createMinimal(),
                     resource_createOne,
                 );
             });
 
-            it("requires API key with write permissions", async () => {
-                await testEndpointRequiresApiKeyWritePermissions(
+            it("API key - no write permissions", async () => {
+                await assertEndpointRequiresApiKeyWritePermissions(
                     resource.createOne,
                     resourceVersionTestDataFactory.createMinimal(),
                     resource_createOne,
@@ -607,16 +612,16 @@ describe("EndpointsResource", () => {
 
     describe("updateOne", () => {
         describe("authentication", () => {
-            it("requires authentication", async () => {
-                await testEndpointRequiresAuth(
+            it("not logged in", async () => {
+                await assertEndpointRequiresAuth(
                     resource.updateOne,
                     { id: generatePK() },
                     resource_updateOne,
                 );
             });
 
-            it("requires API key with write permissions", async () => {
-                await testEndpointRequiresApiKeyWritePermissions(
+            it("API key - no write permissions", async () => {
+                await assertEndpointRequiresApiKeyWritePermissions(
                     resource.updateOne,
                     { id: generatePK() },
                     resource_updateOne,

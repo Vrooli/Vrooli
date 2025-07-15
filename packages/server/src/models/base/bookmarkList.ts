@@ -45,10 +45,10 @@ export const BookmarkListModel: BookmarkListModelLogic = ({
     },
     validate: () => ({
         isDeleted: () => false,
-        isPublic: () => false,
+        isPublic: (_data, _getParentInfo?) => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => ({
+        owner: (data, _userId) => ({
             User: data?.user,
         }),
         permissionResolvers: defaultPermissions,

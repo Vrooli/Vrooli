@@ -1,6 +1,6 @@
 import Box from "@mui/material/Box";
-import Dialog, { type DialogProps } from "@mui/material/Dialog";
-import IconButton from "@mui/material/IconButton";
+import { Dialog } from "../../components/dialogs/Dialog/Dialog.js";
+import { IconButton } from "../../components/buttons/IconButton.js";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
@@ -141,21 +141,6 @@ function updateUsageHistory(
 
 const INITIAL_WIZARD_STEP = "complexity";
 
-interface StyledDialogProps extends Omit<DialogProps, "zIndex"> {
-    zIndex: number;
-}
-const StyledDialog = styled(Dialog, {
-    shouldForwardProp: (prop) => prop !== "zIndex",
-})<StyledDialogProps>(({ theme, zIndex }) => ({
-    zIndex,
-    "& > .MuiDialog-container": {
-        "& > .MuiPaper-root": {
-            zIndex,
-            borderRadius: 4,
-            background: theme.palette.background.default,
-        },
-    },
-}));
 
 type RoutineWizardDialogProps = {
     isOpen: boolean,
@@ -203,11 +188,11 @@ function RoutineWizardDialog({
     }, []);
 
     return (
-        <StyledDialog
-            id={ELEMENT_IDS.RoutineWizardDialog}
-            open={isOpen}
+        <Dialog
+            isOpen={isOpen}
             onClose={handleClose}
-            zIndex={Z_INDEX.Dialog}
+            size="md"
+            title="Create Routine"
         >
             <TopBar
                 display="Dialog"
@@ -241,7 +226,7 @@ function RoutineWizardDialog({
             {step === "singleStepType" && (
                 <Box p={2}>
                     <Box display="flex" alignItems="center" mb={4}>
-                        <IconButton onClick={selectComplexity}>
+                        <IconButton onClick={selectComplexity} variant="transparent">
                             <IconCommon
                                 decorative
                                 name="ArrowLeft"
@@ -272,7 +257,7 @@ function RoutineWizardDialog({
                     </Stack>
                 </Box>
             )}
-        </StyledDialog>
+        </Dialog>
     );
 }
 

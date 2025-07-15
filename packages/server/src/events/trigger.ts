@@ -1,4 +1,4 @@
-import { type AwardCategory, type BookmarkFor, type ChatMessage, type CopyType, type IssueStatus, type ModelType, type PullRequestStatus, type ReactionFor, type ReportStatus } from "@vrooli/shared";
+import { EventTypes, type AwardCategory, type BookmarkFor, type ChatMessage, type CopyType, type IssueStatus, type ModelType, type PullRequestStatus, type ReactionFor, type ReportStatus } from "@vrooli/shared";
 import { PasswordAuthService } from "../auth/email.js";
 import { DbProvider } from "../db/provider.js";
 import { Notify, isObjectSubscribable } from "../notify/notify.js";
@@ -6,7 +6,7 @@ import { SocketService } from "../sockets/io.js";
 import { type PreMapMessageData, type PreMapMessageDataDelete } from "../utils/messageTree.js";
 import { Award, objectAwardCategory } from "./awards.js";
 import { logger } from "./logger.js";
-import { Reputation, objectReputationEvent } from "./reputation.js";
+import { Reputation, objectReputationEvent, type ReputationEvent } from "./reputation.js";
 
 export type ActionTrigger = "AccountNew" |
     "ObjectComplete" | // except runs
@@ -59,7 +59,10 @@ export function Trigger(languages: string[] | undefined) {
             message: ChatMessage,
         }) => {
             Notify(languages).pushMessageReceived(messageId, senderId).toChatParticipants(chatId, [senderId, excludeUserId]);
-            SocketService.get().emitSocketEvent("messages", chatId, { added: [message] });
+            SocketService.get().emitSocketEvent(EventTypes.CHAT.MESSAGE_ADDED, chatId, {
+                chatId,
+                messages: [message],
+            });
         },
         chatMessageUpdated: async ({
             data,
@@ -69,7 +72,10 @@ export function Trigger(languages: string[] | undefined) {
             message: ChatMessage,
         }) => {
             if (data.chatId) {
-                SocketService.get().emitSocketEvent("messages", data.chatId, { updated: [message] });
+                SocketService.get().emitSocketEvent(EventTypes.CHAT.MESSAGE_UPDATED, data.chatId, {
+                    chatId: data.chatId,
+                    messages: [message],
+                });
             } else {
                 logger.error("Could not send socket event for ChatMessage", { trace: "0496", message, data });
             }
@@ -80,7 +86,10 @@ export function Trigger(languages: string[] | undefined) {
             data: Pick<PreMapMessageDataDelete, "chatId" | "messageId">,
         }) => {
             if (data.chatId) {
-                SocketService.get().emitSocketEvent("messages", data.chatId, { removed: [data.messageId] });
+                SocketService.get().emitSocketEvent(EventTypes.CHAT.MESSAGE_REMOVED, data.chatId, {
+                    chatId: data.chatId,
+                    messageIds: [data.messageId],
+                });
             } else {
                 logger.error("Could not send socket event for ChatMessage}", { trace: "0497", data });
             }
@@ -167,7 +176,7 @@ export function Trigger(languages: string[] | undefined) {
             // If the object is public and complete, increase reputation score
             const reputationEvent = objectReputationEvent(objectType);
             if (!hasParent && reputationEvent && hasCompleteAndPublic) {
-                await Reputation().update(reputationEvent as any, createdById, objectId);
+                await Reputation().update(reputationEvent as Exclude<ReputationEvent, "ReceivedVote" | "ReceivedStar" | "ContributedToReport">, createdById, objectId);
             }
             // Step 3
             // Determine if the object is subscribable
@@ -186,14 +195,18 @@ export function Trigger(languages: string[] | undefined) {
                 const notification = Notify(languages).pushNewObjectInProject(objectType, objectId, projectId);
                 // Send notification to object owner
                 notification.toOwner(owner, createdById);
-                // Send notification to subscribers of the project
-                notification.toSubscribers("Project", projectId, createdById);
+                // Send notification to subscribers of the project (projects are a type of resource)
+                notification.toSubscribers("Resource", projectId, createdById);
             }
             // Step 5
             // If object is an email, phone, or wallet
             if (["Email", "Phone", "Wallet"].includes(objectType)) {
                 // Send notification to user warning them that a new sign in method was added
-                Notify(languages).pushNewDeviceSignIn().toUser(createdById);
+                try {
+                    await Notify(languages).pushNewDeviceSignIn().toUser(createdById);
+                } catch (notificationError) {
+                    console.warn("Failed to send new device sign-in notification:", notificationError instanceof Error ? notificationError.message : String(notificationError));
+                }
             }
         },
         /**
@@ -235,7 +248,7 @@ export function Trigger(languages: string[] | undefined) {
                 // If the object is trackable for reputation, increase reputation score
                 const reputationEvent = objectReputationEvent(objectType);
                 if (reputationEvent) {
-                    await Reputation().update(reputationEvent as any, updatedById, objectId);
+                    await Reputation().update(reputationEvent as Exclude<ReputationEvent, "ReceivedVote" | "ReceivedStar" | "ContributedToReport">, updatedById, objectId);
                 }
             }
             // Step 2
@@ -312,6 +325,7 @@ export function Trigger(languages: string[] | undefined) {
             languages: string[];
         }) => {
             // Define score thresholds for sending notifications
+            // eslint-disable-next-line no-magic-numbers
             const scoreNotifyThresolds = [1, 5, 10, 25, 50, 100, 250, 500, 1000];
             const dontNotifyFor = ["ChatMessage"];
             if (scoreNotifyThresolds.includes(updatedScore) && deltaScore > 0 && !dontNotifyFor.includes(objectType)) {
@@ -426,17 +440,17 @@ export function Trigger(languages: string[] | undefined) {
                 // If owners are a team, decrease reputation of all admins
                 if (objectOwner.__typename === "Team") {
                     const admins = await DbProvider.get().team.findUnique({
-                        where: { id: objectOwner.id },
+                        where: { id: BigInt(objectOwner.id) },
                         select: {
                             members: {
                                 select: {
-                                    id: true,
+                                    userId: true,
                                     isAdmin: true,
                                 },
                             },
                         },
                     });
-                    const adminIds = admins?.members.filter(member => member.isAdmin).map(member => member.id) ?? [];
+                    const adminIds = admins?.members.filter(member => member.isAdmin).map(member => member.userId.toString()) ?? [];
                     for (const adminId of adminIds) {
                         await Reputation().update("ObjectDeletedFromReport", adminId);
                     }
@@ -452,7 +466,7 @@ export function Trigger(languages: string[] | undefined) {
         },
         runProjectComplete: async (runId: string, userId: string, wasAutomatic: boolean) => {
             // If completed automatically, send notification to user
-            if (wasAutomatic) Notify(languages).pushRunCompletedAutomatically("RunProject", runId).toUser(userId);
+            if (wasAutomatic) Notify(languages).pushRunCompletedAutomatically(runId).toUser(userId);
             // Track award progress
             Award(userId, languages).update("RunProject", 1);
             // If run data is public, send notification to owner of routine (depending on how many public runs the project already has)
@@ -460,15 +474,15 @@ export function Trigger(languages: string[] | undefined) {
         },
         runProjectFail: async (runId: string, userId: string, wasAutomatic: boolean) => {
             // If completed automatically, send notification to user
-            if (wasAutomatic) Notify(languages).pushRunFailedAutomatically("RunProject", runId).toUser(userId);
+            if (wasAutomatic) Notify(languages).pushRunFailedAutomatically(runId).toUser(userId);
         },
         runProjectStart: async (runId: string, userId: string, wasAutomatic: boolean) => {
             // If started automatically, send notification to user
-            if (wasAutomatic) Notify(languages).pushRunStartedAutomatically("RunProject", runId).toUser(userId);
+            if (wasAutomatic) Notify(languages).pushRunStartedAutomatically(runId).toUser(userId);
         },
         runRoutineComplete: async (runId: string, userId: string, wasAutomatic: boolean) => {
             // If completed automatically, send notification to user
-            if (wasAutomatic) Notify(languages).pushRunCompletedAutomatically("RunRoutine", runId).toUser(userId);
+            if (wasAutomatic) Notify(languages).pushRunCompletedAutomatically(runId).toUser(userId);
             // Track award progress
             Award(userId, languages).update("RunRoutine", 1);
             // If run data is public, send notification to owner of routine (depending on how many public runs the routine already has)
@@ -476,11 +490,11 @@ export function Trigger(languages: string[] | undefined) {
         },
         runRoutineFail: async (runId: string, userId: string, wasAutomatic: boolean) => {
             // If completed automatically, send notification to user
-            if (wasAutomatic) Notify(languages).pushRunFailedAutomatically("RunRoutine", runId).toUser(userId);
+            if (wasAutomatic) Notify(languages).pushRunFailedAutomatically(runId).toUser(userId);
         },
         runRoutineStart: async (runId: string, userId: string, wasAutomatic: boolean) => {
             // If started automatically, send notification to user
-            if (wasAutomatic) Notify(languages).pushRunStartedAutomatically("RunRoutine", runId).toUser(userId);
+            if (wasAutomatic) Notify(languages).pushRunStartedAutomatically(runId).toUser(userId);
         },
         teamJoin: async (teamId: string, userId: string) => {
             // const notification = Notify(languages).pushTeamJoin();
@@ -489,9 +503,15 @@ export function Trigger(languages: string[] | undefined) {
         },
         userInvite: async (referrerId: string, joinedUsername: string) => {
             // Send notification to referrer
-            Notify(languages).pushUserInvite(joinedUsername).toUser(referrerId);
+            try {
+                await Notify(languages).pushUserInvite(joinedUsername).toUser(referrerId);
+            } catch (notificationError) {
+                console.warn("Failed to send user invite notification:", notificationError instanceof Error ? notificationError.message : String(notificationError));
+            }
             // Track award progress
             Award(referrerId, languages).update("UserInvite", 1);
         },
     };
 }
+
+// AI_CHECK: TASK_ID=fix-trigger-exports | LAST: 2025-01-29

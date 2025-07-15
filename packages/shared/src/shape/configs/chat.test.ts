@@ -62,9 +62,6 @@ describe("ChatConfig", () => {
                     caller_bot_id: "bot1",
                     created_at: new Date().toISOString(),
                 }],
-                eventSubscriptions: {
-                    "swarm/subtask/created": ["bot1", "bot2"],
-                },
                 policy: {
                     visibility: "private",
                     acl: ["user1", "user2"],
@@ -109,7 +106,6 @@ describe("ChatConfig", () => {
             expect(chatConfig.blackboard).toHaveLength(1);
             expect(chatConfig.resources).toHaveLength(1);
             expect(chatConfig.records).toHaveLength(1);
-            expect(chatConfig.eventSubscriptions?.["swarm/subtask/created"]).toEqual(["bot1", "bot2"]);
             expect(chatConfig.policy?.visibility).toBe("private");
             expect(chatConfig.stats.totalToolCalls).toBe(5);
             expect(chatConfig.limits?.maxToolCalls).toBe(100);
@@ -129,7 +125,6 @@ describe("ChatConfig", () => {
             expect(chatConfig.blackboard).toEqual([]);
             expect(chatConfig.resources).toEqual([]);
             expect(chatConfig.records).toEqual([]);
-            expect(chatConfig.eventSubscriptions).toEqual({});
             expect(chatConfig.stats.totalToolCalls).toBe(0);
             // ChatConfig automatically applies defaults to limits and scheduling
             expect(chatConfig.limits).toBeDefined();
@@ -205,15 +200,6 @@ describe("ChatConfig", () => {
             expect(chatConfig.goal).toBeUndefined();
             expect(chatConfig.preferredModel).toBeUndefined();
             expect(chatConfig.subtasks).toEqual([]);
-            expect(chatConfig.eventSubscriptions).toEqual({
-                "swarm/subtask/+": ["{{LEADER_ID}}"],
-                "swarm/resource/+": ["{{LEADER_ID}}"],
-                "swarm/routine/+": ["{{LEADER_ID}}"],
-                "swarm/tool/+": ["{{LEADER_ID}}"],
-                "swarm/user_message": ["{{LEADER_ID}}"],
-                "swarm/webhook/+": ["{{LEADER_ID}}"],
-                "swarm/Writer/events": ["bot_writer_1", "bot_writer_2"],
-            });
             expect(chatConfig.blackboard).toEqual([]);
             expect(chatConfig.resources).toEqual([]);
             expect(chatConfig.records).toEqual([]);
@@ -268,7 +254,6 @@ describe("ChatConfig", () => {
                     caller_bot_id: "bot1",
                     created_at: new Date().toISOString(),
                 }],
-                eventSubscriptions: { "test/event": ["bot1"] },
                 policy: { visibility: "open" },
                 stats: ChatConfig.defaultStats(),
                 limits: ChatConfig.defaultLimits(),
@@ -725,28 +710,6 @@ describe("ChatConfig", () => {
             }
         });
 
-        it("should manage event subscriptions properly", () => {
-            const chatConfig = ChatConfig.default();
-            
-            // Default should have leader subscriptions
-            expect(chatConfig.eventSubscriptions).toEqual(expect.objectContaining({
-                "swarm/subtask/+": ["{{LEADER_ID}}"],
-                "swarm/resource/+": ["{{LEADER_ID}}"],
-            }));
-            
-            // Test custom event subscriptions
-            const customConfig: ChatConfigObject = {
-                __version: "1.0",
-                eventSubscriptions: {
-                    "custom/event": ["bot1", "bot2"],
-                    "another/event": ["bot3"],
-                },
-                stats: ChatConfig.defaultStats(),
-            };
-            
-            const customChatConfig = new ChatConfig({ config: customConfig });
-            expect(customChatConfig.eventSubscriptions?.["custom/event"]).toEqual(["bot1", "bot2"]);
-        });
     });
 
     describe("Realistic Usage Scenarios", () => {

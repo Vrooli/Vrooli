@@ -54,16 +54,18 @@ export const chatMessage: EndpointsChatMessage = createStandardCrudEndpoints({
         },
     },
     customEndpoints: {
-        findTree: async ({ input }, { req }, info) => {
+        findTree: async (data, { req }, info) => {
             await RequestService.get().rateLimit({ maxUser: 1000, req });
             RequestService.assertRequestFrom(req, { hasReadPublicPermissions: true });
+            const input = data?.input;
             return ModelMap.get<ChatMessageModelLogic>("ChatMessage").query.searchTree(req, input, info);
         },
-        regenerateResponse: async ({ input }, { req }) => {
+        regenerateResponse: async (data, { req }) => {
             const userData = RequestService.assertRequestFrom(req, { isUser: true });
             await RequestService.get().rateLimit({ maxUser: 1000, req });
             RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
 
+            const input = data?.input;
             const { messageId, model, taskContexts } = input;
             if (!validatePK(messageId)) {
                 throw new CustomError("0423", "InvalidArgs", { input });
@@ -96,12 +98,28 @@ export const chatMessage: EndpointsChatMessage = createStandardCrudEndpoints({
                 userData,
                 taskContexts: taskContexts ?? [],
                 model,
+                allocation: {
+                    maxCredits: userData.hasPremium ? "200" : "100",
+                    maxDurationMs: 60000,
+                    maxMemoryMB: 256,
+                    maxConcurrentSteps: 1,
+                },
+                options: {
+                    priority: userData.hasPremium ? "high" : "medium",
+                    timeout: 60000,
+                    retryPolicy: {
+                        maxRetries: 3,
+                        backoffMs: 1000,
+                        backoffMultiplier: 2,
+                        maxBackoffMs: 30000,
+                    },
+                },
             };
 
             await QueueService.get().swarm.addTask(llmTaskPayload);
             logger.info(`LLM task ${llmTaskPayload.id} enqueued for message regeneration: ${messageId}`);
 
-            return { __typename: "Success", success: true };
+            return { __typename: "Success" as const, success: true };
         },
     },
 });

@@ -1,104 +1,116 @@
 {
-  "identity": {
-    "name": "performance-optimization-agent",
-    "version": "1.0.0"
-  },
-  "goal": "Analyze routine execution metrics and optimize swarm performance",
-  "role": "specialist",
-  "subscriptions": [
-    "step/completed",
-    "run/completed",
-    "swarm/resource/updated"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "step/completed"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Performance Analyzer",
-        "inputMap": {
-          "stepMetrics": "event.data.metrics",
-          "duration": "event.data.duration",
-          "resourceUsage": "event.data.resourcesUsed",
-          "performanceBaselines": "blackboard.performance.baselines"
+    "identity": {
+        "name": "performance-optimization-agent",
+        "version": "1.0.0"
+    },
+    "goal": "Analyze routine execution metrics and optimize swarm performance",
+    "role": "specialist",
+    "subscriptions": [
+        "step/completed",
+        "run/completed",
+        "swarm/resource/updated"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "step/completed"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Performance Analyzer",
+                "inputMap": {
+                    "stepMetrics": "event.data.metrics",
+                    "duration": "event.data.duration",
+                    "resourceUsage": "event.data.resourcesUsed",
+                    "performanceBaselines": "blackboard.performance.baselines"
+                }
+            },
+            "qos": 0
+        },
+        {
+            "trigger": {
+                "topic": "run/completed",
+                "when": "event.data.duration > blackboard.performance.thresholds.runDuration"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Analyze slow runs to identify bottlenecks and suggest performance optimizations"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "swarm/resource/updated",
+                "when": "event.data.efficiency < blackboard.performance.thresholds.efficiency"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Optimization Strategist",
+                "inputMap": {
+                    "efficiency": "event.data.efficiency",
+                    "resourceMetrics": "event.data.metrics",
+                    "optimizationAlgorithms": "blackboard.performance.algorithms",
+                    "swarmPerformance": "stats.totalCredits"
+                }
+            },
+            "qos": 1
         }
-      },
-      "qos": 0
+    ],
+    "prompt": {
+        "system": "You are a Performance Optimization Agent specialized in analyzing routine execution metrics and optimizing swarm performance. Your role is to monitor system performance and identify opportunities for improvement.",
+        "instructions": [
+            "You MUST track performance metrics continuously across all system components",
+            "You MAY suggest optimization strategies based on performance analysis",
+            "Always prioritize system stability when recommending optimizations",
+            "Use data-driven insights to identify bottlenecks and inefficiencies",
+            "Monitor resource utilization and suggest efficient allocation strategies",
+            "Provide actionable recommendations for performance improvements"
+        ]
     },
-    {
-      "trigger": {
-        "topic": "run/completed",
-        "when": "event.data.duration > blackboard.performance.thresholds.runDuration"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Analyze slow runs to identify bottlenecks and suggest performance optimizations"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "swarm/resource/updated",
-        "when": "event.data.efficiency < blackboard.performance.thresholds.efficiency"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Optimization Strategist",
-        "inputMap": {
-          "efficiency": "event.data.efficiency",
-          "resourceMetrics": "event.data.metrics",
-          "optimizationAlgorithms": "blackboard.performance.algorithms",
-          "swarmPerformance": "stats.totalCredits"
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "performance-analytics",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "performance.analytics",
+            "description": "Performance metrics and analytics data"
+        },
+        {
+            "type": "blackboard",
+            "label": "optimization-algorithms",
+            "permissions": [
+                "read"
+            ],
+            "scope": "performance.algorithms",
+            "description": "Performance optimization algorithms and techniques"
+        },
+        {
+            "type": "blackboard",
+            "label": "resource-metrics",
+            "permissions": [
+                "read"
+            ],
+            "scope": "performance.resources",
+            "description": "Resource utilization metrics and efficiency data"
+        },
+        {
+            "type": "routine",
+            "label": "Performance Analyzer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Analyze performance metrics and identify bottlenecks"
+        },
+        {
+            "type": "routine",
+            "label": "Optimization Strategist",
+            "permissions": [
+                "read"
+            ],
+            "description": "Develop performance optimization strategies"
         }
-      },
-      "qos": 1
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "track-performance-continuously"
-    },
-    {
-      "modality": "permission",
-      "target": "suggest-optimization-strategies"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "performance-analytics",
-      "permissions": ["read", "write"],
-      "scope": "performance.analytics",
-      "description": "Performance metrics and analytics data"
-    },
-    {
-      "type": "blackboard",
-      "label": "optimization-algorithms",
-      "permissions": ["read"],
-      "scope": "performance.algorithms",
-      "description": "Performance optimization algorithms and techniques"
-    },
-    {
-      "type": "blackboard",
-      "label": "resource-metrics",
-      "permissions": ["read"],
-      "scope": "performance.resources",
-      "description": "Resource utilization metrics and efficiency data"
-    },
-    {
-      "type": "routine",
-      "label": "Performance Analyzer",
-      "permissions": ["read"],
-      "description": "Analyze performance metrics and identify bottlenecks"
-    },
-    {
-      "type": "routine",
-      "label": "Optimization Strategist",
-      "permissions": ["read"],
-      "description": "Develop performance optimization strategies"
-    }
-  ]
+    ]
 }

@@ -1,6 +1,5 @@
 import { InboxPageTabOption, endpointsNotification, generatePK, type Notification, type NotificationSearchResult, type Success } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
-import { signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { apiUrlBase, restBase } from "../../utils/consts.js";
 import { InboxView } from "./InboxView.js";
 
@@ -115,54 +114,4 @@ export default {
     },
 };
 
-export function SignedInNoPremiumNoCredits() {
-    return (
-        <InboxView display="Page" />
-    );
-}
-SignedInNoPremiumNoCredits.parameters = {
-    session: signedInNoPremiumNoCreditsSession,
-    initialRoute: {
-        search: `?tab=${InboxPageTabOption.Notification}`,
-    },
-    msw: { handlers },
-};
-
-export function SignedInNoPremiumWithCredits() {
-    return (
-        <InboxView display="Page" />
-    );
-}
-SignedInNoPremiumWithCredits.parameters = {
-    session: signedInNoPremiumWithCreditsSession,
-    initialRoute: {
-        search: `?tab=${InboxPageTabOption.Notification}`,
-    },
-    msw: { handlers },
-};
-
-export function SignedInPremiumNoCredits() {
-    return (
-        <InboxView display="Page" />
-    );
-}
-SignedInPremiumNoCredits.parameters = {
-    session: signedInPremiumNoCreditsSession,
-    initialRoute: {
-        search: `?tab=${InboxPageTabOption.Notification}`,
-    },
-    msw: { handlers },
-};
-
-export function SignedInPremiumWithCredits() {
-    return (
-        <InboxView display="Page" />
-    );
-}
-SignedInPremiumWithCredits.parameters = {
-    session: signedInPremiumWithCreditsSession,
-    initialRoute: {
-        search: `?tab=${InboxPageTabOption.Notification}`,
-    },
-    msw: { handlers },
-};
+export const Default = () => <InboxView display="Page" />;

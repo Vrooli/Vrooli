@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=server-phase2-1 | LAST: 2025-07-03
 import * as Serialization from "@emurgo/cardano-serialization-lib-nodejs";
 import { logger } from "../events/logger.js";
 import { randomString } from "./codes.js";
@@ -11,8 +12,9 @@ const MAX_NONCE_LENGTH = 2048;
  * @param address Serialized wallet address
  * @returns Bech32 format of wallet address
  */
-export function serializedAddressToBech32(address: string) {
-    const addressBytes = Serialization.Address.from_bytes(Buffer.from(address, "hex"));
+export function serializedAddressToBech32(address: string): string {
+    const buffer = Buffer.from(address, "hex");
+    const addressBytes = Serialization.Address.from_bytes(Uint8Array.from(buffer));
     return addressBytes.to_bech32();
 }
 
@@ -25,7 +27,7 @@ export function serializedAddressToBech32(address: string) {
 export async function generateNonce(
     description = "Please sign this message so we can verify your wallet:",
     length = DEFAULT_NONCE_LENGTH,
-) {
+): Promise<string> {
     if (length <= 0 || length > MAX_NONCE_LENGTH) throw new Error("Length must be bewteen 1 and 2048");
     // Generate nonce (payload)
     const payload = randomString(length);
@@ -40,8 +42,9 @@ export async function generateNonce(
  * @param coseSign1Hex Hex string of signed payload (signed by user's wallet)
  * @returns True if payload was signed by wallet address
  */
-export function verifySignedMessage(address: string, payload: string, coseSign1Hex: string) {
-    const coseSign1 = MessageSigning.COSESign1.from_bytes(Buffer.from(coseSign1Hex, "hex"));
+export function verifySignedMessage(address: string, payload: string, coseSign1Hex: string): boolean {
+    const buffer = Buffer.from(coseSign1Hex, "hex");
+    const coseSign1 = MessageSigning.COSESign1.from_bytes(Uint8Array.from(buffer));
     const payloadCose: Uint8Array | undefined = coseSign1.payload();
 
     if (!payloadCose || !verifyPayload(payload, payloadCose)) {
@@ -71,12 +74,16 @@ export function verifySignedMessage(address: string, payload: string, coseSign1H
     return publicKeyCose.verify(data, signature);
 }
 
-function verifyPayload(payload: string, payloadCose: Uint8Array) {
-    return Buffer.from(payloadCose).compare(Buffer.from(payload, "hex")) === 0;
+function verifyPayload(payload: string, payloadCose: Uint8Array): boolean {
+    const payloadBuffer = Buffer.from(payload, "hex");
+    // AI_CHECK: TYPE_SAFETY=phase1-1 | LAST: 2025-07-03 - Fixed Buffer type casting issue by using Buffer.from(payloadCose) instead of complex buffer slicing
+    const payloadCoseBuffer = Buffer.from(payloadCose);
+    return payloadCoseBuffer.equals(Uint8Array.from(payloadBuffer));
 }
 
-function verifyAddress(address: string, addressCose: Serialization.Address, publicKeyCose: Serialization.PublicKey) {
-    const checkAddress = Serialization.Address.from_bytes(Buffer.from(address, "hex"));
+function verifyAddress(address: string, addressCose: Serialization.Address, publicKeyCose: Serialization.PublicKey): boolean {
+    const buffer = Buffer.from(address, "hex");
+    const checkAddress = Serialization.Address.from_bytes(Uint8Array.from(buffer));
     if (addressCose.to_bech32() !== checkAddress.to_bech32()) return false;
     // check if RewardAddress
     try {

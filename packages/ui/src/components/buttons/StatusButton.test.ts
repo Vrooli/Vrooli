@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_COVERAGE=1,TEST_QUALITY=1 | LAST: 2025-06-19
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { formatStatusMessages } from "./StatusButton.js";

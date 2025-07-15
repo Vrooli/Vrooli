@@ -10,6 +10,12 @@
 nameOverride: ""
 fullnameOverride: ""
 
+# --- Production Environment Overrides ---
+# These values can be overridden in environment-specific values files or via --set flags
+productionDomain: ""  # Override in values-prod.yaml or via --set
+tlsSecretName: ""     # Override in values-prod.yaml or via --set  
+vaultAddr: ""         # Override in values-prod.yaml or via --set
+
 # --- Image Pull Secrets ---
 # Specifies one or more image pull secrets that should be used for pulling images.
 # This is globally applied to all deployments if not overridden.
@@ -56,7 +62,7 @@ services:
     # Name of the UI image repository.
     # Can be a simple name (e.g., "ui"), which will be combined with the global `image.registry`.
     # Or, it can be a full image path (e.g., "another-registry/ui-image"), which will be used as-is, ignoring `image.registry`.
-    repository: ui
+    repository: vrooli-ui
     tag: dev       # Default image tag (e.g., version or 'latest'). Often overridden per environment.
     port: 3000     # The port the UI container listens on.
     # Health probes (liveness and readiness) for the UI service.
@@ -78,7 +84,7 @@ services:
     # Name of the Server image repository.
     # Can be a simple name (e.g., "server"), which will be combined with the global `image.registry`.
     # Or, it can be a full image path (e.g., "another-registry/server-image"), which will be used as-is, ignoring `image.registry`.
-    repository: server
+    repository: vrooli-server
     tag: dev
     port: 5329
     probes:
@@ -96,7 +102,7 @@ services:
     # Name of the Jobs image repository.
     # Can be a simple name (e.g., "jobs"), which will be combined with the global `image.registry`.
     # Or, it can be a full image path (e.g., "another-registry/jobs-image"), which will be used as-is, ignoring `image.registry`.
-    repository: jobs
+    repository: vrooli-jobs
     tag: dev
     port: 4001
     probes:
@@ -352,6 +358,11 @@ vso:
   vaultAddr: "http://vault.vault.svc.cluster.local:8200" # Address of your Vault instance
   k8sAuthMount: "kubernetes"  # Path where K8s auth method is mounted in Vault
   k8sAuthRole: "vrooli-vso-sync-role" # Vault role VSO assumes for K8s auth
+  
+  # AppRole authentication configuration (alternative to K8s auth)
+  # appRoleId: ""           # Role ID from Vault - set via --set or values override
+  # appRoleSecretRef: ""    # Name of K8s secret containing Secret ID
+  # appRoleMount: "approle" # Mount path for AppRole auth in Vault
 
   # Global settings for VaultSecret resources created by VSO
   # These can be overridden per secret entry if needed.
@@ -555,7 +566,7 @@ spotahomeRedis:
     # If VSO is used to manage this secret, ensure VSO creates it *before* RedisFailover CR is applied,
     # or that RedisFailover CR can tolerate a temporarily missing secret.
     # For now, let's assume we'll create this secret manually or via VSO.
-    secretPath: "vrooli-redis-auth" # Name of the K8s secret holding the password
+    secretPath: "vrooli-redis-creds" # Name of the K8s secret holding the password (matches VSO secret name)
 
   # --- Optional: Advanced Scheduling (Affinity, Tolerations, NodeSelector) ---
   # redis:

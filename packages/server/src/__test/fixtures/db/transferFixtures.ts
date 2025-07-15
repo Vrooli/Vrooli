@@ -1,5 +1,6 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
 import { generatePK, TransferStatus } from "@vrooli/shared";
-import { type Prisma } from "@prisma/client";
+import { type Prisma, type PrismaClient } from "@prisma/client";
 
 /**
  * Database fixtures for Transfer model - used for seeding test data
@@ -18,7 +19,7 @@ export const transferDbIds = {
 /**
  * Minimal transfer data for database creation
  */
-export const minimalTransferDb: Prisma.TransferCreateInput = {
+export const minimalTransferDb: Prisma.transferCreateInput = {
     id: transferDbIds.transfer1,
     status: TransferStatus.Pending,
     initializedByReceiver: false,
@@ -30,7 +31,7 @@ export const minimalTransferDb: Prisma.TransferCreateInput = {
 /**
  * Transfer with complete data including message
  */
-export const completeTransferDb: Prisma.TransferCreateInput = {
+export const completeTransferDb: Prisma.transferCreateInput = {
     id: transferDbIds.transfer2,
     status: TransferStatus.Pending,
     initializedByReceiver: false,
@@ -43,7 +44,7 @@ export const completeTransferDb: Prisma.TransferCreateInput = {
 /**
  * Transfer from team to user
  */
-export const teamToUserTransferDb: Prisma.TransferCreateInput = {
+export const teamToUserTransferDb: Prisma.transferCreateInput = {
     id: transferDbIds.transfer3,
     status: TransferStatus.Pending,
     initializedByReceiver: false,
@@ -56,7 +57,7 @@ export const teamToUserTransferDb: Prisma.TransferCreateInput = {
 /**
  * Transfer from user to team
  */
-export const userToTeamTransferDb: Prisma.TransferCreateInput = {
+export const userToTeamTransferDb: Prisma.transferCreateInput = {
     id: transferDbIds.transfer4,
     status: TransferStatus.Pending,
     initializedByReceiver: false,
@@ -69,7 +70,7 @@ export const userToTeamTransferDb: Prisma.TransferCreateInput = {
 /**
  * Accepted transfer with closure date
  */
-export const acceptedTransferDb: Prisma.TransferCreateInput = {
+export const acceptedTransferDb: Prisma.transferCreateInput = {
     id: transferDbIds.transfer5,
     status: TransferStatus.Accepted,
     initializedByReceiver: false,
@@ -84,7 +85,7 @@ export const acceptedTransferDb: Prisma.TransferCreateInput = {
  * Factory for creating transfer database fixtures with overrides
  */
 export class TransferDbFactory {
-    static createMinimal(overrides?: Partial<Prisma.TransferCreateInput>): Prisma.TransferCreateInput {
+    static createMinimal(overrides?: Partial<Prisma.transferCreateInput>): Prisma.transferCreateInput {
         return {
             ...minimalTransferDb,
             id: generatePK(),
@@ -92,7 +93,7 @@ export class TransferDbFactory {
         };
     }
 
-    static createComplete(overrides?: Partial<Prisma.TransferCreateInput>): Prisma.TransferCreateInput {
+    static createComplete(overrides?: Partial<Prisma.transferCreateInput>): Prisma.transferCreateInput {
         return {
             ...completeTransferDb,
             id: generatePK(),
@@ -104,8 +105,8 @@ export class TransferDbFactory {
         fromTeamId: string,
         toUserId: string,
         resourceId: string,
-        overrides?: Partial<Prisma.TransferCreateInput>,
-    ): Prisma.TransferCreateInput {
+        overrides?: Partial<Prisma.transferCreateInput>,
+    ): Prisma.transferCreateInput {
         return {
             ...teamToUserTransferDb,
             id: generatePK(),
@@ -120,8 +121,8 @@ export class TransferDbFactory {
         fromUserId: string,
         toTeamId: string,
         resourceId: string,
-        overrides?: Partial<Prisma.TransferCreateInput>,
-    ): Prisma.TransferCreateInput {
+        overrides?: Partial<Prisma.transferCreateInput>,
+    ): Prisma.transferCreateInput {
         return {
             ...userToTeamTransferDb,
             id: generatePK(),
@@ -136,8 +137,8 @@ export class TransferDbFactory {
         fromUserId: string,
         toUserId: string,
         resourceId: string,
-        overrides?: Partial<Prisma.TransferCreateInput>,
-    ): Prisma.TransferCreateInput {
+        overrides?: Partial<Prisma.transferCreateInput>,
+    ): Prisma.transferCreateInput {
         return {
             ...minimalTransferDb,
             id: generatePK(),
@@ -156,11 +157,11 @@ export class TransferDbFactory {
         fromUserId: string,
         toUserId: string,
         resourceId: string,
-        overrides?: Partial<Prisma.TransferCreateInput>,
-    ): Prisma.TransferCreateInput {
+        overrides?: Partial<Prisma.transferCreateInput>,
+    ): Prisma.transferCreateInput {
         const baseData = this.createUserToUser(fromUserId, toUserId, resourceId);
         
-        const statusSpecificData: Partial<Prisma.TransferCreateInput> = {};
+        const statusSpecificData: Partial<Prisma.transferCreateInput> = {};
         
         if (status === TransferStatus.Accepted || status === TransferStatus.Denied) {
             statusSpecificData.closedAt = new Date();
@@ -185,8 +186,8 @@ export class TransferDbFactory {
         fromUserId: string,
         toUserId: string,
         resourceId: string,
-        overrides?: Partial<Prisma.TransferCreateInput>,
-    ): Prisma.TransferCreateInput {
+        overrides?: Partial<Prisma.transferCreateInput>,
+    ): Prisma.transferCreateInput {
         return {
             ...this.createUserToUser(fromUserId, toUserId, resourceId),
             initializedByReceiver: true,
@@ -203,8 +204,8 @@ export class TransferDbFactory {
         toUserId: string,
         resourceId: string,
         denyReason: string,
-        overrides?: Partial<Prisma.TransferCreateInput>,
-    ): Prisma.TransferCreateInput {
+        overrides?: Partial<Prisma.transferCreateInput>,
+    ): Prisma.transferCreateInput {
         return {
             ...this.createUserToUser(fromUserId, toUserId, resourceId),
             status: TransferStatus.Denied,
@@ -236,7 +237,7 @@ export async function seedTransfers(
     for (let i = 0; i < count; i++) {
         const resourceId = options.resourceIds[i % options.resourceIds.length];
         
-        let transferData: Prisma.TransferCreateInput;
+        let transferData: Prisma.transferCreateInput;
 
         // Determine transfer type based on provided IDs
         if (options.fromTeamId && options.toUserId) {
@@ -292,7 +293,7 @@ export async function seedTransfers(
 /**
  * Helper to clean up test transfers
  */
-export async function cleanupTransfers(prisma: any, transferIds: string[]) {
+export async function cleanupTransfers(prisma: PrismaClient, transferIds: string[]) {
     return prisma.transfer.deleteMany({
         where: {
             id: {

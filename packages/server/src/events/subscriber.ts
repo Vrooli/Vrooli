@@ -54,7 +54,7 @@ export function Subscriber() {
             // Create subscription
             await DbProvider.get().notification_subscription.create({
                 data: {
-                    subscriber: { connect: { id: userData.id } },
+                    subscriber: { connect: { id: BigInt(userData.id) } },
                     [subscribableMapper[object.__typename]]: { connect: { id: object.id } },
                     silent,
                 },
@@ -71,7 +71,7 @@ export function Subscriber() {
         ) => {
             // Find the subscription
             const subscription = await DbProvider.get().notification_subscription.findUnique({
-                where: { id: subscriptionId },
+                where: { id: BigInt(subscriptionId) },
                 select: {
                     subscriberId: true,
                 },
@@ -79,11 +79,11 @@ export function Subscriber() {
             // Make sure the subscription exists and is owned by the user
             if (!subscription)
                 throw new CustomError("0333", "NotFound");
-            if (subscription.subscriberId !== userData.id)
+            if (subscription.subscriberId.toString() !== userData.id)
                 throw new CustomError("0334", "Unauthorized");
             // Delete subscription
             await DbProvider.get().notification_subscription.delete({
-                where: { id: subscriptionId },
+                where: { id: BigInt(subscriptionId) },
             });
         },
         /**
@@ -99,7 +99,7 @@ export function Subscriber() {
         ) => {
             // Find the subscription
             const subscription = await DbProvider.get().notification_subscription.findUnique({
-                where: { id: subscriptionId },
+                where: { id: BigInt(subscriptionId) },
                 select: {
                     subscriberId: true,
                     silent: true,
@@ -108,12 +108,12 @@ export function Subscriber() {
             // Make sure the subscription exists and is owned by the user
             if (!subscription)
                 throw new CustomError("0335", "NotFound");
-            if (subscription.subscriberId !== userData.id)
+            if (subscription.subscriberId.toString() !== userData.id)
                 throw new CustomError("0336", "Unauthorized");
             // Update subscription if silent status has changed
             if (subscription.silent !== silent) {
                 await DbProvider.get().notification_subscription.update({
-                    where: { id: subscriptionId },
+                    where: { id: BigInt(subscriptionId) },
                     data: { silent },
                 });
             }

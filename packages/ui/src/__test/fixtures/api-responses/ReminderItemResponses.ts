@@ -4,8 +4,9 @@
  * This file provides comprehensive API response fixtures for reminder item endpoints.
  * It includes success responses, error responses, and MSW handlers for testing.
  */
+// AI_CHECK: TYPE_SAFETY=fixed-user-properties | LAST: 2025-07-02 - Fixed User properties by removing 'roles' and 'translationsCount'
 
-import { http, type RestHandler } from "msw";
+import { http, type HttpHandler } from "msw";
 import type { 
     ReminderItem, 
     ReminderItemCreateInput, 
@@ -76,14 +77,14 @@ export class ReminderItemResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique resource ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -256,26 +257,32 @@ export class ReminderItemResponseFactory {
             isPrivate: false,
             profileImage: null,
             bannerImage: null,
-            premium: false,
-            premiumExpiration: null,
-            roles: [],
+            premium: null,
             wallets: [],
             translations: [],
-            translationsCount: 0,
+            bookmarkedBy: [],
+            bookmarks: 0,
+            publicId: `user_public_${id}`,
+            views: 0,
+            isBotDepictingPerson: false,
+            isPrivateBookmarks: true,
+            isPrivateMemberships: true,
+            isPrivatePullRequests: true,
+            isPrivateResources: false,
+            isPrivateResourcesCreated: false,
+            isPrivateTeamsCreated: true,
+            isPrivateVotes: true,
+            membershipsCount: 0,
+            reportsReceived: [],
+            reportsReceivedCount: 0,
+            resourcesCount: 0,
             you: {
                 __typename: "UserYou",
-                isBlocked: false,
-                isBlockedByYou: false,
                 canDelete: false,
                 canReport: false,
                 canUpdate: false,
                 isBookmarked: false,
-                isReacted: false,
-                reactionSummary: {
-                    __typename: "ReactionSummary",
-                    emotion: null,
-                    count: 0,
-                },
+                isViewed: false,
             },
             ...overrides,
         };
@@ -445,7 +452,7 @@ export class ReminderItemResponseFactory {
         errors?: Record<string, string>;
     }> {
         try {
-            await reminderItemValidation.create.validate(input);
+            await reminderItemValidation.create({}).validate(input);
             return { valid: true };
         } catch (error: any) {
             const fieldErrors: Record<string, string> = {};
@@ -481,18 +488,18 @@ export class ReminderItemMSWHandlers {
     /**
      * Create success handlers for all reminder item endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): HttpHandler[] {
         return [
             // Create reminder item
-            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-item`, async (req, res, ctx) => {
-                const body = await req.json() as ReminderItemCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-item`, async ({ request }) => {
+                const body = await request.json() as ReminderItemCreateInput;
                 
                 // Validate input
                 const validation = await this.responseFactory.validateCreateInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
+                    return Response.json(
+                        this.responseFactory.createValidationErrorResponse(validation.errors || {}),
+                        { status: 400 }
                     );
                 }
                 
@@ -500,29 +507,23 @@ export class ReminderItemMSWHandlers {
                 const reminderItem = this.responseFactory.createReminderItemFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(reminderItem);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return Response.json(response, { status: 201 });
             }),
             
             // Get reminder item by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, ({ params }) => {
+                const { id } = params;
                 
                 const reminderItem = this.responseFactory.createMockReminderItem({ id: id as string });
                 const response = this.responseFactory.createSuccessResponse(reminderItem);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return Response.json(response, { status: 200 });
             }),
             
             // Update reminder item
-            http.put(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const body = await req.json() as ReminderItemUpdateInput;
+            http.put(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, async ({ params, request }) => {
+                const { id } = params;
+                const body = await request.json() as ReminderItemUpdateInput;
                 
                 const reminderItem = this.responseFactory.createMockReminderItem({ 
                     id: id as string,
@@ -532,20 +533,17 @@ export class ReminderItemMSWHandlers {
                 
                 const response = this.responseFactory.createSuccessResponse(reminderItem);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return Response.json(response, { status: 200 });
             }),
             
             // Delete reminder item
-            http.delete(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, (req, res, ctx) => {
-                return res(ctx.status(204));
+            http.delete(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, () => {
+                return new Response(null, { status: 204 });
             }),
             
             // List reminder items
-            http.get(`${this.responseFactory["baseUrl"]}/api/reminder-item`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/reminder-item`, ({ request }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 const reminderId = url.searchParams.get("reminderId");
@@ -593,15 +591,12 @@ export class ReminderItemMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return Response.json(response, { status: 200 });
             }),
             
             // Toggle completion status
-            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id/toggle-complete`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id/toggle-complete`, ({ params }) => {
+                const { id } = params;
                 
                 const reminderItem = this.responseFactory.createMockReminderItem({ 
                     id: id as string,
@@ -611,10 +606,7 @@ export class ReminderItemMSWHandlers {
                 
                 const response = this.responseFactory.createSuccessResponse(reminderItem);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return Response.json(response, { status: 200 });
             }),
         ];
     }
@@ -622,41 +614,41 @@ export class ReminderItemMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): HttpHandler[] {
         return [
             // Validation error
-            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-item`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
+            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-item`, () => {
+                return Response.json(
+                    this.responseFactory.createValidationErrorResponse({
                         name: "Task name is required",
                         reminderConnect: "Must be connected to a reminder",
-                    })),
+                    }),
+                    { status: 400 }
                 );
             }),
             
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
+            http.get(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, ({ params }) => {
+                const { id } = params;
+                return Response.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string),
+                    { status: 404 }
                 );
             }),
             
             // Permission error
-            http.put(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("update")),
+            http.put(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, () => {
+                return Response.json(
+                    this.responseFactory.createPermissionErrorResponse("update"),
+                    { status: 403 }
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-item`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-item`, () => {
+                return Response.json(
+                    this.responseFactory.createServerErrorResponse(),
+                    { status: 500 }
                 );
             }),
         ];
@@ -665,23 +657,20 @@ export class ReminderItemMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): HttpHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-item`, async (req, res, ctx) => {
-                const body = await req.json() as ReminderItemCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-item`, async ({ request }) => {
+                const body = await request.json() as ReminderItemCreateInput;
                 const reminderItem = this.responseFactory.createReminderItemFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(reminderItem);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return Response.json(response, { status: 201 });
             }),
             
-            http.put(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const body = await req.json() as ReminderItemUpdateInput;
+            http.put(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, async ({ params, request }) => {
+                const { id } = params;
+                const body = await request.json() as ReminderItemUpdateInput;
                 
                 const reminderItem = this.responseFactory.createMockReminderItem({ 
                     id: id as string,
@@ -691,11 +680,8 @@ export class ReminderItemMSWHandlers {
                 
                 const response = this.responseFactory.createSuccessResponse(reminderItem);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return Response.json(response, { status: 200 });
             }),
         ];
     }
@@ -703,18 +689,18 @@ export class ReminderItemMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): HttpHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-item`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-item`, () => {
+                return Response.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, () => {
+                return Response.error();
             }),
             
-            http.put(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, (req, res, ctx) => {
-                return res.networkError("Request timeout");
+            http.put(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, () => {
+                return Response.error();
             }),
         ];
     }
@@ -728,18 +714,17 @@ export class ReminderItemMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): HttpHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        const handler = http[method.toLowerCase() as keyof typeof http];
+        return handler(fullEndpoint, async () => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return Response.json(response, { status });
         });
     }
 }

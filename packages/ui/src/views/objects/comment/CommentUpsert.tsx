@@ -1,64 +1,29 @@
-import Box from "@mui/material/Box";
 import { useTheme } from "@mui/material";
-import { DUMMY_ID, camelCase, commentTranslationValidation, commentValidation, endpointsComment, noopSubmit, orDefault, shapeComment, validatePK, type Comment, type CommentCreateInput, type CommentFor, type CommentSearchInput, type CommentSearchResult, type CommentShape, type CommentUpdateInput, type Session } from "@vrooli/shared";
+import { camelCase, commentFormConfig, commentValidation, createTransformFunction, endpointsComment, noopSubmit, validatePK, type Comment, type CommentSearchInput, type CommentSearchResult, type CommentShape } from "@vrooli/shared";
 import { Formik } from "formik";
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useSubmitHelper } from "../../../api/fetchWrapper.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
-import { LargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
-import { TranslatedRichInput } from "../../../components/inputs/RichInput/RichInput.js";
+import { Dialog } from "../../../components/dialogs/Dialog/Dialog.js";
+import { TranslatedAdvancedInput } from "../../../components/inputs/AdvancedInput/AdvancedInput.js";
+import { Box } from "../../../components/layout/Box.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
 import { MarkdownDisplay } from "../../../components/text/MarkdownDisplay.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
-import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { useLazyFetch } from "../../../hooks/useFetch.js";
-import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
-import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
+import { useIsMobile } from "../../../hooks/useIsMobile.js";
+import { useStandardUpsertForm } from "../../../hooks/useStandardUpsertForm.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
 import { defaultYou, getDisplay, getYou } from "../../../utils/display/listTools.js";
-import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
-import { validateFormValues } from "../../../utils/validateFormValues.js";
 import { type CommentFormProps, type CommentUpsertProps } from "./types.js";
-
-export function commentInitialValues(
-    session: Session | undefined,
-    objectType: CommentFor,
-    objectId: string,
-    language: string,
-    existing?: Partial<CommentShape> | null | undefined,
-): CommentShape {
-    return {
-        __typename: "Comment" as const,
-        id: DUMMY_ID,
-        commentedOn: { __typename: objectType, id: objectId },
-        ...existing,
-        translations: orDefault(existing?.translations, [{
-            __typename: "CommentTranslation" as const,
-            id: DUMMY_ID,
-            language,
-            text: "",
-        }]),
-    };
-}
-
-export function transformCommentValues(values: CommentShape, existing: CommentShape, isCreate: boolean) {
-    console.log("in transformCommentValues", values, existing, isCreate);
-    return isCreate ? shapeComment.create(values) : shapeComment.update(existing, values);
-}
 
 function CommentForm({
     disabled,
-    dirty,
     existing,
     handleUpdate,
     isCreate,
-    isOpen,
     isReadLoading,
-    objectId,
-    objectType,
-    parent,
     onCancel,
     onClose,
     onCompleted,
@@ -66,46 +31,59 @@ function CommentForm({
     values,
     ...props
 }: CommentFormProps) {
-    const session = useContext(SessionContext);
     const display = "page";
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    // Handle translations
+    const inputFeatures = useMemo(() => ({ maxChars: 32768, minRowsCollapsed: 3, maxRowsCollapsed: 15 }), []);
+    
+    const actionButtons = useMemo(() => [{
+        iconInfo: { name: "Send", type: "Common" } as const,
+        onClick: () => {
+            const message = values.translations.find(t => t.language === language)?.text;
+            if (!message || message.trim().length === 0) return;
+            onSubmit();
+        },
+    }], [values.translations, language, onSubmit]);
+    
+    const inputSxs = useMemo(() => ({
+        root: {
+            width: "100%",
+            background: palette.primary.dark,
+            color: palette.primary.contrastText,
+            borderRadius: 1,
+            overflow: "overlay",
+            marginTop: 1,
+        },
+        topBar: { borderRadius: 0 },
+        inputRoot: { background: palette.background.paper },
+    }), [palette]);
+
+    // Use the standardized form hook
     const {
+        isLoading,
+        onSubmit,
         language,
-        translationErrors,
-    } = useTranslatedFields({
-        defaultLanguage: getUserLanguages(session)[0],
-        validationSchema: commentTranslationValidation.create({ env: process.env.NODE_ENV }),
-    });
-
-    const { handleCancel, handleCompleted } = useUpsertActions<Comment>({
-        isCreate,
+    } = useStandardUpsertForm({
         objectType: "Comment",
-        ...props,
-    });
-    const {
-        fetch,
-        isCreateLoading,
-        isUpdateLoading,
-    } = useUpsertFetch<Comment, CommentCreateInput, CommentUpdateInput>({
-        isCreate,
-        isMutate: true,
-        endpointCreate: endpointsComment.createOne,
-        endpointUpdate: endpointsComment.updateOne,
-    });
-    useSaveToCache({ isCreate: false, values, objectId, objectType: "Comment" }); // Tied to ID of object being commented on, which is always already created
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
-
-    const onSubmit = useSubmitHelper<CommentCreateInput | CommentUpdateInput, Comment>({
-        disabled,
+        validation: commentFormConfig.validation.schema,
+        translationValidation: commentFormConfig.validation.translationSchema,
+        transformFunction: createTransformFunction(commentFormConfig),
+        endpoints: commentFormConfig.endpoints,
+    }, {
+        values,
         existing,
-        fetch,
-        inputs: transformCommentValues(values, existing, isCreate),
         isCreate,
-        onSuccess: (data) => { handleCompleted(data); },
-        onCompleted: () => { props.setSubmitting(false); },
+        display: "Dialog", // Comments are typically in dialogs
+        disabled,
+        isReadLoading,
+        isSubmitting: props.isSubmitting,
+        handleUpdate,
+        setSubmitting: props.setSubmitting,
+        onCancel,
+        onCompleted,
+        onDeleted,
+        onClose,
     });
 
     return (
@@ -115,35 +93,14 @@ function CommentForm({
                 isLoading={isLoading}
                 style={{ paddingBottom: 0 }}
             >
-                <TranslatedRichInput
+                <TranslatedAdvancedInput
                     disabled={isLoading}
                     language={language}
                     name="text"
                     placeholder={t("PleaseBeNice")}
-                    maxChars={32768}
-                    minRows={3}
-                    maxRows={15}
-                    actionButtons={[{
-                        iconInfo: { name: "Send", type: "Common" } as const,
-                        onClick: () => {
-                            const message = values.translations.find(t => t.language === language)?.text;
-                            if (!message || message.trim().length === 0) return;
-                            onSubmit();
-                        },
-                    }]}
-                    sxs={{
-                        root: {
-                            width: "100%",
-                            background: palette.primary.dark,
-                            color: palette.primary.contrastText,
-                            borderRadius: 1,
-                            overflow: "overlay",
-                            marginTop: 1,
-                        }
-                        ,
-                        topBar: { borderRadius: 0 },
-                        inputRoot: { background: palette.background.paper },
-                    }}
+                    features={inputFeatures}
+                    actionButtons={actionButtons}
+                    sxs={inputSxs}
                 />
             </BaseForm>
         </>
@@ -157,16 +114,18 @@ const titleId = "comment-dialog-title";
  * Only used on mobile; desktop displays RichInput at top of 
  * CommentContainer
  */
+/**
+ * Dialog for creating/updating a comment. 
+ * Only used on mobile; desktop displays RichInput at top of 
+ * CommentContainer
+ */
 export function CommentDialog({
     disabled,
-    dirty,
     existing,
     handleUpdate,
     isCreate,
     isOpen,
     isReadLoading,
-    objectId,
-    objectType,
     parent,
     onCancel,
     onClose,
@@ -175,48 +134,40 @@ export function CommentDialog({
     values,
     ...props
 }: CommentFormProps) {
-    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
+    const isMobile = useIsMobile();
 
-    // Handle translations
+    // Use the standardized form hook
     const {
+        isLoading,
+        handleCancel,
+        onSubmit,
         language,
         translationErrors,
-    } = useTranslatedFields({
-        defaultLanguage: getUserLanguages(session)[0],
-        validationSchema: commentTranslationValidation.create({ env: process.env.NODE_ENV }),
+    } = useStandardUpsertForm({
+        objectType: "Comment",
+        validation: commentFormConfig.validation.schema,
+        translationValidation: commentFormConfig.validation.translationSchema,
+        transformFunction: createTransformFunction(commentFormConfig),
+        endpoints: commentFormConfig.endpoints,
+    }, {
+        values,
+        existing,
+        isCreate,
+        display: "Dialog",
+        disabled,
+        isReadLoading,
+        isSubmitting: props.isSubmitting,
+        handleUpdate,
+        setSubmitting: props.setSubmitting,
+        onCancel,
+        onCompleted,
+        onDeleted,
+        onClose,
     });
 
     const { subtitle: parentText } = useMemo(() => getDisplay(parent, [language]), [language, parent]);
-
-    const { handleCancel, handleCompleted } = useUpsertActions<Comment>({
-        isCreate,
-        objectType: "Comment",
-        ...props,
-    });
-    const {
-        fetch,
-        isCreateLoading,
-        isUpdateLoading,
-    } = useUpsertFetch<Comment, CommentCreateInput, CommentUpdateInput>({
-        isCreate,
-        isMutate: true,
-        endpointCreate: endpointsComment.createOne,
-        endpointUpdate: endpointsComment.updateOne,
-    });
-    useSaveToCache({ isCreate: false, values, objectId, objectType: "Comment" }); // Tied to ID of object being commented on, which is always already created
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
-
-    const onSubmit = useSubmitHelper<CommentCreateInput | CommentUpdateInput, Comment>({
-        disabled,
-        existing,
-        fetch,
-        inputs: transformCommentValues(values, existing, isCreate),
-        isCreate,
-        onSuccess: (data) => { handleCompleted(data); },
-        onCompleted: () => { props.setSubmitting(false); },
-    });
 
     const inputStyle = useMemo(function inputStyleMemo() {
         return {
@@ -243,12 +194,66 @@ export function CommentDialog({
         } as const;
     }, [palette]);
 
+    const baseFormStyle = useMemo(() => ({
+        width: "min(700px, 100vw)",
+        paddingBottom: 0,
+    }), []);
+
+    const markdownSx = useMemo(() => ({
+        padding: "16px",
+        color: palette.background.textSecondary,
+    }), [palette]);
+
+    if (isMobile) {
+        return (
+            <Dialog
+                isOpen={Boolean(isOpen)}
+                onClose={onClose || (() => {})}
+                size="full"
+            >
+                <TopBar
+                    display="Dialog"
+                    onClose={onClose}
+                    title={t(isCreate ? "AddComment" : "EditComment")}
+                    titleId={titleId}
+                />
+                <BaseForm
+                    display="Dialog"
+                    isLoading={isLoading}
+                    style={baseFormStyle}
+                >
+                    <Box>
+                        {parent && <MarkdownDisplay
+                            content={parentText}
+                            sx={markdownSx}
+                        />}
+                        <TranslatedAdvancedInput
+                            language={language}
+                            name="text"
+                            placeholder={t("PleaseBeNice")}
+                            minRows={10}
+                            sxs={inputStyle}
+                        />
+                    </Box>
+                    <BottomActionsButtons
+                        display={"Dialog"}
+                        errors={translationErrors}
+                        hideButtons={disabled}
+                        isCreate={isCreate}
+                        loading={isLoading}
+                        onCancel={handleCancel}
+                        onSetSubmitting={props.setSubmitting}
+                        onSubmit={onSubmit}
+                    />
+                </BaseForm>
+            </Dialog>
+        );
+    }
     return (
-        <LargeDialog
-            id="comment-dialog"
+        <Dialog
             isOpen={Boolean(isOpen)}
-            onClose={onClose!}
-            titleId={titleId}
+            onClose={onClose || (() => {})}
+            size="md"
         >
             <TopBar
                 display="Dialog"
@@ -259,20 +264,14 @@ export function CommentDialog({
             <BaseForm
                 display="Dialog"
                 isLoading={isLoading}
-                style={{
-                    width: "min(700px, 100vw)",
-                    paddingBottom: 0,
-                }}
+                style={baseFormStyle}
             >
                 <Box>
                     {parent && <MarkdownDisplay
                         content={parentText}
-                        sx={{
-                            padding: "16px",
-                            color: palette.background.textSecondary,
-                        }}
+                        sx={markdownSx}
                     />}
-                    <TranslatedRichInput
+                    <TranslatedAdvancedInput
                         language={language}
                         name="text"
                         placeholder={t("PleaseBeNice")}
@@ -282,7 +281,7 @@ export function CommentDialog({
                 </Box>
                 <BottomActionsButtons
                     display={"Dialog"}
-                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                    errors={translationErrors}
                     hideButtons={disabled}
                     isCreate={isCreate}
                     loading={isLoading}
@@ -291,7 +290,7 @@ export function CommentDialog({
                     onSubmit={onSubmit}
                 />
             </BaseForm>
-        </LargeDialog>
+        </Dialog>
     );
 }
 
@@ -310,7 +309,6 @@ export function CommentUpsert({
     language,
     objectId,
     objectType,
-    overrideObject,
     ...props
 }: CommentUpsertProps) {
     const session = useContext(SessionContext);
@@ -323,18 +321,34 @@ export function CommentUpsert({
         getData({ [`${camelCase(objectType)}Id`]: objectId });
     }, [getData, objectId, objectType]);
 
-    const [existing, setExisting] = useState<CommentShape>(commentInitialValues(session, objectType, objectId, language, {}));
+    const [existing, setExisting] = useState<CommentShape>(commentFormConfig.transformations.getInitialValues(session, {
+        commentedOn: { __typename: objectType, id: objectId },
+        translations: [{ __typename: "CommentTranslation" as const, id: "", language, text: "" }],
+    }));
     useEffect(() => {
         const comment = commentFromSearch(fetchedData);
         if (!comment) return;
-        setExisting(commentInitialValues(session, objectType, objectId, language, comment));
+        setExisting(commentFormConfig.transformations.apiResultToShape(comment));
     }, [fetchedData, language, objectType, objectId, session]);
 
     const permissions = useMemo(() => commentFromSearch(fetchedData) ? getYou(commentFromSearch(fetchedData)) : defaultYou, [fetchedData]);
 
-    async function validateValues(values: CommentShape) {
-        return await validateFormValues(values, existing, isCreate, transformCommentValues, commentValidation);
-    }
+    // Simple validation for the main form wrapper
+    const validateValues = useCallback(async (values: CommentShape) => {
+        try {
+            const schema = isCreate ? commentValidation.create({ env: process.env.NODE_ENV }) : commentValidation.update({ env: process.env.NODE_ENV });
+            await schema.validate(values, { abortEarly: false });
+            return {};
+        } catch (error: unknown) {
+            const errors: Record<string, string> = {};
+            if (error && typeof error === "object" && "inner" in error) {
+                (error as { inner: Array<{ path?: string; message: string }> }).inner.forEach((err) => {
+                    if (err.path) errors[err.path] = err.message;
+                });
+            }
+            return errors;
+        }
+    }, [isCreate]);
 
     return (
         <Formik

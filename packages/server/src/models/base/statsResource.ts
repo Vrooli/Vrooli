@@ -40,7 +40,7 @@ export const StatsResourceModel: StatsResourceModelLogic = ({
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => ModelMap.get<ResourceModelLogic>("Resource").validate().owner(data?.resource as ResourceModelInfo["DbModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<StatsResourceModelInfo["DbSelect"]>([["resource", "Resource"]], ...rest),
+        isPublic: (data, getParentInfo?) => oneIsPublic<StatsResourceModelInfo["DbSelect"]>([["resource", "Resource"]], data, getParentInfo),
         visibility: {
             own: function getOwn(data) {
                 return {

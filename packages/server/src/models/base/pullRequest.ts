@@ -106,7 +106,7 @@ export const PullRequestModel: PullRequestModelLogic = ({
     // of object that has the pull request
     validate: () => ({
         isDeleted: () => false,
-        isPublic: () => false,
+        isPublic: (_data, _getParentInfo?) => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => {

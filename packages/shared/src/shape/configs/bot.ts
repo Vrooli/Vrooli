@@ -1,77 +1,253 @@
 import { type User } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
-import { type TranslationFunc, type TranslationKeyService } from "../../types.js";
+import type { RunState } from "../../execution/routine.js";
+import { type TranslationFunc, type TranslationKeyService } from "../../types.d.js";
 import { BaseConfig, type BaseConfigObject } from "./base.js";
-
-const MIN_CREATIVITY = 0;
-const MAX_CREATIVITY = 1;
-export const DEFAULT_CREATIVITY = (MIN_CREATIVITY + MAX_CREATIVITY) / 2;
-
-const MIN_VERBOSITY = 0;
-const MAX_VERBOSITY = 1;
-export const DEFAULT_VERBOSITY = (MIN_VERBOSITY + MAX_VERBOSITY) / 2;
 
 const LATEST_CONFIG_VERSION = "1.0";
 
-export const DEFAULT_PERSONA: Record<string, unknown> = {
-    bias: "",
-    creativity: 0,
-    domainKnowledge: "",
-    keyPhrases: "",
-    occupation: "",
-    persona: "",
-    startingMessage: "",
-    tone: "",
-    verbosity: 0,
-};
+// Agent specification types
 
-// Defines the order of default persona fields in the UI and which ones are considered "default"
-export const DEFAULT_PERSONA_UI_ORDER = [
-    "occupation",
-    "persona",
-    "tone",
-    "startingMessage",
-    "keyPhrases",
-    "domainKnowledge",
-    "bias",
-    // creativity and verbosity are handled by sliders, not direct text inputs in persona object in UI
-];
+/**
+ * Agent-specific prompt configuration for enhanced behavior control.
+ * Replaces the formal norms system with flexible natural language instructions.
+ */
+export interface AgentPromptConfig {
+    /** How the agent prompt interacts with the default system prompt */
+    mode: "supplement" | "replace";
+    /** Where the prompt content comes from */
+    source: "direct" | "resource";
+    /** Direct prompt content (used when source is "direct") */
+    content?: string;
+    /** Resource ID containing the prompt (used when source is "resource") */
+    resourceId?: string;
+    /** Custom variable mappings for template substitution */
+    variables?: Record<string, string>;
+}
+
+/**
+ * Resource specification that can be accessed by an agent during execution.
+ * Resources can come from the bot's configuration, swarm context, or global platform.
+ */
+export interface ResourceSpec {
+    /** Category of resource that determines how it's accessed and used */
+    type: "routine" | "document" | "tool" | "blackboard" | "link";
+    /** Human-readable name for the resource */
+    label: string;
+    /** Unique identifier for the resource (optional for simple references) */
+    id?: string;
+    /** Access permissions for this resource (e.g., ["read", "write", "execute"]) */
+    permissions?: string[];
+    /** Source of the resource for precedence resolution */
+    source?: "bot" | "swarm" | "global";
+    /** Scope/path within the resource for granular access control (e.g., "metrics.*", "alerts.critical") */
+    scope?: string;
+    /** Optional description of what the resource provides */
+    description?: string;
+    /** Type-specific configuration options */
+    config?: Record<string, any>;
+}
+
+/**
+ * Defines a specific behavior that an agent will exhibit when triggered by events.
+ * Behaviors are the core mechanism for emergent swarm coordination.
+ */
+export interface BehaviourSpec {
+    /** Event matching and conditional activation configuration */
+    trigger: {
+        /** Event topic that this behavior responds to (must be from predefined platform events) */
+        topic: string;
+        /**
+         * Optional jexl expression to evaluate when the trigger should be activated.
+         * If omitted, the behavior triggers on every matching event.
+         * 
+         * Available context variables:
+         * - event.data.* - Event payload fields
+         * - event.type - Event type string
+         * - event.timestamp - Event timestamp
+         * - swarm.state - Current swarm execution state
+         * - swarm.resources.* - Resource allocation info
+         * - swarm.agents - Number of active agents
+         * - bot.id - Current bot/agent ID
+         * - bot.performance.* - Agent performance metrics
+         * 
+         * Examples:
+         * - "event.data.remaining < event.data.allocated * 0.1"
+         * - "event.data.newState == 'FAILED' || event.data.newState == 'TERMINATED'"
+         * - "swarm.resources.consumed.credits > swarm.resources.allocated.credits * 0.8"
+         */
+        when?: string;
+        /**
+         * Progression control - determines what happens after this bot processes the event.
+         * This replaces the ambiguous "handled" concept with clear semantics.
+         */
+        progression?: {
+            /** 
+             * How this bot's action affects event flow:
+             * - "continue": Processing successful, proceed with event flow
+             * - "block": Issue detected, halt event progression  
+             * - "conditional": Use JEXL expression to determine progression
+             * Default: "continue"
+             */
+            control?: "continue" | "block" | "conditional";
+            /**
+             * For conditional control, JEXL expression that returns boolean.
+             * True = continue, False = block
+             * Context includes result from action execution.
+             * Example: "result.safe === true && result.confidence > 0.8"
+             */
+            condition?: string;
+            /**
+             * Should other bots be prevented from processing this event?
+             * Default: false (allows multiple bots to process)
+             */
+            exclusive?: boolean;
+        };
+    };
+    /** Action to execute when the trigger conditions are met */
+    action: RoutineAction | InvokeAction;
+    /** Quality of service level for message delivery (0=fire-and-forget, 1=at-least-once, 2=exactly-once) */
+    qos?: 0 | 1 | 2;
+}
+
+/**
+ * Action that executes a predefined routine when triggered.
+ * Use for deterministic, repeatable behaviors with structured inputs/outputs.
+ */
+export interface RoutineAction {
+    type: "routine";
+    /** Human-readable routine name (used for resolution and display) */
+    label: string;
+    /** Optional direct routine ID for faster execution (resolved from label if not provided) */
+    routineId?: string;
+    /** Mapping of routine input variables to values from trigger context (e.g., {"goalId": "event.data.goalId"}) */
+    inputMap?: Record<string, string>;
+}
+
+/**
+ * Action that invokes the agent's reasoning capabilities for adaptive responses.
+ * Use when the agent needs to think, analyze, or make contextual decisions.
+ */
+export interface InvokeAction {
+    type: "invoke";
+    /** Description of what the agent should accomplish through reasoning */
+    purpose: string;
+}
+
+/**
+ * Context available in jexl trigger expressions and input mappings.
+ * Provides access to event data and swarm state based on agent's ResourceSpec permissions.
+ */
+export interface TriggerContext {
+    /** Event information */
+    event: {
+        type: string;
+        data: Record<string, any>;
+        timestamp: Date;
+        metadata?: Record<string, any>;
+    };
+    /** Swarm state and resource information */
+    swarm: {
+        state: RunState;
+        resources: {
+            allocated: { credits: number; tokens: number; time: number };
+            consumed: { credits: number; tokens: number; time: number };
+            remaining: { credits: number; tokens: number; time: number };
+        };
+        agents: number;
+        id: string;
+    };
+    /** Bot's own performance metrics */
+    bot: {
+        id: string;
+        performance: {
+            tasksCompleted: number;
+            tasksFailed: number;
+            averageCompletionTime: number;
+            successRate: number;
+            resourceEfficiency: number;
+        };
+    };
+    /** Result from action execution (available in progression.condition expressions) */
+    result?: any;
+    /** Primary objective of the swarm (read-only) */
+    goal?: string;
+    /** Sub-tasks within the swarm (filtered by agent's permissions) */
+    subtasks?: Array<{
+        id: string;
+        description: string;
+        status: string;
+        assignee_bot_id?: string;
+        priority?: string;
+    }>;
+    /** Blackboard data (filtered by agent's ResourceSpec scope permissions) */
+    blackboard?: Record<string, any>;
+    /** Event history records (filtered by agent's permissions) */
+    records?: Array<{
+        id: string;
+        routine_name: string;
+        created_at: string;
+        caller_bot_id: string;
+    }>;
+    /** Event subscription mappings (read-only) */
+    eventSubscriptions?: Record<string, string[]>;
+    /** Swarm statistics (read-only) */
+    stats?: {
+        totalToolCalls: number;
+        totalCredits: string;
+        startedAt: number | null;
+        lastProcessingCycleEndedAt: number | null;
+    };
+}
+
+/**
+ * Complete specification for an autonomous agent within a swarm.
+ * Defines the agent's purpose, behaviors, prompt configuration, and resource access.
+ * Stored in bot configuration for reuse across different swarms.
+ */
+export interface AgentSpec {
+    /** Primary objective or purpose that guides the agent's decision-making */
+    goal?: string;
+    /** Functional role within the swarm (e.g., "coordinator", "specialist", "monitor", "bridge") */
+    role?: string;
+    /** List of event topics the agent subscribes to (must be from predefined platform events) */
+    subscriptions?: string[];
+    /** Event-driven behaviors that define how the agent responds to different situations */
+    behaviors?: BehaviourSpec[];
+    /** Agent-specific prompt configuration that replaces formal norms */
+    prompt?: AgentPromptConfig;
+    /** Resources available to the agent during execution */
+    resources?: ResourceSpec[];
+}
 
 export interface BotConfigObject extends BaseConfigObject {
     model?: string;
     maxTokens?: number;
-    persona?: Record<string, unknown>;
+    agentSpec?: AgentSpec;
 }
 
 export class BotConfig extends BaseConfig<BotConfigObject> {
     model?: BotConfigObject["model"];
     maxTokens?: BotConfigObject["maxTokens"];
-    persona: BotConfigObject["persona"];
+    agentSpec?: BotConfigObject["agentSpec"];
 
     constructor({ botSettings }: { botSettings: BotConfigObject }) {
         super({ config: botSettings });
         this.model = botSettings.model;
         this.maxTokens = botSettings.maxTokens;
-        this.persona = botSettings.persona;
+        this.agentSpec = botSettings.agentSpec;
     }
 
     static parse(
         bot: Pick<User, "botSettings"> | null | undefined,
         logger: PassableLogger,
-        opts?: { useFallbacks?: boolean },
     ): BotConfig {
         const botSettings = bot?.botSettings;
         return super.parseBase<BotConfigObject, BotConfig>(
             botSettings,
             logger,
             ({ config }) => {
-                if (opts?.useFallbacks ?? true) {
-                    // If persona exists, merge it with defaults, otherwise use defaults
-                    config.persona = { ...DEFAULT_PERSONA, ...(config.persona ?? {}) };
-                } else if (config.persona === undefined) {
-                    // If fallbacks are off and persona is undefined, ensure it's not null
-                    config.persona = undefined;
-                }
+                // agentSpec is optional and doesn't need defaults
                 return new BotConfig({ botSettings: config });
             },
         );
@@ -84,7 +260,7 @@ export class BotConfig extends BaseConfig<BotConfigObject> {
                 resources: [],
                 model: undefined,
                 maxTokens: undefined,
-                persona: { ...DEFAULT_PERSONA },
+                agentSpec: undefined,
             },
         });
     }
@@ -94,7 +270,7 @@ export class BotConfig extends BaseConfig<BotConfigObject> {
             ...super.export(),
             model: this.model,
             maxTokens: this.maxTokens,
-            persona: this.persona,
+            agentSpec: this.agentSpec,
         };
     }
 }

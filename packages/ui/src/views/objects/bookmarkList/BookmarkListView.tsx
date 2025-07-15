@@ -1,6 +1,7 @@
+// AI_CHECK: TYPE_SAFETY=38 | LAST: 2025-06-28
 import Box from "@mui/material/Box";
 import { IconButton } from "../../../components/buttons/IconButton.js";
-import { HistoryPageTabOption, LINKS, deleteArrayIndex, endpointsBookmark, shapeBookmark, updateArray, generatePK, type Bookmark, type BookmarkCreateInput, type BookmarkList } from "@vrooli/shared";
+import { HistoryPageTabOption, LINKS, deleteArrayIndex, endpointsBookmark, shapeBookmark, updateArray, generatePK, type Bookmark, type BookmarkCreateInput, type BookmarkList, type BookmarkTo } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
@@ -65,7 +66,7 @@ export function BookmarkListView({
     });
 
     const [createBookmark, { loading: isCreating, errors: createErrors }] = useLazyFetch<BookmarkCreateInput, Bookmark>(endpointsBookmark.createOne);
-    const addNewBookmark = useCallback(async (to: any) => {
+    const addNewBookmark = useCallback(async (to: Pick<BookmarkTo, "__typename" | "id">) => {
         fetchLazyWrapper<BookmarkCreateInput, Bookmark>({
             fetch: createBookmark,
             inputs: shapeBookmark.create({
@@ -85,7 +86,7 @@ export function BookmarkListView({
     const hasSelectedObject = useRef(false);
     const [searchOpen, setSearchOpen] = useState(false);
     const openSearch = useCallback(() => { setSearchOpen(true); }, []);
-    const closeSearch = useCallback((selectedObject?: any) => {
+    const closeSearch = useCallback((selectedObject?: Pick<BookmarkTo, "__typename" | "id">) => {
         setSearchOpen(false);
         hasSelectedObject.current = !!selectedObject;
         if (selectedObject) {
@@ -98,7 +99,7 @@ export function BookmarkListView({
         setSearchString(newString);
     }, []);
 
-    const onBookmarkSelect = useCallback((data: any) => {
+    const onBookmarkSelect = useCallback((data: Bookmark) => {
         console.log("onBookmarkSelect", data);
     }, []);
 

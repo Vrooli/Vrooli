@@ -5,7 +5,7 @@
  * Using discriminated union types to ensure tasks are properly shaped based on their type.
  */
 
-import { type RunExecutionInput, type SessionUser, type SwarmExecutionInput, type TaskContextInfo } from "@vrooli/shared";
+import { type RunExecutionInput, type SessionUser, type SwarmExecutionInput, type TaskStatus, type TaskContextInfo } from "@vrooli/shared";
 import { type ExportConfig, type ImportConfig, type ImportData } from "../builders/importExport.js";
 import { type BaseTaskData } from "./queueFactory.js";
 

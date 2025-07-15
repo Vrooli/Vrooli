@@ -2,7 +2,7 @@ import Box from "@mui/material/Box";
 import Grid from "@mui/material/Grid";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { styled, useTheme } from "@mui/material/styles";
 import { FormBuilder, parseSearchParams, type FormInputBase, type FormSchema, type ParseSearchParamsResult, type SearchType, type TimeFrame, type TranslationFuncCommon, type TranslationKeyCommon } from "@vrooli/shared";
@@ -10,7 +10,7 @@ import { Formik } from "formik";
 import i18next from "i18next";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FormRunView } from "../../forms/FormView/FormView.js";
+import { FormRunView } from "../../forms/FormView/FormRunView.js";
 import { usePopover } from "../../hooks/usePopover.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
@@ -18,22 +18,23 @@ import { addSearchParams, removeSearchParams } from "../../route/searchParams.js
 import { ELEMENT_IDS } from "../../utils/consts.js";
 import { convertFormikForSearch, convertSearchForFormik } from "../../utils/search/inputToSearch.js";
 import { searchTypeToParams } from "../../utils/search/objectToSearch.js";
-import { LargeDialog } from "../dialogs/LargeDialog/LargeDialog.js";
+import { Dialog, DialogContent, DialogActions } from "../dialogs/Dialog/Dialog.js";
 import { DateRangeMenu } from "../lists/DateRangeMenu/DateRangeMenu.js";
-import { TopBar } from "../navigation/TopBar.js";
 import { Button } from "./Button.js";
-import { BottomActionsGrid } from "./BottomActionsGrid.js";
+import { PermissionsButton, type PermissionsFilter } from "./PermissionsButton.js";
 import { type SearchButtonsProps } from "./types.js";
 
 interface SearchButtonProps {
     active?: boolean;
     onClick?: () => void;
     children: React.ReactNode;
-    'aria-label'?: string;
+    "aria-label"?: string;
     id?: string;
 }
 
 function SearchButton({ active, onClick, children, ...props }: SearchButtonProps) {
+    const { palette } = useTheme();
+    
     return (
         <Button
             variant={active ? "secondary" : "outline"}
@@ -45,6 +46,12 @@ function SearchButton({ active, onClick, children, ...props }: SearchButtonProps
                 margin: "2px",
                 whiteSpace: "nowrap",
                 minHeight: "auto",
+                ...(active ? {} : {
+                    borderColor: palette.background.textSecondary,
+                    color: palette.background.textSecondary,
+                    borderWidth: "2px",
+                    borderStyle: "solid",
+                }),
             }}
             {...props}
         >
@@ -168,8 +175,9 @@ export function SortButton({
                     <IconCommon
                         decorative
                         name="Sort"
+                        style={{ marginRight: isActive ? "4px" : "0" }}
                     />
-                    <Typography variant="caption" ml={0.5}>{sortByLabel}</Typography>
+                    {isActive && <Typography variant="caption">{sortByLabel}</Typography>}
                 </SearchButton>
             </Tooltip>
         </>
@@ -273,14 +281,30 @@ export function TimeButton({
 
     const [timeFrameLabel, setTimeFrameLabel] = useState<string>("");
 
+    // Clear label when timeFrame is undefined/cleared
+    useEffect(() => {
+        if (!timeFrame) {
+            setTimeFrameLabel("");
+        }
+    }, [timeFrame]);
+
     const [timeAnchorEl, openTime, closeTime] = usePopover();
     function handleTimeClose(labelKey?: TranslationKeyCommon, frame?: TimeFrame) {
         closeTime();
         setTimeFrame(frame);
-        if (labelKey) setTimeFrameLabel(t(labelKey));
+        if (labelKey && frame) {
+            setTimeFrameLabel(t(labelKey));
+        } else if (labelKey && !frame) {
+            // This handles "TimeAll" case - clear the label
+            setTimeFrameLabel("");
+        }
     }
 
-    const isActive = Boolean(timeFrame);
+    const isActive = Boolean(timeFrame && (
+        (timeFrame.after && timeFrame.before && timeFrame.after.getTime() !== timeFrame.before.getTime()) ||
+        (timeFrame.after && !timeFrame.before) ||
+        (!timeFrame.after && timeFrame.before)
+    ));
 
     return (
         <>
@@ -293,27 +317,18 @@ export function TimeButton({
                     aria-label={t("TimeCreated")}
                     id={timeButtonId}
                     onClick={openTime}
-                    active={Boolean(timeFrame)}
+                    active={isActive}
                 >
                     <IconCommon
                         decorative
                         name="History"
+                        style={{ marginRight: isActive ? "4px" : "0" }}
                     />
-                    <Typography variant="caption" ml={0.5}>{timeFrameLabel}</Typography>
+                    {isActive && <Typography variant="caption">{timeFrameLabel}</Typography>}
                 </SearchButton>
             </Tooltip>
         </>
     );
-}
-
-function createTopBarOptions(resetForm: (() => unknown), t: TranslationFuncCommon) {
-    return [
-        {
-            iconInfo: { name: "Refresh", type: "Common" } as const,
-            label: t("Reset"),
-            onClick: resetForm,
-        },
-    ];
 }
 
 const FormContainer = styled(Box)(({ theme }) => ({
@@ -371,11 +386,11 @@ function AdvancedSearchDialog({
     }, [handleSearch, schema, handleClose]);
 
     return (
-        <LargeDialog
-            id={ELEMENT_IDS.AdvancedSearchDialog}
+        <Dialog
             isOpen={isOpen}
             onClose={handleClose}
-            titleId={ELEMENT_IDS.AdvancedSearchDialogTitle}
+            title={t("AdvancedSearch")}
+            size="lg"
         >
             <Formik<ParseSearchParamsResult>
                 enableReinitialize={true}
@@ -390,55 +405,48 @@ function AdvancedSearchDialog({
                     function resetForm() {
                         formik.setValues(FormBuilder.generateInitialValues(schema?.elements));
                     }
-                    const topBarOptions = createTopBarOptions(resetForm, t);
 
                     return (
                         <>
-                            <TopBar
-                                display="Dialog"
-                                onClose={handleClose}
-                                tabTitle={t("AdvancedSearch")}
-                                titleId={ELEMENT_IDS.AdvancedSearchDialogTitle}
-                                options={topBarOptions}
-                            />
-                            <FormContainer>
+                            <DialogContent>
                                 {/* Search options */}
                                 {schema && <FormRunView
                                     disabled={false}
                                     schema={schema}
                                 />}
-                            </FormContainer>
-                            {/* Search/Cancel buttons */}
-                            <BottomActionsGrid display="Dialog">
-                                <Grid item xs={6}>
-                                    <Button
-                                        fullWidth
-                                        startIcon={<IconCommon
-                                            decorative
-                                            name="Search"
-                                        />}
-                                        type="submit"
-                                        onClick={onSubmit}
-                                        variant="primary"
-                                    >{t("Search")}</Button>
-                                </Grid>
-                                <Grid item xs={6}>
-                                    <Button
-                                        fullWidth
-                                        startIcon={<IconCommon
-                                            decorative
-                                            name="Cancel"
-                                        />}
-                                        onClick={handleClose}
-                                        variant="outline"
-                                    >{t("Cancel")}</Button>
-                                </Grid>
-                            </BottomActionsGrid>
+                            </DialogContent>
+                            <DialogActions>
+                                <Button
+                                    startIcon={<IconCommon
+                                        decorative
+                                        name="Cancel"
+                                    />}
+                                    onClick={handleClose}
+                                    variant="outline"
+                                >{t("Cancel")}</Button>
+                                <Button
+                                    startIcon={<IconCommon
+                                        decorative
+                                        name="Undo"
+                                    />}
+                                    onClick={resetForm}
+                                    variant="outline"
+                                >{t("Reset")}</Button>
+                                <Button
+                                    startIcon={<IconCommon
+                                        decorative
+                                        name="Search"
+                                    />}
+                                    type="submit"
+                                    onClick={onSubmit}
+                                    variant="primary"
+                                >{t("Search")}</Button>
+                            </DialogActions>
                         </>
                     );
                 }}
             </Formik>
-        </LargeDialog>
+        </Dialog>
     );
 }
 
@@ -518,8 +526,9 @@ export function AdvancedSearchButton({
                     <IconCommon
                         decorative
                         name="Build"
+                        style={{ marginRight: isActive ? "4px" : "0" }}
                     />
-                    {Object.keys(advancedSearchParams).length > 0 && <Typography variant="caption" sx={filterCountLabelStyle}>
+                    {isActive && <Typography variant="caption">
                         *{Object.keys(advancedSearchParams).length}
                     </Typography>}
                 </SearchButton>
@@ -532,8 +541,10 @@ export function SearchButtons({
     advancedSearchParams,
     advancedSearchSchema,
     controlsUrl,
+    permissionsFilter = "All",
     searchType,
     setAdvancedSearchParams,
+    setPermissionsFilter,
     setSortBy,
     setTimeFrame,
     sortBy,
@@ -564,6 +575,12 @@ export function SearchButtons({
                 setTimeFrame={setTimeFrame}
                 timeFrame={timeFrame}
             />
+            {setPermissionsFilter && (
+                <PermissionsButton
+                    permissionsFilter={permissionsFilter}
+                    setPermissionsFilter={setPermissionsFilter}
+                />
+            )}
             {searchType !== "Popular" && <AdvancedSearchButton
                 advancedSearchParams={advancedSearchParams}
                 advancedSearchSchema={advancedSearchSchema}

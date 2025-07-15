@@ -1,5 +1,6 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
 import { generatePK, StatPeriodType } from "@vrooli/shared";
-import { type Prisma } from "@prisma/client";
+import { type Prisma, type PrismaClient } from "@prisma/client";
 
 /**
  * Database fixtures for StatsSite model - used for seeding test data
@@ -343,7 +344,7 @@ export async function seedStatsSite(
 /**
  * Helper to create stats covering different time periods for comprehensive testing
  */
-export async function seedComprehensiveStatsSite(prisma: any) {
+export async function seedComprehensiveStatsSite(prisma: PrismaClient) {
     const stats = [];
 
     // Create one stat for each period type

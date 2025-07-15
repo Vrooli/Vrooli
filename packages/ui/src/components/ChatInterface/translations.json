@@ -1,0 +1,28 @@
+{
+    "en": {
+        "WelcomeToVrooli": "Welcome to Vrooli",
+        "YourAIAssistantForProductivity": "Your AI-powered assistant for building, automating, and collaborating",
+        "CreateProjects": "Create Projects",
+        "OrganizeWorkCollaborate": "Organize your work and collaborate with teams",
+        "WriteNotes": "Write Notes",
+        "CaptureIdeasThoughts": "Capture ideas and document your thoughts",
+        "BuildRoutines": "Build Routines",
+        "AutomateWorkflows": "Automate repetitive workflows and tasks",
+        "ConnectAPIs": "Connect APIs",
+        "IntegrateExternalServices": "Integrate with external services and data",
+        "NotSureWhereToStart": "Not sure where to start?",
+        "ShowMeAround": "Show me around",
+        "CreateFirstProject": "Create my first project",
+        "ExploreTemplates": "Explore templates",
+        "LearnMore": "Learn more",
+        "ReadyToAssist": "Ready to assist",
+        "TypeMessageOrTrySuggestion": "Type a message or try one of these suggestions",
+        "HowCanIHelp": "How can I help?",
+        "CreateSomething": "Create something",
+        "ChatUnavailable": "Chat Unavailable",
+        "ChatServiceTemporarilyUnavailable": "The chat service is temporarily unavailable. Please try again later.",
+        "TryAgain": "Try Again",
+        "GoBack": "Go Back",
+        "QuickHelp": "Quick help"
+    }
+}

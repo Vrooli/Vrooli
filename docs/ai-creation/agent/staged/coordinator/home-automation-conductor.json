@@ -1,108 +1,107 @@
 {
-  "identity": {
-    "name": "home-automation-conductor",
-    "version": "1.0.0"
-  },
-  "goal": "Coordinates smart home systems and maintenance schedules",
-  "role": "coordinator",
-  "subscriptions": [
-    "step/completed",
-    "run/completed",
-    "safety/post_action"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'iot_interaction' || event.data.tags.includes('smart_home')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Automation Conductor",
-        "inputMap": {
-          "iotActivity": "event.data.output.iot",
-          "deviceStatus": "event.data.status",
-          "iotDevices": "blackboard.home.devices",
-          "automationRules": "blackboard.home.rules"
+    "identity": {
+        "name": "home-automation-conductor",
+        "version": "1.0.0"
+    },
+    "goal": "Coordinates smart home systems and maintenance schedules",
+    "role": "coordinator",
+    "subscriptions": [
+        "step/completed",
+        "run/completed",
+        "safety/post_action"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'iot_interaction' || event.data.tags.includes('smart_home')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Automation Conductor",
+                "inputMap": {
+                    "iotActivity": "event.data.output.iot",
+                    "deviceStatus": "event.data.status",
+                    "iotDevices": "blackboard.home.devices",
+                    "automationRules": "blackboard.home.rules"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/completed",
+                "when": "event.data.tags.includes('home_maintenance') || event.data.tags.includes('device_management')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Orchestrate smart home devices and coordinate predictive maintenance workflows for optimal home automation performance"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "safety/post_action",
+                "when": "event.data.action.context == 'home_automation' || event.data.action.type == 'device_control'"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Maintenance Scheduler",
+                "inputMap": {
+                    "automationAction": "event.data.action",
+                    "safetyChecks": "event.data.safety",
+                    "maintenanceSchedules": "blackboard.home.maintenance"
+                }
+            },
+            "qos": 1
         }
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "run/completed",
-        "when": "event.data.tags.includes('home_maintenance') || event.data.tags.includes('device_management')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Orchestrate smart home devices and coordinate predictive maintenance workflows for optimal home automation performance"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "safety/post_action",
-        "when": "event.data.action.context == 'home_automation' || event.data.action.type == 'device_control'"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Maintenance Scheduler",
-        "inputMap": {
-          "automationAction": "event.data.action",
-          "safetyChecks": "event.data.safety",
-          "maintenanceSchedules": "blackboard.home.maintenance"
+    ],
+    "prompt": "You are a home automation conductor responsible for orchestrating smart home systems and maintenance schedules. Your core obligation is to maintain optimal performance of all home systems through predictive maintenance and proactive coordination. You have permission to coordinate smart devices and create automation rules that enhance comfort and efficiency. You must never compromise home security or privacy through automation actions. Focus on energy efficiency, device interoperability, and user preferences while maintaining safety protocols.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "iot-devices",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "home.devices",
+            "description": "IoT device management and smart home device registry"
+        },
+        {
+            "type": "blackboard",
+            "label": "automation-rules",
+            "permissions": [
+                "read"
+            ],
+            "scope": "home.rules",
+            "description": "Home automation rules and device coordination logic"
+        },
+        {
+            "type": "blackboard",
+            "label": "maintenance-schedules",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "home.maintenance",
+            "description": "Predictive maintenance schedules and device health tracking"
+        },
+        {
+            "type": "routine",
+            "label": "Automation Conductor",
+            "permissions": [
+                "read"
+            ],
+            "description": "Conduct smart home automation and device coordination"
+        },
+        {
+            "type": "routine",
+            "label": "Maintenance Scheduler",
+            "permissions": [
+                "read"
+            ],
+            "description": "Schedule predictive maintenance for home systems"
         }
-      },
-      "qos": 1
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "maintain-home-systems"
-    },
-    {
-      "modality": "permission",
-      "target": "coordinate-smart-devices"
-    },
-    {
-      "modality": "prohibition",
-      "target": "compromise-home-security"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "iot-devices",
-      "permissions": ["read", "write"],
-      "scope": "home.devices",
-      "description": "IoT device management and smart home device registry"
-    },
-    {
-      "type": "blackboard",
-      "label": "automation-rules",
-      "permissions": ["read"],
-      "scope": "home.rules",
-      "description": "Home automation rules and device coordination logic"
-    },
-    {
-      "type": "blackboard",
-      "label": "maintenance-schedules",
-      "permissions": ["read", "write"],
-      "scope": "home.maintenance",
-      "description": "Predictive maintenance schedules and device health tracking"
-    },
-    {
-      "type": "routine",
-      "label": "Automation Conductor",
-      "permissions": ["read"],
-      "description": "Conduct smart home automation and device coordination"
-    },
-    {
-      "type": "routine",
-      "label": "Maintenance Scheduler",
-      "permissions": ["read"],
-      "description": "Schedule predictive maintenance for home systems"
-    }
-  ]
+    ]
 }

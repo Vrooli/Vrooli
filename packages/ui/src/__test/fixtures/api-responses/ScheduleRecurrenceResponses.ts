@@ -4,17 +4,18 @@
  * This file provides comprehensive API response fixtures for schedule recurrence endpoints.
  * It includes success responses, error responses, and MSW handlers for testing.
  */
+// AI_CHECK: TYPE_SAFETY=fixed-recurrence-msw-v2 | LAST: 2025-07-02 - Fixed RecurrenceType imports, removed invalid properties, migrated MSW v1 to v2
 
-import { http, type RestHandler } from "msw";
+import { http, HttpResponse, type RequestHandler } from "msw";
 import type { 
     ScheduleRecurrence, 
     ScheduleRecurrenceCreateInput, 
     ScheduleRecurrenceUpdateInput,
-    RecurrenceType,
+    ScheduleRecurrenceType,
 } from "@vrooli/shared";
 import { 
     scheduleRecurrenceValidation,
-    RecurrenceType as RecurrenceTypeEnum, 
+    ScheduleRecurrenceType as RecurrenceTypeEnum, 
 } from "@vrooli/shared";
 
 /**
@@ -75,14 +76,14 @@ export class ScheduleRecurrenceResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique schedule recurrence ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -253,43 +254,54 @@ export class ScheduleRecurrenceResponseFactory {
             dayOfMonth: null,
             month: null,
             endDate: nextYear,
+            duration: 60, // Default 1 hour duration in minutes
             schedule: {
                 __typename: "Schedule",
                 id: `schedule_${id}`,
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
                 startTime: now,
-                endTime: null,
+                endTime: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour from start
                 timezone: "UTC",
+                publicId: `pub_schedule_${id}`,
                 recurrences: [],
-                recurrencesCount: 1,
                 exceptions: [],
-                exceptionsCount: 0,
-                labels: [],
-                labelsCount: 0,
-                focusModes: [],
-                focusModesCount: 0,
                 meetings: [],
-                meetingsCount: 0,
-                runProject: null,
-                runRoutine: {
-                    __typename: "RunRoutine",
-                    id: `run_${id}`,
-                    completedAt: null,
-                    startedAt: null,
+                runs: [],
+                user: {
+                    __typename: "User",
+                    id: `user_${id}`,
+                    handle: `testuser_${id.slice(-4)}`,
+                    name: `Test User ${id.slice(-4)}`,
+                    publicId: `pub_user_${id}`,
+                    createdAt: now,
+                    updatedAt: now,
+                    isBot: false,
+                    isBotDepictingPerson: false,
                     isPrivate: false,
-                    timeElapsed: 0,
-                    title: "Recurring Run",
-                    runProject: null,
-                    steps: [],
-                    inputs: [],
-                    outputs: [],
-                },
-                you: {
-                    __typename: "ScheduleYou",
-                    canDelete: true,
-                    canUpdate: true,
-                    canRead: true,
+                    isPrivateBookmarks: false,
+                    isPrivateMemberships: false,
+                    isPrivatePullRequests: false,
+                    isPrivateResources: false,
+                    isPrivateResourcesCreated: false,
+                    isPrivateTeamsCreated: false,
+                    isPrivateVotes: false,
+                    bookmarkedBy: [],
+                    bookmarks: 0,
+                    membershipsCount: 0,
+                    reportsReceived: [],
+                    reportsReceivedCount: 0,
+                    resourcesCount: 0,
+                    translations: [],
+                    views: 0,
+                    you: {
+                        __typename: "UserYou",
+                        canDelete: false,
+                        canReport: true,
+                        canUpdate: false,
+                        isBookmarked: false,
+                        isViewed: false,
+                    },
                 },
             },
         };
@@ -414,7 +426,7 @@ export class ScheduleRecurrenceResponseFactory {
         errors?: Record<string, string>;
     }> {
         try {
-            await scheduleRecurrenceValidation.create.validate(input);
+            await scheduleRecurrenceValidation.create({}).validate(input);
             return { valid: true };
         } catch (error: any) {
             const fieldErrors: Record<string, string> = {};
@@ -450,18 +462,18 @@ export class ScheduleRecurrenceMSWHandlers {
     /**
      * Create success handlers for all schedule recurrence endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): RequestHandler[] {
         return [
             // Create schedule recurrence
-            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence`, async (req, res, ctx) => {
-                const body = await req.json() as ScheduleRecurrenceCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence`, async ({ request, params }) => {
+                const body = await request.json() as ScheduleRecurrenceCreateInput;
                 
                 // Validate input
                 const validation = await this.responseFactory.validateCreateInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
+                    return HttpResponse.json(
+                        this.responseFactory.createValidationErrorResponse(validation.errors || {}),
+                        { status: 400 }
                     );
                 }
                 
@@ -469,29 +481,23 @@ export class ScheduleRecurrenceMSWHandlers {
                 const recurrence = this.responseFactory.createRecurrenceFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(recurrence);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 201 });
             }),
             
             // Get schedule recurrence by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence/:id`, ({ request, params }) => {
+                const { id } = params;
                 
                 const recurrence = this.responseFactory.createMockRecurrence({ id: id as string });
                 const response = this.responseFactory.createSuccessResponse(recurrence);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Update schedule recurrence
-            http.put(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence/:id`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const body = await req.json() as ScheduleRecurrenceUpdateInput;
+            http.put(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence/:id`, async ({ request, params }) => {
+                const { id } = params;
+                const body = await request.json() as ScheduleRecurrenceUpdateInput;
                 
                 const recurrence = this.responseFactory.createMockRecurrence({ id: id as string });
                 
@@ -522,24 +528,21 @@ export class ScheduleRecurrenceMSWHandlers {
                 
                 const response = this.responseFactory.createSuccessResponse(recurrence);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Delete schedule recurrence
-            http.delete(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence/:id`, (req, res, ctx) => {
-                return res(ctx.status(204));
+            http.delete(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence/:id`, ({ request, params }) => {
+                return new HttpResponse(null, { status: 204 });
             }),
             
             // List schedule recurrences
-            http.get(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence`, ({ request, params }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 const scheduleId = url.searchParams.get("scheduleId");
-                const recurrenceType = url.searchParams.get("recurrenceType") as RecurrenceType;
+                const recurrenceType = url.searchParams.get("recurrenceType") as ScheduleRecurrenceType;
                 
                 let recurrences = scheduleId 
                     ? this.responseFactory.createRecurrencesForSchedule(scheduleId)
@@ -563,10 +566,7 @@ export class ScheduleRecurrenceMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -574,41 +574,41 @@ export class ScheduleRecurrenceMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): RequestHandler[] {
         return [
             // Validation error
-            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createValidationErrorResponse({
                         recurrenceType: "Recurrence type is required",
                         interval: "Interval must be greater than 0",
-                    })),
+                    }),
+                    { status: 400 }
                 );
             }),
             
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
+            http.get(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence/:id`, ({ request, params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string),
+                    { status: 404 }
                 );
             }),
             
             // Permission error
-            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("create"),
+                    { status: 403 }
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse(),
+                    { status: 500 }
                 );
             }),
         ];
@@ -617,18 +617,15 @@ export class ScheduleRecurrenceMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence`, async (req, res, ctx) => {
-                const body = await req.json() as ScheduleRecurrenceCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence`, async ({ request, params }) => {
+                const body = await request.json() as ScheduleRecurrenceCreateInput;
                 const recurrence = this.responseFactory.createRecurrenceFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(recurrence);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return HttpResponse.json(response, { status: 201 });
             }),
         ];
     }
@@ -636,14 +633,14 @@ export class ScheduleRecurrenceMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/schedule-recurrence/:id`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -657,18 +654,17 @@ export class ScheduleRecurrenceMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): RequestHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        const httpMethod = method.toLowerCase() as keyof typeof http;
+        return http[httpMethod](fullEndpoint, async ({ request, params }) => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }

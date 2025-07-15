@@ -9,8 +9,8 @@ export class MemberInviteDbFactory {
     static createMinimal(
         teamId: string,
         userId: string,
-        overrides?: Partial<Prisma.MemberInviteCreateInput>,
-    ): Prisma.MemberInviteCreateInput {
+        overrides?: Partial<Prisma.member_inviteCreateInput>,
+    ): Prisma.member_inviteCreateInput {
         return {
             id: generatePK(),
             publicId: generatePublicId(),
@@ -25,8 +25,8 @@ export class MemberInviteDbFactory {
         teamId: string,
         userId: string,
         message: string,
-        overrides?: Partial<Prisma.MemberInviteCreateInput>,
-    ): Prisma.MemberInviteCreateInput {
+        overrides?: Partial<Prisma.member_inviteCreateInput>,
+    ): Prisma.member_inviteCreateInput {
         return this.createMinimal(teamId, userId, {
             message,
             ...overrides,
@@ -36,8 +36,8 @@ export class MemberInviteDbFactory {
     static createAccepted(
         teamId: string,
         userId: string,
-        overrides?: Partial<Prisma.MemberInviteCreateInput>,
-    ): Prisma.MemberInviteCreateInput {
+        overrides?: Partial<Prisma.member_inviteCreateInput>,
+    ): Prisma.member_inviteCreateInput {
         return this.createMinimal(teamId, userId, {
             status: "Accepted",
             ...overrides,
@@ -47,8 +47,8 @@ export class MemberInviteDbFactory {
     static createDeclined(
         teamId: string,
         userId: string,
-        overrides?: Partial<Prisma.MemberInviteCreateInput>,
-    ): Prisma.MemberInviteCreateInput {
+        overrides?: Partial<Prisma.member_inviteCreateInput>,
+    ): Prisma.member_inviteCreateInput {
         return this.createMinimal(teamId, userId, {
             status: "Declined",
             ...overrides,
@@ -73,7 +73,7 @@ export async function seedMemberInvites(
 
     for (let i = 0; i < options.userIds.length; i++) {
         const userId = options.userIds[i];
-        let inviteData: Prisma.MemberInviteCreateInput;
+        let inviteData: Prisma.member_inviteCreateInput;
 
         if (options.status === "Accepted") {
             inviteData = MemberInviteDbFactory.createAccepted(options.teamId, userId);

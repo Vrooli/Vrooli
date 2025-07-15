@@ -1,7 +1,6 @@
-import { nanoid } from "nanoid";
+import { EventTypes } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
-import { getEventBus } from "../../events/eventBus.js";
-import { EventUtils } from "../../events/utils.js";
+import { EventPublisher } from "../../events/publisher.js";
 
 export type Result<T, E = Error> =
     | { success: true; data: T }
@@ -19,10 +18,16 @@ export interface ErrorContext {
     /** Whether to publish error event */
     publishError?: boolean;
     /** Custom error message */
-    errorMessage?: string;
+    reason?: string;
 }
 
 export interface ErrorHandlerConfig {
+    /** Name of the component that the error handler is for */
+    component: string;
+    /** Swarm ID to use for error events */
+    chatId?: string | null;
+    /** Run ID to use for error events, if no swarm is available */
+    runId?: string | null;
     /** Whether to log all errors by default */
     logByDefault?: boolean;
     /** Whether to publish error events by default */
@@ -43,12 +48,13 @@ export interface ErrorHandlerConfig {
 export class ErrorHandler {
     private readonly config: Required<ErrorHandlerConfig>;
 
-    constructor(
-        config: ErrorHandlerConfig = {},
-    ) {
+    constructor(config: ErrorHandlerConfig) {
         this.config = {
+            component: config.component,
             logByDefault: config.logByDefault ?? true,
             publishByDefault: config.publishByDefault ?? true,
+            chatId: config.chatId ?? null,
+            runId: config.runId ?? null,
             ignoredErrors: config.ignoredErrors ?? [],
             includeStackTrace: config.includeStackTrace ?? true,
         };
@@ -63,21 +69,6 @@ export class ErrorHandler {
     ): Promise<Result<T>> {
         try {
             const data = await operation();
-            return { success: true, data };
-        } catch (error) {
-            return await this.handleError(error, context);
-        }
-    }
-
-    /**
-     * Wrap a sync operation with error handling
-     */
-    async wrapSync<T>(
-        operation: () => T,
-        context: ErrorContext,
-    ): Promise<Result<T>> {
-        try {
-            const data = operation();
             return { success: true, data };
         } catch (error) {
             return await this.handleError(error, context);
@@ -167,7 +158,10 @@ export class ErrorHandler {
             await new Promise(resolve => setTimeout(resolve, delay));
         }
 
-        return { success: false, error: lastError! };
+        if (!lastError) {
+            throw new Error("Unexpected: No error recorded in error handling");
+        }
+        return { success: false, error: lastError };
     }
 
     /**
@@ -188,7 +182,7 @@ export class ErrorHandler {
         if (context.logError ?? this.config.logByDefault) {
             const logData: Record<string, any> = {
                 operation: context.operation,
-                error: context.errorMessage || errorObj.message,
+                error: context.reason || errorObj.message,
                 errorName: errorObj.name,
                 ...context.metadata,
             };
@@ -203,22 +197,23 @@ export class ErrorHandler {
         // Publish error event if enabled
         if ((context.publishError ?? this.config.publishByDefault)) {
             try {
-                const event = EventUtils.createBaseEvent(
-                    "component.error",
-                    {
-                        component: context.component,
+                const { proceed, reason } = await EventPublisher.emit(EventTypes.SYSTEM.ERROR, {
+                    chatId: this.config.chatId || undefined,
+                    runId: this.config.runId || undefined,
+                    component: context.component,
+                    operation: context.operation,
+                    error: errorObj,
+                    context: context.metadata,
+                });
+
+                if (!proceed) {
+                    // Error events being blocked is concerning - log it
+                    logger.warn(`[${context.component}] Error event blocked by system`, {
+                        originalError: errorObj.message,
+                        blockReason: reason,
                         operation: context.operation,
-                        error: {
-                            name: errorObj.name,
-                            message: errorObj.message,
-                            stack: errorObj.stack,
-                        },
-                        ...context.metadata,
-                    },
-                    EventUtils.createEventSource("cross-cutting", "ErrorHandler", nanoid()),
-                    EventUtils.createEventMetadata("reliable", "high"),
-                );
-                await getEventBus().publish(event);
+                    });
+                }
             } catch (publishError) {
                 logger.error(`[${context.component}] Failed to publish error event to unified system`, {
                     originalError: errorObj.message,
@@ -253,13 +248,6 @@ export class ErrorHandler {
     }
 
     /**
-     * Create a specialized error handler for a component
-     */
-    createComponentHandler(component: string): ComponentErrorHandler {
-        return new ComponentErrorHandler(this, component);
-    }
-
-    /**
      * Guard function for narrowing Result types
      */
     static isSuccess<T>(result: Result<T>): result is { success: true; data: T } {
@@ -271,99 +259,5 @@ export class ErrorHandler {
      */
     static isError<T, E = Error>(result: Result<T, E>): result is { success: false; error: E } {
         return !result.success;
-    }
-
-    /**
-     * Unwrap a Result or throw
-     */
-    static unwrap<T>(result: Result<T>): T {
-        if (result.success) {
-            return result.data;
-        }
-        const errorResult = result as { success: false; error: Error };
-        throw errorResult.error;
-    }
-
-    /**
-     * Map over a successful result
-     */
-    static map<T, U>(result: Result<T>, fn: (data: T) => U): Result<U> {
-        if (result.success) {
-            try {
-                return { success: true, data: fn(result.data) };
-            } catch (error) {
-                return { success: false, error: error instanceof Error ? error : new Error(String(error)) };
-            }
-        }
-        const errorResult = result as { success: false; error: Error };
-        return { success: false, error: errorResult.error };
-    }
-
-    /**
-     * Async map over a successful result
-     */
-    static async mapAsync<T, U>(
-        result: Result<T>,
-        fn: (data: T) => Promise<U>,
-    ): Promise<Result<U>> {
-        if (result.success) {
-            try {
-                const data = await fn(result.data);
-                return { success: true, data };
-            } catch (error) {
-                return { success: false, error: error instanceof Error ? error : new Error(String(error)) };
-            }
-        }
-        const errorResult = result as { success: false; error: Error };
-        return { success: false, error: errorResult.error };
-    }
-}
-
-/**
- * Component-specific error handler for cleaner API
- */
-export class ComponentErrorHandler {
-    constructor(
-        private readonly errorHandler: ErrorHandler,
-        private readonly component: string,
-    ) { }
-
-    async wrap<T>(
-        operation: () => Promise<T>,
-        operationName: string,
-        metadata?: Record<string, any>,
-    ): Promise<Result<T>> {
-        return this.errorHandler.wrap(operation, {
-            operation: operationName,
-            component: this.component,
-            metadata,
-        });
-    }
-
-    async execute<T>(
-        operation: () => Promise<T>,
-        operationName: string,
-        metadata?: Record<string, any>,
-    ): Promise<T> {
-        return this.errorHandler.execute(operation, {
-            operation: operationName,
-            component: this.component,
-            metadata,
-        });
-    }
-
-    async executeWithRetry<T>(
-        operation: () => Promise<T>,
-        operationName: string,
-        options?: Parameters<ErrorHandler["executeWithRetry"]>[2],
-    ): Promise<Result<T>> {
-        return this.errorHandler.executeWithRetry(
-            operation,
-            {
-                operation: operationName,
-                component: this.component,
-            },
-            options,
-        );
     }
 }

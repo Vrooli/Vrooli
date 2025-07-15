@@ -6,7 +6,7 @@ import { type Express } from "express";
 import fs from "fs/promises";
 import i18next from "i18next";
 import os from "os";
-import path from "path";
+import * as path from "path";
 import Stripe from "stripe";
 import { fileURLToPath } from "url";
 import { promisify } from "util";

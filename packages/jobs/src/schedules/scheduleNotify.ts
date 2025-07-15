@@ -1,6 +1,7 @@
+// AI_CHECK: TYPE_SAFETY=2 | LAST: 2025-07-04
 import { type Prisma } from "@prisma/client";
 import { CacheService, Notify, batch, findFirstRel, logger, parseJsonOrDefault, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe, type ScheduleSubscriptionContext } from "@vrooli/server";
-import { calculateOccurrences, uppercaseFirstLetter, ModelType, type ModelType as ModelTypeType, type Schedule } from "@vrooli/shared";
+import { calculateOccurrences, uppercaseFirstLetter, ModelType, type ModelType as ModelTypeType, type ScheduleRecurrenceType } from "@vrooli/shared";
 
 const MINUTES_IN_HOUR = 60;
 const SECONDS_IN_MINUTE = 60;
@@ -85,7 +86,7 @@ async function scheduleNotifications(
         const cache = CacheService.get();
         await batch<Prisma.notification_subscriptionFindManyArgs, NotificationSubscriptionPayload>({
             objectType: "NotificationSubscription",
-            processBatch: async (batchResult) => {
+            processBatch: async (batchResult: NotificationSubscriptionPayload[]) => {
                 // If no subscriptions, continue
                 if (batchResult.length === 0) return;
 
@@ -147,7 +148,7 @@ async function scheduleNotifications(
                     // Issue 2 fix: Provide a safer default for parseJsonOrDefault
                     const context = parseJsonOrDefault<ScheduleSubscriptionContext>(
                         subscription.context,
-                        { reminders: [] }, // Default to an object with an empty reminders array
+                        { reminders: [] as Array<{ email: boolean; phone: boolean; push: boolean; minutesBefore: number }> }, // Properly typed empty reminders array
                     );
 
                     // Validate the parsed context matches expected structure
@@ -214,7 +215,7 @@ async function scheduleNotifications(
                     for (const userId in subscriberDelays) {
                         subscriberDelaysList.push({
                             userId,
-                            delays: subscriberDelays[userId],
+                            delays: subscriberDelays[userId] || [],
                         });
                     }
                     // Before sending notifications, check Redis to see if the user has already been notified for this event
@@ -229,7 +230,10 @@ async function scheduleNotifications(
                     const filteredSubscriberDelaysList = subscriberDelaysList.filter((_, index) => !redisGetResults[index]);
                     // Send push notifications to each subscriber
                     //TODO should add to bull queue to notify at correct time
-                    await Notify(["en"]).pushScheduleReminder(scheduleForId, scheduleForType, occurrence.start).toUsers(filteredSubscriberDelaysList);
+                    const notify = Notify(["en"]);
+                    if (notify && "pushScheduleReminder" in notify && typeof notify.pushScheduleReminder === "function") {
+                        await notify.pushScheduleReminder(scheduleForId, scheduleForType, occurrence.start).toUsers(filteredSubscriberDelaysList);
+                    }
 
                     // Set Redis keys for the subscribers who just received the notification, with an expiration time of 25 hours
                     const ttlSeconds = BUFFER_HOURS * MINUTES_IN_HOUR * SECONDS_IN_MINUTE;
@@ -244,7 +248,7 @@ async function scheduleNotifications(
                 schedule: { id: BigInt(scheduleId) },
             },
         });
-    } catch (error) {
+    } catch (error: unknown) {
         logger.error("scheduleNotifications caught error during CacheService interaction or batch processing", { error, trace: "0511_cache_service" });
     }
 }
@@ -262,41 +266,42 @@ export async function scheduleNotify(): Promise<void> {
         const endDate = new Date(new Date().setHours(now.getHours() + BUFFER_HOURS));
         await batch<Prisma.scheduleFindManyArgs, SchedulePayload>({
             objectType: "Schedule",
-            processBatch: async (batchResult) => {
-                await Promise.all(batchResult.map(async (scheduleData) => {
+            processBatch: async (batchResult: SchedulePayload[]) => {
+                await Promise.all(batchResult.map(async (scheduleData: SchedulePayload) => {
                     const scheduleIdStr = scheduleData.id.toString();
 
-                    // Create typed schedule object with __typename
+                    // Create typed schedule object with __typename and convert id to string
                     const typedSchedule = {
                         ...scheduleData,
+                        id: scheduleIdStr, // Convert bigint id to string to match shared types
                         __typename: "Schedule" as const,
                     };
 
-                    // Validate and map exceptions with proper type safety - dates as ISO strings
+                    // Map exceptions to match shared ScheduleException type
                     const exceptions = scheduleData.exceptions
-                        .filter(ex => ex && typeof ex.id !== "undefined" && ex.originalStartTime)
-                        .map(ex => ({
-                            __typename: "ScheduleException" as const,
+                        .filter((ex): ex is NonNullable<typeof ex> => ex !== null && typeof ex.id !== "undefined" && ex.originalStartTime !== null)
+                        .map((ex) => ({
                             id: ex.id.toString(),
+                            __typename: "ScheduleException" as const,
                             originalStartTime: typeof ex.originalStartTime === "string" ? ex.originalStartTime : ex.originalStartTime.toISOString(),
-                            newStartTime: ex.newStartTime ? (typeof ex.newStartTime === "string" ? ex.newStartTime : ex.newStartTime.toISOString()) : null,
-                            newEndTime: ex.newEndTime ? (typeof ex.newEndTime === "string" ? ex.newEndTime : ex.newEndTime.toISOString()) : null,
+                            newStartTime: ex.newStartTime ? (typeof ex.newStartTime === "string" ? ex.newStartTime : ex.newStartTime.toISOString()) : undefined,
+                            newEndTime: ex.newEndTime ? (typeof ex.newEndTime === "string" ? ex.newEndTime : ex.newEndTime.toISOString()) : undefined,
                             schedule: typedSchedule,
                         }));
 
-                    // Validate and map recurrences with proper type safety - dates as ISO strings
+                    // Map recurrences to match shared ScheduleRecurrence type
                     const recurrences = scheduleData.recurrences
-                        .filter(rec => rec && typeof rec.id !== "undefined" && rec.recurrenceType)
-                        .map(rec => ({
-                            __typename: "ScheduleRecurrence" as const,
+                        .filter((rec): rec is NonNullable<typeof rec> => rec !== null && typeof rec.id !== "undefined" && rec.recurrenceType !== null)
+                        .map((rec) => ({
                             id: rec.id.toString(),
-                            recurrenceType: rec.recurrenceType as any, // Cast to handle enum type mismatch
+                            __typename: "ScheduleRecurrence" as const,
+                            recurrenceType: rec.recurrenceType as string as ScheduleRecurrenceType,
                             interval: rec.interval,
-                            dayOfWeek: rec.dayOfWeek,
-                            dayOfMonth: rec.dayOfMonth,
-                            month: rec.month,
-                            endDate: rec.endDate ? (typeof rec.endDate === "string" ? rec.endDate : rec.endDate.toISOString()) : null,
-                            duration: rec.duration,
+                            dayOfWeek: rec.dayOfWeek ?? undefined,
+                            dayOfMonth: rec.dayOfMonth ?? undefined,
+                            month: rec.month ?? undefined,
+                            endDate: rec.endDate ? (typeof rec.endDate === "string" ? rec.endDate : rec.endDate.toISOString()) : undefined,
+                            duration: rec.duration ?? 0, // Duration is required and in minutes
                             schedule: typedSchedule,
                         }));
 
@@ -329,7 +334,7 @@ export async function scheduleNotify(): Promise<void> {
             },
             where: schedulesWhereInTimeframe(startDate, endDate),
         });
-    } catch (error) {
+    } catch (error: unknown) {
         logger.error("scheduleNotify caught error", { error, trace: "0428" });
     }
 }

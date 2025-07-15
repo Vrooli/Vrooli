@@ -37,7 +37,7 @@ describe("Signup Form Components with Form Helpers", () => {
                             name: testValidationSchemas.requiredString("Full Name"),
                         }),
                     },
-                }
+                },
             );
 
             // Test valid input
@@ -65,7 +65,7 @@ describe("Signup Form Components with Form Helpers", () => {
                             email: testValidationSchemas.email(),
                         }),
                     },
-                }
+                },
             );
 
             // Test invalid email
@@ -96,7 +96,7 @@ describe("Signup Form Components with Form Helpers", () => {
                             password: testValidationSchemas.password(8),
                         }),
                     },
-                }
+                },
             );
 
             // Test weak password
@@ -155,7 +155,7 @@ describe("Signup Form Components with Form Helpers", () => {
                         agreeToTerms: false,
                     },
                     formikConfig: { validationSchema: signupSchema },
-                }
+                },
             );
 
             // Fill out the complete form
@@ -201,7 +201,7 @@ describe("Signup Form Components with Form Helpers", () => {
                                 .required("Please confirm your password"),
                         }),
                     },
-                }
+                },
             );
 
             // Enter mismatched passwords
@@ -259,7 +259,7 @@ describe("Signup Form Components with Form Helpers", () => {
                         lastName: "",
                         fullName: "",
                     },
-                }
+                },
             );
 
             // Fill name fields

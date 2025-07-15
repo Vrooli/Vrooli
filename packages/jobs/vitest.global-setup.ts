@@ -7,16 +7,23 @@
  * 2. Disabling container reuse to ensure fresh state for each test run
  * 3. Running in a separate container instance from other test suites (e.g. server tests)
  */
+// AI_CHECK: TYPE_SAFETY | LAST: 2025-01-04
 
 import { execSync } from "child_process";
 import { generateKeyPairSync } from "crypto";
 import path from "path";
 import { GenericContainer, type StartedTestContainer } from "testcontainers";
 
+// Define typed global interface for test containers
+declare global {
+    var __TEST_REDIS_CONTAINER__: StartedTestContainer | undefined;
+    var __TEST_POSTGRES_CONTAINER__: StartedTestContainer | undefined;
+}
+
 let redisContainer: StartedTestContainer | null = null;
 let postgresContainer: StartedTestContainer | null = null;
 
-export async function setup() {
+export async function setup(): Promise<void> {
     console.log("\n=== GLOBAL TEST SETUP STARTING ===");
     console.log("This runs ONCE before all test files");
 
@@ -92,8 +99,8 @@ export async function setup() {
         console.log("✓ Prisma client generated");
 
         // Store container references globally so teardown can access them
-        (global as any).__TEST_REDIS_CONTAINER__ = redisContainer;
-        (global as any).__TEST_POSTGRES_CONTAINER__ = postgresContainer;
+        global.__TEST_REDIS_CONTAINER__ = redisContainer;
+        global.__TEST_POSTGRES_CONTAINER__ = postgresContainer;
 
         console.log("\n=== GLOBAL TEST SETUP COMPLETE ===");
         console.log(`Redis URL: ${redisUrl}`);
@@ -110,12 +117,12 @@ export async function setup() {
     }
 }
 
-export async function teardown() {
+export async function teardown(): Promise<void> {
     console.log("\n=== GLOBAL TEST TEARDOWN STARTING ===");
 
     // Retrieve containers from global
-    const redis = (global as any).__TEST_REDIS_CONTAINER__;
-    const postgres = (global as any).__TEST_POSTGRES_CONTAINER__;
+    const redis = global.__TEST_REDIS_CONTAINER__;
+    const postgres = global.__TEST_POSTGRES_CONTAINER__;
 
     const stops = [];
 

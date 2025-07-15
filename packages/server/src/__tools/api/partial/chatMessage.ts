@@ -27,10 +27,12 @@ export const chatMessage: ApiPartial<ChatMessage> = {
         you: () => rel(chatMessageYou, "full"),
     },
     full: {
+        // @ts-expect-error - JSONB field - select entire JSON object
         config: true,
         text: true,
     },
     list: {
+        // @ts-expect-error - JSONB field - select entire JSON object
         config: true,
         text: true,
     },

@@ -1,6 +1,7 @@
 import { HttpResponse, http } from "msw";
 import { AwardCategory } from "@vrooli/shared";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
+import { getMockApiUrl } from "../../__test/helpers/storybookMocking.js";
 import { AwardsView } from "./AwardsView.js";
 
 // Generate mock award data with varying progress levels
@@ -92,7 +93,7 @@ export default {
         msw: {
             handlers: [
                 // Awards endpoint
-                http.get(`${API_URL}/v2/awards*`, () => {
+                http.get(`${getMockApiUrl("/awards")}*`, () => {
                     const mockAwards = generateMockAwards();
                     
                     return HttpResponse.json({

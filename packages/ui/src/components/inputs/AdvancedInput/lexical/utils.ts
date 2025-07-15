@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=fixed-double-casting-and-ts-expect-error | LAST: 2025-06-30
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { $insertDataTransferForRichText, copyToClipboard } from "./clipboard.js";
 import { type CUT_COMMAND, type PASTE_COMMAND } from "./commands.js";
@@ -498,8 +499,8 @@ export function getParentElement(node: Node): HTMLElement | null {
     const parentElement = node instanceof HTMLElement && node.assignedSlot ? node.assignedSlot : node.parentElement;
 
     // Then check if the parent element is a shadow root and return its host.
-    if (parentElement && parentElement.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-        return (parentElement as unknown as ShadowRoot).host as HTMLElement;
+    if (parentElement && parentElement.nodeType === Node.DOCUMENT_FRAGMENT_NODE && "host" in parentElement) {
+        return (parentElement as ShadowRoot).host;
     }
 
     // If none of the above, return the parent element or null if there isn't any.
@@ -1989,9 +1990,8 @@ function $updateParagraphNodeProperties<T extends ParagraphNode>(
  * @returns The clone of the node.
  */
 export function $cloneWithProperties<T extends LexicalNode>(node: T): T {
-    const constructor = node.constructor;
-    // @ts-expect-error
-    const clone: T = constructor.clone(node);
+    const constructor = node.constructor as { clone(node: T): T };
+    const clone = constructor.clone(node);
     clone.__parent = node.__parent;
     clone.__next = node.__next;
     clone.__prev = node.__prev;

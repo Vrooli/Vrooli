@@ -12,6 +12,7 @@ export function BottomActionsGrid({
     children,
     display,
     sx,
+    ...props
 }: BottomActionsGridProps) {
     const { palette } = useTheme();
     const isKeyboardOpen = useKeyboardOpen();
@@ -46,7 +47,7 @@ export function BottomActionsGrid({
     }, [display, isKeyboardOpen, palette.primary.dark, sx]);
 
     return (
-        <Grid container spacing={2} sx={gridStyle}>
+        <Grid container spacing={2} sx={gridStyle} {...props}>
             {children}
         </Grid>
     );

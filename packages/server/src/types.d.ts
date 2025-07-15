@@ -3,8 +3,6 @@ import { type PartialApiInfo } from "./builders/types.js";
 import { type Context } from "./middleware/context.js";
 
 declare module "@local/server";
-// eslint-disable-next-line import/extensions
-export * from ".";
 
 /**
  * Information required in any JWT token
@@ -136,7 +134,8 @@ export type ApiEndpoint<T, U> = (
     info: PartialApiInfo
 ) => Promise<U extends Array<infer V> ? RecursivePartial<V>[] : RecursivePartial<U>>;
 
-export type UnionResolver = { __resolveType: (obj: any) => `${ModelType}` };
+// AI_CHECK: TYPE_SAFETY=server-type-safety-p1-1 | LAST: 2025-07-03 | Fixed type assertion
+export type UnionResolver = { __resolveType: (obj: Record<string, unknown>) => `${ModelType}` };
 
 /** Either a promise or a value */
 export type PromiseOrValue<T> = Promise<T> | T;

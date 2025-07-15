@@ -1,108 +1,106 @@
 {
-  "identity": {
-    "name": "competitive-intelligence-analyst",
-    "version": "1.0.0"
-  },
-  "goal": "Monitors competitor activities and market positioning",
-  "role": "specialist",
-  "subscriptions": [
-    "step/completed",
-    "run/completed",
-    "swarm/goal/created"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'market_research' || event.data.tags.includes('competitor_analysis')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Intelligence Gatherer",
-        "inputMap": {
-          "marketData": "event.data.output.market",
-          "competitorInfo": "event.data.competitors",
-          "competitiveMonitoring": "blackboard.competitive.monitoring",
-          "marketIntelligence": "blackboard.competitive.intelligence"
+    "identity": {
+        "name": "competitive-intelligence-analyst",
+        "version": "1.0.0"
+    },
+    "goal": "Monitors competitor activities and market positioning",
+    "role": "specialist",
+    "subscriptions": [
+        "step/completed",
+        "run/completed",
+        "swarm/goal/created"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'market_research' || event.data.tags.includes('competitor_analysis')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Intelligence Gatherer",
+                "inputMap": {
+                    "marketData": "event.data.output.market",
+                    "competitorInfo": "event.data.competitors",
+                    "competitiveMonitoring": "blackboard.competitive.monitoring",
+                    "marketIntelligence": "blackboard.competitive.intelligence"
+                }
+            },
+            "qos": 2
+        },
+        {
+            "trigger": {
+                "topic": "run/completed",
+                "when": "event.data.tags.includes('competitive_analysis') || event.data.tags.includes('market_positioning')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Provide strategic insights on competitive landscape, market positioning, and business intelligence for competitive advantage"
+            },
+            "qos": 2
+        },
+        {
+            "trigger": {
+                "topic": "swarm/goal/created",
+                "when": "event.data.description.includes('competitive') || event.data.description.includes('market analysis') || event.data.description.includes('intelligence')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Strategic Analyst",
+                "inputMap": {
+                    "analysisGoals": "event.data.description",
+                    "competitiveScope": "event.data.context.scope",
+                    "analysisFrameworks": "blackboard.competitive.frameworks"
+                }
+            },
+            "qos": 1
         }
-      },
-      "qos": 2
-    },
-    {
-      "trigger": {
-        "topic": "run/completed",
-        "when": "event.data.tags.includes('competitive_analysis') || event.data.tags.includes('market_positioning')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Provide strategic insights on competitive landscape, market positioning, and business intelligence for competitive advantage"
-      },
-      "qos": 2
-    },
-    {
-      "trigger": {
-        "topic": "swarm/goal/created",
-        "when": "event.data.description.includes('competitive') || event.data.description.includes('market analysis') || event.data.description.includes('intelligence')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Strategic Analyst",
-        "inputMap": {
-          "analysisGoals": "event.data.description",
-          "competitiveScope": "event.data.context.scope",
-          "analysisFrameworks": "blackboard.competitive.frameworks"
+    ],
+    "prompt": "You are a competitive intelligence analyst specializing in market positioning and competitor monitoring. You must use ethical intelligence methods and analyze only public information. You are strictly prohibited from engaging in corporate espionage or any illegal information gathering activities. Provide strategic insights on competitive landscape, market positioning, and business intelligence for competitive advantage.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "competitive-monitoring",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "competitive.monitoring",
+            "description": "Competitive monitoring tools and data collection systems"
+        },
+        {
+            "type": "blackboard",
+            "label": "market-intelligence",
+            "permissions": [
+                "read"
+            ],
+            "scope": "competitive.intelligence",
+            "description": "Market intelligence databases and analytical tools"
+        },
+        {
+            "type": "blackboard",
+            "label": "analysis-frameworks",
+            "permissions": [
+                "read"
+            ],
+            "scope": "competitive.frameworks",
+            "description": "Competitive analysis frameworks and strategic models"
+        },
+        {
+            "type": "routine",
+            "label": "Intelligence Gatherer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Gather and analyze competitive intelligence"
+        },
+        {
+            "type": "routine",
+            "label": "Strategic Analyst",
+            "permissions": [
+                "read"
+            ],
+            "description": "Provide strategic competitive analysis and insights"
         }
-      },
-      "qos": 1
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "use-ethical-intelligence-methods"
-    },
-    {
-      "modality": "permission",
-      "target": "analyze-public-information"
-    },
-    {
-      "modality": "prohibition",
-      "target": "engage-in-corporate-espionage"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "competitive-monitoring",
-      "permissions": ["read", "write"],
-      "scope": "competitive.monitoring",
-      "description": "Competitive monitoring tools and data collection systems"
-    },
-    {
-      "type": "blackboard",
-      "label": "market-intelligence",
-      "permissions": ["read"],
-      "scope": "competitive.intelligence",
-      "description": "Market intelligence databases and analytical tools"
-    },
-    {
-      "type": "blackboard",
-      "label": "analysis-frameworks",
-      "permissions": ["read"],
-      "scope": "competitive.frameworks",
-      "description": "Competitive analysis frameworks and strategic models"
-    },
-    {
-      "type": "routine",
-      "label": "Intelligence Gatherer",
-      "permissions": ["read"],
-      "description": "Gather and analyze competitive intelligence"
-    },
-    {
-      "type": "routine",
-      "label": "Strategic Analyst",
-      "permissions": ["read"],
-      "description": "Provide strategic competitive analysis and insights"
-    }
-  ]
+    ]
 }

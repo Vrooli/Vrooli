@@ -96,8 +96,9 @@ export function setupErrorReporting(app: Express): void {
                 if (req.session?.userId && !errorReport.userId) {
                     errorReport.userId = req.session.userId;
                 }
-                if (req.sessionID && !errorReport.sessionId) {
-                    errorReport.sessionId = req.sessionID;
+                if (req.session && !errorReport.sessionId) {
+                    // Use session data if available - sessionID might not be typed correctly
+                    errorReport.sessionId = (req as any).sessionID || "unknown";
                 }
 
                 // Log the error report using winston

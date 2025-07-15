@@ -55,12 +55,12 @@ export const WalletModel: WalletModelLogic = ({
             user: "User",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data) => ({
+        owner: (data, _userId) => ({
             Team: data?.team,
             User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: () => false, // Can make public in the future for donations, but for now keep private for security
+        isPublic: (_data, _getParentInfo?) => false, // Can make public in the future for donations, but for now keep private for security
         visibility: {
             own: function getOwn(data) {
                 return {

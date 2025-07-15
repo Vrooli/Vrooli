@@ -464,7 +464,7 @@ export function useSocketChat({
                 });
                 console.error("Failed to request response cancellation:", response.error, response.message);
                 // Optionally, show a snackbar or notification to the user about the failure
-                PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error", values: { error: response.message || response.error } });
+                PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error", messageVariables: { error: response.message || response.error } });
             } else {
                 addDebugData(`chat-room-${chatIdToCancel}`, {
                     event: "request-cancellation-acked",

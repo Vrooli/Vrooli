@@ -1,4 +1,5 @@
-import { generatePK } from "@vrooli/shared";
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
+import { } from "@vrooli/shared";
 import { type Prisma, type PrismaClient, ScheduleRecurrenceType } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -48,7 +49,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
 
         return {
             minimal: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 recurrenceType: ScheduleRecurrenceType.Daily,
                 interval: 1,
                 schedule: {
@@ -56,7 +57,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                 },
             },
             complete: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 recurrenceType: ScheduleRecurrenceType.Monthly,
                 interval: 1,
                 dayOfMonth: 15,
@@ -83,7 +84,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     scheduleId: "string-not-bigint", // Should be BigInt
                 },
                 invalidRanges: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     recurrenceType: ScheduleRecurrenceType.Weekly,
                     interval: 0, // Should be at least 1
                     dayOfWeek: 8, // Should be 0-6
@@ -92,7 +93,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     },
                 },
                 invalidMonthlyConfig: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     recurrenceType: ScheduleRecurrenceType.Monthly,
                     interval: 1,
                     dayOfMonth: 32, // Invalid day of month
@@ -101,7 +102,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     },
                 },
                 invalidYearlyConfig: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     recurrenceType: ScheduleRecurrenceType.Yearly,
                     interval: 1,
                     month: 13, // Invalid month
@@ -111,7 +112,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     },
                 },
                 negativeInterval: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     recurrenceType: ScheduleRecurrenceType.Daily,
                     interval: -1, // Should be positive
                     schedule: {
@@ -119,7 +120,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     },
                 },
                 negativeDuration: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     recurrenceType: ScheduleRecurrenceType.Daily,
                     interval: 1,
                     duration: -60, // Should be positive
@@ -130,7 +131,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
             },
             edgeCases: {
                 dailyForever: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     recurrenceType: ScheduleRecurrenceType.Daily,
                     interval: 1,
                     endDate: null, // No end date
@@ -139,7 +140,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     },
                 },
                 weeklyMondayToFriday: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     recurrenceType: ScheduleRecurrenceType.Weekly,
                     interval: 1,
                     dayOfWeek: 1, // Monday (need multiple for M-F)
@@ -149,7 +150,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     },
                 },
                 biWeeklyWednesday: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     recurrenceType: ScheduleRecurrenceType.Weekly,
                     interval: 2,
                     dayOfWeek: 3, // Wednesday
@@ -160,7 +161,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     },
                 },
                 monthlyFirstMonday: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     recurrenceType: ScheduleRecurrenceType.Monthly,
                     interval: 1,
                     dayOfWeek: 1, // Monday (first of month logic handled elsewhere)
@@ -170,7 +171,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     },
                 },
                 monthlyLastDay: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     recurrenceType: ScheduleRecurrenceType.Monthly,
                     interval: 1,
                     dayOfMonth: 31, // Will adjust to last day of month
@@ -180,7 +181,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     },
                 },
                 quarterly: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     recurrenceType: ScheduleRecurrenceType.Monthly,
                     interval: 3, // Every 3 months
                     dayOfMonth: 15,
@@ -191,7 +192,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     },
                 },
                 yearlyBirthday: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     recurrenceType: ScheduleRecurrenceType.Yearly,
                     interval: 1,
                     month: 6, // June
@@ -202,7 +203,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     },
                 },
                 leapYearEvent: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     recurrenceType: ScheduleRecurrenceType.Yearly,
                     interval: 1,
                     month: 2, // February
@@ -213,7 +214,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     },
                 },
                 highFrequencyDaily: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     recurrenceType: ScheduleRecurrenceType.Daily,
                     interval: 1,
                     duration: 30, // 30 minutes
@@ -223,7 +224,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     },
                 },
                 longTermYearly: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     recurrenceType: ScheduleRecurrenceType.Yearly,
                     interval: 1,
                     month: 12,
@@ -235,7 +236,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     },
                 },
                 extremeInterval: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     recurrenceType: ScheduleRecurrenceType.Monthly,
                     interval: 12, // Every year via monthly
                     dayOfMonth: 1,
@@ -262,7 +263,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
 
     protected generateMinimalData(overrides?: Partial<Prisma.schedule_recurrenceCreateInput>): Prisma.schedule_recurrenceCreateInput {
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             recurrenceType: ScheduleRecurrenceType.Daily,
             interval: 1,
             schedule: {
@@ -274,7 +275,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
 
     protected generateCompleteData(overrides?: Partial<Prisma.schedule_recurrenceCreateInput>): Prisma.schedule_recurrenceCreateInput {
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             recurrenceType: ScheduleRecurrenceType.Weekly,
             interval: 1,
             dayOfWeek: 1, // Monday
@@ -444,7 +445,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
     protected async applyRelationships(
         baseData: Prisma.schedule_recurrenceCreateInput,
         config: ScheduleRecurrenceRelationConfig,
-        tx: any,
+        tx: PrismaClient,
     ): Promise<Prisma.schedule_recurrenceCreateInput> {
         const data = { ...baseData };
 
@@ -528,7 +529,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
     protected async deleteRelatedRecords(
         record: Prisma.schedule_recurrence,
         remainingDepth: number,
-        tx: any,
+        tx: PrismaClient,
         includeOnly?: string[],
     ): Promise<void> {
         // ScheduleRecurrence has no dependent records to delete
@@ -681,7 +682,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
 
 // Export factory creator function
 export const createScheduleRecurrenceEnhancedDbFactory = (prisma: PrismaClient) => 
-    ScheduleRecurrenceEnhancedDbFactory.getInstance("ScheduleRecurrence", prisma);
+    new ScheduleRecurrenceEnhancedDbFactory(prisma);
 
 // Export the class for type usage
 export { ScheduleRecurrenceEnhancedDbFactory as ScheduleRecurrenceEnhancedDbFactoryClass };

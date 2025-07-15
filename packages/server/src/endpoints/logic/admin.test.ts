@@ -1,7 +1,7 @@
-import { type AdminSiteStatsOutput, type AdminUserListInput, type AdminUserUpdateStatusInput, AccountStatus, SEEDED_PUBLIC_IDS, generatePK } from "@vrooli/shared";
+import { AccountStatus, SEEDED_PUBLIC_IDS, generatePK } from "@vrooli/shared";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { testEndpointRequiresAuth } from "../../__test/endpoints.js";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
+import { assertEndpointRequiresAuth } from "../../__test/endpoints.js";
+import { loggedInUserNoPremiumData, mockAuthenticatedSession } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { admin_siteStats } from "../generated/admin_siteStats.js";
@@ -36,7 +36,7 @@ describe("EndpointsAdmin", () => {
     });
 
     // Helper function to create admin and regular users
-    const createTestUsers = async () => {
+    async function createTestUsers() {
         // Create admin user with correct admin publicId
         const adminUser = await DbProvider.get().user.create({
             data: UserDbFactory.createWithAuth({
@@ -62,13 +62,15 @@ describe("EndpointsAdmin", () => {
         const testUsers = await seedTestUsers(DbProvider.get(), 5, { withAuth: true });
 
         return { adminUser, regularUser, testUsers };
-    };
+    }
 
     describe("siteStats", () => {
-        testEndpointRequiresAuth(admin.siteStats, admin_siteStats, {});
+        it("not logged in", async () => {
+            await assertEndpointRequiresAuth(admin.siteStats, admin_siteStats, {});
+        });
 
         it("should require admin privileges", async () => {
-            const { adminUser, regularUser } = await createTestUsers();
+            const { adminUser: _adminUser, regularUser } = await createTestUsers();
             
             // Create session for regular user (should not have admin access)
             const { req, res } = await mockAuthenticatedSession({
@@ -93,7 +95,7 @@ describe("EndpointsAdmin", () => {
             });
 
             // Add credit entries
-            const creditAccount = await DbProvider.get().credit_account.create({
+            const _creditAccount = await DbProvider.get().credit_account.create({
                 data: {
                     id: generatePK(),
                     currentBalance: BigInt(1000000), // 1 credit
@@ -119,7 +121,7 @@ describe("EndpointsAdmin", () => {
         });
 
         it("should handle Redis connection errors gracefully", async () => {
-            const { adminUser, regularUser } = await createTestUsers();
+            const { adminUser, regularUser: _regularUser } = await createTestUsers();
 
             // Note: Redis mocking may not work properly within transactions,
             // but we can still test the basic functionality
@@ -137,10 +139,12 @@ describe("EndpointsAdmin", () => {
     });
 
     describe("userList", () => {
-        testEndpointRequiresAuth(admin.userList, admin_userList, {});
+        it("not logged in", async () => {
+            await assertEndpointRequiresAuth(admin.userList, admin_userList, {});
+        });
 
         it("should require admin privileges", async () => {
-            const { adminUser, regularUser } = await createTestUsers();
+            const { adminUser: _adminUser, regularUser } = await createTestUsers();
             
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
@@ -153,7 +157,7 @@ describe("EndpointsAdmin", () => {
         });
 
         it("should return paginated user list", async () => {
-            const { adminUser, regularUser, testUsers } = await createTestUsers();
+            const { adminUser, regularUser: _regularUser, testUsers: _testUsers } = await createTestUsers();
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
@@ -178,7 +182,7 @@ describe("EndpointsAdmin", () => {
         });
 
         it("should filter users by search term", async () => {
-            const { adminUser, regularUser } = await createTestUsers();
+            const { adminUser, regularUser: _regularUser } = await createTestUsers();
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
@@ -221,13 +225,15 @@ describe("EndpointsAdmin", () => {
     });
 
     describe("userUpdateStatus", () => {
-        testEndpointRequiresAuth(admin.userUpdateStatus, admin_userUpdateStatus, {
-            userId: "123",
-            status: AccountStatus.SoftLocked,
+        it("not logged in", async () => {
+            await assertEndpointRequiresAuth(admin.userUpdateStatus, admin_userUpdateStatus, {
+                userId: "123",
+                status: AccountStatus.SoftLocked,
+            });
         });
 
         it("should require admin privileges", async () => {
-            const { adminUser, regularUser } = await createTestUsers();
+            const { adminUser: _adminUser, regularUser } = await createTestUsers();
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
@@ -272,7 +278,7 @@ describe("EndpointsAdmin", () => {
         });
 
         it("should prevent admin from modifying their own status", async () => {
-            const { adminUser, regularUser } = await createTestUsers();
+            const { adminUser, regularUser: _regularUser } = await createTestUsers();
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
@@ -290,7 +296,7 @@ describe("EndpointsAdmin", () => {
         });
 
         it("should return error for non-existent user", async () => {
-            const { adminUser, regularUser } = await createTestUsers();
+            const { adminUser, regularUser: _regularUser } = await createTestUsers();
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
@@ -310,7 +316,7 @@ describe("EndpointsAdmin", () => {
 
     describe("userResetPassword", () => {
         // Helper function to create user with email
-        const createUserWithEmail = async () => {
+        async function createUserWithEmail() {
             const { adminUser, regularUser } = await createTestUsers();
             
             const userWithEmail = await DbProvider.get().user.create({
@@ -334,14 +340,16 @@ describe("EndpointsAdmin", () => {
             });
             
             return { adminUser, regularUser, userWithEmail };
-        };
+        }
 
-        testEndpointRequiresAuth(admin.userResetPassword, admin_userResetPassword, {
-            userId: "123",
+        it("not logged in", async () => {
+            await assertEndpointRequiresAuth(admin.userResetPassword, admin_userResetPassword, {
+                userId: "123",
+            });
         });
 
         it("should require admin privileges", async () => {
-            const { adminUser, regularUser, userWithEmail } = await createUserWithEmail();
+            const { adminUser: _adminUser, regularUser, userWithEmail } = await createUserWithEmail();
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
@@ -358,7 +366,7 @@ describe("EndpointsAdmin", () => {
         });
 
         it("should reset user password and invalidate sessions", async () => {
-            const { adminUser, regularUser, userWithEmail } = await createUserWithEmail();
+            const { adminUser, regularUser: _regularUser, userWithEmail } = await createUserWithEmail();
 
             // Create auth record first
             const auth = await DbProvider.get().user_auth.create({
@@ -435,7 +443,7 @@ describe("EndpointsAdmin", () => {
         });
 
         it("should return error for non-existent user", async () => {
-            const { adminUser, regularUser } = await createTestUsers();
+            const { adminUser, regularUser: _regularUser } = await createTestUsers();
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),

@@ -1,5 +1,4 @@
 import { type BotParticipant, type ChatConfigObject, type ChatMessage, type ChatToolCallRecord, type PendingToolCallEntry, type SessionUser, type SwarmResource, type SwarmSubTask, type TeamConfigObject } from "@vrooli/shared";
-import type OpenAI from "openai";
 import { type ConversationEvent } from "../bus.js";
 import type { Tool } from "../mcp/types.js";
 
@@ -21,23 +20,6 @@ export type MessageState = Pick<ChatMessage, "id" | "createdAt" | "config" | "la
 export type OkErr<T = unknown> =
     | { ok: true; data: T }
     | { ok: false; error: { code: string; message: string; creditsUsed?: string; } };
-
-
-/* ------------------------------------------------------------------
- * ContextBuilder – prompt preparation service
- * ------------------------------------------------------------------ */
-
-/**
- * Builds the prompt slice sent to the LLM for **one** bot turn.
- * Typical tasks:
- *  • Retrieve recent messages & vector summaries
- *  • Apply window trimming / summarisation
- *  • Attach tool‑schemas relevant to this bot
- */
-export interface ContextBuildResult {
-    inputMessages: OpenAI.ChatCompletionMessageParam[];
-    toolSchemas: JsonSchema[];
-}
 
 /* ------------------------------------------------------------------
  * ToolRunner – executes MCP tool calls (or other functions)
@@ -102,7 +84,7 @@ export type ConversationState = {
     /** 
      * The system message string generated for the leader bot when the swarm is first started. 
      * This is primarily for initialization and context, as individual bots will have their system messages
-     * generated dynamically by CompletionService._buildSystemMessage during their turns.
+     * generated dynamically by ResponseService and MessageHistoryBuilder during their turns.
      */
     initialLeaderSystemMessage: string;
     /**
@@ -212,6 +194,6 @@ export interface SwarmStateUpdateEvent {
         // Example: { subtasks: newSubtaskList, blackboard: updatedBlackboard }
         // The exact structure of this payload will depend on how SwarmStateMachine consumes it.
         // For now, let's assume it can handle partial updates to specific ChatConfigObject fields relevant to swarm state.
-        updatedState: Partial<Pick<ChatConfigObject, "subtasks" | "blackboard" | "resources" | "records" | "eventSubscriptions" | "subtaskLeaders">>;
+        updatedState: Partial<Pick<ChatConfigObject, "subtasks" | "blackboard" | "resources" | "records" | "subtaskLeaders">>;
     };
 }

@@ -83,7 +83,7 @@ export function useStandardBatchUpsertForm<
     TResultArray extends OrArray<{ __typename: ListObject["__typename"]; id: string }>
 >(
     config: StandardBatchUpsertFormConfig<TShapeArray, TCreateInputArray, TUpdateInputArray, TResultArray>,
-    props: UseStandardBatchUpsertFormProps<TShapeArray, TResultArray>
+    props: UseStandardBatchUpsertFormProps<TShapeArray, TResultArray>,
 ) {
     const session = useContext(SessionContext);
     const [location] = useLocation();
@@ -141,7 +141,7 @@ export function useStandardBatchUpsertForm<
     // Determine if form is in a loading state
     const isLoading = useMemo(() => 
         (isMutate ? (isCreateLoading || isUpdateLoading) : false) || isReadLoading || isSubmitting,
-        [isMutate, isCreateLoading, isUpdateLoading, isReadLoading, isSubmitting]
+        [isMutate, isCreateLoading, isUpdateLoading, isReadLoading, isSubmitting],
     );
 
     // Submit handler that supports both mutating and non-mutating forms

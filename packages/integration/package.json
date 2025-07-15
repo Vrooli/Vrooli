@@ -1,6 +1,6 @@
 {
   "name": "@vrooli/integration",
-  "version": "2.0.0",
+  "version": "2.0.2",
   "private": true,
   "description": "Integration tests for Vrooli - round-trip and scenario testing",
   "type": "module",

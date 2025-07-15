@@ -17,6 +17,7 @@ const SUPPORTED_CODE_LANGUAGES = [
 ];
 
 // Lazy-load superjson so that we only initialize it once
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 let lazySuperJSON: typeof import("superjson").default | null = null;
 async function getSuperJSON() {
     if (!lazySuperJSON) {
@@ -321,7 +322,7 @@ export class SandboxChildProcessManager extends AbstractSandboxWorkerManager {
         let fileName = WORKER_PROCESS_FILE;
         if (IN_TEST_MODE) {
             // Adjust path for test environment to use compiled JS
-            fileName = fileName.replace("/src/", "/dist/");
+            fileName = fileName.replace("/src/", "/test-dist/");
         }
 
         // Verify the worker script exists and is not empty

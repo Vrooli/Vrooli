@@ -1,21 +1,16 @@
-import { generatePK, generatePublicId } from "./idHelpers.js";
+// AI_CHECK: TYPE_SAFETY=server-factory-bigint-migration | LAST: 2025-06-29 - Migrated to BigInt IDs, snake_case tables, correct field names
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
-    RelationConfig,
-} from "./types.js";
-
-interface ApiKeyRelationConfig extends RelationConfig {
-    withTeam?: boolean;
-    withUser?: boolean;
-    teamId?: string;
-    userId?: string;
-}
 
 /**
  * Enhanced database fixture factory for API Key model
- * Provides comprehensive testing capabilities for API keys
+ * Uses snake_case table name: 'api_key'
+ * 
+ * Breaking Changes:
+ * - IDs are now BigInt only  
+ * - Uses snake_case Prisma types (api_keyCreateInput, api_keyInclude)
+ * - Uses correct field names from schema: permissions, limitHard, limitSoft, name, key
+ * - Uses direct field assignment for relationships (userId, teamId)
  * 
  * Features:
  * - Type-safe Prisma integration
@@ -23,10 +18,9 @@ interface ApiKeyRelationConfig extends RelationConfig {
  * - Credit limit testing scenarios
  * - Permission configurations
  * - Disabled/enabled states
- * - Predefined test scenarios
  */
 export class ApiKeyDbFactory extends EnhancedDatabaseFactory<
-    Prisma.api_keyCreateInput,
+    { id: bigint },
     Prisma.api_keyCreateInput,
     Prisma.api_keyInclude,
     Prisma.api_keyUpdateInput
@@ -41,160 +35,127 @@ export class ApiKeyDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.api_keyCreateInput>): Prisma.api_keyCreateInput {
         return {
-            id: generatePK(),
-            key: `api_key_${generatePublicId()}`,
+            id: this.generateId(),
+            creditsUsed: BigInt(0),
+            limitHard: BigInt(25000000000),
+            limitSoft: BigInt(25000000000),
             name: "Test API Key",
-            user: { connect: { id: generatePK() } },
+            key: this.generatePublicId(),
+            permissions: {
+                readPublic: true,
+                readPrivate: false,
+                writePrivate: false,
+                writeAuth: false,
+                readAuth: false,
+            },
+            stopAtLimit: true,
             ...overrides,
         };
     }
 
     protected generateCompleteData(overrides?: Partial<Prisma.api_keyCreateInput>): Prisma.api_keyCreateInput {
         return {
-            ...this.generateMinimalData(),
-            creditsUsed: BigInt(1000),
-            limitHard: BigInt(10000000),
-            limitSoft: BigInt(8000000),
-            stopAtLimit: true,
-            permissions: { "read": true, "write": false },
+            id: this.generateId(),
+            creditsUsed: BigInt(50),
+            limitHard: BigInt(25000000000),
+            limitSoft: BigInt(25000000000), 
+            name: "Complete Test API Key",
+            key: this.generatePublicId(),
+            permissions: {
+                readPublic: true,
+                readPrivate: true,
+                writePrivate: true,
+                writeAuth: false,
+                readAuth: true,
+            },
+            stopAtLimit: false,
             ...overrides,
         };
     }
 
     /**
-     * Get complete test fixtures for API Key model
+     * Create API key for user
      */
-    protected getFixtures(): DbTestFixtures<Prisma.api_keyCreateInput, Prisma.api_keyUpdateInput> {
-        const userId = generatePK();
-        const teamId = generatePK();
-        
-        return {
-            minimal: this.generateMinimalData(),
-            complete: this.generateCompleteData(),
-            invalid: {
-                missingRequired: {
-                    // Missing id, key, and name
-                    user: {
-                        connect: { id: userId },
-                    },
-                },
-                invalidTypes: {
-                    id: 123 as any, // Should be bigint
-                    key: null as any, // Should be string
-                    creditsUsed: "1000" as any, // Should be bigint
-                    limitHard: -100 as any, // Should be positive
-                },
-                duplicateKey: {
-                    id: generatePK(),
-                    key: "existing_api_key", // Assumes this exists
-                    name: "Duplicate Key",
-                    user: {
-                        connect: { id: userId },
-                    },
-                },
-            },
-            edgeCases: {
-                teamApiKey: {
-                    id: generatePK(),
-                    key: `team_api_key_${generatePublicId()}`,
-                    name: "Team API Key",
-                    limitHard: BigInt(50000000),
-                    limitSoft: BigInt(40000000),
-                    permissions: { "admin": true },
-                    team: {
-                        connect: { id: teamId },
-                    },
-                },
-                disabledKey: {
-                    id: generatePK(),
-                    key: `disabled_key_${generatePublicId()}`,
-                    name: "Disabled API Key",
-                    disabledAt: new Date(),
-                    user: {
-                        connect: { id: userId },
-                    },
-                },
-                limitReached: {
-                    id: generatePK(),
-                    key: `limit_reached_${generatePublicId()}`,
-                    name: "Limit Reached Key",
-                    creditsUsed: BigInt(10000),
-                    limitHard: BigInt(10000),
-                    limitSoft: BigInt(8000),
-                    stopAtLimit: true,
-                    user: {
-                        connect: { id: userId },
-                    },
-                },
-                noLimits: {
-                    id: generatePK(),
-                    key: `unlimited_${generatePublicId()}`,
-                    name: "Unlimited Key",
-                    limitHard: BigInt(999999999999),
-                    limitSoft: null,
-                    stopAtLimit: false,
-                    permissions: { "unlimited": true },
-                    user: {
-                        connect: { id: userId },
-                    },
-                },
-            },
-            updates: {
-                minimal: {
-                    creditsUsed: BigInt(500),
-                },
-                complete: {
-                    name: "Updated API Key",
-                    creditsUsed: BigInt(2000),
-                    limitSoft: BigInt(9000000),
-                    permissions: { "read": true, "write": true },
-                    disabledAt: new Date(),
-                },
-            },
-        };
+    async createForUser(userId: bigint, overrides?: Partial<Prisma.api_keyCreateInput>) {
+        const data = this.generateMinimalData({
+            ...overrides,
+            user: { connect: { id: userId } },
+        });
+        return await this.createMinimal(data);
     }
 
     /**
-     * Create API key with specific ownership
+     * Create API key for team
      */
-    async createWithOwnership(config: {
-        userId?: string;
-        teamId?: string;
-        overrides?: Partial<Prisma.api_keyCreateInput>;
-    }) {
-        const baseData = this.getFixtures().complete;
-        
-        return await this.create({
-            ...baseData,
-            user: config.userId ? { connect: { id: config.userId } } : undefined,
-            team: config.teamId ? { connect: { id: config.teamId } } : undefined,
-            ...config.overrides,
+    async createForTeam(teamId: bigint, overrides?: Partial<Prisma.api_keyCreateInput>) {
+        const data = this.generateMinimalData({
+            ...overrides,
+            team: { connect: { id: teamId } },
+        });
+        return await this.createMinimal(data);
+    }
+
+    /**
+     * Create disabled API key
+     */
+    async createDisabled(overrides?: Partial<Prisma.api_keyCreateInput>) {
+        return await this.createMinimal({
+            disabledAt: new Date(),
+            ...overrides,
         });
     }
 
     /**
-     * Create API key with specific credit limits
+     * Create API key with high credit usage
      */
-    async createWithLimits(config: {
-        hardLimit: bigint;
-        softLimit?: bigint;
-        creditsUsed?: bigint;
-        userId: string;
-    }) {
-        const baseData = this.getFixtures().minimal;
-        
-        return await this.create({
-            ...baseData,
-            limitHard: config.hardLimit,
-            limitSoft: config.softLimit || null,
-            creditsUsed: config.creditsUsed || BigInt(0),
-            user: { connect: { id: config.userId } },
+    async createHighUsage(overrides?: Partial<Prisma.api_keyCreateInput>) {
+        return await this.createMinimal({
+            creditsUsed: BigInt(24000000000),
+            limitHard: BigInt(25000000000),
+            ...overrides,
+        });
+    }
+
+    /**
+     * Create API key with exceeded credits
+     */
+    async createExceededCredits(overrides?: Partial<Prisma.api_keyCreateInput>) {
+        return await this.createMinimal({
+            creditsUsed: BigInt(26000000000),
+            limitHard: BigInt(25000000000),
+            ...overrides,
+        });
+    }
+
+    /**
+     * Create API key with read-only permissions
+     */
+    async createReadOnly(overrides?: Partial<Prisma.api_keyCreateInput>) {
+        return await this.createMinimal({
+            permissions: {
+                readPublic: true,
+                readPrivate: false,
+                writePrivate: false,
+                writeAuth: false,
+                readAuth: false,
+            },
+            ...overrides,
+        });
+    }
+
+    /**
+     * Create API key with full permissions
+     */
+    async createFullPermissions(overrides?: Partial<Prisma.api_keyCreateInput>) {
+        return await this.createMinimal({
+            permissions: {
+                readPublic: true,
+                readPrivate: true,
+                writePrivate: true,
+                writeAuth: true,
+                readAuth: true,
+            },
+            ...overrides,
         });
     }
 }
-
-// Export factory creator function
-export const createApiKeyDbFactory = (prisma: PrismaClient) => new ApiKeyDbFactory(prisma);
-
-// Export the class for type usage
-export { ApiKeyDbFactory as ApiKeyDbFactoryClass };

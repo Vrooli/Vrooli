@@ -1,5 +1,6 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-04
 import { type PeriodType, type Prisma } from "@prisma/client";
-import { batch, batchGroup, DbProvider, logger } from "@vrooli/server";
+import { batch, DbProvider, logger } from "@vrooli/server";
 import { generatePK } from "@vrooli/shared";
 
 // Select shape for team stats batching
@@ -16,6 +17,18 @@ type BatchRunsResult = Record<string, {
     runCompletionTimeAverage: number;
     runContextSwitchesAverage: number;
 }>
+
+// Define the type for run records as returned by the select clause
+type RunRecord = {
+    id: bigint;
+    team: {
+        id: bigint;
+    } | null;
+    completedAt: string | null;
+    contextSwitches: number | null;
+    startedAt: string | null;
+    timeElapsed: number | null;
+}
 
 /**
  * Batch collects run routine stats for a list of teams
@@ -36,9 +49,11 @@ async function batchRuns(
         runContextSwitchesAverage: 0,
     }]));
     try {
-        return await batchGroup<Prisma.runFindManyArgs, BatchRunsResult>({
-            initialResult,
-            processBatch: async (batch, result) => {
+        const result = initialResult;
+        
+        await batch<Prisma.runFindManyArgs, RunRecord>({
+            objectType: "Run",
+            processBatch: async (batch: RunRecord[]) => {
                 // For each run, increment the counts for the routine version
                 batch.forEach(run => {
                     const teamId = run.team?.id;
@@ -54,22 +69,10 @@ async function batchRuns(
                     if (run.completedAt !== null && new Date(run.completedAt) >= new Date(periodStart)) {
                         currResult.runsCompleted += 1;
                         if (run.timeElapsed !== null) currResult.runCompletionTimeAverage += run.timeElapsed;
-                        currResult.runContextSwitchesAverage += run.contextSwitches;
+                        if (run.contextSwitches !== null) currResult.runContextSwitchesAverage += run.contextSwitches;
                     }
                 });
             },
-            finalizeResult: (result) => {
-                // For the averages, divide by the number of runs completed
-                Object.entries(result).forEach(([teamId, currResult]) => {
-                    if (!currResult || typeof teamId !== "string") return;
-                    if (currResult.runsCompleted > 0) {
-                        currResult.runCompletionTimeAverage /= currResult.runsCompleted;
-                        currResult.runContextSwitchesAverage /= currResult.runsCompleted;
-                    }
-                });
-                return result;
-            },
-            objectType: "Run",
             select: {
                 id: true,
                 team: {
@@ -88,6 +91,17 @@ async function batchRuns(
                 ],
             },
         });
+        
+        // For the averages, divide by the number of runs completed
+        Object.entries(result).forEach(([teamId, currResult]) => {
+            if (!currResult || typeof teamId !== "string") return;
+            if (currResult.runsCompleted > 0) {
+                currResult.runCompletionTimeAverage /= currResult.runsCompleted;
+                currResult.runContextSwitchesAverage /= currResult.runsCompleted;
+            }
+        });
+        
+        return result;
     } catch (error) {
         logger.error("batchRuns caught error", { error });
     }
@@ -108,7 +122,7 @@ export async function logTeamStats(
     try {
         await batch<Prisma.teamFindManyArgs, TeamPayload>({
             objectType: "Team",
-            processBatch: async (batch) => {
+            processBatch: async (batch: TeamPayload[]) => {
                 const runStats = await batchRuns(batch.map(team => team.id.toString()), periodStart, periodEnd);
                 await DbProvider.get().stats_team.createMany({
                     data: batch.map(team => ({

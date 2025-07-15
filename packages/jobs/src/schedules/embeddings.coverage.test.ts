@@ -1,4 +1,5 @@
 // AI_CHECK: TEST_COVERAGE=1 | LAST: 2025-06-24
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-06
 /**
  * Additional focused tests for embeddings.ts to improve coverage
  * These tests focus on specific edge cases and error paths
@@ -125,7 +126,7 @@ describe("embeddings coverage tests", () => {
 
             const { generateEmbeddings } = await import("./embeddings.js");
             const { EmbeddingService } = await import("@vrooli/server");
-            const mockGetEmbeddings = EmbeddingService.get().getEmbeddings as MockedFunction<any>;
+            const mockGetEmbeddings = EmbeddingService.get().getEmbeddings as MockedFunction<typeof EmbeddingService.prototype.getEmbeddings>;
             
             vi.clearAllMocks();
             
@@ -182,7 +183,7 @@ describe("embeddings coverage tests", () => {
 
             const { generateEmbeddings } = await import("./embeddings.js");
             const { EmbeddingService } = await import("@vrooli/server");
-            const mockGetEmbeddings = EmbeddingService.get().getEmbeddings as MockedFunction<any>;
+            const mockGetEmbeddings = EmbeddingService.get().getEmbeddings as MockedFunction<typeof EmbeddingService.prototype.getEmbeddings>;
             
             vi.clearAllMocks();
             
@@ -272,7 +273,7 @@ describe("embeddings coverage tests", () => {
 
             // Mock the embedding service to throw an error
             const { EmbeddingService } = await import("@vrooli/server");
-            const mockGetEmbeddings = EmbeddingService.get().getEmbeddings as MockedFunction<any>;
+            const mockGetEmbeddings = EmbeddingService.get().getEmbeddings as MockedFunction<typeof EmbeddingService.prototype.getEmbeddings>;
             mockGetEmbeddings.mockRejectedValueOnce(new Error("API Error"));
 
             const { generateEmbeddings } = await import("./embeddings.js");

@@ -240,6 +240,7 @@ vi.mock("../../../components/inputs/VersionInput/VersionInput.js", () => ({
     VersionInput: ({ name = "versionLabel", value, onChange, disabled, ...props }: VersionInputProps) => (
         <div data-testid={`version-input-${name}`}>
             <input
+                id={name}
                 name={name}
                 value={value}
                 onChange={(e) => onChange?.(e.target.value)}

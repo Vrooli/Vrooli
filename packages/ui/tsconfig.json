@@ -1,36 +1,17 @@
 {
+    "extends": "../../tsconfig.base.json",
     "compilerOptions": {
-        "target": "ESNext",
         // NOTE: If changing to or from "commonjs", make sure package.json and .swcrc are updated as well
-        "module": "nodenext",
+        "target": "ESNext",
         "rootDir": "./src",
         "outDir": "./dist",
         "useDefineForClassFields": true,
-        "lib": [
-            "DOM",
-            "DOM.Iterable",
-            "ESNext"
-        ],
         "allowJs": false,
-        "skipLibCheck": true,
-        "esModuleInterop": true,
-        "allowSyntheticDefaultImports": true,
         "strict": false,
-        "forceConsistentCasingInFileNames": true,
-        "moduleResolution": "nodenext",
-        "noFallthroughCasesInSwitch": true,
-        // "noUncheckedIndexedAccess": true,
-        "resolveJsonModule": true,
-        "incremental": true,
         "tsBuildInfoFile": ".tsbuildinfo",
-        "isolatedModules": true,
         "noEmit": true,
-        "noImplicitAny": false,
-        "removeComments": true,
-        "verbatimModuleSyntax": true,
         "jsx": "react-jsx",
-        "types": [
-        ]
+        "types": []
     },
     "include": [
         "src",
@@ -41,22 +22,22 @@
         "public/pkg/libheif/worker.js"
     ],
     "exclude": [
-        "**/*.test.ts",
-        "**/*.test.tsx",
-        "**/__test",
         "**/*.stories.ts",
         "**/*.stories.tsx",
-        "**/coverage",
-        "**/node_modules",
-        "**/dist",
-        "**/tools",
+        "**/*.spec.ts",
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/__test/**",
+        "**/__tools",
         "**/storybook-static",
-        "**/.storybook",
-        "**/.*/",
+        "**/.storybook"
     ],
     "references": [
         {
             "path": "./tsconfig.node.json"
+        },
+        {
+            "path": "../shared"
         }
     ]
 }

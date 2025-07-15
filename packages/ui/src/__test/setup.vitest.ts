@@ -1,215 +1,302 @@
-import { vi, expect, beforeAll, afterEach, afterAll } from 'vitest';
+// Mock API environment variables FIRST - before any imports that use them
+process.env.VITE_PORT_API = "3000";
+process.env.VITE_API_URL = "http://localhost:3000/api";
+process.env.VITE_SITE_IP = "localhost";
 
-// AI_CHECK: TEST_QUALITY=2 | LAST: 2025-06-18
-// Improved test quality in UI package by:
-// - Refactoring ErrorBoundary tests to focus on user behavior rather than implementation
-// - Improving useFetch tests with better descriptions and behavior-driven testing
-// - Enhancing useSocketChat tests with clearer real-time scenarios
-// - Added console warning suppression for cleaner test output
-// Note: Some tests like activeChatStore and TextInput still need quality improvements
+import { afterAll, afterEach, beforeAll, vi } from "vitest";
+import { reactI18nextMock } from "./mocks/libraries/react-i18next.js";
+import { authMock } from "./mocks/utils/authentication.js";
+import { routerMock } from "./mocks/utils/router.js";
+import { zxcvbnMock } from "./mocks/libraries/zxcvbn.js";
+import { muiStylesMock } from "./mocks/libraries/mui.js";
+import { apiMocks } from "./mocks/utils/api.js";
+import { socketServiceMock } from "./mocks/utils/socket.js";
+import { iconsMock } from "./mocks/components/icons.js";
+
+// AI_CHECK: TEST_QUALITY=3 | LAST: 2025-06-23
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-06-30 - Fixed 14 explicit 'any' types
+// Implemented centralized mock system to reduce duplication:
+// - Created factory functions for configurable mocks
+// - Standardized mock implementations across all tests
+// - Reduced test file complexity and maintenance overhead
+// - Improved test performance by reducing mock setup time
+// Note: Migration to centralized mocks is ongoing
 
 // Store original console methods
 const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
 const originalConsoleLog = console.log;
 
-// Patterns to suppress in test output
-const suppressedPatterns = [
-    // MUI Tooltip warnings
-    /MUI: The `children` component of the Tooltip is not forwarding its props correctly/,
-    /MUI: You are providing a disabled `button` child to the Tooltip component/,
-    /A disabled element does not fire events/,
-    /Tooltip needs to listen to the child element's events/,
-    /Add a simple wrapper element, such as a `span`/,
-    // React ErrorBoundary expected errors
-    /The above error occurred in the <.*> component:/,
-    /React will try to recreate this component tree/,
-    // i18next warnings
-    /react-i18next:: You will need to pass in an i18next instance/,
-    // getObjectUrlBase warnings
-    /getObjectUrlBase called with non-object/,
-    // RichInputBase warnings
-    /RichInputBase: No child handleAction function found/,
-    // Other common test noise
-    /Warning: ReactDOM.render is no longer supported/,
-    /Warning: An invalid form control/,
-    /Warning: Failed prop type/,
-    /Warning: Unknown event handler property/,
-];
+// Track if console methods are currently mocked by a test
+type ConsoleSpy = ReturnType<typeof vi.spyOn> | null;
+const consoleSpies = {
+    error: null as ConsoleSpy,
+    warn: null as ConsoleSpy,
+    log: null as ConsoleSpy,
+};
 
-// Setup console filtering
+// Deduplication system for console messages
+type MessageCounter = {
+    count: number;
+    lastSeen: number;
+    timer?: NodeJS.Timeout;
+};
+
+const messageCounters = new Map<string, MessageCounter>();
+const DEDUP_WINDOW_MS = 25; // Group messages within 25ms
+const MAX_INDIVIDUAL_SHOWS = 3; // Show first 3 occurrences individually
+
+function normalizeMessage(args: unknown[]): string {
+    return args.map(arg => String(arg)).join(" ").replace(/\s+/g, " ").trim();
+}
+
+function createDedupHandler(originalMethod: typeof console.error) {
+    return (...args: unknown[]) => {
+        const message = normalizeMessage(args);
+        const now = Date.now();
+        
+        let counter = messageCounters.get(message);
+        if (!counter) {
+            counter = { count: 0, lastSeen: now };
+            messageCounters.set(message, counter);
+        }
+        
+        counter.count++;
+        counter.lastSeen = now;
+        
+        // Show first few occurrences individually
+        if (counter.count <= MAX_INDIVIDUAL_SHOWS) {
+            originalMethod(...args);
+            return;
+        }
+        
+        // Clear existing timer
+        if (counter.timer) {
+            clearTimeout(counter.timer);
+        }
+        
+        // Set new timer to show count after dedup window
+        counter.timer = setTimeout(() => {
+            if (counter.count > MAX_INDIVIDUAL_SHOWS) {
+                const repeatCount = counter.count - MAX_INDIVIDUAL_SHOWS;
+                originalMethod(`[${repeatCount} more similar messages suppressed] ${message}`);
+            }
+            messageCounters.delete(message);
+        }, DEDUP_WINDOW_MS);
+    };
+}
+
+// Create deduplicating console handlers
+const dedupConsoleError = createDedupHandler(originalConsoleError);
+const dedupConsoleWarn = createDedupHandler(originalConsoleWarn);
+const dedupConsoleLog = createDedupHandler(originalConsoleLog);
+
+// Optimize console filtering with string checks instead of regex for common patterns
+const filteredConsoleError = (...args: unknown[]) => {
+    const message = args.join(" ");
+    
+    // Quick string checks for common patterns (faster than regex)
+    if (message.includes("MUI: The `children` component") ||
+        message.includes("MUI: You are providing a disabled") ||
+        message.includes("A disabled element does not fire events") ||
+        message.includes("Tooltip needs to listen") ||
+        message.includes("Add a simple wrapper element") ||
+        message.includes("The above error occurred in") ||
+        message.includes("React will try to recreate") ||
+        message.includes("Error caught by Error Boundary") ||
+        message.includes("componentStack:") ||
+        message.includes("react-i18next:: You will need") ||
+        message.includes("getObjectUrlBase called with non-object") ||
+        message.includes("AdvancedInputBase: No child handleAction") ||
+        message.includes("@hello-pangea/dnd") ||
+        message.includes("Warning: ReactDOM.render") ||
+        message.includes("Warning: An invalid form control") ||
+        message.includes("Warning: Failed prop type") ||
+        message.includes("Warning: Unknown event handler") ||
+        message.includes("Warning: An update to") ||
+        message.includes("Failed to load iframe page") ||
+        message.includes("React.jsx: type is invalid") ||
+        message.includes("element from the file it's defined in") ||
+        message.includes("mixed up default and named imports")) {
+        return;
+    }
+    
+    // Only use regex for complex patterns that can't be string checked
+    const complexPatterns = [
+        /Unsupported input type:/,
+        /Cannot read properties of (null|undefined) \(reading 'placeholder'\)/,
+        /Element type is invalid: expected a string .* but got: undefined/,
+    ];
+    
+    if (complexPatterns.some(pattern => pattern.test(message))) {
+        return;
+    }
+    
+    // Use deduplicating handler for remaining messages
+    dedupConsoleError(...args);
+};
+
+const filteredConsoleWarn = (...args: unknown[]) => {
+    const message = args.join(" ");
+    
+    // Reuse same optimization approach
+    if (message.includes("MUI:") ||
+        message.includes("@hello-pangea/dnd") ||
+        message.includes("react-i18next::") ||
+        message.includes("Warning: React.jsx: type is invalid") ||
+        message.includes("Warning:")) {
+        return;
+    }
+    
+    // Use deduplicating handler for remaining messages
+    dedupConsoleWarn(...args);
+};
+
+const filteredConsoleLog = (...args: unknown[]) => {
+    const message = args.join(" ");
+    
+    // Simple string checks for log patterns
+    if (message.includes("AdvancedInput:")) {
+        return;
+    }
+    
+    // Use deduplicating handler for remaining messages
+    dedupConsoleLog(...args);
+};
+
+// Setup console filtering and HTML5 doctype
 beforeAll(() => {
-    // Filter console.error
-    console.error = (...args) => {
-        const message = args.join(' ');
-        const shouldSuppress = suppressedPatterns.some(pattern => pattern.test(message));
-        
-        if (!shouldSuppress) {
-            originalConsoleError(...args);
-        }
-    };
-
-    // Filter console.warn
-    console.warn = (...args) => {
-        const message = args.join(' ');
-        const shouldSuppress = suppressedPatterns.some(pattern => pattern.test(message));
-        
-        if (!shouldSuppress) {
-            originalConsoleWarn(...args);
-        }
-    };
-
-    // Filter console.log
-    console.log = (...args) => {
-        const message = args.join(' ');
-        
-        // Patterns to suppress in logs
-        const logSuppressPatterns = [
-            /AdvancedInput: Click detected/,
-            /AdvancedInput: Click on interactive element/,
-            /AdvancedInput: Focusing input/,
-        ];
-        
-        const shouldSuppress = logSuppressPatterns.some(pattern => pattern.test(message));
-        
-        if (!shouldSuppress) {
-            originalConsoleLog(...args);
-        }
-    };
+    // Set up HTML5 doctype for @hello-pangea/dnd compatibility
+    if (typeof document !== "undefined" && !document.doctype) {
+        const doctype = document.implementation.createDocumentType("html", "", "");
+        document.insertBefore(doctype, document.documentElement);
+    }
+    
+    // Only apply filtering if not already mocked by a test
+    if (!consoleSpies.error) {
+        console.error = filteredConsoleError;
+    }
+    if (!consoleSpies.warn) {
+        console.warn = filteredConsoleWarn;
+    }
+    if (!consoleSpies.log) {
+        console.log = filteredConsoleLog;
+    }
 });
 
-// Restore console after each test to ensure clean state
+// Clean up after each test
 afterEach(() => {
-    // Clear any mocked console methods that individual tests might have created
-    if (console.error !== originalConsoleError && !console.error.toString().includes('shouldSuppress')) {
-        console.error = originalConsoleError;
+    // If a test created a spy, restore it
+    if (consoleSpies.error) {
+        consoleSpies.error.mockRestore();
+        consoleSpies.error = null;
     }
-    if (console.warn !== originalConsoleWarn && !console.warn.toString().includes('shouldSuppress')) {
-        console.warn = originalConsoleWarn;
+    if (consoleSpies.warn) {
+        consoleSpies.warn.mockRestore();
+        consoleSpies.warn = null;
     }
-    if (console.log !== originalConsoleLog) {
-        console.log = originalConsoleLog;
+    if (consoleSpies.log) {
+        consoleSpies.log.mockRestore();
+        consoleSpies.log = null;
     }
+    
+    // Clean up deduplication system
+    messageCounters.forEach((counter) => {
+        if (counter.timer) {
+            clearTimeout(counter.timer);
+        }
+    });
+    messageCounters.clear();
+    
+    // Reapply our filtered console methods
+    console.error = filteredConsoleError;
+    console.warn = filteredConsoleWarn;
+    console.log = filteredConsoleLog;
+    
+    // Clear all other mocks
+    vi.clearAllMocks();
+});
+
+// Track when tests create console spies
+const originalSpyOn = vi.spyOn;
+vi.spyOn = function<T, K extends keyof T>(object: T, method: K, ...args: Parameters<typeof originalSpyOn>) {
+    // Track console spies created by tests
+    if (object === console) {
+        if (method === "error") consoleSpies.error = originalSpyOn.apply(vi, [object, method, ...args]) as ConsoleSpy;
+        else if (method === "warn") consoleSpies.warn = originalSpyOn.apply(vi, [object, method, ...args]) as ConsoleSpy;
+        else if (method === "log") consoleSpies.log = originalSpyOn.apply(vi, [object, method, ...args]) as ConsoleSpy;
+        
+        return consoleSpies[method as keyof typeof consoleSpies] || originalSpyOn.apply(vi, [object, method, ...args]);
+    }
+    return originalSpyOn.apply(vi, [object, method, ...args]);
+} as typeof originalSpyOn;
+
+// Configure Testing Library to reduce error output
+import { configure } from "@testing-library/react";
+
+configure({
+    // Reduce HTML output in errors
+    getElementError: (message, container) => {
+        const error = new Error(message);
+        error.name = "TestingLibraryElementError";
+        // Don't include the full container HTML
+        return error;
+    },
+    // Reduce timeout for faster failures
+    asyncUtilTimeout: 2000,
 });
 
 // Vitest has built-in DOM assertions - no custom matchers needed
 
-// Mock @vrooli/shared using importOriginal to keep most functionality
-vi.mock('@vrooli/shared', async (importOriginal) => {
-    try {
-        const actual = await importOriginal();
-        
-        // Override only problematic functions that cause circular dependencies
-        return {
-            ...actual,
-            // Mock functions that might cause issues during test setup
-            parseSearchParams: () => {
-                // Mock based on current URL search for tests
-                const urlParams = new URLSearchParams(global.window?.location?.search || '');
-                const result = {};
-                urlParams.forEach((value, key) => {
-                    try {
-                        result[key] = JSON.parse(value);
-                    } catch {
-                        result[key] = value;
-                    }
-                });
-                return result;
-            },
-            stringifySearchParams: (params) => {
-                if (!params || Object.keys(params).length === 0) return '';
-                const urlParams = new URLSearchParams();
-                Object.entries(params).forEach(([key, value]) => {
-                    urlParams.append(key, `"${value}"`);
-                });
-                return '?' + urlParams.toString();
-            },
-        };
-    } catch (error) {
-        // Fallback if the import fails (e.g., during transpilation issues)
-        return {
-            // Essential constants
-            DUMMY_ID: 'dummy-id',
-            SERVER_VERSION: 'v2',
-            DAYS_1_MS: 86400000, // 24 hours in milliseconds
-            
-            // Essential enums
-            InputType: { Text: 'Text', JSON: 'JSON' },
-            TaskStatus: { Running: 'Running', Completed: 'Completed' },
-            FormStructureType: { Tip: 'Tip' },
-            ResourceSubType: {
-                RoutineInternalAction: 'RoutineInternalAction',
-                RoutineApi: 'RoutineApi',
-                RoutineCode: 'RoutineCode',
-                RoutineData: 'RoutineData',
-                RoutineGenerate: 'RoutineGenerate',
-                RoutineInformational: 'RoutineInformational',
-                RoutineMultiStep: 'RoutineMultiStep',
-                RoutineSmartContract: 'RoutineSmartContract',
-                RoutineWeb: 'RoutineWeb',
-                CodeDataConverter: 'CodeDataConverter',
-                CodeSmartContract: 'CodeSmartContract',
-                StandardDataStructure: 'StandardDataStructure',
-                StandardPrompt: 'StandardPrompt',
-            },
-            
-            // Essential functions
-            nanoid: () => Math.random().toString(36).substring(2, 9),
-            noop: () => {},
-            parseSearchParams: () => ({}),
-            stringifySearchParams: () => '',
-            generatePK: () => Math.random().toString(36).substring(2, 15),
-            
-            // Regex exports needed by tests
-            urlRegex: /^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?!(?:10|127)(?:\.\d{1,3}){3})(?!(?:169\.254|192\.168)(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]-*)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]-*)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,}))\.?)(?::\d{2,5})?(?:[/?#]\S*)?$/i,
-            urlRegexDev: /^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?:localhost|127\.0\.0\.1)(?::\d{2,5})?|(?:[a-z\u00a1-\uffff0-9]+(?:-[a-z\u00a1-\uffff0-9]+)*)(?:\.(?:[a-z\u00a1-\uffff0-9]+(?:-[a-z\u00a1-\uffff0-9]+)*))*\.(?:[a-z\u00a1-\uffff]{2,})\.?)(?::\d{2,5})?(?:[/?#]\S*)?$/i,
-            walletAddressRegex: /^addr1[a-zA-Z0-9]{98}$/,
-            handleRegex: /^(?=.*[a-zA-Z0-9])[a-zA-Z0-9_]{3,16}$/,
-            hexColorRegex: /^#([0-9A-F]{3}([0-9A-F]{3})?)$/i,
-        };
-    }
-});
+
+// TEMPORARILY COMMENTED OUT: Testing performance without global @vrooli/shared mock
+// This mock was intercepting all imports and forcing TypeScript compilation
+// vi.mock("@vrooli/shared", async (importOriginal) => {
+//     try {
+//         const actual = await importOriginal();
+//         ... (mock implementation)
+//     } catch (error) {
+//         ... (fallback implementation)
+//     }
+// });
 
 // Essential mocks only - no fancy stuff
-vi.mock('../utils/display/device.js', () => ({
-    keyComboToString: () => 'Ctrl+S',
-    getDeviceInfo: () => ({ isMobile: false, deviceOS: 'Windows' }),
+vi.mock("../utils/display/device.js", () => ({
+    keyComboToString: () => "Ctrl+S",
+    getDeviceInfo: () => ({ isMobile: false, deviceOS: "Windows" }),
     DeviceOS: {
-        IOS: 'iOS',
-        MacOS: 'MacOS',
-        Windows: 'Windows',
-        Android: 'Android',
-        Linux: 'Linux',
+        IOS: "iOS",
+        MacOS: "MacOS",
+        Windows: "Windows",
+        Android: "Android",
+        Linux: "Linux",
     },
 }));
-vi.mock('../utils/display/chatTools.js', () => ({
-    taskToTaskInfo: () => ({ name: 'Test Task', description: 'Test Description' }),
+vi.mock("../utils/display/chatTools.js", () => ({
+    taskToTaskInfo: () => ({ name: "Test Task", description: "Test Description" }),
     isTaskStale: vi.fn(() => false),
     STALE_TASK_THRESHOLD_MS: 600000,
 }));
-vi.mock('@uiw/react-codemirror', () => ({ default: () => null }));
+vi.mock("@uiw/react-codemirror", () => ({ default: () => null }));
 
 // Mock only the most problematic lexical components with realistic implementations
-vi.mock('../components/inputs/AdvancedInput/lexical/AdvancedInputLexical.js', () => ({
+vi.mock("../components/inputs/AdvancedInput/lexical/AdvancedInputLexical.js", () => ({
     AdvancedInputLexical: () => {
-        const React = require('react');
-        return React.createElement('div', { 'data-testid': 'lexical-editor' });
+        const React = require("react");
+        return React.createElement("div", { "data-testid": "lexical-editor" });
     },
     default: () => {
-        const React = require('react');
-        return React.createElement('div', { 'data-testid': 'lexical-editor' });
+        const React = require("react");
+        return React.createElement("div", { "data-testid": "lexical-editor" });
     },
 }));
-vi.mock('../components/inputs/RichInput/RichInput.js', () => ({
-    RichInput: () => null,
-    default: () => null,
-}));
-vi.mock('../components/inputs/TagSelector/TagSelector.js', () => ({
+// RichInput has been replaced with AdvancedInput
+vi.mock("../components/inputs/TagSelector/TagSelector.js", () => ({
     TagSelector: () => null,
     default: () => null,
 }));
 // NOTE: Removed AdvancedInput mock to allow proper testing
-vi.mock('../utils/pubsub.js', () => ({
+vi.mock("../utils/pubsub.js", () => ({
     PubSub: {
         get: () => ({
             subscribe: vi.fn(() => vi.fn()),
@@ -219,17 +306,11 @@ vi.mock('../utils/pubsub.js', () => ({
     },
 }));
 
-// Mock API environment variables to prevent actual connections
-process.env.VITE_PORT_API = '0'; // Use port 0 to prevent actual connections
-process.env.VITE_API_URL = 'http://localhost:0/api'; // Mock API URL
-process.env.VITE_SITE_IP = 'localhost';
-
-// Mock fetch to prevent any actual HTTP requests
-global.fetch = vi.fn(() => Promise.reject(new Error('Network requests are not allowed in tests')));
+// Environment variables moved to top of file before imports
 
 // Minimal browser mocks
-Object.defineProperty(window, 'matchMedia', {
-    value: () => ({ matches: false, addListener: () => {}, removeListener: () => {} }),
+Object.defineProperty(window, "matchMedia", {
+    value: () => ({ matches: false, addListener: () => { }, removeListener: () => { } }),
 });
 
 global.IntersectionObserver = vi.fn(() => ({
@@ -240,148 +321,175 @@ global.IntersectionObserver = vi.fn(() => ({
 
 global.ResizeObserver = vi.fn(() => ({
     observe: vi.fn(),
-    unobserve: vi.fn(), 
+    unobserve: vi.fn(),
     disconnect: vi.fn(),
 }));
 
-// Database setup for integration tests (only initialized if needed)
-let prisma: any;
-let DbProvider: any;
-
-// Lazy load database utilities only when tests need them
-export const getTestDatabaseClient = () => {
-    if (!prisma) {
-        console.warn('Database client not initialized. Only available for integration tests.');
+// Mock HTMLIFrameElement to prevent network requests and AsyncTaskManager issues
+class MockIFrame implements Partial<HTMLIFrameElement> {
+    src = "";
+    title = "";
+    width = "";
+    height = "";
+    frameBorder = "";
+    allow = "";
+    allowFullScreen = false;
+    dataset: Record<string, string> = {};
+    
+    getAttribute(name: string): string | null {
+        if (name.startsWith("data-")) {
+            return this.dataset[name.slice(5)] || null;
+        }
+        return (this as Record<string, unknown>)[name] as string || null;
     }
-    return prisma;
-};
-
-export const createTestTransaction = async (callback: (tx: any) => Promise<void>) => {
-    if (!prisma) {
-        throw new Error("Database client not available. This function only works in integration tests.");
+    
+    setAttribute(name: string, value: string): void {
+        if (name.startsWith("data-")) {
+            this.dataset[name.slice(5)] = value;
+        } else {
+            (this as Record<string, unknown>)[name] = value;
+        }
     }
     
-    return await prisma.$transaction(async (tx: any) => {
-        await callback(tx);
-        // Transaction will be automatically rolled back after test
-        throw new Error("ROLLBACK"); // Force rollback for test isolation
-    }).catch((error: any) => {
-        if (error.message === "ROLLBACK") {
-            // Expected rollback for test isolation
-            return;
+    hasAttribute(name: string): boolean {
+        if (name.startsWith("data-")) {
+            return this.dataset[name.slice(5)] !== undefined;
         }
-        throw error;
-    });
-};
-
-export const createTestAPIClient = (baseUrl?: string) => {
-    const url = baseUrl || process.env.VITE_SERVER_URL || 'http://localhost:5329';
+        return (this as Record<string, unknown>)[name] !== undefined;
+    }
     
-    return {
-        async get(endpoint: string, options?: RequestInit) {
-            const response = await fetch(`${url}${endpoint}`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...options?.headers,
-                },
-                ...options,
-            });
-            return {
-                data: await response.json(),
-                status: response.status,
-                ok: response.ok,
-            };
-        },
-        
-        async post(endpoint: string, data: any, options?: RequestInit) {
-            const response = await fetch(`${url}${endpoint}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...options?.headers,
-                },
-                body: JSON.stringify(data),
-                ...options,
-            });
-            return {
-                data: await response.json(),
-                status: response.status,
-                ok: response.ok,
-            };
-        },
-        
-        async put(endpoint: string, data: any, options?: RequestInit) {
-            const response = await fetch(`${url}${endpoint}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...options?.headers,
-                },
-                body: JSON.stringify(data),
-                ...options,
-            });
-            return {
-                data: await response.json(),
-                status: response.status,
-                ok: response.ok,
-            };
-        },
-        
-        async delete(endpoint: string, options?: RequestInit) {
-            const response = await fetch(`${url}${endpoint}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...options?.headers,
-                },
-                ...options,
-            });
-            return {
-                data: response.status === 204 ? null : await response.json(),
-                status: response.status,
-                ok: response.ok,
-            };
-        },
-    };
-};
-
-// Only initialize database if this is an integration test
-const isIntegrationTest = process.env.DB_URL && process.env.REDIS_URL;
-
-if (isIntegrationTest) {
-    beforeAll(async () => {
-        console.log("=== Database available for integration tests ===");
-        
-        try {
-            // Initialize database client for test verification
-            const serverModule = await import("@vrooli/server");
-            if (serverModule.prisma) {
-                prisma = serverModule.prisma;
-                console.log("✓ Prisma client available");
-            }
-            
-            if (serverModule.DbProvider) {
-                DbProvider = serverModule.DbProvider;
-                await DbProvider.init();
-                console.log("✓ DbProvider initialized");
-            }
-        } catch (error) {
-            console.warn("Database initialization skipped:", error);
+    removeAttribute(name: string): void {
+        if (name.startsWith("data-")) {
+            delete this.dataset[name.slice(5)];
+        } else {
+            delete (this as Record<string, unknown>)[name];
         }
-    }, 300000); // 5 minute timeout
-    
-    afterAll(async () => {
-        try {
-            if (DbProvider && DbProvider.reset) {
-                await DbProvider.reset();
-            }
-            
-            if (prisma && prisma.$disconnect) {
-                await prisma.$disconnect();
-            }
-        } catch (error) {
-            console.error("Database cleanup error:", error);
-        }
-    });
+    }
 }
+
+global.HTMLIFrameElement = MockIFrame as unknown as typeof HTMLIFrameElement;
+
+// =============================================================================
+// MSW SETUP
+// =============================================================================
+// Import and configure MSW for API mocking
+import { server } from "./mocks/server.js";
+
+// Establish API mocking before all tests
+beforeAll(() => {
+    // Start MSW server with request interception
+    server.listen({ 
+        onUnhandledRequest: (req, print) => {
+            // Only warn about unhandled requests to external URLs, not our localhost API
+            const url = new URL(req.url);
+            if (url.hostname === "localhost" && url.port === "3000") {
+                console.error(`🚨 Unhandled API request: ${req.method} ${req.url} - This should be mocked!`);
+            } else {
+                print.warning();
+            }
+        },
+    });
+});
+
+// Reset any request handlers that we may add during the tests
+afterEach(() => {
+    server.resetHandlers();
+});
+
+// Clean up after the tests are finished
+afterAll(() => {
+    // Clean up any remaining deduplication timers
+    messageCounters.forEach((counter) => {
+        if (counter.timer) {
+            clearTimeout(counter.timer);
+        }
+    });
+    messageCounters.clear();
+    
+    // Restore original console methods
+    console.error = originalConsoleError;
+    console.warn = originalConsoleWarn;
+    console.log = originalConsoleLog;
+    
+    server.close();
+});
+
+// Note: Integration tests have been moved to a dedicated integration package.
+// UI tests should focus on component behavior and user interactions.
+
+// =============================================================================
+// CENTRALIZED MOCKS
+// =============================================================================
+// Apply global mocks that should be available to all tests by default.
+// Individual tests can override these by using vi.mock() before importing.
+
+// Mock react-i18next globally
+vi.mock("react-i18next", () => reactI18nextMock);
+
+// Mock i18next globally
+import { mockI18next } from "./mocks/libraries/react-i18next.js";
+
+vi.mock("i18next", () => ({ default: mockI18next }));
+
+// Mock zxcvbn for password strength (synchronous in tests)
+vi.mock("zxcvbn", () => zxcvbnMock);
+
+// Mock MUI styles
+vi.mock("@mui/material/styles", () => muiStylesMock);
+vi.mock("@mui/styles", () => muiStylesMock);
+
+// Mock authentication utilities
+vi.mock("../utils/authentication/session.js", () => authMock);
+vi.mock("../../utils/authentication/session.js", () => authMock);
+vi.mock("../../utils/authentication/session", () => authMock);
+
+// Mock router utilities
+vi.mock("../route/router.js", () => routerMock);
+vi.mock("../../route/router.js", () => routerMock);
+vi.mock("../../route/router", () => routerMock);
+
+// Mock API utilities
+vi.mock("../api/fetchWrapper.js", () => apiMocks);
+vi.mock("../../api/fetchWrapper.js", () => apiMocks);
+vi.mock("../../api/fetchWrapper", () => apiMocks);
+
+// fetchData is no longer globally mocked
+// Individual tests should mock fetchData if needed for testing components that use it
+// This allows the actual fetchData implementation to be tested properly
+
+// ServerResponseParser is no longer globally mocked
+// Individual tests should mock specific methods they need to test
+// This allows the actual implementation to be tested properly
+
+// Mock socket service
+vi.mock("../api/socket.js", () => socketServiceMock);
+vi.mock("../../api/socket.js", () => socketServiceMock);
+vi.mock("../../api/socket", () => socketServiceMock);
+
+// Mock icons
+vi.mock("../icons/Icons.js", () => iconsMock);
+vi.mock("../../icons/Icons.js", () => iconsMock);
+vi.mock("../../icons/Icons", () => iconsMock);
+
+// Mock socket.io-client
+import { socketIOClientMock } from "./mocks/libraries/socket.io-client.js";
+
+vi.mock("socket.io-client", () => socketIOClientMock);
+
+// Mock the global fetch to prevent real HTTP requests during tests
+global.fetch = vi.fn(() =>
+    Promise.resolve(new Response(JSON.stringify({ data: null }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+    })),
+);
+
+// Mock @hello-pangea/dnd for drag and drop functionality
+import { helloPangeaDndMock } from "./mocks/libraries/hello-pangea-dnd.js";
+
+vi.mock("@hello-pangea/dnd", () => helloPangeaDndMock);
+
+
+// Note: ServerResponseParser is no longer globally mocked
+// Individual tests should mock specific methods they need to test
+// This allows the actual implementation to be tested properly

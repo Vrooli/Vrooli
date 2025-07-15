@@ -3,7 +3,7 @@
  * award
  */
 
-import { AwardCategory, awardNames, awardVariants, DEFAULT_LANGUAGE, type ModelType } from "@vrooli/shared";
+import { AwardCategory, awardNames, awardVariants, DEFAULT_LANGUAGE, generatePK, type ModelType } from "@vrooli/shared";
 import i18next from "i18next";
 import { DbProvider } from "../db/provider.js";
 import { Notify } from "../notify/notify.js";
@@ -72,9 +72,9 @@ export function Award(userId: string, languages: string[] | undefined): {
             // Upsert the award into the database, with progress incremented
             // by the new progress
             const award = await DbProvider.get().award.upsert({
-                where: { award_userId_category_unique: { userId, category } },
+                where: { award_userId_category_unique: { userId: BigInt(userId), category } },
                 update: { progress: { increment: newProgress } },
-                create: { userId, category, progress: newProgress },
+                create: { id: generatePK(), userId: BigInt(userId), category, progress: newProgress },
             });
             // Check if user should receive a new award (i.e. the progress has put them
             // into a new award tier)
@@ -91,11 +91,16 @@ export function Award(userId: string, languages: string[] | undefined): {
                 }
                 // Set "tierCompletedAt" to the current time
                 await DbProvider.get().award.update({
-                    where: { award_userId_category_unique: { userId, category } },
+                    where: { award_userId_category_unique: { userId: BigInt(userId), category } },
                     data: { tierCompletedAt: new Date() },
                 });
             }
-            return award;
+            return {
+                progress: award.progress,
+                timeReward: award.tierCompletedAt || award.updatedAt,
+                userId: award.userId.toString(),
+                category: award.category as AwardCategory,
+            };
         },
     };
 }

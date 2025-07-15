@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=fixed-snack-message-types | LAST: 2025-06-28
 import { exists, type HttpMethod, type ServerResponse, type TranslationKeyCommon, type TranslationKeyError } from "@vrooli/shared";
 import i18next from "i18next";
 import { useCallback } from "react";
@@ -20,10 +21,10 @@ type UntranslatedSnackMessage = {
 type SnackMessage<KeyList = TranslationKeyCommon | TranslationKeyError> = TranslatedSnackMessage<KeyList> | UntranslatedSnackMessage;
 type SnackPub<KeyList = TranslationKeyCommon | TranslationKeyError> = SnackMessage<KeyList> & {
     autoHideDuration?: number | "persist";
-    buttonClicked?: (event?: any) => unknown;
+    buttonClicked?: (event?: React.MouseEvent<HTMLButtonElement>) => unknown;
     buttonKey?: TranslationKeyCommon;
     buttonVariables?: { [key: string]: string | number };
-    data?: any;
+    data?: unknown;
     /**
      * If ID is set, a snack with the same ID will be replaced
      */

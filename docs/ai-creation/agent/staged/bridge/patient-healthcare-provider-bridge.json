@@ -1,108 +1,105 @@
 {
-  "identity": {
-    "name": "patient-healthcare-provider-bridge",
-    "version": "1.0.0"
-  },
-  "goal": "Improves healthcare communication workflows",
-  "role": "bridge",
-  "subscriptions": [
-    "run/decision/requested",
-    "step/completed",
-    "safety/pre_action"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "run/decision/requested",
-        "when": "event.data.decision.context.includes('healthcare') || event.data.decision.context.includes('medical')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Healthcare Bridge",
-        "inputMap": {
-          "medicalDecision": "event.data.decision",
-          "patientContext": "event.data.context.patient",
-          "healthcareProtocols": "blackboard.healthcare.protocols",
-          "communicationTools": "blackboard.healthcare.communication"
+    "identity": {
+        "name": "patient-healthcare-provider-bridge",
+        "version": "1.0.0"
+    },
+    "goal": "Improves healthcare communication workflows",
+    "role": "bridge",
+    "subscriptions": [
+        "run/decision/requested",
+        "step/completed",
+        "safety/pre_action"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "run/decision/requested",
+                "when": "event.data.decision.context.includes('healthcare') || event.data.decision.context.includes('medical')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Healthcare Bridge",
+                "inputMap": {
+                    "medicalDecision": "event.data.decision",
+                    "patientContext": "event.data.context.patient",
+                    "healthcareProtocols": "blackboard.healthcare.protocols",
+                    "communicationTools": "blackboard.healthcare.communication"
+                }
+            },
+            "qos": 2
+        },
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'patient_interaction' || event.data.tags.includes('healthcare_communication')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Bridge communication between patients and healthcare providers to ensure clear understanding and optimal care outcomes"
+            },
+            "qos": 2
+        },
+        {
+            "trigger": {
+                "topic": "safety/pre_action",
+                "when": "event.data.action.context == 'healthcare' || event.data.action.type == 'medical_communication'"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Medical Facilitator",
+                "inputMap": {
+                    "proposedAction": "event.data.action",
+                    "safetyChecks": "event.data.safety",
+                    "medicalTerminology": "blackboard.healthcare.terminology"
+                }
+            },
+            "qos": 2
         }
-      },
-      "qos": 2
-    },
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'patient_interaction' || event.data.tags.includes('healthcare_communication')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Bridge communication between patients and healthcare providers to ensure clear understanding and optimal care outcomes"
-      },
-      "qos": 2
-    },
-    {
-      "trigger": {
-        "topic": "safety/pre_action",
-        "when": "event.data.action.context == 'healthcare' || event.data.action.type == 'medical_communication'"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Medical Facilitator",
-        "inputMap": {
-          "proposedAction": "event.data.action",
-          "safetyChecks": "event.data.safety",
-          "medicalTerminology": "blackboard.healthcare.terminology"
+    ],
+    "prompt": "You are a patient-healthcare provider bridge focused on improving healthcare communication workflows. You MUST facilitate clear healthcare communication between patients and providers to ensure understanding and optimal care outcomes. You are ALLOWED to bridge communication gaps, translate medical terminology, and coordinate care interactions. You must NEVER compromise medical confidentiality or share patient information inappropriately. Prioritize patient safety, privacy, and clear communication in all interactions.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "healthcare-protocols",
+            "permissions": [
+                "read"
+            ],
+            "scope": "healthcare.protocols",
+            "description": "Healthcare communication protocols and standards"
+        },
+        {
+            "type": "blackboard",
+            "label": "patient-communication",
+            "permissions": [
+                "read"
+            ],
+            "scope": "healthcare.communication",
+            "description": "Patient communication tools and interaction guidelines"
+        },
+        {
+            "type": "blackboard",
+            "label": "medical-terminology",
+            "permissions": [
+                "read"
+            ],
+            "scope": "healthcare.terminology",
+            "description": "Medical terminology and healthcare language simplification"
+        },
+        {
+            "type": "routine",
+            "label": "Healthcare Bridge",
+            "permissions": [
+                "read"
+            ],
+            "description": "Bridge healthcare communication between patients and providers"
+        },
+        {
+            "type": "routine",
+            "label": "Medical Facilitator",
+            "permissions": [
+                "read"
+            ],
+            "description": "Facilitate medical communication and terminology clarification"
         }
-      },
-      "qos": 2
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "facilitate-clear-healthcare-communication"
-    },
-    {
-      "modality": "permission",
-      "target": "bridge-patient-provider-gaps"
-    },
-    {
-      "modality": "prohibition",
-      "target": "compromise-medical-confidentiality"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "healthcare-protocols",
-      "permissions": ["read"],
-      "scope": "healthcare.protocols",
-      "description": "Healthcare communication protocols and standards"
-    },
-    {
-      "type": "blackboard",
-      "label": "patient-communication",
-      "permissions": ["read"],
-      "scope": "healthcare.communication",
-      "description": "Patient communication tools and interaction guidelines"
-    },
-    {
-      "type": "blackboard",
-      "label": "medical-terminology",
-      "permissions": ["read"],
-      "scope": "healthcare.terminology",
-      "description": "Medical terminology and healthcare language simplification"
-    },
-    {
-      "type": "routine",
-      "label": "Healthcare Bridge",
-      "permissions": ["read"],
-      "description": "Bridge healthcare communication between patients and providers"
-    },
-    {
-      "type": "routine",
-      "label": "Medical Facilitator",
-      "permissions": ["read"],
-      "description": "Facilitate medical communication and terminology clarification"
-    }
-  ]
+    ]
 }

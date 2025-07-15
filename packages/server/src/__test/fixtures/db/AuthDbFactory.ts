@@ -1,4 +1,3 @@
-import { generatePK, generatePublicId } from "./idHelpers.js";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -40,10 +39,10 @@ export class AuthDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.user_authCreateInput>): Prisma.user_authCreateInput {
         return {
-            id: generatePK(),
+            id: this.generateId(),
             provider: "Password",
             hashed_password: "$2b$10$dummy.hashed.password.for.testing",
-            user: { connect: { id: generatePK() } },
+            user: { connect: { id: this.generateId() } },
             ...overrides,
         };
     }
@@ -52,7 +51,7 @@ export class AuthDbFactory extends EnhancedDatabaseFactory<
         return {
             ...this.generateMinimalData(),
             hashed_password: "$2b$10$complex.hashed.password.with.salt",
-            resetPasswordCode: `reset_${generatePublicId()}`,
+            resetPasswordCode: `reset_${this.generatePublicId()}`,
             lastResetPasswordRequestAttempt: new Date(Date.now() - 60000), // 1 minute ago
             last_used_at: new Date(),
             ...overrides,
@@ -62,7 +61,7 @@ export class AuthDbFactory extends EnhancedDatabaseFactory<
      * Get complete test fixtures for Auth model
      */
     protected getFixtures(): DbTestFixtures<Prisma.user_authCreateInput, Prisma.user_authUpdateInput> {
-        const userId = generatePK();
+        const userId = this.generateId();
         
         return {
             minimal: this.generateMinimalData(),
@@ -78,7 +77,7 @@ export class AuthDbFactory extends EnhancedDatabaseFactory<
                     hashed_password: true as any, // Should be string
                 },
                 missingUserConnection: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     provider: "Password",
                     hashed_password: "$2b$10$password.hash",
                     // Missing user connection
@@ -86,7 +85,7 @@ export class AuthDbFactory extends EnhancedDatabaseFactory<
             },
             edgeCases: {
                 oauthWithTokens: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     provider: "Google",
                     provider_user_id: `google_${Math.random().toString(36).substring(2, 18)}`,
                     access_token: "encrypted_access_token_" + Math.random().toString(36).substring(2, 66),
@@ -99,7 +98,7 @@ export class AuthDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 passwordWithResetCode: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     provider: "Password",
                     hashed_password: "$2b$10$password.with.reset.code",
                     resetPasswordCode: `reset_${Math.random().toString(36).substring(2, 66)}`,
@@ -109,7 +108,7 @@ export class AuthDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 expiredOauth: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     provider: "GitHub",
                     provider_user_id: `github_${Math.random().toString(36).substring(2, 18)}`,
                     access_token: "expired_access_token_" + Math.random().toString(36).substring(2, 66),

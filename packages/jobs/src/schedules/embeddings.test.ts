@@ -1,4 +1,5 @@
 // AI_CHECK: TEST_QUALITY=1,TEST_COVERAGE=1 | LAST: 2025-06-24
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-06
 import { generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockedFunction } from "vitest";
@@ -7,7 +8,7 @@ import { generateEmbeddings } from "./embeddings.js";
 const { DbProvider } = await import("@vrooli/server");
 
 // Create a shared mock that can be accessed by all tests
-let mockGetEmbeddings: any;
+let mockGetEmbeddings: ReturnType<typeof vi.fn>;
 
 describe("generateEmbeddings integration tests", () => {
     beforeAll(async () => {
@@ -20,9 +21,9 @@ describe("generateEmbeddings integration tests", () => {
         
         vi.spyOn(EmbeddingService, "get").mockReturnValue({
             getEmbeddings: mockGetEmbeddings,
-        } as any);
+        });
         
-        vi.spyOn(EmbeddingService, "getEmbeddableString").mockImplementation((data: any) => {
+        vi.spyOn(EmbeddingService, "getEmbeddableString").mockImplementation((data: Parameters<typeof EmbeddingService.getEmbeddableString>[0]) => {
             const parts = [];
             if (data.name) parts.push(data.name);
             if (data.handle) parts.push(data.handle);
@@ -778,7 +779,7 @@ describe("generateEmbeddings integration tests", () => {
             
             // Mock getEmbeddableString to return different number of results
             const { EmbeddingService } = await import("@vrooli/server");
-            const mockGetEmbeddableString = EmbeddingService.getEmbeddableString as MockedFunction<any>;
+            const mockGetEmbeddableString = EmbeddingService.getEmbeddableString as MockedFunction<typeof EmbeddingService.getEmbeddableString>;
             
             let callCount = 0;
             mockGetEmbeddableString.mockImplementation(() => {
@@ -946,14 +947,14 @@ describe("generateEmbeddings integration tests", () => {
             { objectType: "Tag", hasTranslations: true },
             { objectType: "User", hasTranslations: true },
             { objectType: "Reminder", hasTranslations: false },
-        ])("should process $objectType embeddings correctly", async ({ objectType, hasTranslations }) => {
+        ])("should process $objectType embeddings correctly", async ({ objectType, hasTranslations: _hasTranslations }) => {
             // This is a parametric test to ensure all object types are handled            
             mockGetEmbeddings.mockClear();
             
             // Create test data based on object type
-            let testId: bigint;
+            let _testId: bigint;
             const userId = generatePK();
-            const user = await DbProvider.get().user.create({
+            const _user = await DbProvider.get().user.create({
                 data: {
                     id: userId,
                     publicId: generatePublicId(),
@@ -965,7 +966,7 @@ describe("generateEmbeddings integration tests", () => {
             testUserIds.push(userId);
 
             switch (objectType) {
-                case "Chat":
+                case "Chat": {
                     const chat = await DbProvider.get().chat.create({
                         data: {
                             id: generatePK(),
@@ -983,10 +984,11 @@ describe("generateEmbeddings integration tests", () => {
                         },
                     });
                     testChatIds.push(chat.id);
-                    testId = chat.id;
+                    _testId = chat.id;
                     break;
+                }
 
-                case "Reminder":
+                case "Reminder": {
                     const reminderList = await DbProvider.get().reminder_list.create({
                         data: {
                             id: generatePK(),
@@ -1005,8 +1007,9 @@ describe("generateEmbeddings integration tests", () => {
                         },
                     });
                     testReminderIds.push(reminder.id);
-                    testId = reminder.id;
+                    _testId = reminder.id;
                     break;
+                }
 
                 // Add other cases as needed...
                 default:

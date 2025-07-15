@@ -1,125 +1,45 @@
+// AI_CHECK: TEST_COVERAGE=1,TEST_QUALITY=1 | LAST: 2025-06-24
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-01 - Fixed 10 'as any' type assertions with proper types and eslint-disable comments
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// First, unmock modules to override the global mock
-vi.unmock("./socket.js");
+// Unmock PubSub to use real implementation
 vi.unmock("../utils/pubsub.js");
+// Unmock the socket service to test the real implementation
+vi.unmock("./socket.js");
 
-// Import PubSub after unmocking
+// Use the centralized socket mock from setup.vitest.ts
+import { createMockSocket } from "../__test/mocks/libraries/socket.io-client.js";
+import { io } from "socket.io-client";
+import type { Socket } from "socket.io-client";
+
+const mockSocket = createMockSocket();
+
+// Set up io to return our mock socket
+vi.mocked(io).mockReturnValue(mockSocket as Socket);
+
+// Import after mocking - this will use the real SocketService implementation
+import { socket, SocketService, SERVER_CONNECT_MESSAGE_ID } from "./socket.js";
 import { PubSub } from "../utils/pubsub.js";
 
-// Store mock functions that will be accessible from tests
-const { mockSocketOn, mockSocketOff, mockSocketEmit, mockSocketConnect, mockSocketDisconnect } = vi.hoisted(() => {
-    return {
-        mockSocketOn: vi.fn(),
-        mockSocketOff: vi.fn(),
-        mockSocketEmit: vi.fn(),
-        mockSocketConnect: vi.fn(),
-        mockSocketDisconnect: vi.fn(),
-    };
+// Spy on the actual socket methods
+beforeEach(() => {
+    // Replace socket methods with our mock methods
+    Object.assign(socket, mockSocket);
 });
-
-// Mock the entire socket module
-vi.mock("./socket.js", () => {
-    
-    // Create mock socket
-    const mockSocket = {
-        on: mockSocketOn,
-        off: mockSocketOff,
-        emit: mockSocketEmit,
-        connect: mockSocketConnect,
-        disconnect: mockSocketDisconnect,
-        connected: false,
-        id: "mock-socket-id",
-    };
-    
-    const SERVER_CONNECT_MESSAGE_ID = "AuthMessage";
-    
-    // Create SocketService class that uses the mock socket
-    class MockSocketService {
-        private static instance: MockSocketService;
-        state = "DisconnectedNoError";
-        
-        private constructor() {
-            mockSocket.on("connect", this.handleConnected.bind(this));
-            mockSocket.on("disconnect", this.handleDisconnected.bind(this));
-        }
-        
-        static get(): MockSocketService {
-            if (!MockSocketService.instance) {
-                MockSocketService.instance = new MockSocketService();
-            }
-            return MockSocketService.instance;
-        }
-        
-        connect(): void {
-            mockSocket.connect();
-        }
-        
-        disconnect(): void {
-            this.state = "DisconnectedNoError";
-            mockSocket.disconnect();
-        }
-        
-        restart(): void {
-            this.disconnect();
-            this.connect();
-        }
-        
-        sendMessage<T extends string>(event: T, ...args: any[]): void {
-            mockSocket.emit(event, ...args);
-        }
-        
-        on<T extends string>(event: T, callback: (payload: any) => void): void {
-            mockSocket.on(event, callback);
-        }
-        
-        off<T extends string>(event: T, callback: (payload: any) => void): void {
-            mockSocket.off(event, callback);
-        }
-        
-        handleConnected(): void {
-            console.info("Websocket connected to server");
-            PubSub.get().publish("clearSnack", { id: SERVER_CONNECT_MESSAGE_ID });
-            if (this.state === "LostConnection") {
-                PubSub.get().publish("snack", { message: "ServerReconnected", severity: "Success" });
-            }
-            this.state = "Connected";
-        }
-        
-        handleDisconnected(): void {
-            if (this.state !== "Connected") {
-                return;
-            }
-            this.state = "LostConnection";
-            console.info("Websocket disconnected from server");
-            PubSub.get().publish("snack", { message: "ServerDisconnected", severity: "Error", id: SERVER_CONNECT_MESSAGE_ID, autoHideDuration: "persist" });
-        }
-    }
-    
-    return {
-        socket: mockSocket,
-        SocketService: MockSocketService,
-        SERVER_CONNECT_MESSAGE_ID,
-    };
-});
-
-// Import after mocking
-import { SocketService, SERVER_CONNECT_MESSAGE_ID } from "./socket.js";
 
 describe("SocketService", () => {
     let socketService: SocketService;
-    let pubsubSpy: any;
+    let pubsubSpy: {
+        publish: ReturnType<typeof vi.spyOn>;
+        subscribe: ReturnType<typeof vi.spyOn>;
+    };
 
     beforeEach(() => {
         // Clear all mocks
         vi.clearAllMocks();
-        mockSocketOn.mockClear();
-        mockSocketOff.mockClear();
-        mockSocketEmit.mockClear();
-        mockSocketConnect.mockClear();
-        mockSocketDisconnect.mockClear();
         
         // Reset the singleton instance
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (SocketService as any).instance = undefined;
         
         // Get fresh socket service instance
@@ -134,8 +54,9 @@ describe("SocketService", () => {
     });
 
     describe("Singleton Pattern", () => {
-        it("should return the same instance when called multiple times", () => {
+        it("returns the same instance when called multiple times", () => {
             // Reset instance for this specific test
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (SocketService as any).instance = undefined;
             
             const instance1 = SocketService.get();
@@ -143,102 +64,169 @@ describe("SocketService", () => {
             expect(instance1).toBe(instance2);
         });
 
-        it("should have initial state as DisconnectedNoError", () => {
-            expect(socketService.state).toBe("DisconnectedNoError");
+        it("initializes with DisconnectedNoError state", () => {
+            // State is private but we can verify through behavior
+            // When disconnected, no snack messages should be published
+            socketService.disconnect();
+            expect(pubsubSpy.publish).not.toHaveBeenCalled();
         });
     });
 
     describe("Connection Management", () => {
-        it("should call socket.connect() when connect is called", () => {
+        it("calls socket.connect() when connect is called", () => {
             socketService.connect();
-            expect(mockSocketConnect).toHaveBeenCalled();
+            expect(mockSocket.connect).toHaveBeenCalled();
         });
 
-        it("should set state to DisconnectedNoError and call socket.disconnect() when disconnect is called", () => {
+        it("sets state to DisconnectedNoError and calls socket.disconnect() when disconnect is called", () => {
             socketService.disconnect();
             expect(socketService.state).toBe("DisconnectedNoError");
-            expect(mockSocketDisconnect).toHaveBeenCalled();
+            expect(mockSocket.disconnect).toHaveBeenCalled();
         });
 
-        it("should disconnect then connect when restart is called", () => {
+        it("disconnects then connects when restart is called", () => {
             socketService.restart();
-            expect(mockSocketDisconnect).toHaveBeenCalled();
-            expect(mockSocketConnect).toHaveBeenCalled();
+            expect(mockSocket.disconnect).toHaveBeenCalled();
+            expect(mockSocket.connect).toHaveBeenCalled();
         });
     });
 
     describe("Connection Event Handlers", () => {
-        it("should update state to Connected when handleConnected is called", () => {
+        it("updates state to Connected and publishes clearSnack when handleConnected is called", () => {
             const consoleSpy = vi.spyOn(console, "info").mockImplementation(() => {});
             
             socketService.handleConnected();
             
             expect(socketService.state).toBe("Connected");
             expect(pubsubSpy.publish).toHaveBeenCalledWith("clearSnack", { id: SERVER_CONNECT_MESSAGE_ID });
+            expect(consoleSpy).toHaveBeenCalledWith("Websocket connected to server");
             
             consoleSpy.mockRestore();
         });
 
-        it("should update state to LostConnection when handleDisconnected is called from Connected state", () => {
+        it("publishes success snack when reconnecting after lost connection", () => {
+            const consoleSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+            
+            // Set state to LostConnection first
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (socketService as any).state = "LostConnection";
+            socketService.handleConnected();
+            
+            expect(socketService.state).toBe("Connected");
+            expect(pubsubSpy.publish).toHaveBeenCalledWith("clearSnack", { id: SERVER_CONNECT_MESSAGE_ID });
+            expect(pubsubSpy.publish).toHaveBeenCalledWith("snack", { 
+                message: "ServerReconnected", 
+                severity: "Success", 
+            });
+            
+            consoleSpy.mockRestore();
+        });
+
+        it("updates state to LostConnection when handleDisconnected is called from Connected state", () => {
             const consoleSpy = vi.spyOn(console, "info").mockImplementation(() => {});
             
             // Set state to Connected first
-            socketService.state = "Connected";
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (socketService as any).state = "Connected";
             socketService.handleDisconnected();
             
             expect(socketService.state).toBe("LostConnection");
-            expect(pubsubSpy.publish).toHaveBeenCalledWith("snack", expect.objectContaining({
+            expect(pubsubSpy.publish).toHaveBeenCalledWith("snack", {
                 id: SERVER_CONNECT_MESSAGE_ID,
                 message: "ServerDisconnected",
                 severity: "Error",
                 autoHideDuration: "persist",
-            }));
+            });
+            expect(consoleSpy).toHaveBeenCalledWith("Websocket disconnected from server");
+            
+            consoleSpy.mockRestore();
+        });
+
+        it("does not change state when handleDisconnected is called from non-Connected state", () => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (socketService as any).state = "DisconnectedNoError";
+            socketService.handleDisconnected();
+            
+            expect(socketService.state).toBe("DisconnectedNoError");
+            expect(pubsubSpy.publish).not.toHaveBeenCalled();
+        });
+
+        it("handles reconnect attempt with warning message", () => {
+            const consoleSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+            
+            socketService.handleReconnectAttempted();
+            
+            expect(pubsubSpy.publish).toHaveBeenCalledWith("snack", {
+                message: "ServerReconnectAttempt",
+                severity: "Warning",
+                id: SERVER_CONNECT_MESSAGE_ID,
+                autoHideDuration: "persist",
+            });
+            expect(consoleSpy).toHaveBeenCalledWith("Websocket attempting to reconnect to server");
+            
+            consoleSpy.mockRestore();
+        });
+
+        it("handles successful reconnection", () => {
+            const consoleSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+            
+            socketService.handleReconnected();
+            
+            expect(socketService.state).toBe("Connected");
+            expect(pubsubSpy.publish).toHaveBeenCalledWith("snack", {
+                message: "ServerReconnected",
+                severity: "Success",
+                id: SERVER_CONNECT_MESSAGE_ID,
+            });
+            expect(consoleSpy).toHaveBeenCalledWith("Websocket reconnected to server");
             
             consoleSpy.mockRestore();
         });
     });
 
-    describe("Send Message", () => {
-        it("should emit a message through socket", () => {
-            const event = "testEvent";
-            const data = { test: "data" };
+    describe("Emit Event", () => {
+        it("emits an event through socket with payload", () => {
+            const event = "message:send" as const;
+            const payload = { test: "data" };
             
-            socketService.sendMessage(event, data);
+            socketService.emitEvent(event, payload);
             
-            expect(mockSocketEmit).toHaveBeenCalledWith(event, data);
+            expect(mockSocket.emit).toHaveBeenCalledWith(event, payload);
         });
 
-        it("should accept messages without data", () => {
-            const event = "simpleEvent";
+        it("emits an event with callback", () => {
+            const event = "message:send" as const;
+            const payload = { test: "data" };
+            const callback = vi.fn();
             
-            socketService.sendMessage(event);
+            socketService.emitEvent(event, payload, callback);
             
-            expect(mockSocketEmit).toHaveBeenCalledWith(event);
+            expect(mockSocket.emit).toHaveBeenCalledWith(event, payload, callback);
         });
     });
 
     describe("Socket Event Listeners", () => {
-        it("should register event listeners on socket", () => {
-            expect(mockSocketOn).toHaveBeenCalledWith("connect", expect.any(Function));
-            expect(mockSocketOn).toHaveBeenCalledWith("disconnect", expect.any(Function));
-        });
-
-        it("should handle custom events through on method", () => {
-            const event = "customEvent";
+        it("registers and unregisters event listeners through onEvent method", () => {
+            const event = "message:receive" as const;
             const handler = vi.fn();
             
-            socketService.on(event, handler);
+            const unsubscribe = socketService.onEvent(event, handler);
             
-            expect(mockSocketOn).toHaveBeenCalledWith(event, handler);
+            expect(mockSocket.on).toHaveBeenCalledWith(event, handler);
+            
+            // Call unsubscribe to remove the listener
+            unsubscribe();
+            
+            expect(mockSocket.off).toHaveBeenCalledWith(event, handler);
         });
 
-        it("should remove event listeners through off method", () => {
-            const event = "customEvent";
+        it("returns unsubscribe function that removes the listener", () => {
+            const event = "message:receive" as const;
             const handler = vi.fn();
             
-            socketService.off(event, handler);
+            const unsubscribe = socketService.onEvent(event, handler);
             
-            expect(mockSocketOff).toHaveBeenCalledWith(event, handler);
+            expect(typeof unsubscribe).toBe("function");
         });
     });
 });

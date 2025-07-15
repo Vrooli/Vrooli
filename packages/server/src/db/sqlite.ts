@@ -45,12 +45,27 @@ export class SQLiteDriver implements DatabaseService {
             logger.info("SQLite seeding completed successfully");
             return true;
         } catch (error) {
-            logger.error("SQLite seeding failed", {
-                trace: "SQLITE-SEED",
-                name: error instanceof Error ? error.name : undefined,
-                message: error instanceof Error ? error.message : String(error),
-                stack: error instanceof Error && error.stack ? error.stack : undefined,
-            });
+            // Check if this is a "table does not exist" error
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const isTableMissing = errorMessage.includes("no such table") || 
+                                   errorMessage.includes("does not exist") ||
+                                   errorMessage.includes("doesn't exist") ||
+                                   errorMessage.includes("P2021"); // Prisma error code for missing table
+            
+            if (isTableMissing) {
+                logger.error("SQLite seeding failed: Database tables not found. Please run migrations first.", {
+                    trace: "SQLITE-SEED-NO-TABLES",
+                    message: "Database migrations have not been applied. Run 'pnpm prisma migrate deploy' before starting the server.",
+                    originalError: errorMessage,
+                });
+            } else {
+                logger.error("SQLite seeding failed", {
+                    trace: "SQLITE-SEED",
+                    name: error instanceof Error ? error.name : undefined,
+                    message: error instanceof Error ? error.message : String(error),
+                    stack: error instanceof Error && error.stack ? error.stack : undefined,
+                });
+            }
             return false;
         }
     }

@@ -6,18 +6,8 @@
  */
 
 import { SECONDS_1_MS } from "@vrooli/shared";
-import { nanoid } from "nanoid";
-import {
-    DELIVERY_GUARANTEES,
-    EVENT_BUS_CONSTANTS,
-    PRIORITY_LEVELS,
-} from "./constants.js";
-import type {
-    BarrierSyncConfig,
-    BaseServiceEvent,
-    EventMetadata,
-    EventSource,
-} from "./types.js";
+import { EVENT_BUS_CONSTANTS, PRIORITY_LEVELS } from "./constants.js";
+import type { BarrierSyncConfig, EventMetadata, ServiceEvent } from "./types.js";
 
 /**
  * Retry strategy configuration
@@ -97,29 +87,6 @@ export function delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-/**
- * Create a typed event with proper structure
- */
-export function createTypedEvent<TData = unknown>(
-    type: string,
-    data: TData,
-    source: EventSource,
-    options?: {
-        id?: string;
-        correlationId?: string;
-        metadata?: EventMetadata;
-    },
-): BaseServiceEvent {
-    return {
-        id: options?.id || nanoid(),
-        type,
-        timestamp: new Date(),
-        source,
-        correlationId: options?.correlationId,
-        data,
-        metadata: options?.metadata,
-    };
-}
 
 /**
  * Pattern matching for MQTT-style event types
@@ -164,8 +131,9 @@ export class EventPatternMatcher {
         regexStr = regexStr.replace(/\*/g, "[^/]+");
 
         // # matches multiple levels (must be at end)
+        const HASH_SUFFIX_LENGTH = 2;
         if (regexStr.endsWith("/#")) {
-            regexStr = regexStr.slice(0, -2) + "(/.*)?";
+            regexStr = regexStr.slice(0, -HASH_SUFFIX_LENGTH) + "(/.*)?";
         }
 
         return new RegExp(`^${regexStr}$`);
@@ -207,7 +175,7 @@ export class BatchPatternMatcher {
 /**
  * Validate event structure
  */
-export function validateEventStructure(event: unknown): event is BaseServiceEvent {
+export function validateEventStructure(event: unknown): event is ServiceEvent {
     if (!event || typeof event !== "object") {
         return false;
     }
@@ -218,11 +186,9 @@ export function validateEventStructure(event: unknown): event is BaseServiceEven
         typeof e.id === "string" &&
         typeof e.type === "string" &&
         e.timestamp instanceof Date &&
-        typeof e.source === "object" &&
-        e.source !== null &&
-        (typeof e.source.tier === "number" || typeof e.source.tier === "string") &&
-        typeof e.source.component === "string" &&
-        e.data !== undefined
+        e.data !== undefined &&
+        (!e.progression || typeof e.progression === "object") &&
+        (!e.metadata || typeof e.metadata === "object")
     );
 }
 
@@ -262,33 +228,22 @@ export function getTierFromEventType(eventType: string): 1 | 2 | 3 | "cross-cutt
  * Create default metadata based on event type
  */
 export function createDefaultMetadata(eventType: string): EventMetadata {
-    // Safety events always use barrier-sync
+    // Safety events get critical priority
     if (eventType.startsWith("safety/") || eventType.startsWith("emergency/")) {
         return {
-            deliveryGuarantee: DELIVERY_GUARANTEES.BARRIER_SYNC,
             priority: PRIORITY_LEVELS.CRITICAL,
         };
     }
 
-    // Approval events use barrier-sync
+    // Approval events get high priority
     if (eventType.includes("approval_required")) {
         return {
-            deliveryGuarantee: DELIVERY_GUARANTEES.BARRIER_SYNC,
             priority: PRIORITY_LEVELS.HIGH,
         };
     }
 
-    // Completion events use reliable delivery
-    if (eventType.endsWith("/completed") || eventType.endsWith("/failed")) {
-        return {
-            deliveryGuarantee: DELIVERY_GUARANTEES.RELIABLE,
-            priority: PRIORITY_LEVELS.MEDIUM,
-        };
-    }
-
-    // Default to fire-and-forget
+    // Default to medium priority
     return {
-        deliveryGuarantee: DELIVERY_GUARANTEES.FIRE_AND_FORGET,
         priority: PRIORITY_LEVELS.MEDIUM,
     };
 }
@@ -296,16 +251,20 @@ export function createDefaultMetadata(eventType: string): EventMetadata {
 /**
  * Format event for logging
  */
-export function formatEventForLogging(event: BaseServiceEvent): Record<string, unknown> {
+export function formatEventForLogging(event: ServiceEvent): Record<string, unknown> {
     return {
         id: event.id,
         type: event.type,
         timestamp: event.timestamp.toISOString(),
-        source: `${event.source.tier}:${event.source.component}`,
-        correlationId: event.correlationId,
         metadata: event.metadata,
         // Don't log full data payload for security/size reasons
         dataKeys: event.data && typeof event.data === "object" ? Object.keys(event.data) : undefined,
+        progression: event.progression?.state,
+        execution: event.execution ? {
+            runId: event.execution.runId,
+            parentSwarmId: event.execution.parentSwarmId,
+            toolCallId: event.execution.toolCallId,
+        } : undefined,
     };
 }
 
@@ -316,22 +275,16 @@ export function createBarrierConfig(options: Partial<BarrierSyncConfig> = {}): B
     return {
         quorum: options.quorum || 1,
         timeoutMs: options.timeoutMs || EVENT_BUS_CONSTANTS.DEFAULT_BARRIER_TIMEOUT_MS,
-        timeoutAction: options.timeoutAction || "auto-reject",
+        timeoutAction: options.timeoutAction || "block",
         requiredResponders: options.requiredResponders,
     };
 }
 
-/**
- * Check if event requires barrier synchronization
- */
-export function requiresBarrierSync(event: BaseServiceEvent): boolean {
-    return event.metadata?.deliveryGuarantee === DELIVERY_GUARANTEES.BARRIER_SYNC;
-}
 
 /**
  * Calculate priority score for event ordering (higher = more important)
  */
-export function calculatePriorityScore(event: BaseServiceEvent): number {
+export function calculatePriorityScore(event: ServiceEvent): number {
     const priorityScores = {
         [PRIORITY_LEVELS.CRITICAL]: 1000,
         [PRIORITY_LEVELS.HIGH]: 100,
@@ -341,71 +294,13 @@ export function calculatePriorityScore(event: BaseServiceEvent): number {
 
     const basePriority = priorityScores[event.metadata?.priority || PRIORITY_LEVELS.MEDIUM];
 
-    // Boost score for barrier-sync events
-    const barrierBoost = requiresBarrierSync(event) ? 500 : 0;
-
     // Boost score for safety events
-    const safetyBoost = event.source.tier === "safety" ? 200 : 0;
+    const SAFETY_BOOST_SCORE = 500;
+    const safetyBoost = event.type.startsWith("safety/") || event.type.startsWith("emergency/") ? SAFETY_BOOST_SCORE : 0;
 
-    return basePriority + barrierBoost + safetyBoost;
+    // Boost score for approval events
+    const APPROVAL_BOOST_SCORE = 200;
+    const approvalBoost = event.type.includes("approval") ? APPROVAL_BOOST_SCORE : 0;
+
+    return basePriority + safetyBoost + approvalBoost;
 }
-
-export const EventUtils = {
-    /**
-     * Create a basic event source
-     */
-    createEventSource(
-        tier: 1 | 2 | 3 | "cross-cutting" | "safety",
-        component: string,
-        instanceId?: string,
-    ): EventSource {
-        return {
-            tier,
-            component,
-            instanceId: instanceId || nanoid(),
-        } as EventSource;
-    },
-
-    /**
-     * Create basic event metadata
-     */
-    createEventMetadata(
-        deliveryGuarantee: "fire-and-forget" | "reliable" | "barrier-sync" = "fire-and-forget",
-        priority: "low" | "medium" | "high" | "critical" = "medium",
-        options?: {
-            tags?: string[];
-            userId?: string;
-            conversationId?: string;
-            barrierConfig?: BarrierSyncConfig;
-        },
-    ): EventMetadata {
-        return {
-            deliveryGuarantee,
-            priority,
-            tags: options?.tags,
-            userId: options?.userId,
-            conversationId: options?.conversationId,
-            barrierConfig: options?.barrierConfig,
-        };
-    },
-
-    /**
-     * Create a complete base event
-     */
-    createBaseEvent<T = unknown>(
-        type: string,
-        data: T,
-        source: EventSource,
-        metadata?: EventMetadata,
-    ): BaseServiceEvent {
-        return {
-            id: nanoid(),
-            type,
-            timestamp: new Date(),
-            source,
-            correlationId: nanoid(),
-            data,
-            metadata,
-        };
-    },
-};

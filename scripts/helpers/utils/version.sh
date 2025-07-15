@@ -70,7 +70,7 @@ version::set_package_json_version() {
     if [ -d "${var_ROOT_DIR}/packages" ]; then
         while IFS= read -r -d $'\0' file; do
             pkg_file_paths+=("$file")
-        done < <(find "${var_ROOT_DIR}/packages" -name "package.json" -print0 2>/dev/null || true)
+        done < <(find "${var_ROOT_DIR}/packages" -name "package.json" -not -path "*/node_modules/*" -print0 2>/dev/null || true)
     else
         log::info "Directory ${var_ROOT_DIR}/packages not found. Skipping search for package.json files within it."
     fi
@@ -96,7 +96,7 @@ version::set_package_json_version() {
             log::warn "Package file $pkg_file listed but not found. Skipping."
             continue
         fi
-        log::debug "Processing $pkg_file..."
+        log::info "Processing $pkg_file..."
         local tmp_file="${pkg_file}.jq.tmp" # Temporary file for jq output
 
         local file_current_version

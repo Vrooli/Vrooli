@@ -1,5 +1,6 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
 import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
-import { type Prisma } from "@prisma/client";
+import { type Prisma, type PrismaClient } from "@prisma/client";
 
 /**
  * Database fixtures for ResourceVersion model - used for seeding test data
@@ -170,7 +171,7 @@ export class ResourceVersionDbFactory {
                 create: [{
                     id: generatePK(),
                     language: "en",
-                    name: `Test Resource Version ${nanoid(4)}`,
+                    name: `Test Resource Version ${nanoid()}`,
                 }],
             },
             ...overrides,
@@ -187,7 +188,7 @@ export class ResourceVersionDbFactory {
                 create: [{
                     id: generatePK(),
                     language: "en",
-                    name: `Complete Resource Version ${nanoid(4)}`,
+                    name: `Complete Resource Version ${nanoid()}`,
                     description: "A comprehensive resource version with all features enabled",
                 }],
             },
@@ -205,7 +206,7 @@ export class ResourceVersionDbFactory {
                 create: [{
                     id: generatePK(),
                     language: "en",
-                    name: `Private Resource Version ${nanoid(4)}`,
+                    name: `Private Resource Version ${nanoid()}`,
                 }],
             },
             ...overrides,
@@ -226,7 +227,7 @@ export class ResourceVersionDbFactory {
                 create: [{
                     id: generatePK(),
                     language: "en",
-                    name: `${language.charAt(0).toUpperCase() + language.slice(1)} Code Version ${nanoid(4)}`,
+                    name: `${language.charAt(0).toUpperCase() + language.slice(1)} Code Version ${nanoid()}`,
                     description: `A ${language} code resource`,
                 }],
             },
@@ -289,7 +290,7 @@ export class ResourceVersionDbFactory {
                 create: [{
                     id: generatePK(),
                     language: "en",
-                    name: `${isAutomatable ? "Automated" : "Manual"} Routine ${nanoid(4)}`,
+                    name: `${isAutomatable ? "Automated" : "Manual"} Routine ${nanoid()}`,
                     description: `A ${isAutomatable ? "fully automated" : "manual"} routine for processing tasks`,
                     instructions: isAutomatable ? "This routine runs automatically" : "Manual execution required",
                 }],
@@ -314,7 +315,7 @@ export class ResourceVersionDbFactory {
                 create: [{
                     id: generatePK(),
                     language: "en",
-                    name: `API Resource ${nanoid(4)}`,
+                    name: `API Resource ${nanoid()}`,
                     description: "A REST API resource with multiple endpoints",
                     instructions: "Authenticate using Bearer token before making requests",
                 }],
@@ -416,7 +417,7 @@ export async function seedResourceVersions(
 /**
  * Helper to clean up resource versions and related data
  */
-export async function cleanupResourceVersions(prisma: any, versionIds: string[]) {
+export async function cleanupResourceVersions(prisma: PrismaClient, versionIds: string[]) {
     // Clean up in correct order due to foreign key constraints
     await prisma.resource_version_relation.deleteMany({
         where: {

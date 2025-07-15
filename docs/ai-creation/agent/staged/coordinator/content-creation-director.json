@@ -1,108 +1,110 @@
 {
-  "identity": {
-    "name": "content-creation-director",
-    "version": "1.0.0"
-  },
-  "goal": "Orchestrates multi-channel content campaigns and publishing",
-  "role": "coordinator",
-  "subscriptions": [
-    "run/completed",
-    "swarm/goal/created",
-    "step/completed"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "run/completed",
-        "when": "event.data.tags.includes('content') || event.data.tags.includes('publishing') || event.data.tags.includes('campaign')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Content Orchestrator",
-        "inputMap": {
-          "contentResults": "event.data.outputs.content",
-          "campaignProgress": "event.data.progress",
-          "contentCalendars": "blackboard.content.calendars",
-          "publishingChannels": "blackboard.content.channels"
+    "identity": {
+        "name": "content-creation-director",
+        "version": "1.0.0"
+    },
+    "goal": "Orchestrates multi-channel content campaigns and publishing",
+    "role": "coordinator",
+    "subscriptions": [
+        "run/completed",
+        "swarm/goal/created",
+        "step/completed"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "run/completed",
+                "when": "event.data.tags.includes('content') || event.data.tags.includes('publishing') || event.data.tags.includes('campaign')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Content Orchestrator",
+                "inputMap": {
+                    "contentResults": "event.data.outputs.content",
+                    "campaignProgress": "event.data.progress",
+                    "contentCalendars": "blackboard.content.calendars",
+                    "publishingChannels": "blackboard.content.channels"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "swarm/goal/created",
+                "when": "event.data.description.includes('content') || event.data.description.includes('publishing') || event.data.description.includes('marketing')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Direct multi-channel content creation by orchestrating content production workflows across multiple platforms and formats for maximum reach and engagement"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'content_creation' || event.data.tags.includes('publishing_workflow')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Publishing Director",
+                "inputMap": {
+                    "createdContent": "event.data.output.content",
+                    "publishingSchedule": "event.data.schedule",
+                    "brandGuidelines": "blackboard.content.branding"
+                }
+            },
+            "qos": 1
         }
-      },
-      "qos": 1
+    ],
+    "prompt": {
+        "mode": "supplement",
+        "source": "direct",
+        "content": "As the Content Creation Director, you MUST maintain high-quality content standards across all campaigns and channels. You are permitted to coordinate publishing workflows across multiple platforms and teams. You MUST NOT publish any content that is inconsistent with established brand guidelines. Focus on orchestrating cohesive multi-channel campaigns that maximize engagement while maintaining brand integrity."
     },
-    {
-      "trigger": {
-        "topic": "swarm/goal/created",
-        "when": "event.data.description.includes('content') || event.data.description.includes('publishing') || event.data.description.includes('marketing')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Direct multi-channel content creation by orchestrating content production workflows across multiple platforms and formats for maximum reach and engagement"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'content_creation' || event.data.tags.includes('publishing_workflow')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Publishing Director",
-        "inputMap": {
-          "createdContent": "event.data.output.content",
-          "publishingSchedule": "event.data.schedule",
-          "brandGuidelines": "blackboard.content.branding"
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "content-calendars",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "content.calendars",
+            "description": "Content calendars and publishing schedule management"
+        },
+        {
+            "type": "blackboard",
+            "label": "publishing-channels",
+            "permissions": [
+                "read"
+            ],
+            "scope": "content.channels",
+            "description": "Publishing channels and platform-specific requirements"
+        },
+        {
+            "type": "blackboard",
+            "label": "brand-guidelines",
+            "permissions": [
+                "read"
+            ],
+            "scope": "content.branding",
+            "description": "Brand guidelines and content standards"
+        },
+        {
+            "type": "routine",
+            "label": "Content Orchestrator",
+            "permissions": [
+                "read"
+            ],
+            "description": "Orchestrate multi-channel content campaigns"
+        },
+        {
+            "type": "routine",
+            "label": "Publishing Director",
+            "permissions": [
+                "read"
+            ],
+            "description": "Direct content publishing workflows and scheduling"
         }
-      },
-      "qos": 1
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "maintain-content-quality"
-    },
-    {
-      "modality": "permission",
-      "target": "coordinate-publishing-workflows"
-    },
-    {
-      "modality": "prohibition",
-      "target": "publish-inconsistent-branding"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "content-calendars",
-      "permissions": ["read", "write"],
-      "scope": "content.calendars",
-      "description": "Content calendars and publishing schedule management"
-    },
-    {
-      "type": "blackboard",
-      "label": "publishing-channels",
-      "permissions": ["read"],
-      "scope": "content.channels",
-      "description": "Publishing channels and platform-specific requirements"
-    },
-    {
-      "type": "blackboard",
-      "label": "brand-guidelines",
-      "permissions": ["read"],
-      "scope": "content.branding",
-      "description": "Brand guidelines and content standards"
-    },
-    {
-      "type": "routine",
-      "label": "Content Orchestrator",
-      "permissions": ["read"],
-      "description": "Orchestrate multi-channel content campaigns"
-    },
-    {
-      "type": "routine",
-      "label": "Publishing Director",
-      "permissions": ["read"],
-      "description": "Direct content publishing workflows and scheduling"
-    }
-  ]
+    ]
 }

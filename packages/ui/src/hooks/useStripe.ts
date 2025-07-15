@@ -11,7 +11,10 @@ import { ELEMENT_IDS } from "../utils/consts.js";
 import { PubSub } from "../utils/pubsub.js";
 import { useFetch } from "./useFetch.js";
 
-const stripePromise = loadStripe(process.env.VITE_STRIPE_PUBLISHABLE_KEY ?? "");
+// Conditionally load Stripe only when not in Storybook to prevent console errors
+const stripePromise = typeof window !== "undefined" && !window.location.href.includes("storybook") 
+    ? loadStripe(process.env.VITE_STRIPE_PUBLISHABLE_KEY ?? "")
+    : Promise.resolve(null);
 
 const paymentTypeToSuccessMessage: Record<PaymentType, TranslationKeyCommon> = {
     [PaymentType.Credits]: "CreditsPaymentSuccess",

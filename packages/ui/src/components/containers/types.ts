@@ -1,10 +1,11 @@
 /* c8 ignore start */
+import React from "react";
 import type { TypographyProps } from "@mui/material";
 import { type CommentFor, type TranslationKeyCommon } from "@vrooli/shared";
 import { type ReactNode } from "react";
 import { type IconInfo } from "../../icons/Icons.js";
 import { type SxType } from "../../types.js";
-import { type RichInputProps, type TextInputProps, type TranslatedRichInputProps, type TranslatedTextInputProps } from "../inputs/types.js";
+import { type AdvancedInputProps, type TextInputProps, type TranslatedAdvancedInputProps, type TranslatedTextInputProps } from "../inputs/types.js";
 
 export interface CommentContainerProps {
     /** When true, forces the add comment form to be open, even on mobile */
@@ -31,7 +32,7 @@ export interface TitleContainerProps {
         /** Adds icon for option to the right of the title */
         iconInfo?: IconInfo | null | undefined;
         label: string;
-        onClick: (event?: any) => unknown;
+        onClick: (event?: React.MouseEvent<HTMLElement>) => unknown;
     }[];
     sx?: SxType;
 }
@@ -89,8 +90,8 @@ interface BaseEditableTextProps<T extends EditTextComponent> {
 }
 
 export type PropsByComponentType = {
-    Markdown: Omit<RichInputProps, "name" | "zIndex">;
-    TranslatedMarkdown: Omit<TranslatedRichInputProps, "name" | "zIndex">;
+    Markdown: Omit<AdvancedInputProps, "name" | "zIndex">;
+    TranslatedMarkdown: Omit<TranslatedAdvancedInputProps, "name" | "zIndex">;
     TranslatedTextInput: Omit<TranslatedTextInputProps, "name">;
     TextInput: Omit<TextInputProps, "error" | "helpText" | "name" | "onBlur" | "onChange" | "value">;
 };
@@ -98,3 +99,5 @@ export type PropsByComponentType = {
 export type EditableTextProps<T extends EditTextComponent> = BaseEditableTextProps<T> & {
     props?: PropsByComponentType[T];
 }
+
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed onClick event handler type from 'any' to React.MouseEvent<HTMLElement>

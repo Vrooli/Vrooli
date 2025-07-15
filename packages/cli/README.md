@@ -1,4 +1,5 @@
 # Vrooli CLI
+<!-- AI_CHECK: TEST_COVERAGE=271 | LAST: 2025-01-13 -->
 
 Command-line interface for managing Vrooli instances.
 

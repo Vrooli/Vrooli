@@ -1,4 +1,5 @@
-import { AccountStatus, generatePK, generatePublicId, nanoid, LATEST_CONFIG_VERSION } from "@vrooli/shared";
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
+import { AccountStatus, generatePublicId, nanoid, LATEST_CONFIG_VERSION } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -6,7 +7,7 @@ import type {
     RelationConfig,
     TestScenario,
 } from "./types.js";
-import { botConfigFixtures } from "@vrooli/shared/test-fixtures";
+import { botConfigFixtures } from "../../../../../shared/src/__test/fixtures/config/botConfigFixtures.js";
 
 interface UserRelationConfig extends RelationConfig {
     withAuth?: boolean;
@@ -30,11 +31,12 @@ interface UserRelationConfig extends RelationConfig {
  * - Comprehensive validation
  */
 export class UserDbFactory extends EnhancedDatabaseFactory<
-    Prisma.UserCreateInput,
-    Prisma.UserCreateInput,
-    Prisma.UserInclude,
-    Prisma.UserUpdateInput
+    user,
+    Prisma.userCreateInput,
+    Prisma.userInclude,
+    Prisma.userUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
         super("User", prisma);
         this.initializeScenarios();
@@ -47,23 +49,23 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get complete test fixtures for User model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.UserCreateInput, Prisma.UserUpdateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.userCreateInput, Prisma.userUpdateInput> {
         return {
             minimal: {
-                id: generatePK(),
+                id: this.generateId(),
                 publicId: generatePublicId(),
                 name: "Test User",
-                handle: `user_${nanoid(8)}`,
+                handle: `user_${nanoid()}`,
                 status: AccountStatus.Unlocked,
                 isBot: false,
                 isBotDepictingPerson: false,
                 isPrivate: false,
             },
             complete: {
-                id: generatePK(),
+                id: this.generateId(),
                 publicId: generatePublicId(),
                 name: "Complete Test User",
-                handle: `complete_${nanoid(8)}`,
+                handle: `complete_${nanoid()}`,
                 status: AccountStatus.Unlocked,
                 isBot: false,
                 isBotDepictingPerson: false,
@@ -74,12 +76,12 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                 translations: {
                     create: [
                         {
-                            id: generatePK(),
+                            id: this.generateId(),
                             language: "en",
                             bio: "I'm a test user with a complete profile",
                         },
                         {
-                            id: generatePK(),
+                            id: this.generateId(),
                             language: "es",
                             bio: "Soy un usuario de prueba con un perfil completo",
                         },
@@ -101,7 +103,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                     status: "unlocked", // Should be AccountStatus enum
                 },
                 duplicateHandle: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     name: "Duplicate Handle User",
                     handle: "existing_handle", // Assumes this exists
@@ -111,10 +113,10 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                     isPrivate: false,
                 },
                 invalidBotConfig: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     name: "Invalid Bot",
-                    handle: `invalid_bot_${nanoid(8)}`,
+                    handle: `invalid_bot_${nanoid()}`,
                     status: AccountStatus.Unlocked,
                     isBot: true,
                     isBotDepictingPerson: false,
@@ -124,7 +126,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
             },
             edgeCases: {
                 maxLengthHandle: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     name: "Max Length Handle User",
                     handle: "a".repeat(50), // Max length handle
@@ -134,40 +136,40 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                     isPrivate: false,
                 },
                 unicodeNameUser: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     name: "测试用户 🎉", // Unicode characters
-                    handle: `unicode_${nanoid(8)}`,
+                    handle: `unicode_${nanoid()}`,
                     status: AccountStatus.Unlocked,
                     isBot: false,
                     isBotDepictingPerson: false,
                     isPrivate: false,
                 },
                 lockedAccount: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     name: "Locked User",
-                    handle: `locked_${nanoid(8)}`,
+                    handle: `locked_${nanoid()}`,
                     status: AccountStatus.HardLocked,
                     isBot: false,
                     isBotDepictingPerson: false,
                     isPrivate: false,
                 },
                 deletedAccount: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     name: "[Deleted User]",
-                    handle: `deleted_${nanoid(8)}`,
+                    handle: `deleted_${nanoid()}`,
                     status: AccountStatus.Deleted,
                     isBot: false,
                     isBotDepictingPerson: false,
                     isPrivate: true,
                 },
                 botWithComplexSettings: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     name: "Complex Bot",
-                    handle: `complex_bot_${nanoid(8)}`,
+                    handle: `complex_bot_${nanoid()}`,
                     status: AccountStatus.Unlocked,
                     isBot: true,
                     isBotDepictingPerson: false,
@@ -183,17 +185,17 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 multiLanguageTranslations: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     name: "Multilingual User",
-                    handle: `multilang_${nanoid(8)}`,
+                    handle: `multilang_${nanoid()}`,
                     status: AccountStatus.Unlocked,
                     isBot: false,
                     isBotDepictingPerson: false,
                     isPrivate: false,
                     translations: {
                         create: Array.from({ length: 10 }, (_, i) => ({
-                            id: generatePK(),
+                            id: this.generateId(),
                             language: ["en", "es", "fr", "de", "it", "pt", "ru", "ja", "zh", "ar"][i],
                             bio: `Bio in language ${i}`,
                         })),
@@ -220,11 +222,11 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateMinimalData(overrides?: Partial<Prisma.UserCreateInput>): Prisma.UserCreateInput {
-        const uniqueHandle = `user_${nanoid(8)}`;
+    protected generateMinimalData(overrides?: Partial<Prisma.userCreateInput>): Prisma.userCreateInput {
+        const uniqueHandle = `user_${nanoid()}`;
         
         return {
-            id: generatePK(),
+            id: this.generateId(),
             publicId: generatePublicId(),
             name: "Test User",
             handle: uniqueHandle,
@@ -236,11 +238,11 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateCompleteData(overrides?: Partial<Prisma.UserCreateInput>): Prisma.UserCreateInput {
-        const uniqueHandle = `complete_${nanoid(8)}`;
+    protected generateCompleteData(overrides?: Partial<Prisma.userCreateInput>): Prisma.userCreateInput {
+        const uniqueHandle = `complete_${nanoid()}`;
         
         return {
-            id: generatePK(),
+            id: this.generateId(),
             publicId: generatePublicId(),
             name: "Complete Test User",
             handle: uniqueHandle,
@@ -254,12 +256,12 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
             translations: {
                 create: [
                     {
-                        id: generatePK(),
+                        id: this.generateId(),
                         language: "en",
                         bio: "I'm a test user with a complete profile",
                     },
                     {
-                        id: generatePK(),
+                        id: this.generateId(),
                         language: "es",
                         bio: "Soy un usuario de prueba con un perfil completo",
                     },
@@ -280,12 +282,12 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                 config: {
                     overrides: {
                         name: "Admin User",
-                        handle: `admin_${nanoid(8)}`,
+                        handle: `admin_${nanoid()}`,
                     },
                     withAuth: true,
                     withEmails: true,
                     teams: [{
-                        teamId: "admin-team",
+                        team: { connect: { id: this.generateId() } },
                         role: "Owner",
                     }],
                 },
@@ -333,9 +335,9 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                     withAuth: true,
                     withEmails: 3,
                     teams: [
-                        { teamId: "enterprise-team-1", role: "Owner" },
-                        { teamId: "enterprise-team-2", role: "Admin" },
-                        { teamId: "enterprise-team-3", role: "Member" },
+                        { team: { connect: { id: this.generateId() } }, role: "Owner" },
+                        { team: { connect: { id: this.generateId() } }, role: "Admin" },
+                        { team: { connect: { id: this.generateId() } }, role: "Member" },
                     ],
                 },
             },
@@ -345,10 +347,10 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a bot user with settings
      */
-    async createBot(overrides?: Partial<Prisma.UserCreateInput>): Promise<Prisma.User> {
-        const botHandle = `bot_${nanoid(8)}`;
+    async createBot(overrides?: Partial<Prisma.userCreateInput>): Promise<Prisma.User> {
+        const botHandle = `bot_${nanoid()}`;
         
-        const data: Prisma.UserCreateInput = {
+        const data: Prisma.userCreateInput = {
             ...this.generateMinimalData(),
             handle: botHandle,
             name: "Test Bot",
@@ -370,31 +372,31 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
     async createSuspendedUser(): Promise<Prisma.User> {
         return await this.createMinimal({
             status: AccountStatus.SoftLocked,
-            handle: `suspended_${nanoid(8)}`,
+            handle: `suspended_${nanoid()}`,
         });
     }
 
     async createPrivateUser(): Promise<Prisma.User> {
         return await this.createMinimal({
             isPrivate: true,
-            handle: `private_${nanoid(8)}`,
+            handle: `private_${nanoid()}`,
         });
     }
 
     async createBotDepictingPerson(): Promise<Prisma.User> {
         return await this.createBot({
             isBotDepictingPerson: true,
-            handle: `bot_person_${nanoid(8)}`,
+            handle: `bot_person_${nanoid()}`,
             name: "AI Assistant (depicts real person)",
         });
     }
 
-    protected getDefaultInclude(): Prisma.UserInclude {
+    protected getDefaultInclude(): Prisma.userInclude {
         return {
             emails: true,
             auths: true,
             translations: true,
-            teams: {
+            memberships: {
                 select: {
                     id: true,
                     role: true,
@@ -411,7 +413,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                 select: {
                     emails: true,
                     auths: true,
-                    teams: true,
+                    memberships: true,
                     projects: true,
                     comments: true,
                 },
@@ -420,17 +422,17 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async applyRelationships(
-        baseData: Prisma.UserCreateInput,
+        baseData: Prisma.userCreateInput,
         config: UserRelationConfig,
-        tx: any,
-    ): Promise<Prisma.UserCreateInput> {
+        tx: PrismaClient,
+    ): Promise<Prisma.userCreateInput> {
         const data = { ...baseData };
 
         // Handle authentication
         if (config.withAuth) {
             data.auths = {
                 create: [{
-                    id: generatePK(),
+                    id: this.generateId(),
                     provider: "Password",
                     hashed_password: "$2b$10$dummy.hashed.password.for.testing",
                 }],
@@ -442,8 +444,8 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
             const emailCount = typeof config.withEmails === "number" ? config.withEmails : 1;
             data.emails = {
                 create: Array.from({ length: emailCount }, (_, i) => ({
-                    id: generatePK(),
-                    emailAddress: `test_${nanoid(6)}_${i}@example.com`,
+                    id: this.generateId(),
+                    emailAddress: `test_${nanoid()}_${i}@example.com`,
                     verifiedAt: i === 0 ? new Date() : null, // First email is verified
                 })),
             };
@@ -451,11 +453,21 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
 
         // Handle team memberships
         if (config.teams && Array.isArray(config.teams)) {
-            data.teams = {
+            data.memberships = {
                 create: config.teams.map(team => ({
-                    id: generatePK(),
+                    id: this.generateId(),
+                    publicId: generatePublicId(),
                     teamId: team.teamId,
-                    role: team.role || "Member",
+                    isAdmin: team.role === "Owner" || team.role === "Admin",
+                    permissions: team.role === "Owner" ? JSON.stringify({ 
+                        canInvite: true, 
+                        canEdit: true, 
+                        canDelete: true,
+                        canManageRoles: true, 
+                    }) : team.role === "Admin" ? JSON.stringify({ 
+                        canInvite: true, 
+                        canEdit: true, 
+                    }) : "{}",
                 })),
             };
         }
@@ -470,7 +482,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
         if (config.translations && Array.isArray(config.translations)) {
             data.translations = {
                 create: config.translations.map(trans => ({
-                    id: generatePK(),
+                    id: this.generateId(),
                     ...trans,
                 })),
             };
@@ -521,7 +533,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
         return {
             emails: true,
             auths: true,
-            teams: true,
+            memberships: true,
             translations: true,
             comments: true,
             projects: true,
@@ -536,7 +548,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
     protected async deleteRelatedRecords(
         record: Prisma.User,
         remainingDepth: number,
-        tx: any,
+        tx: PrismaClient,
         includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
@@ -575,13 +587,13 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
 
         // Delete chat participations
         if (shouldDelete("chats") && record.chats?.length) {
-            await tx.chatParticipant.deleteMany({
+            await tx.chat_participants.deleteMany({
                 where: { userId: record.id },
             });
         }
 
         // Delete team memberships
-        if (shouldDelete("teams") && record.teams?.length) {
+        if (shouldDelete("memberships") && record.memberships?.length) {
             await tx.member.deleteMany({
                 where: { userId: record.id },
             });
@@ -619,7 +631,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a user with session for testing authenticated requests
      */
-    async createWithSession(overrides?: Partial<Prisma.UserCreateInput>): Promise<{
+    async createWithSession(overrides?: Partial<Prisma.userCreateInput>): Promise<{
         user: Prisma.User;
         sessionToken: string;
     }> {
@@ -629,14 +641,14 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
             withEmails: true,
         });
 
-        const sessionToken = `test_session_${nanoid(32)}`;
+        const sessionToken = `test_session_${nanoid()}`;
         await this.prisma.session.create({
             data: {
-                id: generatePK(),
+                id: this.generateId(),
                 publicId: generatePublicId(),
                 token: sessionToken,
                 userId: user.id,
-                deviceId: `test_device_${nanoid(8)}`,
+                deviceId: `test_device_${nanoid()}`,
                 expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
             },
         });
@@ -671,7 +683,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createUserDbFactory = (prisma: PrismaClient) => 
-    UserDbFactory.getInstance("User", prisma);
+    new UserDbFactory(prisma);
 
 // Export the class for type usage
 export { UserDbFactory as UserDbFactoryClass };

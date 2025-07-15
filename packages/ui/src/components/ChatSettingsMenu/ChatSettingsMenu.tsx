@@ -455,7 +455,7 @@ function ModelConfigTab({ modelConfigs, onChange }: ModelConfigTabProps) {
                 flexDirection: "column", 
                 mt: 1, 
                 flexGrow: 1,
-                gap: 2 
+                gap: 2, 
             }}>
                 <Box sx={{ 
                     overflowY: "auto", 
@@ -463,7 +463,7 @@ function ModelConfigTab({ modelConfigs, onChange }: ModelConfigTabProps) {
                     borderColor: "divider", 
                     pb: 2,
                     mb: 2,
-                    maxHeight: "300px"
+                    maxHeight: "300px",
                 }}>
                     {Object.keys(modelsByProvider).length === 0 ? (
                         <Box sx={noResultsStyle}>
@@ -484,7 +484,7 @@ function ModelConfigTab({ modelConfigs, onChange }: ModelConfigTabProps) {
                                         color: "text.secondary",
                                         backgroundColor: "action.hover",
                                         borderBottom: 1,
-                                        borderColor: "divider"
+                                        borderColor: "divider",
                                     }}
                                 >
                                     {providerName}
@@ -1030,7 +1030,7 @@ function IntegrationsTab({ settings, onChange }: IntegrationsTabProps) {
                         borderColor: "divider", 
                         borderRadius: 1, 
                         backgroundColor: "action.hover",
-                        textAlign: "center"
+                        textAlign: "center",
                     }}>
                         <Typography variant="body2" color="textSecondary" sx={{ fontStyle: "italic" }}>
                             {t("NoProjectsConnected", { defaultValue: "No projects connected." })}
@@ -1053,7 +1053,7 @@ function IntegrationsTab({ settings, onChange }: IntegrationsTabProps) {
                                         border: 1, 
                                         borderColor: "divider", 
                                         borderRadius: 1,
-                                        backgroundColor: "background.paper"
+                                        backgroundColor: "background.paper",
                                     }}
                                 >
                                     <Typography>{displayTitle}</Typography>
@@ -1099,7 +1099,7 @@ function IntegrationsTab({ settings, onChange }: IntegrationsTabProps) {
                         borderColor: "divider", 
                         borderRadius: 1, 
                         backgroundColor: "action.hover",
-                        textAlign: "center"
+                        textAlign: "center",
                     }}>
                         <Typography variant="body2" color="textSecondary" sx={{ fontStyle: "italic" }}>
                             {t("NoExternalAppsConnected", { defaultValue: "No external apps connected." })}
@@ -1118,7 +1118,7 @@ function IntegrationsTab({ settings, onChange }: IntegrationsTabProps) {
                                     border: 1, 
                                     borderColor: "divider", 
                                     borderRadius: 1,
-                                    backgroundColor: "background.paper"
+                                    backgroundColor: "background.paper",
                                 }}
                             >
                                 <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>

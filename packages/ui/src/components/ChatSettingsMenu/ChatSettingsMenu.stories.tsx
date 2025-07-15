@@ -1,5 +1,7 @@
+// AI_CHECK: TYPE_SAFETY=fixed-10-translation-key-types | LAST: 2025-07-01
+// AI_CHECK: TYPE_SAFETY=fixed-ai-service-types | LAST: 2025-06-28
 import type { Meta, StoryObj } from "@storybook/react";
-import { DUMMY_ID, type AIServicesInfo } from "@vrooli/shared";
+import { DUMMY_ID, type AIServicesInfo, LlmServiceId, OpenAIModel, AnthropicModel, MistralModel, type TranslationKeyModel } from "@vrooli/shared";
 import React, { useState, useEffect } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -30,18 +32,18 @@ const mockAvailableModels = [
 
 // Mock AI service configuration
 const mockAIServiceConfig: AIServicesInfo = {
-    defaultService: "OpenAI" as any,
+    defaultService: LlmServiceId.OpenAI,
     services: {
         OpenAI: {
             enabled: true,
             name: "OpenAI",
-            defaultModel: "gpt-4" as any,
+            defaultModel: OpenAIModel.Gpt4,
             fallbackMaxTokens: 4096,
             models: {
-                "gpt-4": {
+                [OpenAIModel.Gpt4]: {
                     enabled: true,
-                    name: "GPT-4" as any,
-                    descriptionShort: "Advanced language model with improved reasoning" as any,
+                    name: "GPT_4_Name" as TranslationKeyModel,
+                    descriptionShort: "GPT_4_Description" as TranslationKeyModel,
                     inputCost: 3000,
                     outputCost: 6000,
                     contextWindow: 8192,
@@ -49,10 +51,10 @@ const mockAIServiceConfig: AIServicesInfo = {
                     features: {},
                     supportsReasoning: false,
                 },
-                "gpt-3.5-turbo": {
+                [OpenAIModel.Gpt4o_Mini]: {
                     enabled: true,
-                    name: "GPT-3.5 Turbo" as any,
-                    descriptionShort: "Fast and efficient language model" as any,
+                    name: "GPT_4o_Mini_Name" as TranslationKeyModel,
+                    descriptionShort: "GPT_4o_Mini_Description" as TranslationKeyModel,
                     inputCost: 150,
                     outputCost: 200,
                     contextWindow: 16384,
@@ -61,18 +63,18 @@ const mockAIServiceConfig: AIServicesInfo = {
                     supportsReasoning: false,
                 },
             },
-            displayOrder: ["gpt-4", "gpt-3.5-turbo"] as any,
+            displayOrder: [OpenAIModel.Gpt4, OpenAIModel.Gpt4o_Mini],
         },
         Anthropic: {
             enabled: true,
             name: "Anthropic",
-            defaultModel: "claude-3.5-sonnet" as any,
+            defaultModel: AnthropicModel.Claude3_5_Sonnet,
             fallbackMaxTokens: 4096,
             models: {
-                "claude-3.5-sonnet": {
+                [AnthropicModel.Claude3_5_Sonnet]: {
                     enabled: true,
-                    name: "Claude 3.5 Sonnet" as any,
-                    descriptionShort: "Anthropic's advanced reasoning model" as any,
+                    name: "Claude_3_5_Sonnet_Name" as TranslationKeyModel,
+                    descriptionShort: "Claude_3_5_Sonnet_Description" as TranslationKeyModel,
                     inputCost: 300,
                     outputCost: 1500,
                     contextWindow: 200000,
@@ -81,18 +83,18 @@ const mockAIServiceConfig: AIServicesInfo = {
                     supportsReasoning: false,
                 },
             },
-            displayOrder: ["claude-3.5-sonnet"] as any,
+            displayOrder: [AnthropicModel.Claude3_5_Sonnet],
         },
         Mistral: {
             enabled: false,
             name: "Mistral", 
-            defaultModel: "mistral-nemo" as any,
+            defaultModel: MistralModel.MistralNemo,
             fallbackMaxTokens: 4096,
             models: {},
-            displayOrder: [] as any,
+            displayOrder: [],
         },
     },
-    fallbacks: {} as any,
+    fallbacks: {},
 };
 
 // Helper component to set up localStorage mocks
@@ -192,9 +194,9 @@ const mockInvites = [
 const defaultModelConfigs: ModelConfig[] = [
     {
         model: {
-            name: "GPT-4" as any,
-            description: "Advanced language model with improved reasoning" as any,
-            value: "gpt-4" as any,
+            name: "GPT_4_Name" as TranslationKeyModel,
+            description: "GPT_4_Description" as TranslationKeyModel,
+            value: OpenAIModel.Gpt4,
             tier: "premium" as const,
         },
         toolSettings: {
@@ -395,9 +397,9 @@ export const RequireConfirmation: Story = {
                     modelConfigs={[
                         {
                             model: {
-                                name: "GPT-4" as any,
-                                description: "Advanced language model with improved reasoning" as any,
-                                value: "gpt-4" as any,
+                                name: "GPT_4_Name" as TranslationKeyModel,
+                                description: "GPT_4_Description" as TranslationKeyModel,
+                                value: OpenAIModel.Gpt4,
                                 tier: "premium" as const,
                             },
                             toolSettings: {

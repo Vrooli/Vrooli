@@ -24,7 +24,7 @@ export const meetingDbIds = {
 /**
  * Enhanced test fixtures for Meeting model following standard structure
  */
-export const meetingDbFixtures: DbTestFixtures<Prisma.MeetingCreateInput> = {
+export const meetingDbFixtures: DbTestFixtures<Prisma.meetingCreateInput> = {
     minimal: {
         id: generatePK(),
         publicId: generatePublicId(),
@@ -171,12 +171,12 @@ export const meetingDbFixtures: DbTestFixtures<Prisma.MeetingCreateInput> = {
 /**
  * Enhanced factory for creating meeting database fixtures
  */
-export class MeetingDbFactory extends EnhancedDbFactory<Prisma.MeetingCreateInput> {
+export class MeetingDbFactory extends EnhancedDbFactory<Prisma.meetingCreateInput> {
     
     /**
      * Get the test fixtures for Meeting model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.MeetingCreateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.meetingCreateInput> {
         return meetingDbFixtures;
     }
 
@@ -250,7 +250,7 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.MeetingCreateInpu
     /**
      * Add team association to a meeting fixture
      */
-    protected addTeamAssociation(data: Prisma.MeetingCreateInput, teamId: string): Prisma.MeetingCreateInput {
+    protected addTeamAssociation(data: Prisma.meetingCreateInput, teamId: string): Prisma.meetingCreateInput {
         return {
             ...data,
             team: { connect: { id: teamId } },
@@ -260,7 +260,7 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.MeetingCreateInpu
     /**
      * Add invites to a meeting fixture
      */
-    protected addInvites(data: Prisma.MeetingCreateInput, invites: Array<{ userId: string; createdById: string }>): Prisma.MeetingCreateInput {
+    protected addInvites(data: Prisma.meetingCreateInput, invites: Array<{ userId: string; createdById: string }>): Prisma.meetingCreateInput {
         return {
             ...data,
             invites: {
@@ -276,7 +276,7 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.MeetingCreateInpu
     /**
      * Meeting-specific validation
      */
-    protected validateSpecific(data: Prisma.MeetingCreateInput): { errors: string[]; warnings: string[] } {
+    protected validateSpecific(data: Prisma.meetingCreateInput): { errors: string[]; warnings: string[] } {
         const errors: string[] = [];
         const warnings: string[] = [];
 
@@ -305,8 +305,8 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.MeetingCreateInpu
     // Static methods for backward compatibility
     static createMinimal(
         teamId: string,
-        overrides?: Partial<Prisma.MeetingCreateInput>,
-    ): Prisma.MeetingCreateInput {
+        overrides?: Partial<Prisma.meetingCreateInput>,
+    ): Prisma.meetingCreateInput {
         const factory = new MeetingDbFactory();
         const data = factory.createMinimal(overrides);
         return factory.addTeamAssociation(data, teamId);
@@ -315,8 +315,8 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.MeetingCreateInpu
     static createWithTranslations(
         teamId: string,
         translations: Array<{ language: string; name: string; description?: string; link?: string }>,
-        overrides?: Partial<Prisma.MeetingCreateInput>,
-    ): Prisma.MeetingCreateInput {
+        overrides?: Partial<Prisma.meetingCreateInput>,
+    ): Prisma.meetingCreateInput {
         const factory = new MeetingDbFactory();
         const data = factory.createMinimal({
             translations: {
@@ -336,8 +336,8 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.MeetingCreateInpu
     static createScheduled(
         teamId: string,
         scheduledFor: Date,
-        overrides?: Partial<Prisma.MeetingCreateInput>,
-    ): Prisma.MeetingCreateInput {
+        overrides?: Partial<Prisma.meetingCreateInput>,
+    ): Prisma.meetingCreateInput {
         return this.createWithTranslations(
             teamId,
             [{ 
@@ -355,8 +355,8 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.MeetingCreateInpu
     static createWithInvites(
         teamId: string,
         invitedByIds: Array<{ userId: string; createdById: string }>,
-        overrides?: Partial<Prisma.MeetingCreateInput>,
-    ): Prisma.MeetingCreateInput {
+        overrides?: Partial<Prisma.meetingCreateInput>,
+    ): Prisma.meetingCreateInput {
         const factory = new MeetingDbFactory();
         const data = this.createWithTranslations(
             teamId,
@@ -409,7 +409,7 @@ export async function seedMeetings(
     for (let i = 0; i < count; i++) {
         const scheduledFor = options.scheduleDates?.[i] || new Date(Date.now() + (i + 1) * 24 * 60 * 60 * 1000);
         
-        let meetingData: Prisma.MeetingCreateInput;
+        let meetingData: Prisma.meetingCreateInput;
         
         if (options.withInvites) {
             meetingData = MeetingDbFactory.createWithInvites(

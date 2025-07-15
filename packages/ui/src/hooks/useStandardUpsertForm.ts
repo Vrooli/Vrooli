@@ -30,10 +30,17 @@ export interface StandardUpsertFormConfig<
     translationValidation?: YupModel<["create", "update"]>;
     /** Transform function to convert form values to API input */
     transformFunction: (values: TShape, existing: TShape, isCreate: boolean) => TCreateInput | TUpdateInput;
-    /** Endpoints for create and update operations */
-    endpoints: {
-        create: { endpoint: string; method: "POST" | "PUT" };
-        update: { endpoint: string; method: "POST" | "PUT" };
+    /** Endpoints for create and update operations - same structure as FormConfig */
+    endpoints?: {
+        findOne?: { endpoint: string; method: string };
+        findMany?: { endpoint: string; method: string };
+        createOne?: { endpoint: string; method: string };
+        createMany?: { endpoint: string; method: string };
+        updateOne?: { endpoint: string; method: string };
+        updateMany?: { endpoint: string; method: string };
+        deleteOne?: { endpoint: string; method: string };
+        deleteMany?: { endpoint: string; method: string };
+        [key: string]: { endpoint: string; method: string } | undefined;
     };
     /** Default language provider */
     getDefaultLanguage?: (session?: Session) => string;
@@ -97,7 +104,7 @@ export function useStandardUpsertForm<
     TResult extends OrArray<{ __typename: ListObject["__typename"]; id: string }>
 >(
     config: StandardUpsertFormConfig<TShape, TCreateInput, TUpdateInput, TResult>,
-    props: UseStandardUpsertFormProps<TShape, TResult>
+    props: UseStandardUpsertFormProps<TShape, TResult>,
 ) {
     const session = useContext(SessionContext);
     const [location] = useLocation();
@@ -124,7 +131,7 @@ export function useStandardUpsertForm<
 
     // Get the object ID and root object ID for navigation and caching
     const objectId = values.id;
-    const rootObjectId = config.rootObjectType && 'root' in values && values.root && typeof values.root === 'object' && 'id' in values.root 
+    const rootObjectId = config.rootObjectType && "root" in values && values.root && typeof values.root === "object" && "id" in values.root 
         ? (values.root as { id: string }).id 
         : undefined;
 
@@ -149,8 +156,8 @@ export function useStandardUpsertForm<
     } = useUpsertFetch<TResult, TCreateInput, TUpdateInput>({
         isCreate,
         isMutate,
-        endpointCreate: config.endpoints.create,
-        endpointUpdate: config.endpoints.update,
+        endpointCreate: config.endpoints?.createOne,
+        endpointUpdate: config.endpoints?.updateOne,
     });
 
     // Automatic form caching (only if isMutate is true)
@@ -175,14 +182,14 @@ export function useStandardUpsertForm<
             existing,
             isCreate,
             config.transformFunction,
-            config.validation
+            config.validation,
         );
     }, [existing, isCreate, config.transformFunction, config.validation]);
 
     // Determine if form is in a loading state
     const isLoading = useMemo(() => 
         (isMutate ? (isCreateLoading || isUpdateLoading) : false) || isReadLoading || isSubmitting,
-        [isMutate, isCreateLoading, isUpdateLoading, isReadLoading, isSubmitting]
+        [isMutate, isCreateLoading, isUpdateLoading, isReadLoading, isSubmitting],
     );
 
     // Submit handler that supports both mutating and non-mutating forms

@@ -1,14 +1,14 @@
-import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from "axios";
-import { io, Socket } from "socket.io-client";
-import { ConfigManager } from "./config.js";
+import axios, { type AxiosInstance, type AxiosError, type AxiosRequestConfig } from "axios";
+import { io, type Socket } from "socket.io-client";
+import { type ConfigManager } from "./config.js";
 import { logger } from "./logger.js";
-import chalk from "chalk";
 import FormData from "form-data";
+import { HTTP_STATUS, LIMITS } from "./constants.js";
 
 export interface ApiError {
     message: string;
     code?: string;
-    details?: any;
+    details?: unknown;
 }
 
 export class ApiClient {
@@ -65,8 +65,8 @@ export class ApiClient {
                 }
 
                 // Handle 401 - try to refresh token
-                if (error.response?.status === 401 && error.config && !(error.config as any)._retry) {
-                    (error.config as any)._retry = true;
+                if (error.response?.status === HTTP_STATUS.UNAUTHORIZED && error.config && !(error.config as AxiosRequestConfig & { _retry?: boolean })._retry) {
+                    (error.config as AxiosRequestConfig & { _retry?: boolean })._retry = true;
 
                     try {
                         await this.refreshAuth();
@@ -86,11 +86,11 @@ export class ApiClient {
 
     private formatError(error: AxiosError): Error {
         if (error.response) {
-            const data = error.response.data as any;
+            const data = error.response.data as { message?: string; error?: string; code?: string; details?: unknown };
             const message = data?.message || data?.error || error.message;
             const err = new Error(message);
-            (err as any).code = data?.code || error.code;
-            (err as any).details = data?.details || data;
+            (err as ApiError).code = data?.code || error.code;
+            (err as ApiError).details = data?.details || data;
             return err;
         } else if (error.request) {
             return new Error("No response from server. Is the server running?");
@@ -118,27 +118,27 @@ export class ApiClient {
     }
 
     // HTTP methods
-    public async get<T = any>(path: string, config?: AxiosRequestConfig): Promise<T> {
+    public async get<T = unknown>(path: string, config?: AxiosRequestConfig): Promise<T> {
         const response = await this.axios.get<T>(path, config);
         return response.data;
     }
 
-    public async post<T = any>(path: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    public async post<T = unknown>(path: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
         const response = await this.axios.post<T>(path, data, config);
         return response.data;
     }
 
-    public async put<T = any>(path: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    public async put<T = unknown>(path: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
         const response = await this.axios.put<T>(path, data, config);
         return response.data;
     }
 
-    public async delete<T = any>(path: string, config?: AxiosRequestConfig): Promise<T> {
+    public async delete<T = unknown>(path: string, config?: AxiosRequestConfig): Promise<T> {
         const response = await this.axios.delete<T>(path, config);
         return response.data;
     }
 
-    public async patch<T = any>(path: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    public async patch<T = unknown>(path: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
         const response = await this.axios.patch<T>(path, data, config);
         return response.data;
     }
@@ -186,8 +186,8 @@ export class ApiClient {
     // Utility method for handling paginated results
     public async *paginate<T>(
         path: string,
-        params: Record<string, any> = {},
-        pageSize: number = 50,
+        params: Record<string, unknown> = {},
+        pageSize = LIMITS.DEFAULT_PAGE_SIZE,
     ): AsyncGenerator<T[], void, unknown> {
         let page = 0;
         let hasMore = true;
@@ -214,7 +214,7 @@ export class ApiClient {
         file: Buffer | NodeJS.ReadableStream,
         filename: string,
         onProgress?: (percent: number) => void,
-    ): Promise<any> {
+    ): Promise<unknown> {
         const form = new FormData();
         form.append("file", file, filename);
 
@@ -234,19 +234,22 @@ export class ApiClient {
     }
 
     // GraphQL-style request method for API endpoints
-    public async request<T = any>(
+    public async request<T = unknown>(
         operationName: string,
-        variables: any,
+        variables: unknown,
         config?: AxiosRequestConfig,
     ): Promise<T> {
         // Convert operation name to REST endpoint path
         // e.g., "routine_findMany" -> "/routine/findMany"  
-        const endpoint = operationName.replace(/_/g, '/');
+        const endpoint = operationName.replace(/_/g, "/");
         
         // Send as POST request with variables as body
-        const response = await this.axios.post<{ data: T }>(`/api/${endpoint}`, variables, config);
+        const response = await this.axios.post<{ data: T } | T>(`/api/${endpoint}`, variables, config);
         
         // Return just the data portion
-        return (response.data as any).data || response.data;
+        if (response.data && typeof response.data === "object" && "data" in response.data) {
+            return (response.data as { data: T }).data;
+        }
+        return response.data as T;
     }
 }

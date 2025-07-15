@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 // Test the batch logic patterns without importing the actual module
+// AI_CHECK: TYPE_SAFETY=phase1-test-1 | LAST: 2025-07-04 - Replaced any[] with generic types T[] for better type safety
 describe("batch utility patterns", () => {
     const DEFAULT_BATCH_SIZE = 100;
 
@@ -9,14 +10,14 @@ describe("batch utility patterns", () => {
     });
 
     it("should demonstrate batch processing logic", async () => {
-        const simulateBatch = async (
-            data: any[], 
+        const simulateBatch = async <T>(
+            data: T[], 
             batchSize: number, 
-            processBatch: (batch: any[]) => Promise<void>
+            processBatch: (batch: T[]) => Promise<void>,
         ) => {
             let skip = 0;
             let currentBatchSize = 0;
-            const processedBatches: any[][] = [];
+            const processedBatches: T[][] = [];
 
             do {
                 const batch = data.slice(skip, skip + batchSize);
@@ -44,10 +45,10 @@ describe("batch utility patterns", () => {
 
     it("should demonstrate batch accumulation pattern", () => {
         const data = [
-            { value: 10 }, { value: 20 }, { value: 30 }
+            { value: 10 }, { value: 20 }, { value: 30 },
         ];
 
-        let result = { sum: 0, count: 0 };
+        const result = { sum: 0, count: 0 };
         let skip = 0;
         const batchSize = 2;
 

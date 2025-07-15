@@ -1,10 +1,10 @@
 // AI_CHECK: TYPE_SAFETY=server-phase2-1 | LAST: 2025-07-03
 // AI_CHECK: TYPE_SAFETY=server-type-safety-maintenance-phase2 | LAST: 2025-07-04 - Added comprehensive return type annotation to Notify function with proper method signatures
-import { DAYS_1_MS, DAYS_1_S, DEFAULT_LANGUAGE, type DeferredDecisionData, endpointsTask, generatePK, HOURS_1_MS, type IssueStatus, LINKS, MINUTES_1_MS, type ModelType, nanoid, type NotificationSettingsUpdateInput, type PullRequestStatus, type PushDevice, type ReportStatus, SECONDS_1_MS, type SessionUser, SubscribableObject, type Success } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { DAYS_1_MS, DAYS_1_S, DEFAULT_LANGUAGE, type DeferredDecisionData, endpointsTask, generatePK, HOURS_1_MS, type IssueStatus, LINKS, MINUTES_1_MS, type ModelType, nanoid, type NotificationSettingsUpdateInput, type PullRequestStatus, type PushDevice, type ReportStatus, SECONDS_1_MS, type SessionUser, SubscribableObject, type Success } from "@vrooli/shared";
+import fs from "fs";
 import i18next, { type TFuncKey } from "i18next";
 import { type Cluster, type Redis } from "ioredis";
-import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { InfoConverter } from "../builders/infoConverter.js";
@@ -20,8 +20,8 @@ import { SocketService } from "../sockets/io.js";
 import type { BaseTaskData, ManagedQueue } from "../tasks/queueFactory.js";
 import { QueueService } from "../tasks/queues.js";
 import { QueueTaskType } from "../tasks/taskTypes.js";
-import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings.js";
 import { formatNotificationEmail, validateEmailTemplate } from "./formatters.js";
+import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings.js";
 
 /**
  * The icon of the app.
@@ -44,39 +44,39 @@ function loadNotificationTemplate(): string {
     if (notificationTemplate !== null) {
         return notificationTemplate;
     }
-    
+
     // Load notification template - check both src and dist paths
     const srcTemplatePath = path.join(dirname, "../tasks/email/templates/notification.html");
     const distTemplatePath = path.join(dirname, "../../dist/tasks/email/templates/notification.html");
-    
+
     // Try src path first (for tests), then dist path (for production)
     const notificationTemplatePath = fs.existsSync(srcTemplatePath) ? srcTemplatePath : distTemplatePath;
-    
+
     try {
         if (fs.existsSync(notificationTemplatePath)) {
             const templateContent = fs.readFileSync(notificationTemplatePath, "utf8");
             const validation = validateEmailTemplate(templateContent);
-            
+
             if (!validation.isValid) {
-                logger.warn("Notification template missing placeholders", { 
+                logger.warn("Notification template missing placeholders", {
                     missing: validation.missingPlaceholders,
                     path: notificationTemplatePath,
                 });
             }
-            
+
             notificationTemplate = templateContent;
         } else {
             logger.error(`Could not find notification email template at ${srcTemplatePath} or ${distTemplatePath}`);
             notificationTemplate = "";
         }
     } catch (error) {
-        logger.error("Failed to load notification template", { 
+        logger.error("Failed to load notification template", {
             error: error instanceof Error ? error.message : String(error),
-            path: notificationTemplatePath, 
+            path: notificationTemplatePath,
         });
         notificationTemplate = "";
     }
-    
+
     return notificationTemplate;
 }
 
@@ -474,7 +474,7 @@ async function push({
                 // Send to each email (ignore if no title)
                 if (emails.length && currTitle) {
                     let htmlContent = "";
-                    
+
                     try {
                         // Load template and format HTML email
                         const template = loadNotificationTemplate();
@@ -482,14 +482,14 @@ async function push({
                             htmlContent = formatNotificationEmail(template, currTitle, currBody, link);
                         }
                     } catch (formatError) {
-                        logger.warn("HTML email formatting failed, falling back to plain text", { 
+                        logger.warn("HTML email formatting failed, falling back to plain text", {
                             error: formatError instanceof Error ? formatError.message : String(formatError),
                             userId: currentUser.userId,
                             category,
                         });
                         // htmlContent remains empty string, so plain text will be used
                     }
-                    
+
                     try {
                         await QueueService.get().email.addTask({
                             type: QueueTaskType.EMAIL_SEND,
@@ -925,26 +925,7 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
  * Notifications settings and devices are queried from the main database.
  * Notification limits are tracked using Redis.
  */
-export function Notify(languages: string[] | undefined): {
-    registerPushDevice: (params: {
-        endpoint: string,
-        p256dh: string,
-        auth: string,
-        expires?: Date,
-        name?: string,
-        userData: SessionUser,
-        info: PartialApiInfo,
-    }) => Promise<PushDevice>;
-    send: (params: {
-        message: string,
-        title?: string,
-        data?: Record<string, unknown>,
-        userIds?: string[],
-        teamIds?: string[],
-        apiKey?: string,
-        info: PartialApiInfo,
-    }) => Promise<void>;
-} {
+export function Notify(languages: string[] | undefined) {
     return {
         /** Sets up a push device to receive notifications */
         registerPushDevice: async ({ endpoint, p256dh, auth, expires, userData, info }: {
@@ -972,9 +953,15 @@ export function Notify(languages: string[] | undefined): {
                     const updatedDevice = await DbProvider.get().push_device.update({
                         where: { id: device.id },
                         data: { auth, p256dh, expires },
-                        select,
+                        select: { id: true, name: true, expires: true, endpoint: true },
                     });
-                    result = updatedDevice as PushDevice;
+                    result = {
+                        __typename: "PushDevice" as const,
+                        id: updatedDevice.id.toString(),
+                        deviceId: updatedDevice.endpoint,
+                        name: updatedDevice.name,
+                        expires: updatedDevice.expires?.toISOString() ?? null,
+                    };
                 }
                 // If it isn't, create a new device
                 else {
@@ -987,9 +974,15 @@ export function Notify(languages: string[] | undefined): {
                             expires,
                             user: { connect: { id: BigInt(userData.id) } },
                         },
-                        select,
+                        select: { id: true, name: true, expires: true, endpoint: true },
                     });
-                    result = createdDevice as PushDevice;
+                    result = {
+                        __typename: "PushDevice" as const,
+                        id: createdDevice.id.toString(),
+                        deviceId: createdDevice.endpoint,
+                        name: createdDevice.name,
+                        expires: createdDevice.expires?.toISOString() ?? null,
+                    };
                     logger.info(`device created: ${userData.id} ${JSON.stringify(result)}`);
                 }
                 return result as PushDevice;

@@ -1,4 +1,5 @@
 /* eslint-disable no-magic-numbers */
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-01 - Fixed 3 'as any' type assertions (replaced with null for circular refs, removed root cast)
 import { DUMMY_ID, InputType, ResourceUsedFor, RunStatus, endpointsResource, endpointsRun, generatePK, getObjectUrl, type RoutineVersion, type Run, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
@@ -105,7 +106,8 @@ const mockRoutineVersionData: RoutineVersion = {
             updatedAt: new Date().toISOString(),
             usedFor: ResourceUsedFor.Context,
             link: `https://example.com/resource/${Math.floor(Math.random() * 1000)}`,
-            list: {} as any, // This will be set by the circular reference below
+            list: null, // Circular reference handled by null
+            listFor: null, // Set to null for circular reference
             translations: [{
                 __typename: "ResourceTranslation" as const,
                 id: generatePK().toString(),
@@ -115,7 +117,7 @@ const mockRoutineVersionData: RoutineVersion = {
                 name: `Resource ${Math.floor(Math.random() * 1000)}`,
                 description: `Description for Resource ${Math.floor(Math.random() * 1000)}`,
             }],
-        })) as any,
+        })),
         translations: [],
         updatedAt: new Date().toISOString(),
     },
@@ -133,7 +135,9 @@ const mockRoutineVersionData: RoutineVersion = {
         })) as Tag[],
         versions: [],
         views: Math.floor(Math.random() * 10000),
-    } as any,
+    },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     // routineType: RoutineType.Generate, // TODO: Find correct replacement for RoutineType
     subroutineLinks: [],
     timesCompleted: Math.floor(Math.random() * 500),

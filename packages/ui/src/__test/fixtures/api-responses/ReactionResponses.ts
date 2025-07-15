@@ -5,11 +5,11 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { http, type RestHandler } from "msw";
+// AI_CHECK: TYPE_SAFETY=fixed-msw-v2-migration-and-arithmetic-type-error | LAST: 2025-07-02
+import { http, type HttpHandler } from "msw";
 import type { 
     Reaction, 
     ReactInput,
-    ReactionSearchInput,
     ReactionSearchResult,
     ReactionFor,
     ReactionSummary,
@@ -48,7 +48,7 @@ export interface APIErrorResponse {
     error: {
         code: string;
         message: string;
-        details?: Record<string, any>;
+        details?: Record<string, unknown>;
         timestamp: string;
         requestId: string;
         path: string;
@@ -92,14 +92,22 @@ export class ReactionResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const BASE_36 = 36;
+        const START_INDEX = 2;
+        const END_INDEX = 11;
+        const randomPart = Math.random().toString(BASE_36).substring(START_INDEX, END_INDEX);
+        return `req_${Date.now()}_${randomPart}`;
     }
     
     /**
      * Generate unique resource ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const BASE_36 = 36;
+        const START_INDEX = 2;
+        const END_INDEX = 11;
+        const randomPart = Math.random().toString(BASE_36).substring(START_INDEX, END_INDEX);
+        return `${Date.now()}_${randomPart}`;
     }
     
     /**
@@ -151,8 +159,6 @@ export class ReactionResponseFactory {
             pageInfo: {
                 __typename: "PageInfo",
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1,
-                startCursor: reactions[0]?.id || null,
                 endCursor: reactions[reactions.length - 1]?.id || null,
             },
         };
@@ -282,41 +288,15 @@ export class ReactionResponseFactory {
      */
     private createMockUser(id?: string): User {
         const userId = id || `user_${this.generateId()}`;
-        const now = new Date().toISOString();
         
+        const HANDLE_SUFFIX_LENGTH = 6;
+        const NAME_SUFFIX_LENGTH = 4;
         return {
             __typename: "User",
             id: userId,
-            handle: `user_${userId.slice(-6)}`,
-            name: `Test User ${userId.slice(-4)}`,
-            createdAt: now,
-            updatedAt: now,
-            isBot: false,
-            isPrivate: false,
-            profileImage: null,
-            bannerImage: null,
-            premium: false,
-            premiumExpiration: null,
-            roles: [],
-            wallets: [],
-            translations: [],
-            translationsCount: 0,
-            you: {
-                __typename: "UserYou",
-                isBlocked: false,
-                isBlockedByYou: false,
-                canDelete: false,
-                canReport: false,
-                canUpdate: false,
-                isBookmarked: false,
-                isReacted: false,
-                reactionSummary: {
-                    __typename: "ReactionSummary",
-                    emoji: null,
-                    count: 0,
-                },
-            },
-        };
+            handle: `user_${userId.slice(Math.max(0, userId.length - HANDLE_SUFFIX_LENGTH))}`,
+            name: `Test User ${userId.slice(Math.max(0, userId.length - NAME_SUFFIX_LENGTH))}`,
+        } as User;
     }
     
     /**
@@ -324,128 +304,30 @@ export class ReactionResponseFactory {
      */
     private createMockReactionTarget(type: ReactionFor): ChatMessage | Comment | Issue | Resource {
         const id = `${type.toLowerCase()}_${this.generateId()}`;
-        const now = new Date().toISOString();
         
         switch (type) {
             case ReactionForEnum.ChatMessage:
                 return {
                     __typename: "ChatMessage",
                     id,
-                    created_at: now,
-                    updated_at: now,
-                    chat: {
-                        __typename: "Chat",
-                        id: `chat_${this.generateId()}`,
-                        created_at: now,
-                        updated_at: now,
-                        inviteCode: null,
-                        createdBy: this.createMockUser(),
-                        messages: [],
-                        messagesCount: 1,
-                        participants: [],
-                        participantsCount: 1,
-                        team: null,
-                        labels: [],
-                        labelsCount: 0,
-                        you: {
-                            __typename: "ChatYou",
-                            canDelete: false,
-                            canInvite: false,
-                            canUpdate: false,
-                        },
-                    },
-                    you: {
-                        __typename: "ChatMessageYou",
-                        canDelete: false,
-                        canReply: true,
-                        canUpdate: false,
-                        canReport: true,
-                        isBookmarked: false,
-                        isReacted: false,
-                        reaction: null,
-                    },
                 } as ChatMessage;
                 
             case ReactionForEnum.Comment:
                 return {
                     __typename: "Comment",
                     id,
-                    created_at: now,
-                    updated_at: now,
-                    createdBy: this.createMockUser(),
-                    isDeleted: false,
-                    reports: [],
-                    reportsCount: 0,
-                    you: {
-                        __typename: "CommentYou",
-                        canDelete: false,
-                        canUpdate: false,
-                        canReport: true,
-                        isBookmarked: false,
-                        isReacted: false,
-                        reaction: null,
-                    },
                 } as Comment;
                 
             case ReactionForEnum.Issue:
                 return {
                     __typename: "Issue",
                     id,
-                    created_at: now,
-                    updated_at: now,
-                    closedAt: null,
-                    closedBy: null,
-                    createdBy: this.createMockUser(),
-                    isPrivate: false,
-                    issueType: "Bug",
-                    status: "Open",
-                    labels: [],
-                    labelsCount: 0,
-                    comments: [],
-                    commentsCount: 0,
-                    reportsCount: 0,
-                    references: [],
-                    referencedByCount: 0,
-                    translations: [],
-                    translationsCount: 0,
-                    bookmarkedBy: [],
-                    bookmarkedByCount: 0,
-                    you: {
-                        __typename: "IssueYou",
-                        canComment: true,
-                        canDelete: false,
-                        canUpdate: false,
-                        canReport: true,
-                        canBookmark: true,
-                        canRead: true,
-                        canReact: true,
-                        isBookmarked: false,
-                        isReacted: false,
-                        reaction: null,
-                    },
                 } as Issue;
                 
             case ReactionForEnum.Resource:
                 return {
                     __typename: "Resource",
                     id,
-                    createdAt: now,
-                    updatedAt: now,
-                    isInternal: false,
-                    isPrivate: false,
-                    usedBy: [],
-                    usedByCount: 0,
-                    versions: [],
-                    versionsCount: 0,
-                    you: {
-                        __typename: "ResourceYou",
-                        canDelete: false,
-                        canUpdate: false,
-                        canReport: true,
-                        isBookmarked: false,
-                        isReacted: false,
-                        reaction: null,
-                    },
                 } as Resource;
                 
             default:
@@ -457,15 +339,12 @@ export class ReactionResponseFactory {
      * Create mock reaction data
      */
     createMockReaction(overrides?: Partial<Reaction>): Reaction {
-        const now = new Date().toISOString();
         const id = this.generateId();
         const emoji = this.getRandomEmoji("positive");
         
         const defaultReaction: Reaction = {
             __typename: "Reaction",
             id,
-            createdAt: now,
-            updatedAt: now,
             emoji,
             by: this.createMockUser(),
             to: this.createMockReactionTarget(ReactionForEnum.Comment),
@@ -480,11 +359,13 @@ export class ReactionResponseFactory {
     /**
      * Create multiple reactions for different users on the same object
      */
-    createMultipleReactions(targetType: ReactionFor, targetId: string, count = 5): Reaction[] {
+    createMultipleReactions(targetType: ReactionFor, targetId: string, count?: number): Reaction[] {
+        const DEFAULT_REACTION_COUNT = 10;
+        const actualCount = count ?? DEFAULT_REACTION_COUNT;
         const target = this.createMockReactionTarget(targetType);
         target.id = targetId;
         
-        return Array.from({ length: count }, (_, index) => {
+        return Array.from({ length: actualCount }, (_, index) => {
             const categories: Array<"positive" | "negative" | "neutral"> = ["positive", "negative", "neutral"];
             const category = categories[index % categories.length];
             
@@ -518,7 +399,7 @@ export class ReactionResponseFactory {
                 if (scoreA !== scoreB) return scoreB - scoreA;
                 
                 // Then by count
-                return b.count - a.count;
+                return Number(b.count) - Number(a.count);
             });
     }
     
@@ -541,7 +422,8 @@ export class ReactionResponseFactory {
             errors.reactionFor = `Invalid reaction type. Must be one of: ${Object.values(ReactionForEnum).join(", ")}`;
         }
         
-        if (input.emoji && input.emoji.length > 10) {
+        const MAX_EMOJI_LENGTH = 10;
+        if (input.emoji && input.emoji.length > MAX_EMOJI_LENGTH) {
             errors.emoji = "Emoji must be 10 characters or less";
         }
         
@@ -572,11 +454,13 @@ export class ReactionMSWHandlers {
             this.userReactions.set(userId, new Map());
         }
         
-        const userMap = this.userReactions.get(userId)!;
-        if (emoji === null) {
-            userMap.delete(objectId);
-        } else {
-            userMap.set(objectId, emoji);
+        const userMap = this.userReactions.get(userId);
+        if (userMap) {
+            if (emoji === null) {
+                userMap.delete(objectId);
+            } else {
+                userMap.set(objectId, emoji);
+            }
         }
     }
     
@@ -590,19 +474,19 @@ export class ReactionMSWHandlers {
     /**
      * Create success handlers for all reaction endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): HttpHandler[] {
         return [
             // React to object (add/update/remove reaction)
-            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, async (req, res, ctx) => {
-                const body = await req.json() as ReactInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, async ({ request }) => {
+                const body = await request.json() as ReactInput;
                 const userId = "user_test"; // In real tests, extract from auth header
                 
                 // Validate input
                 const validation = await this.responseFactory.validateReactInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
+                    return Response.json(
+                        this.responseFactory.createValidationErrorResponse(validation.errors || {}),
+                        { status: 400 },
                     );
                 }
                 
@@ -612,15 +496,12 @@ export class ReactionMSWHandlers {
                 // Return success
                 const response = this.responseFactory.createSuccessResponse(true);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return Response.json(response, { status: 200 });
             }),
             
             // Search reactions
-            http.get(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/reaction`, ({ request }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 const chatMessageId = url.searchParams.get("chatMessageId");
@@ -630,37 +511,45 @@ export class ReactionMSWHandlers {
                 
                 let reactions: Reaction[] = [];
                 
+                const DEFAULT_CHAT_MESSAGE_REACTIONS = 15;
+                const DEFAULT_COMMENT_REACTIONS = 10;
+                const DEFAULT_ISSUE_REACTIONS = 8;
+                const DEFAULT_RESOURCE_REACTIONS = 5;
+                const DEFAULT_MIXED_COMMENT_REACTIONS = 3;
+                const DEFAULT_MIXED_ISSUE_REACTIONS = 2;
+                const DEFAULT_MIXED_RESOURCE_REACTIONS = 2;
+                
                 // Generate reactions based on query parameters
                 if (chatMessageId) {
                     reactions = this.responseFactory.createMultipleReactions(
                         ReactionForEnum.ChatMessage, 
                         chatMessageId, 
-                        15,
+                        DEFAULT_CHAT_MESSAGE_REACTIONS,
                     );
                 } else if (commentId) {
                     reactions = this.responseFactory.createMultipleReactions(
                         ReactionForEnum.Comment, 
                         commentId, 
-                        10,
+                        DEFAULT_COMMENT_REACTIONS,
                     );
                 } else if (issueId) {
                     reactions = this.responseFactory.createMultipleReactions(
                         ReactionForEnum.Issue, 
                         issueId, 
-                        8,
+                        DEFAULT_ISSUE_REACTIONS,
                     );
                 } else if (resourceId) {
                     reactions = this.responseFactory.createMultipleReactions(
                         ReactionForEnum.Resource, 
                         resourceId, 
-                        5,
+                        DEFAULT_RESOURCE_REACTIONS,
                     );
                 } else {
                     // Return mixed reactions
                     reactions = [
-                        ...this.responseFactory.createMultipleReactions(ReactionForEnum.Comment, "comment_1", 3),
-                        ...this.responseFactory.createMultipleReactions(ReactionForEnum.Issue, "issue_1", 2),
-                        ...this.responseFactory.createMultipleReactions(ReactionForEnum.Resource, "resource_1", 2),
+                        ...this.responseFactory.createMultipleReactions(ReactionForEnum.Comment, "comment_1", DEFAULT_MIXED_COMMENT_REACTIONS),
+                        ...this.responseFactory.createMultipleReactions(ReactionForEnum.Issue, "issue_1", DEFAULT_MIXED_ISSUE_REACTIONS),
+                        ...this.responseFactory.createMultipleReactions(ReactionForEnum.Resource, "resource_1", DEFAULT_MIXED_RESOURCE_REACTIONS),
                     ];
                 }
                 
@@ -677,10 +566,7 @@ export class ReactionMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return Response.json(response, { status: 200 });
             }),
         ];
     }
@@ -688,40 +574,40 @@ export class ReactionMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): HttpHandler[] {
         return [
             // Validation error
-            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
+            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, () => {
+                return Response.json(
+                    this.responseFactory.createValidationErrorResponse({
                         forConnect: "Target object ID is required",
                         reactionFor: "Reaction type must be specified",
-                    })),
+                    }),
+                    { status: 400 },
                 );
             }),
             
             // Rate limit error
-            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
-                return res(
-                    ctx.status(429),
-                    ctx.json(this.responseFactory.createRateLimitErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, () => {
+                return Response.json(
+                    this.responseFactory.createRateLimitErrorResponse(),
+                    { status: 429 },
                 );
             }),
             
             // Permission error
-            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, () => {
+                return Response.json(
+                    this.responseFactory.createPermissionErrorResponse("create"),
+                    { status: 403 },
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, () => {
+                return Response.json(
+                    this.responseFactory.createServerErrorResponse(),
+                    { status: 500 },
                 );
             }),
         ];
@@ -730,26 +616,27 @@ export class ReactionMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay?: number): HttpHandler[] {
+        const DEFAULT_DELAY = 2000;
+        const actualDelay = delay ?? DEFAULT_DELAY;
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, async (req, res, ctx) => {
-                const body = await req.json() as ReactInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, async ({ request }) => {
+                const body = await request.json() as ReactInput;
                 const validation = await this.responseFactory.validateReactInput(body);
                 
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
+                    return Response.json(
+                        this.responseFactory.createValidationErrorResponse(validation.errors || {}),
+                        { status: 400 },
                     );
                 }
                 
                 const response = this.responseFactory.createSuccessResponse(true);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                // Simulate delay
+                await new Promise(resolve => setTimeout(resolve, actualDelay));
+                
+                return Response.json(response, { status: 200 });
             }),
         ];
     }
@@ -757,14 +644,14 @@ export class ReactionMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): HttpHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, () => {
+                return Response.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/reaction`, () => {
+                return Response.error();
             }),
         ];
     }
@@ -772,19 +659,19 @@ export class ReactionMSWHandlers {
     /**
      * Create optimistic update handlers (simulating immediate UI updates)
      */
-    createOptimisticHandlers(): RestHandler[] {
+    createOptimisticHandlers(): HttpHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, async (req, res, ctx) => {
-                const body = await req.json() as ReactInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, async ({ request }) => {
+                const _body = await request.json() as ReactInput;
                 
                 // Simulate very fast response for optimistic UI updates
                 const response = this.responseFactory.createSuccessResponse(true);
                 
-                return res(
-                    ctx.delay(50), // Very small delay
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                // Simulate very small delay
+                const OPTIMISTIC_DELAY = 50;
+                await new Promise(resolve => setTimeout(resolve, OPTIMISTIC_DELAY));
+                
+                return Response.json(response, { status: 200 });
             }),
         ];
     }
@@ -796,20 +683,18 @@ export class ReactionMSWHandlers {
         endpoint: string;
         method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
-        response: any;
+        response: unknown;
         delay?: number;
-    }): RestHandler {
+    }): HttpHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        return http[method.toLowerCase() as keyof typeof http](fullEndpoint, async () => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return Response.json(response, { status });
         });
     }
 }
@@ -826,14 +711,17 @@ export const reactionResponseScenarios = {
     
     searchSuccess: (reactions?: Reaction[]) => {
         const factory = new ReactionResponseFactory();
+        const DEFAULT_SEARCH_REACTIONS = 10;
         return factory.createReactionSearchResponse(
-            reactions || factory.createMultipleReactions(ReactionForEnum.Comment, "comment_123", 10),
+            reactions || factory.createMultipleReactions(ReactionForEnum.Comment, "comment_123", DEFAULT_SEARCH_REACTIONS),
         );
     },
     
-    reactionSummary: (targetType: ReactionFor = ReactionForEnum.Comment, count = 20) => {
+    reactionSummary: (targetType: ReactionFor = ReactionForEnum.Comment, count?: number) => {
+        const DEFAULT_REACTION_COUNT = 20;
+        const actualCount = count ?? DEFAULT_REACTION_COUNT;
         const factory = new ReactionResponseFactory();
-        const reactions = factory.createMultipleReactions(targetType, "target_123", count);
+        const reactions = factory.createMultipleReactions(targetType, "target_123", actualCount);
         return factory.createReactionSummary(reactions);
     },
     
@@ -893,7 +781,7 @@ export const reactionResponseScenarios = {
             { emoji: "👎", count: 8 },
             { emoji: "😕", count: 5 },
             { emoji: "🤔", count: 3 },
-        ];
+        ] as const;
         
         distribution.forEach(({ emoji, count }) => {
             for (let i = 0; i < count; i++) {

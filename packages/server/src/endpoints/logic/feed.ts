@@ -58,7 +58,7 @@ export const feed: EndpointsFeed = {
             reminders,
             resources,
             schedules,
-        }, partial as any, SessionService.getUser(req));
+        }, partial as { reminders: PartialApiInfo; resources: PartialApiInfo; schedules: PartialApiInfo }, SessionService.getUser(req));
         // Return results
         return {
             __typename: "HomeResult" as const,

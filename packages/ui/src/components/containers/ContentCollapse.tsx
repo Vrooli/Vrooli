@@ -1,6 +1,6 @@
 import Box from "@mui/material/Box";
 import Collapse from "@mui/material/Collapse";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../buttons/IconButton.js";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
@@ -65,6 +65,8 @@ export function ContentCollapse({
                     markdown={helpText}
                 />}
                 {!disableCollapse && <IconButton
+                    variant="transparent"
+                    size="md"
                     id={`toggle-expand-icon-button-${title}`}
                     aria-label={t(internalIsOpen ? "Collapse" : "Expand")}
                     aria-expanded={internalIsOpen}

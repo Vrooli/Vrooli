@@ -5,7 +5,7 @@ import { IconButton } from "../../buttons/IconButton.js";
 import { Tooltip } from "../../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material";
-import { DUMMY_ID, DeleteType, ResourceUsedFor, endpointsActions, updateArray, type Count, type DeleteManyInput, type ListObject, type Resource, type ResourceListFor, type ResourceList as ResourceListType, type TranslationKeyCommon } from "@vrooli/shared";
+import { DUMMY_ID, DeleteType, ResourceUsedFor, endpointsActions, updateArray, resourceFormConfig, type Count, type DeleteManyInput, type ListObject, type Resource, type ResourceListFor, type ResourceList as ResourceListType, type TranslationKeyCommon } from "@vrooli/shared";
 import { useField } from "formik";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useState, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -26,7 +26,7 @@ import { firstString } from "../../../utils/display/stringTools.js";
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { getResourceUrl } from "../../../utils/navigation/openObject.js";
 import { PubSub } from "../../../utils/pubsub.js";
-import { ResourceUpsert, resourceInitialValues } from "../../../views/objects/resource/ResourceUpsert.js";
+import { ResourceUpsert } from "../../../views/objects/resource/ResourceUpsert.js";
 import { type ResourceListInputProps } from "../../inputs/types.js";
 import { ObjectList } from "../../lists/ObjectList/ObjectList.js";
 import { TextLoading } from "../../lists/TextLoading/TextLoading.js";
@@ -397,6 +397,7 @@ export function ResourceList(props: ResourceListProps) {
     const { canUpdate, handleUpdate, horizontal, list, mutate, parent, title } = props;
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const session = useContext(SessionContext);
 
     const [isEditing, setIsEditing] = useState(false);
     useEffect(() => {
@@ -471,7 +472,7 @@ export function ResourceList(props: ResourceListProps) {
 
         const overrideObject = editingIndex >= 0 && list?.resources
             ? { ...list.resources[editingIndex as number], index: editingIndex }
-            : resourceInitialValues(undefined, {
+            : resourceFormConfig.transformations.getInitialValues(session, {
                 index: 0,
                 list: {
                     __connect: true,

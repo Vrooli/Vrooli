@@ -25,13 +25,13 @@ type PrismaSelectInside = Omit<PrismaSearch, "select" | "where"> & {
 }
 
 export type PrismaSearch = {
-    where: any;
-    select?: any;
-    orderBy?: any;
-    cursor?: any;
-    take?: any;
-    skip?: any;
-    distinct?: any;
+    where: Record<string, unknown>;
+    select?: Record<string, unknown>;
+    orderBy?: Record<string, unknown> | Array<Record<string, unknown>>;
+    cursor?: Record<string, unknown>;
+    take?: number;
+    skip?: number;
+    distinct?: Array<keyof any>;
 }
 
 type PrismaCreateInside = {
@@ -52,16 +52,16 @@ type PrismaUpdateInside = {
         [x: string]: boolean | string | number | PrismaUpdateInside
     }>;
     connect?: {
-        where: any;
+        where: Record<string, unknown>;
     };
     update?: OrArray<{
         [x: string]: boolean | string | number | PrismaUpdateInside
     }>;
     delete?: OrArray<{
-        where: any;
+        where: Record<string, unknown>;
     }>;
     disconnect?: OrArray<{
-        where: any;
+        where: Record<string, unknown>;
     }>;
 }
 
@@ -76,50 +76,51 @@ export type RelationshipType = "Connect" | "Create" | "Delete" | "Disconnect" | 
  * Generic Prisma model type. Useful for helper functions that work with any model
  */
 export interface PrismaDelegate {
-    findUnique: (args: { where: any, select?: any }) => Promise<{ [x: string]: any } | null>;
-    findFirst: (args: PrismaSearch) => Promise<{ [x: string]: any } | null>;
-    findMany: (args: PrismaSearch) => Promise<{ [x: string]: any }[]>;
-    create: (args: { data: any, select?: any }) => Promise<{ [x: string]: any }>;
-    update: (args: { data: any, where: any, select?: any }) => Promise<{ [x: string]: any }>;
+    findUnique: (args: { where: Record<string, unknown>, select?: Record<string, unknown> }) => Promise<Record<string, unknown> | null>;
+    findFirst: (args: PrismaSearch) => Promise<Record<string, unknown> | null>;
+    findMany: (args: PrismaSearch) => Promise<Record<string, unknown>[]>;
+    create: (args: { data: Record<string, unknown>, select?: Record<string, unknown> }) => Promise<Record<string, unknown>>;
+    update: (args: { data: Record<string, unknown>, where: Record<string, unknown>, select?: Record<string, unknown> }) => Promise<Record<string, unknown>>;
+    updateMany: (args: { data: Record<string, unknown>, where: Record<string, unknown> }) => Promise<{ count: number }>;
     upsert: (args: {
-        create: any;
-        update: any;
-        where: any;
-        select?: any;
-    }) => Promise<{ [x: string]: any }>;
-    delete: (args: { where: any }) => Promise<{ [x: string]: any }>;
-    deleteMany: (args: { where: any }) => Promise<{ count: number }>;
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+        where: Record<string, unknown>;
+        select?: Record<string, unknown>;
+    }) => Promise<Record<string, unknown>>;
+    delete: (args: { where: Record<string, unknown> }) => Promise<Record<string, unknown>>;
+    deleteMany: (args: { where: Record<string, unknown> }) => Promise<{ count: number }>;
     count: (args: {
-        where: any;
-        cursor?: any;
-        take?: any;
-        skip?: any;
-        orderBy?: any;
-        select?: any;
+        where: Record<string, unknown>;
+        cursor?: Record<string, unknown>;
+        take?: number;
+        skip?: number;
+        orderBy?: Record<string, unknown> | Array<Record<string, unknown>>;
+        select?: Record<string, unknown>;
     }) => Promise<number>;
     aggregate: (args: {
-        where: any;
-        orderBy?: any;
-        cursor?: any;
-        skip?: any;
-        take?: any;
-        _count?: any;
-        _avg?: any;
-        _sum?: any;
-        _min?: any;
-        _max?: any;
-    }) => Promise<any>;
+        where: Record<string, unknown>;
+        orderBy?: Record<string, unknown> | Array<Record<string, unknown>>;
+        cursor?: Record<string, unknown>;
+        skip?: number;
+        take?: number;
+        _count?: Record<string, unknown>;
+        _avg?: Record<string, unknown>;
+        _sum?: Record<string, unknown>;
+        _min?: Record<string, unknown>;
+        _max?: Record<string, unknown>;
+    }) => Promise<Record<string, unknown>>;
 }
 
-export type SelectWrap<T extends Record<string, any>> = { select: { [K in keyof Required<T>]: true } }
+export type SelectWrap<T extends Record<string, unknown>> = { select: { [K in keyof Required<T>]: true } }
 
 export type PaginatedSearchResult = {
-    __typename: any;
+    __typename: string;
     pageInfo: PageInfo;
     edges: Array<{
-        __typename: any;
+        __typename: string;
         cursor: string;
-        node: any;
+        node: Record<string, unknown>;
     }>;
 }
 
@@ -147,7 +148,7 @@ export type ExceptionsBuilderProps = {
     /**
      * Default for main field
      */
-    defaultValue?: any,
+    defaultValue?: unknown,
     /**
      * Field to check for stringified exceptions
      */
@@ -155,7 +156,7 @@ export type ExceptionsBuilderProps = {
     /**
      * Input object, with exceptions in one of the fields
      */
-    input: { [x: string]: any },
+    input: Record<string, unknown>,
     /**
      * Main field being queried
      */
@@ -164,24 +165,24 @@ export type ExceptionsBuilderProps = {
 
 export type ExistsArrayProps = {
     ids: (string | null | undefined)[],
-    prismaDelegate: any,
-    where: { [x: string]: any },
+    prismaDelegate: PrismaDelegate,
+    where: Record<string, unknown>,
 }
 
 export type RelConnect<IDField extends string> = { [key in IDField]: string }
 export type RelDisconnect<IDField extends string> = { [key in IDField]: string }
-export type RelCreate<Shaped extends { [x: string]: any }> = Shaped
-export type RelUpdate<Shaped extends { [x: string]: any }, IDField extends string> = { where: { [key in IDField]: string }, data: Shaped }
+export type RelCreate<Shaped extends Record<string, unknown>> = Shaped
+export type RelUpdate<Shaped extends Record<string, unknown>, IDField extends string> = { where: { [key in IDField]: string }, data: Shaped }
 export type RelDelete<IDField extends string> = { [key in IDField]: string }
 
 export type VisibilityBuilderProps = {
     objectType: `${ModelType}`,
     req: Parameters<typeof RequestService.assertRequestFrom>[0],
-    searchInput: { [x: string]: any };
+    searchInput: Record<string, unknown>;
     visibility?: VisibilityType | null | undefined,
 }
 
 export type VisibilityBuilderPrismaResult = {
-    query: { [x: string]: any };
+    query: Record<string, unknown>;
     visibilityUsed: VisibilityType;
 }

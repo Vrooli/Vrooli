@@ -1,9 +1,10 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-19
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { useDebugStore } from "../../stores/debugStore.js";
 
 const originalNodeEnv = process.env.NODE_ENV;
 
-describe("DebugComponent", () => {
+describe("useDebugStore", () => {
     beforeEach(() => {
         // Reset the debug store before each test
         useDebugStore.setState({ traces: {} });
@@ -14,7 +15,7 @@ describe("DebugComponent", () => {
         process.env.NODE_ENV = originalNodeEnv;
     });
 
-    it("should add data to the store correctly", () => {
+    it("adds data to the store and increments count", () => {
         const traceId = "test-trace";
         const testData = { value: 42, message: "test" };
 
@@ -38,7 +39,7 @@ describe("DebugComponent", () => {
         expect(stateAfterUpdate.traces[traceId].data).toEqual({ value: 43, message: "updated" });
     });
 
-    it("should handle multiple traces", () => {
+    it("handles multiple independent traces", () => {
         // Add data to multiple traces
         useDebugStore.getState().addData("trace1", { value: 1 });
         useDebugStore.getState().addData("trace2", { value: 2 });

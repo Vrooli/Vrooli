@@ -64,10 +64,6 @@ export const chatConfigFixtures: ChatConfigTestFixtures = {
             caller_bot_id: "bot-leader-1",
             created_at: new Date().toISOString(),
         }],
-        eventSubscriptions: {
-            "swarm/subtask/+": ["bot-leader-1"],
-            "swarm/resource/+": ["bot-leader-1"],
-        },
         policy: {
             visibility: "private",
             acl: ["bot-leader-1", "user-123"],

@@ -5,7 +5,7 @@ import { IconButton } from "../components/buttons/IconButton.js";
 import InputAdornment from "@mui/material/InputAdornment";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../components/Tooltip/Tooltip.js";
 import type { Meta } from "@storybook/react";
 import React, { useEffect, useRef, useState } from "react";
 import { IconCommon, IconFavicon, type IconInfo, IconRoutine, IconService, IconText } from "./Icons.js";
@@ -14,6 +14,7 @@ import { iconNames as commonIconNames } from "./types/commonIcons.js";
 import { iconNames as routineIconNames } from "./types/routineIcons.js";
 import { iconNames as serviceIconNames } from "./types/serviceIcons.js";
 import { iconNames as textIconNames } from "./types/textIcons.js";
+import { paddedDecorator } from "../__test/helpers/storybookDecorators.tsx";
 
 const cursorPointerStyle = {
     cursor: "pointer",
@@ -111,13 +112,7 @@ const meta = {
             },
         },
     },
-    decorators: [
-        (Story) => (
-            <Box p={2} overflow="auto">
-                <Story />
-            </Box>
-        ),
-    ],
+    decorators: [paddedDecorator(2)],
 } satisfies Meta<typeof IconCommon>;
 
 export default meta;
@@ -232,7 +227,7 @@ function IconInteractiveSection({ IconComponent, name }: IconSectionProps) {
                     <IconComponent
                         name={name}
                         style={cursorPointerStyle}
-                        decorative={false}
+                        decorative="false"
                         aria-label={`${name} action`}
                         onClick={handleIconClick}
                     />
@@ -243,7 +238,7 @@ function IconInteractiveSection({ IconComponent, name }: IconSectionProps) {
                         <IconComponent
                             name={name}
                             style={cursorPointerStyle}
-                            decorative={false}
+                            decorative="false"
                             aria-label={`${name} with tooltip`}
                             onClick={handleIconClick}
                         />
@@ -293,7 +288,7 @@ function IconAccessibilitySection({ IconComponent, name }: IconSectionProps) {
                     <IconComponent
                         ref={decorativeRef}
                         name={name}
-                        decorative={true}
+                        decorative="true"
                     />
                     <AttributeDisplay componentRef={decorativeRef} />
                 </Box>
@@ -302,7 +297,7 @@ function IconAccessibilitySection({ IconComponent, name }: IconSectionProps) {
                     <IconComponent
                         ref={meaningfulRef}
                         name={name}
-                        decorative={false}
+                        decorative="false"
                         aria-label={`${name} button`}
                     />
                     <AttributeDisplay componentRef={meaningfulRef} />
@@ -791,7 +786,7 @@ function Favicons() {
                         <IconFavicon
                             href="https://github.com"
                             size={24}
-                            decorative={true}
+                            decorative="true"
                         />
                         <Box sx={labelStyle}>Decorative (hidden from screen readers)</Box>
                     </Stack>
@@ -799,7 +794,7 @@ function Favicons() {
                         <IconFavicon
                             href="https://github.com"
                             size={24}
-                            decorative={false}
+                            decorative="false"
                             aria-label="GitHub favicon"
                         />
                         <Box sx={labelStyle}>With aria-label</Box>

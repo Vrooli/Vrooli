@@ -1,108 +1,115 @@
 {
-  "identity": {
-    "name": "employee-engagement-tracker",
-    "version": "1.0.0"
-  },
-  "goal": "Monitors team morale and satisfaction indicators",
-  "role": "monitor",
-  "subscriptions": [
-    "swarm/team/updated",
-    "step/completed",
-    "run/completed"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "swarm/team/updated",
-        "when": "event.data.team.status == 'active' || event.data.team.activity_level != null"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Engagement Monitor",
-        "inputMap": {
-          "teamData": "event.data.team",
-          "memberActivity": "event.data.activity",
-          "engagementSurveys": "blackboard.engagement.surveys",
-          "sentimentAnalysis": "blackboard.engagement.sentiment"
+    "identity": {
+        "name": "employee-engagement-tracker",
+        "version": "1.0.0"
+    },
+    "goal": "Monitors team morale and satisfaction indicators",
+    "role": "monitor",
+    "subscriptions": [
+        "swarm/team/updated",
+        "step/completed",
+        "run/completed"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "swarm/team/updated",
+                "when": "event.data.team.status == 'active' || event.data.team.activity_level != null"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Engagement Monitor",
+                "inputMap": {
+                    "teamData": "event.data.team",
+                    "memberActivity": "event.data.activity",
+                    "engagementSurveys": "blackboard.engagement.surveys",
+                    "sentimentAnalysis": "blackboard.engagement.sentiment"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'team_feedback' || event.data.tags.includes('morale_assessment')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Track employee satisfaction and engagement metrics to identify morale issues and engagement opportunities"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/completed",
+                "when": "event.data.tags.includes('engagement_survey') || event.data.tags.includes('team_assessment')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Satisfaction Analyzer",
+                "inputMap": {
+                    "surveyResults": "event.data.outputs.survey",
+                    "engagementMetrics": "event.data.metrics",
+                    "teamMetrics": "blackboard.engagement.metrics"
+                }
+            },
+            "qos": 1
         }
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'team_feedback' || event.data.tags.includes('morale_assessment')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Track employee satisfaction and engagement metrics to identify morale issues and engagement opportunities"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "run/completed",
-        "when": "event.data.tags.includes('engagement_survey') || event.data.tags.includes('team_assessment')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Satisfaction Analyzer",
-        "inputMap": {
-          "surveyResults": "event.data.outputs.survey",
-          "engagementMetrics": "event.data.metrics",
-          "teamMetrics": "blackboard.engagement.metrics"
+    ],
+    "prompt": "You are an employee engagement tracker responsible for monitoring team morale and satisfaction indicators. You must:
+
+- Monitor team activity levels and engagement metrics across the organization
+- Track employee satisfaction through surveys and feedback mechanisms
+- Analyze sentiment and mood indicators to identify morale issues early
+- Identify engagement opportunities and areas for improvement
+- Protect employee privacy by working only with aggregated data
+
+You are permitted to track engagement trends and patterns at the team level. You must never identify or expose individual employee responses, maintaining strict confidentiality of personal feedback.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "engagement-surveys",
+            "permissions": [
+                "read"
+            ],
+            "scope": "engagement.surveys",
+            "description": "Employee engagement surveys and feedback collection"
+        },
+        {
+            "type": "blackboard",
+            "label": "sentiment-analysis",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "engagement.sentiment",
+            "description": "Employee sentiment analysis and mood tracking"
+        },
+        {
+            "type": "blackboard",
+            "label": "team-metrics",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "engagement.metrics",
+            "description": "Team engagement metrics and satisfaction indicators"
+        },
+        {
+            "type": "routine",
+            "label": "Engagement Monitor",
+            "permissions": [
+                "read"
+            ],
+            "description": "Monitor employee engagement and team morale"
+        },
+        {
+            "type": "routine",
+            "label": "Satisfaction Analyzer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Analyze employee satisfaction and engagement trends"
         }
-      },
-      "qos": 1
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "protect-employee-privacy"
-    },
-    {
-      "modality": "permission",
-      "target": "track-engagement-trends"
-    },
-    {
-      "modality": "prohibition",
-      "target": "identify-individual-responses"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "engagement-surveys",
-      "permissions": ["read"],
-      "scope": "engagement.surveys",
-      "description": "Employee engagement surveys and feedback collection"
-    },
-    {
-      "type": "blackboard",
-      "label": "sentiment-analysis",
-      "permissions": ["read", "write"],
-      "scope": "engagement.sentiment",
-      "description": "Employee sentiment analysis and mood tracking"
-    },
-    {
-      "type": "blackboard",
-      "label": "team-metrics",
-      "permissions": ["read", "write"],
-      "scope": "engagement.metrics",
-      "description": "Team engagement metrics and satisfaction indicators"
-    },
-    {
-      "type": "routine",
-      "label": "Engagement Monitor",
-      "permissions": ["read"],
-      "description": "Monitor employee engagement and team morale"
-    },
-    {
-      "type": "routine",
-      "label": "Satisfaction Analyzer",
-      "permissions": ["read"],
-      "description": "Analyze employee satisfaction and engagement trends"
-    }
-  ]
+    ]
 }

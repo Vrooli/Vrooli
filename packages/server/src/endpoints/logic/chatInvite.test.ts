@@ -1,4 +1,4 @@
-import { type ChatInviteCreateInput, type ChatInviteSearchInput, type ChatInviteUpdateInput, type FindByIdInput } from "@vrooli/shared";
+import { type ChatInviteCreateInput, type ChatInviteSearchInput, type ChatInviteUpdateInput, type FindByIdInput, type User, type Chat, type ChatInvite } from "@vrooli/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
@@ -19,14 +19,19 @@ import { seedTestChat } from "../../__test/fixtures/db/chatFixtures.js";
 import { seedChatInvites } from "../../__test/fixtures/db/chatInviteFixtures.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
-import { chatInviteTestDataFactory } from "@vrooli/shared";
+import { generatePK } from "@vrooli/shared";
+import { chatInviteTestDataFactory } from "../../../shared/src/__test/fixtures/api-inputs/chatInviteFixtures.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
+
+// AI_CHECK: TYPE_SAFETY=phase1-test-5 | LAST: 2025-07-04 - Replaced any[] with proper User[], Chat, ChatInvite types
 
 describe("EndpointsChatInvite", () => {
-    let testUsers: any[];
-    let chat1: any;
-    let chat2: any;
-    let invite1: any;
-    let invite2: any;
+    let testUsers: User[];
+    let chat1: Chat;
+    let chat2: Chat;
+    let invite1: ChatInvite;
+    let invite2: ChatInvite;
 
     beforeAll(() => {
         // Use Vitest spies to suppress logger output during tests
@@ -34,16 +39,21 @@ describe("EndpointsChatInvite", () => {
         vi.spyOn(logger, "info").mockImplementation(() => logger);
     });
 
-    beforeEach(async () => {
-        // Clean up tables used in tests
-        try {
-            const prisma = DbProvider.get();
-            if (prisma) {
-                testUsers = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
-            }
-        } catch (error) {
-            // If database is not initialized, skip cleanup
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["user","user_auth","email","phone","push_device","session"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn('Test cleanup incomplete:', orphans);
         }
+    });
+
+    beforeEach(async () => {
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.userAuth(DbProvider.get());
+    });
 
         // Seed chats using database fixtures
         chat1 = await seedTestChat(DbProvider.get(), {

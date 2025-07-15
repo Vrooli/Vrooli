@@ -25,7 +25,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 // Generate sample data sets
-const generateSampleData = (type: "increasing" | "decreasing" | "random" | "sine" | "flat", length: number = 20) => {
+const generateSampleData = (type: "increasing" | "decreasing" | "random" | "sine" | "flat", length = 20) => {
     const data: number[] = [];
     
     for (let i = 0; i < length; i++) {
@@ -54,7 +54,7 @@ const generateSampleData = (type: "increasing" | "decreasing" | "random" | "sine
 };
 
 // Generate labeled data
-const generateLabeledData = (type: "increasing" | "decreasing" | "random" | "sine" | "flat", length: number = 12) => {
+const generateLabeledData = (type: "increasing" | "decreasing" | "random" | "sine" | "flat", length = 12) => {
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const hours = Array.from({ length: 24 }, (_, i) => `${i}:00`);
     const days = Array.from({ length: 7 }, (_, i) => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][i]);
@@ -123,14 +123,14 @@ export const LineGraphShowcase: Story = {
                 p: 2, 
                 height: "100vh", 
                 overflow: "auto",
-                bgcolor: "background.default" 
+                bgcolor: "background.default", 
             }}>
                 <Box sx={{ 
                     display: "flex", 
                     gap: 2, 
                     flexDirection: "column",
                     maxWidth: 1400, 
-                    mx: "auto" 
+                    mx: "auto", 
                 }}>
                     {/* Controls Section */}
                     <Paper sx={{ 
@@ -143,7 +143,7 @@ export const LineGraphShowcase: Story = {
                         <Box sx={{ 
                             display: "grid", 
                             gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(4, 1fr)" },
-                            gap: 3 
+                            gap: 3, 
                         }}>
                             {/* Dimensions */}
                             <Box>
@@ -305,7 +305,7 @@ export const LineGraphShowcase: Story = {
                         boxShadow: 1,
                         display: "flex",
                         flexDirection: "column",
-                        alignItems: "center"
+                        alignItems: "center",
                     }}>
                         <Typography variant="h6" sx={{ mb: 2 }}>LineGraph Preview</Typography>
                         
@@ -315,7 +315,7 @@ export const LineGraphShowcase: Story = {
                             borderColor: "divider",
                             borderRadius: 1,
                             p: 2,
-                            bgcolor: "background.default"
+                            bgcolor: "background.default",
                         }}>
                             <LineGraph
                                 data={data}
@@ -337,7 +337,7 @@ export const LineGraphShowcase: Story = {
                                 maxHeight: 150, 
                                 overflow: "auto",
                                 fontSize: "0.75rem",
-                                fontFamily: "monospace"
+                                fontFamily: "monospace",
                             }}>
                                 {useLabels ? (
                                     data.map((point, i) => (

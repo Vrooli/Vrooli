@@ -1,4 +1,4 @@
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../components/buttons/IconButton.js";
 import { LINKS, getObjectUrlBase, type ListObject, type ModelType } from "@vrooli/shared";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -88,6 +88,7 @@ export function SearchVersionView({
                     <IconButton
                         aria-label={t("FilterList")}
                         onClick={focusSearch}
+                        variant="transparent"
                     >
                         <IconCommon name="Search" />
                     </IconButton>
@@ -95,6 +96,7 @@ export function SearchVersionView({
                         <IconButton
                             aria-label={t("Add")}
                             onClick={onCreateStart}
+                            variant="transparent"
                         >
                             <IconCommon name="Add" />
                         </IconButton>

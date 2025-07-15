@@ -1,4 +1,5 @@
-import Box from "@mui/material/Box";
+// AI_CHECK: TYPE_SAFETY=fixed-mui-box-import-to-named-import | LAST: 2025-06-30
+import { Box } from "./components/layout/Box.js";
 import { LINKS } from "@vrooli/shared";
 import { lazily } from "react-lazily";
 import { Page } from "./components/Page/Page.js";

@@ -50,12 +50,27 @@ export class PostgresDriver implements DatabaseService {
             logger.info("PostgreSQL seeding completed successfully");
             return true;
         } catch (error) {
-            logger.error("PostgreSQL seeding failed", {
-                trace: "POSTGRES-SEED",
-                name: error instanceof Error ? error.name : undefined,
-                message: error instanceof Error ? error.message : String(error),
-                stack: error instanceof Error && error.stack ? error.stack : undefined,
-            });
+            // Check if this is a "table does not exist" error
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const isTableMissing = errorMessage.includes("does not exist") || 
+                                   errorMessage.includes("doesn't exist") ||
+                                   errorMessage.includes("relation") ||
+                                   errorMessage.includes("P2021"); // Prisma error code for missing table
+            
+            if (isTableMissing) {
+                logger.error("PostgreSQL seeding failed: Database tables not found. Please run migrations first.", {
+                    trace: "POSTGRES-SEED-NO-TABLES",
+                    message: "Database migrations have not been applied. Run 'pnpm prisma migrate deploy' before starting the server.",
+                    originalError: errorMessage,
+                });
+            } else {
+                logger.error("PostgreSQL seeding failed", {
+                    trace: "POSTGRES-SEED",
+                    name: error instanceof Error ? error.name : undefined,
+                    message: error instanceof Error ? error.message : String(error),
+                    stack: error instanceof Error && error.stack ? error.stack : undefined,
+                });
+            }
             return false;
         }
     }

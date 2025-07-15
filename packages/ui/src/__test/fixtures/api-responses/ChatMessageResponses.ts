@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { http, type RestHandler } from "msw";
+import { http, HttpResponse, type RequestHandler } from "msw";
 import type { 
     ChatMessage, 
     ChatMessageCreateInput, 
@@ -83,14 +83,14 @@ export class ChatMessageResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique resource ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -165,8 +165,6 @@ export class ChatMessageResponseFactory {
                 pageInfo: {
                     __typename: "PageInfo",
                     hasNextPage,
-                    hasPreviousPage: false,
-                    startCursor: chatMessages.length > 0 ? "cursor_0" : null,
                     endCursor: chatMessages.length > 0 ? `cursor_${chatMessages.length - 1}` : null,
                 },
             },
@@ -343,29 +341,19 @@ export class ChatMessageResponseFactory {
             isPrivate: false,
             profileImage: null,
             bannerImage: null,
-            premium: false,
-            premiumExpiration: null,
-            roles: [],
+            premium: null,
             wallets: [],
             translations: [],
-            translationsCount: 0,
             you: {
                 __typename: "UserYou",
-                isBlocked: false,
-                isBlockedByYou: false,
                 canDelete: false,
                 canReport: false,
                 canUpdate: false,
                 isBookmarked: false,
-                isReacted: false,
-                reactionSummary: {
-                    __typename: "ReactionSummary",
-                    emotion: null,
-                    count: 0,
-                },
+                isViewed: false,
             },
             ...overrides,
-        };
+        } as unknown as User;
     }
     
     /**
@@ -384,27 +372,25 @@ export class ChatMessageResponseFactory {
             invites: [],
             invitesCount: 0,
             messages: [],
-            messagesCount: 0,
             participants: [],
             participantsCount: 1,
-            tasks: [],
-            tasksCount: 0,
             translations: [],
             translationsCount: 0,
             you: {
                 __typename: "ChatYou",
                 canDelete: true,
                 canInvite: true,
+                canRead: true,
                 canUpdate: true,
             },
             ...overrides,
-        };
+        } as unknown as Chat;
     }
     
     /**
      * Create mock message config
      */
-    private createMockConfig(overrides?: Partial<MessageConfigObject>): MessageConfigObject {
+    createMockConfig(overrides?: Partial<MessageConfigObject>): MessageConfigObject {
         return {
             __version: "1.0.0",
             resources: [],
@@ -437,8 +423,6 @@ export class ChatMessageResponseFactory {
             parent: null,
             reactionSummaries: [],
             reports: [],
-            translations: [],
-            translationsCount: 0,
             you: {
                 __typename: "ChatMessageYou",
                 canDelete: true,
@@ -595,7 +579,7 @@ export class ChatMessageResponseFactory {
         errors?: Record<string, string>;
     }> {
         try {
-            await chatMessageValidation.create.validate(input);
+            await chatMessageValidation.create({}).validate(input);
             return { valid: true };
         } catch (error: any) {
             const fieldErrors: Record<string, string> = {};
@@ -631,18 +615,18 @@ export class ChatMessageMSWHandlers {
     /**
      * Create success handlers for all chat message endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): RequestHandler[] {
         return [
             // Create chat message
-            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, async (req, res, ctx) => {
-                const body = await req.json() as ChatMessageCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, async ({ request }) => {
+                const body = await request.json() as ChatMessageCreateInput;
                 
                 // Validate input
                 const validation = await this.responseFactory.validateCreateInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
+                    return HttpResponse.json(
+                        this.responseFactory.createValidationErrorResponse(validation.errors || {}),
+                        { status: 400 }
                     );
                 }
                 
@@ -650,29 +634,23 @@ export class ChatMessageMSWHandlers {
                 const message = this.responseFactory.createChatMessageFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(message);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 201 });
             }),
             
             // Get message by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, ({ params }) => {
+                const { id } = params;
                 
                 const message = this.responseFactory.createMockChatMessage({ id: id as string });
                 const response = this.responseFactory.createSuccessResponse(message);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Update message
-            http.put(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const body = await req.json() as ChatMessageUpdateInput;
+            http.put(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, async ({ params, request }) => {
+                const { id } = params;
+                const body = await request.json() as ChatMessageUpdateInput;
                 
                 const message = this.responseFactory.createMockChatMessage({ 
                     id: id as string,
@@ -683,20 +661,17 @@ export class ChatMessageMSWHandlers {
                 
                 const response = this.responseFactory.createSuccessResponse(message);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Delete message
-            http.delete(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, (req, res, ctx) => {
-                return res(ctx.status(204));
+            http.delete(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, () => {
+                return new HttpResponse(null, { status: 204 });
             }),
             
             // Search messages
-            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessage`, ({ request }) => {
+                const url = new URL(request.url);
                 const chatId = url.searchParams.get("chatId");
                 const take = parseInt(url.searchParams.get("take") || "10");
                 const searchString = url.searchParams.get("searchString");
@@ -720,15 +695,12 @@ export class ChatMessageMSWHandlers {
                 
                 const response = this.responseFactory.createSearchResponse(messages, messages.length === take);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Get message tree
-            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessageTree`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessageTree`, ({ request, params }) => {
+                const url = new URL(request.url);
                 const chatId = url.searchParams.get("chatId");
                 const startId = url.searchParams.get("startId");
                 const take = parseInt(url.searchParams.get("take") || "10");
@@ -749,15 +721,12 @@ export class ChatMessageMSWHandlers {
                     messages.length === take, // hasMoreDown
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Regenerate response
-            http.post(`${this.responseFactory["baseUrl"]}/api/regenerateResponse`, async (req, res, ctx) => {
-                const body = await req.json();
+            http.post(`${this.responseFactory["baseUrl"]}/api/regenerateResponse`, async ({ request, params }) => {
+                const body = await request.json();
                 
                 // Create a new assistant response
                 const message = this.responseFactory.createMockChatMessage({
@@ -768,10 +737,7 @@ export class ChatMessageMSWHandlers {
                 
                 const response = this.responseFactory.createSuccessResponse(message);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 201 });
             }),
         ];
     }
@@ -779,51 +745,43 @@ export class ChatMessageMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): RequestHandler[] {
         return [
             // Validation error
-            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createValidationErrorResponse({
                         text: "Message text is required",
                         chatConnect: "Chat ID must be specified",
                         userConnect: "User ID must be specified",
-                    })),
+                    }),
+                    { status: 400 }
                 );
             }),
             
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
-                );
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, ({ request, params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string), { status: 404 });
             }),
             
             // Permission error
-            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
-                );
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("create"), { status: 403 });
             }),
             
             // Rate limit error
-            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
-                return res(
-                    ctx.status(429),
-                    ctx.json(this.responseFactory.createRateLimitErrorResponse()),
-                );
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createRateLimitErrorResponse(), { status: 429 });
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
-                );
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse(), { status: 500 });
             }),
         ];
     }
@@ -831,29 +789,23 @@ export class ChatMessageMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, async (req, res, ctx) => {
-                const body = await req.json() as ChatMessageCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, async ({ request, params }) => {
+                const body = await request.json() as ChatMessageCreateInput;
                 const message = this.responseFactory.createChatMessageFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(message);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return HttpResponse.json(response, { status: 201 });
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessageTree`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessageTree`, async ({ request, params }) => {
                 const messages = this.responseFactory.createThreadMessages();
                 const response = this.responseFactory.createTreeResponse(messages);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -861,18 +813,18 @@ export class ChatMessageMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessageTree`, (req, res, ctx) => {
-                return res.networkError("Failed to load message tree");
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessageTree`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -886,18 +838,17 @@ export class ChatMessageMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): RequestHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        const httpMethod = method.toLowerCase() as keyof typeof http;
+        return http[httpMethod](fullEndpoint, async ({ request, params }) => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }

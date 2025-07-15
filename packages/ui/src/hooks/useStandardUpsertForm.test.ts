@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=fixed-6-type-assertions | LAST: 2025-07-01
 // AI_CHECK: TEST_QUALITY=4 | LAST: 2025-06-24
 import { act, renderHook } from "@testing-library/react";
 import { FormikConfig, FormikProps } from "formik";
@@ -89,6 +90,7 @@ const createMockConfig = (): StandardUpsertFormConfig<TestShape, TestCreateInput
     validation: {
         create: vi.fn(() => ({ validate: vi.fn() })),
         update: vi.fn(() => ({ validate: vi.fn() })),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any,
     transformFunction: vi.fn((values: TestShape, existing: TestShape, isCreate: boolean) => {
         if (isCreate) {
@@ -141,8 +143,10 @@ const createMockSession = () => ({
 
 // Helper to render hook with providers
 const renderHookWithProviders = <T extends TestShape, R extends TestResult>(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     config: StandardUpsertFormConfig<T, any, any, R>,
     props: UseStandardUpsertFormProps<T, R>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     sessionOverride?: any,
 ) => {
     const session = sessionOverride || createMockSession();
@@ -234,6 +238,7 @@ describe("useStandardUpsertForm", () => {
             const valuesWithRoot = {
                 ...createMockValues(),
                 root: { id: "root-id-456" },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any;
             
             const props = createMockProps({ values: valuesWithRoot });
@@ -410,6 +415,7 @@ describe("useStandardUpsertForm", () => {
             const config = createMockConfig();
             const props = createMockProps({
                 isCreate: false,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 existing: null as any,
             });
 
@@ -472,6 +478,7 @@ describe("useStandardUpsertForm", () => {
             config.translationValidation = {
                 create: vi.fn(() => ({ validate: vi.fn() })),
                 update: vi.fn(() => ({ validate: vi.fn() })),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any;
 
             const props = createMockProps();
@@ -504,6 +511,7 @@ describe("useStandardUpsertForm", () => {
             config.translationValidation = {
                 create: vi.fn(() => ({ validate: vi.fn() })),
                 update: vi.fn(() => ({ validate: vi.fn() })),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any;
 
             const props = createMockProps();
@@ -654,6 +662,7 @@ describe("useStandardUpsertForm", () => {
                         value: "test",
                     },
                 },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any;
             
             const props = createMockProps({ values: complexValues });

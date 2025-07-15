@@ -38,21 +38,27 @@ function collectProfanities(
         }
     }
     // Helper function to handle translations
-    function handleTranslationsArray(translationsArray: any[], result: { [x: string]: string[] }): void {
+    // AI_CHECK: TYPE_SAFETY=server-validators-profanity-type-safety-maintenance-1 | LAST: 2025-07-03 - Replaced any[] with unknown[], added proper type guards
+    function handleTranslationsArray(translationsArray: unknown[], result: { [x: string]: string[] }): void {
         for (const translation of translationsArray) {
-            for (const field in translation) {
+            if (!translation || typeof translation !== "object") continue;
+            const translationObj = translation as Record<string, unknown>;
+            for (const field in translationObj) {
                 // Ignore ID fields and language fields
                 if (field === "id" || field === "language" || field.includes("Id")) continue;
                 // If the field is an array, recurse
-                if (Array.isArray(translation[field])) {
-                    handleTranslationsArray(translation[field], result);
+                if (Array.isArray(translationObj[field])) {
+                    handleTranslationsArray(translationObj[field] as unknown[], result);
                 }
                 // If the field is an object, recurse
-                else if (typeof translation[field] === "object") {
-                    handleTranslationsArray([translation[field]], result);
+                else if (typeof translationObj[field] === "object" && translationObj[field] !== null) {
+                    handleTranslationsArray([translationObj[field]], result);
                 }
                 // Otherwise, add string fields to the result
-                else if (typeof translation[field] === "string") result[field] = result[field] ? [...result[field], translation[field]] : [translation[field]];
+                else if (typeof translationObj[field] === "string") {
+                    const stringValue = translationObj[field] as string;
+                    result[field] = result[field] ? [...result[field], stringValue] : [stringValue];
+                }
             }
         }
     }
@@ -68,7 +74,9 @@ function collectProfanities(
         result.tagsConnect = input.tagsConnect as string[];
     }
     // Handle recursive case
-    function processNestedFields(nestedInput: any, nestedObjectType?: `${ModelType}`): void {
+    // AI_CHECK: TYPE_SAFETY=server-validators-profanity-type-safety-maintenance-1 | LAST: 2025-07-03 - Replaced any parameter with unknown, added type guard
+    function processNestedFields(nestedInput: unknown, nestedObjectType?: `${ModelType}`): void {
+        if (!nestedInput || typeof nestedInput !== "object") return;
         const newFields = collectProfanities(nestedInput, nestedObjectType);
         for (const field in newFields) {
             result[field] = result[field] ? [...result[field], ...newFields[field]] : newFields[field];

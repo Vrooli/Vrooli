@@ -2,7 +2,7 @@
 // AI_CHECK: TYPE_SAFETY=eliminated-9-any-types-in-mock-interfaces | LAST: 2025-06-28
 import { DUMMY_ID, reportFormConfig } from "@vrooli/shared";
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { userEvent } from "@testing-library/user-event";
 import React from "react";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { SessionContext } from "../../../contexts/session.js";

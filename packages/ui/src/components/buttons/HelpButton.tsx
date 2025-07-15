@@ -1,16 +1,16 @@
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../Tooltip/Tooltip.js";
 import { styled, useTheme } from "@mui/material/styles";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { usePopover } from "../../hooks/usePopover.js";
 import { IconCommon } from "../../icons/Icons.js";
+import { IconButton } from "./IconButton.js";
 import { linkColors, noSelect } from "../../styles.js";
 import { MenuTitle } from "../dialogs/MenuTitle/MenuTitle.js";
-import { RichInputBase } from "../inputs/RichInput/RichInput.js";
+import { AdvancedInputBase } from "../inputs/AdvancedInput/AdvancedInput.js";
 import { MarkdownDisplay } from "../text/MarkdownDisplay.js";
 import { type HelpButtonProps } from "./types.js";
 
@@ -98,7 +98,7 @@ export function HelpButton({
             >
                 <MenuTitle onClose={handleClose} />
                 {typeof onMarkdownChange === "function" ? (<div>
-                    <RichInputBase
+                    <AdvancedInputBase
                         maxRows={10}
                         minRows={4}
                         name="helpText"
@@ -121,7 +121,9 @@ export function HelpButton({
                         </Button>) :
                         (<IconButton
                             aria-label={t("Help")}
-                            sx={helpIconButtonStyle}
+                            variant="transparent"
+                            size="md"
+                            style={helpIconButtonStyle}
                         >
                             <IconCommon
                                 decorative

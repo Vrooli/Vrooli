@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-01 - Fixed 1 'as any' type assertion in filterInvalidAction, previous: fixed-double-casting-patterns 2025-06-30
 import Chip from "@mui/material/Chip";
 import type { Palette } from "@mui/material";
 import { BookmarkFor, CommentFor, CopyType, DUMMY_ID, DeleteType, ReactionFor, ReportFor, exists, getTranslation, isOfType, valueFromDot, type AutocompleteOption, type Bookmark, type Chat, type ChatInvite, type ChatParticipant, type DotNotation, type ListObject, type Meeting, type Member, type MemberInvite, type Reaction, type Resource, type ResourceVersion, type Run, type User, type View, type YouInflated } from "@vrooli/shared";
@@ -121,7 +122,7 @@ export function getYou(
     function filterInvalidAction(action: keyof YouInflated, enumType: Record<string, unknown>) {
         if (!object) return;
         if (objectPermissions[action] && [object.__typename, object.__typename + "Version", object.__typename.replace("Version", "")].every(type => !exists(enumType[type]))) {
-            objectPermissions[action as any] = false;
+            objectPermissions[action] = false;
         }
     }
     filterInvalidAction("canBookmark", BookmarkFor);
@@ -303,7 +304,9 @@ export function getDisplay(
         const updatedAt = (object as Partial<Chat | Meeting>).updatedAt;
         const { name, description } = getTranslation(object as Partial<Chat>, langs, true);
         const isGroup = Number.isInteger(participantsCount) && (participantsCount as number) > 2;
-        const firstUser = (participants as unknown as Meeting["attendees"])[0] ?? (participants as unknown as Chat["participants"])[0]?.user;
+        const firstUser = isOfType(object, "Meeting") 
+            ? (participants as Meeting["attendees"])[0] 
+            : (participants as Chat["participants"])[0]?.user;
         const title = firstString(name, isGroup ? //TODO internationalize this and support meeting
             `Group chat (${participantsCount})` :
             firstUser ?
@@ -372,7 +375,17 @@ export function getBookmarkFor(
     if (Object.prototype.hasOwnProperty.call(object, "root"))
         return getBookmarkFor((object as Partial<ResourceVersion>).root);
     // Use current object
-    return { bookmarkFor: object.__typename as unknown as BookmarkFor, starForId: object.id };
+    // Map typename to BookmarkFor enum values
+    const bookmarkForMap: Record<string, BookmarkFor> = {
+        "Comment": BookmarkFor.Comment,
+        "Issue": BookmarkFor.Issue,
+        "Resource": BookmarkFor.Resource,
+        "Tag": BookmarkFor.Tag,
+        "Team": BookmarkFor.Team,
+        "User": BookmarkFor.User,
+    };
+    const bookmarkFor = bookmarkForMap[object.__typename] || BookmarkFor.Resource; // Default to Resource if not found
+    return { bookmarkFor, starForId: object.id };
 }
 
 /**

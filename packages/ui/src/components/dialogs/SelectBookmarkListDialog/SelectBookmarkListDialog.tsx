@@ -5,7 +5,7 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import Divider from "@mui/material/Divider";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
@@ -23,8 +23,7 @@ import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { useBookmarkListsStore } from "../../../stores/bookmarkListsStore.js";
 import { ELEMENT_IDS } from "../../../utils/consts.js";
-import { BottomActionsButtons } from "../../buttons/BottomActionsButtons.js";
-import { LargeDialog } from "../LargeDialog/LargeDialog.js";
+import { Dialog, DialogContent, DialogActions } from "../Dialog/Dialog.js";
 import { type SelectBookmarkListDialogProps } from "../types.js";
 
 const createListIconButtonStyle = {
@@ -167,38 +166,44 @@ export function SelectBookmarkListDialog({
                 onClose={closeCreate}
                 onCreated={onCreated}
             />
-            <LargeDialog
-                id="select-bookmark-list-dialog"
+            <Dialog
                 isOpen={isOpen}
                 onClose={handleClose}
-                titleId={ELEMENT_IDS.SelectBookmarkListDialog}
+                title={
+                    <Box display="flex" flexDirection="row" alignItems="center" width="100%">
+                        <Typography variant="h6">{t("AddToList")}</Typography>
+                        <IconButton
+                            aria-label={t("AddToList")}
+                            onClick={openCreate}
+                            sx={createListIconButtonStyle}
+                            variant="transparent"
+                        >
+                            <IconCommon
+                                decorative
+                                fill={palette.secondary.main}
+                                name="Add"
+                            />
+                        </IconButton>
+                    </Box>
+                }
+                size="md"
             >
-                <Box display="flex" flexDirection="row" alignItems="center" p={1}>
-                    <Typography variant="h6" ml="auto">{t("AddToList")}</Typography>
-                    <IconButton
-                        aria-label={t("AddToList")}
-                        onClick={openCreate}
-                        sx={createListIconButtonStyle}
+                <DialogContent>
+                    <List sx={bookmarkListStyle}>
+                        {listItems}
+                    </List>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={onCancel} variant="text">{t("Cancel")}</Button>
+                    <Button 
+                        onClick={handleSubmit} 
+                        variant="contained"
+                        disabled={isFindLoading || isCreateLoading || isDeleteLoading}
                     >
-                        <IconCommon
-                            decorative
-                            fill={palette.secondary.main}
-                            name="Add"
-                        />
-                    </IconButton>
-                </Box>
-                <Divider />
-                <List sx={bookmarkListStyle}>
-                    {listItems}
-                </List>
-                <BottomActionsButtons
-                    display={"Dialog"}
-                    isCreate={false}
-                    loading={isFindLoading || isCreateLoading || isDeleteLoading}
-                    onCancel={onCancel}
-                    onSubmit={handleSubmit}
-                />
-            </LargeDialog>
+                        {t("Submit")}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </>
     );
 }
@@ -263,47 +268,52 @@ function CreateBookmarkListDialog({
     }, [onClose]);
 
     return (
-        <LargeDialog
-            id="create-bookmark-list-dialog"
+        <Dialog
             isOpen={isOpen}
             onClose={onClose}
-            titleId="create-bookmark-list"
-        >
-            <Box display="flex" flexDirection="row" alignItems="center" p={1}>
-                <IconButton
-                    aria-label={t("Back")}
-                    onClick={handleBack}
-                >
-                    <IconCommon
-                        decorative
-                        fill={palette.text.primary}
-                        name="ArrowLeft"
-                    />
-                </IconButton>
-                <Typography variant="h6" ml={2}>{t("CreateBookmarkList")}</Typography>
-            </Box>
-            <Divider />
-            <Box p={2} display="flex" flexDirection="column" gap={2}>
-                <TextField
-                    label={t("Name")}
-                    value={name}
-                    onChange={handleChange}
-                    inputRef={nameInputRef}
-                    onKeyDown={handleKeyDown}
-                    fullWidth
-                    disabled={isCreating}
-                />
-                <Box display="flex" justifyContent="flex-end">
-                    <Button
-                        onClick={handleCreate}
-                        color="primary"
-                        disabled={isCreating || name.trim() === ""}
-                        aria-label={t("Create")}
+            title={
+                <Box display="flex" flexDirection="row" alignItems="center">
+                    <IconButton
+                        aria-label={t("Back")}
+                        onClick={handleBack}
+                        variant="transparent"
                     >
-                        {t("Create")}
-                    </Button>
+                        <IconCommon
+                            decorative
+                            fill={palette.text.primary}
+                            name="ArrowLeft"
+                        />
+                    </IconButton>
+                    <Typography variant="h6" ml={2}>{t("CreateBookmarkList")}</Typography>
                 </Box>
-            </Box>
-        </LargeDialog>
+            }
+            size="sm"
+        >
+            <DialogContent>
+                <Box display="flex" flexDirection="column" gap={2}>
+                    <TextField
+                        label={t("Name")}
+                        value={name}
+                        onChange={handleChange}
+                        inputRef={nameInputRef}
+                        onKeyDown={handleKeyDown}
+                        fullWidth
+                        disabled={isCreating}
+                    />
+                </Box>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={onClose} variant="text">{t("Cancel")}</Button>
+                <Button
+                    onClick={handleCreate}
+                    color="primary"
+                    disabled={isCreating || name.trim() === ""}
+                    aria-label={t("Create")}
+                    variant="contained"
+                >
+                    {t("Create")}
+                </Button>
+            </DialogActions>
+        </Dialog>
     );
 }

@@ -11,7 +11,7 @@ import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import Zoom from "@mui/material/Zoom";
 import { useTheme } from "@mui/material";
@@ -23,7 +23,7 @@ import { IconCommon } from "../../../icons/Icons.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { type ObjectType } from "../../../utils/navigation/openObject.js";
 import { PubSub } from "../../../utils/pubsub.js";
-import { LargeDialog } from "../LargeDialog/LargeDialog.js";
+import { Dialog } from "../Dialog/Dialog.js";
 import { type ShareObjectDialogProps } from "../types.js";
 
 // Title for social media posts
@@ -88,7 +88,6 @@ function prepareObjectForShare(object: any): any {
     return omitFields(object, ...omittedFields);
 }
 
-const titleId = "share-object-dialog-title";
 
 export function ShareObjectDialog({
     object,
@@ -236,20 +235,11 @@ export function ShareObjectDialog({
     ], [copyLink, shareLink, copyObject, shareObject, toggleQrCode, isQrCodeVisible]);
 
     return (
-        <LargeDialog
-            id="share-object-dialog"
+        <Dialog
             isOpen={open}
             onClose={onClose}
-            titleId={titleId}
-            sxs={{
-                paper: {
-                    width: "min(500px, 100vw - 64px)",
-                    borderRadius: 2,
-                    maxHeight: "calc(100vh - 64px)",
-                    display: "flex",
-                    flexDirection: "column",
-                },
-            }}
+            title={t("Share")}
+            size="md"
         >
             <Box sx={{ flex: 1, overflowY: "auto", pb: 2 }}>
                 {object && (
@@ -357,6 +347,6 @@ export function ShareObjectDialog({
                     </Fade>
                 )}
             </Box>
-        </LargeDialog>
+        </Dialog>
     );
 }

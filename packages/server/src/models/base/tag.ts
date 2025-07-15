@@ -26,7 +26,10 @@ export const TagModel: TagModelLogic = ({
         embed: {
             select: () => ({ id: true, tag: true, translations: { select: { id: true, embeddingExpiredAt: true, language: true, description: true } } }),
             get: ({ tag, translations }, languages) => {
-                const trans = getTranslation({ translations }, languages);
+                const trans = getTranslation({ translations }, languages) as Partial<{
+                    language: string;
+                    description: string;
+                }>;
                 return EmbeddingService.getEmbeddableString({
                     description: trans?.description || "",
                     tag,
@@ -96,9 +99,9 @@ export const TagModel: TagModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, tag: true }),
         permissionResolvers: defaultPermissions,
-        owner: () => ({}),
+        owner: (_data, _userId) => ({}),
         isDeleted: () => false,
-        isPublic: () => true,
+        isPublic: (_data, _getParentInfo?) => true,
         profanityFields: ["tag"],
         visibility: {
             own: null, // Search method disabled, since no one owns site stats

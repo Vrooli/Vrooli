@@ -293,8 +293,27 @@ env::construct_derived_secrets() {
     : "${JWT_PUB:?FATAL: JWT_PUB is not set. Check .env file, Vault, or ensure jwt_pub.pem exists at project root.}"
     
     export SERVER_LOCATION="$LOCATION"
-    export DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@postgres:${PORT_DB:-5432}"
-    export REDIS_URL="redis://:${REDIS_PASSWORD}@redis:${PORT_REDIS:-6379}"
+    
+    # Target-aware hostname selection for database and Redis connections
+    # Native targets (native-linux, native-mac, native-win) use localhost with port mapping
+    # Container targets (docker-only, k8s-cluster) use service names within Docker network
+    local db_host="postgres"
+    local redis_host="redis"
+    
+    case "${TARGET:-}" in
+        native-linux|native-mac|native-win)
+            db_host="127.0.0.1"
+            redis_host="127.0.0.1"
+            log::info "Using localhost hostnames for native target: ${TARGET}"
+            ;;
+        docker-only|k8s-cluster|*)
+            # Use service names for container-based deployments
+            log::info "Using service hostnames for container target: ${TARGET:-docker-only}"
+            ;;
+    esac
+    
+    export DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${db_host}:${PORT_DB:-5432}"
+    export REDIS_URL="redis://:${REDIS_PASSWORD}@${redis_host}:${PORT_REDIS:-6379}"
     export WORKER_ID=0 # This is fine for single-node deployments, but should be set to the pod ordinal for multi-node deployments.
 }
 

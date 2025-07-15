@@ -1,28 +1,34 @@
-import { type CancelTaskInput, type CheckTaskStatusesInput, type CheckTaskStatusesResult, nanoid, PendingToolCallStatus, type RespondToToolApprovalInput, type RunTask, RunTriggeredFrom, type StartRunTaskInput, type StartSwarmTaskInput, type Success, type SwarmExecutionTask, TaskType } from "@vrooli/shared";
+// AI_CHECK: TYPE_SAFETY=2 | LAST: 2025-07-03
+import { type CancelTaskInput, type CheckTaskStatusesInput, type CheckTaskStatusesResult, EventTypes, generatePK, nanoid, PendingToolCallStatus, type RespondToToolApprovalInput, RunTriggeredFrom, type StartRunTaskInput, type StartSwarmTaskInput, type Success, TaskType } from "@vrooli/shared";
 import { RequestService } from "../../auth/request.js";
 import { logger } from "../../events/logger.js";
-import { completionService } from "../../services/conversation/responseEngine.js";
+import { getEventBus } from "../../services/events/eventBus.js";
 import { QueueService } from "../../tasks/queues.js";
 import { changeSandboxTaskStatus, getSandboxTaskStatuses } from "../../tasks/sandbox/queue.js";
-import { QueueTaskType } from "../../tasks/taskTypes.js";
+import { QueueTaskType, type RunTask, type SwarmExecutionTask } from "../../tasks/taskTypes.js";
 import type { ApiEndpoint } from "../../types.js";
 import { createStandardCrudEndpoints } from "../helpers/endpointFactory.js";
 
 // Lazy imports to avoid circular dependencies
-async function getSwarmQueue() {
+async function getSwarmQueue(): Promise<{
+    processNewSwarmExecution: typeof import("../../tasks/swarm/queue.js")["processNewSwarmExecution"];
+    getSwarmTaskStatuses: typeof import("../../tasks/swarm/queue.js")["getSwarmTaskStatuses"];
+    changeSwarmTaskStatus: typeof import("../../tasks/swarm/queue.js")["changeSwarmTaskStatus"];
+}> {
     const { processNewSwarmExecution, getSwarmTaskStatuses, changeSwarmTaskStatus } = await import("../../tasks/swarm/queue.js");
     return { processNewSwarmExecution, getSwarmTaskStatuses, changeSwarmTaskStatus };
 }
 
-async function getRunQueue() {
+async function getRunQueue(): Promise<{
+    processRun: typeof import("../../tasks/run/queue.js")["processRun"];
+    getRunTaskStatuses: typeof import("../../tasks/run/queue.js")["getRunTaskStatuses"];
+    changeRunTaskStatus: typeof import("../../tasks/run/queue.js")["changeRunTaskStatus"];
+}> {
     const { processRun, getRunTaskStatuses, changeRunTaskStatus } = await import("../../tasks/run/queue.js");
     return { processRun, getRunTaskStatuses, changeRunTaskStatus };
 }
 
-async function getSwarmRegistry() {
-    const { activeSwarmRegistry } = await import("../../tasks/swarm/process.js");
-    return { activeSwarmRegistry };
-}
+// Removed getSwarmRegistry - using EventBus instead of direct registry access
 
 export type EndpointsTask = {
     checkStatuses: ApiEndpoint<CheckTaskStatusesInput, CheckTaskStatusesResult>;
@@ -40,10 +46,10 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
             const input = data?.input;
             await RequestService.get().rateLimit({ maxUser: 1000, req });
             const result: CheckTaskStatusesResult = {
-                __typename: "CheckTaskStatusesResult",
+                __typename: "CheckTaskStatusesResult" as const,
                 statuses: [],
             };
-            if (!input) return { __typename: "CheckTaskStatusesResult", statuses: [] };
+            if (!input) return { __typename: "CheckTaskStatusesResult" as const, statuses: [] };
 
             // Get task statuses from queue system
             switch (input.taskType) {
@@ -69,10 +75,10 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
             const input = data?.input;
             const userData = RequestService.assertRequestFrom(req, { isUser: true });
             await RequestService.get().rateLimit({ maxUser: 1000, req });
-            if (!input) return { __typename: "Success", success: false, error: "Input is required." };
+            if (!input) return { __typename: "Success" as const, success: false, error: "Input is required." };
 
             try {
-                const swarmId = `swarm-${nanoid()}`;
+                const swarmId = generatePK().toString();
 
                 // Create SwarmExecutionTask for the three-tier architecture
                 const swarmTask: Omit<SwarmExecutionTask, "status"> = {
@@ -106,14 +112,14 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
                     error: error instanceof Error ? error.message : String(error),
                     userId: userData.id,
                 });
-                return { __typename: "Success", success: false, error: `Failed to start swarm task: ${error instanceof Error ? error.message : String(error)}` };
+                return { __typename: "Success" as const, success: false, error: `Failed to start swarm task: ${error instanceof Error ? error.message : String(error)}` };
             }
         },
         startRunTask: async (data, { req }) => {
             const input = data?.input;
             const userData = RequestService.assertRequestFrom(req, { isUser: true });
             await RequestService.get().rateLimit({ maxUser: 1000, req });
-            if (!input) return { __typename: "Success", success: false, error: "Input is required." };
+            if (!input) return { __typename: "Success" as const, success: false, error: "Input is required." };
 
             try {
                 const runId = input.runId || `run-${nanoid()}`;
@@ -121,6 +127,7 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
 
                 // Create RunTask for the three-tier architecture
                 const runTask: Omit<RunTask, "status"> = {
+                    id: nanoid(),
                     type: QueueTaskType.RUN_START,
                     context: {
                         swarmId,
@@ -154,14 +161,14 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
                     userId: userData.id,
                     routineVersionId: input.routineVersionId,
                 });
-                return { __typename: "Success", success: false, error: `Failed to start run task: ${error instanceof Error ? error.message : String(error)}` };
+                return { __typename: "Success" as const, success: false, error: `Failed to start run task: ${error instanceof Error ? error.message : String(error)}` };
             }
         },
         cancelTask: async (data, { req }) => {
             const input = data?.input;
             const userData = RequestService.assertRequestFrom(req, { isUser: true });
             await RequestService.get().rateLimit({ maxUser: 1000, req });
-            if (!input) return { __typename: "Success", success: false, error: "Input is required for cancelTask" };
+            if (!input) return { __typename: "Success" as const, success: false, error: "Input is required for cancelTask" };
 
             try {
                 switch (input.taskType) {
@@ -176,7 +183,7 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
                     case TaskType.Sandbox:
                         return await changeSandboxTaskStatus(input.taskId, "Suggested", userData.id, QueueService.get());
                     default:
-                        return { __typename: "Success", success: false, error: "Unsupported task type for cancellation or task type not provided." };
+                        return { __typename: "Success" as const, success: false, error: "Unsupported task type for cancellation or task type not provided." };
                 }
             } catch (error) {
                 logger.error("[task.cancelTask] Failed to cancel task", {
@@ -185,7 +192,7 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
                     taskType: input.taskType,
                     userId: userData.id,
                 });
-                return { __typename: "Success", success: false, error: `Failed to cancel task: ${error instanceof Error ? error.message : String(error)}` };
+                return { __typename: "Success" as const, success: false, error: `Failed to cancel task: ${error instanceof Error ? error.message : String(error)}` };
             }
         },
         respondToToolApproval: async (payload, { req }) => {
@@ -203,11 +210,11 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
             // TODO: UI update - The frontend needs to be updated to correctly route tool approval responses to this endpoint
             // and handle the outcome (e.g., update UI based on success/failure of processing the approval,
             // display pending tool calls, and allow interaction).
-            // TODO: Shared package update - Ensure `RespondToToolApprovalInput` is defined in `@vrooli/shared`.
 
             try {
                 logger.info(`Processing tool approval response for conversation ${conversationId}, pendingId ${pendingId}, approved: ${approved}`);
 
+                //TODO I think we need to use the event bus for tool responses, or a similar event/ file
                 const conversationState = await completionService.getConversationState(conversationId);
                 if (!conversationState) {
                     logger.error(`Conversation state not found for ID: ${conversationId} while responding to tool approval.`);
@@ -242,32 +249,51 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
 
                 logger.info(`Tool call ${pendingId} in conversation ${conversationId} was ${approved ? "approved" : "rejected"} by user ${userData.id}.`);
 
-                if (approved) {
-                    const { activeSwarmRegistry } = await getSwarmRegistry();
-                    const swarmStateMachineInstance = activeSwarmRegistry.get(conversationId);
-                    if (swarmStateMachineInstance) {
-                        logger.info(`Notifying SwarmStateMachine for conversation ${conversationId} about approved tool call ${pendingId}.`);
-                        // The actual execution of the tool will be handled by the SwarmStateMachine
-                        // in response to this notification, likely by queueing an internal event.
-                        // TODO: handleToolApproval method doesn't exist on SwarmStateMachine
-                        // await swarmStateMachineInstance.handleToolApproval(pendingCall);
+                // Publish tool approval/rejection event through EventBus
+                // SwarmStateMachine listens for these events and handles them appropriately
+                const toolApprovalEvent = {
+                    id: generatePK().toString(),
+                    type: approved ? EventTypes.CHAT.TOOL_APPROVAL_GRANTED : EventTypes.CHAT.TOOL_APPROVAL_REJECTED,
+                    timestamp: new Date(),
+                    source: { tier: "cross-cutting" as const, component: "task-api" },
+                    data: {
+                        chatId: conversationId,
+                        pendingId,
+                        toolCallId: pendingCall.toolCallId,
+                        toolName: pendingCall.toolName,
+                        callerBotId: pendingCall.callerBotId,
+                        ...(approved ? { approvedBy: userData.id } : { reason: reason || "Tool use rejected by user" }),
+                    },
+                    metadata: {
+                        deliveryGuarantee: "reliable" as const,
+                        priority: "high" as const,
+                        conversationId,
+                    },
+                };
+
+                try {
+                    const publishResult = await getEventBus().publish(toolApprovalEvent);
+                    if (!publishResult.success) {
+                        logger.error("Failed to publish tool approval event", {
+                            conversationId,
+                            pendingId,
+                            approved,
+                            error: publishResult.error?.message,
+                        });
                     } else {
-                        logger.warn(`SwarmStateMachine instance not found in activeSwarmRegistry for conversation ${conversationId} after tool approval. The tool will not be executed immediately via this path.`);
+                        logger.info(`Published tool ${approved ? "approval" : "rejection"} event for conversation ${conversationId}`, {
+                            pendingId,
+                            toolName: pendingCall.toolName,
+                            eventId: toolApprovalEvent.id,
+                        });
                     }
-                } else {
-                    // If the tool call was rejected
-                    const { activeSwarmRegistry } = await getSwarmRegistry();
-                    const swarmStateMachineInstance = activeSwarmRegistry.get(conversationId);
-                    if (swarmStateMachineInstance) {
-                        logger.info(`Notifying SwarmStateMachine for conversation ${conversationId} about rejected tool call ${pendingId}. Reason: ${reason || "No reason provided"}`);
-                        // Notify the SwarmStateMachine about the rejection.
-                        // TODO: handleToolRejection method doesn't exist on SwarmStateMachine
-                        // await swarmStateMachineInstance.handleToolRejection(pendingCall, reason);
-                    } else {
-                        logger.warn(`SwarmStateMachine instance not found in activeSwarmRegistry for conversation ${conversationId} after tool rejection. The rejection may not be fully processed by the swarm logic immediately.`);
-                        // Even if the swarm instance isn't active, the config was updated. 
-                        // The swarm might pick up the rejection when it next processes the conversation state.
-                    }
+                } catch (eventError) {
+                    logger.error("Error publishing tool approval event", {
+                        conversationId,
+                        pendingId,
+                        error: eventError instanceof Error ? eventError.message : String(eventError),
+                    });
+                    // Don't fail the whole operation if event publishing fails
                 }
 
                 return { __typename: "Success" as const, success: true };

@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-01 - Fixed 4 'any' type assertions with 'unknown'
 import { parseSearchParams, type ParseSearchParamsResult } from "@vrooli/shared";
 import { type SetLocation } from "./types.js";
 
@@ -9,7 +10,7 @@ import { type SetLocation } from "./types.js";
  * @param params Object with key/value pairs, representing search params
  * @returns New search string
  */
-export function addSearchParamsString(currentSearch: string, params: { [key: string]: any }): string {
+export function addSearchParamsString(currentSearch: string, params: { [key: string]: unknown }): string {
     const currentParams = parseSearchParams(currentSearch);
     const newParams = { ...currentParams, ...params };
     return Object.entries(newParams)
@@ -22,7 +23,7 @@ export function addSearchParamsString(currentSearch: string, params: { [key: str
  * @param params Object with key/value pairs, representing search params
  * @returns New search string
  */
-export function setSearchParamsString(params: { [key: string]: any }): string {
+export function setSearchParamsString(params: { [key: string]: unknown }): string {
     return Object.entries(params)
         .map(([key, value]) => `${key}=${encodeURIComponent(JSON.stringify(value))}`)
         .join("&");
@@ -68,7 +69,7 @@ export function removeSearchParamsString(currentSearch: string, remove: string[]
 /**
  * Adds search params and updates the location using setLocation
  */
-export function addSearchParams(setLocation: SetLocation, params: { [key: string]: any }): void {
+export function addSearchParams(setLocation: SetLocation, params: { [key: string]: unknown }): void {
     const currentParams = parseSearchParams(window.location.search);
     const newParams = { ...currentParams, ...params };
     setLocation(window.location.pathname, {
@@ -80,7 +81,7 @@ export function addSearchParams(setLocation: SetLocation, params: { [key: string
 /**
  * Sets search params and updates the location using setLocation
  */
-export function setSearchParams(setLocation: SetLocation, params: { [key: string]: any }): void {
+export function setSearchParams(setLocation: SetLocation, params: { [key: string]: unknown }): void {
     setLocation(window.location.pathname, {
         replace: true,
         searchParams: params,

@@ -1,10 +1,12 @@
-import { McpSwarmToolName, McpToolName } from "@vrooli/shared";
+import { EventTypes, McpSwarmToolName, McpToolName, SECONDS_30_MS, generatePK } from "@vrooli/shared";
 import type OpenAI from "openai";
 import { logger } from "../../events/logger.js";
 import { type OkErr, type ToolMeta } from "../conversation/types.js";
+import { EventPublisher } from "../events/publisher.js";
 import { BuiltInTools, type SwarmTools } from "../mcp/tools.js";
 import { type ToolResponse } from "../mcp/types.js";
 import { type DefineToolParams, type EndSwarmParams, type ResourceManageParams, type RunRoutineParams, type SendMessageParams, type SpawnSwarmParams, type UpdateSwarmSharedStateParams } from "../types/tools.js";
+import { toolApprovalConfig } from "./toolApprovalConfig.js";
 
 /**
  * The result of a tool call, including the output and the number of credits used.
@@ -133,12 +135,27 @@ export class McpToolRunner extends ToolRunner {
         let swarmToolInternalResult: { success: boolean; data?: any; error?: any; message?: string } | null = null;
 
         try {
+            // Check if tool requires approval
+            const estimatedCredits = this.estimateToolCredits(name);
+            if (toolApprovalConfig.requiresApproval(name, meta.callerBotId, estimatedCredits)) {
+                const approvalResult = await this.requestToolApproval(name, args, meta, estimatedCredits);
+                if (!approvalResult.approved) {
+                    return {
+                        ok: false,
+                        error: {
+                            code: "TOOL_APPROVAL_DENIED",
+                            message: approvalResult.reason || `Tool execution denied for "${name}"`,
+                            creditsUsed: "0",
+                        },
+                    };
+                }
+            }
             if (Object.values(McpToolName).includes(name as McpToolName)) {
                 if (!meta.sessionUser) {
                     logger.error(`McpToolRunner: sessionUser is required in meta for McpToolName: ${name}`);
                     return { ok: false, error: { code: "MISSING_SESSION_USER_FOR_MCP_TOOL", message: `SessionUser missing for MCP tool ${name}.`, creditsUsed: "0" } };
                 }
-                const builtInTools = new BuiltInTools(meta.sessionUser, logger, undefined /* req */);
+                const builtInTools = new BuiltInTools(meta.sessionUser, undefined /* req */);
                 switch (name as McpToolName) {
                     case McpToolName.DefineTool: {
                         toolExecuteResponse = await builtInTools.defineTool(args as DefineToolParams);
@@ -214,11 +231,14 @@ export class McpToolRunner extends ToolRunner {
             const actualCreditsUsed = toolExecuteResponse.creditsUsed || BigInt(0).toString();
 
             if (toolExecuteResponse.isError) {
-                return { ok: false, error: { code: "TOOL_EXECUTION_FAILED", message: toolExecuteResponse.content?.[0]?.text || `Tool "${name}" failed.`, creditsUsed: actualCreditsUsed } };
+                const firstContent = toolExecuteResponse.content?.[0];
+                const errorMessage = (firstContent?.type === "text" ? firstContent.text : null) || `Tool "${name}" failed.`;
+                return { ok: false, error: { code: "TOOL_EXECUTION_FAILED", message: errorMessage, creditsUsed: actualCreditsUsed } };
             }
 
             // Determine the output for the LLM
-            let outputForLlm = toolExecuteResponse.content?.[0]?.text;
+            const firstContent = toolExecuteResponse.content?.[0];
+            let outputForLlm = firstContent?.type === "text" ? firstContent.text : JSON.stringify(firstContent);
             if (name === McpSwarmToolName.UpdateSwarmSharedState && swarmToolInternalResult?.success) {
                 outputForLlm = swarmToolInternalResult.data; // Return the structured data for successful UpdateSwarmSharedState
             }
@@ -229,6 +249,89 @@ export class McpToolRunner extends ToolRunner {
             logger.error(`McpToolRunner: Exception executing tool ${name}:`, error);
             return { ok: false, error: { code: "TOOL_RUNNER_EXCEPTION", message: `Exception for tool "${name}": ${(error as Error).message}`, creditsUsed: "0" } };
         }
+    }
+
+    /**
+     * Request approval for tool execution using the synchronous event system
+     */
+    private async requestToolApproval(
+        toolName: string,
+        args: unknown,
+        meta: ToolMeta,
+        estimatedCredits: bigint,
+    ): Promise<{ approved: boolean; reason?: string }> {
+        const toolCallId = generatePK().toString();
+
+        logger.info(`[McpToolRunner] Requesting approval for tool: ${toolName}`, {
+            toolName,
+            toolCallId,
+            callerBotId: meta.callerBotId,
+            conversationId: meta.conversationId,
+        });
+
+        // Emit tool approval required event - this will block until approved/denied
+        const { proceed, reason } = await EventPublisher.emit(
+            EventTypes.TOOL.APPROVAL_REQUIRED,
+            {
+                chatId: meta.conversationId || "",
+                pendingId: toolCallId,
+                toolCallId,
+                toolName,
+                toolArguments: args as Record<string, any>,
+                callerBotId: meta.callerBotId || "system",
+                estimatedCost: estimatedCredits.toString(),
+                approvalTimeoutAt: Date.now() + SECONDS_30_MS, // 30 second timeout
+            },
+        );
+
+        if (!proceed) {
+            logger.info("[McpToolRunner] Tool approval denied", {
+                toolName,
+                reason,
+            });
+            return { approved: false, reason };
+        }
+
+        logger.info("[McpToolRunner] Tool approval granted", {
+            toolName,
+            toolCallId,
+        });
+        return { approved: true };
+    }
+
+    /**
+     * Estimate credits required for a tool
+     */
+    private estimateToolCredits(toolName: string): bigint {
+        // TODO  should be refined based on actual usage
+        const estimates: Record<string, bigint> = {
+            [McpToolName.DefineTool]: BigInt(1),
+            // eslint-disable-next-line no-magic-numbers
+            [McpToolName.SendMessage]: BigInt(5),
+            // eslint-disable-next-line no-magic-numbers
+            [McpToolName.ResourceManage]: BigInt(10),
+            // eslint-disable-next-line no-magic-numbers
+            [McpToolName.RunRoutine]: BigInt(50),
+            // eslint-disable-next-line no-magic-numbers
+            [McpToolName.SpawnSwarm]: BigInt(100),
+            // eslint-disable-next-line no-magic-numbers
+            [McpSwarmToolName.UpdateSwarmSharedState]: BigInt(5),
+            // eslint-disable-next-line no-magic-numbers
+            [McpSwarmToolName.EndSwarm]: BigInt(10),
+            // eslint-disable-next-line no-magic-numbers
+            "web_search": BigInt(10),
+            // eslint-disable-next-line no-magic-numbers
+            "file_search": BigInt(5),
+            // eslint-disable-next-line no-magic-numbers
+            "code_interpreter": BigInt(100),
+            // eslint-disable-next-line no-magic-numbers
+            "image_generation": BigInt(50),
+            // eslint-disable-next-line no-magic-numbers
+            "computer-preview": BigInt(200),
+        };
+
+        // eslint-disable-next-line no-magic-numbers
+        return estimates[toolName] || BigInt(20); // Default estimate
     }
 }
 
@@ -245,7 +348,7 @@ export class CompositeToolRunner extends ToolRunner {
      * @param openaiRunner - The OpenAI tool runner instance (optional).
      */
     constructor(
-        private readonly mcpRunner: McpToolRunner,
+        private readonly mcpRunner: McpToolRunner = new McpToolRunner(),
         private readonly openaiRunner: OpenAIToolRunner = new OpenAIToolRunner(null),
     ) {
         super();

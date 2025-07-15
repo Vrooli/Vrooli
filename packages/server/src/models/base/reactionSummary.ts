@@ -6,7 +6,7 @@ import { type ReactionSummaryModelLogic } from "./types.js";
 const __typename = "ReactionSummary" as const;
 export const ReactionSummaryModel: ReactionSummaryModelLogic = ({
     __typename,
-    dbTable: "stats_api",
+    dbTable: "reaction_summary",
     display: () => ({
         label: {
             select: () => ({ id: true, emoji: true, count: true }),
@@ -21,12 +21,12 @@ export const ReactionSummaryModel: ReactionSummaryModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({}),
         permissionResolvers: defaultPermissions,
-        owner: () => ({
+        owner: (_data, _userId) => ({
             Team: null,
             User: null,
         }),
         isDeleted: () => false,
-        isPublic: () => false,
+        isPublic: (_data, _getParentInfo?) => false,
         // These are never searched directly, so all search methods can be disabled
         visibility: {
             own: null,

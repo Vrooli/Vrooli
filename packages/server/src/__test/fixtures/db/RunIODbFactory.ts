@@ -1,4 +1,4 @@
-import { generatePK, nanoid } from "@vrooli/shared";
+import { nanoid } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -29,6 +29,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
     Prisma.run_ioInclude,
     Prisma.run_ioUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
         super("RunIO", prisma);
         this.initializeScenarios();
@@ -44,7 +45,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
     protected getFixtures(): DbTestFixtures<Prisma.run_ioCreateInput, Prisma.run_ioUpdateInput> {
         return {
             minimal: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 nodeInputName: "input1",
                 nodeName: "Node1",
                 data: JSON.stringify({ value: "test" }),
@@ -53,7 +54,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                 },
             },
             complete: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 nodeInputName: "complexInput",
                 nodeName: "ProcessingNode",
                 data: JSON.stringify({
@@ -91,7 +92,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     runId: "string-not-bigint", // Should be BigInt
                 },
                 tooLongNodeInputName: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     nodeInputName: "a".repeat(129), // Exceeds 128 character limit
                     nodeName: "Node",
                     data: "{}",
@@ -100,7 +101,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 tooLongNodeName: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     nodeInputName: "input",
                     nodeName: "a".repeat(129), // Exceeds 128 character limit
                     data: "{}",
@@ -109,7 +110,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 tooLongData: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     nodeInputName: "input",
                     nodeName: "Node",
                     data: JSON.stringify({ value: "a".repeat(8193) }), // Exceeds 8192 character limit
@@ -118,7 +119,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 invalidJson: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     nodeInputName: "input",
                     nodeName: "Node",
                     data: "not-json{", // Invalid JSON
@@ -129,7 +130,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
             },
             edgeCases: {
                 emptyData: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     nodeInputName: "emptyInput",
                     nodeName: "EmptyNode",
                     data: "{}",
@@ -138,7 +139,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 nullValueData: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     nodeInputName: "nullInput",
                     nodeName: "NullNode",
                     data: JSON.stringify({ value: null }),
@@ -147,7 +148,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 arrayData: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     nodeInputName: "arrayInput",
                     nodeName: "ArrayNode",
                     data: JSON.stringify([1, 2, 3, 4, 5]),
@@ -156,7 +157,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 booleanData: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     nodeInputName: "booleanInput",
                     nodeName: "BooleanNode",
                     data: JSON.stringify(true),
@@ -165,7 +166,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 numberData: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     nodeInputName: "numberInput",
                     nodeName: "NumberNode",
                     data: JSON.stringify(3.14159),
@@ -174,7 +175,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 stringData: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     nodeInputName: "stringInput",
                     nodeName: "StringNode",
                     data: JSON.stringify("Simple string value"),
@@ -183,7 +184,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 largeData: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     nodeInputName: "largeInput",
                     nodeName: "LargeDataNode",
                     data: JSON.stringify({
@@ -199,7 +200,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 specialCharactersData: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     nodeInputName: "specialInput",
                     nodeName: "SpecialNode",
                     data: JSON.stringify({
@@ -231,9 +232,9 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.run_ioCreateInput>): Prisma.run_ioCreateInput {
         return {
-            id: generatePK().toString(),
-            nodeInputName: `input_${nanoid(6)}`,
-            nodeName: `Node_${nanoid(6)}`,
+            id: this.generateId(),
+            nodeInputName: `input_${nanoid()}`,
+            nodeName: `Node_${nanoid()}`,
             data: JSON.stringify({ value: "default" }),
             run: {
                 connect: { id: "default_run_id" },
@@ -244,9 +245,9 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
 
     protected generateCompleteData(overrides?: Partial<Prisma.run_ioCreateInput>): Prisma.run_ioCreateInput {
         return {
-            id: generatePK().toString(),
-            nodeInputName: `complete_input_${nanoid(6)}`,
-            nodeName: `CompleteNode_${nanoid(6)}`,
+            id: this.generateId(),
+            nodeInputName: `complete_input_${nanoid()}`,
+            nodeName: `CompleteNode_${nanoid()}`,
             data: JSON.stringify({
                 type: "complete",
                 value: {
@@ -510,7 +511,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createRunIODbFactory = (prisma: PrismaClient) => 
-    RunIODbFactory.getInstance("RunIO", prisma);
+    new RunIODbFactory(prisma);
 
 // Export the class for type usage
 export { RunIODbFactory as RunIODbFactoryClass };

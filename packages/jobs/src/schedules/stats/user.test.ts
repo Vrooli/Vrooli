@@ -1,6 +1,6 @@
 // AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-24
 import { PeriodType } from "@prisma/client";
-import { AccountStatus, ResourceType, generatePK, generatePublicId } from "@vrooli/shared";
+import { ResourceType, generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Direct imports to avoid problematic services

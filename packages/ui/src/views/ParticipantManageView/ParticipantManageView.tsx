@@ -1,13 +1,15 @@
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
+import { IconButton } from "../../components/buttons/IconButton.js";
+import { Tooltip } from "../../components/Tooltip/Tooltip.js";
 import { useTheme } from "@mui/material";
 import { ChatInviteStatus, DUMMY_ID, ParticipantManagePageTabOption, noop, validatePublicId, type ChatInvite, type ChatInviteShape, type ListObject, type User } from "@vrooli/shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
 import { SideActionsButtons } from "../../components/buttons/SideActionsButtons.js";
-import { MaybeLargeDialog } from "../../components/dialogs/LargeDialog/LargeDialog.js";
+import Dialog from "@mui/material/Dialog";
+import { UpTransition } from "../../components/transitions/UpTransition/UpTransition.js";
+import { useIsMobile } from "../../hooks/useIsMobile.js";
 import { SearchList, SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
 import { TopBar } from "../../components/navigation/TopBar.js";
 import { useBulkObjectActions } from "../../hooks/objectActions.js";
@@ -39,6 +41,7 @@ export function ParticipantManageView({
 }: ParticipantManageViewProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
+    const isMobile = useIsMobile();
 
     const {
         currTab,
@@ -148,13 +151,13 @@ export function ParticipantManageView({
         return buttons;
     }, [palette.secondary.main, isSelecting, selectedData.length, t, handleToggleSelecting, currTab.key, onBulkActionStart, handleInvitesUpdate, handleInvitesCreate]);
 
-    return (
-        <MaybeLargeDialog
-            display={display}
+    return display === "Dialog" ? (
+        <Dialog
             id="participant-manage-dialog"
-            isOpen={isOpen}
+            open={isOpen}
             onClose={onClose}
-            sxs={dialogStyle}
+            TransitionComponent={isMobile ? UpTransition : undefined}
+            sx={dialogStyle}
         >
             <SearchListScrollContainer id={scrollContainerId}>
                 {/* Dialog for creating/updating invites */}
@@ -216,6 +219,51 @@ export function ParticipantManageView({
                     {sideActionButtons}
                 </SideActionsButtons>
             </SearchListScrollContainer>
-        </MaybeLargeDialog>
+        </Dialog>
+    ) : (
+        <SearchListScrollContainer id={scrollContainerId}>
+            {/* Dialog for creating/updating invites */}
+            <ChatInvitesUpsert
+                display="Dialog"
+                invites={invitesToUpsert}
+                isCreate={true}
+                isMutate={true}
+                isOpen={invitesToUpsert.length > 0}
+                onCancel={() => setInvitesToUpsert([])}
+                onClose={() => setInvitesToUpsert([])}
+                onCompleted={onInviteCompleted}
+                onDeleted={() => setInvitesToUpsert([])}
+            />
+            {BulkDeleteDialogComponent}
+            {/* Main dialog */}
+            <TopBar
+                display={display}
+                onClose={onClose}
+                title={t("Participant", { count: 2 })}
+                below={<PageTabs<typeof participantTabParams>
+                    ariaLabel="Search tabs"
+                    currTab={currTab}
+                    fullWidth
+                    onChange={handleTabChange}
+                    tabs={tabs}
+                />}
+            />
+            <Box overflow="auto" flexGrow={1}>
+                {searchType && <SearchList
+                    {...findManyData}
+                    display={display}
+                    handleToggleSelect={handleToggleSelect}
+                    isSelecting={isSelecting}
+                    selectedItems={selectedData}
+                    scrollContainerId={scrollContainerId}
+                    sxs={{
+                        listContainer: { borderRadius: 0 },
+                    }}
+                />}
+            </Box>
+            <SideActionsButtons display={display} sx={{ position: "absolute" }}>
+                {sideActionButtons}
+            </SideActionsButtons>
+        </SearchListScrollContainer>
     );
 }

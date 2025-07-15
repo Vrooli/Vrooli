@@ -13,7 +13,7 @@ import { SearchMap } from "../../utils/searchMap.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
 import { SortMap } from "../../utils/sortMap.js";
 import { afterMutationsPlain } from "../../utils/triggers/afterMutationsPlain.js";
-import { defaultPermissions, getSingleTypePermissions } from "../../validators/permissions.js";
+import { defaultPermissions, filterPermissions, getSingleTypePermissions } from "../../validators/permissions.js";
 import { CommentFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
@@ -26,9 +26,10 @@ const forMapper: { [key in CommentFor]: keyof Prisma.commentUpsertArgs["create"]
     PullRequest: "pullRequest",
     ResourceVersion: "resourceVersion",
 };
-const reversedForMapper: { [key in keyof Prisma.commentUpsertArgs["create"]]: CommentFor } = Object.fromEntries(
+type CommentRelationFields = "issue" | "pullRequest" | "resourceVersion";
+const reversedForMapper: Record<CommentRelationFields, CommentFor> = Object.fromEntries(
     Object.entries(forMapper).map(([key, value]) => [value, key]),
-);
+) as Record<CommentRelationFields, CommentFor>;
 
 const __typename = "Comment" as const;
 export const CommentModel: CommentModelLogic = ({
@@ -78,7 +79,7 @@ export const CommentModel: CommentModelLogic = ({
         ): Promise<CommentThread[]> {
             // Partially convert info type
             const partialInfo = InfoConverter.get().fromApiToPartialApi(info, ModelMap.get<CommentModelLogic>("Comment").format.apiRelMap, true);
-            const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
+            const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids.map(id => BigInt(id)) } }) : undefined;
             // Combine queries
             const where = { ...idQuery };
             // Determine sort order
@@ -116,9 +117,9 @@ export const CommentModel: CommentModelLogic = ({
                     ...InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo),
                 }) : [];
                 // Find end cursor of nested threads
-                const endCursor = nestedThreads.length > 0 ? nestedThreads[nestedThreads.length - 1].id : undefined;
+                const endCursor = nestedThreads.length > 0 ? nestedThreads[nestedThreads.length - 1].id.toString() : undefined;
                 // For nested threads, recursively call this function
-                const childThreads = nestLimit > 0 ? await this.searchThreads(userData, {
+                const childThreads = nestLimit > 0 ? await CommentModel.query.searchThreads(userData, {
                     ids: nestedThreads.map(n => n.id),
                     take: input.take ?? DEFAULT_TAKE,
                     sortBy: input.sortBy,
@@ -201,7 +202,7 @@ export const CommentModel: CommentModelLogic = ({
             // Calculate end cursor
             const endCursor = searchResults[searchResults.length - 1].id.toString();
             // If not as nestLimit, recurse with all result IDs
-            const childThreads = nestLimit > 0 ? await this.searchThreads(userData, {
+            const childThreads = nestLimit > 0 ? await CommentModel.query.searchThreads(userData, {
                 ids: searchResults.map(r => r.id),
                 take: input.take ?? DEFAULT_TAKE,
                 sortBy: input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort,
@@ -218,7 +219,7 @@ export const CommentModel: CommentModelLogic = ({
             let comments = flattenThreads(childThreads);
             // Shape comments and add supplemental fields
             comments = comments.map((c) => InfoConverter.get().fromDbToApi(c, partialInfo as PartialApiInfo));
-            comments = await addSupplementalFields(userData, comments, partialInfo);
+            comments = await addSupplementalFields(userData, comments, partialInfo) as Comment[];
             // Put comments back into "threads" object, using another helper function. 
             // Comments can be matched by their ID
             function shapeThreads(threads: CommentThread[]) {
@@ -226,6 +227,7 @@ export const CommentModel: CommentModelLogic = ({
                 for (const thread of threads) {
                     // Find current-level comment
                     const comment = comments.find((c) => c.id === thread.comment.id);
+                    if (!comment) continue; // Skip if comment not found
                     // Recurse
                     const children = shapeThreads(thread.childThreads);
                     // Add thread to result
@@ -289,20 +291,26 @@ export const CommentModel: CommentModelLogic = ({
             pullRequest: "PullRequest",
             resourceVersion: "ResourceVersion",
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isLoggedIn, isPublic }) => ({
-            ...defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic }),
-            canReply: () => isLoggedIn && (isAdmin || isPublic),
-        }),
-        owner: (data) => ({
+        permissionResolvers: ({ isAdmin, isDeleted, isLoggedIn, isPublic }) => {
+            const base = defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic });
+            return {
+                ...filterPermissions(base, [
+                    "canBookmark", "canDelete", "canReact", "canReport", "canUpdate",
+                    "canConnect", "canDisconnect", "canRead",
+                ]),
+                canReply: () => isLoggedIn && (isAdmin || isPublic),
+            };
+        },
+        owner: (data, _userId) => ({
             Team: data?.ownedByTeam,
             User: data?.ownedByUser,
         }),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<CommentModelInfo["DbSelect"]>([
+        isPublic: (data, getParentInfo?) => oneIsPublic<CommentModelInfo["DbSelect"]>([
             ["issue", "Issue"],
             ["pullRequest", "PullRequest"],
             ["resourceVersion", "ResourceVersion"],
-        ], ...rest),
+        ], data, getParentInfo),
         visibility: {
             own: function getOwn(data) {
                 return {

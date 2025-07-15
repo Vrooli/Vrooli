@@ -6,7 +6,7 @@
  * Premium objects represent subscription plans, premium features, and tier management.
  */
 
-import { http, type RestHandler } from "msw";
+import { http, HttpResponse, type RequestHandler } from "msw";
 import {
     PaymentType} from "@vrooli/shared";
 import type { 
@@ -77,7 +77,9 @@ export enum PremiumTier {
 /**
  * Extended Premium type with additional fields for testing
  */
-export interface ExtendedPremium extends Premium {
+export interface ExtendedPremium extends Omit<Premium, '__typename'> {
+    __typename?: "Premium";
+    id: string;
     status: PremiumStatus;
     tier: PremiumTier;
     billingCycle?: "monthly" | "yearly";
@@ -119,14 +121,14 @@ export class PremiumResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique resource ID
      */
     private generateId(): string {
-        return `premium_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `premium_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -428,8 +430,7 @@ export class PremiumResponseFactory {
             this.createMockPremium({
                 status,
                 id: `premium_${status}_${this.generateId()}`,
-            }),
-        );
+            } as Partial<ExtendedPremium>));
     }
     
     /**
@@ -506,35 +507,29 @@ export class PremiumMSWHandlers {
     /**
      * Create success handlers for all premium endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): RequestHandler[] {
         return [
             // Get subscription status
-            http.get(`${this.responseFactory["baseUrl"]}/api/check-subscription`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/check-subscription`, ({ request }) => {
                 const response: CheckSubscriptionResponse = {
                     paymentType: PaymentType.PremiumMonthly,
                     status: "already_subscribed",
                 };
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(this.responseFactory.createSubscriptionStatusResponse(response)),
-                );
+                return HttpResponse.json(this.responseFactory.createSubscriptionStatusResponse(response), { status: 200 });
             }),
             
             // Get subscription prices
-            http.get(`${this.responseFactory["baseUrl"]}/api/subscription-prices`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/subscription-prices`, ({ request }) => {
                 const prices = this.responseFactory.createMockPricing();
                 const response = this.responseFactory.createPricingResponse(prices);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Create checkout session
-            http.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, async (req, res, ctx) => {
-                const body = await req.json() as CreateCheckoutSessionParams;
+            http.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, async ({ request }) => {
+                const body = await request.json() as CreateCheckoutSessionParams;
                 
                 // Basic validation
                 if (!body.variant || !body.userId) {
@@ -542,73 +537,55 @@ export class PremiumMSWHandlers {
                         variant: !body.variant ? "Payment type is required" : "",
                         userId: !body.userId ? "User ID is required" : "",
                     });
-                    return res(
-                        ctx.status(400),
-                        ctx.json(validation),
-                    );
+                    return HttpResponse.json(validation, { status: 400 });
                 }
                 
                 const checkoutUrl = this.responseFactory.createMockCheckoutUrl();
                 const response = this.responseFactory.createCheckoutResponse(checkoutUrl);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 201 });
             }),
             
             // Create portal session
-            http.post(`${this.responseFactory["baseUrl"]}/api/create-portal-session`, async (req, res, ctx) => {
-                const body = await req.json() as CreatePortalSessionParams;
+            http.post(`${this.responseFactory["baseUrl"]}/api/create-portal-session`, async ({ request }) => {
+                const body = await request.json() as CreatePortalSessionParams;
                 
                 if (!body.userId || !body.returnUrl) {
                     const validation = this.responseFactory.createValidationErrorResponse({
                         userId: !body.userId ? "User ID is required" : "",
                         returnUrl: !body.returnUrl ? "Return URL is required" : "",
                     });
-                    return res(
-                        ctx.status(400),
-                        ctx.json(validation),
-                    );
+                    return HttpResponse.json(validation, { status: 400 });
                 }
                 
                 const portalUrl = this.responseFactory.createMockPortalUrl();
                 const response = this.responseFactory.createPortalResponse(portalUrl);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 201 });
             }),
             
             // Get premium details by user ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, (req, res, ctx) => {
-                const { userId } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, ({ params }) => {
+                const { userId } = params;
                 
                 const premium = this.responseFactory.createMockPremium({ 
                     id: `premium_${userId}`,
                     stripeCustomerId: `cus_${userId}`,
-                });
+                } as Partial<ExtendedPremium>);
                 const response = this.responseFactory.createSuccessResponse(premium);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Update subscription
-            http.put(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, async (req, res, ctx) => {
-                const { userId } = req.params;
-                const body = await req.json() as PremiumSubscriptionInput;
+            http.put(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, async ({ request, params }) => {
+                const { userId } = params;
+                const body = await request.json() as PremiumSubscriptionInput;
                 
                 // Validate input
                 const validation = await this.responseFactory.validateSubscriptionInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
-                    );
+                        return HttpResponse.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}), { status: 400 });
                 }
                 
                 const premium = this.responseFactory.createPremiumFromInput(body);
@@ -616,34 +593,28 @@ export class PremiumMSWHandlers {
                 
                 const response = this.responseFactory.createSuccessResponse(premium);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Cancel subscription
-            http.delete(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, (req, res, ctx) => {
-                return res(ctx.status(204));
+            http.delete(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, ({ request }) => {
+                return new HttpResponse(null, { status: 204 });
             }),
             
             // Check credits payment
-            http.get(`${this.responseFactory["baseUrl"]}/api/check-credits-payment`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/check-credits-payment`, ({ request }) => {
                 const response: CheckCreditsPaymentResponse = {
                     status: "new_credits_received",
                 };
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json({
+                return HttpResponse.json({
                         data: response,
                         meta: {
                             timestamp: new Date().toISOString(),
                             requestId: this.responseFactory["generateRequestId"](),
                             version: "1.0",
                         },
-                    }),
-                );
+                    }, { status: 200 });
             }),
         ];
     }
@@ -651,58 +622,40 @@ export class PremiumMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): RequestHandler[] {
         return [
             // Validation error
-            http.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
+            http.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, ({ request }) => {
+                return HttpResponse.json(this.responseFactory.createValidationErrorResponse({
                         variant: "Payment type is required",
                         userId: "User ID is required",
-                    })),
-                );
+                    }), { status: 400 });
             }),
             
             // Subscription not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, (req, res, ctx) => {
-                const { userId } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createSubscriptionNotFoundErrorResponse(userId as string)),
-                );
+            http.get(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, ({ params }) => {
+                const { userId } = params;
+                return HttpResponse.json(this.responseFactory.createSubscriptionNotFoundErrorResponse(userId as string), { status: 404 });
             }),
             
             // Payment failed error
-            http.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, (req, res, ctx) => {
-                return res(
-                    ctx.status(402),
-                    ctx.json(this.responseFactory.createPaymentFailedErrorResponse("Insufficient funds")),
-                );
+            http.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, ({ request }) => {
+                return HttpResponse.json(this.responseFactory.createPaymentFailedErrorResponse("Insufficient funds"), { status: 402 });
             }),
             
             // Subscription limit error
-            http.post(`${this.responseFactory["baseUrl"]}/api/premium/check-limit`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createSubscriptionLimitErrorResponse("projects", 100)),
-                );
+            http.post(`${this.responseFactory["baseUrl"]}/api/premium/check-limit`, ({ request }) => {
+                return HttpResponse.json(this.responseFactory.createSubscriptionLimitErrorResponse("projects", 100), { status: 403 });
             }),
             
             // Permission error
-            http.put(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("manage")),
-                );
+            http.put(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, ({ request }) => {
+                return HttpResponse.json(this.responseFactory.createPermissionErrorResponse("manage"), { status: 403 });
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
-                );
+            http.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, ({ request }) => {
+                return HttpResponse.json(this.responseFactory.createServerErrorResponse(), { status: 500 });
             }),
         ];
     }
@@ -710,18 +663,19 @@ export class PremiumMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, async (req, res, ctx) => {
-                const body = await req.json() as CreateCheckoutSessionParams;
+            http.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, async ({ request }) => {
+                const body = await request.json() as CreateCheckoutSessionParams;
                 const checkoutUrl = this.responseFactory.createMockCheckoutUrl();
                 const response = this.responseFactory.createCheckoutResponse(checkoutUrl);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                // Add delay if specified
+                if (delay) {
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+                
+                return HttpResponse.json(response, { status: 201 });
             }),
         ];
     }
@@ -729,14 +683,14 @@ export class PremiumMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, (req, res, ctx) => {
-                return res.networkError("Payment service connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, ({ request }) => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/subscription-prices`, (req, res, ctx) => {
-                return res.networkError("Pricing service timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/subscription-prices`, ({ request }) => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -750,18 +704,16 @@ export class PremiumMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): RequestHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        return http[method.toLowerCase() as keyof typeof http](fullEndpoint, async ({ request, params }) => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }
@@ -774,8 +726,7 @@ export const premiumResponseScenarios = {
     activeSubscription: (premium?: ExtendedPremium) => {
         const factory = new PremiumResponseFactory();
         return factory.createSuccessResponse(
-            premium || factory.createMockPremium({ status: PremiumStatus.ACTIVE }),
-        );
+            premium || factory.createMockPremium({ status: PremiumStatus.ACTIVE }));
     },
     
     expiredSubscription: (premium?: ExtendedPremium) => {
@@ -784,22 +735,19 @@ export const premiumResponseScenarios = {
             premium || factory.createMockPremium({ 
                 status: PremiumStatus.EXPIRED,
                 expiresAt: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-            }),
-        );
+            } as Partial<ExtendedPremium>));
     },
     
     pricingSuccess: (prices?: SubscriptionPricesResponse) => {
         const factory = new PremiumResponseFactory();
         return factory.createPricingResponse(
-            prices || factory.createMockPricing(),
-        );
+            prices || factory.createMockPricing());
     },
     
     checkoutSuccess: (url?: string) => {
         const factory = new PremiumResponseFactory();
         return factory.createCheckoutResponse(
-            url ? { url } : factory.createMockCheckoutUrl(),
-        );
+            url ? { url } : factory.createMockCheckoutUrl());
     },
     
     // Error scenarios

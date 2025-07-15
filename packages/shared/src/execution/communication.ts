@@ -294,6 +294,11 @@ export type SwarmExecutionInput = TierExecutionRequest<{
      */
     swarmId?: SwarmId;
     /**
+     * The ID of the chat to load configuration from.
+     * If not provided, a new chat configuration will be created.
+     */
+    chatId?: string;
+    /**
      * The goal of the swarm.
      */
     goal: string;

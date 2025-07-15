@@ -3,6 +3,8 @@ import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { type AIService } from "./services.js";
 
+export { LlmServiceId };
+
 /** States a service can be in */
 export enum AIServiceState {
     /** The service is active and can be used */

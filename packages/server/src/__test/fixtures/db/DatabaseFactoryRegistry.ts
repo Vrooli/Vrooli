@@ -1,5 +1,8 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: improved generic type constraints
 import { type PrismaClient } from "@prisma/client";
 import { type EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
+import { TestRecordTracker } from "../../helpers/testRecordTracker.js";
+import { cleanupGroups } from "../../helpers/testCleanupHelpers.js";
 
 /**
  * Registry for managing database fixture factories
@@ -53,19 +56,26 @@ export class DatabaseFactoryRegistry {
 
     /**
      * Clean up all records created by all factories
+     * Now coordinates with global record tracker for comprehensive cleanup
      */
     async cleanupAll(): Promise<void> {
+        // First clean up factory-tracked records
         const cleanupPromises = Array.from(this.factories.values()).map(
             factory => factory.cleanupAll(),
         );
         await Promise.all(cleanupPromises);
+        
+        // Then clean up any records tracked by the global tracker
+        await TestRecordTracker.cleanup(this.prisma);
     }
 
     /**
      * Clear tracking for all factories without cleanup
+     * Now also clears global record tracker
      */
     clearAllTracking(): void {
         this.factories.forEach(factory => factory.clearTracking());
+        TestRecordTracker.clear();
     }
 
     /**
@@ -141,7 +151,7 @@ export class DatabaseFactoryRegistry {
      * Execute a transaction with all factories having transaction-aware delegates
      */
     async transaction<T>(
-        callback: (tx: any, factories: Map<string, EnhancedDatabaseFactory<any, any>>) => Promise<T>,
+        callback: (tx: PrismaClient, factories: Map<string, EnhancedDatabaseFactory<any, any>>) => Promise<T>,
     ): Promise<T> {
         return await this.prisma.$transaction(async (tx) => {
             // Create transaction-aware factory map
@@ -203,6 +213,103 @@ export class DatabaseFactoryRegistry {
 
             return result;
         });
+    }
+
+    /**
+     * Smart cleanup using dependency-ordered cleanup helpers
+     * This is more efficient than factory-by-factory cleanup
+     */
+    async smartCleanup(scope: 'full' | 'userAuth' | 'chat' | 'team' | 'execution' | 'financial' | 'content' | 'minimal' = 'full'): Promise<void> {
+        // Use the dependency-ordered cleanup helpers for more efficient cleanup
+        await cleanupGroups[scope](this.prisma);
+        
+        // Clear all factory tracking since records are now cleaned up
+        this.clearAllTracking();
+    }
+
+    /**
+     * Get comprehensive tracking summary across all systems
+     */
+    getTrackingSummary(): {
+        factoryTracked: Record<string, string[]>;
+        globalTracked: Record<string, number>;
+        totalFactoryRecords: number;
+        totalGlobalRecords: number;
+    } {
+        const factoryTracked = this.getAllCreatedIds();
+        const globalTracked = TestRecordTracker.getSummary();
+        
+        const totalFactoryRecords = Object.values(factoryTracked).reduce(
+            (total, ids) => total + ids.length, 
+            0
+        );
+        const totalGlobalRecords = TestRecordTracker.totalTrackedRecords;
+        
+        return {
+            factoryTracked,
+            globalTracked,
+            totalFactoryRecords,
+            totalGlobalRecords,
+        };
+    }
+
+    /**
+     * Coordinate factory operations with global record tracking
+     * Starts tracking session and ensures all created records are tracked
+     */
+    startTrackingSession(): void {
+        TestRecordTracker.start();
+    }
+
+    /**
+     * End tracking session with comprehensive cleanup
+     */
+    async endTrackingSession(): Promise<void> {
+        await this.cleanupAll();
+        TestRecordTracker.stop();
+    }
+
+    /**
+     * Create a test environment with smart cleanup integration
+     */
+    async createManagedTestEnvironment(config: {
+        models: string[];
+        relationships?: Record<string, any>;
+        trackingScope?: 'factory' | 'global' | 'both';
+    }): Promise<{
+        data: Record<string, any>;
+        cleanup: () => Promise<void>;
+    }> {
+        const { trackingScope = 'both' } = config;
+        
+        // Start tracking if requested
+        if (trackingScope === 'global' || trackingScope === 'both') {
+            this.startTrackingSession();
+        }
+        
+        // Create the environment
+        const data = await this.createTestEnvironment(config);
+        
+        // Return with custom cleanup function
+        return {
+            data,
+            cleanup: async () => {
+                if (trackingScope === 'factory') {
+                    // Only clean up factory-tracked records
+                    const cleanupPromises = Array.from(this.factories.values()).map(
+                        factory => factory.cleanupAll(),
+                    );
+                    await Promise.all(cleanupPromises);
+                } else if (trackingScope === 'global') {
+                    // Only clean up globally-tracked records
+                    await TestRecordTracker.cleanup(this.prisma);
+                    TestRecordTracker.stop();
+                } else {
+                    // Clean up both (default)
+                    await this.endTrackingSession();
+                }
+            },
+        };
     }
 }
 

@@ -40,6 +40,7 @@ describe("AdvancedInputBase", () => {
     describe("Basic rendering behavior", () => {
         it("accepts basic props", () => {
             const props = {
+                name: "test-input",
                 value: "test value",
                 onChange: vi.fn(),
                 placeholder: "Enter text",
@@ -57,6 +58,7 @@ describe("AdvancedInputBase", () => {
 
         it("handles disabled state", () => {
             const props = {
+                name: "test-input",
                 disabled: true,
                 value: "",
                 onChange: vi.fn(),
@@ -357,8 +359,6 @@ describe("AdvancedInput (Formik wrapper)", () => {
     it("passes name prop for Formik integration", () => {
         AdvancedInput({ 
             name: "message",
-            value: "test",
-            onChange: vi.fn(),
         });
         
         expect(AdvancedInput).toHaveBeenCalledWith(

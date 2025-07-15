@@ -3,20 +3,54 @@
  * This is needed to properly format data, query additional fields that can't be included in the initial query 
  * (or are in another database perhaps), handle unions, etc.
  */
-import { DEFAULT_LANGUAGE, LRUCache, MB_10_BYTES, exists, getDotNotationValue, isObject, omit, setDotNotationValue, type ModelType, type OrArray, type SessionUser } from "@vrooli/shared";
-import pkg from "lodash";
+import { DEFAULT_LANGUAGE, LRUCache, MB_10_BYTES, exists, getDotNotationValue, isObject, mergeDeep, omit, setDotNotationValue, type ModelType, type OrArray, type SessionUser } from "@vrooli/shared";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
 import { FormatMap } from "../models/formats.js";
-import { type ApiRelMap, type JoinMap, type ModelLogicType } from "../models/types.js";
+import { type ApiRelMap, type SafeApiRelMap, type JoinMap, type ModelLogicType } from "../models/types.js";
 import { type RecursivePartial } from "../types.js";
 import { groupPrismaData } from "./groupPrismaData.js";
 import { isRelationshipObject } from "./isOfType.js";
 import { type PartialApiInfo, type PrismaSelect } from "./types.js";
 
-const { merge } = pkg;
+// AI_CHECK: TYPE_SAFETY=infoconverter-generics | LAST: 2025-07-06 - Fixed generic constraints, added type guards, and improved type safety for ApiRelMap usage
 
-type DataShape = { [key: string]: any[] };
+type DataShape = { [key: string]: unknown[] };
+
+/**
+ * Type guard to check if a value is a union object mapping fields to ModelTypes
+ */
+function isApiRelMapUnion(value: unknown): value is Record<string, `${ModelType}`> {
+    return isRelationshipObject(value) && 
+           Object.values(value).every(v => typeof v === "string");
+}
+
+/**
+ * Type guard to check if a value is a ModelType string
+ */
+function isModelTypeString(value: unknown): value is `${ModelType}` {
+    return typeof value === "string";
+}
+
+/**
+ * Safely spread an unknown value with additional properties
+ */
+function safeSpread<T extends Record<string, unknown>>(
+    target: unknown, 
+    additions: Record<string, unknown>,
+): T | Record<string, unknown> {
+    if (!isRelationshipObject(target)) {
+        return additions;
+    }
+    return { ...target, ...additions };
+}
+
+/**
+ * Safely access object properties with type narrowing
+ */
+function safeObjectAccess(obj: unknown, key: string): unknown {
+    return isRelationshipObject(obj) && key in obj ? (obj as Record<string, unknown>)[key] : undefined;
+}
 
 class Unions {
     private static instance: Unions;
@@ -43,16 +77,19 @@ class Unions {
         ApiModel extends ModelLogicType["ApiModel"],
         DbModel extends ModelLogicType["DbModel"],
     >(
-        data: { [x: string]: any },
-        partialInfo: { [x: string]: any },
-        apiRelMap: ApiRelMap<Typename, ApiModel, DbModel>,
-    ): { data: { [x: string]: any }, partialInfo: { [x: string]: any } } {
+        data: { [x: string]: unknown },
+        partialInfo: { [x: string]: unknown },
+        apiRelMap: SafeApiRelMap<Typename, ApiModel, DbModel>,
+    ): { data: { [x: string]: unknown }, partialInfo: { [x: string]: unknown } } {
         // Create result objects
-        const resultData: { [x: string]: any } = data;
-        const resultPartialInfo: { [x: string]: any } = { ...partialInfo };
+        const resultData: { [x: string]: unknown } = data;
+        const resultPartialInfo: { [x: string]: unknown } = { ...partialInfo };
         // Any value in the apiRelMap which is an object is a union.
         // All other values can be ignored.
-        const unionFields: [string, { [x: string]: ModelType }][] = Object.entries(apiRelMap).filter(([, value]) => typeof value === "object") as any[];
+        const unionFields = Object.entries(apiRelMap).filter(
+            (entry): entry is [string, Record<string, `${ModelType}`>] => 
+                isApiRelMapUnion(entry[1]),
+        );
         // For each union field
         for (const [apiField, unionData] of unionFields) {
             // For each entry in the union
@@ -61,10 +98,12 @@ class Unions {
                 const isInPartialInfo = exists(resultData[dbField]);
                 if (isInPartialInfo) {
                     // Set the union field to the type
-                    resultData[apiField] = { ...resultData[dbField], __typename: type };
+                    resultData[apiField] = safeSpread(resultData[dbField], { __typename: type });
                     // If the union hasn't been converted in partialInfo, convert it
-                    if (isObject(resultPartialInfo[apiField]) && isObject(resultPartialInfo[apiField][type])) {
-                        resultPartialInfo[apiField] = resultPartialInfo[apiField][type];
+                    const apiFieldValue = safeObjectAccess(resultPartialInfo, apiField);
+                    const typeValue = safeObjectAccess(apiFieldValue, type);
+                    if (isObject(apiFieldValue) && isObject(typeValue)) {
+                        resultPartialInfo[apiField] = typeValue;
                     }
                 }
                 // Delete the dbField from resultData
@@ -90,13 +129,16 @@ class Unions {
         DbModel extends ModelLogicType["DbModel"],
     >(
         data: PrismaSelect["select"],
-        apiRelMap: ApiRelMap<Typename, ApiModel, DbModel>,
-    ): { [x: string]: any } {
+        apiRelMap: SafeApiRelMap<Typename, ApiModel, DbModel>,
+    ): Record<string, unknown> {
         // Create result object
-        const result: { [x: string]: any } = data;
+        const result: Record<string, unknown> = data;
         // Any value in the apiRelMap which is an object is a union. 
         // All other values can be ignored.
-        const unionFields: [string, { [x: string]: ModelType }][] = Object.entries(apiRelMap).filter(([_, value]) => isRelationshipObject(value)) as any[];
+        const unionFields = Object.entries(apiRelMap).filter(
+            (entry): entry is [string, Record<string, `${ModelType}`>] => 
+                isApiRelMapUnion(entry[1]),
+        );
         // For each union field
         for (const [key, value] of unionFields) {
             // If it's not in data, continue
@@ -111,8 +153,9 @@ class Unions {
             // Iterate over the possible types
             for (const [prismaField, type] of Object.entries(value)) {
                 // If the type is in the union data, add the db field to the result. 
-                if (unionData[type]) {
-                    result[prismaField] = unionData[type];
+                const typeData = safeObjectAccess(unionData, type);
+                if (typeData !== undefined) {
+                    result[prismaField] = typeData;
                 }
             }
         }
@@ -157,26 +200,37 @@ class JoinTables {
      * @param obj - DB-shaped object
      * @param map - Mapping of many-to-many relationship names to join table names
      */
-    static removeFromData(obj: any, map: JoinMap | undefined): any {
+    static removeFromData(obj: unknown, map: JoinMap | undefined): unknown {
         if (!obj || !map) return obj;
+        if (typeof obj !== "object" || obj === null) return obj;
         // Create result object
-        const result: any = {};
+        const result: Record<string, unknown> = {};
+        const objRecord = obj as Record<string, unknown>;
         // Iterate over join map
         for (const [key, value] of Object.entries(map)) {
             // If the key is in the object
-            if (obj[key]) {
+            if (objRecord[key]) {
                 // If the value is an array
-                if (Array.isArray(obj[key])) {
+                if (Array.isArray(objRecord[key])) {
+                    const keyArray = objRecord[key] as unknown[];
                     // Check if the join should be applied (i.e. elements are objects with one non-ID key)
-                    if (obj[key].every((o: any) => isRelationshipObject(o) && Object.keys(o).length === 1 && Object.keys(o)[0] !== "id")) {
+                    if (keyArray.every((o: unknown) => isRelationshipObject(o) && typeof o === "object" && o !== null && Object.keys(o).length === 1 && Object.keys(o)[0] !== "id")) {
                         // Remove the join table from each item in the array
-                        result[key] = obj[key].map((item: any) => item[value]);
+                        result[key] = keyArray.map((item: unknown) => {
+                            if (typeof item === "object" && item !== null) {
+                                const itemRecord = item as Record<string, unknown>;
+                                return itemRecord[value];
+                            }
+                            return item;
+                        });
                     }
                 } else {
+                    const keyValue = objRecord[key];
                     // Check if the join should be applied (i.e. element is an object with one non-ID key)
-                    if (isRelationshipObject(obj[key]) && Object.keys(obj[key]).length === 1 && Object.keys(obj[key])[0] !== "id") {
+                    if (isRelationshipObject(keyValue) && typeof keyValue === "object" && keyValue !== null && Object.keys(keyValue).length === 1 && Object.keys(keyValue)[0] !== "id") {
                         // Otherwise, remove the join table from the object
-                        result[key] = obj[key][value];
+                        const keyRecord = keyValue as Record<string, unknown>;
+                        result[key] = keyRecord[value];
                     }
                 }
             }
@@ -298,7 +352,8 @@ class Typenames {
             // If value is an object but not in the parent relationship map, add to result 
             // and make sure that no __typenames are present
             if (!nestedValue) {
-                result[selectKey] = this.addToData(selectValue, {} as any);
+                // AI_CHECK: TYPE_SAFETY=server-type-safety-p1-3 | LAST: 2025-07-03 | Removed {} as any casting
+                result[selectKey] = this.addToData(selectValue, { __typename: parentRelationshipMap.__typename } as SafeApiRelMap<typeof parentRelationshipMap.__typename, ApiModel, DbModel>);
                 continue;
             }
             // If value is an object, recurse
@@ -366,7 +421,7 @@ class SupplementalFields {
                 return acc;
             }, {});
             // Merge db supplemental fields with select object
-            return merge(withoutGqlSupp, dbSupp);
+            return mergeDeep(withoutGqlSupp, dbSupp);
         }
         return withoutGqlSupp;
     }
@@ -455,7 +510,7 @@ function combineSupplements(data: { [x: string]: any }, objectsById: { [x: strin
         }
     }
     // Handle base case (combining non-array and non-object values)
-    return merge(result, objectsById[data.id]);
+    return mergeDeep(result, objectsById[data.id]);
 }
 
 /**
@@ -483,7 +538,7 @@ export async function addSupplementalFields(
         const objectData = ids.map((id: string) => objectIdsDataDict[id]);
         const supplemental = ModelMap.get(type as ModelType, false)?.search?.supplemental;
         const valuesWithSupplements = supplemental ?
-            await addSupplementalFieldsHelper({ languages: userData?.languages ?? [DEFAULT_LANGUAGE], objects: objectData, objectType: type as ModelType, partial: selectFieldsDict[type], userData }) :
+            await addSupplementalFieldsHelper({ languages: userData?.languages ?? [DEFAULT_LANGUAGE], objects: objectData, objectType: type as ModelType, partial: selectFieldsDict[type] as PartialApiInfo, userData }) :
             objectData;
         // Supplements are calculated for an array of objects, so we must loop through 
         // Add each value to supplementsByObjectId
@@ -528,7 +583,7 @@ export async function addSupplementalFieldsMultiTypes<
     const combinedResult = await addSupplementalFields(userData, combinedData, combinedPartialInfo);
 
     // Convert combinedResult into object in the same shape as data, but with each value containing supplemental data
-    const formatted = {} as { [K in keyof TData]: any[] };
+    const formatted = {} as { [K in keyof TData]: unknown[] };
     let start = 0;
     for (const key in data) {
         const end = start + data[key].length;
@@ -599,11 +654,14 @@ export class InfoConverter {
     private cache: LRUCache<string, PartialApiInfo | PrismaSelect>;
 
     private constructor() {
-        this.cache = new LRUCache<string, any>(CONVERTER_CACHE_LIMIT_COUNT, CONVERTER_CACHE_LIMIT_SIZE_BYTES);
+        this.cache = new LRUCache<string, PartialApiInfo | PrismaSelect>({
+            limit: CONVERTER_CACHE_LIMIT_COUNT,
+            maxSizeBytes: CONVERTER_CACHE_LIMIT_SIZE_BYTES,
+        });
     }
     public static get(): InfoConverter {
         if (!InfoConverter.instance) {
-            this.instance = new InfoConverter();
+            InfoConverter.instance = new InfoConverter();
         }
         return InfoConverter.instance;
     }
@@ -640,7 +698,7 @@ export class InfoConverter {
         ThrowErrorIfNotPartial extends boolean
     >(
         info: PartialApiInfo,
-        apiRelMap: ApiRelMap<Typename, ApiModel, DbModel>,
+        apiRelMap: SafeApiRelMap<Typename, ApiModel, DbModel>,
         throwIfNotPartial: ThrowErrorIfNotPartial = false as ThrowErrorIfNotPartial,
     ): ThrowErrorIfNotPartial extends true ? PartialApiInfo : (PartialApiInfo | undefined) {
         // Return undefined if info not set
@@ -701,7 +759,7 @@ export class InfoConverter {
             delete result.__typename;
             delete result.__cacheKey;
             if (format) {
-                result = Unions.deconstruct(result, format.apiRelMap);
+                result = Unions.deconstruct(result, format.apiRelMap) as PrismaSelect["select"];
                 result = JoinTables.addToData(result, format.joinMap as JoinMap);
                 result = CountFields.addToData(result, format.countFields);
             }
@@ -743,8 +801,8 @@ export class InfoConverter {
         if (format) {
             const unionData = Unions.construct(data, partialInfo, format.apiRelMap);
             data = unionData.data;
-            partialInfo = unionData.partialInfo;
-            data = JoinTables.removeFromData(data, format.joinMap as any);
+            partialInfo = unionData.partialInfo as PartialApiInfo;
+            data = JoinTables.removeFromData(data, format.joinMap as JoinMap) as { [x: string]: unknown };
             data = CountFields.removeFromData(data, format.countFields);
             data = removeHiddenFields(data, format.hiddenFields);
         }
@@ -756,11 +814,11 @@ export class InfoConverter {
             }
             // If value is an array, recurse on each element
             if (Array.isArray(value)) {
-                data[key] = data[key].map((v: any) => this.fromDbToApi(v, partialInfo[key] as PartialApiInfo));
+                data[key] = data[key].map((v: unknown) => this.fromDbToApi(v as Record<string, unknown>, partialInfo[key] as PartialApiInfo));
             }
             // If value is an object (and not date), recurse
             else if (isRelationshipObject(value)) {
-                data[key] = this.fromDbToApi(value, (partialInfo as any)[key]);
+                data[key] = this.fromDbToApi(value, (partialInfo as Record<string, unknown>)[key] as PartialApiInfo);
             }
         }
         return data as ObjectModel;

@@ -1,8 +1,10 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
 /**
  * Examples demonstrating the usage of Schedule System fixture factories
  * Shows how to create complex scheduling scenarios for testing
  */
 
+import type { PrismaClient } from "@prisma/client";
 import { 
     ScheduleDbFactory, 
     ScheduleExceptionDbFactory, 
@@ -28,7 +30,7 @@ export const oneTimeEventExample = () => {
 /**
  * Example 2: Daily recurring meeting with exceptions
  */
-export const dailyRecurringWithExceptionsExample = async (prisma: any) => {
+export const dailyRecurringWithExceptionsExample = async (prisma: PrismaClient) => {
     const meetingId = "meeting_456";
     
     // Create base schedule with daily recurrence
@@ -121,7 +123,7 @@ export const monthlyScheduleExample = () => {
 /**
  * Example 5: Complex schedule with multiple recurrences
  */
-export const multipleRecurrencesExample = async (prisma: any) => {
+export const multipleRecurrencesExample = async (prisma: PrismaClient) => {
     const routineId = "routine_202";
     
     // Schedule with both weekly and monthly patterns
@@ -191,7 +193,7 @@ export const generateOccurrencesExample = () => {
 /**
  * Example 7: Conference week with all meetings cancelled
  */
-export const conferenceWeekExample = async (prisma: any) => {
+export const conferenceWeekExample = async (prisma: PrismaClient) => {
     const meetingId = "meeting_303";
     
     // Create recurring meeting
@@ -246,7 +248,7 @@ export const yearlyEventWithTimezoneExample = () => {
 /**
  * Example 9: Bulk creation for testing
  */
-export const bulkScheduleCreationExample = async (prisma: any) => {
+export const bulkScheduleCreationExample = async (prisma: PrismaClient) => {
     const schedules = [];
     
     // Create 10 different types of schedules

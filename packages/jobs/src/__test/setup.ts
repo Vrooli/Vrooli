@@ -1,4 +1,5 @@
 // AI_CHECK: TEST_COVERAGE=1 | LAST: 2025-06-24
+// AI_CHECK: TYPE_SAFETY=2 | LAST: 2025-07-04
 /**
  * Per-test-file setup that runs after global setup
  * Global setup handles containers and migrations
@@ -48,7 +49,7 @@ beforeAll(async function setup() {
             await ModelMap.init();
             componentsInitialized.modelMap = true;
             if (isVerbose) console.log("✓ ModelMap ready");
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("ModelMap initialization failed:", error);
             // Don't throw - continue without it
         }
@@ -60,7 +61,7 @@ beforeAll(async function setup() {
             await DbProvider.init();
             componentsInitialized.dbProvider = true;
             if (isVerbose) console.log("✓ DbProvider ready");
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("DbProvider initialization failed:", error);
             // Don't throw - continue without it
         }
@@ -71,7 +72,7 @@ beforeAll(async function setup() {
             await setupLlmServiceMocks();
             componentsInitialized.mocks = true;
             if (isVerbose) console.log("✓ LLM mocks ready");
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("LLM mock setup failed:", error);
         }
         
@@ -95,7 +96,7 @@ beforeAll(async function setup() {
         //
         // This distributes memory load and prevents crashes.
         
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("=== Setup Failed ===");
         console.error(error);
         await cleanup();
@@ -110,7 +111,7 @@ async function setupLlmServiceMocks() {
         // They are handled internally by the response service registry and don't need 
         // to be mocked for job processing tests.
         
-    } catch (error) {
+    } catch (error: unknown) {
         console.warn("Could not setup LLM mocks:", error);
     }
 }
@@ -141,14 +142,14 @@ async function cleanup() {
         vi.unstubAllGlobals();
         
         if (isVerbose) console.log("✓ Mocks cleared and restored");
-    } catch (e) {
+    } catch (e: unknown) {
         console.error("Mock cleanup error:", e);
         // Force clear as fallback
         try {
             vi.clearAllMocks();
             vi.unstubAllGlobals();
             console.log("✓ Fallback mock clear completed");
-        } catch (clearError) {
+        } catch (clearError: unknown) {
             console.error("Mock clear fallback error:", clearError);
         }
     }
@@ -173,8 +174,8 @@ async function cleanup() {
             await server.BusService.reset();
             if (isVerbose) console.log("✓ BusService reset");
         }
-    } catch (e) {
-        console.log("⚠ Services not available or failed to reset:", e.message);
+    } catch (e: unknown) {
+        console.log("⚠ Services not available or failed to reset:", e instanceof Error ? e.message : String(e));
     }
     
     // Clean up based on what was initialized
@@ -185,8 +186,8 @@ async function cleanup() {
                 await DbProvider.reset();
                 if (isVerbose) console.log("✓ DbProvider reset");
             }
-        } catch (e) {
-            console.log("⚠ DbProvider not available or failed to reset:", e.message);
+        } catch (e: unknown) {
+            console.log("⚠ DbProvider not available or failed to reset:", e instanceof Error ? e.message : String(e));
         }
     }
     
@@ -205,7 +206,7 @@ afterAll(async () => {
         await cleanup();
         clearTimeout(timeoutId);
         console.log(`[${new Date().toISOString()}] afterAll cleanup completed for ${testFile}`);
-    } catch (error) {
+    } catch (error: unknown) {
         clearTimeout(timeoutId);
         console.error(`[${new Date().toISOString()}] afterAll cleanup error for ${testFile}:`, error);
         throw error;

@@ -40,6 +40,19 @@ const STEP_STATUS_MAP: Record<StepStatus["state"], RunStepStatus> = {
  */
 export class RunPersistenceService {
 
+    // eslint-disable-next-line no-magic-numbers
+    private static readonly NAME_SUFFIX_LENGTH = 8;
+    // eslint-disable-next-line no-magic-numbers
+    private static readonly DEFAULT_HISTORY_LIMIT = 20;
+    // eslint-disable-next-line no-magic-numbers
+    private static readonly HIGH_TOOL_CALLS_THRESHOLD = 5;
+    // eslint-disable-next-line no-magic-numbers
+    private static readonly LONG_DURATION_THRESHOLD_MS = 30000;
+    // eslint-disable-next-line no-magic-numbers
+    private static readonly HIGH_MEMORY_THRESHOLD_MB = 100;
+    // eslint-disable-next-line no-magic-numbers
+    private static readonly MAX_COMPLEXITY = 10;
+
     constructor() {
         // Add constructor logic here if needed
     }
@@ -80,7 +93,7 @@ export class RunPersistenceService {
             await DbProvider.get().run.create({
                 data: {
                     id: BigInt(runData.id),
-                    name: `Execution ${runData.id.slice(-8)}`,
+                    name: `Execution ${runData.id.slice(-RunPersistenceService.NAME_SUFFIX_LENGTH)}`,
                     data: JSON.stringify({
                         inputs: runData.inputs,
                         metadata: runData.metadata || {},
@@ -197,13 +210,6 @@ export class RunPersistenceService {
             if (stepData.completedAt) {
                 timeElapsed = stepData.completedAt.getTime() - stepData.startedAt.getTime();
             }
-
-            // Prepare step data
-            const stepPersistenceData = {
-                result: stepData.result,
-                error: stepData.error,
-                resourceUsage: stepData.resourceUsage,
-            };
 
             // Try to find existing step record
             const existingStep = await DbProvider.get().run_step.findFirst({
@@ -355,7 +361,7 @@ export class RunPersistenceService {
     /**
      * Gets run execution history for a user
      */
-    async getUserRunHistory(userId: string, limit = 20, offset = 0): Promise<Array<{
+    async getUserRunHistory(userId: string, limit = RunPersistenceService.DEFAULT_HISTORY_LIMIT, offset = 0): Promise<Array<{
         id: string;
         routineId: string;
         routineName: string;
@@ -489,10 +495,10 @@ export class RunPersistenceService {
 
         let complexity = 1;
 
-        if (resourceUsage.toolCalls > 5) complexity += 1;
-        if (resourceUsage.durationMs > 30000) complexity += 2;
-        if (resourceUsage.memoryUsedMB > 100) complexity += 1;
+        if (resourceUsage.toolCalls > RunPersistenceService.HIGH_TOOL_CALLS_THRESHOLD) complexity += 1;
+        if (resourceUsage.durationMs > RunPersistenceService.LONG_DURATION_THRESHOLD_MS) complexity += 2;
+        if (resourceUsage.memoryUsedMB > RunPersistenceService.HIGH_MEMORY_THRESHOLD_MB) complexity += 1;
 
-        return Math.min(complexity, 10);
+        return Math.min(complexity, RunPersistenceService.MAX_COMPLEXITY);
     }
 }

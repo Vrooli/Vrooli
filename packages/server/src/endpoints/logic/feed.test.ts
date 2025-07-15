@@ -13,6 +13,8 @@ import { ResourceDbFactory } from "../../__test/fixtures/db/resourceFixtures.js"
 import { TeamDbFactory } from "../../__test/fixtures/db/teamFixtures.js";
 import { ReminderDbFactory } from "../../__test/fixtures/db/reminderFixtures.js";
 import { ScheduleDbFactory } from "../../__test/fixtures/db/scheduleFixtures.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsFeed", () => {
     beforeAll(async () => {
@@ -22,23 +24,21 @@ describe("EndpointsFeed", () => {
         vi.spyOn(logger, "warning").mockImplementation(() => logger);
     });
 
-    beforeEach(async () => {
-        // Clean up tables used in tests
-        const prisma = DbProvider.get();
-        await prisma.reminderItem.deleteMany();
-        await prisma.reminder.deleteMany();
-        await prisma.scheduleException.deleteMany();
-        await prisma.scheduleRecurrence.deleteMany();
-        await prisma.schedule.deleteMany();
-        await prisma.resourceVersion.deleteMany();
-        await prisma.resource.deleteMany();
-        await prisma.team_member.deleteMany();
-        await prisma.team.deleteMany();
-        await prisma.tag.deleteMany();
-        await prisma.user.deleteMany();
-        // Clear Redis cache
-        await CacheService.get().flushAll();
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["team","member","member_invite","meeting","user"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn('Test cleanup incomplete:', orphans);
+        }
     });
+
+    beforeEach(async () => {
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.team(DbProvider.get());
+    }););
 
     afterAll(async () => {
         // Restore all mocks
@@ -65,7 +65,7 @@ describe("EndpointsFeed", () => {
                 isPrivate: false,
                 members: [{
                     userId: testUsers[0].id,
-                    permissions: '["owner"]',
+                    permissions: "[\"owner\"]",
                 }],
             }),
         });
@@ -244,7 +244,7 @@ describe("EndpointsFeed", () => {
                                     isComplete: false,
                                 }],
                             }),
-                        })
+                        }),
                     );
                 }
                 await Promise.all(reminderPromises);

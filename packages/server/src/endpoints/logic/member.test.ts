@@ -11,6 +11,8 @@ import { member } from "./member.js";
 // Import database fixtures for seeding
 import { seedTeamWithMembers } from "../../__test/fixtures/db/memberFixtures.js";
 import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 // Import validation fixtures for API input testing  
 
@@ -21,11 +23,21 @@ describe("EndpointsMember", () => {
         vi.spyOn(logger, "info").mockImplementation(() => logger);
     });
 
-    beforeEach(async () => {
-        // Clean up tables used in tests
-        const prisma = DbProvider.get();
-        await prisma.team.deleteMany();
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["team","member","member_invite","meeting","user"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn('Test cleanup incomplete:', orphans);
+        }
     });
+
+    beforeEach(async () => {
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.team(DbProvider.get());
+    }););
 
     afterAll(async () => {
         // Restore all mocks

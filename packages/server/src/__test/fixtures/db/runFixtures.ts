@@ -1,5 +1,6 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
 import { generatePK } from "@vrooli/shared";
-import { type Prisma } from "@prisma/client";
+import { type Prisma, type PrismaClient } from "@prisma/client";
 
 /**
  * Database fixtures for Run model - used for seeding test data
@@ -29,7 +30,7 @@ export const runDbIds = {
 /**
  * Minimal run data for database creation
  */
-export const minimalRunDb: Prisma.RunCreateInput = {
+export const minimalRunDb: Prisma.runCreateInput = {
     id: runDbIds.run1,
     name: "Test Run",
     status: "Scheduled",
@@ -42,7 +43,7 @@ export const minimalRunDb: Prisma.RunCreateInput = {
 /**
  * Run with resource version connection
  */
-export const runWithResourceVersionDb: Prisma.RunCreateInput = {
+export const runWithResourceVersionDb: Prisma.runCreateInput = {
     id: runDbIds.run2,
     name: "Run with Resource Version",
     status: "InProgress",
@@ -60,7 +61,7 @@ export const runWithResourceVersionDb: Prisma.RunCreateInput = {
 /**
  * Complete run with all features
  */
-export const completeRunDb: Prisma.RunCreateInput = {
+export const completeRunDb: Prisma.runCreateInput = {
     id: runDbIds.run3,
     name: "Complete Test Run",
     status: "Completed",
@@ -146,7 +147,7 @@ export const completeRunDb: Prisma.RunCreateInput = {
 /**
  * Failed run
  */
-export const failedRunDb: Prisma.RunCreateInput = {
+export const failedRunDb: Prisma.runCreateInput = {
     id: runDbIds.run4,
     name: "Failed Test Run",
     status: "Failed",
@@ -170,7 +171,7 @@ export const failedRunDb: Prisma.RunCreateInput = {
  * Factory for creating run database fixtures with overrides
  */
 export class RunDbFactory {
-    static createMinimal(overrides?: Partial<Prisma.RunCreateInput>): Prisma.RunCreateInput {
+    static createMinimal(overrides?: Partial<Prisma.runCreateInput>): Prisma.runCreateInput {
         return {
             ...minimalRunDb,
             id: generatePK(),
@@ -181,8 +182,8 @@ export class RunDbFactory {
 
     static createWithResourceVersion(
         resourceVersionId: string,
-        overrides?: Partial<Prisma.RunCreateInput>,
-    ): Prisma.RunCreateInput {
+        overrides?: Partial<Prisma.runCreateInput>,
+    ): Prisma.runCreateInput {
         return {
             ...runWithResourceVersionDb,
             id: generatePK(),
@@ -194,7 +195,7 @@ export class RunDbFactory {
         };
     }
 
-    static createComplete(overrides?: Partial<Prisma.RunCreateInput>): Prisma.RunCreateInput {
+    static createComplete(overrides?: Partial<Prisma.runCreateInput>): Prisma.runCreateInput {
         return {
             ...completeRunDb,
             id: generatePK(),
@@ -256,7 +257,7 @@ export class RunDbFactory {
         };
     }
 
-    static createFailed(overrides?: Partial<Prisma.RunCreateInput>): Prisma.RunCreateInput {
+    static createFailed(overrides?: Partial<Prisma.runCreateInput>): Prisma.runCreateInput {
         return {
             ...failedRunDb,
             id: generatePK(),
@@ -270,10 +271,10 @@ export class RunDbFactory {
      */
     static createWithStatus(
         status: "Scheduled" | "InProgress" | "Paused" | "Completed" | "Failed" | "Cancelled",
-        overrides?: Partial<Prisma.RunCreateInput>,
-    ): Prisma.RunCreateInput {
+        overrides?: Partial<Prisma.runCreateInput>,
+    ): Prisma.runCreateInput {
         const now = new Date();
-        const baseData: Partial<Prisma.RunCreateInput> = {
+        const baseData: Partial<Prisma.runCreateInput> = {
             status,
         };
 
@@ -302,8 +303,8 @@ export class RunDbFactory {
     static createWithOwnership(
         userId: string,
         teamId?: string,
-        overrides?: Partial<Prisma.RunCreateInput>,
-    ): Prisma.RunCreateInput {
+        overrides?: Partial<Prisma.runCreateInput>,
+    ): Prisma.runCreateInput {
         return {
             ...this.createMinimal(overrides),
             user: { connect: { id: userId } },
@@ -316,8 +317,8 @@ export class RunDbFactory {
      */
     static createWithSteps(
         stepCount = 3,
-        overrides?: Partial<Prisma.RunCreateInput>,
-    ): Prisma.RunCreateInput {
+        overrides?: Partial<Prisma.runCreateInput>,
+    ): Prisma.runCreateInput {
         const steps = Array.from({ length: stepCount }, (_, index) => ({
             id: generatePK(),
             name: `Step ${index + 1}`,
@@ -341,8 +342,8 @@ export class RunDbFactory {
      */
     static createWithIO(
         ioData: Array<{ nodeName: string; nodeInputName: string; data: any }>,
-        overrides?: Partial<Prisma.RunCreateInput>,
-    ): Prisma.RunCreateInput {
+        overrides?: Partial<Prisma.runCreateInput>,
+    ): Prisma.runCreateInput {
         const io = ioData.map(item => ({
             id: generatePK(),
             nodeName: item.nodeName,
@@ -361,8 +362,8 @@ export class RunDbFactory {
      */
     static createScheduled(
         scheduleId: string,
-        overrides?: Partial<Prisma.RunCreateInput>,
-    ): Prisma.RunCreateInput {
+        overrides?: Partial<Prisma.runCreateInput>,
+    ): Prisma.runCreateInput {
         return {
             ...this.createMinimal(overrides),
             status: "Scheduled",
@@ -475,7 +476,7 @@ export async function seedRuns(
 /**
  * Helper to create run that matches the shape expected by API responses
  */
-export function createApiResponseRun(overrides?: Partial<Prisma.RunCreateInput>) {
+export function createApiResponseRun(overrides?: Partial<Prisma.runCreateInput>) {
     const runData = RunDbFactory.createComplete(overrides);
     return {
         ...runData,
@@ -492,7 +493,7 @@ export function createApiResponseRun(overrides?: Partial<Prisma.RunCreateInput>)
 /**
  * Helper to clean up test runs
  */
-export async function cleanupRuns(prisma: any, runIds: string[]) {
+export async function cleanupRuns(prisma: PrismaClient, runIds: string[]) {
     // Delete in correct order for foreign key constraints
     await prisma.runIO.deleteMany({
         where: { runId: { in: runIds } },

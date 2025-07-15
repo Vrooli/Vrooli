@@ -7,9 +7,6 @@
 // Types
 export * from "./types.js";
 
-// Factories
-export * from "./factories/index.js";
-
 // Pre-defined fixtures
 export * from "./fixtures/index.js";
 
@@ -23,25 +20,17 @@ export * from "./behaviors/index.js";
 export * from "./integration/index.js";
 
 // Re-export commonly used items for convenience
-export { 
-    createAIMockResponse,
-    createStreamingMock,
+export {
+    createAIMockResponse, createErrorResponse, createStreamingMock,
     createToolCallResponse,
-    createErrorResponse, 
 } from "./factories/index.js";
 
 export {
-    aiSuccessFixtures,
-    aiErrorFixtures,
-    aiStreamingFixtures,
-    aiToolCallFixtures,
-    aiReasoningFixtures,
+    aiErrorFixtures, aiReasoningFixtures, aiStreamingFixtures, aiSuccessFixtures, aiToolCallFixtures,
 } from "./fixtures/index.js";
 
 export {
-    withAIMocks,
-    registerMockBehavior,
-    createEmergentMockBehavior,
+    createEmergentMockBehavior, registerMockBehavior, withAIMocks,
 } from "./integration/index.js";
 
 /**
@@ -51,22 +40,22 @@ export const setupAIMocks = () => {
     // Import what we need
     const { MockRegistry } = require("./integration/mockRegistry.js");
     const { aiSuccessFixtures } = require("./fixtures/index.js");
-    
+
     // Set up default behaviors
     const registry = MockRegistry.getInstance();
     registry.clear();
-    
+
     // Register common patterns
     registry.register("greeting", {
         pattern: /hello|hi|hey/i,
         response: aiSuccessFixtures.greeting(),
     });
-    
+
     registry.register("help", {
         pattern: /help|assist|support/i,
         response: aiSuccessFixtures.helpfulResponse(),
     });
-    
+
     registry.register("error", {
         pattern: /error|fail|problem/i,
         response: {
@@ -76,6 +65,6 @@ export const setupAIMocks = () => {
             },
         },
     });
-    
+
     return registry;
 };

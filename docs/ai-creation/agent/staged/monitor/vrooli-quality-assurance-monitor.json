@@ -1,108 +1,107 @@
 {
-  "identity": {
-    "name": "vrooli-quality-assurance-monitor",
-    "version": "1.0.0"
-  },
-  "goal": "Monitors platform health, routine quality, and user satisfaction",
-  "role": "monitor",
-  "subscriptions": [
-    "run/failed",
-    "safety/post_action",
-    "step/completed"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "run/failed",
-        "when": "event.data.platform == 'vrooli' || event.data.source == 'platform'"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Quality Monitor",
-        "inputMap": {
-          "failureData": "event.data.failure",
-          "errorContext": "event.data.context",
-          "qualityMetrics": "blackboard.vrooli.quality",
-          "errorTracking": "blackboard.vrooli.errors"
+    "identity": {
+        "name": "vrooli-quality-assurance-monitor",
+        "version": "1.0.0"
+    },
+    "goal": "Monitors platform health, routine quality, and user satisfaction",
+    "role": "monitor",
+    "subscriptions": [
+        "run/failed",
+        "safety/post_action",
+        "step/completed"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "run/failed",
+                "when": "event.data.platform == 'vrooli' || event.data.source == 'platform'"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Quality Monitor",
+                "inputMap": {
+                    "failureData": "event.data.failure",
+                    "errorContext": "event.data.context",
+                    "qualityMetrics": "blackboard.vrooli.quality",
+                    "errorTracking": "blackboard.vrooli.errors"
+                }
+            },
+            "qos": 2
+        },
+        {
+            "trigger": {
+                "topic": "safety/post_action",
+                "when": "event.data.action.type == 'user_feedback' || event.data.action.type == 'routine_evaluation'"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Monitor platform quality indicators and user satisfaction metrics to identify areas for improvement"
+            },
+            "qos": 2
+        },
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'routine_execution' || event.data.tags.includes('platform_usage')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Performance Tracker",
+                "inputMap": {
+                    "executionData": "event.data.output.execution",
+                    "performanceMetrics": "event.data.metrics",
+                    "satisfactionSurveys": "blackboard.vrooli.satisfaction"
+                }
+            },
+            "qos": 1
         }
-      },
-      "qos": 2
-    },
-    {
-      "trigger": {
-        "topic": "safety/post_action",
-        "when": "event.data.action.type == 'user_feedback' || event.data.action.type == 'routine_evaluation'"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Monitor platform quality indicators and user satisfaction metrics to identify areas for improvement"
-      },
-      "qos": 2
-    },
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'routine_execution' || event.data.tags.includes('platform_usage')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Performance Tracker",
-        "inputMap": {
-          "executionData": "event.data.output.execution",
-          "performanceMetrics": "event.data.metrics",
-          "satisfactionSurveys": "blackboard.vrooli.satisfaction"
+    ],
+    "prompt": "You are a quality assurance monitor for the Vrooli platform. Your role is to monitor platform health, routine quality, and user satisfaction. You must maintain quality standards and identify improvement areas, but you must not ignore quality issues. When analyzing failures or safety actions, focus on quality indicators and user satisfaction metrics. Track performance metrics from routine executions and provide insights for platform improvement.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "quality-metrics",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "vrooli.quality",
+            "description": "Platform quality metrics and performance indicators"
+        },
+        {
+            "type": "blackboard",
+            "label": "error-tracking",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "vrooli.errors",
+            "description": "Error tracking and issue monitoring systems"
+        },
+        {
+            "type": "blackboard",
+            "label": "satisfaction-surveys",
+            "permissions": [
+                "read"
+            ],
+            "scope": "vrooli.satisfaction",
+            "description": "User satisfaction surveys and feedback collection"
+        },
+        {
+            "type": "routine",
+            "label": "Quality Monitor",
+            "permissions": [
+                "read"
+            ],
+            "description": "Monitor platform quality and identify issues"
+        },
+        {
+            "type": "routine",
+            "label": "Performance Tracker",
+            "permissions": [
+                "read"
+            ],
+            "description": "Track platform performance and user satisfaction"
         }
-      },
-      "qos": 1
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "maintain-quality-standards"
-    },
-    {
-      "modality": "permission",
-      "target": "identify-improvement-areas"
-    },
-    {
-      "modality": "prohibition",
-      "target": "ignore-quality-issues"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "quality-metrics",
-      "permissions": ["read", "write"],
-      "scope": "vrooli.quality",
-      "description": "Platform quality metrics and performance indicators"
-    },
-    {
-      "type": "blackboard",
-      "label": "error-tracking",
-      "permissions": ["read", "write"],
-      "scope": "vrooli.errors",
-      "description": "Error tracking and issue monitoring systems"
-    },
-    {
-      "type": "blackboard",
-      "label": "satisfaction-surveys",
-      "permissions": ["read"],
-      "scope": "vrooli.satisfaction",
-      "description": "User satisfaction surveys and feedback collection"
-    },
-    {
-      "type": "routine",
-      "label": "Quality Monitor",
-      "permissions": ["read"],
-      "description": "Monitor platform quality and identify issues"
-    },
-    {
-      "type": "routine",
-      "label": "Performance Tracker",
-      "permissions": ["read"],
-      "description": "Track platform performance and user satisfaction"
-    }
-  ]
+    ]
 }

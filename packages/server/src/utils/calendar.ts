@@ -1,19 +1,15 @@
+// AI_CHECK: TYPE_SAFETY=server-type-safety-fixes | LAST: 2025-07-01 - Fixed any type in RRule options to proper interface
 import { HOURS_1_MS, MINUTES_1_MS, ScheduleRecurrenceType, generatePK, type Schedule, type ScheduleRecurrence } from "@vrooli/shared";
 import ical, { type CalendarResponse, type DateWithTimeZone, type VCalendar, type VEvent } from "node-ical";
+import rrulePkg from "rrule";
+
+const { RRule, Frequency } = rrulePkg;
 import { type RequestFile } from "../types.js";
 
 // Type definitions for iCal date values
 type ICalDateValue = Date | DateWithTimeZone | string | { date: string; tz?: string } | null | undefined;
 
-// Type definition for RRULE
-interface ICalRRule {
-    freq?: string;
-    interval?: number;
-    byweekday?: string | string[];
-    bymonthday?: number | number[];
-    bymonth?: number | number[];
-    until?: Date | string;
-}
+// Note: Using RRule type from rrule library instead of custom interface
 
 const DEFAULT_EVENT_DURATION_MINUTES = 60;
 const SUNDAY_DAY_NUMBER = 7;
@@ -151,7 +147,7 @@ function extractDate(dateValue: ICalDateValue): Date | null {
  * Extracts timezone from iCal date object.
  */
 function extractTimezone(dateValue: ICalDateValue): string | null {
-    if (typeof dateValue === "object" && dateValue !== null && dateValue.tz) {
+    if (typeof dateValue === "object" && dateValue !== null && "tz" in dateValue && dateValue.tz) {
         return dateValue.tz;
     }
     return null;
@@ -160,7 +156,7 @@ function extractTimezone(dateValue: ICalDateValue): string | null {
 /**
  * Parses an RRULE object into a recurrence pattern.
  */
-function parseRRule(rrule: ICalRRule, startTime: Date, endTime: Date | null): {
+function parseRRule(rrule: InstanceType<typeof RRule>, startTime: Date, endTime: Date | null): {
     id: string;
     recurrenceType: ScheduleRecurrenceType;
     interval: number;
@@ -170,22 +166,22 @@ function parseRRule(rrule: ICalRRule, startTime: Date, endTime: Date | null): {
     endDate?: Date;
     duration: number;
 } | null {
-    if (!rrule || !rrule.freq) return null;
+    if (!rrule || !rrule.options.freq) return null;
 
     const duration = endTime ? Math.floor((endTime.getTime() - startTime.getTime()) / MINUTES_1_MS) : DEFAULT_EVENT_DURATION_MINUTES; // Duration in minutes
 
     let recurrenceType: ScheduleRecurrenceType;
-    switch (rrule.freq?.toUpperCase()) {
-        case "DAILY":
+    switch (rrule.options.freq) {
+        case Frequency.DAILY:
             recurrenceType = ScheduleRecurrenceType.Daily;
             break;
-        case "WEEKLY":
+        case Frequency.WEEKLY:
             recurrenceType = ScheduleRecurrenceType.Weekly;
             break;
-        case "MONTHLY":
+        case Frequency.MONTHLY:
             recurrenceType = ScheduleRecurrenceType.Monthly;
             break;
-        case "YEARLY":
+        case Frequency.YEARLY:
             recurrenceType = ScheduleRecurrenceType.Yearly;
             break;
         default:
@@ -195,15 +191,15 @@ function parseRRule(rrule: ICalRRule, startTime: Date, endTime: Date | null): {
     const recurrence = {
         id: generatePK().toString(),
         recurrenceType,
-        interval: rrule.interval || 1,
+        interval: rrule.options.interval || 1,
         duration,
     } as ReturnType<typeof parseRRule>;
 
     if (!recurrence) return null;
 
     // Handle day of week for weekly recurrence
-    if (recurrenceType === ScheduleRecurrenceType.Weekly && rrule.byweekday) {
-        const weekdays = Array.isArray(rrule.byweekday) ? rrule.byweekday : [rrule.byweekday];
+    if (recurrenceType === ScheduleRecurrenceType.Weekly && rrule.options.byweekday) {
+        const weekdays = Array.isArray(rrule.options.byweekday) ? rrule.options.byweekday : [rrule.options.byweekday];
         if (weekdays.length > 0) {
             // Convert to our format (1 = Monday, 7 = Sunday)
             const dayMap: Record<string, number> = {
@@ -215,18 +211,18 @@ function parseRRule(rrule: ICalRRule, startTime: Date, endTime: Date | null): {
     }
 
     // Handle day of month for monthly recurrence
-    if (recurrenceType === ScheduleRecurrenceType.Monthly && rrule.bymonthday && recurrence) {
-        recurrence.dayOfMonth = Array.isArray(rrule.bymonthday) ? rrule.bymonthday[0] : rrule.bymonthday;
+    if (recurrenceType === ScheduleRecurrenceType.Monthly && rrule.options.bymonthday && recurrence) {
+        recurrence.dayOfMonth = Array.isArray(rrule.options.bymonthday) ? rrule.options.bymonthday[0] : rrule.options.bymonthday;
     }
 
     // Handle month for yearly recurrence
-    if (recurrenceType === ScheduleRecurrenceType.Yearly && rrule.bymonth && recurrence) {
-        recurrence.month = Array.isArray(rrule.bymonth) ? rrule.bymonth[0] : rrule.bymonth;
+    if (recurrenceType === ScheduleRecurrenceType.Yearly && rrule.options.bymonth && recurrence) {
+        recurrence.month = Array.isArray(rrule.options.bymonth) ? rrule.options.bymonth[0] : rrule.options.bymonth;
     }
 
     // Handle end date
-    if (rrule.until && recurrence) {
-        recurrence.endDate = new Date(rrule.until);
+    if (rrule.options.until && recurrence) {
+        recurrence.endDate = new Date(rrule.options.until);
     }
 
     return recurrence;
@@ -389,22 +385,54 @@ export function createICalEvent(
     };
 
     if (recurrence) {
-        const freq = recurrence.recurrenceType.toUpperCase();
-        const rruleParams: Record<string, string | number | string[] | Date | DateWithTimeZone> = { freq, interval: recurrence.interval || 1 };
+        // Map recurrence type to RRule frequency
+        let freq: number;
+        switch (recurrence.recurrenceType) {
+            case ScheduleRecurrenceType.Daily:
+                freq = Frequency.DAILY;
+                break;
+            case ScheduleRecurrenceType.Weekly:
+                freq = Frequency.WEEKLY;
+                break;
+            case ScheduleRecurrenceType.Monthly:
+                freq = Frequency.MONTHLY;
+                break;
+            case ScheduleRecurrenceType.Yearly:
+                freq = Frequency.YEARLY;
+                break;
+            default:
+                freq = Frequency.DAILY;
+        }
+
+        const rruleOptions: {
+            freq: number;
+            interval: number;
+            dtstart: Date;
+            byweekday?: number | number[];
+            bymonthday?: number;
+            bymonth?: number;
+            count?: number;
+            until?: Date;
+        } = {
+            freq,
+            interval: recurrence.interval || 1,
+            dtstart: schedule.startTime,
+        };
 
         if (recurrence.dayOfWeek) {
-            rruleParams.byweekday = Array.isArray(recurrence.dayOfWeek) ? recurrence.dayOfWeek : [recurrence.dayOfWeek];
+            rruleOptions.byweekday = Array.isArray(recurrence.dayOfWeek) ? recurrence.dayOfWeek : [recurrence.dayOfWeek];
         }
         if (recurrence.dayOfMonth) {
-            rruleParams.bymonthday = recurrence.dayOfMonth;
+            rruleOptions.bymonthday = recurrence.dayOfMonth;
         }
         if (recurrence.month) {
-            rruleParams.bymonth = recurrence.month;
+            rruleOptions.bymonth = recurrence.month;
         }
         if (recurrence.endDate) {
-            rruleParams.until = convertToDateWithTimeZone(recurrence.endDate, schedule.timezone);
+            rruleOptions.until = recurrence.endDate;
         }
-        (event as VEvent & { rrule?: typeof rruleParams }).rrule = rruleParams;
+
+        event.rrule = new RRule(rruleOptions);
     }
 
     const calendar: Partial<VCalendar> = {

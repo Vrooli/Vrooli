@@ -4,8 +4,9 @@
  * This file provides comprehensive API response fixtures for report response endpoints.
  * It includes success responses, error responses, and MSW handlers for testing.
  */
+// AI_CHECK: TYPE_SAFETY=fixed-premium-property | LAST: 2025-07-02 - Fixed Premium type error by removing 'createdAt' property
 
-import { http, type RestHandler } from "msw";
+import { http, type HttpHandler, HttpResponse } from "msw";
 import type {
     ReportResponse,
     ReportResponseCreateInput,
@@ -81,14 +82,14 @@ export class ReportResponseResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
 
     /**
      * Generate unique resource ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
 
     /**
@@ -258,29 +259,42 @@ export class ReportResponseResponseFactory {
             createdAt: now,
             updatedAt: now,
             isBot: false,
+            isBotDepictingPerson: false,
             isPrivate: false,
+            isPrivateBookmarks: true,
+            isPrivateMemberships: true,
+            isPrivatePullRequests: true,
+            isPrivateResources: false,
+            isPrivateResourcesCreated: false,
+            isPrivateTeamsCreated: true,
+            isPrivateVotes: true,
+            bookmarkedBy: [],
+            bookmarks: 0,
             profileImage: null,
             bannerImage: null,
-            premium: role !== "user",
-            premiumExpiration: role !== "user" ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() : null,
-            roles: role === "admin" ? ["Admin"] : role === "moderator" ? ["Moderator"] : [],
+            publicId: `user_public_${id}`,
+            views: 0,
+            membershipsCount: 0,
+            reportsReceived: [],
+            reportsReceivedCount: 0,
+            resourcesCount: 0,
+            premium: role !== "user" ? {
+                __typename: "Premium",
+                id: `premium_${this.generateId()}`,
+                credits: 1000,
+                customPlan: null,
+                enabledAt: new Date().toISOString(),
+                expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+            } : null,
             wallets: [],
             translations: [],
-            translationsCount: 0,
             you: {
                 __typename: "UserYou",
-                isBlocked: false,
-                isBlockedByYou: false,
                 canDelete: false,
                 canReport: false,
                 canUpdate: false,
                 isBookmarked: false,
-                isReacted: false,
-                reactionSummary: {
-                    __typename: "ReactionSummary",
-                    emotion: null,
-                    count: 0,
-                },
+                isViewed: false,
             },
         };
     }
@@ -310,6 +324,7 @@ export class ReportResponseResponseFactory {
                 canDelete: false,
                 canUpdate: false,
                 canRespond: true,
+                isOwn: false,
             },
         };
 
@@ -453,7 +468,7 @@ export class ReportResponseResponseFactory {
         errors?: Record<string, string>;
     }> {
         try {
-            await reportResponseValidation.create.validate(input);
+            await reportResponseValidation.create({}).validate(input);
             return { valid: true };
         } catch (error: any) {
             const fieldErrors: Record<string, string> = {};
@@ -489,18 +504,18 @@ export class ReportResponseMSWHandlers {
     /**
      * Create success handlers for all report response endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): HttpHandler[] {
         return [
             // Create report response
-            http.post(`${this.responseFactory["baseUrl"]}/api/report-response`, async (req, res, ctx) => {
-                const body = await req.json() as ReportResponseCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/report-response`, async ({ request }) => {
+                const body = await request.json() as ReportResponseCreateInput;
 
                 // Validate input
                 const validation = await this.responseFactory.validateCreateInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
+                    return HttpResponse.json(
+                        this.responseFactory.createValidationErrorResponse(validation.errors || {}),
+                        { status: 400 }
                     );
                 }
 
@@ -508,29 +523,23 @@ export class ReportResponseMSWHandlers {
                 const reportResponse = this.responseFactory.createReportResponseFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(reportResponse);
 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 201 });
             }),
 
             // Get report response by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, ({ params }) => {
+                const { id } = params;
 
                 const reportResponse = this.responseFactory.createMockReportResponse({ id: id as string });
                 const response = this.responseFactory.createSuccessResponse(reportResponse);
 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
 
             // Update report response
-            http.put(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const body = await req.json() as ReportResponseUpdateInput;
+            http.put(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, async ({ request, params }) => {
+                const { id } = params;
+                const body = await request.json() as ReportResponseUpdateInput;
 
                 const reportResponse = this.responseFactory.createMockReportResponse({
                     id: id as string,
@@ -541,20 +550,17 @@ export class ReportResponseMSWHandlers {
 
                 const response = this.responseFactory.createSuccessResponse(reportResponse);
 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
 
             // Delete report response
-            http.delete(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, (req, res, ctx) => {
-                return res(ctx.status(204));
+            http.delete(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, () => {
+                return new HttpResponse(null, { status: 204 });
             }),
 
             // List report responses
-            http.get(`${this.responseFactory["baseUrl"]}/api/report-response`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/report-response`, ({ request }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 const reportId = url.searchParams.get("reportId");
@@ -579,23 +585,17 @@ export class ReportResponseMSWHandlers {
                     },
                 );
 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
 
             // Get report responses for a specific report
-            http.get(`${this.responseFactory["baseUrl"]}/api/report/:reportId/responses`, (req, res, ctx) => {
-                const { reportId } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/report/:reportId/responses`, ({ params }) => {
+                const { reportId } = params;
 
                 const responses = this.responseFactory.createModeratorWorkflowResponse();
                 const response = this.responseFactory.createReportResponseListResponse(responses);
 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -603,41 +603,41 @@ export class ReportResponseMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): HttpHandler[] {
         return [
             // Validation error
-            http.post(`${this.responseFactory["baseUrl"]}/api/report-response`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
+            http.post(`${this.responseFactory["baseUrl"]}/api/report-response`, () => {
+                return HttpResponse.json(
+                    this.responseFactory.createValidationErrorResponse({
                         reportConnect: "Report ID is required",
                         actionSuggested: "Action must be specified",
-                    })),
+                    }),
+                    { status: 400 }
                 );
             }),
 
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
+            http.get(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, ({ params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string),
+                    { status: 404 }
                 );
             }),
 
             // Permission error
-            http.post(`${this.responseFactory["baseUrl"]}/api/report-response`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/report-response`, () => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("create"),
+                    { status: 403 }
                 );
             }),
 
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/report-response`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/report-response`, () => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse(),
+                    { status: 500 }
                 );
             }),
         ];
@@ -646,18 +646,17 @@ export class ReportResponseMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): HttpHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/report-response`, async (req, res, ctx) => {
-                const body = await req.json() as ReportResponseCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/report-response`, async ({ request }) => {
+                const body = await request.json() as ReportResponseCreateInput;
                 const reportResponse = this.responseFactory.createReportResponseFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(reportResponse);
 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                // Simulate delay
+                await new Promise(resolve => setTimeout(resolve, delay));
+
+                return HttpResponse.json(response, { status: 201 });
             }),
         ];
     }
@@ -665,14 +664,14 @@ export class ReportResponseMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): HttpHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/report-response`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/report-response`, () => {
+                return HttpResponse.error();
             }),
 
-            http.get(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, () => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -686,18 +685,17 @@ export class ReportResponseMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): HttpHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
 
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-
+        const httpMethod = method.toLowerCase() as keyof typeof http;
+        return http[httpMethod](fullEndpoint, async () => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
 
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }

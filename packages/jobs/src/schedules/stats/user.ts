@@ -1,6 +1,15 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-04
 import { type PeriodType, type Prisma } from "@prisma/client";
 import { batch, batchGroup, DbProvider, logger } from "@vrooli/server";
 import { generatePK } from "@vrooli/shared";
+
+// Time constants
+const MILLISECONDS_PER_SECOND = 1000;
+const SECONDS_PER_MINUTE = 60;
+const MINUTES_PER_HOUR = 60;
+const HOURS_PER_DAY = 24;
+const DAYS_FOR_ACTIVITY_WINDOW = 90; // 90 days for recent activity
+const ACTIVITY_WINDOW_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE * MINUTES_PER_HOUR * HOURS_PER_DAY * DAYS_FOR_ACTIVITY_WINDOW;
 
 // Select shape for user stats batching
 const userStatsSelect = { id: true } as const;
@@ -12,9 +21,9 @@ type BatchTeamsResult = Record<string, {
 }>
 
 type BatchResourcesResult = Record<string, {
-    resourcesCreatedByType?: Record<string, number>;
-    resourcesCompletedByType?: Record<string, number>;
-    resourceCompletionTimeAverageByType?: Record<string, number>;
+    resourcesCreatedByType: Record<string, number>;
+    resourcesCompletedByType: Record<string, number>;
+    resourceCompletionTimeAverageByType: Record<string, number>;
 }>
 
 type BatchRunsResult = Record<string, {
@@ -43,9 +52,11 @@ async function batchTeams(
     try {
         return await batchGroup<Prisma.teamFindManyArgs, BatchTeamsResult>({
             initialResult,
-            processBatch: async (batch, result) => {
+            processBatch: async (batch: BatchTeamsResult[], result: BatchTeamsResult) => {
+                // Cast the batch to the correct type since the batchGroup function has a type issue
+                const teamBatch = batch as unknown as Prisma.teamGetPayload<{ select: { id: true; createdById: true } }>[];
                 // For each, add stats to the user
-                batch.forEach(team => {
+                teamBatch.forEach(team => {
                     const userId = team.createdById;
                     if (!userId) return;
                     const currResult = result[userId.toString()];
@@ -82,14 +93,26 @@ async function batchResources(
     periodEnd: string,
 ): Promise<BatchResourcesResult> {
     const initialResult = Object.fromEntries(userIds.map(id => [id, {
-        resourcesCreatedByType: {},
-        resourcesCompletedByType: {},
-        resourceCompletionTimeAverageByType: {},
+        resourcesCreatedByType: {} as Record<string, number>,
+        resourcesCompletedByType: {} as Record<string, number>,
+        resourceCompletionTimeAverageByType: {} as Record<string, number>,
     }]));
     try {
-        return await batchGroup<Prisma.resourceFindManyArgs, BatchResourcesResult>({
-            initialResult,
-            processBatch: async (batch, result) => {
+        // Define the resource record type based on the select clause
+        type ResourceRecord = {
+            id: bigint;
+            completedAt: string | null;
+            createdAt: string;
+            createdById: bigint;
+            hasCompleteVersion: boolean;
+            resourceType: string;
+        };
+        
+        const result = initialResult;
+        
+        await batch<Prisma.resourceFindManyArgs, ResourceRecord>({
+            objectType: "Resource",
+            processBatch: async (batch: ResourceRecord[]) => {
                 // For each, add stats to the user by resource type
                 batch.forEach(resource => {
                     const userId = resource.createdById;
@@ -100,43 +123,28 @@ async function batchResources(
                     const resourceType = resource.resourceType;
                     
                     // Count created resources by type
-                    if (!currResult.resourcesCreatedByType![resourceType]) {
-                        currResult.resourcesCreatedByType![resourceType] = 0;
+                    if (!currResult.resourcesCreatedByType[resourceType]) {
+                        currResult.resourcesCreatedByType[resourceType] = 0;
                     }
-                    currResult.resourcesCreatedByType![resourceType] += 1;
+                    currResult.resourcesCreatedByType[resourceType] += 1;
                     
                     // Count completed resources by type
                     if (resource.hasCompleteVersion) {
-                        if (!currResult.resourcesCompletedByType![resourceType]) {
-                            currResult.resourcesCompletedByType![resourceType] = 0;
+                        if (!currResult.resourcesCompletedByType[resourceType]) {
+                            currResult.resourcesCompletedByType[resourceType] = 0;
                         }
-                        currResult.resourcesCompletedByType![resourceType] += 1;
+                        currResult.resourcesCompletedByType[resourceType] += 1;
                         
                         // Track completion time for averaging
                         if (resource.completedAt) {
-                            if (!currResult.resourceCompletionTimeAverageByType![resourceType]) {
-                                currResult.resourceCompletionTimeAverageByType![resourceType] = 0;
+                            if (!currResult.resourceCompletionTimeAverageByType[resourceType]) {
+                                currResult.resourceCompletionTimeAverageByType[resourceType] = 0;
                             }
-                            currResult.resourceCompletionTimeAverageByType![resourceType] += (new Date(resource.completedAt).getTime() - new Date(resource.createdAt).getTime());
+                            currResult.resourceCompletionTimeAverageByType[resourceType] += (new Date(resource.completedAt).getTime() - new Date(resource.createdAt).getTime());
                         }
                     }
                 });
             },
-            finalizeResult: (result) => {
-                // Calculate averages by type
-                Object.entries(result).forEach(([userId, currResult]) => {
-                    if (!currResult || typeof userId !== "string") return;
-                    
-                    Object.entries(currResult.resourceCompletionTimeAverageByType!).forEach(([resourceType, totalTime]) => {
-                        const completedCount = currResult.resourcesCompletedByType![resourceType];
-                        if (completedCount && completedCount > 0) {
-                            currResult.resourceCompletionTimeAverageByType![resourceType] = totalTime / completedCount;
-                        }
-                    });
-                });
-                return result;
-            },
-            objectType: "Resource",
             select: {
                 id: true,
                 completedAt: true,
@@ -154,6 +162,20 @@ async function batchResources(
                 ],
             },
         });
+        
+        // Calculate averages by type
+        Object.entries(result).forEach(([userId, currResult]) => {
+            if (!currResult || typeof userId !== "string") return;
+            
+            Object.entries(currResult.resourceCompletionTimeAverageByType).forEach(([resourceType, totalTime]) => {
+                const completedCount = currResult.resourcesCompletedByType[resourceType];
+                if (completedCount && completedCount > 0 && typeof totalTime === "number") {
+                    currResult.resourceCompletionTimeAverageByType[resourceType] = totalTime / completedCount;
+                }
+            });
+        });
+        
+        return result;
     } catch (error) {
         logger.error("batchResources caught error", { error });
     }
@@ -179,9 +201,23 @@ async function batchRuns(
         runContextSwitchesAverage: 0,
     }]));
     try {
-        return await batchGroup<Prisma.runFindManyArgs, BatchRunsResult>({
-            initialResult,
-            processBatch: async (batch, result) => {
+        // Define the run record type based on the select clause
+        type RunRecord = {
+            id: bigint;
+            user: {
+                id: bigint;
+            } | null;
+            completedAt: string | null;
+            contextSwitches: number | null;
+            startedAt: string | null;
+            timeElapsed: number | null;
+        };
+        
+        const result = initialResult;
+        
+        await batch<Prisma.runFindManyArgs, RunRecord>({
+            objectType: "Run",
+            processBatch: async (batch: RunRecord[]) => {
                 // For each run, increment the counts for the routine version
                 batch.forEach(run => {
                     const userId = run.user?.id;
@@ -197,22 +233,10 @@ async function batchRuns(
                     if (run.completedAt !== null && new Date(run.completedAt) >= new Date(periodStart)) {
                         currResult.runsCompleted += 1;
                         if (run.timeElapsed !== null) currResult.runCompletionTimeAverage += run.timeElapsed;
-                        currResult.runContextSwitchesAverage += run.contextSwitches;
+                        if (run.contextSwitches !== null) currResult.runContextSwitchesAverage += run.contextSwitches;
                     }
                 });
             },
-            finalizeResult: (result) => {
-                // For the averages, divide by the number of runs completed
-                Object.entries(result).forEach(([userId, currResult]) => {
-                    if (!currResult || typeof userId !== "string") return;
-                    if (currResult.runsCompleted > 0) {
-                        currResult.runCompletionTimeAverage /= currResult.runsCompleted;
-                        currResult.runContextSwitchesAverage /= currResult.runsCompleted;
-                    }
-                });
-                return result;
-            },
-            objectType: "Run",
             select: {
                 id: true,
                 user: {
@@ -231,6 +255,17 @@ async function batchRuns(
                 ],
             },
         });
+        
+        // For the averages, divide by the number of runs completed
+        Object.entries(result).forEach(([userId, currResult]) => {
+            if (!currResult || typeof userId !== "string") return;
+            if (currResult.runsCompleted > 0) {
+                currResult.runCompletionTimeAverage /= currResult.runsCompleted;
+                currResult.runContextSwitchesAverage /= currResult.runsCompleted;
+            }
+        });
+        
+        return result;
     } catch (error) {
         logger.error("batchRuns caught error", { error });
     }
@@ -251,7 +286,7 @@ export async function logUserStats(
     try {
         await batch<Prisma.userFindManyArgs, UserPayload>({
             objectType: "User",
-            processBatch: async (batch) => {
+            processBatch: async (batch: UserPayload[]) => {
                 // Get user ids, so we can query various tables for stats
                 const userIds = batch.map(user => user.id.toString());
                 // Batch collect stats
@@ -275,7 +310,7 @@ export async function logUserStats(
             select: userStatsSelect,
             where: {
                 updatedAt: {
-                    gte: new Date(new Date().getTime() - 1000 * 60 * 60 * 24 * 90).toISOString(),
+                    gte: new Date(new Date().getTime() - ACTIVITY_WINDOW_MS).toISOString(),
                 },
             },
         });

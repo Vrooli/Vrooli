@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { http, type RestHandler } from "msw";
+import { http, HttpResponse, type RequestHandler } from "msw";
 import type { 
     Tag, 
     TagCreateInput, 
@@ -73,14 +73,14 @@ export class TagResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique tag ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -244,20 +244,24 @@ export class TagResponseFactory {
         const defaultTag: Tag = {
             __typename: "Tag",
             id,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             tag: "example-tag",
             bookmarks: 0,
+            bookmarkedBy: [],
+            reports: [],
+            resources: [],
+            teams: [],
             translations: [{
                 __typename: "TagTranslation",
                 id: `trans_${id}`,
                 language: "en",
                 description: "An example tag for testing purposes",
             }],
-            translationsCount: 1,
             you: {
                 __typename: "TagYou",
                 isOwn: false,
+                isBookmarked: false,
             },
         };
         
@@ -278,14 +282,14 @@ export class TagResponseFactory {
             tag.tag = input.tag;
         }
         
-        if (input.translations?.create) {
-            tag.translations = input.translations.create.map(trans => ({
+        if (input.translationsCreate) {
+            tag.translations = input.translationsCreate.map(trans => ({
                 __typename: "TagTranslation" as const,
                 id: `trans_${this.generateId()}`,
                 language: trans.language,
                 description: trans.description || "",
             }));
-            tag.translationsCount = tag.translations.length;
+            // Remove translationsCount as it's not part of Tag type
         }
         
         return tag;
@@ -379,7 +383,6 @@ export class TagResponseFactory {
                         description: "Contenu international",
                     },
                 ],
-                translationsCount: 3,
             }),
         ];
     }
@@ -392,7 +395,7 @@ export class TagResponseFactory {
         errors?: Record<string, string>;
     }> {
         try {
-            await tagValidation.create.validate(input);
+            await tagValidation.create({}).validate(input);
             return { valid: true };
         } catch (error: any) {
             const fieldErrors: Record<string, string> = {};
@@ -428,18 +431,18 @@ export class TagMSWHandlers {
     /**
      * Create success handlers for all tag endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): RequestHandler[] {
         return [
             // Create tag
-            http.post(`${this.responseFactory["baseUrl"]}/api/tag`, async (req, res, ctx) => {
-                const body = await req.json() as TagCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/tag`, async ({ request, params }) => {
+                const body = await request.json() as TagCreateInput;
                 
                 // Validate input
                 const validation = await this.responseFactory.validateCreateInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
+                    return HttpResponse.json(
+                        this.responseFactory.createValidationErrorResponse(validation.errors || {}),
+                        { status: 400 }
                     );
                 }
                 
@@ -447,33 +450,27 @@ export class TagMSWHandlers {
                 const tag = this.responseFactory.createTagFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(tag);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 201 });
             }),
             
             // Get tag by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/tag/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/tag/:id`, ({ request, params }) => {
+                const { id } = params;
                 
                 const tag = this.responseFactory.createMockTag({ id: id as string });
                 const response = this.responseFactory.createSuccessResponse(tag);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Update tag
-            http.put(`${this.responseFactory["baseUrl"]}/api/tag/:id`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const body = await req.json() as TagUpdateInput;
+            http.put(`${this.responseFactory["baseUrl"]}/api/tag/:id`, async ({ request, params }) => {
+                const { id } = params;
+                const body = await request.json() as TagUpdateInput;
                 
                 const tag = this.responseFactory.createMockTag({ 
                     id: id as string,
-                    updated_at: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                 });
                 
                 // Apply updates from body
@@ -483,20 +480,17 @@ export class TagMSWHandlers {
                 
                 const response = this.responseFactory.createSuccessResponse(tag);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Delete tag
-            http.delete(`${this.responseFactory["baseUrl"]}/api/tag/:id`, (req, res, ctx) => {
-                return res(ctx.status(204));
+            http.delete(`${this.responseFactory["baseUrl"]}/api/tag/:id`, ({ request, params }) => {
+                return new HttpResponse(null, { status: 204 });
             }),
             
             // List tags
-            http.get(`${this.responseFactory["baseUrl"]}/api/tag`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/tag`, ({ request, params }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 const search = url.searchParams.get("search");
@@ -541,21 +535,15 @@ export class TagMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Get trending tags
-            http.get(`${this.responseFactory["baseUrl"]}/api/tag/trending`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/tag/trending`, ({ request, params }) => {
                 const tags = this.responseFactory.createTrendingTags();
                 const response = this.responseFactory.createTagListResponse(tags);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -563,40 +551,40 @@ export class TagMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): RequestHandler[] {
         return [
             // Validation error
-            http.post(`${this.responseFactory["baseUrl"]}/api/tag`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
+            http.post(`${this.responseFactory["baseUrl"]}/api/tag`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createValidationErrorResponse({
                         tag: "Tag name is required and must be unique",
-                    })),
+                    }),
+                    { status: 400 }
                 );
             }),
             
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/tag/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
+            http.get(`${this.responseFactory["baseUrl"]}/api/tag/:id`, ({ request, params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string),
+                    { status: 404 }
                 );
             }),
             
             // Permission error
-            http.post(`${this.responseFactory["baseUrl"]}/api/tag`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/tag`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("create"),
+                    { status: 403 }
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/tag`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/tag`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse(),
+                    { status: 500 }
                 );
             }),
         ];
@@ -605,18 +593,15 @@ export class TagMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/tag`, async (req, res, ctx) => {
-                const body = await req.json() as TagCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/tag`, async ({ request, params }) => {
+                const body = await request.json() as TagCreateInput;
                 const tag = this.responseFactory.createTagFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(tag);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return HttpResponse.json(response, { status: 201 });
             }),
         ];
     }
@@ -624,14 +609,14 @@ export class TagMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/tag`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/tag`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/tag/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/tag/:id`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -645,18 +630,17 @@ export class TagMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): RequestHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        const httpMethod = http[method.toLowerCase() as keyof typeof http] as any;
+        return httpMethod(fullEndpoint, async ({ request, params }) => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }

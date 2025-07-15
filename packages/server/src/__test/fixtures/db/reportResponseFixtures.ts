@@ -19,7 +19,7 @@ export const reportResponseDbIds = {
 /**
  * Minimal report response data for database creation
  */
-export const minimalReportResponseDb: Prisma.ReportResponseCreateInput = {
+export const minimalReportResponseDb: Prisma.report_responseCreateInput = {
     id: reportResponseDbIds.response1,
     actionSuggested: ReportSuggestedAction.NonIssue,
     language: "en",
@@ -30,7 +30,7 @@ export const minimalReportResponseDb: Prisma.ReportResponseCreateInput = {
 /**
  * Report response with details
  */
-export const reportResponseWithDetailsDb: Prisma.ReportResponseCreateInput = {
+export const reportResponseWithDetailsDb: Prisma.report_responseCreateInput = {
     id: reportResponseDbIds.response2,
     actionSuggested: ReportSuggestedAction.Delete,
     details: "This content violates community guidelines and should be removed immediately.",
@@ -42,7 +42,7 @@ export const reportResponseWithDetailsDb: Prisma.ReportResponseCreateInput = {
 /**
  * Complete report response with all features
  */
-export const completeReportResponseDb: Prisma.ReportResponseCreateInput = {
+export const completeReportResponseDb: Prisma.report_responseCreateInput = {
     id: reportResponseDbIds.response3,
     actionSuggested: ReportSuggestedAction.SuspendUser,
     details: "User has repeatedly posted inappropriate content. Previous warnings have been ignored. Recommend temporary suspension.",
@@ -54,7 +54,7 @@ export const completeReportResponseDb: Prisma.ReportResponseCreateInput = {
 /**
  * False report response
  */
-export const falseReportResponseDb: Prisma.ReportResponseCreateInput = {
+export const falseReportResponseDb: Prisma.report_responseCreateInput = {
     id: reportResponseDbIds.response4,
     actionSuggested: ReportSuggestedAction.FalseReport,
     details: "This report appears to be made in bad faith. The content does not violate any guidelines.",
@@ -66,7 +66,7 @@ export const falseReportResponseDb: Prisma.ReportResponseCreateInput = {
 /**
  * Hide until fixed response
  */
-export const hideUntilFixedResponseDb: Prisma.ReportResponseCreateInput = {
+export const hideUntilFixedResponseDb: Prisma.report_responseCreateInput = {
     id: reportResponseDbIds.response5,
     actionSuggested: ReportSuggestedAction.HideUntilFixed,
     details: "Content has minor issues that can be corrected. Hide temporarily until author fixes.",
@@ -82,8 +82,8 @@ export class ReportResponseDbFactory {
     static createMinimal(
         createdById: string,
         reportId: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>,
-    ): Prisma.ReportResponseCreateInput {
+        overrides?: Partial<Prisma.report_responseCreateInput>,
+    ): Prisma.report_responseCreateInput {
         return {
             id: generatePK(),
             actionSuggested: ReportSuggestedAction.NonIssue,
@@ -99,8 +99,8 @@ export class ReportResponseDbFactory {
         reportId: string,
         actionSuggested: ReportSuggestedAction,
         details: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>,
-    ): Prisma.ReportResponseCreateInput {
+        overrides?: Partial<Prisma.report_responseCreateInput>,
+    ): Prisma.report_responseCreateInput {
         return {
             id: generatePK(),
             actionSuggested,
@@ -115,8 +115,8 @@ export class ReportResponseDbFactory {
     static createComplete(
         createdById: string,
         reportId: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>,
-    ): Prisma.ReportResponseCreateInput {
+        overrides?: Partial<Prisma.report_responseCreateInput>,
+    ): Prisma.report_responseCreateInput {
         return {
             id: generatePK(),
             actionSuggested: ReportSuggestedAction.Delete,
@@ -135,8 +135,8 @@ export class ReportResponseDbFactory {
         createdById: string,
         reportId: string,
         details?: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>,
-    ): Prisma.ReportResponseCreateInput {
+        overrides?: Partial<Prisma.report_responseCreateInput>,
+    ): Prisma.report_responseCreateInput {
         return this.createWithDetails(
             createdById,
             reportId,
@@ -150,8 +150,8 @@ export class ReportResponseDbFactory {
         createdById: string,
         reportId: string,
         details?: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>,
-    ): Prisma.ReportResponseCreateInput {
+        overrides?: Partial<Prisma.report_responseCreateInput>,
+    ): Prisma.report_responseCreateInput {
         return this.createWithDetails(
             createdById,
             reportId,
@@ -165,8 +165,8 @@ export class ReportResponseDbFactory {
         createdById: string,
         reportId: string,
         details?: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>,
-    ): Prisma.ReportResponseCreateInput {
+        overrides?: Partial<Prisma.report_responseCreateInput>,
+    ): Prisma.report_responseCreateInput {
         return this.createWithDetails(
             createdById,
             reportId,
@@ -180,8 +180,8 @@ export class ReportResponseDbFactory {
         createdById: string,
         reportId: string,
         details?: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>,
-    ): Prisma.ReportResponseCreateInput {
+        overrides?: Partial<Prisma.report_responseCreateInput>,
+    ): Prisma.report_responseCreateInput {
         return this.createWithDetails(
             createdById,
             reportId,
@@ -195,8 +195,8 @@ export class ReportResponseDbFactory {
         createdById: string,
         reportId: string,
         details?: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>,
-    ): Prisma.ReportResponseCreateInput {
+        overrides?: Partial<Prisma.report_responseCreateInput>,
+    ): Prisma.report_responseCreateInput {
         return this.createWithDetails(
             createdById,
             reportId,
@@ -213,8 +213,8 @@ export class ReportResponseDbFactory {
         createdById: string,
         reportId: string,
         language: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>,
-    ): Prisma.ReportResponseCreateInput {
+        overrides?: Partial<Prisma.report_responseCreateInput>,
+    ): Prisma.report_responseCreateInput {
         const responses = {
             en: "Content violates community guidelines.",
             es: "El contenido viola las directrices de la comunidad.",

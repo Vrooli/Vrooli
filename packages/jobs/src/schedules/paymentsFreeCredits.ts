@@ -1,6 +1,7 @@
+// AI_CHECK: TASK_ID=TYPE_SAFETY COUNT=2 | LAST: 2025-07-04
 import { CreditEntryType, CreditSourceSystem, type Prisma } from "@prisma/client";
 import { batch, BusService, logger, Notify, SocketService, type BillingEvent } from "@vrooli/server";
-import { API_CREDITS_PREMIUM } from "@vrooli/shared";
+import { API_CREDITS_PREMIUM, EventTypes } from "@vrooli/shared";
 
 const MAX_MONTHS_ACCRUED = 6;
 /**
@@ -34,7 +35,7 @@ export async function paymentsCreditsFreePremium(): Promise<void> {
     try {
         await batch<Prisma.userFindManyArgs, FreeCreditsPayload>({
             objectType: "User",
-            processBatch: async (batch) => {
+            processBatch: async (batch: FreeCreditsPayload[]) => {
                 for (const user of batch) {
                     if (!user.plan || !user.creditAccount) {
                         continue;
@@ -83,18 +84,28 @@ export async function paymentsCreditsFreePremium(): Promise<void> {
 
                             // Notify user & emit socket event only after successful publish
                             if (API_CREDITS_PREMIUM > currentCredits) { // Notify if they were low and we added some
-                                Notify(user.languages).pushFreeCreditsReceived().toUser(user.id.toString());
+                                const notify = Notify(user.languages);
+                                if (notify && "pushFreeCreditsReceived" in notify && typeof notify.pushFreeCreditsReceived === "function") {
+                                    notify.pushFreeCreditsReceived().toUser(user.id.toString());
+                                }
                             }
                             // Emit the theoretical new balance. UI might take a moment to reflect actual balance updated by billing worker.
-                            SocketService.get().emitSocketEvent("apiCredits", user.id.toString(), { credits: theoreticalFinalCredits.toString() });
+                            SocketService.get().emitSocketEvent(EventTypes.USER.CREDITS_UPDATED, user.id.toString(), { userId: user.id.toString(), credits: theoreticalFinalCredits.toString() });
 
-                        } catch (publishError) {
-                            logger.error(`Failed to publish BillingEvent for user ${user.id}`, { error: publishError, eventId: billingEventId, userId: user.id, creditsToAdd, trace: "paymentsCreditsFreePremium_publishError" });
+                        } catch (publishError: unknown) {
+                            const errorMessage = publishError instanceof Error ? publishError.message : String(publishError);
+                            logger.error(`Failed to publish BillingEvent for user ${user.id}`, { 
+                                error: errorMessage, 
+                                eventId: billingEventId, 
+                                userId: user.id, 
+                                creditsToAdd: creditsToAdd.toString(), 
+                                trace: "paymentsCreditsFreePremium_publishError", 
+                            });
                             // Optionally, do not send notification or socket event if publish fails
                         }
                     } else {
                         // No credits to add, but still emit socket event with current (unchanged) balance for UI consistency if user is online
-                        SocketService.get().emitSocketEvent("apiCredits", user.id.toString(), { credits: currentCredits.toString() });
+                        SocketService.get().emitSocketEvent(EventTypes.USER.CREDITS_UPDATED, user.id.toString(), { userId: user.id.toString(), credits: currentCredits.toString() });
                     }
                 }
             },
@@ -103,7 +114,11 @@ export async function paymentsCreditsFreePremium(): Promise<void> {
                 isBot: false,
             },
         });
-    } catch (error) {
-        logger.error("Error in paymentsCreditsFreePremium job", { error, trace: "paymentsCreditsFreePremium_jobError" });
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error("Error in paymentsCreditsFreePremium job", { 
+            error: errorMessage, 
+            trace: "paymentsCreditsFreePremium_jobError", 
+        });
     }
 }

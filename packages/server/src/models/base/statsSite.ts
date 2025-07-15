@@ -29,10 +29,10 @@ export const StatsSiteModel: StatsSiteModelLogic = ({
     },
     validate: () => ({
         isDeleted: () => false,
-        isPublic: () => true,
+        isPublic: (_data, _getParentInfo?) => true,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: () => ({}),
+        owner: (_data, _userId) => ({}),
         permissionResolvers: (params) => defaultPermissions({ ...params, isAdmin: false }), // Force isAdmin false, since there is no "visibility.owner" query
         permissionsSelect: () => ({
             id: true,

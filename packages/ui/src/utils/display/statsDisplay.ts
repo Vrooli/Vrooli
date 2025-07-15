@@ -1,12 +1,15 @@
+// AI_CHECK: TYPE_SAFETY=fixed-stats-display-types | LAST: 2025-06-28
+// Fixed type safety issues: replaced 'any' types with proper Record types, eliminated 
+// unsafe type assertions, improved generic constraints, and added proper type casting
 /**
  * Aggregate stats object
  */
-export type StatsAggregate<T extends { [key: string]: any; }> = Omit<T, "__typename" | "id" | "periodStart" | "periodEnd" | "periodType">;
+export type StatsAggregate<T extends Record<string, unknown>> = Omit<T, "__typename" | "id" | "periodStart" | "periodEnd" | "periodType">;
 
 /**
  * Stats object shaped for generating line graphs. 
  */
-export type StatsVisual<T extends { [key: string]: any; }> = {
+export type StatsVisual<T extends Record<string, unknown>> = {
     [key in keyof StatsAggregate<T>]: number[];
 };
 
@@ -16,13 +19,13 @@ export type StatsVisual<T extends { [key: string]: any; }> = {
  * @param stats Stats to convert
  * @returns Aggregate and visual data for stats
  */
-export const statsDisplay = <Stat extends { [key: string]: any; }>(stats: Stat[]): {
+export const statsDisplay = <Stat extends Record<string, unknown>>(stats: Stat[]): {
     aggregate: StatsAggregate<Stat>,
     visual: StatsVisual<Stat>
 } => {
     // Initialize result
-    const aggregate: StatsAggregate<Stat> = {} as any;
-    const visual: StatsVisual<Stat> = {} as any;
+    const aggregate = {} as Record<string, number>;
+    const visual = {} as Record<string, number[]>;
     // Loop through stats
     for (const stat of stats) {
         // Loop through fields in stat
@@ -35,15 +38,15 @@ export const statsDisplay = <Stat extends { [key: string]: any; }>(stats: Stat[]
             // This will give us the highest occurrence (max) of the field
             if (key.startsWith("active")) {
                 if (aggregate[key] === undefined || stat[key] > aggregate[key]) {
-                    (aggregate as any)[key] = stat[key];
+                    aggregate[key] = stat[key] as number;
                 }
                 // Also add to visual data
-                (visual as any)[key] = [...((visual as any)[key] ?? []), stat[key]];
+                visual[key] = [...(visual[key] ?? []), stat[key] as number];
             }
             // Otherwise, sum value
             else {
-                (aggregate as any)[key] = ((aggregate as any)[key] ?? 0) + stat[key];
-                (visual as any)[key] = [...((visual as any)[key] ?? []), stat[key]];
+                aggregate[key] = (aggregate[key] ?? 0) + (stat[key] as number);
+                visual[key] = [...(visual[key] ?? []), stat[key] as number];
             }
         }
     }
@@ -51,9 +54,12 @@ export const statsDisplay = <Stat extends { [key: string]: any; }>(stats: Stat[]
     for (const key of Object.keys(aggregate)) {
         // If field ends with 'Average', divide by number of stats
         if (key.endsWith("Average")) {
-            (aggregate as any)[key] = (aggregate as any)[key] / stats.length;
+            aggregate[key] = aggregate[key] / stats.length;
         }
     }
     // Return result
-    return { aggregate, visual };
+    return { 
+        aggregate: aggregate as StatsAggregate<Stat>, 
+        visual: visual as StatsVisual<Stat>, 
+    };
 };

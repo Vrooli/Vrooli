@@ -14,6 +14,9 @@ import { seedTestChat } from "../../__test/fixtures/db/chatFixtures.js";
 import { UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
 import { chatTestDataFactory } from "@vrooli/shared";
+// Import new cleanup helpers
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsChat", () => {
     beforeAll(async () => {
@@ -23,15 +26,11 @@ describe("EndpointsChat", () => {
     });
 
     beforeEach(async () => {
-        // Clean up tables used in tests
-        const prisma = DbProvider.get();
-        await prisma.chat_invite.deleteMany();
-        await prisma.chat_message.deleteMany();
-        await prisma.chat_participants.deleteMany();
-        await prisma.chat.deleteMany();
-        await prisma.user.deleteMany();
+        // Clean up tables used in tests - chat tests need chat system cleanup
+        await cleanupGroups.chat(DbProvider.get());
         
         // Create admin user that some tests expect
+        const prisma = DbProvider.get();
         await prisma.user.create({
             data: {
                 id: generatePK(),
@@ -42,6 +41,17 @@ describe("EndpointsChat", () => {
                 theme: "light",
             },
         });
+    });
+
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["chat", "chat_message", "chat_participants", "chat_invite", "user"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn("Chat test cleanup incomplete:", orphans);
+        }
     });
 
     afterAll(async () => {

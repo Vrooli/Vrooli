@@ -2,8 +2,7 @@ import { useField, useFormikContext } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getTranslationData } from "../../utils/display/translationTools.js";
-import { LargeDialog } from "../dialogs/LargeDialog/LargeDialog.js";
-import { TopBar } from "../navigation/TopBar.js";
+import { Dialog } from "../dialogs/Dialog/Dialog.js";
 import { Title } from "./Title.js";
 import { type TitleProps } from "./types.js";
 
@@ -95,17 +94,14 @@ export function EditableTitle({
                 {...titleProps}
                 options={titleOptions}
             />
-            <LargeDialog
-                id="editable-title-dialog"
+            <Dialog
                 isOpen={isDialogOpen}
                 onClose={handleClose}
+                size="md"
+                showCloseButton={true}
             >
-                <TopBar
-                    display="Dialog"
-                    onClose={handleClose}
-                />
                 {DialogContentForm(formik)}
-            </LargeDialog>
+            </Dialog>
         </>
     );
 }

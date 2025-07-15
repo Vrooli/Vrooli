@@ -4,6 +4,7 @@
 import { ScheduleRecurrenceType, endpointsSchedule, generatePK, getObjectUrl, type Schedule, type ScheduleException, type ScheduleRecurrence } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
+import { getMockUrl, getStoryRouteEditPath } from "../../../__test/helpers/storybookMocking.js";
 import { ScheduleUpsert } from "./ScheduleUpsert.js";
 
 // Create simplified mock data for Schedule responses
@@ -123,13 +124,13 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsSchedule.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsSchedule.findOne), () => {
                 return HttpResponse.json({ data: mockScheduleData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockScheduleData)}/edit`,
+        path: getStoryRouteEditPath(mockScheduleData),
     },
 };
 
@@ -154,13 +155,13 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsSchedule.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsSchedule.findOne), () => {
                 return HttpResponse.json({ data: mockScheduleData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockScheduleData)}/edit`,
+        path: getStoryRouteEditPath(mockScheduleData),
     },
 };
 
@@ -174,7 +175,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsSchedule.findOne.endpoint}`, async () => {
+            http.get(getMockUrl(endpointsSchedule.findOne), async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockScheduleData });
@@ -182,7 +183,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockScheduleData)}/edit`,
+        path: getStoryRouteEditPath(mockScheduleData),
     },
 };
 

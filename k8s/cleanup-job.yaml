@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: docker-cleanup-job
+  namespace: kube-system
+spec:
+  parallelism: 3  # Run on all 3 nodes simultaneously
+  completions: 3
+  template:
+    spec:
+      hostNetwork: true
+      hostPID: true
+      tolerations:
+      - operator: Exists
+      containers:
+      - name: cleanup
+        image: alpine:latest
+        command: ["/bin/sh"]
+        args: 
+        - "-c"
+        - |
+          echo "Starting Docker/containerd cleanup..."
+          nsenter -t 1 -m -u -n -i -p -- /bin/sh -c "
+            echo 'Cleaning up unused images...'
+            crictl rmi --prune 2>/dev/null || echo 'crictl cleanup completed'
+            docker system prune -af --volumes 2>/dev/null || echo 'docker cleanup completed'
+            echo 'Node cleanup finished successfully'
+          "
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: host-root
+          mountPath: /host
+      volumes:
+      - name: host-root
+        hostPath:
+          path: /
+      restartPolicy: Never

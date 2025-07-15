@@ -1,4 +1,5 @@
-import { generatePK, generatePublicId } from "@vrooli/shared";
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
+import { generatePublicId } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -34,11 +35,12 @@ interface MeetingRelationConfig extends RelationConfig {
  * - Predefined test scenarios
  */
 export class MeetingDbFactory extends EnhancedDatabaseFactory<
-    Prisma.MeetingCreateInput,
-    Prisma.MeetingCreateInput,
-    Prisma.MeetingInclude,
-    Prisma.MeetingUpdateInput
+    meeting,
+    Prisma.meetingCreateInput,
+    Prisma.meetingInclude,
+    Prisma.meetingUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
         super("Meeting", prisma);
         this.initializeScenarios();
@@ -51,17 +53,17 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get complete test fixtures for Meeting model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.MeetingCreateInput, Prisma.MeetingUpdateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.meetingCreateInput, Prisma.meetingUpdateInput> {
         return {
             minimal: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 publicId: generatePublicId(),
                 openToAnyoneWithInvite: false,
                 showOnTeamProfile: false,
                 team: { connect: { id: "team-123" } },
             },
             complete: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 publicId: generatePublicId(),
                 openToAnyoneWithInvite: true,
                 showOnTeamProfile: true,
@@ -70,14 +72,14 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
                 translations: {
                     create: [
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             name: "Weekly Team Standup",
                             description: "Weekly synchronization meeting for the entire team",
                             link: "https://meet.example.com/team-standup",
                         },
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "es",
                             name: "Reunión Semanal del Equipo",
                             description: "Reunión de sincronización semanal para todo el equipo",
@@ -100,14 +102,14 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
                     team: null, // Should be object
                 },
                 conflictingSettings: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     openToAnyoneWithInvite: true,
                     showOnTeamProfile: false, // Odd to be open but not shown
                     team: { connect: { id: "team-conflict" } },
                 },
                 missingTeam: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     openToAnyoneWithInvite: false,
                     showOnTeamProfile: false,
@@ -116,21 +118,21 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
             },
             edgeCases: {
                 publicMeeting: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     openToAnyoneWithInvite: true,
                     showOnTeamProfile: true,
                     team: { connect: { id: "team-public" } },
                 },
                 privateMeeting: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     openToAnyoneWithInvite: false,
                     showOnTeamProfile: false,
                     team: { connect: { id: "team-private" } },
                 },
                 recurringMeeting: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     openToAnyoneWithInvite: false,
                     showOnTeamProfile: true,
@@ -138,14 +140,14 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
                     schedule: { connect: { id: "schedule-recurring" } },
                 },
                 unicodeMeeting: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     openToAnyoneWithInvite: true,
                     showOnTeamProfile: true,
                     team: { connect: { id: "team-unicode" } },
                     translations: {
                         create: [{
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             name: "International Meeting 🌍 会议",
                             description: "Global team sync with participants from around the world",
@@ -154,7 +156,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 maxAttendeesMeeting: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     openToAnyoneWithInvite: true,
                     showOnTeamProfile: true,
@@ -184,9 +186,9 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateMinimalData(overrides?: Partial<Prisma.MeetingCreateInput>): Prisma.MeetingCreateInput {
+    protected generateMinimalData(overrides?: Partial<Prisma.meetingCreateInput>): Prisma.meetingCreateInput {
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             publicId: generatePublicId(),
             openToAnyoneWithInvite: false,
             showOnTeamProfile: false,
@@ -194,16 +196,16 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateCompleteData(overrides?: Partial<Prisma.MeetingCreateInput>): Prisma.MeetingCreateInput {
+    protected generateCompleteData(overrides?: Partial<Prisma.meetingCreateInput>): Prisma.meetingCreateInput {
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             publicId: generatePublicId(),
             openToAnyoneWithInvite: true,
             showOnTeamProfile: true,
             translations: {
                 create: [
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         language: "en",
                         name: "Team Meeting",
                         description: "Regular team synchronization meeting",
@@ -228,7 +230,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
                         openToAnyoneWithInvite: false,
                         showOnTeamProfile: true,
                     },
-                    team: { teamId: "team-standup" },
+                    team: { team: { connect: { id: this.generateId() } } },
                     translations: [{
                         language: "en",
                         name: "Daily Standup",
@@ -236,9 +238,9 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
                         link: "https://meet.example.com/standup",
                     }],
                     attendees: [
-                        { userId: "team-lead" },
-                        { userId: "developer-1" },
-                        { userId: "developer-2" },
+                        { user: { connect: { id: this.generateId() } } },
+                        { user: { connect: { id: this.generateId() } } },
+                        { user: { connect: { id: this.generateId() } } },
                     ],
                 },
             },
@@ -250,7 +252,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
                         openToAnyoneWithInvite: true,
                         showOnTeamProfile: true,
                     },
-                    team: { teamId: "team-webinar" },
+                    team: { team: { connect: { id: this.generateId() } } },
                     translations: [{
                         language: "en",
                         name: "Product Launch Webinar",
@@ -267,16 +269,16 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
                         openToAnyoneWithInvite: false,
                         showOnTeamProfile: false,
                     },
-                    team: { teamId: "team-executive" },
+                    team: { team: { connect: { id: this.generateId() } } },
                     translations: [{
                         language: "en",
                         name: "Q4 Strategy Session",
                         description: "Executive team strategy planning",
                     }],
                     attendees: [
-                        { userId: "ceo" },
-                        { userId: "cto" },
-                        { userId: "cfo" },
+                        { user: { connect: { id: this.generateId() } } },
+                        { user: { connect: { id: this.generateId() } } },
+                        { user: { connect: { id: this.generateId() } } },
                     ],
                 },
             },
@@ -288,7 +290,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
                         openToAnyoneWithInvite: false,
                         showOnTeamProfile: true,
                     },
-                    team: { teamId: "team-weekly" },
+                    team: { team: { connect: { id: this.generateId() } } },
                     schedule: { scheduleId: "schedule-weekly" },
                     translations: [{
                         language: "en",
@@ -306,7 +308,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
                         openToAnyoneWithInvite: true,
                         showOnTeamProfile: false,
                     },
-                    team: { teamId: "team-sales" },
+                    team: { team: { connect: { id: this.generateId() } } },
                     translations: [{
                         language: "en",
                         name: "Product Demo",
@@ -314,15 +316,15 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
                         link: "https://meet.example.com/demo",
                     }],
                     invites: [
-                        { userId: "client-1", message: "Looking forward to showing you our product!" },
-                        { userId: "client-2", message: "Please join us for the demo" },
+                        { user: { connect: { id: this.generateId() } }, message: "Looking forward to showing you our product!" },
+                        { user: { connect: { id: this.generateId() } }, message: "Please join us for the demo" },
                     ],
                 },
             },
         };
     }
 
-    protected getDefaultInclude(): Prisma.MeetingInclude {
+    protected getDefaultInclude(): Prisma.meetingInclude {
         return {
             team: {
                 select: {
@@ -377,10 +379,10 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async applyRelationships(
-        baseData: Prisma.MeetingCreateInput,
+        baseData: Prisma.meetingCreateInput,
         config: MeetingRelationConfig,
-        tx: any,
-    ): Promise<Prisma.MeetingCreateInput> {
+        tx: PrismaClient,
+    ): Promise<Prisma.meetingCreateInput> {
         const data = { ...baseData };
 
         // Handle team connection (required)
@@ -403,7 +405,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
         if (config.attendees && Array.isArray(config.attendees)) {
             data.attendees = {
                 create: config.attendees.map(attendee => ({
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     userId: attendee.userId,
                 })),
             };
@@ -413,7 +415,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
         if (config.invites && Array.isArray(config.invites)) {
             data.invites = {
                 create: config.invites.map(invite => ({
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     userId: invite.userId,
                     status: "Pending",
                     message: invite.message || "You're invited to join our meeting",
@@ -425,7 +427,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
         if (config.translations && Array.isArray(config.translations)) {
             data.translations = {
                 create: config.translations.map(trans => ({
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     ...trans,
                 })),
             };
@@ -488,9 +490,9 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
      * Add attendees to a meeting
      */
     async addAttendees(meetingId: string, userIds: string[]): Promise<void> {
-        await this.prisma.meetingAttendee.createMany({
+        await this.prisma.meeting_attendee.createMany({
             data: userIds.map(userId => ({
-                id: generatePK().toString(),
+                id: this.generateId(),
                 meetingId,
                 userId,
             })),
@@ -502,7 +504,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
      * Remove attendee from meeting
      */
     async removeAttendee(meetingId: string, userId: string): Promise<void> {
-        await this.prisma.meetingAttendee.deleteMany({
+        await this.prisma.meeting_attendee.deleteMany({
             where: {
                 meetingId,
                 userId,
@@ -517,9 +519,9 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
         meetingId: string,
         invites: Array<{ userId: string; message?: string }>,
     ): Promise<void> {
-        await this.prisma.meetingInvite.createMany({
+        await this.prisma.meeting_invite.createMany({
             data: invites.map(invite => ({
-                id: generatePK().toString(),
+                id: this.generateId(),
                 meetingId,
                 userId: invite.userId,
                 status: "Pending",
@@ -558,7 +560,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
         }
 
         // Check attendee limit (hypothetical)
-        const attendeeCount = await this.prisma.meetingAttendee.count({
+        const attendeeCount = await this.prisma.meeting_attendee.count({
             where: { meetingId: record.id },
         });
         
@@ -582,7 +584,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
     protected async deleteRelatedRecords(
         record: Prisma.Meeting,
         remainingDepth: number,
-        tx: any,
+        tx: PrismaClient,
         includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
@@ -593,7 +595,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
         
         // Delete invites
         if (shouldDelete("invites") && record.invites?.length) {
-            await tx.meetingInvite.deleteMany({
+            await tx.meeting_invite.deleteMany({
                 where: { meetingId: record.id },
             });
         }
@@ -607,14 +609,14 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
 
         // Delete subscriptions
         if (shouldDelete("subscriptions") && record.subscriptions?.length) {
-            await tx.notificationSubscription.deleteMany({
+            await tx.notification_subscription.deleteMany({
                 where: { meetingId: record.id },
             });
         }
 
         // Delete translations
         if (shouldDelete("translations") && record.translations?.length) {
-            await tx.meetingTranslation.deleteMany({
+            await tx.meeting_translation.deleteMany({
                 where: { meetingId: record.id },
             });
         }
@@ -704,7 +706,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createMeetingDbFactory = (prisma: PrismaClient) => 
-    MeetingDbFactory.getInstance("Meeting", prisma);
+    new MeetingDbFactory(prisma);
 
 // Export the class for type usage
 export { MeetingDbFactory as MeetingDbFactoryClass };

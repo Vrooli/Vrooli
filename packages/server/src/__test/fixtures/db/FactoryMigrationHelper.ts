@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient in generated code
 import { generatePK, generatePublicId } from "@vrooli/shared";
 import { DatabaseFixtureFactory } from "./DatabaseFixtureFactory.js";
 import type { DbTestFixtures } from "./types.js";
@@ -62,7 +63,7 @@ export class ${modelName}DbFactory extends DatabaseFixtureFactory<
     protected async applyRelationships(
         baseData: Prisma.${modelName}CreateInput,
         config: RelationConfig,
-        tx: any
+        tx: PrismaClient
     ): Promise<Prisma.${modelName}CreateInput> {
         let data = { ...baseData };
 
@@ -116,7 +117,7 @@ export const ${modelName.toLowerCase()}DbFactory = (prisma: PrismaClient) => new
             Object.entries(obj).forEach(([key, value]) => {
                 if (key.endsWith("Settings") || key.endsWith("Config")) {
                     const configName = key.replace("Settings", "").replace("Config", "");
-                    imports.add(`import { ${configName}ConfigFixtures } from "@vrooli/shared/test-fixtures";`);
+                    imports.add(`import { ${configName}ConfigFixtures } from "../../../../../shared/src/__test/fixtures/config/${configName}ConfigFixtures.js";`);
                 } else if (typeof value === "object") {
                     checkForConfigs(value);
                 }
@@ -174,7 +175,7 @@ export const ${modelName.toLowerCase()}DbFactory = (prisma: PrismaClient) => new
             data.emails = {
                 create: [{
                     id: generatePK(),
-                    emailAddress: \`test_\${nanoid(6)}@example.com\`,
+                    emailAddress: \`test_\${nanoid()}@example.com\`,
                     verifiedAt: new Date(),
                 }]
             };

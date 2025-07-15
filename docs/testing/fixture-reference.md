@@ -100,7 +100,7 @@ const result = await factoryChain.orchestrator.executeFullCycle(formData);
 
 ## API Fixtures
 
-Located in `packages/shared/src/__test/fixtures/api/`
+Located in `packages/shared/src/__test/fixtures/api-inputs/`
 
 ### Available Object Types (41 total)
 
@@ -147,7 +147,7 @@ Located in `packages/shared/src/__test/fixtures/api/`
 
 ```typescript
 // Import specific fixtures
-import { userFixtures, projectFixtures } from "@vrooli/shared/__test/fixtures/api";
+import { userFixtures, projectFixtures } from "@vrooli/shared";
 
 // Use minimal variant
 const user = userFixtures.minimal.create;
@@ -732,7 +732,7 @@ Legend:
 
 ```typescript
 // ✅ GOOD: Import what you need
-import { userFixtures, teamFixtures } from "@vrooli/shared/__test/fixtures/api";
+import { userFixtures, teamFixtures } from "@vrooli/shared";
 
 // ❌ BAD: Import everything
 import * as fixtures from "@vrooli/shared/__test/fixtures";

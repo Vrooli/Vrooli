@@ -1,3 +1,4 @@
+// AI_CHECK: TASK_ID=type-safety-fixes | LAST: 2025-06-29
 import { SECONDS_1_MS, type TimeFrame } from "@vrooli/shared";
 
 type TimeFrameWhereQuery = {
@@ -14,7 +15,7 @@ type TimeFrameWhereQuery = {
  * @returns Prisma "where" query if any time frame fields are defined, undefined otherwise
  */
 export function timeFrameToPrisma(fieldName: string, time?: TimeFrame | null | undefined): TimeFrameWhereQuery | undefined {
-    function safeTimeFrame<T extends TimeFrame>(time: T | null | undefined): T | undefined {
+    function safeTimeFrame(time: TimeFrame | null | undefined): TimeFrameWhereQuery | undefined {
         if (!time || typeof time !== "object") return undefined;
         const where: TimeFrameWhereQuery = ({ [fieldName]: {} });
 
@@ -42,7 +43,7 @@ export function timeFrameToPrisma(fieldName: string, time?: TimeFrame | null | u
             }
         }
 
-        if (Object.keys(where[fieldName]).length > 0) return where as T;
+        if (Object.keys(where[fieldName]).length > 0) return where;
         return undefined;
     }
     const where = safeTimeFrame(time);

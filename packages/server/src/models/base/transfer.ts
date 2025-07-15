@@ -1,11 +1,11 @@
-import { DEFAULT_LANGUAGE, type ModelType, type SessionUser, type TransferObjectType, type TransferRequestReceiveInput, type TransferRequestSendInput, TransferSortBy, transferValidation } from "@vrooli/shared";
+import { DEFAULT_LANGUAGE, generatePK, MaxObjects, type ModelType, type SessionUser, type TransferObjectType, type TransferRequestReceiveInput, type TransferRequestSendInput, TransferSortBy, transferValidation } from "@vrooli/shared";
 import i18next from "i18next";
 import { noNull } from "../../builders/noNull.js";
 import { permissionsSelectHelper } from "../../builders/permissionsSelectHelper.js";
 import { type PartialApiInfo, type PrismaDelegate } from "../../builders/types.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
-import { getSingleTypePermissions, isOwnerAdminCheck } from "../../validators/permissions.js";
+import { defaultPermissions, getSingleTypePermissions, isOwnerAdminCheck, type OwnerData, type RawOwnerData } from "../../validators/permissions.js";
 import { TransferFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
@@ -14,15 +14,37 @@ import { type TeamModelLogic, type TransferModelInfo, type TransferModelLogic, t
 const __typename = "Transfer" as const;
 
 /**
+ * Helper function to convert owner data with bigint IDs to string IDs
+ */
+function convertOwnerBigIntToString(owner: RawOwnerData | null | undefined): OwnerData | null {
+    if (!owner) return null;
+
+    const result: OwnerData = {};
+
+    if (owner.User) {
+        result.User = {
+            id: owner.User.id.toString(),
+        };
+    }
+
+    if (owner.Team) {
+        result.Team = {
+            id: owner.Team.id.toString(),
+            members: owner.Team.members?.map((member) => ({
+                userId: member.userId.toString(),
+                isAdmin: member.isAdmin,
+            })),
+        };
+    }
+
+    return result;
+}
+
+/**
  * Maps a transferable object type to its field name in the database
  */
 export const TransferableFieldMap: { [x in TransferObjectType]: string } = {
-    Api: "api",
-    Code: "code",
-    Note: "note",
-    Project: "project",
-    Routine: "routine",
-    Standard: "standard",
+    Resource: "resource",
 };
 
 /**
@@ -63,7 +85,7 @@ export function transfer() {
             });
             const isAdmins: boolean[] = orgIds.map(id => adminData.some(t => t.id === BigInt(id)));
             // Create return list
-            const requiresTransferRequest: boolean[] = owners.map((o, i) => {
+            const requiresTransferRequest: boolean[] = owners.map((o) => {
                 // If owner is a user, transfer is required if user is not the same as the session user
                 if (o.__typename === "User") return o.id !== userData.id;
                 // If owner is a team, transfer is required if user is not an admin
@@ -87,7 +109,8 @@ export function transfer() {
                 where: { id: BigInt(object.id) },
                 select: permissionsSelectHelper(validate().permissionsSelect, userData.id),
             });
-            const owner = permissionData && validate().owner(permissionData, userData.id);
+            const rawOwner = permissionData && validate().owner(permissionData, userData.id);
+            const owner = convertOwnerBigIntToString(rawOwner);
             // Check if user is allowed to transfer this object
             if (!owner || !isOwnerAdminCheck(owner, userData.id))
                 throw new CustomError("0286", "NotAuthorizedToTransfer");
@@ -97,6 +120,7 @@ export function transfer() {
             // Create transfer request
             const request = await DbProvider.get().transfer.create({
                 data: {
+                    id: generatePK(),
                     fromUser: owner.User ? { connect: { id: BigInt(owner.User.id) } } : undefined,
                     fromTeam: owner.Team ? { connect: { id: BigInt(owner.Team.id) } } : undefined,
                     [TransferableFieldMap[object.__typename]]: { connect: { id: BigInt(object.id) } },
@@ -109,11 +133,11 @@ export function transfer() {
             });
             // Notify user/org that is receiving the object
             const { Notify } = await import("../../notify/notify.js");
-            const pushNotification = Notify(userData.languages).pushTransferRequestSend(request.id, object.__typename, object.id);
+            const pushNotification = Notify(userData.languages).pushTransferRequestSend(request.id.toString(), object.__typename, object.id);
             if (toType === "User") await pushNotification.toUser(toId);
             else await pushNotification.toTeam(toId);
             // Return the transfer request ID
-            return request.id;
+            return request.id.toString();
         },
         /**
          * Initiates a transfer request from an object someone else owns, to you
@@ -157,9 +181,11 @@ export function transfer() {
                     where: { id: transfer.fromTeamId },
                     select: permissionsSelectHelper(validate().permissionsSelect, userData.id),
                 });
-                if (!permissionData || !isOwnerAdminCheck(validate().owner(permissionData, userData.id), userData.id))
+                const rawOwner = validate().owner(permissionData, userData.id);
+                const owner = convertOwnerBigIntToString(rawOwner);
+                if (!permissionData || !owner || !isOwnerAdminCheck(owner, userData.id))
                     throw new CustomError("0300", "TransferRejectNotAuthorized");
-            } else if (transfer.fromUserId !== userData.id) {
+            } else if (transfer.fromUserId !== BigInt(userData.id)) {
                 throw new CustomError("0301", "TransferRejectNotAuthorized");
             }
             // Delete transfer request
@@ -191,20 +217,17 @@ export function transfer() {
                     where: { id: transfer.toTeamId },
                     select: permissionsSelectHelper(validate().permissionsSelect, userData.id),
                 });
-                if (!permissionData || !isOwnerAdminCheck(validate().owner(permissionData, userData.id), userData.id))
+                const rawOwner = validate().owner(permissionData, userData.id);
+                const owner = convertOwnerBigIntToString(rawOwner);
+                if (!permissionData || !owner || !isOwnerAdminCheck(owner, userData.id))
                     throw new CustomError("0302", "TransferAcceptNotAuthorized");
-            } else if (transfer.toUserId !== userData.id) {
+            } else if (transfer.toUserId !== BigInt(userData.id)) {
                 throw new CustomError("0303", "TransferAcceptNotAuthorized");
             }
             // Transfer object, then mark transfer request as accepted
             // Find the object type, based on which relation is not null
             const typeField = [
-                "apiId",
-                "codeId",
-                "noteId",
-                "projectId",
-                "routineId",
-                "standardId",
+                "resourceId",
             ].find((field) => transfer[field] !== null);
             if (!typeField)
                 throw new CustomError("0290", "TransferMissingData");
@@ -252,19 +275,16 @@ export function transfer() {
                     where: { id: transfer.toTeamId },
                     select: permissionsSelectHelper(validate().permissionsSelect, userData.id),
                 });
-                if (!permissionData || !isOwnerAdminCheck(validate().owner(permissionData, userData.id), userData.id))
+                const rawOwner = validate().owner(permissionData, userData.id);
+                const owner = convertOwnerBigIntToString(rawOwner);
+                if (!permissionData || !owner || !isOwnerAdminCheck(owner, userData.id))
                     throw new CustomError("0312", "TransferRejectNotAuthorized");
-            } else if (transfer.toUserId !== userData.id) {
+            } else if (transfer.toUserId !== BigInt(userData.id)) {
                 throw new CustomError("0313", "TransferRejectNotAuthorized");
             }
             // Find the object type, based on which relation is not null
             const typeField = [
-                "apiId",
-                "codeId",
-                "noteId",
-                "projectId",
-                "routineId",
-                "standardId",
+                "resourceId",
             ].find((field) => transfer[field] !== null);
             if (!typeField)
                 throw new CustomError("0290", "TransferMissingData");
@@ -316,14 +336,9 @@ export const TransferModel: TransferModelLogic = ({
         defaultSort: TransferSortBy.DateCreatedDesc,
         sortBy: TransferSortBy,
         searchFields: {
-            apiId: true,
-            codeId: true,
+            resourceId: true,
             createdTimeFrame: true,
             fromTeamId: true,
-            noteId: true,
-            projectId: true,
-            routineId: true,
-            standardId: true,
             status: true,
             toTeamId: true,
             toUserId: true,
@@ -350,5 +365,75 @@ export const TransferModel: TransferModelLogic = ({
         },
     },
     transfer,
-    validate: () => ({}) as any,
+    validate: () => ({
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: (userId) => ({
+            id: true,
+            fromTeam: { select: { id: true } },
+            fromUser: { select: { id: true } },
+            toTeam: { select: { id: true } },
+            toUser: { select: { id: true } },
+            status: true,
+        }),
+        permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => ({
+            ...defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic }),
+            canRead: () => {
+                if (!isLoggedIn || !userId) return false;
+                const userIdBigInt = BigInt(userId);
+                // User can read if they are involved in the transfer (sender or receiver)
+                return (
+                    data.fromUser?.id === userIdBigInt ||
+                    data.toUser?.id === userIdBigInt ||
+                    data.fromTeam?.id === userIdBigInt ||
+                    data.toTeam?.id === userIdBigInt
+                );
+            },
+            canUpdate: () => isLoggedIn && isAdmin,
+            canDelete: () => isLoggedIn && isAdmin,
+        }),
+        visibility: {
+            own: function getOwn(data) {
+                return {
+                    OR: [
+                        { fromUser: { id: BigInt(data.userId) } },
+                        { toUser: { id: BigInt(data.userId) } },
+                        { fromTeam: { members: { some: { user: { id: BigInt(data.userId) } } } } },
+                        { toTeam: { members: { some: { user: { id: BigInt(data.userId) } } } } },
+                    ],
+                };
+            },
+            ownOrPublic: function getOwnOrPublic(data) {
+                // Transfers are never truly public, so this is the same as own
+                return {
+                    OR: [
+                        { fromUser: { id: BigInt(data.userId) } },
+                        { toUser: { id: BigInt(data.userId) } },
+                        { fromTeam: { members: { some: { user: { id: BigInt(data.userId) } } } } },
+                        { toTeam: { members: { some: { user: { id: BigInt(data.userId) } } } } },
+                    ],
+                };
+            },
+            ownPrivate: null, // Not applicable for transfers
+            ownPublic: null,  // Not applicable for transfers
+            public: null,     // Transfers are never public
+        },
+        owner: (data, _userId) => {
+            // Return the owner of the transfer (who initiated it)
+            if (!data) return {};
+            if (data.fromUser) {
+                return { User: { id: data.fromUser.id } };
+            }
+            if (data.fromTeam) {
+                return { Team: { id: data.fromTeam.id } };
+            }
+            return {};
+        },
+        isDeleted: () => false,
+        isPublic: (_data, _getParentInfo?) => {
+            // Transfers are never truly "public" - they're only visible to involved parties
+            // This is handled by permission resolvers, so we return false here
+            return false;
+        },
+    }),
 });

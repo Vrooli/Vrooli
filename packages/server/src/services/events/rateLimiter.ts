@@ -9,20 +9,15 @@
  * ensures fair usage across the three-tier execution architecture.
  */
 
-import fs from "fs";
+import type { ChatEventData } from "@vrooli/shared";
+import * as fs from "fs";
 import { type Cluster, type Redis } from "ioredis";
-import path from "path";
+import * as path from "path";
 import { fileURLToPath } from "url";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { CacheService } from "../../redisConn.js";
-import {
-    type BaseServiceEvent,
-    type CoordinationEvent,
-    type ExecutionEvent,
-    type ProcessEvent,
-    type SafetyEvent,
-} from "./types.js";
+import { type CoordinationEvent, type ExecutionEvent, type ProcessEvent, type SafetyEvent, type ServiceEvent } from "./types.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -211,7 +206,7 @@ export class EventBusRateLimiter {
      * This is the main entry point called by the event bus before publishing events.
      * It checks multiple rate limit dimensions and returns comprehensive result.
      */
-    async checkEventRateLimit<T extends BaseServiceEvent>(event: T): Promise<RateLimitResult> {
+    async checkEventRateLimit<T extends ServiceEvent>(event: T): Promise<RateLimitResult> {
         try {
             const client = await CacheService.get().raw();
             if (!client) {
@@ -270,7 +265,7 @@ export class EventBusRateLimiter {
     /**
      * Get rate limit configuration for a specific event
      */
-    private getEventRateLimitConfig<T extends BaseServiceEvent>(event: T): EventRateLimit {
+    private getEventRateLimitConfig<T extends ServiceEvent>(event: T): EventRateLimit {
         // Check for specific event type limits first
         if (this.rateLimits[event.type]) {
             return this.rateLimits[event.type];
@@ -295,7 +290,7 @@ export class EventBusRateLimiter {
     /**
      * Get the tier for an event (coordination, process, execution)
      */
-    private getEventTier<T extends BaseServiceEvent>(event: T): string | null {
+    private getEventTier<T extends ServiceEvent>(event: T): string | null {
         // Type guards for different event types
         if (this.isCoordinationEvent(event)) return "coordination";
         if (this.isProcessEvent(event)) return "process";
@@ -308,7 +303,7 @@ export class EventBusRateLimiter {
     /**
      * Get the category for an event (e.g., "external_api", "tool")
      */
-    private getEventCategory<T extends BaseServiceEvent>(event: T): string | null {
+    private getEventCategory<T extends ServiceEvent>(event: T): string | null {
         // External API events
         if (this.eventCosts.externalApiEvents[event.type]) {
             return "external_api";
@@ -335,7 +330,7 @@ export class EventBusRateLimiter {
      * - Per event type
      * - Global system limits
      */
-    private buildRateLimitKeys<T extends BaseServiceEvent>(event: T): string[] {
+    private buildRateLimitKeys<T extends ServiceEvent>(event: T): string[] {
         const keys: string[] = [];
         const baseKey = "event-rate-limit";
 
@@ -363,9 +358,9 @@ export class EventBusRateLimiter {
         }
 
         // Per-conversation rate limit (for swarm events)
-        const conversationId = this.extractConversationId(event);
-        if (conversationId) {
-            keys.push(`${baseKey}:conversation:${conversationId}`);
+        const chatId = this.extractChatId(event);
+        if (chatId) {
+            keys.push(`${baseKey}:conversation:${chatId}`);
         }
 
         return keys;
@@ -427,6 +422,8 @@ export class EventBusRateLimiter {
         results: Array<{ key: string; allowed: boolean; waitTimeMs: number }>,
         config: EventRateLimit,
     ): RateLimitResult {
+        const DEFAULT_RESET_INTERVAL_MS = 1000;
+
         // If any rate limit is exceeded, deny the event
         for (const result of results) {
             if (!result.allowed) {
@@ -443,7 +440,7 @@ export class EventBusRateLimiter {
         return {
             allowed: true,
             remainingQuota: config.burstCapacity, // Simplified - could calculate actual remaining
-            resetTime: new Date(Date.now() + 1000), // Simplified - could calculate actual reset time
+            resetTime: new Date(Date.now() + DEFAULT_RESET_INTERVAL_MS), // Simplified - could calculate actual reset time
         };
     }
 
@@ -460,7 +457,7 @@ export class EventBusRateLimiter {
     /**
      * Extract user ID from event context
      */
-    private extractUserId<T extends BaseServiceEvent>(event: T): string | null {
+    private extractUserId<T extends ServiceEvent>(event: T): string | null {
         const metadata = event.metadata;
         const data = event.data as any;
 
@@ -474,21 +471,14 @@ export class EventBusRateLimiter {
     /**
      * Extract conversation ID from event context  
      */
-    private extractConversationId<T extends BaseServiceEvent>(event: T): string | null {
-        const metadata = event.metadata;
-        const data = event.data as any;
-
-        return metadata?.conversationId ||
-            data?.conversationId ||
-            data?.chatId ||
-            data?.swarmId ||
-            null;
+    private extractChatId<T extends ServiceEvent>(event: T): string | null {
+        return (event as ChatEventData).chatId || null;
     }
 
     /**
      * Check if an event is expensive (requires stricter rate limiting)
      */
-    private isExpensiveEvent<T extends BaseServiceEvent>(event: T): boolean {
+    private isExpensiveEvent<T extends ServiceEvent>(event: T): boolean {
         // External API events are always expensive
         if (this.eventCosts.externalApiEvents[event.type]) {
             return true;
@@ -510,20 +500,29 @@ export class EventBusRateLimiter {
     /**
      * Type guards for different event types
      */
-    private isCoordinationEvent(event: BaseServiceEvent): event is CoordinationEvent {
-        return event.source?.tier === 1;
+    private isCoordinationEvent(event: ServiceEvent): event is CoordinationEvent {
+        return event.type.startsWith("swarm/") ||
+            event.type.startsWith("goal/") ||
+            event.type.startsWith("team/") ||
+            event.type.startsWith("resource/");
     }
 
-    private isProcessEvent(event: BaseServiceEvent): event is ProcessEvent {
-        return event.source?.tier === 2;
+    private isProcessEvent(event: ServiceEvent): event is ProcessEvent {
+        return event.type.startsWith("routine/") ||
+            event.type.startsWith("state/") ||
+            event.type.startsWith("context/");
     }
 
-    private isExecutionEvent(event: BaseServiceEvent): event is ExecutionEvent {
-        return event.source?.tier === 3;
+    private isExecutionEvent(event: ServiceEvent): event is ExecutionEvent {
+        return event.type.startsWith("step/") ||
+            event.type.startsWith("tool/") ||
+            event.type.startsWith("strategy/");
     }
 
-    private isSafetyEvent(event: BaseServiceEvent): event is SafetyEvent {
-        return event.source?.tier === "safety" || event.type.startsWith("safety/");
+    private isSafetyEvent(event: ServiceEvent): event is SafetyEvent {
+        return event.type.startsWith("safety/") ||
+            event.type.startsWith("emergency/") ||
+            event.type.startsWith("threat/");
     }
 
     /**
@@ -590,31 +589,25 @@ export class EventBusRateLimiter {
     /**
      * Create a rate limited event that gets emitted when rate limits are exceeded
      */
-    createRateLimitedEvent<T extends BaseServiceEvent>(
-        originalEvent: T,
+    createRateLimitedEvent(
+        originalEvent: ServiceEvent,
         rateLimitResult: RateLimitResult,
-    ): BaseServiceEvent {
+    ): ServiceEvent {
         return {
             id: `rate-limited-${originalEvent.id}`,
             type: "resource/rate_limited",
             timestamp: new Date(),
-            source: {
-                tier: "cross-cutting",
-                component: "event-bus-rate-limiter",
-            },
             data: {
                 originalEventId: originalEvent.id,
                 originalEventType: originalEvent.type,
                 limitType: rateLimitResult.limitType,
                 retryAfterMs: rateLimitResult.retryAfterMs,
-                userId: this.extractUserId(originalEvent),
-                conversationId: this.extractConversationId(originalEvent),
-            },
+                userId: this.extractUserId(originalEvent) || undefined,
+                chatId: this.extractChatId(originalEvent) || undefined,
+            } as any,
             metadata: {
                 deliveryGuarantee: "fire-and-forget",
                 priority: "medium",
-                userId: this.extractUserId(originalEvent),
-                conversationId: this.extractConversationId(originalEvent),
             },
         };
     }

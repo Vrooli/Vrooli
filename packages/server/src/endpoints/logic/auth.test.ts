@@ -22,7 +22,60 @@ import { auth } from "./auth.js";
 // Import database fixtures for seeding
 import { seedTestUsers, UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
-import { emailLogInFixtures, emailRequestPasswordChangeFixtures, emailResetPasswordFixtures, validateSessionFixtures, switchCurrentAccountFixtures } from "@vrooli/shared";
+import { emailLogInFixtures, emailRequestPasswordChangeFixtures, emailResetPasswordFixtures, validateSessionFixtures, switchCurrentAccountFixtures } from "@vrooli/shared/test-fixtures/api-inputs";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
+
+// Mock the notification system to prevent unhandled promise rejections
+vi.mock("../../notify/notify.js", () => ({
+    Notify: vi.fn().mockImplementation(() => {
+        // Create a mock notification result that matches the expected interface
+        const mockNotificationResult = {
+            toUser: vi.fn().mockResolvedValue(undefined),
+            toUsers: vi.fn().mockResolvedValue(undefined),
+            toChatParticipants: vi.fn().mockResolvedValue(undefined),
+            toOwner: vi.fn().mockResolvedValue(undefined),
+            toTeamMembers: vi.fn().mockResolvedValue(undefined),
+            toProjectMembers: vi.fn().mockResolvedValue(undefined),
+        };
+        
+        // Return an object with all notification methods as mocked functions
+        return new Proxy({}, {
+            get: (target, prop) => {
+                if (typeof prop === "string" && prop.startsWith("push")) {
+                    return vi.fn().mockReturnValue(mockNotificationResult);
+                }
+                return vi.fn().mockReturnValue(mockNotificationResult);
+            },
+        });
+
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["user","user_auth","email","phone","push_device","session"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn('Test cleanup incomplete:', orphans);
+        }
+    });
+    }),
+});
+
+// Mock the QueueService to prevent email service failures
+vi.mock("../../tasks/queues.js", () => ({
+    QueueService: {
+        get: vi.fn().mockReturnValue({
+            email: {
+                addTask: vi.fn().mockResolvedValue({ 
+                    __typename: "Success" as const, 
+                    success: true, 
+                }),
+            },
+        }),
+        reset: vi.fn().mockResolvedValue(undefined),
+    },
+});
 
 describe("EndpointsAuth", () => {
     beforeAll(async () => {
@@ -33,15 +86,8 @@ describe("EndpointsAuth", () => {
     });
 
     beforeEach(async () => {
-        // Clean up tables used in tests
-        const prisma = DbProvider.get();
-        await prisma.user_auth.deleteMany();
-        await prisma.session.deleteMany();
-        await prisma.email.deleteMany();
-        await prisma.wallet.deleteMany();
-        await prisma.user.deleteMany();
-        // Clear Redis cache
-        await CacheService.get().flushAll();
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.userAuth(DbProvider.get());
     });
 
     afterAll(async () => {
@@ -446,7 +492,7 @@ describe("EndpointsAuth", () => {
 
     describe("logOut", () => {
         it("should log out current user", async () => {
-            const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
+            const { records: testUser } = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
             const { req, res } = await mockAuthenticatedSession({
                 id: testUser[0].id.toString(),
             });
@@ -470,7 +516,7 @@ describe("EndpointsAuth", () => {
         });
 
         it("should keep other users logged in multi-user session", async () => {
-            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+            const { records: testUsers } = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
             const { req, res } = await mockAuthenticatedSession({
                 id: testUsers[0].id.toString(),
                 users: testUsers.map(u => ({
@@ -496,7 +542,7 @@ describe("EndpointsAuth", () => {
 
     describe("logOutAll", () => {
         it("should revoke all sessions for user", async () => {
-            const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
+            const { records: testUser } = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
             
             // Create multiple sessions
             const sessions = await Promise.all([
@@ -540,7 +586,7 @@ describe("EndpointsAuth", () => {
 
     describe("validateSession", () => {
         it("should validate logged in session", async () => {
-            const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
+            const { records: testUser } = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
             const { req, res } = await mockAuthenticatedSession({
                 id: testUser[0].id.toString(),
             });
@@ -573,7 +619,7 @@ describe("EndpointsAuth", () => {
 
     describe("switchCurrentAccount", () => {
         it("should switch between accounts", async () => {
-            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+            const { records: testUsers } = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
             const { req, res } = await mockAuthenticatedSession({
                 id: testUsers[0].id.toString(),
                 users: testUsers.map((u, idx) => ({
@@ -604,7 +650,7 @@ describe("EndpointsAuth", () => {
         });
 
         it("should reject switch to non-existent user in session", async () => {
-            const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
+            const { records: testUser } = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
             const { req, res } = await mockAuthenticatedSession({
                 id: testUser[0].id.toString(),
             });

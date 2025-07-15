@@ -3,9 +3,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { BookmarkListDbFactory } from "../../__test/fixtures/db/bookmarkFixtures.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
+import { expectCustomError } from "../../__test/errorTestUtils.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
+import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { CacheService } from "../../redisConn.js";
 import { bookmarkList_createOne } from "../generated/bookmarkList_createOne.js";
@@ -13,6 +15,8 @@ import { bookmarkList_findMany } from "../generated/bookmarkList_findMany.js";
 import { bookmarkList_findOne } from "../generated/bookmarkList_findOne.js";
 import { bookmarkList_updateOne } from "../generated/bookmarkList_updateOne.js";
 import { bookmarkList } from "./bookmarkList.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsBookmarkList", () => {
     let testUsers: any[];
@@ -25,16 +29,21 @@ describe("EndpointsBookmarkList", () => {
         vi.spyOn(logger, "info").mockImplementation(() => logger);
     });
 
-    beforeEach(async () => {
-        // Clean up tables used in tests
-        try {
-            const prisma = DbProvider.get();
-            if (prisma) {
-                testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
-            }
-        } catch (error) {
-            // If database is not initialized, skip cleanup
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["user","user_auth","email","session"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn('Test cleanup incomplete:', orphans);
         }
+    });
+
+    beforeEach(async () => {
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.minimal(DbProvider.get());
+    });
 
         // Seed bookmark lists using database fixtures
         listUser1 = await DbProvider.get().bookmark_list.create({
@@ -84,7 +93,7 @@ describe("EndpointsBookmarkList", () => {
 
                 await expect(async () => {
                     await bookmarkList.findOne({ input }, { req, res }, bookmarkList_findOne);
-                }).rejects.toThrow("Unauthorized");
+                }).rejects.toThrow(CustomError);
             });
 
             it("logged out user cannot find any list", async () => {
@@ -93,7 +102,7 @@ describe("EndpointsBookmarkList", () => {
 
                 await expect(async () => {
                     await bookmarkList.findOne({ input }, { req, res }, bookmarkList_findOne);
-                }).rejects.toThrow("Unauthorized");
+                }).rejects.toThrow(CustomError);
             });
         });
 
@@ -137,18 +146,26 @@ describe("EndpointsBookmarkList", () => {
             });
             const input: BookmarkListSearchInput = { take: 10 };
 
-            await expect(async () => {
+            // Should throw CustomError with trace starting with 0782
+            try {
                 await bookmarkList.findMany({ input }, { req, res }, bookmarkList_findMany);
-            }).rejects.toThrow("0782");
+                expect.fail("Should have thrown CustomError");
+            } catch (error) {
+                expectCustomError(error, "InternalError", "0782");
+            }
         });
 
         it("logged out user returns no lists (as they are private)", async () => {
             const { req, res } = await mockLoggedOutSession();
             const input: BookmarkListSearchInput = { take: 10 };
 
-            await expect(async () => {
+            // Should throw CustomError with trace starting with 0782
+            try {
                 await bookmarkList.findMany({ input }, { req, res }, bookmarkList_findMany);
-            }).rejects.toThrow("0782");
+                expect.fail("Should have thrown CustomError");
+            } catch (error) {
+                expectCustomError(error, "InternalError", "0782");
+            }
         });
     });
 

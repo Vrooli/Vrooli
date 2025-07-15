@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-19
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { findObjectTabParams } from "../../../utils/search/objectToSearch.js";

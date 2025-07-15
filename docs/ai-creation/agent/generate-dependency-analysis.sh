@@ -109,9 +109,9 @@ log "Extracting routine references from agent files..."
 # Create temp file for agent routine references
 TEMP_AGENT_REFS=$(mktemp)
 
-# Find all agent JSON files and extract routine labels from behaviours
+# Find all agent JSON files and extract routine labels from behaviors
 find "$AGENT_DIR/staged" -name "*.json" -type f | while read -r agent_file; do
-    # Extract routine labels from the "label" field in behaviours
+    # Extract routine labels from the "label" field in behaviors
     grep -o '"label"[[:space:]]*:[[:space:]]*"[^"]*"' "$agent_file" 2>/dev/null | \
     sed 's/.*"label"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' | \
     while read -r label; do

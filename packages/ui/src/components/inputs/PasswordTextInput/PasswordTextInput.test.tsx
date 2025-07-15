@@ -9,7 +9,7 @@
  */
 import { ThemeProvider } from "@mui/material/styles";
 import { act, render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { userEvent } from "@testing-library/user-event";
 import { Formik } from "formik";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";

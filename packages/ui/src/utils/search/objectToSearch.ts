@@ -1,7 +1,6 @@
+// AI_CHECK: TYPE_SAFETY=fixed-double-casting-pattern | LAST: 2025-06-30
 import type { Palette } from "@mui/material";
-import { CalendarPageTabOption, ChatInviteStatus, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, ResourceSubType, ResourceSubTypeRoutine, RunStatus, ScheduleFor, SearchPageTabOption, SearchVersionPageTabOption, SignUpPageTabOption, TeamPageTabOption, UserPageTabOption, VisibilityType, type SearchType, type SearchTypeToSearchInput, type TranslationKeyCommon, type YouInflated } from "@vrooli/shared";
-// Import ResourceType directly from api module to avoid namespace conflict
-import { ResourceType } from "@vrooli/shared/api/types";
+import { CalendarPageTabOption, ChatInviteStatus, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, ResourceSubType, ResourceSubTypeRoutine, ResourceType, RunStatus, ScheduleFor, SearchPageTabOption, SearchVersionPageTabOption, SignUpPageTabOption, TeamPageTabOption, UserPageTabOption, VisibilityType, type SearchType, type SearchTypeToSearchInput, type TranslationKeyCommon, type YouInflated } from "@vrooli/shared";
 import { type IconInfo } from "../../icons/Icons.js";
 import { type SearchParams } from "./schemas/base.js";
 import { bookmarkSearchParams } from "./schemas/bookmark.js";
@@ -116,7 +115,7 @@ export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["P
         searchType: "Resource",
         where: () => ({
             isInternal: false,
-            latestVersionResourceSubTypes: Object.values(ResourceSubTypeRoutine).filter(type => type.toString() !== ResourceSubType.RoutineMultiStep.toString()) as unknown as ResourceSubType[],
+            latestVersionResourceSubTypes: Object.values(ResourceSubTypeRoutine).filter(type => type !== ResourceSubType.RoutineMultiStep) as ResourceSubType[],
             resourceType: ResourceType.Routine,
         } as const),
     },

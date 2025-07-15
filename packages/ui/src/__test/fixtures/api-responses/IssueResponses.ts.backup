@@ -1,0 +1,957 @@
+/**
+ * Issue API Response Fixtures
+ * 
+ * This file provides comprehensive API response fixtures for issue endpoints.
+ * It includes success responses, error responses, and MSW handlers for testing.
+ */
+
+import { http, HttpResponse, type RequestHandler } from "msw";
+import type { 
+    Issue, 
+    IssueCreateInput, 
+    IssueUpdateInput,
+    IssueStatus,
+    IssueFor,
+    IssueTranslation,
+    User,
+    Team,
+    Resource,
+} from "@vrooli/shared";
+import { 
+    issueValidation,
+    IssueFor as IssueForEnum,
+    IssueStatus as IssueStatusEnum,
+} from "@vrooli/shared";
+
+/**
+ * Standard API response wrapper
+ */
+export interface APIResponse<T> {
+    data: T;
+    meta: {
+        timestamp: string;
+        requestId: string;
+        version: string;
+        links?: {
+            self?: string;
+            related?: Record<string, string>;
+        };
+    };
+}
+
+/**
+ * API error response structure
+ */
+export interface APIErrorResponse {
+    error: {
+        code: string;
+        message: string;
+        details?: Record<string, any>;
+        timestamp: string;
+        requestId: string;
+        path: string;
+    };
+}
+
+/**
+ * Paginated response structure
+ */
+export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
+    pagination: {
+        page: number;
+        pageSize: number;
+        totalCount: number;
+        totalPages: number;
+        hasNextPage: boolean;
+        hasPreviousPage: boolean;
+    };
+}
+
+/**
+ * Issue API response factory
+ */
+export class IssueResponseFactory {
+    private readonly baseUrl: string;
+    
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
+        this.baseUrl = baseUrl;
+    }
+    
+    /**
+     * Generate unique request ID
+     */
+    private generateRequestId(): string {
+        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+    
+    /**
+     * Generate unique resource ID
+     */
+    private generateId(): string {
+        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+    
+    /**
+     * Create successful issue response
+     */
+    createSuccessResponse(issue: Issue): APIResponse<Issue> {
+        return {
+            data: issue,
+            meta: {
+                timestamp: new Date().toISOString(),
+                requestId: this.generateRequestId(),
+                version: "1.0",
+                links: {
+                    self: `${this.baseUrl}/api/issue/${issue.id}`,
+                    related: {
+                        target: `${this.baseUrl}/api/${issue.to.__typename.toLowerCase()}/${issue.to.id}`,
+                        createdBy: issue.createdBy ? `${this.baseUrl}/api/user/${issue.createdBy.id}` : undefined,
+                        closedBy: issue.closedBy ? `${this.baseUrl}/api/user/${issue.closedBy.id}` : undefined,
+                        comments: `${this.baseUrl}/api/issue/${issue.id}/comments`,
+                        reports: `${this.baseUrl}/api/issue/${issue.id}/reports`,
+                    },
+                },
+            },
+        };
+    }
+    
+    /**
+     * Create issue list response
+     */
+    createIssueListResponse(issues: Issue[], pagination?: {
+        page: number;
+        pageSize: number;
+        totalCount: number;
+    }): PaginatedAPIResponse<Issue> {
+        const paginationData = pagination || {
+            page: 1,
+            pageSize: issues.length,
+            totalCount: issues.length,
+        };
+        
+        return {
+            data: issues,
+            meta: {
+                timestamp: new Date().toISOString(),
+                requestId: this.generateRequestId(),
+                version: "1.0",
+                links: {
+                    self: `${this.baseUrl}/api/issue?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
+            },
+            pagination: {
+                ...paginationData,
+                totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
+                hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
+                hasPreviousPage: paginationData.page > 1,
+            },
+        };
+    }
+    
+    /**
+     * Create validation error response
+     */
+    createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
+        return {
+            error: {
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
+                details: {
+                    fieldErrors,
+                    invalidFields: Object.keys(fieldErrors),
+                },
+                timestamp: new Date().toISOString(),
+                requestId: this.generateRequestId(),
+                path: "/api/issue",
+            },
+        };
+    }
+    
+    /**
+     * Create not found error response
+     */
+    createNotFoundErrorResponse(issueId: string): APIErrorResponse {
+        return {
+            error: {
+                code: "ISSUE_NOT_FOUND",
+                message: `Issue with ID '${issueId}' was not found`,
+                details: {
+                    issueId,
+                    searchCriteria: { id: issueId },
+                },
+                timestamp: new Date().toISOString(),
+                requestId: this.generateRequestId(),
+                path: `/api/issue/${issueId}`,
+            },
+        };
+    }
+    
+    /**
+     * Create permission error response
+     */
+    createPermissionErrorResponse(operation: string): APIErrorResponse {
+        return {
+            error: {
+                code: "PERMISSION_DENIED",
+                message: `You do not have permission to ${operation} this issue`,
+                details: {
+                    operation,
+                    requiredPermissions: ["issue:write"],
+                    userPermissions: ["issue:read"],
+                },
+                timestamp: new Date().toISOString(),
+                requestId: this.generateRequestId(),
+                path: "/api/issue",
+            },
+        };
+    }
+    
+    /**
+     * Create network error response
+     */
+    createNetworkErrorResponse(): APIErrorResponse {
+        return {
+            error: {
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
+                details: {
+                    reason: "Connection timeout",
+                    retryable: true,
+                    retryAfter: 5000,
+                },
+                timestamp: new Date().toISOString(),
+                requestId: this.generateRequestId(),
+                path: "/api/issue",
+            },
+        };
+    }
+    
+    /**
+     * Create server error response
+     */
+    createServerErrorResponse(): APIErrorResponse {
+        return {
+            error: {
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
+                details: {
+                    errorId: `ERR_${Date.now()}`,
+                    reportable: true,
+                    retryable: true,
+                },
+                timestamp: new Date().toISOString(),
+                requestId: this.generateRequestId(),
+                path: "/api/issue",
+            },
+        };
+    }
+    
+    /**
+     * Create issue status conflict error response
+     */
+    createStatusConflictErrorResponse(currentStatus: IssueStatus, attemptedStatus: IssueStatus): APIErrorResponse {
+        return {
+            error: {
+                code: "STATUS_CONFLICT",
+                message: `Cannot change issue status from ${currentStatus} to ${attemptedStatus}`,
+                details: {
+                    currentStatus,
+                    attemptedStatus,
+                    allowedTransitions: this.getAllowedStatusTransitions(currentStatus),
+                },
+                timestamp: new Date().toISOString(),
+                requestId: this.generateRequestId(),
+                path: "/api/issue",
+            },
+        };
+    }
+    
+    /**
+     * Get allowed status transitions for a given status
+     */
+    private getAllowedStatusTransitions(status: IssueStatus): IssueStatus[] {
+        switch (status) {
+            case IssueStatusEnum.Draft:
+                return [IssueStatusEnum.Open, IssueStatusEnum.Rejected];
+            case IssueStatusEnum.Open:
+                return [IssueStatusEnum.ClosedResolved, IssueStatusEnum.ClosedUnresolved, IssueStatusEnum.Rejected];
+            case IssueStatusEnum.ClosedResolved:
+                return [IssueStatusEnum.Open];
+            case IssueStatusEnum.ClosedUnresolved:
+                return [IssueStatusEnum.Open];
+            case IssueStatusEnum.Rejected:
+                return [IssueStatusEnum.Draft, IssueStatusEnum.Open];
+            default:
+                return [];
+        }
+    }
+    
+    /**
+     * Create mock issue data
+     */
+    createMockIssue(overrides?: Partial<Issue>): Issue {
+        const now = new Date().toISOString();
+        const id = this.generateId();
+        
+        const defaultIssue: Issue = {
+            __typename: "Issue",
+            id,
+            createdAt: now,
+            updatedAt: now,
+            publicId: `issue_${id}`,
+            status: IssueStatusEnum.Open,
+            score: 0,
+            views: 0,
+            bookmarks: 0,
+            commentsCount: 0,
+            reportsCount: 0,
+            translationsCount: 1,
+            closedAt: null,
+            referencedVersionId: null,
+            createdBy: {
+                __typename: "User",
+                id: `user_${id}`,
+                handle: "issueReporter",
+                name: "Issue Reporter",
+                createdAt: now,
+                updatedAt: now,
+                isBot: false,
+                isPrivate: false,
+                profileImage: null,
+                bannerImage: null,
+                premium: false,
+                premiumExpiration: null,
+                roles: [],
+                wallets: [],
+                translations: [],
+                translationsCount: 0,
+                you: {
+                    __typename: "UserYou",
+                    isBlocked: false,
+                    isBlockedByYou: false,
+                    canDelete: false,
+                    canReport: false,
+                    canUpdate: false,
+                    isBookmarked: false,
+                    isReacted: false,
+                    reactionSummary: {
+                        __typename: "ReactionSummary",
+                        emotion: null,
+                        count: 0,
+                    },
+                },
+            },
+            closedBy: null,
+            to: {
+                __typename: "Resource",
+                id: `resource_${id}`,
+                createdAt: now,
+                updatedAt: now,
+                isInternal: false,
+                isPrivate: false,
+                usedBy: [],
+                usedByCount: 0,
+                versions: [],
+                versionsCount: 0,
+                you: {
+                    __typename: "ResourceYou",
+                    canDelete: false,
+                    canUpdate: false,
+                    canReport: false,
+                    isBookmarked: false,
+                    isReacted: false,
+                    reaction: null,
+                },
+            },
+            translations: [
+                {
+                    __typename: "IssueTranslation",
+                    id: `translation_${id}`,
+                    language: "en",
+                    name: "Sample Issue",
+                    description: "This is a sample issue description for testing purposes.",
+                },
+            ],
+            comments: [],
+            reports: [],
+            bookmarkedBy: [],
+            you: {
+                __typename: "IssueYou",
+                canBookmark: true,
+                canComment: true,
+                canDelete: false,
+                canReact: true,
+                canRead: true,
+                canReport: true,
+                canUpdate: false,
+                isBookmarked: false,
+                reaction: null,
+            },
+        };
+        
+        return {
+            ...defaultIssue,
+            ...overrides,
+        };
+    }
+    
+    /**
+     * Create issue from API input
+     */
+    createIssueFromInput(input: IssueCreateInput): Issue {
+        const issue = this.createMockIssue();
+        
+        // Update issue based on input
+        issue.id = input.id;
+        issue.to.id = input.forConnect;
+        
+        // Set issue target type based on issueFor
+        if (input.issueFor === IssueForEnum.Team) {
+            issue.to = {
+                __typename: "Team",
+                id: input.forConnect,
+                createdAt: issue.to.createdAt,
+                updatedAt: issue.to.updatedAt,
+                isOpenToNewMembers: true,
+                isPrivate: false,
+                members: [],
+                membersCount: 0,
+                projects: [],
+                projectsCount: 0,
+                translations: [],
+                translationsCount: 0,
+                you: {
+                    __typename: "TeamYou",
+                    canAddMembers: false,
+                    canDelete: false,
+                    canReport: false,
+                    canUpdate: false,
+                    isBookmarked: false,
+                    isReacted: false,
+                    role: null,
+                },
+            } as Team;
+        }
+        
+        // Add translations if provided
+        if (input.translationsCreate && input.translationsCreate.length > 0) {
+            issue.translations = input.translationsCreate.map(t => ({
+                __typename: "IssueTranslation",
+                id: t.id,
+                language: t.language,
+                name: t.name,
+                description: t.description || null,
+            }));
+            issue.translationsCount = issue.translations.length;
+        }
+        
+        // Set referenced version if provided
+        if (input.referencedVersionIdConnect) {
+            issue.referencedVersionId = input.referencedVersionIdConnect;
+        }
+        
+        return issue;
+    }
+    
+    /**
+     * Create issues with different statuses
+     */
+    createIssuesWithAllStatuses(): Issue[] {
+        return Object.values(IssueStatusEnum).map((status, index) => {
+            const issue = this.createMockIssue();
+            issue.status = status;
+            issue.id = `issue_${(status as string).toLowerCase()}_${index}`;
+            
+            // Set closed fields for closed statuses
+            if (status === IssueStatusEnum.ClosedResolved || status === IssueStatusEnum.ClosedUnresolved) {
+                issue.closedAt = new Date().toISOString();
+                issue.closedBy = {
+                    ...issue.createdBy!,
+                    id: `closer_${index}`,
+                    handle: "issueCloser",
+                    name: "Issue Closer",
+                };
+            }
+            
+            // Update translations based on status
+            issue.translations[0].name = `${status} Issue Example`;
+            issue.translations[0].description = `This is an example of an issue in ${status} status.`;
+            
+            return issue;
+        });
+    }
+    
+    /**
+     * Create issues for different target types
+     */
+    createIssuesForAllTypes(): Issue[] {
+        return Object.values(IssueForEnum).map((issueFor, index) => {
+            const issue = this.createMockIssue();
+            issue.id = `issue_${(issueFor as string).toLowerCase()}_${index}`;
+            
+            if (issueFor === IssueForEnum.Team) {
+                issue.to = {
+                    __typename: "Team",
+                    id: `team_${index}`,
+                    createdAt: issue.to.createdAt,
+                    updatedAt: issue.to.updatedAt,
+                    isOpenToNewMembers: true,
+                    isPrivate: false,
+                    members: [],
+                    membersCount: 0,
+                    projects: [],
+                    projectsCount: 0,
+                    translations: [],
+                    translationsCount: 0,
+                    you: {
+                        __typename: "TeamYou",
+                        canAddMembers: false,
+                        canDelete: false,
+                        canReport: false,
+                        canUpdate: false,
+                        isBookmarked: false,
+                        isReacted: false,
+                        role: null,
+                    },
+                } as Team;
+            }
+            
+            issue.translations[0].name = `Issue for ${issueFor}`;
+            issue.translations[0].description = `This issue is reported against a ${issueFor}.`;
+            
+            return issue;
+        });
+    }
+    
+    /**
+     * Create issues with different severity levels (based on score)
+     */
+    createIssuesWithDifferentSeverity(): Issue[] {
+        const severityLevels = [
+            { name: "Critical", score: 100, description: "Critical issue requiring immediate attention" },
+            { name: "High", score: 75, description: "High priority issue" },
+            { name: "Medium", score: 50, description: "Medium priority issue" },
+            { name: "Low", score: 25, description: "Low priority issue" },
+            { name: "Enhancement", score: 10, description: "Enhancement request" },
+        ];
+        
+        return severityLevels.map((severity, index) => {
+            const issue = this.createMockIssue();
+            issue.id = `issue_${severity.name.toLowerCase()}_${index}`;
+            issue.score = severity.score;
+            issue.translations[0].name = `${severity.name} Priority Issue`;
+            issue.translations[0].description = severity.description;
+            
+            return issue;
+        });
+    }
+    
+    /**
+     * Validate issue create input
+     */
+    async validateCreateInput(input: IssueCreateInput): Promise<{
+        valid: boolean;
+        errors?: Record<string, string>;
+    }> {
+        try {
+            await issueValidation.create.validate(input);
+            return { valid: true };
+        } catch (error: any) {
+            const fieldErrors: Record<string, string> = {};
+            
+            if (error.inner) {
+                error.inner.forEach((err: any) => {
+                    if (err.path) {
+                        fieldErrors[err.path] = err.message;
+                    }
+                });
+            } else if (error.message) {
+                fieldErrors.general = error.message;
+            }
+            
+            return {
+                valid: false,
+                errors: fieldErrors,
+            };
+        }
+    }
+    
+    /**
+     * Validate issue update input
+     */
+    async validateUpdateInput(input: IssueUpdateInput): Promise<{
+        valid: boolean;
+        errors?: Record<string, string>;
+    }> {
+        try {
+            await issueValidation.update.validate(input);
+            return { valid: true };
+        } catch (error: any) {
+            const fieldErrors: Record<string, string> = {};
+            
+            if (error.inner) {
+                error.inner.forEach((err: any) => {
+                    if (err.path) {
+                        fieldErrors[err.path] = err.message;
+                    }
+                });
+            } else if (error.message) {
+                fieldErrors.general = error.message;
+            }
+            
+            return {
+                valid: false,
+                errors: fieldErrors,
+            };
+        }
+    }
+}
+
+/**
+ * MSW handlers factory for issue endpoints
+ */
+export class IssueMSWHandlers {
+    private responseFactory: IssueResponseFactory;
+    
+    constructor(baseUrl?: string) {
+        this.responseFactory = new IssueResponseFactory(baseUrl);
+    }
+    
+    /**
+     * Create success handlers for all issue endpoints
+     */
+    createSuccessHandlers(): RequestHandler[] {
+        return [
+            // Create issue
+            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, async ({ request }) => {
+                const body = await request.json() as IssueCreateInput;
+                
+                // Validate input
+                const validation = await this.responseFactory.validateCreateInput(body);
+                if (!validation.valid) {
+                    return HttpResponse.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}), { status: 400 });
+                }
+                
+                // Create issue
+                const issue = this.responseFactory.createIssueFromInput(body);
+                const response = this.responseFactory.createSuccessResponse(issue);
+                
+                return HttpResponse.json(response, { status: 201 });
+            }),
+            
+            // Get issue by ID
+            http.get(`${this.responseFactory["baseUrl"]}/api/issue/:id`, ({ params }) => {
+                const { id } = params;
+                
+                const issue = this.responseFactory.createMockIssue({ id: id as string });
+                const response = this.responseFactory.createSuccessResponse(issue);
+                
+                return HttpResponse.json(response, { status: 200 });
+            }),
+            
+            // Update issue
+            http.put(`${this.responseFactory["baseUrl"]}/api/issue/:id`, async ({ request, params }) => {
+                const { id } = params;
+                const body = await request.json() as IssueUpdateInput;
+                
+                // Validate input
+                const validation = await this.responseFactory.validateUpdateInput(body);
+                if (!validation.valid) {
+                    return HttpResponse.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}), { status: 400 });
+                }
+                
+                const issue = this.responseFactory.createMockIssue({ 
+                    id: id as string,
+                    updatedAt: new Date().toISOString(),
+                });
+                
+                const response = this.responseFactory.createSuccessResponse(issue);
+                
+                return HttpResponse.json(response, { status: 200 });
+            }),
+            
+            // Close issue
+            http.patch(`${this.responseFactory["baseUrl"]}/api/issue/:id/close`, async ({ request, params }) => {
+                const { id } = params;
+                const body = await request.json() as { status: IssueStatus };
+                
+                const issue = this.responseFactory.createMockIssue({ 
+                    id: id as string,
+                    status: body.status,
+                    closedAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                });
+                
+                const response = this.responseFactory.createSuccessResponse(issue);
+                
+                return HttpResponse.json(response, { status: 200 });
+            }),
+            
+            // Delete issue
+            http.delete(`${this.responseFactory["baseUrl"]}/api/issue/:id`, ({ params }) => {
+                return new HttpResponse(null, { status: 204 });
+            }),
+            
+            // List issues
+            http.get(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
+                const url = new URL(req.url);
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const status = url.searchParams.get("status") as IssueStatus;
+                const issueFor = url.searchParams.get("issueFor") as IssueFor;
+                
+                let issues: Issue[] = [];
+                
+                // Generate different types of issues based on query parameters
+                if (status) {
+                    issues = this.responseFactory.createIssuesWithAllStatuses()
+                        .filter(i => i.status === status);
+                } else if (issueFor) {
+                    issues = this.responseFactory.createIssuesForAllTypes()
+                        .filter(i => i.to.__typename === issueFor);
+                } else {
+                    // Return a mix of all types
+                    issues = [
+                        ...this.responseFactory.createIssuesWithAllStatuses(),
+                        ...this.responseFactory.createIssuesForAllTypes(),
+                        ...this.responseFactory.createIssuesWithDifferentSeverity(),
+                    ];
+                }
+                
+                // Paginate
+                const startIndex = (page - 1) * limit;
+                const paginatedIssues = issues.slice(startIndex, startIndex + limit);
+                
+                const response = this.responseFactory.createIssueListResponse(
+                    paginatedIssues,
+                    {
+                        page,
+                        pageSize: limit,
+                        totalCount: issues.length,
+                    },
+                );
+                
+                return res(
+                    ctx.status(200),
+                    ctx.json(response),
+                );
+            }),
+        ];
+    }
+    
+    /**
+     * Create error handlers for testing error scenarios
+     */
+    createErrorHandlers(): RestHandler[] {
+        return [
+            // Validation error
+            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
+                return res(
+                    ctx.status(400),
+                    ctx.json(this.responseFactory.createValidationErrorResponse({
+                        forConnect: "Target object ID is required",
+                        issueFor: "Issue type must be specified",
+                        "translationsCreate.0.name": "Issue name is required",
+                    })),
+                );
+            }),
+            
+            // Not found error
+            http.get(`${this.responseFactory["baseUrl"]}/api/issue/:id`, (req, res, ctx) => {
+                const { id } = req.params;
+                return res(
+                    ctx.status(404),
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
+                );
+            }),
+            
+            // Permission error
+            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
+                return res(
+                    ctx.status(403),
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
+                );
+            }),
+            
+            // Status conflict error
+            http.patch(`${this.responseFactory["baseUrl"]}/api/issue/:id/close`, (req, res, ctx) => {
+                return res(
+                    ctx.status(409),
+                    ctx.json(this.responseFactory.createStatusConflictErrorResponse(
+                        IssueStatusEnum.ClosedResolved,
+                        IssueStatusEnum.Draft,
+                    )),
+                );
+            }),
+            
+            // Server error
+            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
+                return res(
+                    ctx.status(500),
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
+                );
+            }),
+        ];
+    }
+    
+    /**
+     * Create loading simulation handlers
+     */
+    createLoadingHandlers(delay = 2000): RestHandler[] {
+        return [
+            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, async (req, res, ctx) => {
+                const body = await req.json() as IssueCreateInput;
+                const issue = this.responseFactory.createIssueFromInput(body);
+                const response = this.responseFactory.createSuccessResponse(issue);
+                
+                return res(
+                    ctx.delay(delay),
+                    ctx.status(201),
+                    ctx.json(response),
+                );
+            }),
+            
+            http.get(`${this.responseFactory["baseUrl"]}/api/issue`, async (req, res, ctx) => {
+                const issues = this.responseFactory.createIssuesWithAllStatuses();
+                const response = this.responseFactory.createIssueListResponse(issues);
+                
+                return res(
+                    ctx.delay(delay),
+                    ctx.status(200),
+                    ctx.json(response),
+                );
+            }),
+        ];
+    }
+    
+    /**
+     * Create network error handlers
+     */
+    createNetworkErrorHandlers(): RestHandler[] {
+        return [
+            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
+            }),
+            
+            http.get(`${this.responseFactory["baseUrl"]}/api/issue/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
+            }),
+            
+            http.get(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
+                return res.networkError("Service unavailable");
+            }),
+        ];
+    }
+    
+    /**
+     * Create custom handler with specific configuration
+     */
+    createCustomHandler(config: {
+        endpoint: string;
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+        status: number;
+        response: any;
+        delay?: number;
+    }): RestHandler {
+        const { endpoint, method, status, response, delay } = config;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
+        
+        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
+            const responseCtx = [ctx.status(status), ctx.json(response)];
+            
+            if (delay) {
+                responseCtx.unshift(ctx.delay(delay));
+            }
+            
+            return res(...responseCtx);
+        });
+    }
+}
+
+/**
+ * Pre-configured response scenarios
+ */
+export const issueResponseScenarios = {
+    // Success scenarios
+    createSuccess: (issue?: Issue) => {
+        const factory = new IssueResponseFactory();
+        return factory.createSuccessResponse(
+            issue || factory.createMockIssue(),
+        );
+    },
+    
+    listSuccess: (issues?: Issue[]) => {
+        const factory = new IssueResponseFactory();
+        return factory.createIssueListResponse(
+            issues || factory.createIssuesWithAllStatuses(),
+        );
+    },
+    
+    listByStatus: (status: IssueStatus) => {
+        const factory = new IssueResponseFactory();
+        const issues = factory.createIssuesWithAllStatuses().filter(i => i.status === status);
+        return factory.createIssueListResponse(issues);
+    },
+    
+    listByType: (issueFor: IssueFor) => {
+        const factory = new IssueResponseFactory();
+        const issues = factory.createIssuesForAllTypes().filter(i => i.to.__typename === issueFor);
+        return factory.createIssueListResponse(issues);
+    },
+    
+    listBySeverity: () => {
+        const factory = new IssueResponseFactory();
+        return factory.createIssueListResponse(
+            factory.createIssuesWithDifferentSeverity(),
+        );
+    },
+    
+    // Error scenarios
+    validationError: (fieldErrors?: Record<string, string>) => {
+        const factory = new IssueResponseFactory();
+        return factory.createValidationErrorResponse(
+            fieldErrors || {
+                forConnect: "Target object is required",
+                issueFor: "Issue type must be specified",
+                "translationsCreate.0.name": "Issue name is required",
+            },
+        );
+    },
+    
+    notFoundError: (issueId?: string) => {
+        const factory = new IssueResponseFactory();
+        return factory.createNotFoundErrorResponse(
+            issueId || "non-existent-issue-id",
+        );
+    },
+    
+    permissionError: (operation?: string) => {
+        const factory = new IssueResponseFactory();
+        return factory.createPermissionErrorResponse(
+            operation || "create",
+        );
+    },
+    
+    statusConflictError: (currentStatus?: IssueStatus, attemptedStatus?: IssueStatus) => {
+        const factory = new IssueResponseFactory();
+        return factory.createStatusConflictErrorResponse(
+            currentStatus || IssueStatusEnum.ClosedResolved,
+            attemptedStatus || IssueStatusEnum.Draft,
+        );
+    },
+    
+    serverError: () => {
+        const factory = new IssueResponseFactory();
+        return factory.createServerErrorResponse();
+    },
+    
+    // MSW handlers
+    successHandlers: () => new IssueMSWHandlers().createSuccessHandlers(),
+    errorHandlers: () => new IssueMSWHandlers().createErrorHandlers(),
+    loadingHandlers: (delay?: number) => new IssueMSWHandlers().createLoadingHandlers(delay),
+    networkErrorHandlers: () => new IssueMSWHandlers().createNetworkErrorHandlers(),
+};
+
+// Export factory instances for easy use
+export const issueResponseFactory = new IssueResponseFactory();
+export const issueMSWHandlers = new IssueMSWHandlers();

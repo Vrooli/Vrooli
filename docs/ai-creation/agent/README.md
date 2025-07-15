@@ -204,7 +204,7 @@ These minimal events enable emergent behaviors through creative agent configurat
   "goal": "Clear statement of agent's primary objective",
   "role": "Specific function within the swarm ecosystem",
   "subscriptions": ["topic1", "topic2", "topic3"],
-  "behaviours": [
+  "behaviors": [
     {
       "trigger": {
         "topic": "subscription-topic",
@@ -219,12 +219,11 @@ These minimal events enable emergent behaviors through creative agent configurat
       "qos": 0
     }
   ],
-  "norms": [
-    {
-      "modality": "obligation|permission|prohibition",
-      "target": "behavioral-constraint"
-    }
-  ],
+  "prompt": {
+    "mode": "supplement",
+    "source": "direct",
+    "content": "Natural language guidance for agent behavior"
+  },
   "resources": ["resource1", "resource2"]
 }
 ```
@@ -248,6 +247,33 @@ These minimal events enable emergent behaviors through creative agent configurat
 - **QoS 0**: Fire-and-forget (best effort)
 - **QoS 1**: At-least-once delivery (acknowledgment required)
 - **QoS 2**: Exactly-once delivery (guaranteed, no duplicates)
+
+### Agent Prompts
+
+The `prompt` field provides agent-specific behavioral guidance:
+
+- **Mode**: Always use `"supplement"` (never `"replace"`)
+  - Supplement mode adds your guidance on top of core swarm functionality
+  - Replace mode would remove essential system prompting about:
+    - How to use swarm tools and subscribe to events
+    - How to interact with the blackboard and other agents
+    - Core safety and coordination protocols
+- **Source**: Always use `"direct"` for simplicity
+  - Direct prompts embed the guidance in the agent configuration
+  - Resource prompts would require managing separate prompt objects
+- **Content**: Natural language instructions for the agent
+  - Be specific about behavioral constraints and expectations
+  - Convert formal rules (obligations/permissions/prohibitions) to clear instructions
+  - Keep prompts concise but comprehensive
+
+Example:
+```json
+"prompt": {
+  "mode": "supplement",
+  "source": "direct",
+  "content": "Monitor all database queries for performance issues. Alert when query time exceeds 5 seconds. Never expose sensitive data in logs or alerts."
+}
+```
 
 ## Generation Workflow
 
@@ -333,7 +359,7 @@ The key insight: We don't program specific behaviors - we configure agents to re
 #### **Swarm Coordination**
 - Design agents to work well with others in the swarm
 - Avoid resource conflicts and race conditions
-- Use norms to define behavioral constraints and ethics
+- Use prompts to define behavioral guidance and constraints
 
 ### Naming Conventions
 
@@ -361,7 +387,7 @@ The key insight: We don't program specific behaviors - we configure agents to re
   "goal": "Orchestrate multi-step workflows across specialist agents",
   "role": "coordinator",
   "subscriptions": ["workflow.started", "task.completed", "agent.error"],
-  "behaviours": [
+  "behaviors": [
     {
       "trigger": { "topic": "workflow.started" },
       "action": { "type": "routine", "label": "workflow-decomposer" }
@@ -381,15 +407,17 @@ The key insight: We don't program specific behaviors - we configure agents to re
   "goal": "Perform deep analysis on specific data types",
   "role": "specialist",
   "subscriptions": ["data.analysis.requested"],
-  "behaviours": [
+  "behaviors": [
     {
       "trigger": { "topic": "data.analysis.requested" },
       "action": { "type": "routine", "label": "comprehensive-data-analyzer" }
     }
   ],
-  "norms": [
-    { "modality": "obligation", "target": "validate-data-before-analysis" }
-  ]
+  "prompt": {
+    "mode": "supplement",
+    "source": "direct",
+    "content": "Always validate data integrity and format before performing analysis. Reject malformed or suspicious data."
+  }
 }
 ```
 
@@ -400,7 +428,7 @@ The key insight: We don't program specific behaviors - we configure agents to re
   "goal": "Monitor system health and alert on issues",
   "role": "monitor",
   "subscriptions": ["system.metrics", "system.error", "system.performance"],
-  "behaviours": [
+  "behaviors": [
     {
       "trigger": { "topic": "system.error" },
       "action": { "type": "routine", "label": "error-alert-generator" },

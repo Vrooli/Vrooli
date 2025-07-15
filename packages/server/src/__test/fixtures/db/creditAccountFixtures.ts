@@ -1,5 +1,6 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
 import { generatePK } from "@vrooli/shared";
-import { type Prisma } from "@prisma/client";
+import { type Prisma, type PrismaClient } from "@prisma/client";
 
 /**
  * Database fixtures for CreditAccount model - used for seeding billing test data
@@ -20,7 +21,7 @@ export const creditAccountDbIds = {
 /**
  * User credit account with positive balance
  */
-export const userCreditAccountDb: Prisma.CreditAccountCreateInput = {
+export const userCreditAccountDb: Prisma.credit_accountCreateInput = {
     id: creditAccountDbIds.userAccount1,
     currentBalance: 1000000n, // 1,000,000 credits
     user: {
@@ -31,7 +32,7 @@ export const userCreditAccountDb: Prisma.CreditAccountCreateInput = {
 /**
  * User credit account with low balance
  */
-export const lowBalanceUserAccountDb: Prisma.CreditAccountCreateInput = {
+export const lowBalanceUserAccountDb: Prisma.credit_accountCreateInput = {
     id: creditAccountDbIds.userAccount2,
     currentBalance: 5000n, // 5,000 credits
     user: {
@@ -42,7 +43,7 @@ export const lowBalanceUserAccountDb: Prisma.CreditAccountCreateInput = {
 /**
  * Team credit account with high balance
  */
-export const teamCreditAccountDb: Prisma.CreditAccountCreateInput = {
+export const teamCreditAccountDb: Prisma.credit_accountCreateInput = {
     id: creditAccountDbIds.teamAccount1,
     currentBalance: 10000000n, // 10,000,000 credits
     team: {
@@ -53,7 +54,7 @@ export const teamCreditAccountDb: Prisma.CreditAccountCreateInput = {
 /**
  * Team credit account with enterprise balance
  */
-export const enterpriseTeamAccountDb: Prisma.CreditAccountCreateInput = {
+export const enterpriseTeamAccountDb: Prisma.credit_accountCreateInput = {
     id: creditAccountDbIds.teamAccount2,
     currentBalance: 100000000n, // 100,000,000 credits
     team: {
@@ -64,7 +65,7 @@ export const enterpriseTeamAccountDb: Prisma.CreditAccountCreateInput = {
 /**
  * Account with zero balance
  */
-export const zeroBalanceAccountDb: Prisma.CreditAccountCreateInput = {
+export const zeroBalanceAccountDb: Prisma.credit_accountCreateInput = {
     id: creditAccountDbIds.zeroBalance,
     currentBalance: 0n,
     user: {
@@ -75,7 +76,7 @@ export const zeroBalanceAccountDb: Prisma.CreditAccountCreateInput = {
 /**
  * Account with very high balance (testing limits)
  */
-export const highBalanceAccountDb: Prisma.CreditAccountCreateInput = {
+export const highBalanceAccountDb: Prisma.credit_accountCreateInput = {
     id: creditAccountDbIds.highBalance,
     currentBalance: 999999999999n, // Nearly 1 trillion credits
     user: {
@@ -86,7 +87,7 @@ export const highBalanceAccountDb: Prisma.CreditAccountCreateInput = {
 /**
  * Account with negative balance (debt scenario)
  */
-export const negativeBalanceAccountDb: Prisma.CreditAccountCreateInput = {
+export const negativeBalanceAccountDb: Prisma.credit_accountCreateInput = {
     id: creditAccountDbIds.negativeBalance,
     currentBalance: -50000n, // -50,000 credits (in debt)
     user: {
@@ -97,7 +98,7 @@ export const negativeBalanceAccountDb: Prisma.CreditAccountCreateInput = {
 /**
  * Account with ledger entries included
  */
-export const accountWithEntriesDb: Prisma.CreditAccountCreateInput = {
+export const accountWithEntriesDb: Prisma.credit_accountCreateInput = {
     id: generatePK(),
     currentBalance: 500000n, // 500,000 credits
     user: {
@@ -140,7 +141,7 @@ export class CreditAccountDbFactory {
     /**
      * Create minimal credit account
      */
-    static createMinimal(overrides?: Partial<Prisma.CreditAccountCreateInput>): Prisma.CreditAccountCreateInput {
+    static createMinimal(overrides?: Partial<Prisma.credit_accountCreateInput>): Prisma.credit_accountCreateInput {
         return {
             id: generatePK(),
             currentBalance: 0n,
@@ -154,8 +155,8 @@ export class CreditAccountDbFactory {
     static createUserAccount(
         userId: bigint,
         balance = 100000n,
-        overrides?: Partial<Prisma.CreditAccountCreateInput>,
-    ): Prisma.CreditAccountCreateInput {
+        overrides?: Partial<Prisma.credit_accountCreateInput>,
+    ): Prisma.credit_accountCreateInput {
         return {
             id: generatePK(),
             currentBalance: balance,
@@ -170,8 +171,8 @@ export class CreditAccountDbFactory {
     static createTeamAccount(
         teamId: bigint,
         balance = 1000000n,
-        overrides?: Partial<Prisma.CreditAccountCreateInput>,
-    ): Prisma.CreditAccountCreateInput {
+        overrides?: Partial<Prisma.credit_accountCreateInput>,
+    ): Prisma.credit_accountCreateInput {
         return {
             id: generatePK(),
             currentBalance: balance,
@@ -188,8 +189,8 @@ export class CreditAccountDbFactory {
         entityType: "user" | "team",
         purchaseAmount: bigint,
         stripeSessionId?: string,
-        overrides?: Partial<Prisma.CreditAccountCreateInput>,
-    ): Prisma.CreditAccountCreateInput {
+        overrides?: Partial<Prisma.credit_accountCreateInput>,
+    ): Prisma.credit_accountCreateInput {
         return {
             id: generatePK(),
             currentBalance: purchaseAmount,
@@ -229,8 +230,8 @@ export class CreditAccountDbFactory {
             source: "Stripe" | "InternalAgent" | "Admin" | "Other";
             meta?: any;
         }>,
-        overrides?: Partial<Prisma.CreditAccountCreateInput>,
-    ): Prisma.CreditAccountCreateInput {
+        overrides?: Partial<Prisma.credit_accountCreateInput>,
+    ): Prisma.credit_accountCreateInput {
         const currentBalance = transactions.reduce((sum, tx) => sum + tx.amount, 0n);
 
         return {
@@ -261,8 +262,8 @@ export class CreditAccountDbFactory {
         entityId: bigint,
         entityType: "user" | "team",
         lowBalance = false,
-        overrides?: Partial<Prisma.CreditAccountCreateInput>,
-    ): Prisma.CreditAccountCreateInput {
+        overrides?: Partial<Prisma.credit_accountCreateInput>,
+    ): Prisma.credit_accountCreateInput {
         const balance = lowBalance ? 1000n : 100000n; // Low: 1K, Normal: 100K
 
         return {
@@ -282,8 +283,8 @@ export class CreditAccountDbFactory {
     static createEnterprise(
         teamId: bigint,
         balance = 100000000n, // 100M credits
-        overrides?: Partial<Prisma.CreditAccountCreateInput>,
-    ): Prisma.CreditAccountCreateInput {
+        overrides?: Partial<Prisma.credit_accountCreateInput>,
+    ): Prisma.credit_accountCreateInput {
         return {
             id: generatePK(),
             currentBalance: balance,
@@ -316,7 +317,7 @@ export class CreditAccountDbFactory {
 /**
  * Seed basic credit account scenarios for testing
  */
-export async function seedTestCreditAccounts(db: any) {
+export async function seedTestCreditAccounts(db: PrismaClient) {
     // Create users and teams first
     const user1 = await db.user.create({
         data: {

@@ -98,7 +98,7 @@ export class JsonWebToken {
      * WARNING: For testing purposes only - resets the singleton instance
      */
     static resetInstance() {
-        JsonWebToken.instance = null as any;
+        JsonWebToken.instance = null!;
     }
 
     static getJwtCookieOptions() {

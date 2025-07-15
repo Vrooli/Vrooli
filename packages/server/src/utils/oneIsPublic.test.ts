@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { ModelMap } from "../models/base/index.js";
 import { oneIsPublic } from "./oneIsPublic.js";
 
+// AI_CHECK: TYPE_SAFETY=phase1-test-2 | LAST: 2025-07-04 - Removed all 'as any' casting, added proper types for mock validator functions
+
 // Mock ModelMap
 vi.mock("../models/base/index.js", () => ({
     ModelMap: {
@@ -17,8 +19,8 @@ describe("oneIsPublic", () => {
     });
 
     // Helper to setup ModelMap mock
-    const setupModelMapMock = (modelType: ModelType, validator: any, idField = "id") => {
-        (ModelMap.getLogic as any).mockImplementation((fields: string[], type: string) => {
+    const setupModelMapMock = (modelType: ModelType, validator: { isPublic: (data: unknown, getParentInfo: unknown) => boolean }, idField = "id") => {
+        (ModelMap.getLogic as ReturnType<typeof vi.fn>).mockImplementation((fields: string[], type: string) => {
             if (type === modelType) {
                 return {
                     idField,
@@ -35,7 +37,7 @@ describe("oneIsPublic", () => {
             const privateValidator = createMockValidator(false);
 
             // Setup different validators for different types
-            (ModelMap.getLogic as any).mockImplementation((fields: string[], type: string) => {
+            (ModelMap.getLogic as ReturnType<typeof vi.fn>).mockImplementation((fields: string[], type: string) => {
                 if (type === ModelType.User) {
                     return { idField: "id", validate: () => publicValidator };
                 } else if (type === ModelType.Project) {
@@ -102,7 +104,7 @@ describe("oneIsPublic", () => {
             const permissionsData = { routine: null, id: "parent123" };
             const getParentInfo = vi.fn();
 
-            const result = oneIsPublic(list, permissionsData as any, getParentInfo);
+            const result = oneIsPublic(list, permissionsData, getParentInfo);
             expect(result).toBe(false);
             // Due to the if check, validator should not be called for null fields
             expect(validator.isPublic).not.toHaveBeenCalled();
@@ -139,7 +141,7 @@ describe("oneIsPublic", () => {
             };
             const getParentInfo = vi.fn();
 
-            const result = oneIsPublic(list, permissionsData as any, getParentInfo);
+            const result = oneIsPublic(list, permissionsData, getParentInfo);
             expect(result).toBe(false);
             // Empty string and 0 are falsy, so they won't pass the if check
             expect(validator.isPublic).not.toHaveBeenCalled();
@@ -151,7 +153,7 @@ describe("oneIsPublic", () => {
             const validator = createMockValidator(true);
             const customIdField = "customId";
             
-            (ModelMap.getLogic as any).mockImplementation(() => ({
+            (ModelMap.getLogic as ReturnType<typeof vi.fn>).mockImplementation(() => ({
                 idField: customIdField,
                 validate: () => validator,
             }));
@@ -163,7 +165,7 @@ describe("oneIsPublic", () => {
             };
             const getParentInfo = vi.fn();
 
-            const result = oneIsPublic(list, permissionsData as any, getParentInfo);
+            const result = oneIsPublic(list, permissionsData, getParentInfo);
             expect(result).toBe(true);
             expect(validator.isPublic).toHaveBeenCalledWith(permissionsData.standard, getParentInfo);
         });
@@ -171,7 +173,7 @@ describe("oneIsPublic", () => {
         it("should handle objects with custom idField", () => {
             const validator = createMockValidator(false);
             
-            (ModelMap.getLogic as any).mockImplementation(() => ({
+            (ModelMap.getLogic as ReturnType<typeof vi.fn>).mockImplementation(() => ({
                 idField: "specificId",
                 validate: () => validator,
             }));
@@ -183,7 +185,7 @@ describe("oneIsPublic", () => {
             };
             const getParentInfo = vi.fn();
 
-            const result = oneIsPublic(list, permissionsData as any, getParentInfo);
+            const result = oneIsPublic(list, permissionsData, getParentInfo);
             expect(result).toBe(false);
             expect(validator.isPublic).toHaveBeenCalledWith(permissionsData.resource, getParentInfo);
         });
@@ -194,7 +196,7 @@ describe("oneIsPublic", () => {
             const publicValidator = createMockValidator(true);
             const privateValidator = createMockValidator(false);
 
-            (ModelMap.getLogic as any).mockImplementation((fields: string[], type: string) => {
+            (ModelMap.getLogic as ReturnType<typeof vi.fn>).mockImplementation((fields: string[], type: string) => {
                 if (type === ModelType.Note) {
                     return { idField: "id", validate: () => privateValidator };
                 } else if (type === ModelType.Reminder) {
@@ -255,7 +257,7 @@ describe("oneIsPublic", () => {
             const publicValidator = createMockValidator(true);
             const privateValidator = createMockValidator(false);
             
-            (ModelMap.getLogic as any).mockImplementation((fields: string[], type: string) => ({
+            (ModelMap.getLogic as ReturnType<typeof vi.fn>).mockImplementation((fields: string[], type: string) => ({
                 idField: "id",
                 validate: () => type === ModelType.User ? publicValidator : privateValidator,
             }));

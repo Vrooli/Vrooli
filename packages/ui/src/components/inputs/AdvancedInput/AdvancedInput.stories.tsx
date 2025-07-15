@@ -9,7 +9,7 @@ import Typography from "@mui/material/Typography";
 // Simple action replacement
 const action = (name: string) => (...args: any[]) => console.log(`Action: ${name}`, args);
 import { type Meta } from "@storybook/react";
-import userEvent from "@testing-library/user-event";
+import { userEvent } from "@testing-library/user-event";
 import { LlmTask, TaskStatus } from "@vrooli/shared";
 import { Form, Formik } from "formik";
 import { useState } from "react";

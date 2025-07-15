@@ -1,19 +1,20 @@
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
+import { IconButton } from "../../../components/buttons/IconButton.js";
+import { Tooltip } from "../../../components/Tooltip/Tooltip.js";
 import { styled } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
-import { DUMMY_ID, DeleteType, LlmTask, endpointsActions, endpointsResource, noopSubmit, resourceVersionTranslationValidation, resourceVersionValidation, orDefault, shapeResourceVersion, type DeleteOneInput, type ListObject, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionShape, type ResourceVersionUpdateInput, type OwnerShape, type Session, type Success } from "@vrooli/shared";
-import { ResourceType } from "@vrooli/shared/api/types";
+import { DUMMY_ID, DeleteType, LlmTask, ResourceType, endpointsActions, endpointsResource, noopSubmit, resourceVersionTranslationValidation, resourceVersionValidation, orDefault, shapeResourceVersion, type DeleteOneInput, type ListObject, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionShape, type ResourceVersionUpdateInput, type OwnerShape, type Session, type Success } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper, useSubmitHelper } from "../../../api/fetchWrapper.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
 import { EllipsisActionButton } from "../../../components/buttons/EllipsisActionButton.js";
-import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
+import Dialog from "@mui/material/Dialog";
+import { UpTransition } from "../../../components/transitions/UpTransition/UpTransition.js";
+import { useIsMobile } from "../../../hooks/useIsMobile.js";
 import { SelectLanguageMenu } from "../../../components/dialogs/SelectLanguageMenu/SelectLanguageMenu.js";
-import { TranslatedRichInput } from "../../../components/inputs/RichInput/RichInput.js";
+import { TranslatedAdvancedInput } from "../../../components/inputs/AdvancedInput/AdvancedInput.js";
 import { TranslatedTextInput } from "../../../components/inputs/TextInput/TextInput.js";
 import { ObjectActionsRow } from "../../../components/lists/ObjectActionsRow/ObjectActionsRow.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
@@ -120,8 +121,8 @@ function NoteForm({
     const { chat } = useActiveChat();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const { breakpoints, palette } = useTheme();
-    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    const { palette } = useTheme();
+    const isMobile = useIsMobile();
 
     const { handleCancel, handleCompleted, handleDeleted } = useUpsertActions<ResourceVersion>({
         display,
@@ -291,10 +292,9 @@ function NoteForm({
                                 language={language}
                                 name="name"
                             />
-                            <TranslatedRichInput
+                            <TranslatedAdvancedInput
                                 language={language}
-                                maxChars={2048}
-                                minRows={4}
+                                features={{ maxChars: 2048, minRowsCollapsed: 4 }}
                                 name="description"
                                 placeholder={t("DescriptionPlaceholder")}
                             />
@@ -350,13 +350,58 @@ function NoteForm({
 
     return (
         <>
-            <MaybeLargeDialog
-                display={display}
-                id="note-crud-dialog"
-                isOpen={isOpen}
-                onClose={onClose}
-                sxs={dialogStyle}
-            >
+            {display === "Dialog" ? (
+                <Dialog
+                    id="note-crud-dialog"
+                    open={isOpen}
+                    onClose={onClose}
+                    TransitionComponent={isMobile ? UpTransition : undefined}
+                    sx={dialogStyle}
+                >
+                    <OuterFormBox>
+                    <TopBar
+                        display={display}
+                        keepVisible
+                        onClose={onClose}
+                        titleComponent={<EditableTitle
+                            handleDelete={handleDelete}
+                            isDeletable={!(isCreate || disabled)}
+                            isEditable={!disabled}
+                            language={language}
+                            titleField="name"
+                            subtitleField="description"
+                            variant="subheader"
+                            sxs={topBarStyle}
+                            DialogContentForm={titleDialogContentForm}
+                        />}
+                    />
+                    <InnerForm
+                        display={display}
+                        isLoading={isLoading}
+                        style={formStyle}
+                    >
+                        <TranslatedAdvancedInput
+                            language={language}
+                            name="pages[0].text"
+                            placeholder={t("PleaseBeNice")}
+                            disabled={disabled}
+                            sxs={pageInputStyle}
+                        />
+                    </InnerForm>
+                    <BottomActionsButtons
+                        display={display}
+                        errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                        hideButtons={disabled}
+                        isCreate={isCreate}
+                        loading={isLoading}
+                        onCancel={handleCancel}
+                        onSetSubmitting={props.setSubmitting}
+                        onSubmit={onSubmit}
+                        sideActionButtons={sideActionButtons}
+                    />
+                    </OuterFormBox>
+                </Dialog>
+            ) : (
                 <OuterFormBox>
                     <TopBar
                         display={display}
@@ -379,7 +424,7 @@ function NoteForm({
                         isLoading={isLoading}
                         style={formStyle}
                     >
-                        <TranslatedRichInput
+                        <TranslatedAdvancedInput
                             language={language}
                             name="pages[0].text"
                             placeholder={t("PleaseBeNice")}
@@ -399,7 +444,7 @@ function NoteForm({
                         sideActionButtons={sideActionButtons}
                     />
                 </OuterFormBox>
-            </MaybeLargeDialog>
+            )}
         </>
     );
 }

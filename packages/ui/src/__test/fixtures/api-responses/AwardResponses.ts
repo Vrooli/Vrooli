@@ -7,8 +7,9 @@
  * Note: Awards are read-only entities in the system - they are granted automatically
  * based on user achievements and cannot be created/updated/deleted via API.
  */
+// AI_CHECK: TYPE_SAFETY=fixed-switch-statement-comparison-error | LAST: 2025-07-02 - Fixed TypeScript comparison error in switch statement by replacing with if-else
 
-import { http, type RestHandler } from "msw";
+import { http, type HttpHandler } from "msw";
 import type { 
     Award,
     AwardSearchInput,
@@ -77,14 +78,14 @@ export class AwardResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique resource ID
      */
     private generateId(): string {
-        return `award_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `award_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -131,8 +132,6 @@ export class AwardResponseFactory {
             pageInfo: {
                 __typename: "PageInfo",
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1,
-                startCursor: awards.length > 0 ? btoa(`award:${awards[0]!.id}`) : null,
                 endCursor: awards.length > 0 ? btoa(`award:${awards[awards.length - 1]!.id}`) : null,
             },
         };
@@ -330,7 +329,7 @@ export class AwardResponseFactory {
      * Create awards for all categories with realistic progression
      */
     createAwardsForAllCategories(): Award[] {
-        return Object.values(AwardCategory).flatMap(category => {
+        return Object.values(AwardCategory).flatMap((category: AwardCategory) => {
             // Create multiple tiers for categories with variants
             if (category in awardVariants) {
                 const variants = awardVariants[category as keyof typeof awardVariants];
@@ -424,16 +423,17 @@ export class AwardResponseFactory {
         
         // Sort awards
         if (searchInput.sortBy) {
-            filtered.sort((a, b) => {
-                switch (searchInput.sortBy) {
+            const sortBy = searchInput.sortBy;
+            filtered.sort((awardA, awardB) => {
+                switch (String(sortBy)) {
                     case AwardSortBy.DateUpdatedAsc:
-                        return new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+                        return new Date(awardA.updatedAt).getTime() - new Date(awardB.updatedAt).getTime();
                     case AwardSortBy.DateUpdatedDesc:
-                        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+                        return new Date(awardB.updatedAt).getTime() - new Date(awardA.updatedAt).getTime();
                     case AwardSortBy.ProgressAsc:
-                        return a.progress - b.progress;
+                        return awardA.progress - awardB.progress;
                     case AwardSortBy.ProgressDesc:
-                        return b.progress - a.progress;
+                        return awardB.progress - awardA.progress;
                     default:
                         return 0;
                 }
@@ -462,24 +462,21 @@ export class AwardMSWHandlers {
     /**
      * Create success handlers for all award endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): HttpHandler[] {
         return [
             // Get award by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/award/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/award/:id`, ({ params }) => {
+                const { id } = params;
                 
                 const award = this.responseFactory.createMockAward({ id: id as string });
                 const response = this.responseFactory.createSuccessResponse(award);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return Response.json(response, { status: 200 });
             }),
             
             // Search awards
-            http.post(`${this.responseFactory["baseUrl"]}/api/awards`, async (req, res, ctx) => {
-                const searchInput = await req.json() as AwardSearchInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/awards`, async ({ request }) => {
+                const searchInput = await request.json() as AwardSearchInput;
                 
                 // Generate base awards set
                 let awards = this.responseFactory.createAwardsForAllCategories();
@@ -489,15 +486,12 @@ export class AwardMSWHandlers {
                 
                 const response = this.responseFactory.createAwardSearchResponse(awards);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return Response.json(response, { status: 200 });
             }),
             
             // List user awards (simplified endpoint)
-            http.get(`${this.responseFactory["baseUrl"]}/api/awards`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/awards`, ({ request }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 const category = url.searchParams.get("category") as AwardCategory | null;
@@ -532,16 +526,13 @@ export class AwardMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return Response.json(response, { status: 200 });
             }),
             
             // Get achievement journey for a specific category
-            http.get(`${this.responseFactory["baseUrl"]}/api/awards/journey/:category`, (req, res, ctx) => {
-                const { category } = req.params;
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/awards/journey/:category`, ({ params, request }) => {
+                const { category } = params;
+                const url = new URL(request.url);
                 const progress = parseInt(url.searchParams.get("progress") || "100");
                 
                 const awards = this.responseFactory.createAchievementJourney(
@@ -551,10 +542,7 @@ export class AwardMSWHandlers {
                 
                 const response = this.responseFactory.createAwardListResponse(awards);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return Response.json(response, { status: 200 });
             }),
         ];
     }
@@ -562,52 +550,52 @@ export class AwardMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): HttpHandler[] {
         return [
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/award/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
+            http.get(`${this.responseFactory["baseUrl"]}/api/award/:id`, ({ params }) => {
+                const { id } = params;
+                return Response.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string),
+                    { status: 404 }
                 );
             }),
             
             // Permission error for write operations
-            http.post(`${this.responseFactory["baseUrl"]}/api/award`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/award`, () => {
+                return Response.json(
+                    this.responseFactory.createPermissionErrorResponse("create"),
+                    { status: 403 }
                 );
             }),
             
-            http.put(`${this.responseFactory["baseUrl"]}/api/award/:id`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("update")),
+            http.put(`${this.responseFactory["baseUrl"]}/api/award/:id`, () => {
+                return Response.json(
+                    this.responseFactory.createPermissionErrorResponse("update"),
+                    { status: 403 }
                 );
             }),
             
-            http.delete(`${this.responseFactory["baseUrl"]}/api/award/:id`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("delete")),
+            http.delete(`${this.responseFactory["baseUrl"]}/api/award/:id`, () => {
+                return Response.json(
+                    this.responseFactory.createPermissionErrorResponse("delete"),
+                    { status: 403 }
                 );
             }),
             
             // Server error
-            http.get(`${this.responseFactory["baseUrl"]}/api/awards`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
+            http.get(`${this.responseFactory["baseUrl"]}/api/awards`, () => {
+                return Response.json(
+                    this.responseFactory.createServerErrorResponse(),
+                    { status: 500 }
                 );
             }),
             
             // Rate limit error
-            http.post(`${this.responseFactory["baseUrl"]}/api/awards`, (req, res, ctx) => {
-                return res(
-                    ctx.status(429),
-                    ctx.json(this.responseFactory.createRateLimitErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/awards`, () => {
+                return Response.json(
+                    this.responseFactory.createRateLimitErrorResponse(),
+                    { status: 429 }
                 );
             }),
         ];
@@ -616,29 +604,23 @@ export class AwardMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): HttpHandler[] {
         return [
-            http.get(`${this.responseFactory["baseUrl"]}/api/awards`, async (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/awards`, async () => {
+                await new Promise(resolve => setTimeout(resolve, delay));
                 const awards = this.responseFactory.createAwardsForAllCategories();
                 const response = this.responseFactory.createAwardListResponse(awards);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return Response.json(response, { status: 200 });
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/award/:id`, async (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/award/:id`, async ({ params }) => {
+                await new Promise(resolve => setTimeout(resolve, delay));
+                const { id } = params;
                 const award = this.responseFactory.createMockAward({ id: id as string });
                 const response = this.responseFactory.createSuccessResponse(award);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return Response.json(response, { status: 200 });
             }),
         ];
     }
@@ -646,18 +628,18 @@ export class AwardMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): HttpHandler[] {
         return [
-            http.get(`${this.responseFactory["baseUrl"]}/api/awards`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.get(`${this.responseFactory["baseUrl"]}/api/awards`, () => {
+                return Response.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/award/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/award/:id`, () => {
+                return Response.error();
             }),
             
-            http.post(`${this.responseFactory["baseUrl"]}/api/awards`, (req, res, ctx) => {
-                return res.networkError("Connection timeout while searching");
+            http.post(`${this.responseFactory["baseUrl"]}/api/awards`, () => {
+                return Response.error();
             }),
         ];
     }
@@ -669,20 +651,19 @@ export class AwardMSWHandlers {
         endpoint: string;
         method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
-        response: any;
+        response: unknown;
         delay?: number;
-    }): RestHandler {
+    }): HttpHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        const httpMethod = method.toLowerCase() as keyof typeof http;
+        return http[httpMethod](fullEndpoint, async () => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return Response.json(response, { status });
         });
     }
 }

@@ -21,7 +21,10 @@ import { type JOIN_CHAT_ROOM_ERRORS, type JOIN_RUN_ROOM_ERRORS, type JOIN_USER_R
 /**
  * Base event structure for all socket events.
  * Clean and focused on client-relevant data only.
- * Server-side metadata (delivery guarantees, priority, etc.) is stripped before emission.
+ * 
+ * The socket service should automatically wrap the event in this structure before sending it to the client, 
+ * and the client should automatically unwrap it before processing. This ensures that we don't have 
+ * to worry about building the event structure manually, and simplifies emitting events.
  * 
  * @template T - The type of the event payload data
  * @interface UnifiedEvent
@@ -38,6 +41,101 @@ export interface UnifiedEvent<T = unknown> {
 }
 
 /**
+ * Error payload structure for all error events.
+ * 
+ * This is a standardized error payload that can be used for all error events.
+ * It's used to standardize error handling and reporting across the platform.
+ * 
+ * @interface ErrorPayload
+ */
+export interface ErrorPayload {
+    /** User-friendly error message */
+    message: string;
+    /** Standardized error code (e.g., 'LLM_ERROR', 'TOOL_EXECUTION_FAILED', 'TIMEOUT', 'CANCELLED', 'CREDIT_EXHAUSTED') */
+    code?: string;
+    /** Optional: further technical details or stringified error */
+    details?: string;
+    /** If the error is related to a specific tool call */
+    toolCallId?: string;
+    /** Hint for the UI if a retry might be possible */
+    retryable?: boolean;
+}
+
+/**
+ * Base event structure for chat-specific events.
+ * 
+ * @interface ChatEventData
+ */
+export interface ChatEventData {
+    /** 
+     * The ID of the chat the event is associated with.
+     * This doesn't strictly need to be in the event data, since if you're receiving an event from a chat room,
+     * you already know the chat ID. But it can help simplify event emitting if we include it, since the event bus
+     * can parse this out of the event data to emit the event to the correct chat room.
+     */
+    chatId: string;
+}
+
+/**
+ * Base event structure for swarm-specific events.
+ * Since swarms are currently tied 1-to-1 with a chat, we can use the chat ID to identify the swarm.
+ * 
+ * @interface SwarmEventData
+ */
+export type SwarmEventData = ChatEventData;
+
+/**
+ * Base event structure for run-specific events.
+ * 
+ * @interface RunEventData
+ */
+export interface RunEventData {
+    /** The ID of the run the event is associated with */
+    runId: string;
+}
+
+/**
+ * Safety action event types.
+ * 
+ * This includes safety actions which have pre- and post-action events (i.e. safety checks), 
+ * as well as actions which automatically pause/cancel swarms (e.g. emergency stop).
+ * 
+ * @enum SafetyActionType
+ */
+export enum SafetyActionType {
+    // Safety checks (can be cancelled)
+    ToolCall = "tool_call",
+    ApiCall = "api_call",
+    RoutineExecution = "routine_execution",
+    DataAccess = "data_access",
+    ExternalRequest = "external_request",
+    ThreatDetected = "threat_detected", // Typically should stop the swarm, but you could override this (e.g. multiple threat detection layers that validate each other)
+    // Automatically pause/cancel swarms
+    EmergencyStop = "emergency_stop",
+}
+
+/**
+ * Base event structure for safety-specific events.
+ * These always occur within the context of a swarm, so they extend the SwarmEventData interface 
+ * and use the same room ID as swarms.
+ * 
+ * @interface SafetyEventData
+ */
+export interface SafetyEventData extends SwarmEventData {
+    /** Type of action being performed */
+    actionType: SafetyActionType;
+    /** An ID to tie pre- and post-action events together */
+    actionId: string;
+    /** 
+     * ID of the entity performing the action.
+     * For system actions, this will be the chat ID.
+     */
+    actorId: string;
+    /** Type of actor who triggered the action */
+    actorType: "user" | "agent" | "system";
+}
+
+/**
  * Centralized event type constants organized by socket room.
  * This provides better separation of concerns and clearer event organization.
  * 
@@ -48,7 +146,6 @@ export interface UnifiedEvent<T = unknown> {
  * @constant EventTypes
  */
 export const EventTypes = {
-
     // ===== Chat Room Events =====
     CHAT: {
         /** Fired when new messages are added to a chat */
@@ -337,19 +434,6 @@ export type BotStatus =
 export type ReservedSocketEvents = "connect" | "connect_error" | "disconnect";
 export type RoomSocketEvents = "joinChatRoom" | "leaveChatRoom" | "joinRunRoom" | "leaveRunRoom" | "joinUserRoom" | "leaveUserRoom" | "requestCancellation";
 
-export interface ErrorPayload {
-    /** User-friendly error message */
-    message: string;
-    /** Standardized error code (e.g., 'LLM_ERROR', 'TOOL_EXECUTION_FAILED', 'TIMEOUT', 'CANCELLED', 'CREDIT_EXHAUSTED') */
-    code?: string;
-    /** Optional: further technical details or stringified error */
-    details?: string;
-    /** If the error is related to a specific tool call */
-    toolCallId?: string;
-    /** Hint for the UI if a retry might be possible */
-    retryable?: boolean;
-}
-
 /**
  * Type-safe socket event payload map organized by room.
  * Maps each event type to its specific payload structure.
@@ -363,9 +447,7 @@ export interface SocketEventPayloads {
      * Payload for chat message addition events
      * @event CHAT_MESSAGE_ADDED
      */
-    [EventTypes.CHAT.MESSAGE_ADDED]: {
-        /** ID of the chat */
-        chatId: string;
+    [EventTypes.CHAT.MESSAGE_ADDED]: ChatEventData & {
         /** Array of new messages */
         messages: ChatMessage[];
     };
@@ -374,9 +456,7 @@ export interface SocketEventPayloads {
      * Payload for chat message update events
      * @event CHAT_MESSAGE_UPDATED
      */
-    [EventTypes.CHAT.MESSAGE_UPDATED]: {
-        /** ID of the chat */
-        chatId: string;
+    [EventTypes.CHAT.MESSAGE_UPDATED]: ChatEventData & {
         /** Array of message updates (must include id) */
         messages: (Partial<ChatMessage> & { id: string })[];
     };
@@ -385,9 +465,7 @@ export interface SocketEventPayloads {
      * Payload for chat message removal events
      * @event CHAT_MESSAGE_REMOVED
      */
-    [EventTypes.CHAT.MESSAGE_REMOVED]: {
-        /** ID of the chat */
-        chatId: string;
+    [EventTypes.CHAT.MESSAGE_REMOVED]: ChatEventData & {
         /** IDs of messages that were removed */
         messageIds: string[];
     };
@@ -396,9 +474,7 @@ export interface SocketEventPayloads {
      * Payload for chat participant change events
      * @event CHAT_PARTICIPANTS_CHANGED
      */
-    [EventTypes.CHAT.PARTICIPANTS_CHANGED]: {
-        /** ID of the chat */
-        chatId: string;
+    [EventTypes.CHAT.PARTICIPANTS_CHANGED]: ChatEventData & {
         /** Participants who joined the chat */
         joining?: Omit<ChatParticipant, "chat">[];
         /** IDs of participants who left the chat */
@@ -409,9 +485,7 @@ export interface SocketEventPayloads {
      * Payload for chat typing indicator events
      * @event CHAT_TYPING_UPDATED
      */
-    [EventTypes.CHAT.TYPING_UPDATED]: {
-        /** ID of the chat */
-        chatId: string;
+    [EventTypes.CHAT.TYPING_UPDATED]: ChatEventData & {
         /** User IDs who started typing */
         starting?: string[];
         /** User IDs who stopped typing */
@@ -422,9 +496,7 @@ export interface SocketEventPayloads {
      * Payload for response stream chunk events
      * @event RESPONSE_STREAM_CHUNK
      */
-    [EventTypes.CHAT.RESPONSE_STREAM_CHUNK]: {
-        /** ID of the chat */
-        chatId: string;
+    [EventTypes.CHAT.RESPONSE_STREAM_CHUNK]: ChatEventData & {
         /** ID of the bot sending the stream */
         botId?: string;
         /** Text chunk (not accumulated) */
@@ -435,9 +507,7 @@ export interface SocketEventPayloads {
      * Payload for response stream completion events
      * @event RESPONSE_STREAM_END
      */
-    [EventTypes.CHAT.RESPONSE_STREAM_END]: {
-        /** ID of the chat */
-        chatId: string;
+    [EventTypes.CHAT.RESPONSE_STREAM_END]: ChatEventData & {
         /** ID of the bot that sent the stream */
         botId?: string;
         /** Complete final message */
@@ -448,9 +518,7 @@ export interface SocketEventPayloads {
      * Payload for response stream error events
      * @event RESPONSE_STREAM_ERROR
      */
-    [EventTypes.CHAT.RESPONSE_STREAM_ERROR]: {
-        /** ID of the chat */
-        chatId: string;
+    [EventTypes.CHAT.RESPONSE_STREAM_ERROR]: ChatEventData & {
         /** ID of the bot that encountered the error */
         botId?: string;
         /** Error details */
@@ -461,9 +529,7 @@ export interface SocketEventPayloads {
      * Payload for reasoning stream chunk events
      * @event REASONING_STREAM_CHUNK
      */
-    [EventTypes.CHAT.REASONING_STREAM_CHUNK]: {
-        /** ID of the chat */
-        chatId: string;
+    [EventTypes.CHAT.REASONING_STREAM_CHUNK]: ChatEventData & {
         /** ID of the bot sending reasoning */
         botId?: string;
         /** Reasoning text chunk (not accumulated) */
@@ -474,9 +540,7 @@ export interface SocketEventPayloads {
      * Payload for reasoning stream completion events
      * @event REASONING_STREAM_END
      */
-    [EventTypes.CHAT.REASONING_STREAM_END]: {
-        /** ID of the chat */
-        chatId: string;
+    [EventTypes.CHAT.REASONING_STREAM_END]: ChatEventData & {
         /** ID of the bot that sent reasoning */
         botId?: string;
     };
@@ -485,9 +549,7 @@ export interface SocketEventPayloads {
      * Payload for reasoning stream error events
      * @event REASONING_STREAM_ERROR
      */
-    [EventTypes.CHAT.REASONING_STREAM_ERROR]: {
-        /** ID of the chat */
-        chatId: string;
+    [EventTypes.CHAT.REASONING_STREAM_ERROR]: ChatEventData & {
         /** ID of the bot that encountered the error */
         botId?: string;
         /** Error details */
@@ -498,9 +560,7 @@ export interface SocketEventPayloads {
      * Payload for LLM task update events
      * @event LLM_TASKS_UPDATED
      */
-    [EventTypes.CHAT.LLM_TASKS_UPDATED]: {
-        /** ID of the chat */
-        chatId: string;
+    [EventTypes.CHAT.LLM_TASKS_UPDATED]: ChatEventData & {
         /** Full task information for new/complete updates */
         tasks?: AITaskInfo[];
         /** Partial updates for existing tasks */
@@ -511,8 +571,7 @@ export interface SocketEventPayloads {
      * Payload for bot status update events
      * @event BOT_STATUS_UPDATED
      */
-    [EventTypes.CHAT.BOT_STATUS_UPDATED]: {
-        /** ID of the chat/conversation */
+    [EventTypes.CHAT.BOT_STATUS_UPDATED]: ChatEventData & {
         chatId: string;
         /** ID of the bot whose status changed */
         botId: string;
@@ -545,9 +604,7 @@ export interface SocketEventPayloads {
      * Payload for bot typing update events
      * @event BOT_TYPING_UPDATED
      */
-    [EventTypes.CHAT.BOT_TYPING_UPDATED]: {
-        /** ID of the chat/conversation */
-        chatId: string;
+    [EventTypes.CHAT.BOT_TYPING_UPDATED]: ChatEventData & {
         /** Bot IDs who started typing */
         starting?: string[];
         /** Bot IDs who stopped typing */
@@ -558,9 +615,7 @@ export interface SocketEventPayloads {
      * Payload for bot response stream events
      * @event BOT_RESPONSE_STREAM
      */
-    [EventTypes.CHAT.BOT_RESPONSE_STREAM]: {
-        /** ID of the chat/conversation */
-        chatId: string;
+    [EventTypes.CHAT.BOT_RESPONSE_STREAM]: ChatEventData & {
         /** ID of the bot sending the stream */
         botId?: string;
         /** Stream type */
@@ -577,9 +632,7 @@ export interface SocketEventPayloads {
      * Payload for bot model reasoning stream events
      * @event BOT_MODEL_REASONING_STREAM
      */
-    [EventTypes.CHAT.BOT_MODEL_REASONING_STREAM]: {
-        /** ID of the chat/conversation */
-        chatId: string;
+    [EventTypes.CHAT.BOT_MODEL_REASONING_STREAM]: ChatEventData & {
         /** ID of the bot sending reasoning */
         botId?: string;
         /** Stream type */
@@ -594,9 +647,7 @@ export interface SocketEventPayloads {
      * Payload for tool called events
      * @event TOOL_CALLED
      */
-    [EventTypes.CHAT.TOOL_CALLED]: {
-        /** ID of the chat/conversation */
-        chatId: string;
+    [EventTypes.CHAT.TOOL_CALLED]: ChatEventData & {
         /** Unique ID for this tool call */
         toolCallId: string;
         /** Name of the tool being called */
@@ -611,9 +662,7 @@ export interface SocketEventPayloads {
      * Payload for tool completed events
      * @event TOOL_COMPLETED
      */
-    [EventTypes.CHAT.TOOL_COMPLETED]: {
-        /** ID of the chat/conversation */
-        chatId: string;
+    [EventTypes.CHAT.TOOL_COMPLETED]: ChatEventData & {
         /** ID of the completed tool call */
         toolCallId: string;
         /** Name of the completed tool */
@@ -632,9 +681,7 @@ export interface SocketEventPayloads {
      * Payload for tool failed events
      * @event TOOL_FAILED
      */
-    [EventTypes.CHAT.TOOL_FAILED]: {
-        /** ID of the chat/conversation */
-        chatId: string;
+    [EventTypes.CHAT.TOOL_FAILED]: ChatEventData & {
         /** ID of the failed tool call */
         toolCallId: string;
         /** Name of the failed tool */
@@ -651,9 +698,7 @@ export interface SocketEventPayloads {
      * Payload for tool approval request events
      * @event TOOL_APPROVAL_REQUIRED
      */
-    [EventTypes.CHAT.TOOL_APPROVAL_REQUIRED]: {
-        /** ID of the chat/conversation */
-        chatId: string;
+    [EventTypes.CHAT.TOOL_APPROVAL_REQUIRED]: ChatEventData & {
         /** Unique ID for this pending approval */
         pendingId: string;
         /** ID of the tool call requiring approval */
@@ -676,9 +721,7 @@ export interface SocketEventPayloads {
      * Payload for tool approval granted events
      * @event TOOL_APPROVAL_GRANTED
      */
-    [EventTypes.CHAT.TOOL_APPROVAL_GRANTED]: {
-        /** ID of the chat/conversation */
-        chatId: string;
+    [EventTypes.CHAT.TOOL_APPROVAL_GRANTED]: ChatEventData & {
         /** ID of the pending approval that was granted */
         pendingId: string;
         /** ID of the tool call */
@@ -695,9 +738,7 @@ export interface SocketEventPayloads {
      * Payload for tool approval rejection events
      * @event TOOL_APPROVAL_REJECTED
      */
-    [EventTypes.CHAT.TOOL_APPROVAL_REJECTED]: {
-        /** ID of the chat/conversation */
-        chatId: string;
+    [EventTypes.CHAT.TOOL_APPROVAL_REJECTED]: ChatEventData & {
         /** ID of the pending approval that was rejected */
         pendingId: string;
         /** ID of the tool call that was rejected */
@@ -714,9 +755,7 @@ export interface SocketEventPayloads {
      * Payload for tool approval timeout events
      * @event TOOL_APPROVAL_TIMEOUT
      */
-    [EventTypes.CHAT.TOOL_APPROVAL_TIMEOUT]: {
-        /** ID of the chat/conversation */
-        chatId: string;
+    [EventTypes.CHAT.TOOL_APPROVAL_TIMEOUT]: ChatEventData & {
         /** ID of the pending approval that timed out */
         pendingId: string;
         /** ID of the tool call */
@@ -735,9 +774,8 @@ export interface SocketEventPayloads {
      * Payload for cancellation request events
      * @event CANCELLATION_REQUESTED
      */
-    [EventTypes.CHAT.CANCELLATION_REQUESTED]: {
-        /** ID of the chat to cancel operations in */
-        chatId: string;
+    [EventTypes.CHAT.CANCELLATION_REQUESTED]: ChatEventData & {
+        // Add any additional fields here if needed
     };
 
     // ===== Swarm Room event payloads =====
@@ -746,9 +784,7 @@ export interface SocketEventPayloads {
      * Payload for the start of a swarm
      * @event SWARM_STARTED
      */
-    [EventTypes.SWARM.STARTED]: {
-        /** ID of the chat/conversation containing the swarm */
-        chatId: string;
+    [EventTypes.SWARM.STARTED]: SwarmEventData & {
         /** The goal of the swarm */
         goal: string;
         /** The ID of the bot or user that started the swarm */
@@ -759,9 +795,7 @@ export interface SocketEventPayloads {
      * Payload for swarm state change events
      * @event SWARM_STATE_CHANGED
      */
-    [EventTypes.SWARM.STATE_CHANGED]: {
-        /** ID of the chat/conversation containing the swarm */
-        chatId: string;
+    [EventTypes.SWARM.STATE_CHANGED]: SwarmEventData & {
         /** Unique identifier of the swarm */
         swarmId: string;
         /** Previous state before the change */
@@ -776,9 +810,7 @@ export interface SocketEventPayloads {
      * Payload for swarm resource update events
      * @event SWARM_RESOURCE_UPDATED
      */
-    [EventTypes.SWARM.RESOURCE_UPDATED]: {
-        /** ID of the chat/conversation containing the swarm */
-        chatId: string;
+    [EventTypes.SWARM.RESOURCE_UPDATED]: SwarmEventData & {
         /** Unique identifier of the swarm */
         swarmId: string;
         /** Total credits allocated to the swarm */
@@ -793,9 +825,7 @@ export interface SocketEventPayloads {
      * Payload for swarm configuration update events
      * @event SWARM_CONFIG_UPDATED
      */
-    [EventTypes.SWARM.CONFIG_UPDATED]: {
-        /** ID of the chat/conversation containing the swarm */
-        chatId: string;
+    [EventTypes.SWARM.CONFIG_UPDATED]: SwarmEventData & {
         /** Partial configuration object with updated fields */
         config: Partial<ChatConfigObject> & { __typename?: "ChatConfigObject" };
     };
@@ -804,9 +834,7 @@ export interface SocketEventPayloads {
      * Payload for swarm team update events
      * @event SWARM_TEAM_UPDATED
      */
-    [EventTypes.SWARM.TEAM_UPDATED]: {
-        /** ID of the chat/conversation containing the swarm */
-        chatId: string;
+    [EventTypes.SWARM.TEAM_UPDATED]: SwarmEventData & {
         /** Unique identifier of the swarm */
         swarmId: string;
         /** ID of the team assigned to this swarm */
@@ -821,9 +849,7 @@ export interface SocketEventPayloads {
      * Payload for swarm goal created events
      * @event SWARM_GOAL_CREATED
      */
-    [EventTypes.SWARM.GOAL_CREATED]: {
-        /** ID of the chat/conversation containing the swarm */
-        chatId: string;
+    [EventTypes.SWARM.GOAL_CREATED]: SwarmEventData & {
         /** Unique identifier of the swarm */
         swarmId: string;
         /** ID of the newly created goal */
@@ -838,9 +864,7 @@ export interface SocketEventPayloads {
      * Payload for swarm goal updated events
      * @event SWARM_GOAL_UPDATED
      */
-    [EventTypes.SWARM.GOAL_UPDATED]: {
-        /** ID of the chat/conversation containing the swarm */
-        chatId: string;
+    [EventTypes.SWARM.GOAL_UPDATED]: SwarmEventData & {
         /** Unique identifier of the swarm */
         swarmId: string;
         /** ID of the updated goal */
@@ -857,9 +881,7 @@ export interface SocketEventPayloads {
      * Payload for swarm goal completed events
      * @event SWARM_GOAL_COMPLETED
      */
-    [EventTypes.SWARM.GOAL_COMPLETED]: {
-        /** ID of the chat/conversation containing the swarm */
-        chatId: string;
+    [EventTypes.SWARM.GOAL_COMPLETED]: SwarmEventData & {
         /** Unique identifier of the swarm */
         swarmId: string;
         /** ID of the completed goal */
@@ -874,9 +896,7 @@ export interface SocketEventPayloads {
      * Payload for swarm goal failed events
      * @event SWARM_GOAL_FAILED
      */
-    [EventTypes.SWARM.GOAL_FAILED]: {
-        /** ID of the chat/conversation containing the swarm */
-        chatId: string;
+    [EventTypes.SWARM.GOAL_FAILED]: SwarmEventData & {
         /** Unique identifier of the swarm */
         swarmId: string;
         /** ID of the failed goal */
@@ -895,9 +915,7 @@ export interface SocketEventPayloads {
      * Payload for run started events
      * @event RUN_STARTED
      */
-    [EventTypes.RUN.STARTED]: {
-        /** ID of the run */
-        runId: string;
+    [EventTypes.RUN.STARTED]: RunEventData & {
         /** ID of the routine being executed */
         routineId: string;
         /** Run configuration parameters */
@@ -910,9 +928,7 @@ export interface SocketEventPayloads {
      * Payload for run completed events
      * @event RUN_COMPLETED
      */
-    [EventTypes.RUN.COMPLETED]: {
-        /** ID of the run */
-        runId: string;
+    [EventTypes.RUN.COMPLETED]: RunEventData & {
         /** Run outputs */
         outputs?: Record<string, unknown>;
         /** Actual execution time (ms) */
@@ -925,9 +941,7 @@ export interface SocketEventPayloads {
      * Payload for run failed events
      * @event RUN_FAILED
      */
-    [EventTypes.RUN.FAILED]: {
-        /** ID of the run */
-        runId: string;
+    [EventTypes.RUN.FAILED]: RunEventData & {
         /** Error message */
         error: string;
         /** Execution time before failure (ms) */
@@ -940,9 +954,7 @@ export interface SocketEventPayloads {
      * Payload for run task ready events
      * @event RUN_TASK_READY
      */
-    [EventTypes.RUN.TASK_READY]: {
-        /** ID of the run */
-        runId: string;
+    [EventTypes.RUN.TASK_READY]: RunEventData & {
         /** Task information */
         task: RunTaskInfo;
     };
@@ -951,9 +963,7 @@ export interface SocketEventPayloads {
      * Payload for run decision request events
      * @event RUN_DECISION_REQUESTED
      */
-    [EventTypes.RUN.DECISION_REQUESTED]: {
-        /** ID of the run */
-        runId: string;
+    [EventTypes.RUN.DECISION_REQUESTED]: RunEventData & {
         /** Decision data requiring user input */
         decision: DeferredDecisionData;
     };
@@ -962,9 +972,7 @@ export interface SocketEventPayloads {
      * Payload for step started events
      * @event STEP_STARTED
      */
-    [EventTypes.RUN.STEP_STARTED]: {
-        /** ID of the run */
-        runId: string;
+    [EventTypes.RUN.STEP_STARTED]: RunEventData & {
         /** ID of the step */
         stepId: string;
         /** Step name/description */
@@ -977,9 +985,7 @@ export interface SocketEventPayloads {
      * Payload for step completed events
      * @event STEP_COMPLETED
      */
-    [EventTypes.RUN.STEP_COMPLETED]: {
-        /** ID of the run */
-        runId: string;
+    [EventTypes.RUN.STEP_COMPLETED]: RunEventData & {
         /** ID of the routine */
         routineId: string;
         /** ID of the step */
@@ -1024,9 +1030,7 @@ export interface SocketEventPayloads {
      * Payload for step failed events
      * @event STEP_FAILED
      */
-    [EventTypes.RUN.STEP_FAILED]: {
-        /** ID of the run */
-        runId: string;
+    [EventTypes.RUN.STEP_FAILED]: RunEventData & {
         /** ID of the step */
         stepId: string;
         /** Error message */
@@ -1065,19 +1069,9 @@ export interface SocketEventPayloads {
      * Payload for pre-action safety checks
      * @event SAFETY_PRE_ACTION
      */
-    [EventTypes.SAFETY.PRE_ACTION]: {
-        /** Type of action being performed */
-        actionType: "tool_call" | "api_call" | "routine_execution" | "data_access" | "external_request";
-        /** ID of the entity performing the action (user, bot, agent, etc.) */
-        actorId: string;
-        /** Type of actor (user, bot, agent, system) */
-        actorType: "user" | "bot" | "agent" | "system";
-        /** Context where action is happening (chat, run, etc.) */
-        contextId?: string;
-        /** Context type */
-        contextType?: "chat" | "run" | "swarm";
+    [EventTypes.SAFETY.PRE_ACTION]: SafetyEventData & {
         /** Details about the action being attempted */
-        actionDetails: {
+        action: {
             /** Name or identifier of the action */
             name: string;
             /** Parameters or payload of the action */
@@ -1087,69 +1081,37 @@ export interface SocketEventPayloads {
             /** Estimated cost in credits if applicable */
             estimatedCost?: string;
         };
-        /** Unique ID for tracking this action through pre/post */
-        actionId: string;
     };
 
     /**
      * Payload for post-action safety checks
      * @event SAFETY_POST_ACTION
      */
-    [EventTypes.SAFETY.POST_ACTION]: {
-        /** Same action ID from pre_action for correlation */
-        actionId: string;
-        /** Type of action that was performed */
-        actionType: "tool_call" | "api_call" | "routine_execution" | "data_access" | "external_request";
-        /** ID of the entity that performed the action */
-        actorId: string;
-        /** Type of actor */
-        actorType: "user" | "bot" | "agent" | "system";
-        /** Context where action happened */
-        contextId?: string;
-        /** Context type */
-        contextType?: "chat" | "run" | "swarm";
-        /** Action name or identifier */
-        actionName: string;
-        /** Result of the action */
-        result?: unknown;
-        /** Whether the action succeeded */
-        success: boolean;
-        /** Error if action failed */
-        error?: string;
-        /** Duration of action execution in milliseconds */
-        duration?: number;
-        /** Actual credits consumed */
-        creditsUsed?: string;
+    [EventTypes.SAFETY.POST_ACTION]: SafetyEventData & {
+        /** Details about the action that was attempted */
+        action: {
+            /** Name or identifier of the action */
+            name: string;
+            /** Result of the action */
+            result?: unknown;
+            /** Whether the action succeeded */
+            success: boolean;
+            /** Error if action failed */
+            error?: ErrorPayload;
+            /** Duration of action execution in milliseconds */
+            duration?: number;
+            /** Actual credits consumed */
+            cost?: string;
+        }
     };
 
     /**
      * Payload for emergency stop events
      * @event EMERGENCY_STOP
      */
-    [EventTypes.SAFETY.EMERGENCY_STOP]: {
-        /** ID of the entity that triggered the emergency stop */
-        actorId: string;
-        /** Type of actor */
-        actorType: "user" | "bot" | "agent" | "system";
-        /** Context where emergency stop happened */
-        contextId?: string;
-        /** Context type */
-        contextType?: "chat" | "run" | "swarm";
-    };
-
-    /**
-     * Payload for threat detected events
-     * @event THREAT_DETECTED
-     */
-    [EventTypes.SAFETY.THREAT_DETECTED]: {
-        /** ID of the entity that triggered the threat */
-        actorId: string;
-        /** Type of actor */
-        actorType: "user" | "bot" | "agent" | "system";
-        /** Context where threat happened */
-        contextId?: string;
-        /** Context type */
-        contextType?: "chat" | "run" | "swarm";
+    [EventTypes.SAFETY.EMERGENCY_STOP]: SafetyEventData & {
+        /** Any additional details you want to include */
+        details?: Record<string, unknown>;
     };
 
     // ===== Room Management event payloads =====
@@ -1300,3 +1262,29 @@ export type SocketEventHandler<T extends SocketEvent> = T extends keyof SocketEv
 
 
 export type SocketEvent = keyof SocketEventPayloads;
+
+/**
+ * Type guard to check if a payload is wrapped in UnifiedEvent
+ */
+export function isUnifiedEvent<T = unknown>(payload: unknown): payload is UnifiedEvent<T> {
+    return (
+        typeof payload === "object" &&
+        payload !== null &&
+        "id" in payload &&
+        "type" in payload &&
+        "timestamp" in payload &&
+        "data" in payload
+    );
+}
+
+/**
+ * Extract the event data from a UnifiedEvent or return the payload as-is
+ */
+export function extractEventData<T>(payload: T | UnifiedEvent<T>): T {
+    return isUnifiedEvent(payload) ? payload.data : payload;
+}
+
+/**
+ * Type for EmitSocketEvent that includes UnifiedEvent wrapper
+ */
+export type UnifiedSocketEvent<T extends keyof SocketEventPayloads> = UnifiedEvent<SocketEventPayloads[T]>;

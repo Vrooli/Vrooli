@@ -5,7 +5,8 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { http, type RestHandler } from "msw";
+// AI_CHECK: TYPE_SAFETY=fixed-msw-v2-handler-signatures-and-types | LAST: 2025-06-30
+import { http, HttpResponse, type RequestHandler } from "msw";
 import type { 
     ApiKey, 
     ApiKeyCreated,
@@ -78,14 +79,14 @@ export class ApiKeyResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique resource ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -536,7 +537,7 @@ export class ApiKeyResponseFactory {
         errors?: Record<string, string>;
     }> {
         try {
-            await apiKeyValidation.create.validate(input);
+            await apiKeyValidation.create({}).validate(input);
             return { valid: true };
         } catch (error: any) {
             const fieldErrors: Record<string, string> = {};
@@ -566,7 +567,7 @@ export class ApiKeyResponseFactory {
         errors?: Record<string, string>;
     }> {
         try {
-            await apiKeyExternalValidation.create.validate(input);
+            await apiKeyExternalValidation.create({}).validate(input);
             return { valid: true };
         } catch (error: any) {
             const fieldErrors: Record<string, string> = {};
@@ -602,18 +603,18 @@ export class ApiKeyMSWHandlers {
     /**
      * Create success handlers for all ApiKey endpoints
      */
-    createApiKeySuccessHandlers(): RestHandler[] {
+    createApiKeySuccessHandlers(): RequestHandler[] {
         return [
             // Create ApiKey
-            http.post(`${this.responseFactory["baseUrl"]}/api/apiKey`, async (req, res, ctx) => {
-                const body = await req.json() as ApiKeyCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/apiKey`, async ({ request }) => {
+                const body = await request.json() as ApiKeyCreateInput;
                 
                 // Validate input
                 const validation = await this.responseFactory.validateApiKeyCreateInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
+                    return HttpResponse.json(
+                        this.responseFactory.createValidationErrorResponse(validation.errors || {}),
+                        { status: 400 }
                     );
                 }
                 
@@ -621,29 +622,23 @@ export class ApiKeyMSWHandlers {
                 const apiKey = this.responseFactory.createApiKeyFromInput(body);
                 const response = this.responseFactory.createApiKeyCreatedSuccessResponse(apiKey);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 201 });
             }),
             
             // Get ApiKey by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/apiKey/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/apiKey/:id`, ({ params }) => {
+                const { id } = params;
                 
                 const apiKey = this.responseFactory.createMockApiKey({ id: id as string });
                 const response = this.responseFactory.createApiKeySuccessResponse(apiKey);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Update ApiKey
-            http.put(`${this.responseFactory["baseUrl"]}/api/apiKey/:id`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const body = await req.json() as ApiKeyUpdateInput;
+            http.put(`${this.responseFactory["baseUrl"]}/api/apiKey/:id`, async ({ params, request }) => {
+                const { id } = params;
+                const body = await request.json() as ApiKeyUpdateInput;
                 
                 const apiKey = this.responseFactory.createMockApiKey({ 
                     id: id as string,
@@ -652,20 +647,17 @@ export class ApiKeyMSWHandlers {
                 
                 const response = this.responseFactory.createApiKeySuccessResponse(apiKey);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Delete ApiKey
-            http.delete(`${this.responseFactory["baseUrl"]}/api/apiKey/:id`, (req, res, ctx) => {
-                return res(ctx.status(204));
+            http.delete(`${this.responseFactory["baseUrl"]}/api/apiKey/:id`, () => {
+                return new HttpResponse(null, { status: 204 });
             }),
             
             // List ApiKeys
-            http.get(`${this.responseFactory["baseUrl"]}/api/apiKey`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/apiKey`, ({ request }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 
@@ -684,22 +676,16 @@ export class ApiKeyMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Validate ApiKey
-            http.post(`${this.responseFactory["baseUrl"]}/api/apiKey/validate`, (req, res, ctx) => {
-                return res(
-                    ctx.status(200),
-                    ctx.json({
-                        valid: true,
-                        permissions: JSON.stringify({ read: true, write: true, execute: true }),
-                        creditsRemaining: "2750000",
-                    }),
-                );
+            http.post(`${this.responseFactory["baseUrl"]}/api/apiKey/validate`, () => {
+                return HttpResponse.json({
+                    valid: true,
+                    permissions: JSON.stringify({ read: true, write: true, execute: true }),
+                    creditsRemaining: "2750000",
+                }, { status: 200 });
             }),
         ];
     }
@@ -707,18 +693,18 @@ export class ApiKeyMSWHandlers {
     /**
      * Create success handlers for all ApiKeyExternal endpoints
      */
-    createApiKeyExternalSuccessHandlers(): RestHandler[] {
+    createApiKeyExternalSuccessHandlers(): RequestHandler[] {
         return [
             // Create ApiKeyExternal
-            http.post(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal`, async (req, res, ctx) => {
-                const body = await req.json() as ApiKeyExternalCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal`, async ({ request }) => {
+                const body = await request.json() as ApiKeyExternalCreateInput;
                 
                 // Validate input
                 const validation = await this.responseFactory.validateApiKeyExternalCreateInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}, "/api/apiKeyExternal")),
+                    return HttpResponse.json(
+                        this.responseFactory.createValidationErrorResponse(validation.errors || {}, "/api/apiKeyExternal"),
+                        { status: 400 }
                     );
                 }
                 
@@ -726,29 +712,23 @@ export class ApiKeyMSWHandlers {
                 const apiKeyExternal = this.responseFactory.createApiKeyExternalFromInput(body);
                 const response = this.responseFactory.createApiKeyExternalSuccessResponse(apiKeyExternal);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 201 });
             }),
             
             // Get ApiKeyExternal by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal/:id`, ({ params }) => {
+                const { id } = params;
                 
                 const apiKeyExternal = this.responseFactory.createMockApiKeyExternal({ id: id as string });
                 const response = this.responseFactory.createApiKeyExternalSuccessResponse(apiKeyExternal);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Update ApiKeyExternal
-            http.put(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal/:id`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const body = await req.json() as ApiKeyExternalUpdateInput;
+            http.put(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal/:id`, async ({ params, request }) => {
+                const { id } = params;
+                const body = await request.json() as ApiKeyExternalUpdateInput;
                 
                 const apiKeyExternal = this.responseFactory.createMockApiKeyExternal({ 
                     id: id as string,
@@ -757,20 +737,17 @@ export class ApiKeyMSWHandlers {
                 
                 const response = this.responseFactory.createApiKeyExternalSuccessResponse(apiKeyExternal);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Delete ApiKeyExternal
-            http.delete(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal/:id`, (req, res, ctx) => {
-                return res(ctx.status(204));
+            http.delete(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal/:id`, () => {
+                return new HttpResponse(null, { status: 204 });
             }),
             
             // List ApiKeyExternals
-            http.get(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal`, ({ request }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 const service = url.searchParams.get("service");
@@ -795,10 +772,7 @@ export class ApiKeyMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -806,58 +780,58 @@ export class ApiKeyMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createApiKeyErrorHandlers(): RestHandler[] {
+    createApiKeyErrorHandlers(): RequestHandler[] {
         return [
             // Validation error
-            http.post(`${this.responseFactory["baseUrl"]}/api/apiKey`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
+            http.post(`${this.responseFactory["baseUrl"]}/api/apiKey`, () => {
+                return HttpResponse.json(
+                    this.responseFactory.createValidationErrorResponse({
                         name: "API key name is required",
                         limitHard: "Hard limit must be a positive number",
                         permissions: "Permissions must be a valid JSON string",
-                    })),
+                    }),
+                    { status: 400 }
                 );
             }),
             
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/apiKey/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string, "apiKey")),
+            http.get(`${this.responseFactory["baseUrl"]}/api/apiKey/:id`, ({ params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string, "apiKey"),
+                    { status: 404 }
                 );
             }),
             
             // Permission error
-            http.post(`${this.responseFactory["baseUrl"]}/api/apiKey`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("create", "apiKey")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/apiKey`, () => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("create", "apiKey"),
+                    { status: 403 }
                 );
             }),
             
             // Rate limit error
-            http.post(`${this.responseFactory["baseUrl"]}/api/apiKey/validate`, (req, res, ctx) => {
-                return res(
-                    ctx.status(429),
-                    ctx.json(this.responseFactory.createRateLimitErrorResponse("test-api-key-id")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/apiKey/validate`, () => {
+                return HttpResponse.json(
+                    this.responseFactory.createRateLimitErrorResponse("test-api-key-id"),
+                    { status: 429 }
                 );
             }),
             
             // Quota exceeded error
-            http.post(`${this.responseFactory["baseUrl"]}/api/apiKey/validate`, (req, res, ctx) => {
-                return res(
-                    ctx.status(402),
-                    ctx.json(this.responseFactory.createQuotaExceededErrorResponse("test-api-key-id")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/apiKey/validate`, () => {
+                return HttpResponse.json(
+                    this.responseFactory.createQuotaExceededErrorResponse("test-api-key-id"),
+                    { status: 402 }
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/apiKey`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse("apiKey")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/apiKey`, () => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse("apiKey"),
+                    { status: 500 }
                 );
             }),
         ];
@@ -866,42 +840,42 @@ export class ApiKeyMSWHandlers {
     /**
      * Create error handlers for ApiKeyExternal testing error scenarios
      */
-    createApiKeyExternalErrorHandlers(): RestHandler[] {
+    createApiKeyExternalErrorHandlers(): RequestHandler[] {
         return [
             // Validation error
-            http.post(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
+            http.post(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal`, () => {
+                return HttpResponse.json(
+                    this.responseFactory.createValidationErrorResponse({
                         name: "External API key name is required",
                         service: "Service provider is required",
                         key: "API key value is required",
-                    }, "/api/apiKeyExternal")),
+                    }, "/api/apiKeyExternal"),
+                    { status: 400 }
                 );
             }),
             
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string, "apiKeyExternal")),
+            http.get(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal/:id`, ({ params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string, "apiKeyExternal"),
+                    { status: 404 }
                 );
             }),
             
             // Permission error
-            http.post(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("create", "apiKeyExternal")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal`, () => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("create", "apiKeyExternal"),
+                    { status: 403 }
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse("apiKeyExternal")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal`, () => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse("apiKeyExternal"),
+                    { status: 500 }
                 );
             }),
         ];
@@ -910,30 +884,24 @@ export class ApiKeyMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/apiKey`, async (req, res, ctx) => {
-                const body = await req.json() as ApiKeyCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/apiKey`, async ({ request }) => {
+                const body = await request.json() as ApiKeyCreateInput;
                 const apiKey = this.responseFactory.createApiKeyFromInput(body);
                 const response = this.responseFactory.createApiKeyCreatedSuccessResponse(apiKey);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return HttpResponse.json(response, { status: 201 });
             }),
             
-            http.post(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal`, async (req, res, ctx) => {
-                const body = await req.json() as ApiKeyExternalCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal`, async ({ request }) => {
+                const body = await request.json() as ApiKeyExternalCreateInput;
                 const apiKeyExternal = this.responseFactory.createApiKeyExternalFromInput(body);
                 const response = this.responseFactory.createApiKeyExternalSuccessResponse(apiKeyExternal);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return HttpResponse.json(response, { status: 201 });
             }),
         ];
     }
@@ -941,22 +909,22 @@ export class ApiKeyMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/apiKey`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/apiKey`, () => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/apiKey/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/apiKey/:id`, () => {
+                return HttpResponse.error();
             }),
             
-            http.post(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal`, () => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/apiKeyExternal/:id`, () => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -970,18 +938,17 @@ export class ApiKeyMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): RequestHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        const httpMethod = method.toLowerCase() as 'get' | 'post' | 'put' | 'delete';
+        return http[httpMethod](fullEndpoint, async () => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }

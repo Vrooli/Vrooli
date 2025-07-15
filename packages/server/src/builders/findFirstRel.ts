@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=server-phase3-1 | LAST: 2025-07-03 - Replaced Record<string, any> with Record<string, unknown> and any return type with unknown
 /**
  * Searches for the first non-null field in an object that matches one of the specified fields.
  *
@@ -5,7 +6,7 @@
  * @param fieldsToCheck - The list of field names to check.
  * @returns An array with the field name and its value if found, or `undefined` if none of the fields exist in the object.
  */
-export const findFirstRel = (obj: Record<string, any>, fieldsToCheck: string[]): [string | undefined, any | undefined] => {
+export const findFirstRel = (obj: Record<string, unknown>, fieldsToCheck: string[]): [string | undefined, unknown | undefined] => {
     // Loop through each field in the list of fields to check
     for (const fieldName of fieldsToCheck) {
         // Get the value of the current field from the object

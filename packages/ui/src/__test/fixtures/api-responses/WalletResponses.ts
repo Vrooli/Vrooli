@@ -4,17 +4,29 @@
  * This file provides comprehensive API response fixtures for wallet endpoints.
  * It includes success responses, error responses, and MSW handlers for testing.
  */
+// AI_CHECK: TYPE_SAFETY=fixed-wallet-types | LAST: 2025-07-02 - Fixed verified->verifiedAt and MSW v2 syntax
 
-import { http, type RestHandler } from "msw";
+import { http, HttpResponse, type RequestHandler } from "msw";
 import type { 
     Wallet, 
-    WalletCreateInput, 
+    WalletInitInput,
+    WalletCompleteInput,
     WalletUpdateInput,
-    WalletType,
+    User,
+    Team,
 } from "@vrooli/shared";
 import { 
     walletValidation, 
 } from "@vrooli/shared";
+
+// Type alias for wallet creation input
+type WalletCreateInput = WalletCompleteInput & {
+    name?: string;
+    publicAddress?: string;
+    verified?: boolean;
+    userConnect?: string;
+    teamConnect?: string;
+};
 
 /**
  * Standard API response wrapper
@@ -74,14 +86,14 @@ export class WalletResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique wallet ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -246,52 +258,50 @@ export class WalletResponseFactory {
         const defaultWallet: Wallet = {
             __typename: "Wallet",
             id,
-            created_at: now,
-            updated_at: now,
-            handle: `wallet_${id}`,
             name: "Default Wallet",
             publicAddress: `0x${Math.random().toString(16).substring(2, 42)}`,
             stakingAddress: `stake1${Math.random().toString(16).substring(2, 42)}`,
-            verified: false,
+            verifiedAt: null,
             user: {
                 __typename: "User",
                 id: `user_${id}`,
                 handle: "wallet_owner",
                 name: "Wallet Owner",
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
                 isBot: false,
+                isBotDepictingPerson: false,
                 isPrivate: false,
+                isPrivateBookmarks: true,
+                isPrivateMemberships: true,
+                isPrivatePullRequests: true,
+                isPrivateResources: false,
+                isPrivateResourcesCreated: false,
+                isPrivateTeamsCreated: true,
+                isPrivateVotes: true,
+                bookmarkedBy: [],
+                bookmarks: 0,
                 profileImage: null,
                 bannerImage: null,
-                premium: false,
-                premiumExpiration: null,
-                roles: [],
+                premium: null,
+                publicId: `user_public_${id}`,
+                views: 0,
                 wallets: [],
                 translations: [],
-                translationsCount: 0,
+                membershipsCount: 0,
+                reportsReceived: [],
+                reportsReceivedCount: 0,
+                resourcesCount: 0,
                 you: {
                     __typename: "UserYou",
-                    isBlocked: false,
-                    isBlockedByYou: false,
                     canDelete: false,
                     canReport: false,
                     canUpdate: false,
                     isBookmarked: false,
-                    isReacted: false,
-                    reactionSummary: {
-                        __typename: "ReactionSummary",
-                        emotion: null,
-                        count: 0,
-                    },
+                    isViewed: false,
                 },
             },
             team: null,
-            you: {
-                __typename: "WalletYou",
-                canDelete: true,
-                canUpdate: true,
-            },
         };
         
         return {
@@ -307,9 +317,6 @@ export class WalletResponseFactory {
         const wallet = this.createMockWallet();
         
         // Update wallet based on input
-        if (input.handle) {
-            wallet.handle = input.handle;
-        }
         
         if (input.name) {
             wallet.name = input.name;
@@ -324,7 +331,7 @@ export class WalletResponseFactory {
         }
         
         if (input.verified !== undefined) {
-            wallet.verified = input.verified;
+            wallet.verifiedAt = input.verified ? new Date().toISOString() : null;
         }
         
         // Handle user/team connections
@@ -335,14 +342,43 @@ export class WalletResponseFactory {
             wallet.team = {
                 __typename: "Team",
                 id: input.teamConnect,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
                 handle: "team_wallet_owner",
-                name: "Team Wallet Owner",
+                translatedName: "Team Wallet Owner",
                 isOpenToNewMembers: true,
                 isPrivate: false,
+                bannerImage: null,
                 bookmarks: 0,
                 views: 0,
+                bookmarkedBy: [],
+                comments: [],
+                commentsCount: 0,
+                config: null,
+                forks: [],
+                issues: [],
+                issuesCount: 0,
+                meetings: [],
+                meetingsCount: 0,
+                members: [],
+                membersCount: 0,
+                parent: null,
+                paymentHistory: [],
+                permissions: "{}",
+                premium: null,
+                profileImage: null,
+                publicId: `team_pub_${input.teamConnect}`,
+                reports: [],
+                reportsCount: 0,
+                resources: [],
+                resourcesCount: 0,
+                stats: [],
+                tags: [],
+                translationsCount: 0,
+                transfersIncoming: [],
+                transfersOutgoing: [],
+                translations: [],
+                wallets: [],
                 you: {
                     __typename: "TeamYou",
                     canAddMembers: true,
@@ -370,8 +406,7 @@ export class WalletResponseFactory {
             // Personal verified wallet
             this.createMockWallet({
                 name: "Primary Wallet",
-                handle: "primary_wallet",
-                verified: true,
+                verifiedAt: new Date().toISOString(),
                 publicAddress: "0xa0b86991c431e59b79c1d2f01e81b0d7b4a39e5c7",
                 stakingAddress: "stake1ux3kcqc8xljgdw85xgzz7w7pcf6j8z3z2z9g3z3z3z3z3z",
             }),
@@ -379,8 +414,7 @@ export class WalletResponseFactory {
             // Personal unverified wallet
             this.createMockWallet({
                 name: "Secondary Wallet",
-                handle: "secondary_wallet",
-                verified: false,
+                verifiedAt: null,
                 publicAddress: "0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce",
                 stakingAddress: null,
             }),
@@ -388,20 +422,48 @@ export class WalletResponseFactory {
             // Team wallet
             this.createMockWallet({
                 name: "Team Treasury",
-                handle: "team_treasury",
-                verified: true,
+                verifiedAt: new Date().toISOString(),
                 user: null,
                 team: {
                     __typename: "Team",
                     id: `team_${this.generateId()}`,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                     handle: "development_team",
-                    name: "Development Team",
+                    translatedName: "Development Team",
                     isOpenToNewMembers: true,
                     isPrivate: false,
+                    bannerImage: null,
                     bookmarks: 0,
                     views: 0,
+                    bookmarkedBy: [],
+                    config: null,
+                    profileImage: null,
+                    publicId: `team_dev_pub_${this.generateId()}`,
+                    translationsCount: 0,
+                    comments: [],
+                    commentsCount: 0,
+                    forks: [],
+                    issues: [],
+                    issuesCount: 0,
+                    meetings: [],
+                    meetingsCount: 0,
+                    members: [],
+                    membersCount: 0,
+                    parent: null,
+                    paymentHistory: [],
+                    permissions: "{}",
+                    premium: null,
+                    reports: [],
+                    reportsCount: 0,
+                    resources: [],
+                    resourcesCount: 0,
+                    stats: [],
+                    tags: [],
+                    transfersIncoming: [],
+                    transfersOutgoing: [],
+                    translations: [],
+                    wallets: [],
                     you: {
                         __typename: "TeamYou",
                         canAddMembers: true,
@@ -430,8 +492,7 @@ export class WalletResponseFactory {
                     id: userId,
                 },
                 name: `Wallet ${index + 1}`,
-                handle: `wallet_${index + 1}_${userId}`,
-                verified: index === 0, // First wallet is verified
+                verifiedAt: index === 0 ? new Date().toISOString() : null, // First wallet is verified
                 publicAddress: `0x${Math.random().toString(16).substring(2, 42)}`,
             }),
         );
@@ -472,7 +533,10 @@ export class WalletResponseFactory {
         errors?: Record<string, string>;
     }> {
         try {
-            await walletValidation.create.validate(input);
+            // Since wallet creation is handled via init/complete flow, basic validation here
+            if (!input.stakingAddress) {
+                throw new Error("stakingAddress is required");
+            }
             return { valid: true };
         } catch (error: any) {
             const fieldErrors: Record<string, string> = {};
@@ -508,18 +572,18 @@ export class WalletMSWHandlers {
     /**
      * Create success handlers for all wallet endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): RequestHandler[] {
         return [
             // Create wallet
-            http.post(`${this.responseFactory["baseUrl"]}/api/wallet`, async (req, res, ctx) => {
-                const body = await req.json() as WalletCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/wallet`, async ({ request, params }) => {
+                const body = await request.json() as WalletCreateInput;
                 
                 // Validate input
                 const validation = await this.responseFactory.validateCreateInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
+                    return HttpResponse.json(
+                        this.responseFactory.createValidationErrorResponse(validation.errors || {}),
+                        { status: 400 }
                     );
                 }
                 
@@ -527,33 +591,26 @@ export class WalletMSWHandlers {
                 const wallet = this.responseFactory.createWalletFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(wallet);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 201 });
             }),
             
             // Get wallet by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, ({ request, params }) => {
+                const { id } = params;
                 
                 const wallet = this.responseFactory.createMockWallet({ id: id as string });
                 const response = this.responseFactory.createSuccessResponse(wallet);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Update wallet
-            http.put(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const body = await req.json() as WalletUpdateInput;
+            http.put(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, async ({ request, params }) => {
+                const { id } = params;
+                const body = await request.json() as WalletUpdateInput;
                 
                 const wallet = this.responseFactory.createMockWallet({ 
                     id: id as string,
-                    updated_at: new Date().toISOString(),
                 });
                 
                 // Apply updates from body
@@ -561,30 +618,22 @@ export class WalletMSWHandlers {
                     wallet.name = body.name;
                 }
                 
-                if (body.handle) {
-                    wallet.handle = body.handle;
-                }
                 
-                if (body.verified !== undefined) {
-                    wallet.verified = body.verified;
-                }
+                // WalletUpdateInput doesn't have verifiedAt field
                 
                 const response = this.responseFactory.createSuccessResponse(wallet);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Delete wallet
-            http.delete(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, (req, res, ctx) => {
-                return res(ctx.status(204));
+            http.delete(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, ({ request, params }) => {
+                return new HttpResponse(null, { status: 204 });
             }),
             
             // List wallets
-            http.get(`${this.responseFactory["baseUrl"]}/api/wallet`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/wallet`, ({ request, params }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 const userId = url.searchParams.get("userId");
@@ -609,7 +658,7 @@ export class WalletMSWHandlers {
                 
                 // Filter by verified status if specified
                 if (verified !== null) {
-                    wallets = wallets.filter(w => w.verified === verified);
+                    wallets = wallets.filter(w => (w.verifiedAt !== null) === verified);
                 }
                 
                 // Paginate
@@ -625,33 +674,26 @@ export class WalletMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Verify wallet
-            http.post(`${this.responseFactory["baseUrl"]}/api/wallet/:id/verify`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.post(`${this.responseFactory["baseUrl"]}/api/wallet/:id/verify`, ({ request, params }) => {
+                const { id } = params;
                 
                 const wallet = this.responseFactory.createMockWallet({ 
                     id: id as string,
-                    verified: true,
-                    updated_at: new Date().toISOString(),
+                    verifiedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(wallet);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Check wallet verification status
-            http.get(`${this.responseFactory["baseUrl"]}/api/wallet/:id/verification-status`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/wallet/:id/verification-status`, ({ request, params }) => {
+                const { id } = params;
                 
                 // Simulate verification status check
                 const verificationStatus = {
@@ -661,17 +703,14 @@ export class WalletMSWHandlers {
                     lastVerificationAttempt: new Date().toISOString(),
                 };
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json({
+                return HttpResponse.json({
                         data: verificationStatus,
                         meta: {
                             timestamp: new Date().toISOString(),
                             requestId: this.responseFactory["generateRequestId"](),
                             version: "1.0",
                         },
-                    }),
-                );
+                    }, { status: 200 });
             }),
         ];
     }
@@ -679,41 +718,41 @@ export class WalletMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): RequestHandler[] {
         return [
             // Validation error
-            http.post(`${this.responseFactory["baseUrl"]}/api/wallet`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
+            http.post(`${this.responseFactory["baseUrl"]}/api/wallet`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createValidationErrorResponse({
                         publicAddress: "Invalid wallet address format",
                         name: "Wallet name is required",
-                    })),
+                    }),
+                    { status: 400 }
                 );
             }),
             
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
+            http.get(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, ({ request, params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string),
+                    { status: 404 }
                 );
             }),
             
             // Permission error
-            http.post(`${this.responseFactory["baseUrl"]}/api/wallet`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
+            http.post(`${this.responseFactory["baseUrl"]}/api/wallet`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("create"),
+                    { status: 403 }
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/wallet`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/wallet`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse(),
+                    { status: 500 }
                 );
             }),
         ];
@@ -722,18 +761,15 @@ export class WalletMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/wallet`, async (req, res, ctx) => {
-                const body = await req.json() as WalletCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/wallet`, async ({ request, params }) => {
+                const body = await request.json() as WalletCreateInput;
                 const wallet = this.responseFactory.createWalletFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(wallet);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return HttpResponse.json(response, { status: 201 });
             }),
         ];
     }
@@ -741,14 +777,14 @@ export class WalletMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/wallet`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/wallet`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -762,18 +798,17 @@ export class WalletMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): RequestHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        const httpMethod = method.toLowerCase() as keyof typeof http;
+        return http[httpMethod](fullEndpoint, async ({ request, params }) => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }
@@ -800,7 +835,7 @@ export const walletResponseScenarios = {
     verifiedWallet: () => {
         const factory = new WalletResponseFactory();
         const wallet = factory.createMockWallet({
-            verified: true,
+            verifiedAt: new Date().toISOString(),
             name: "Verified Wallet",
             publicAddress: "0xa0b86991c431e59b79c1d2f01e81b0d7b4a39e5c7",
         });
@@ -823,7 +858,7 @@ export const walletResponseScenarios = {
             },
             user: null,
             name: "Team Treasury Wallet",
-            verified: true,
+            verifiedAt: new Date().toISOString(),
         });
         return factory.createSuccessResponse(wallet);
     },

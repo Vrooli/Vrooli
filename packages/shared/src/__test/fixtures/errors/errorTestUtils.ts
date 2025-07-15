@@ -10,7 +10,7 @@
 
 import { describe, expect, it } from "vitest";
 import { standardErrorValidator } from "../../../index.js";
-import { type TranslationKeyError } from "../../../types.js";
+import { type TranslationKeyError } from "../../../types.d.js";
 
 // Note: ClientError is now in UI package, so tests using it should be in UI package
 

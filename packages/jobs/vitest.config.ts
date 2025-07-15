@@ -28,9 +28,10 @@ export default defineProject({
             '@vrooli/server': path.resolve(__dirname, '../server/dist'),
         },
     },
-    // Disable optimizeDeps for faster startup
+    // Optimize dependencies for faster startup
     optimizeDeps: {
-        disabled: true,
+        include: ['@vrooli/shared', 'vitest'],
+        exclude: ['@vrooli/server'], // Large server package excluded for faster startup
     },
     esbuild: {
         target: 'node18',
@@ -69,8 +70,12 @@ export default defineProject({
                 },
             },
         },
-        // Allow console output to debug setup issues
-        onConsoleLog: () => {},
+        // Reduce console output for performance unless verbose mode
+        onConsoleLog: (log) => {
+            if (process.env.TEST_VERBOSE === "true") return true;
+            // Only show errors and warnings by default
+            return log.includes("error") || log.includes("Error") || log.includes("⚠") || log.includes("FAIL");
+        },
         coverage: {
             provider: 'v8',
             reporter: ['text', 'text-summary', 'json'],
@@ -80,6 +85,7 @@ export default defineProject({
                 'src/**/__test.*/**/*',
                 'coverage/**',
                 'dist/**',
+                'test-dist/**',
                 '**/*.d.ts',
                 'src/db/migrations/**',
                 'src/db/seeds/**',

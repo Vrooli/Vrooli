@@ -14,8 +14,15 @@ import { report } from "./report.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 // Use local report factory
 import { ReportDbFactory } from "../../__test/fixtures/db/reportFixtures.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsReport", () => {
+    beforeEach(async () => {
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.minimal(DbProvider.get());
+    });
+
     beforeAll(async () => {
         // Use Vitest spies to suppress logger output during tests
         vi.spyOn(logger, "error").mockImplementation(() => logger);

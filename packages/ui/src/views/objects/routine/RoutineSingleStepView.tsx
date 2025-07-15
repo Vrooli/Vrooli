@@ -1,11 +1,11 @@
+// AI_CHECK: TYPE_SAFETY=replaced-4-any-arrays-with-record-types | LAST: 2025-06-28
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../../components/buttons/IconButton.js";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { styled, useTheme } from "@mui/material/styles";
-import { CommentFor, FormBuilder, LINKS, ResourceSubType, RunStatus, UrlTools, endpointsResource, endpointsRun, exists, generatePK, getTranslation, noop, noopSubmit, validatePK, type FindByIdInput, type ResourceListShape, type ResourceList as ResourceListType, type Resource, type RoutineSingleStepViewSearchParams, type ResourceVersion, type RunRoutine, type Tag, type TagShape } from "@vrooli/shared";
-import { RoutineVersionConfig } from "@vrooli/shared/shape/configs/routine.js";
+import { CommentFor, FormBuilder, LINKS, ResourceSubType, RoutineVersionConfig, RunStatus, UrlTools, endpointsResource, endpointsRun, exists, generatePK, getTranslation, noop, noopSubmit, validatePK, type FindByIdInput, type ResourceListShape, type ResourceList as ResourceListType, type Resource, type RoutineSingleStepViewSearchParams, type ResourceVersion, type RunRoutine, type Tag, type TagShape } from "@vrooli/shared";
 import { Formik, useFormikContext } from "formik";
 
 // Mapping from old RoutineType enum to new ResourceSubType values
@@ -152,7 +152,7 @@ function RoutineSingleStepTypeView({
         if (!run) {
             const runRoutineId = generatePK();
             // TODO: Need to implement RunIOManager replacement
-            const inputsCreate: any[] = [];
+            const inputsCreate: Array<Record<string, unknown>> = [];
             /* const { inputsCreate } = new RunIOManager(console).runInputsUpdate({
                 existingIO: [],
                 formData: values as object,
@@ -182,9 +182,9 @@ function RoutineSingleStepTypeView({
         else {
             const runRoutineId = run.id;
             // TODO: Need to implement RunIOManager replacement
-            const inputsCreate: any[] = [];
-            const inputsUpdate: any[] = [];
-            const inputsDelete: any[] = [];
+            const inputsCreate: Array<Record<string, unknown>> = [];
+            const inputsUpdate: Array<Record<string, unknown>> = [];
+            const inputsDelete: Array<Record<string, unknown>> = [];
             /* const { inputsCreate, inputsUpdate, inputsDelete } = new RunIOManager(console).runInputsUpdate({
                 existingIO: run.inputs,
                 formData: values as object,

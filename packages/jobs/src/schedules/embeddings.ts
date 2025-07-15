@@ -1,4 +1,5 @@
 // AI_CHECK: TEST_COVERAGE=1 | LAST: 2025-06-24
+// AI_CHECK: TYPE_SAFETY=2 | LAST: 2025-07-04
 /**
  * Calculates and stores embeddings for all searchable objects (that don't have one yet), including 
  * root objects, versions, and tags
@@ -10,7 +11,7 @@
  */
 import { Prisma } from "@prisma/client";
 import { DbProvider, batch, logger, type EmbeddableType } from "@vrooli/server";
-import { RunStatus, type ModelType, ModelType as ModelTypeEnum } from "@vrooli/shared";
+import { type ModelType, ModelType as ModelTypeEnum } from "@vrooli/shared";
 import { EmbeddingService } from "@vrooli/server";
 import { API_BATCH_SIZE } from "../constants.js";
 
@@ -88,13 +89,13 @@ type TypedEmbedGetFn<K extends EmbeddableType> = (row: SpecificPayloadMap[K]) =>
 const typedEmbedGetMap: {
     [K in EmbeddableType]: TypedEmbedGetFn<K>;
 } = {
-    Chat: (row) => row.translations.map(t => EmbeddingService.getEmbeddableString({ name: t.name, description: t.description }, t.language)),
-    Issue: (row) => row.translations.map(t => EmbeddingService.getEmbeddableString({ name: t.name, description: t.description }, t.language)),
-    Meeting: (row) => row.translations.map(t => EmbeddingService.getEmbeddableString({ name: t.name, description: t.description }, t.language)),
-    ResourceVersion: (row) => row.translations.map(t => EmbeddingService.getEmbeddableString({ name: t.name, description: t.description }, t.language)),
-    Team: (row) => row.translations.map(t => EmbeddingService.getEmbeddableString({ name: t.name, bio: t.bio }, t.language)),
-    Tag: (row) => row.translations.map(t => EmbeddingService.getEmbeddableString({ description: t.description }, t.language)),
-    User: (row) => row.translations.map(t => EmbeddingService.getEmbeddableString({ name: row.name, handle: row.handle, bio: t.bio }, t.language)),
+    Chat: (row) => row.translations.map((t: { name: string | null; description: string | null; language: string }) => EmbeddingService.getEmbeddableString({ name: t.name, description: t.description }, t.language)),
+    Issue: (row) => row.translations.map((t: { name: string | null; description: string | null; language: string }) => EmbeddingService.getEmbeddableString({ name: t.name, description: t.description }, t.language)),
+    Meeting: (row) => row.translations.map((t: { name: string | null; description: string | null; language: string }) => EmbeddingService.getEmbeddableString({ name: t.name, description: t.description }, t.language)),
+    ResourceVersion: (row) => row.translations.map((t: { name: string | null; description: string | null; language: string }) => EmbeddingService.getEmbeddableString({ name: t.name, description: t.description }, t.language)),
+    Team: (row) => row.translations.map((t: { name: string | null; bio: string | null; language: string }) => EmbeddingService.getEmbeddableString({ name: t.name, bio: t.bio }, t.language)),
+    Tag: (row) => row.translations.map((t: { description: string | null; language: string }) => EmbeddingService.getEmbeddableString({ description: t.description }, t.language)),
+    User: (row) => row.translations.map((t: { bio: string | null; language: string }) => EmbeddingService.getEmbeddableString({ name: row.name, handle: row.handle, bio: t.bio }, t.language)),
     Reminder: (row) => [EmbeddingService.getEmbeddableString({ name: row.name, description: row.description }, undefined)],
     Run: (row) => [EmbeddingService.getEmbeddableString({ name: row.name }, undefined)],
 };
@@ -163,7 +164,7 @@ async function updateEmbedding(
 }
 
 // Helper type guard
-function hasPopulatedTranslations<T extends { translations?: Array<any> }>(
+function hasPopulatedTranslations<T extends { translations?: Array<{ language: string }> }>(
     payload: T,
 ): payload is T & { translations: NonNullable<T["translations"]> } {
     return payload && Array.isArray(payload.translations) && payload.translations.length > 0;
@@ -223,13 +224,16 @@ async function processEmbeddingBatch<
         if (hasPopulatedTranslations(row)) {
             // This path is for types that have a translations array (Chat, Issue, User, Team, etc.)
             if (row.translations.length === sentencesForRow.length) {
-                row.translations.forEach((t, index) => {
+                row.translations.forEach((t: { id: bigint; embeddingExpiredAt: Date | null }, index: number) => {
                     if (!t.embeddingExpiredAt || t.embeddingExpiredAt <= new Date()) {
-                        itemsToEmbed.push({
-                            sentence: sentencesForRow[index],
-                            targetId: t.id.toString(),       // ID of the translation record
-                            updateTranslationTable: true,    // Targets the XYZTranslation table
-                        });
+                        const sentence = sentencesForRow[index];
+                        if (sentence) {
+                            itemsToEmbed.push({
+                                sentence,
+                                targetId: t.id.toString(),       // ID of the translation record
+                                updateTranslationTable: true,    // Targets the XYZTranslation table
+                            });
+                        }
                     }
                 });
             } else {
@@ -288,7 +292,7 @@ type EmbeddingBatchProps<K extends EmbeddableType, P extends SpecificPayloadMap[
     objectType: K;
     processBatch: (batch: P[], objectType: K) => Promise<void>;
     trace: string;
-    traceObject?: Record<string, any>;
+    traceObject?: Record<string, string | number | boolean>;
     select: ModelFindManyArgsMap[K]["select"];
     where: ModelFindManyArgsMap[K]["where"];
 };
@@ -300,7 +304,7 @@ async function embeddingBatch<K extends EmbeddableType>({
     traceObject,
     select,
     where,
-}: EmbeddingBatchProps<K, SpecificPayloadMap[K]>) { 
+}: EmbeddingBatchProps<K, SpecificPayloadMap[K]>): Promise<void> { 
     try {
         await batch<ModelFindManyArgsMap[K], SpecificPayloadMap[K]>({ 
             batchSize: API_BATCH_SIZE,
@@ -338,7 +342,7 @@ async function embeddingBatch<K extends EmbeddableType>({
 
 // --- Update all batchEmbeddingsXYZ functions ---
 
-async function batchEmbeddingsChat() {
+async function batchEmbeddingsChat(): Promise<void> {
     return embeddingBatch<"Chat">({
         objectType: "Chat",
         select: embedSelectMap.Chat,
@@ -348,7 +352,7 @@ async function batchEmbeddingsChat() {
     });
 }
 
-async function batchEmbeddingsIssue() {
+async function batchEmbeddingsIssue(): Promise<void> {
     return embeddingBatch<"Issue">({
         objectType: "Issue",
         select: embedSelectMap.Issue,
@@ -358,7 +362,7 @@ async function batchEmbeddingsIssue() {
     });
 }
 
-async function batchEmbeddingsMeeting() {
+async function batchEmbeddingsMeeting(): Promise<void> {
     return embeddingBatch<"Meeting">({
         objectType: "Meeting",
         select: embedSelectMap.Meeting,
@@ -368,7 +372,7 @@ async function batchEmbeddingsMeeting() {
     });
 }
 
-async function batchEmbeddingsTeam() {
+async function batchEmbeddingsTeam(): Promise<void> {
     return embeddingBatch<"Team">({
         objectType: "Team",
         select: embedSelectMap.Team,
@@ -378,7 +382,7 @@ async function batchEmbeddingsTeam() {
     });
 }
 
-async function batchEmbeddingsResourceVersion() {
+async function batchEmbeddingsResourceVersion(): Promise<void> {
     return embeddingBatch<"ResourceVersion">({
         objectType: "ResourceVersion",
         select: embedSelectMap.ResourceVersion,
@@ -392,7 +396,7 @@ async function batchEmbeddingsResourceVersion() {
     });
 }
 
-async function batchEmbeddingsTag() {
+async function batchEmbeddingsTag(): Promise<void> {
     return embeddingBatch<"Tag">({
         objectType: "Tag",
         select: embedSelectMap.Tag,
@@ -402,7 +406,7 @@ async function batchEmbeddingsTag() {
     });
 }
 
-async function batchEmbeddingsUser() {
+async function batchEmbeddingsUser(): Promise<void> {
     return embeddingBatch<"User">({
         objectType: "User",
         select: embedSelectMap.User,
@@ -412,7 +416,7 @@ async function batchEmbeddingsUser() {
     });
 }
 
-async function batchEmbeddingsReminder() {
+async function batchEmbeddingsReminder(): Promise<void> {
     return embeddingBatch<"Reminder">({
         objectType: "Reminder",
         select: embedSelectMap.Reminder,
@@ -422,21 +426,8 @@ async function batchEmbeddingsReminder() {
     });
 }
 
-async function batchEmbeddingsRun() {
-    return embeddingBatch<"Run">({
-        objectType: "Run",
-        select: embedSelectMap.Run,
-        processBatch: processEmbeddingBatch,
-        trace: "0483",
-        where: {
-            status: { in: [RunStatus.Scheduled, RunStatus.InProgress] },
-            // TODO: Check if embeddingExpiredAt exists on Run model
-            // ...(RECALCULATE_EMBEDDINGS ? {} : { OR: [{ embeddingExpiredAt: null }, { embeddingExpiredAt: { lte: new Date() } }] }),
-        },
-    });
-}
 
-export async function generateEmbeddings() {
+export async function generateEmbeddings(): Promise<void> {
     if (RECALCULATE_EMBEDDINGS) {
         logger.warn("RECALCULATE_EMBEDDINGS is enabled - regenerating ALL embeddings. This is resource intensive!", {
             flag: "RECALCULATE_EMBEDDINGS",

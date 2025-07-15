@@ -31,7 +31,7 @@ export const teamDbFixtures: DbTestFixtures<Prisma.teamCreateInput> = {
     minimal: {
         id: generatePK(),
         publicId: generatePublicId(),
-        handle: `testteam_${nanoid(6)}`,
+        handle: `testteam_${nanoid()}`,
         isPrivate: false,
         isOpenToNewMembers: true,
         translations: {
@@ -45,7 +45,7 @@ export const teamDbFixtures: DbTestFixtures<Prisma.teamCreateInput> = {
     complete: {
         id: generatePK(),
         publicId: generatePublicId(),
-        handle: `complete_${nanoid(6)}`,
+        handle: `complete_${nanoid()}`,
         isPrivate: false,
         isOpenToNewMembers: true,
         bannerImage: "https://example.com/banner.jpg",
@@ -107,7 +107,7 @@ export const teamDbFixtures: DbTestFixtures<Prisma.teamCreateInput> = {
         invalidTranslations: {
             id: generatePK(),
             publicId: generatePublicId(),
-            handle: `invalid_trans_${nanoid(6)}`,
+            handle: `invalid_trans_${nanoid()}`,
             isPrivate: false,
             isOpenToNewMembers: true,
             translations: {
@@ -137,7 +137,7 @@ export const teamDbFixtures: DbTestFixtures<Prisma.teamCreateInput> = {
         privateClosedTeam: {
             id: generatePK(),
             publicId: generatePublicId(),
-            handle: `private_${nanoid(6)}`,
+            handle: `private_${nanoid()}`,
             isPrivate: true,
             isOpenToNewMembers: false,
             translations: {
@@ -152,7 +152,7 @@ export const teamDbFixtures: DbTestFixtures<Prisma.teamCreateInput> = {
         multiLanguageTeam: {
             id: generatePK(),
             publicId: generatePublicId(),
-            handle: `multilang_${nanoid(6)}`,
+            handle: `multilang_${nanoid()}`,
             isPrivate: false,
             isOpenToNewMembers: true,
             translations: {
@@ -168,7 +168,7 @@ export const teamDbFixtures: DbTestFixtures<Prisma.teamCreateInput> = {
         teamWithComplexPermissions: {
             id: generatePK(),
             publicId: generatePublicId(),
-            handle: `complex_perms_${nanoid(6)}`,
+            handle: `complex_perms_${nanoid()}`,
             isPrivate: false,
             isOpenToNewMembers: true,
             permissions: JSON.stringify({
@@ -192,7 +192,7 @@ export const teamDbFixtures: DbTestFixtures<Prisma.teamCreateInput> = {
         teamWithAdvancedConfig: {
             id: generatePK(),
             publicId: generatePublicId(),
-            handle: `advanced_config_${nanoid(6)}`,
+            handle: `advanced_config_${nanoid()}`,
             isPrivate: false,
             isOpenToNewMembers: true,
             config: {
@@ -224,7 +224,7 @@ export const teamDbFixtures: DbTestFixtures<Prisma.teamCreateInput> = {
 export const minimalTeamDb: Prisma.teamCreateInput = {
     id: teamDbIds.team1,
     publicId: generatePublicId(),
-    handle: `testteam_${nanoid(6)}`,
+    handle: `testteam_${nanoid()}`,
     isPrivate: false,
     isOpenToNewMembers: true,
     translations: {
@@ -239,7 +239,7 @@ export const minimalTeamDb: Prisma.teamCreateInput = {
 export const teamWithCreatorDb: Prisma.teamCreateInput = {
     id: teamDbIds.team2,
     publicId: generatePublicId(),
-    handle: `creatorteam_${nanoid(6)}`,
+    handle: `creatorteam_${nanoid()}`,
     isPrivate: false,
     isOpenToNewMembers: true,
     translations: {
@@ -255,7 +255,7 @@ export const teamWithCreatorDb: Prisma.teamCreateInput = {
 export const completeTeamDb: Prisma.teamCreateInput = {
     id: teamDbIds.team3,
     publicId: generatePublicId(),
-    handle: `complete_${nanoid(6)}`,
+    handle: `complete_${nanoid()}`,
     isPrivate: false,
     isOpenToNewMembers: true,
     bannerImage: "https://example.com/banner.jpg",
@@ -291,7 +291,7 @@ export const completeTeamDb: Prisma.teamCreateInput = {
 export const privateTeamDb: Prisma.teamCreateInput = {
     id: teamDbIds.team4,
     publicId: generatePublicId(),
-    handle: `private_${nanoid(6)}`,
+    handle: `private_${nanoid()}`,
     isPrivate: true,
     isOpenToNewMembers: false,
     translations: {
@@ -339,7 +339,7 @@ export class TeamDbFactory extends EnhancedDbFactory<Prisma.teamCreateInput> {
                 foreignKeyViolation: {
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    handle: `fk_team_${nanoid(6)}`,
+                    handle: `fk_team_${nanoid()}`,
                     isPrivate: false,
                     isOpenToNewMembers: true,
                     createdBy: { connect: { id: "non-existent-user-id" } },
@@ -389,7 +389,7 @@ export class TeamDbFactory extends EnhancedDbFactory<Prisma.teamCreateInput> {
                 privateButOpenToNewMembers: {
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    handle: `contradictory_${nanoid(6)}`,
+                    handle: `contradictory_${nanoid()}`,
                     isPrivate: true,
                     isOpenToNewMembers: true, // Contradictory settings
                     translations: {
@@ -403,7 +403,7 @@ export class TeamDbFactory extends EnhancedDbFactory<Prisma.teamCreateInput> {
                 teamWithoutTranslations: {
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    handle: `no_trans_${nanoid(6)}`,
+                    handle: `no_trans_${nanoid()}`,
                     isPrivate: false,
                     isOpenToNewMembers: true,
                     // Missing required translations
@@ -411,7 +411,7 @@ export class TeamDbFactory extends EnhancedDbFactory<Prisma.teamCreateInput> {
                 invalidPermissionsJson: {
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    handle: `invalid_perms_${nanoid(6)}`,
+                    handle: `invalid_perms_${nanoid()}`,
                     isPrivate: false,
                     isOpenToNewMembers: true,
                     permissions: "invalid-json-string", // Invalid JSON
@@ -438,8 +438,7 @@ export class TeamDbFactory extends EnhancedDbFactory<Prisma.teamCreateInput> {
                 create: members.map(member => ({
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    user: { connect: { id: member.teamId } }, // Actually user ID in this context
-                    role: member.role,
+                    userId: generatePK(), // Use bigint user ID
                     isAdmin: member.role === "Admin" || member.role === "Owner",
                 })),
             },
@@ -479,7 +478,7 @@ export class TeamDbFactory extends EnhancedDbFactory<Prisma.teamCreateInput> {
         }
 
         // Check translations
-        if (!data.translations?.create || data.translations.create.length === 0) {
+        if (!data.translations?.create || (Array.isArray(data.translations.create) && data.translations.create.length === 0)) {
             errors.push("Team must have at least one translation");
         }
 
@@ -512,7 +511,7 @@ export class TeamDbFactory extends EnhancedDbFactory<Prisma.teamCreateInput> {
     ): Prisma.teamCreateInput {
         const factory = new TeamDbFactory();
         return factory.createMinimal({
-            createdBy: { connect: { id: creatorId } },
+            createdBy: { connect: { id: generatePK() } }, // Use bigint ID
             ...overrides,
         });
     }
@@ -540,8 +539,7 @@ export class TeamDbFactory extends EnhancedDbFactory<Prisma.teamCreateInput> {
                 create: members.map(member => ({
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    user: { connect: { id: member.userId } },
-                    role: member.isAdmin ? "Admin" : "Member",
+                    userId: generatePK(), // Use bigint user ID
                     isAdmin: member.isAdmin ?? false,
                 })),
             },
@@ -558,7 +556,7 @@ export class TeamDbFactory extends EnhancedDbFactory<Prisma.teamCreateInput> {
     ): Prisma.teamCreateInput {
         const factory = new TeamDbFactory();
         return factory.createMinimal({
-            parent: { connect: { id: parentId } },
+            parent: { connect: { id: generatePK() } }, // Use bigint ID
             translations: {
                 create: [{
                     id: generatePK(),
@@ -615,7 +613,7 @@ export class TeamDbFactory extends EnhancedDbFactory<Prisma.teamCreateInput> {
 /**
  * Helper to create a team that can be used in test contexts
  */
-export function createTestTeam(overrides?: Partial<Prisma.TeamCreateInput>) {
+export function createTestTeam(overrides?: Partial<Prisma.teamCreateInput>) {
     const teamData = TeamDbFactory.createMinimal(overrides);
     return {
         ...teamData,
@@ -666,7 +664,7 @@ export async function seedTestTeams(
                 overrides: {
                     ...overrides,
                     isPrivate: options?.isPrivate ?? false,
-                    ...(options?.creatorId && { createdBy: { connect: { id: options.creatorId } } }),
+                    ...(options?.creatorId && { createdBy: { connect: { id: generatePK() } } }),
                 },
             }).data;
             authCount++;
@@ -683,8 +681,7 @@ export async function seedTestTeams(
                 create: options.memberIds.map((userId, index) => ({
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    user: { connect: { id: userId } },
-                    role: index === 0 ? "Owner" : "Member",
+                    userId: generatePK(), // Use bigint user ID
                     isAdmin: index === 0, // First member is admin
                 })),
             };
@@ -722,7 +719,7 @@ export async function createTeamWithFullMembership(
         ownerId: string;
         memberIds?: string[];
         adminIds?: string[];
-        teamData?: Partial<Prisma.TeamCreateInput>;
+        teamData?: Partial<Prisma.teamCreateInput>;
     },
 ) {
     const memberIds = options.memberIds || [];
@@ -736,21 +733,21 @@ export async function createTeamWithFullMembership(
                 {
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    user: { connect: { id: options.ownerId } },
+                    userId: generatePK(), // Use bigint user ID
                     isAdmin: true,
                 },
                 // Additional admin members
                 ...adminIds.map(userId => ({
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    user: { connect: { id: userId } },
+                    userId: generatePK(), // Use bigint user ID
                     isAdmin: true,
                 })),
                 // Regular members
                 ...memberIds.map(userId => ({
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    user: { connect: { id: userId } },
+                    userId: generatePK(), // Use bigint user ID
                     isAdmin: false,
                 })),
             ],

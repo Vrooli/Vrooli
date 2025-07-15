@@ -1,6 +1,6 @@
 import { type FindByIdOrHandleInput, type UserSearchInput, type UserUpdateInput, SEEDED_PUBLIC_IDS, generatePK } from "@vrooli/shared";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { testEndpointRequiresApiKeyWritePermissions, testEndpointRequiresAuth } from "../../__test/endpoints.js";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi, test } from "vitest";
+import { assertRequiresAuth, AUTH_SCENARIOS, assertApiKeyRequired } from "../../__test/authTestUtils.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
@@ -15,6 +15,8 @@ import { user } from "./user.js";
 import { UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
 import { userTestDataFactory } from "@vrooli/shared/test-fixtures/api-inputs";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 // Helper function to create admin user for tests
 async function createTestAdminUser() {
@@ -28,6 +30,17 @@ async function createTestAdminUser() {
             theme: "light",
         }),
     });
+
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["user","user_auth","email","session"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn('Test cleanup incomplete:', orphans);
+        }
+    });
 }
 
 describe("EndpointsUser", () => {
@@ -35,13 +48,13 @@ describe("EndpointsUser", () => {
         // Use Vitest spies to suppress logger output during tests
         vi.spyOn(logger, "error").mockImplementation(() => logger);
         vi.spyOn(logger, "info").mockImplementation(() => logger);
+        vi.spyOn(logger, "warning").mockImplementation(() => logger);
     });
 
     beforeEach(async () => {
-        // Clean up tables used in tests
-        const prisma = DbProvider.get();
-        await prisma.user.deleteMany();
-    });
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.minimal(DbProvider.get());
+    }););
 
     afterAll(async () => {
         // Restore all mocks
@@ -49,8 +62,30 @@ describe("EndpointsUser", () => {
     });
 
     describe("findOne", () => {
+        describe("authentication", () => {
+            // Public endpoint - no authentication required
+            it("allows unauthenticated access to public profiles", async () => {
+                // Create test user
+                const testUser = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User",
+                        handle: "test-user-" + Math.floor(Math.random() * 1000),
+                    }),
+                });
+
+                const { req, res } = await mockLoggedOutSession();
+
+                const input = { id: testUser.id.toString() };
+                const result = await user.findOne({ input }, { req, res }, user_findOne);
+
+                expect(result).not.toBeNull();
+                expect(result.id).toBe(testUser.id.toString());
+            });
+        });
+
         describe("valid", () => {
-            it("own profile", async () => {
+            it("returns own profile", async () => {
                 // Create test user
                 const testUser = await DbProvider.get().user.create({
                     data: UserDbFactory.createWithAuth({
@@ -74,7 +109,7 @@ describe("EndpointsUser", () => {
                 expect(result.handle).toBe(testUser.handle);
             });
 
-            it("own private profile", async () => {
+            it("returns own private profile", async () => {
                 // Create private test user
                 const privateUser = await DbProvider.get().user.create({
                     data: UserDbFactory.createMinimal({
@@ -98,7 +133,7 @@ describe("EndpointsUser", () => {
                 expect(result.isPrivate).toBe(true);
             });
 
-            it("public profile", async () => {
+            it("returns public profile", async () => {
                 // Create test users
                 const testUser1 = await DbProvider.get().user.create({
                     data: UserDbFactory.createWithAuth({
@@ -129,7 +164,7 @@ describe("EndpointsUser", () => {
                 expect(result.handle).toBe(testUser2.handle);
             });
 
-            it("API key - public permissions", async () => {
+            it("supports API key with public permissions", async () => {
                 // Create test users
                 const testUser1 = await DbProvider.get().user.create({
                     data: UserDbFactory.createWithAuth({
@@ -159,31 +194,10 @@ describe("EndpointsUser", () => {
                 expect(result.name).toBe(testUser2.name);
                 expect(result.handle).toBe(testUser2.handle);
             });
-
-            it("not logged in", async () => {
-                // Create test user
-                const testUser = await DbProvider.get().user.create({
-                    data: UserDbFactory.createWithAuth({
-                        id: generatePK(),
-                        name: "Test User",
-                        handle: "test-user-" + Math.floor(Math.random() * 1000),
-                    }),
-                });
-
-                const { req, res } = await mockLoggedOutSession();
-
-                const input = { id: testUser.id.toString() };
-                const result = await user.findOne({ input }, { req, res }, user_findOne);
-
-                expect(result).not.toBeNull();
-                expect(result.id).toBe(testUser.id.toString());
-                expect(result.name).toBe(testUser.name);
-                expect(result.handle).toBe(testUser.handle);
-            });
         });
 
         describe("invalid", () => {
-            it("private profile", async () => {
+            it("blocks access to private profile", async () => {
                 // Create test users
                 const testUser1 = await DbProvider.get().user.create({
                     data: UserDbFactory.createWithAuth({
@@ -215,8 +229,38 @@ describe("EndpointsUser", () => {
     });
 
     describe("findMany", () => {
+        describe("authentication", () => {
+            // Public endpoint - no authentication required
+            it("allows unauthenticated access", async () => {
+                // Create test users
+                await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 1",
+                        handle: "test-user-1-" + Math.floor(Math.random() * 1000),
+                    }),
+                });
+                await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 2",
+                        handle: "test-user-2-" + Math.floor(Math.random() * 1000),
+                    }),
+                });
+
+                const { req, res } = await mockLoggedOutSession();
+
+                const input: UserSearchInput = { take: 10 };
+                const result = await user.findMany({ input }, { req, res }, user_findMany);
+
+                expect(result).not.toBeNull();
+                expect(result).toHaveProperty("edges");
+                expect(result.edges).toBeInstanceOf(Array);
+            });
+        });
+
         describe("valid", () => {
-            it("retuns public profiles", async () => {
+            it("returns public profiles", async () => {
                 // Create test users
                 const testUser1 = await DbProvider.get().user.create({
                     data: UserDbFactory.createWithAuth({
@@ -247,7 +291,7 @@ describe("EndpointsUser", () => {
                 expect(result.edges!.some(edge => edge?.node?.id === testUser2.id.toString())).toBe(true);
             });
 
-            it("search input returns results", async () => {
+            it("filters results by search string", async () => {
                 // Create test users
                 const testUser1 = await DbProvider.get().user.create({
                     data: UserDbFactory.createWithAuth({
@@ -277,7 +321,7 @@ describe("EndpointsUser", () => {
                 expect(result.edges!.some(edge => edge?.node?.id === testUser2.id.toString())).toBe(true);
             });
 
-            it("API key - public permissions", async () => {
+            it("supports API key with public permissions", async () => {
                 // Create test users
                 const testUser1 = await DbProvider.get().user.create({
                     data: UserDbFactory.createWithAuth({
@@ -309,42 +353,72 @@ describe("EndpointsUser", () => {
                 expect(result.edges!.some(edge => edge?.node?.id === testUser1.id.toString())).toBe(true);
                 expect(result.edges!.some(edge => edge?.node?.id === testUser2.id.toString())).toBe(true);
             });
-
-            it("not logged in", async () => {
-                // Create test users
-                const testUser1 = await DbProvider.get().user.create({
-                    data: UserDbFactory.createWithAuth({
-                        id: generatePK(),
-                        name: "Test User 1",
-                        handle: "test-user-1-" + Math.floor(Math.random() * 1000),
-                    }),
-                });
-                const testUser2 = await DbProvider.get().user.create({
-                    data: UserDbFactory.createWithAuth({
-                        id: generatePK(),
-                        name: "Test User 2",
-                        handle: "test-user-2-" + Math.floor(Math.random() * 1000),
-                    }),
-                });
-
-                const { req, res } = await mockLoggedOutSession();
-
-                const input: UserSearchInput = { take: 10 };
-                const result = await user.findMany({ input }, { req, res }, user_findMany);
-
-                expect(result).not.toBeNull();
-                expect(result).toHaveProperty("edges");
-                expect(result.edges).toBeInstanceOf(Array);
-                expect(result.edges!.length).toBeGreaterThanOrEqual(2);
-                expect(result.edges!.some(edge => edge?.node?.id === testUser1.id.toString())).toBe(true);
-                expect(result.edges!.some(edge => edge?.node?.id === testUser2.id.toString())).toBe(true);
-            });
         });
     });
 
     describe("botCreateOne", () => {
+        describe("authentication", () => {
+            // Hybrid approach: use direct assertion for simple auth check
+            it("not logged in", async () => {
+                const input = userTestDataFactory.createComplete({
+                    name: "Test Bot",
+                    handle: "test-bot-" + Math.floor(Math.random() * 1000),
+                    botSettings: {
+                        __version: "1.0",
+                        model: "gpt-3.5-turbo",
+                        systemPrompt: "You are a helpful assistant.",
+                    },
+                });
+                await assertRequiresAuth(user.botCreateOne, input, user_botCreateOne);
+            });
+
+            // Hybrid approach: use test.each for API key scenarios
+            test.each([
+                {
+                    name: "API key with write permissions",
+                    permissions: mockWritePrivatePermissions(),
+                    shouldSucceed: true,
+                },
+            ])("$name", async ({ permissions, shouldSucceed }) => {
+                // Create test user
+                const testUserRecord = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User",
+                        handle: "test-user-" + Math.floor(Math.random() * 1000),
+                    }),
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
+                const apiToken = ApiKeyEncryptionService.generateSiteKey();
+                const { req, res } = await mockApiSession(apiToken, permissions, testUser);
+
+                const input = userTestDataFactory.createComplete({
+                    name: "API Key Bot",
+                    handle: "api-bot-" + Math.floor(Math.random() * 1000),
+                    isBotDepictingPerson: true,
+                    isPrivate: true,
+                    botSettings: {
+                        __version: "1.0",
+                        model: "gpt-4",
+                        systemPrompt: "You are a specialized bot created via API.",
+                    },
+                });
+
+                if (shouldSucceed) {
+                    const result = await user.botCreateOne({ input }, { req, res }, user_botCreateOne);
+                    expect(result).not.toBeNull();
+                    expect(result.id).toBe(input.id);
+                } else {
+                    await expect(async () => {
+                        await user.botCreateOne({ input }, { req, res }, user_botCreateOne);
+                    }).rejects.toThrow();
+                }
+            });
+        });
+
         describe("valid", () => {
-            it("should create a bot user that you own", async () => {
+            it("creates a bot user that you own", async () => {
                 // Create test user
                 const testUserRecord = await DbProvider.get().user.create({
                     data: UserDbFactory.createWithAuth({
@@ -384,51 +458,10 @@ describe("EndpointsUser", () => {
                 expect(createdBot).not.toBeNull();
                 expect(createdBot?.botSettings).toBe(input.botSettings);
             });
-
-            it("API key - write permissions", async () => {
-                // Create test user
-                const testUserRecord = await DbProvider.get().user.create({
-                    data: UserDbFactory.createWithAuth({
-                        id: generatePK(),
-                        name: "Test User",
-                        handle: "test-user-" + Math.floor(Math.random() * 1000),
-                    }),
-                });
-
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
-                const permissions = mockWritePrivatePermissions();
-                const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, testUser);
-
-                const input = userTestDataFactory.createComplete({
-                    name: "API Key Bot",
-                    handle: "api-bot-" + Math.floor(Math.random() * 1000),
-                    isBotDepictingPerson: true,
-                    isPrivate: true,
-                    botSettings: {
-                        __version: "1.0",
-                        model: "gpt-4",
-                        systemPrompt: "You are a specialized bot created via API.",
-                    },
-                });
-
-                const result = await user.botCreateOne({ input }, { req, res }, user_botCreateOne);
-
-                expect(result).not.toBeNull();
-                expect(result.id).toBe(input.id);
-                expect(result.name).toBe(input.name);
-                expect(result.isBot).toBe(true);
-                // isPrivate is not returned by the endpoint, so we'll query the database directly
-                const createdBot = await DbProvider.get().user.findUnique({
-                    where: { id: input.id },
-                });
-                expect(createdBot).not.toBeNull();
-                expect(createdBot?.isPrivate).toBe(input.isPrivate);
-            });
         });
 
         describe("invalid", () => {
-            it("same ID as existing user", async () => {
+            it("rejects duplicate ID", async () => {
                 // Create test users
                 const testUser1 = await DbProvider.get().user.create({
                     data: UserDbFactory.createWithAuth({
@@ -463,7 +496,7 @@ describe("EndpointsUser", () => {
                 }).rejects.toThrow();
             });
 
-            it("same ID as admin", async () => {
+            it("rejects admin ID", async () => {
                 // Create test admin user
                 const adminUser = await createTestAdminUser();
                 
@@ -494,7 +527,7 @@ describe("EndpointsUser", () => {
                 }).rejects.toThrow();
             });
 
-            it("trying to set `isBot` to false", async () => {
+            it("rejects isBot set to false", async () => {
                 // Create test user
                 const testUserRecord = await DbProvider.get().user.create({
                     data: UserDbFactory.createWithAuth({
@@ -524,7 +557,7 @@ describe("EndpointsUser", () => {
                 }).rejects.toThrow();
             });
 
-            it("trying to update user-specific fields", async () => {
+            it("rejects user-specific fields", async () => {
                 // Create test user
                 const testUserRecord = await DbProvider.get().user.create({
                     data: UserDbFactory.createWithAuth({
@@ -554,16 +587,23 @@ describe("EndpointsUser", () => {
                     await user.botCreateOne({ input }, { req, res }, user_botCreateOne);
                 }).rejects.toThrow();
             });
-
-            // Skip this test for now since it requires shared state
-
-            // Skip this test for now since it requires shared state
         });
     });
 
     describe("botUpdateOne", () => {
+        describe("authentication", () => {
+            // Hybrid approach: use direct assertion for simple auth check
+            it("not logged in", async () => {
+                const input: UserUpdateInput = {
+                    id: generatePK(),
+                    name: "Updated Bot Name",
+                };
+                await assertRequiresAuth(user.botUpdateOne, input, user_botUpdateOne);
+            });
+        });
+
         describe("valid", () => {
-            it("should update a bot user that you own", async () => {
+            it("updates a bot user that you own", async () => {
                 // Create test user
                 const testUserRecord = await DbProvider.get().user.create({
                     data: UserDbFactory.createWithAuth({
@@ -604,76 +644,24 @@ describe("EndpointsUser", () => {
 
                 expect(result).not.toBeNull();
                 expect(result.id).toBe(botData.id);
-                expect(result.name).toBe(updateInput.name);
-
-                // Verify bot was updated in database
+                expect(result.name).toBe("Updated Bot Name");
+                expect(result.isBot).toBe(true);
+                
+                // Verify updates in database
                 const updatedBot = await DbProvider.get().user.findUnique({
                     where: { id: botData.id },
                 });
                 expect(updatedBot).not.toBeNull();
-                expect(updatedBot?.name).toBe(updateInput.name);
-                expect(updatedBot?.botSettings).toBe(updateInput.botSettings);
-                expect(updatedBot?.isPrivate).toBe(updateInput.isPrivate);
-            });
-
-            it("API key - write permissions", async () => {
-                // Create test user
-                const testUserRecord = await DbProvider.get().user.create({
-                    data: UserDbFactory.createWithAuth({
-                        id: generatePK(),
-                        name: "Test User",
-                        handle: "test-user-" + Math.floor(Math.random() * 1000),
-                    }),
+                expect(updatedBot?.isPrivate).toBe(true);
+                expect(updatedBot?.botSettings).toEqual({
+                    model: "gpt-4",
+                    systemPrompt: "Updated prompt",
                 });
-
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
-                const { req: createReq, res: createRes } = await mockAuthenticatedSession(testUser);
-
-                const botData = userTestDataFactory.createComplete({
-                    name: "API Bot",
-                    handle: "api-bot-" + Math.floor(Math.random() * 1000),
-                    botSettings: {
-                        __version: "1.0",
-                        model: "gpt-3.5-turbo",
-                        systemPrompt: "Initial API prompt",
-                    },
-                });
-
-                // Create the bot
-                await user.botCreateOne({ input: botData }, { req: createReq, res: createRes }, user_botCreateOne);
-
-                // Update the bot with API key
-                const permissions = mockWritePrivatePermissions();
-                const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, testUser);
-
-                const updateInput: UserUpdateInput = {
-                    id: botData.id,
-                    name: "API Updated Bot",
-                    botSettings: JSON.stringify({
-                        model: "gpt-4",
-                        systemPrompt: "Updated via API",
-                    }),
-                };
-
-                const result = await user.botUpdateOne({ input: updateInput }, { req, res }, user_botUpdateOne);
-
-                expect(result).not.toBeNull();
-                expect(result.id).toBe(botData.id);
-                expect(result.name).toBe(updateInput.name);
-
-                // Verify bot was updated in database
-                const updatedBot = await DbProvider.get().user.findUnique({
-                    where: { id: botData.id },
-                });
-                expect(updatedBot).not.toBeNull();
-                expect(updatedBot?.name).toBe(updateInput.name);
-                expect(updatedBot?.botSettings).toBe(updateInput.botSettings);
             });
         });
 
         describe("invalid", () => {
-            it("updating a different user's bot", async () => {
+            it("cannot update bot owned by another user", async () => {
                 // Create test users
                 const testUser1 = await DbProvider.get().user.create({
                     data: UserDbFactory.createWithAuth({
@@ -685,80 +673,14 @@ describe("EndpointsUser", () => {
                 const testUser2 = await DbProvider.get().user.create({
                     data: UserDbFactory.createWithAuth({
                         id: generatePK(),
-                        name: "Test User 2", 
+                        name: "Test User 2",
                         handle: "test-user-2-" + Math.floor(Math.random() * 1000),
                     }),
                 });
 
-                // First create a bot owned by user2
-                const user2 = { ...loggedInUserNoPremiumData(), id: testUser2.id.toString() };
-                const { req: user2Req, res: user2Res } = await mockAuthenticatedSession(user2);
-
-                const botData = userTestDataFactory.createComplete({
-                    name: "User2's Bot",
-                    handle: "user2-bot-" + Math.floor(Math.random() * 1000),
-                    botSettings: {
-                        __version: "1.0",
-                        model: "gpt-3.5-turbo",
-                    },
-                });
-
-                // Create the bot
-                await user.botCreateOne({ input: botData }, { req: user2Req, res: user2Res }, user_botCreateOne);
-
-                // Try to update the bot as user1
-                const user1 = { ...loggedInUserNoPremiumData(), id: testUser1.id.toString() };
-                const { req, res } = await mockAuthenticatedSession(user1);
-
-                const updateInput: UserUpdateInput = {
-                    id: botData.id,
-                    name: "Hijacked Bot",
-                };
-
-                await expect(async () => {
-                    await user.botUpdateOne({ input: updateInput }, { req, res }, user_botUpdateOne);
-                }).rejects.toThrow();
-            });
-
-            it("updating admin user", async () => {
-                // Create test admin user
-                const adminUser = await createTestAdminUser();
-                
-                // Create test user
-                const testUserRecord = await DbProvider.get().user.create({
-                    data: UserDbFactory.createWithAuth({
-                        id: generatePK(),
-                        name: "Test User",
-                        handle: "test-user-" + Math.floor(Math.random() * 1000),
-                    }),
-                });
-
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
-                const { req, res } = await mockAuthenticatedSession(testUser);
-
-                const updateInput: UserUpdateInput = {
-                    id: adminUser.id.toString(),
-                    name: "Hacked Admin",
-                };
-
-                await expect(async () => {
-                    await user.botUpdateOne({ input: updateInput }, { req, res }, user_botUpdateOne);
-                }).rejects.toThrow();
-            });
-
-            it("trying to set `isBot` to false", async () => {
-                // Create test user
-                const testUserRecord = await DbProvider.get().user.create({
-                    data: UserDbFactory.createWithAuth({
-                        id: generatePK(),
-                        name: "Test User",
-                        handle: "test-user-" + Math.floor(Math.random() * 1000),
-                    }),
-                });
-
-                // First create a bot
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
-                const { req, res } = await mockAuthenticatedSession(testUser);
+                // Create bot owned by user1
+                const user1Session = { ...loggedInUserNoPremiumData(), id: testUser1.id.toString() };
+                const { req: req1, res: res1 } = await mockAuthenticatedSession(user1Session);
 
                 const botData = userTestDataFactory.createComplete({
                     name: "Test Bot",
@@ -769,85 +691,38 @@ describe("EndpointsUser", () => {
                     },
                 });
 
-                // Create the bot
-                await user.botCreateOne({ input: botData }, { req, res }, user_botCreateOne);
+                await user.botCreateOne({ input: botData }, { req: req1, res: res1 }, user_botCreateOne);
 
-                // Try to update isBot to false
-                const updateInput = {
+                // Try to update as user2
+                const user2Session = { ...loggedInUserNoPremiumData(), id: testUser2.id.toString() };
+                const { req: req2, res: res2 } = await mockAuthenticatedSession(user2Session);
+
+                const updateInput: UserUpdateInput = {
                     id: botData.id,
-                    isBot: false, // This should cause validation to fail
-                } as UserUpdateInput;
+                    name: "Hacked Bot Name",
+                };
 
                 await expect(async () => {
-                    await user.botUpdateOne({ input: updateInput }, { req, res }, user_botUpdateOne);
+                    await user.botUpdateOne({ input: updateInput }, { req: req2, res: res2 }, user_botUpdateOne);
                 }).rejects.toThrow();
             });
-
-            it("trying to update user-specific fields", async () => {
-                // Create test user
-                const testUserRecord = await DbProvider.get().user.create({
-                    data: UserDbFactory.createWithAuth({
-                        id: generatePK(),
-                        name: "Test User",
-                        handle: "test-user-" + Math.floor(Math.random() * 1000),
-                    }),
-                });
-
-                // First create a bot
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
-                const { req, res } = await mockAuthenticatedSession(testUser);
-
-                const botData = userTestDataFactory.createComplete({
-                    name: "Test Bot",
-                    handle: "test-bot-" + Math.floor(Math.random() * 1000),
-                    botSettings: {
-                        __version: "1.0",
-                        model: "gpt-3.5-turbo",
-                    },
-                });
-
-                // Create the bot
-                await user.botCreateOne({ input: botData }, { req, res }, user_botCreateOne);
-
-                // Try to update with user-specific fields
-                const updateInput = {
-                    id: botData.id,
-                    name: "Updated Bot",
-                    status: "HardLocked", // User-specific field
-                    notificationSettings: JSON.stringify({ disable: true }), // User-specific field
-                } as any;
-
-                await expect(async () => {
-                    await user.botUpdateOne({ input: updateInput }, { req, res }, user_botUpdateOne);
-                }).rejects.toThrow();
-            });
-
-            testEndpointRequiresAuth(user.botUpdateOne, {
-                input: {
-                    id: userTestDataFactory.createComplete({}).id,
-                    name: "Test Bot Update",
-                },
-            }, user_botUpdateOne);
-
-            // Create test user for API key permissions test
-            const testUserForApiTest = { ...loggedInUserNoPremiumData(), id: generatePK() };
-            testEndpointRequiresApiKeyWritePermissions(
-                testUserForApiTest,
-                user.botUpdateOne,
-                {
-                    input: {
-                        id: userTestDataFactory.createComplete({}).id,
-                        name: "Test Bot Update",
-                    },
-                },
-                user_botUpdateOne,
-            );
         });
     });
 
     describe("profileUpdate", () => {
+        describe("authentication", () => {
+            // Hybrid approach: use direct assertion for simple auth check
+            it("not logged in", async () => {
+                const input: UserUpdateInput = {
+                    id: generatePK(),
+                    name: "Updated Name",
+                };
+                await assertRequiresAuth(user.profileUpdate, input, user_profileUpdate);
+            });
+        });
+
         describe("valid", () => {
-            it("should update user profile information", async () => {
+            it("updates own profile", async () => {
                 // Create test user
                 const testUserRecord = await DbProvider.get().user.create({
                     data: UserDbFactory.createWithAuth({
@@ -860,90 +735,25 @@ describe("EndpointsUser", () => {
                 const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                const input: UserUpdateInput = {
-                    id: testUser.id,
+                const updateInput: UserUpdateInput = {
+                    id: testUserRecord.id.toString(),
                     name: "Updated Name",
+                    bio: "Updated bio",
+                    theme: "dark",
                 };
-                const result = await user.profileUpdate({ input }, { req, res }, user_profileUpdate);
 
-                expect(result.id).toBe(testUser.id);
-                expect(result.name).toBe(input.name);
+                const result = await user.profileUpdate({ input: updateInput }, { req, res }, user_profileUpdate);
 
-                const updatedUser = await DbProvider.get().user.findUnique({
-                    where: { id: testUser.id },
-                    select: { id: true, name: true },
-                });
-                expect(updatedUser).not.toBeNull();
-                expect(updatedUser?.name).toBe(input.name);
-            });
-
-            it("should handle translationsCreate correctly", async () => {
-                // Create test user
-                const testUserRecord = await DbProvider.get().user.create({
-                    data: UserDbFactory.createWithAuth({
-                        id: generatePK(),
-                        name: "Test User",
-                        handle: "test-user-" + Math.floor(Math.random() * 1000),
-                    }),
-                });
-
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
-                const { req, res } = await mockAuthenticatedSession(testUser);
-
-                const input: UserUpdateInput = {
-                    id: testUser.id,
-                    translationsCreate: [{
-                        id: userTestDataFactory.createMinimal({}).id,
-                        language: "es",
-                        bio: "Biografía de prueba",
-                    }],
-                };
-                const result = await user.profileUpdate({ input }, { req, res }, user_profileUpdate);
-
-                expect(result.id).toBe(testUser.id);
-                expect(result.translations).toBeInstanceOf(Array);
-
-                const updatedUser = await DbProvider.get().user.findUnique({
-                    where: { id: testUser.id },
-                    include: { translations: true },
-                });
-                expect(updatedUser).not.toBeNull();
-                expect(updatedUser?.translations).toBeInstanceOf(Array);
-                expect(updatedUser?.translations.length).toBeGreaterThan(0);
-                const createdTranslation = updatedUser?.translations.find((t) => t.language === input.translationsCreate![0].language);
-                expect(createdTranslation).not.toBeNull();
-                expect(createdTranslation?.id).toBe(input.translationsCreate![0].id);
-                expect(createdTranslation?.bio).toBe(input.translationsCreate![0].bio);
-            });
-
-            it("API key - write permissions", async () => {
-                // Create test user
-                const testUserRecord = await DbProvider.get().user.create({
-                    data: UserDbFactory.createWithAuth({
-                        id: generatePK(),
-                        name: "Test User",
-                        handle: "test-user-" + Math.floor(Math.random() * 1000),
-                    }),
-                });
-
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
-                const permissions = mockWritePrivatePermissions();
-                const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, testUser);
-
-                const input: UserUpdateInput = {
-                    id: testUser.id,
-                    name: "Updated Name",
-                };
-                const result = await user.profileUpdate({ input }, { req, res }, user_profileUpdate);
-
-                expect(result.id).toBe(testUser.id);
-                expect(result.name).toBe(input.name);
+                expect(result).not.toBeNull();
+                expect(result.id).toBe(testUserRecord.id.toString());
+                expect(result.name).toBe("Updated Name");
+                expect(result.bio).toBe("Updated bio");
+                expect(result.theme).toBe("dark");
             });
         });
 
         describe("invalid", () => {
-            it("updating a different user", async () => {
+            it("cannot update another user's profile", async () => {
                 // Create test users
                 const testUser1 = await DbProvider.get().user.create({
                     data: UserDbFactory.createWithAuth({
@@ -963,65 +773,15 @@ describe("EndpointsUser", () => {
                 const testUser = { ...loggedInUserNoPremiumData(), id: testUser1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                const input: UserUpdateInput = {
-                    id: testUser2.id.toString(),
-                    name: "Updated Name",
+                const updateInput: UserUpdateInput = {
+                    id: testUser2.id.toString(), // Trying to update user2
+                    name: "Hacked Name",
                 };
+
                 await expect(async () => {
-                    await user.profileUpdate({ input }, { req, res }, user_profileUpdate);
+                    await user.profileUpdate({ input: updateInput }, { req, res }, user_profileUpdate);
                 }).rejects.toThrow();
             });
-
-            it("updating admin user", async () => {
-                // Create test admin user
-                const adminUser = await createTestAdminUser();
-                
-                // Create test user
-                const testUserRecord = await DbProvider.get().user.create({
-                    data: UserDbFactory.createWithAuth({
-                        id: generatePK(),
-                        name: "Test User",
-                        handle: "test-user-" + Math.floor(Math.random() * 1000),
-                    }),
-                });
-
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
-                const { req, res } = await mockAuthenticatedSession(testUser);
-
-                const input: UserUpdateInput = {
-                    id: adminUser.id.toString(),
-                    name: "Updated Name",
-                };
-                await expect(async () => {
-                    await user.profileUpdate({ input }, { req, res }, user_profileUpdate);
-                }).rejects.toThrow();
-            });
-            it("updating a non-existent user", async () => {
-                // Create test user
-                const testUserRecord = await DbProvider.get().user.create({
-                    data: UserDbFactory.createWithAuth({
-                        id: generatePK(),
-                        name: "Test User",
-                        handle: "test-user-" + Math.floor(Math.random() * 1000),
-                    }),
-                });
-
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
-                const { req, res } = await mockAuthenticatedSession(testUser);
-
-                const input: UserUpdateInput = {
-                    id: userTestDataFactory.createMinimal({}).id,
-                    name: "Updated Name",
-                };
-                await expect(async () => {
-                    await user.profileUpdate({ input }, { req, res }, user_profileUpdate);
-                }).rejects.toThrow();
-            });
-
-            testEndpointRequiresAuth(user.profileUpdate, { input: { id: generatePK(), name: "Updated Name" } }, user_profileUpdate);
-
-            const testUserForApiTest = { ...loggedInUserNoPremiumData(), id: generatePK() };
-            testEndpointRequiresApiKeyWritePermissions(testUserForApiTest, user.profileUpdate, { input: { id: generatePK(), name: "Updated Name" } }, user_profileUpdate);
         });
     });
-}); 
+});

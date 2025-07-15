@@ -1,89 +1,91 @@
 {
-  "identity": {
-    "name": "workflow-coordinator",
-    "version": "1.0.0"
-  },
-  "goal": "Orchestrate complex multi-step workflows across specialist agents in the swarm",
-  "role": "coordinator",
-  "subscriptions": [
-    "swarm/goal/created",
-    "run/completed", 
-    "run/failed",
-    "swarm/team/updated"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "swarm/goal/created"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Task Decomposer",
-        "inputMap": {
-          "goalDescription": "event.data.description",
-          "goalId": "event.data.goalId",
-          "existingTasks": "subtasks.length",
-          "currentWorkload": "blackboard.workflows.active"
+    "identity": {
+        "name": "workflow-coordinator",
+        "version": "1.0.0"
+    },
+    "goal": "Orchestrate complex multi-step workflows across specialist agents in the swarm",
+    "role": "coordinator",
+    "subscriptions": [
+        "swarm/goal/created",
+        "run/completed",
+        "run/failed",
+        "swarm/team/updated"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "swarm/goal/created"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Task Decomposer",
+                "inputMap": {
+                    "goalDescription": "event.data.description",
+                    "goalId": "event.data.goalId",
+                    "existingTasks": "subtasks.length",
+                    "currentWorkload": "blackboard.workflows.active"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/completed"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Analyze completed run outputs and determine next workflow step"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/failed"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Error Recovery Planner",
+                "inputMap": {
+                    "error": "event.data.error",
+                    "runId": "event.data.runId"
+                }
+            },
+            "qos": 2
         }
-      },
-      "qos": 1
+    ],
+    "prompt": {
+        "mode": "supplement",
+        "source": "direct",
+        "content": "You must continuously monitor goal progress and coordinate task distribution. Never exceed allocated resources or create workflows that would overwhelm the system."
     },
-    {
-      "trigger": {
-        "topic": "run/completed"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Analyze completed run outputs and determine next workflow step"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "run/failed"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Error Recovery Planner",
-        "inputMap": {
-          "error": "event.data.error",
-          "runId": "event.data.runId"
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "task-coordination",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "workflows.*",
+            "description": "Read and write workflow states and task assignments"
+        },
+        {
+            "type": "blackboard",
+            "label": "agent-registry",
+            "permissions": [
+                "read"
+            ],
+            "scope": "agents.capabilities",
+            "description": "Read available agents and their current capabilities"
+        },
+        {
+            "type": "blackboard",
+            "label": "performance-metrics",
+            "permissions": [
+                "read"
+            ],
+            "scope": "workflows.performance",
+            "description": "Read workflow performance data for optimization"
         }
-      },
-      "qos": 2
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "monitor-goal-progress"
-    },
-    {
-      "modality": "prohibition", 
-      "target": "exceed-resource-allocation"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "task-coordination",
-      "permissions": ["read", "write"],
-      "scope": "workflows.*",
-      "description": "Read and write workflow states and task assignments"
-    },
-    {
-      "type": "blackboard",
-      "label": "agent-registry",
-      "permissions": ["read"],
-      "scope": "agents.capabilities",
-      "description": "Read available agents and their current capabilities"
-    },
-    {
-      "type": "blackboard",
-      "label": "performance-metrics",
-      "permissions": ["read"],
-      "scope": "workflows.performance",
-      "description": "Read workflow performance data for optimization"
-    }
-  ]
+    ]
 }

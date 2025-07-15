@@ -1,4 +1,5 @@
-import { generatePK, generatePublicId, nanoid } from "./idHelpers.js";
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
+import { generatePublicId, nanoid } from "./idHelpers.js";
 import { type view, type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -27,11 +28,12 @@ interface ViewRelationConfig extends RelationConfig {
  * - Last viewed timestamp handling
  */
 export class ViewDbFactory extends EnhancedDatabaseFactory<
-    Prisma.viewCreateInput,
+    view,
     Prisma.viewCreateInput,
     Prisma.viewInclude,
     Prisma.viewUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
         super("view", prisma);
         this.initializeScenarios();
@@ -47,17 +49,17 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
     protected getFixtures(): DbTestFixtures<Prisma.viewCreateInput, Prisma.viewUpdateInput> {
         return {
             minimal: {
-                id: generatePK(),
-                name: `view_${nanoid(8)}`,
-                by: { connect: { id: generatePK() } },
+                id: this.generateId(),
+                name: `view_${nanoid()}`,
+                by: { connect: { id: this.generateId() } },
                 // Must have at least one target
-                resource: { connect: { id: generatePK() } },
+                resource: { connect: { id: this.generateId() } },
             },
             complete: {
-                id: generatePK(),
-                name: `complete_view_${nanoid(8)}`,
-                by: { connect: { id: generatePK() } },
-                resource: { connect: { id: generatePK() } },
+                id: this.generateId(),
+                name: `complete_view_${nanoid()}`,
+                by: { connect: { id: this.generateId() } },
+                resource: { connect: { id: this.generateId() } },
                 lastViewedAt: new Date(),
             },
             invalid: {
@@ -72,68 +74,68 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
                     lastViewedAt: "not-a-date", // Should be Date
                 },
                 noTarget: {
-                    id: generatePK(),
-                    name: `view_${nanoid(8)}`,
-                    by: { connect: { id: generatePK() } },
+                    id: this.generateId(),
+                    name: `view_${nanoid()}`,
+                    by: { connect: { id: this.generateId() } },
                     // No target specified
                 },
                 multipleTargets: {
-                    id: generatePK(),
-                    name: `view_${nanoid(8)}`,
-                    by: { connect: { id: generatePK() } },
-                    resource: { connect: { id: generatePK() } },
-                    issue: { connect: { id: generatePK() } }, // Multiple targets not allowed
+                    id: this.generateId(),
+                    name: `view_${nanoid()}`,
+                    by: { connect: { id: this.generateId() } },
+                    resource: { connect: { id: this.generateId() } },
+                    issue: { connect: { id: this.generateId() } }, // Multiple targets not allowed
                 },
                 nameTooLong: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     name: "a".repeat(129), // Exceeds 128 character limit
-                    by: { connect: { id: generatePK() } },
-                    resource: { connect: { id: generatePK() } },
+                    by: { connect: { id: this.generateId() } },
+                    resource: { connect: { id: this.generateId() } },
                 },
             },
             edgeCases: {
                 anonymousView: {
-                    id: generatePK(),
-                    name: `anon_${nanoid(8)}`, // Anonymous identifier
-                    by: { connect: { id: generatePK() } }, // Anonymous user
-                    resource: { connect: { id: generatePK() } },
+                    id: this.generateId(),
+                    name: `anon_${nanoid()}`, // Anonymous identifier
+                    by: { connect: { id: this.generateId() } }, // Anonymous user
+                    resource: { connect: { id: this.generateId() } },
                 },
                 viewWithSessionId: {
-                    id: generatePK(),
-                    name: `session_${nanoid(32)}`, // Session-based identifier
-                    by: { connect: { id: generatePK() } },
-                    resource: { connect: { id: generatePK() } },
+                    id: this.generateId(),
+                    name: `session_${nanoid()}`, // Session-based identifier
+                    by: { connect: { id: this.generateId() } },
+                    resource: { connect: { id: this.generateId() } },
                 },
                 viewOfIssue: {
-                    id: generatePK(),
-                    name: `issue_view_${nanoid(8)}`,
-                    by: { connect: { id: generatePK() } },
-                    issue: { connect: { id: generatePK() } },
+                    id: this.generateId(),
+                    name: `issue_view_${nanoid()}`,
+                    by: { connect: { id: this.generateId() } },
+                    issue: { connect: { id: this.generateId() } },
                 },
                 viewOfTeam: {
-                    id: generatePK(),
-                    name: `team_view_${nanoid(8)}`,
-                    by: { connect: { id: generatePK() } },
-                    team: { connect: { id: generatePK() } },
+                    id: this.generateId(),
+                    name: `team_view_${nanoid()}`,
+                    by: { connect: { id: this.generateId() } },
+                    team: { connect: { id: this.generateId() } },
                 },
                 viewOfUser: {
-                    id: generatePK(),
-                    name: `user_view_${nanoid(8)}`,
-                    by: { connect: { id: generatePK() } },
-                    user: { connect: { id: generatePK() } },
+                    id: this.generateId(),
+                    name: `user_view_${nanoid()}`,
+                    by: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 oldView: {
-                    id: generatePK(),
-                    name: `old_view_${nanoid(8)}`,
-                    by: { connect: { id: generatePK() } },
-                    resource: { connect: { id: generatePK() } },
+                    id: this.generateId(),
+                    name: `old_view_${nanoid()}`,
+                    by: { connect: { id: this.generateId() } },
+                    resource: { connect: { id: this.generateId() } },
                     lastViewedAt: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), // 1 year ago
                 },
                 recentView: {
-                    id: generatePK(),
-                    name: `recent_view_${nanoid(8)}`,
-                    by: { connect: { id: generatePK() } },
-                    resource: { connect: { id: generatePK() } },
+                    id: this.generateId(),
+                    name: `recent_view_${nanoid()}`,
+                    by: { connect: { id: this.generateId() } },
+                    resource: { connect: { id: this.generateId() } },
                     lastViewedAt: new Date(Date.now() - 5 * 60 * 1000), // 5 minutes ago
                 },
             },
@@ -142,7 +144,7 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
                     lastViewedAt: new Date(), // Update view time
                 },
                 complete: {
-                    name: `updated_view_${nanoid(8)}`,
+                    name: `updated_view_${nanoid()}`,
                     lastViewedAt: new Date(),
                 },
             },
@@ -151,20 +153,20 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.viewCreateInput>): Prisma.viewCreateInput {
         return {
-            id: generatePK(),
-            name: `view_${nanoid(8)}`,
-            by: { connect: { id: generatePK() } },
-            resource: { connect: { id: generatePK() } }, // Default to resource
+            id: this.generateId(),
+            name: `view_${nanoid()}`,
+            by: { connect: { id: this.generateId() } },
+            resource: { connect: { id: this.generateId() } }, // Default to resource
             ...overrides,
         };
     }
 
     protected generateCompleteData(overrides?: Partial<Prisma.viewCreateInput>): Prisma.viewCreateInput {
         return {
-            id: generatePK(),
-            name: `complete_view_${nanoid(8)}`,
-            by: { connect: { id: generatePK() } },
-            resource: { connect: { id: generatePK() } },
+            id: this.generateId(),
+            name: `complete_view_${nanoid()}`,
+            by: { connect: { id: this.generateId() } },
+            resource: { connect: { id: this.generateId() } },
             lastViewedAt: new Date(),
             ...overrides,
         };
@@ -188,8 +190,8 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
                 description: "View from anonymous visitor",
                 config: {
                     overrides: {
-                        by: { connect: { id: generatePK() } }, // Anonymous user ID
-                        name: `anon_${nanoid(16)}`,
+                        by: { connect: { id: this.generateId() } }, // Anonymous user ID
+                        name: `anon_${nanoid()}`,
                     },
                     isAuthenticated: false,
                     targetType: "resource",
@@ -280,7 +282,7 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.viewCreateInput,
         config: ViewRelationConfig,
-        tx: any,
+        tx: PrismaClient,
     ): Promise<Prisma.viewCreateInput> {
         const data = { ...baseData };
 
@@ -291,8 +293,8 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
 
         // Handle anonymous views
         if (config.isAuthenticated === false) {
-            data.by = { connect: { id: generatePK() } }; // Anonymous user
-            data.name = `anon_${nanoid(16)}`; // Anonymous session identifier
+            data.by = { connect: { id: this.generateId() } }; // Anonymous user
+            data.name = `anon_${nanoid()}`; // Anonymous session identifier
         }
 
         // Handle target type
@@ -334,7 +336,7 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
     ): Promise<view> {
         return await this.createWithRelations({
             overrides: { 
-                name: viewName || `view_${nanoid(8)}`,
+                name: viewName || `view_${nanoid()}`,
             },
             userId: viewerId,
             targetType,
@@ -352,8 +354,8 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
     ): Promise<view> {
         return await this.createWithRelations({
             overrides: {
-                name: sessionId || `anon_${nanoid(16)}`,
-                by: { connect: { id: generatePK() } },
+                name: sessionId || `anon_${nanoid()}`,
+                by: { connect: { id: this.generateId() } },
             },
             isAuthenticated: false,
             targetType,
@@ -386,7 +388,7 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
                 ? await this.createViewFor(
                     targetType,
                     targetId,
-                    generatePK().toString(),
+                    this.generateId().toString(),
                     `user_view_${i}`,
                 )
                 : await this.createAnonymousView(
@@ -467,7 +469,7 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
     protected async deleteRelatedRecords(
         record: view,
         remainingDepth: number,
-        tx: any,
+        tx: PrismaClient,
         includeOnly?: string[],
     ): Promise<void> {
         // Views don't have dependent records
@@ -539,7 +541,7 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
         
         const result = await this.prisma.view.deleteMany({
             where: {
-                by: { id: generatePK() }, // Anonymous user ID placeholder
+                by: { id: this.generateId() }, // Anonymous user ID placeholder
                 lastViewedAt: { lt: cutoffDate },
             },
         });
@@ -550,7 +552,7 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createViewDbFactory = (prisma: PrismaClient) => 
-    ViewDbFactory.getInstance("view", prisma);
+    new ViewDbFactory(prisma);
 
 // Export the class for type usage
 export { ViewDbFactory as ViewDbFactoryClass };

@@ -1,3 +1,4 @@
+// AI_CHECK: TASK_ID=TYPE_SAFETY COUNT=2 | LAST: 2025-07-04
 import { type Prisma } from "@prisma/client";
 import { AUTH_EMAIL_TEMPLATES, DbProvider, QueueService, batch, logger } from "@vrooli/server";
 import { PaymentStatus, PaymentType, WEEKS_1_MS, nanoid } from "@vrooli/shared";
@@ -30,8 +31,8 @@ export async function paymentsFail(): Promise<void> {
     try {
         await batch<Prisma.paymentFindManyArgs, PaymentPayload>({
             objectType: "Payment",
-            processBatch: async (paymentBatch) => {
-                const paymentIds = paymentBatch.map(payment => payment.id);
+            processBatch: async (paymentBatch: PaymentPayload[]) => {
+                const paymentIds = paymentBatch.map((payment: PaymentPayload) => payment.id);
                 if (paymentIds.length > 0) {
                     await DbProvider.get().payment.updateMany({
                         data: { status: PaymentStatus.Failed },
@@ -45,7 +46,7 @@ export async function paymentsFail(): Promise<void> {
 
                 for (const payment of paymentBatch) {
                     const recipientEmails = (payment.user?.emails ?? payment.team?.emails ?? [])
-                        .map(email => email.emailAddress)
+                        .map((email: { emailAddress: string }) => email.emailAddress)
                         .filter(Boolean); // Ensure no null/undefined email strings
 
                     if (recipientEmails.length === 0) {
@@ -89,7 +90,11 @@ export async function paymentsFail(): Promise<void> {
                 updatedAt: { lte: new Date(Date.now() - PENDING_TIMEOUT) },
             },
         });
-    } catch (error) {
-        logger.error("paymentsFail caught error", { error, trace: "0222" });
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error("paymentsFail caught error", { 
+            error: errorMessage, 
+            trace: "0222", 
+        });
     }
 }

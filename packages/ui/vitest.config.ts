@@ -31,8 +31,9 @@ export default defineProject({
             // UI internal aliases
             { find: "@", replacement: path.resolve(__dirname, "./src") },
             { find: "@local", replacement: path.resolve(__dirname, "./src") },
-            // Use shared source files for testing (faster and avoids build dependencies)
-            { find: "@vrooli/shared", replacement: path.resolve(__dirname, "../shared/src") },
+            // Use pre-built shared package for testing (much faster test collection)
+            { find: "@vrooli/shared/test-fixtures", replacement: path.resolve(__dirname, "../shared/test-dist/__test/fixtures") },
+            { find: "@vrooli/shared", replacement: path.resolve(__dirname, "../shared/test-dist") },
         ],
         extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
     },

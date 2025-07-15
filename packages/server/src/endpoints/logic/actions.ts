@@ -1,4 +1,6 @@
-import { type CopyInput, type CopyResult, type Count, type DeleteAccountInput, type DeleteAllInput, type DeleteManyInput, type DeleteOneInput, DeleteType, type Success, lowercaseFirstLetter } from "@vrooli/shared";
+// AI_CHECK: TASK_ID=type-safety-fixes | LAST: 2025-06-29
+import { DeleteType, lowercaseFirstLetter } from "@vrooli/shared";
+import type { CopyInput, CopyResult, Count, DeleteAccountInput, DeleteAllInput, DeleteManyInput, DeleteOneInput, Success } from "@vrooli/shared";
 import { copyHelper } from "../../actions/copies.js";
 import { deleteManyHelper, deleteOneHelper } from "../../actions/deletes.js";
 import { PasswordAuthService } from "../../auth/email.js";
@@ -8,7 +10,6 @@ import { CustomError } from "../../events/error.js";
 import { ModelMap } from "../../models/base/index.js";
 import { type ApiEndpoint } from "../../types.js";
 import { auth } from "./auth.js";
-import { createStandardCrudEndpoints } from "../helpers/endpointFactory.js";
 
 export type EndpointsActions = {
     copy: ApiEndpoint<CopyInput, CopyResult>;
@@ -18,10 +19,7 @@ export type EndpointsActions = {
     deleteAccount: ApiEndpoint<DeleteAccountInput, Success>;
 }
 
-export const actions: EndpointsActions = createStandardCrudEndpoints({
-    objectType: "Actions",
-    endpoints: {},
-    customEndpoints: {
+export const actions: EndpointsActions = {
     copy: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 500, req });
         RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
@@ -43,12 +41,9 @@ export const actions: EndpointsActions = createStandardCrudEndpoints({
         await RequestService.get().rateLimit({ maxUser: 25, req });
         RequestService.assertRequestFrom(req, { hasWriteAuthPermissions: true });
         let totalCount = 0;
-        if (input.objectTypes.includes(DeleteType.RunProject)) {
-            const { danger } = ModelMap.getLogic(["danger"], DeleteType.RunProject, true, "deleteAll RunProject");
-            totalCount += await danger.deleteAll({ __typename: "User", id: userData.id });
-        }
-        if (input.objectTypes.includes(DeleteType.RunRoutine)) {
-            const { danger } = ModelMap.getLogic(["danger"], DeleteType.RunRoutine, true, "deleteAll RunRoutine");
+        if (input.objectTypes.includes(DeleteType.Run)) {
+            // AI_CHECK: TYPE_SAFETY=phase1-2 | LAST: 2025-07-03 - Replaced deprecated RunProject/RunRoutine with unified Run type
+            const { danger } = ModelMap.getLogic(["danger"], DeleteType.Run, true, "deleteAll Run");
             totalCount += await danger.deleteAll({ __typename: "User", id: userData.id });
         }
         // TODO add condition for every object type. For users, make sure you can only delete bots (and not your own account)
@@ -57,13 +52,13 @@ export const actions: EndpointsActions = createStandardCrudEndpoints({
             count: totalCount,
         };
     },
-    deleteAccount: async ({ input }, { req, res }, info) => {
+    deleteAccount: async ({ input }, { req, res }, _info) => {
         const { id } = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 500, req });
         RequestService.assertRequestFrom(req, { hasWriteAuthPermissions: true });
         // Find user
         const user = await DbProvider.get().user.findUnique({
-            where: { id },
+            where: { id: BigInt(id) },
             select: PasswordAuthService.selectUserForPasswordAuth(),
         });
         if (!user)
@@ -84,12 +79,17 @@ export const actions: EndpointsActions = createStandardCrudEndpoints({
         const result = await deleteOneHelper({ input: { id, objectType: DeleteType.User }, req });
         // If successful, remove user from session
         if (result.success) {
-            // TODO this will only work if you're deleting yourself, since it clears your own session. 
-            // If there are cases like deleting a bot, or an admin deleting a user, this will need to be handled differently
-            return auth.logOut(undefined as never, { req, res });
+            // Log out the user session
+            await auth.logOut({} as never, { req, res }, {});
+            // Return Success instead of Session
+            return {
+                __typename: "Success" as const,
+                success: true,
+            };
         } else {
             throw new CustomError("0123", "InternalError");
         }
-        },
     },
-});
+};
+
+// AI_CHECK: TYPE_SAFETY=api-endpoints-1 | LAST: 2025-07-03 - Fixed bigint ID conversions, user object type casting, and deleteAccount return type from Session to Success

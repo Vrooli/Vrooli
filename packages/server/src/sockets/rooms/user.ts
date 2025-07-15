@@ -1,4 +1,5 @@
 import { JOIN_USER_ROOM_ERRORS, LEAVE_USER_ROOM_ERRORS } from "@vrooli/shared";
+// AI_CHECK: TYPE_SAFETY=server-phase2-1 | LAST: 2025-07-03 - Added explicit return type annotation
 import { type Socket } from "socket.io";
 import { AuthTokensService } from "../../auth/auth.js";
 import { RequestService } from "../../auth/request.js";
@@ -6,10 +7,10 @@ import { logger } from "../../events/logger.js";
 import { SocketService } from "../io.js";
 
 /** Socket room for user-specific events */
-export function userSocketRoomHandlers(socket: Socket) {
+export function userSocketRoomHandlers(socket: Socket): void {
     SocketService.get().onSocketEvent(socket, "joinUserRoom", async ({ userId }, callback) => {
         try {
-            if (AuthTokensService.isAccessTokenExpired(socket.session)) {
+            if (!("session" in socket) || !socket.session || AuthTokensService.isAccessTokenExpired(socket.session)) {
                 callback({ success: false, error: JOIN_USER_ROOM_ERRORS.SessionExpired });
                 return;
             }

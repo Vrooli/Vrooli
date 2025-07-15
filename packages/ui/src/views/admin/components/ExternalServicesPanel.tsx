@@ -8,7 +8,6 @@ import {
     Dialog,
     DialogActions,
     DialogContent,
-    DialogTitle,
     FormControl,
     Grid,
     IconButton,
@@ -22,17 +21,18 @@ import {
     List,
     ListItem,
     ListItemText,
-    Tooltip,
 } from "@mui/material";
+import { Tooltip } from "../../../components/Tooltip/Tooltip.js";
+import { DialogTitle } from "../../../components/dialogs/DialogTitle/DialogTitle.js";
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import {
     ResourceType,
-    ResourceSearchInput,
-    ResourceCreateInput,
-    ResourceUpdateInput,
-    ResourceSearchResult,
-    Resource,
+    type ResourceSearchInput,
+    type ResourceCreateInput,
+    type ResourceUpdateInput,
+    type ResourceSearchResult,
+    type Resource,
     ApiVersionConfig,
     generatePublicId,
     endpointsResource,
@@ -180,7 +180,7 @@ export const ExternalServicesPanel: React.FC = () => {
                 onError: () => {
                     PubSub.get().publish("snack", { 
                         messageKey: "FailedToLoadServices", 
-                        severity: "Error" 
+                        severity: "Error", 
                     });
                 },
             });
@@ -247,13 +247,13 @@ export const ExternalServicesPanel: React.FC = () => {
                         resetForm();
                         PubSub.get().publish("snack", { 
                             messageKey: "ServiceUpdated", 
-                            severity: "Success" 
+                            severity: "Success", 
                         });
                     },
                     onError: () => {
                         PubSub.get().publish("snack", { 
                             messageKey: "FailedToUpdateService", 
-                            severity: "Error" 
+                            severity: "Error", 
                         });
                     },
                 });
@@ -283,13 +283,13 @@ export const ExternalServicesPanel: React.FC = () => {
                         resetForm();
                         PubSub.get().publish("snack", { 
                             messageKey: "ServiceCreated", 
-                            severity: "Success" 
+                            severity: "Success", 
                         });
                     },
                     onError: () => {
                         PubSub.get().publish("snack", { 
                             messageKey: "FailedToCreateService", 
-                            severity: "Error" 
+                            severity: "Error", 
                         });
                     },
                 });
@@ -298,7 +298,7 @@ export const ExternalServicesPanel: React.FC = () => {
             console.error("Failed to save provider:", error);
             PubSub.get().publish("snack", { 
                 messageKey: "ErrorUnknown", 
-                severity: "Error" 
+                severity: "Error", 
             });
         }
     };
@@ -355,9 +355,9 @@ export const ExternalServicesPanel: React.FC = () => {
                     ? { 
                         ...p, 
                         lastTested: new Date().toISOString(),
-                        testStatus: mockResults.success ? "success" : "error"
+                        testStatus: mockResults.success ? "success" : "error",
                     }
-                    : p
+                    : p,
             ));
         } catch (error) {
             setTestDialog(prev => ({
@@ -386,13 +386,13 @@ export const ExternalServicesPanel: React.FC = () => {
                     loadProviders();
                     PubSub.get().publish("snack", { 
                         messageKey: "ServiceDeleted", 
-                        severity: "Success" 
+                        severity: "Success", 
                     });
                 },
                 onError: () => {
                     PubSub.get().publish("snack", { 
                         messageKey: "FailedToDeleteService", 
-                        severity: "Error" 
+                        severity: "Error", 
                     });
                 },
             });
@@ -400,7 +400,7 @@ export const ExternalServicesPanel: React.FC = () => {
             console.error("Failed to delete provider:", error);
             PubSub.get().publish("snack", { 
                 messageKey: "ErrorUnknown", 
-                severity: "Error" 
+                severity: "Error", 
             });
         }
     };
@@ -605,9 +605,7 @@ export const ExternalServicesPanel: React.FC = () => {
 
             {/* Add/Edit Service Dialog */}
             <Dialog open={addDialog} onClose={() => setAddDialog(false)} maxWidth="md" fullWidth>
-                <DialogTitle>
-                    {editProvider ? t("EditService") : t("AddService")}
-                </DialogTitle>
+                <DialogTitle id="add-edit-service-dialog" title={editProvider ? t("EditService") : t("AddService")} />
                 <DialogContent>
                     <Grid container spacing={2} sx={{ mt: 1 }}>
                         <Grid item xs={12} md={6}>
@@ -745,9 +743,10 @@ export const ExternalServicesPanel: React.FC = () => {
                 maxWidth="sm" 
                 fullWidth
             >
-                <DialogTitle>
-                    {t("TestResults")} - {testDialog.provider?.name}
-                </DialogTitle>
+                <DialogTitle 
+                    id="test-results-dialog"
+                    title={`${t("TestResults")} - ${testDialog.provider?.name}`} 
+                />
                 <DialogContent>
                     {testDialog.testing ? (
                         <Box sx={{ textAlign: "center", py: 3 }}>

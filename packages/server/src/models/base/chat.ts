@@ -3,7 +3,7 @@ import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
-import { conversationStateStore } from "../../services/conversation/responseEngine.js";
+import { conversationStateStore } from "../../services/response/chatStore.js";
 import { BranchInfoLoader, type ChatPreBranchInfo, MessageTree } from "../../utils/messageTree.js";
 import { preShapeEmbeddableTranslatable } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
@@ -72,7 +72,11 @@ export const ChatModel: ChatModelLogic = ({
                     : [];
 
                 /* 5️⃣  Nothing else is needed for Chat pre-shape. */
-                const embeddingNeedsUpdateMap = preShapeEmbeddableTranslatable({ Create, Update, objectType: "Chat" }).embeddingNeedsUpdateMap;
+                const embeddingNeedsUpdateMap = preShapeEmbeddableTranslatable({ 
+                    Create: Create as any, 
+                    Update: Update as any, 
+                    objectType: "Chat", 
+                }).embeddingNeedsUpdateMap;
                 return { bots, branchInfo, embeddingNeedsUpdateMap };
             },
             create: async ({ data, ...rest }) => {
@@ -209,16 +213,19 @@ export const ChatModel: ChatModelLogic = ({
     },
     validate: () => ({
         isDeleted: () => false,
-        isPublic: (data) => data?.openToAnyoneWithInvite === true,
+        isPublic: (data, _getParentInfo?) => data?.openToAnyoneWithInvite === true,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => ({
+        owner: (data, _userId) => ({
             Team: data?.team,
             User: data?.creator,
         }),
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {
             const isInvited = validatePK(userId) && data.invites?.some((i) => i.userId.toString() === userId && i.status === ChatInviteStatus.Pending);
-            const isParticipant = validatePK(userId) && data.participants?.some((p) => (p.userId ?? (p as unknown as { user: { id: bigint } }).user?.id ?? "").toString() === userId);
+            const isParticipant = validatePK(userId) && data.participants?.some((p) => {
+                const participantUserId = p.userId ?? (p as any).user?.id;
+                return participantUserId?.toString() === userId;
+            });
             return {
                 ...defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic }),
                 canInvite: () => isLoggedIn && isAdmin,

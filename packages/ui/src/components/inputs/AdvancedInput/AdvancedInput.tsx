@@ -1,71 +1,56 @@
 /* eslint-disable no-magic-numbers */
-import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import Collapse from "@mui/material/Collapse";
-import Divider from "@mui/material/Divider";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import ListItemText from "@mui/material/ListItemText";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
-import Popover from "@mui/material/Popover";
-// Switch import removed - using custom Switch component
-import { Tooltip } from "../../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
-import { styled } from "@mui/material/styles";
-import { useTheme } from "@mui/material/styles";
-import type { SxProps, Theme } from "@mui/material/styles";
-import { type CSSProperties } from "@mui/styles";
-import { FormStructureType, getDotNotationValue, noop, setDotNotationValue } from "@vrooli/shared";
+import type { Theme } from "@mui/material/styles";
+import { styled, useTheme } from "@mui/material/styles";
+import { getDotNotationValue, setDotNotationValue } from "@vrooli/shared";
 import { useField } from "formik";
 import React, { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useDropzone } from "react-dropzone";
 import { useDimensions } from "../../../hooks/useDimensions.js";
 import { useHotkeys } from "../../../hooks/useHotkeys.js";
 import { useUndoRedo } from "../../../hooks/useUndoRedo.js";
-import { Icon, IconCommon, IconRoutine, type IconInfo } from "../../../icons/Icons.js";
-import { Switch } from "../../inputs/Switch/index.js";
-import { AITaskDisplayState, type AITaskDisplay } from "../../../types.js";
-import { randomString } from "../../../utils/codes.js";
-import { keyComboToString } from "../../../utils/display/device.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { getTranslationData, handleTranslationChange } from "../../../utils/display/translationTools.js";
 import { getCookie, setCookie } from "../../../utils/localStorage.js";
 import { PubSub } from "../../../utils/pubsub.js";
+import { Divider } from "../../layout/Divider.js";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import { IconButton as CustomIconButton } from "../../buttons/IconButton.js";
 import { MicrophoneButton } from "../../buttons/MicrophoneButton.js";
 import { type MicrophoneButtonProps } from "../../buttons/types.js";
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
 import { SnackSeverity } from "../../snacks/BasicSnack/BasicSnack.js";
-import { FormTip } from "../form/FormTip.js";
 import { AdvancedInputMarkdown } from "./AdvancedInputMarkdown.js";
-import { AdvancedInputToolbar, TOOLBAR_CLASS_NAME, defaultActiveStates } from "./AdvancedInputToolbar.js";
+import { AdvancedInputToolbar, defaultActiveStates } from "./AdvancedInputToolbar.js";
 import { ContextDropdown, type ListObject } from "./ContextDropdown.js";
 import { AdvancedInputLexical } from "./lexical/AdvancedInputLexical.js";
-import { AdvancedInputAction, DEFAULT_FEATURES, advancedInputTextareaClassName, type AdvancedInputActiveStates, type AdvancedInputBaseProps, type AdvancedInputFeatures, type AdvancedInputProps, type ContextItem, type ExternalApp, type TranslatedAdvancedInputProps } from "./utils.js";
+import { AdvancedInputAction, DEFAULT_FEATURES, advancedInputTextareaClassName, type AdvancedInputActiveStates, type AdvancedInputBaseProps, type AdvancedInputProps, type ContextItem, type TranslatedAdvancedInputProps } from "./utils.js";
+// Import extracted components
+import { ContextItemDisplay, previewImageStyle } from "./ContextItems/index.js";
+import { InfoMenu, PlusMenu } from "./Menus/index.js";
+import { TaskChip, useTaskActions } from "./TaskManager/index.js";
+import {
+    MAX_ROWS_COLLAPSED,
+    MAX_ROWS_EXPANDED,
+    MIN_ROWS_COLLAPSED,
+    MIN_ROWS_EXPANDED,
+    NON_FOCUSABLE_SELECTOR,
+    TRIGGER_CHARS,
+    bottomRowStyles,
+    findRoutineLimitTo,
+    getFilesFromEvent,
+    iconHeight,
+    iconWidth,
+    preventInputLossOnToolbarClick,
+    toolbarIconButtonClassName,
+    toolbarRowStyles,
+    verticalMiddleStyle,
+    type FocusableElement,
+} from "./utils/index.js";
 
-// Add supported external apps here
-const externalApps: ExternalApp[] = [
-];
-const findRoutineLimitTo = ["RoutineMultiStep", "RoutineSingleStep"] as const;
-
-const iconHeight = 32;
-const iconWidth = 32;
-const MAX_ROWS_EXPANDED = 50;
-const MIN_ROWS_EXPANDED = 5;
-const MAX_ROWS_COLLAPSED = 6;
-const MIN_ROWS_COLLAPSED = 1;
-
-// Add these near the top with other constants
-const TRIGGER_CHARS = {
-    AT: "@",
-    SLASH: "/",
-} as const;
-
-// Simple interface for elements that can be focused
-interface FocusableElement {
-    focus: (options?: FocusOptions) => void;
-}
 
 // Example of how to add context
 // const openAssistantDialog = useCallback(() => {
@@ -111,11 +96,6 @@ interface FocusableElement {
 //     });
 // }, [chat?.id, codeLanguage, disabled, name, session]);
 
-const toolbarRowStyles: SxProps<Theme> = {
-    display: "flex",
-    alignItems: "center",
-    mb: 1,
-};
 
 const contextRowStyles: SxProps<Theme> = {
     display: "flex",
@@ -136,13 +116,7 @@ const titleStyles: SxProps<Theme> = {
     mb: 1,
 };
 
-const bottomRowStyles: SxProps<Theme> = {
-    display: "flex",
-    alignItems: "center",
-};
 
-const popoverAnchorOrigin = { vertical: "top", horizontal: "left" } as const;
-const popoverTransformOrigin = { vertical: "bottom", horizontal: "left" } as const;
 
 const Outer = styled("div")(({ theme }) => ({
     backgroundColor: theme.palette.background.paper,
@@ -167,650 +141,22 @@ const NON_FOCUSABLE_SELECTORS = [
     "input[role='switch']", // Custom Switch component
     ".MuiSlider-root",
     ".MuiMenuItem-root",
-    ".MuiTab-root",
-    ".AdvancedInputToolbar",  // The toolbar itself
-    `.${TOOLBAR_CLASS_NAME}`, // Using the toolbar class name constant
-    "[aria-haspopup=\"true\"]", // Elements with popups/dropdowns
-    // Context elements
-    ".context-item",
-    ".task-item",
-    // File dropzone elements
-    ".dropzone",
-    // Specific elements we know about
-    "[data-toolbar-button=\"true\"]",
+    NON_FOCUSABLE_SELECTOR, // Import the extended selector
 ].join(",");
 
 // Class name added to the AdvancedInput textarea/contentEditable for identification
 const ADVANCED_INPUT_CONTENT_CLASS = advancedInputTextareaClassName;
 
-const toolChipIconButtonClassName = "tw-p-0 tw-pr-0.5" as const;
 
 
-type TaskChipProps = AITaskDisplay & {
-    index: number;
-    onRemoveTool: () => unknown;
-    onToggleTool: () => unknown;
-    onToggleToolExclusive: () => unknown;
-}
 
-function TaskChip({
-    displayName,
-    iconInfo,
-    index,
-    name,
-    onRemoveTool,
-    onToggleTool,
-    onToggleToolExclusive,
-    state,
-}: TaskChipProps) {
-    const { palette } = useTheme();
 
-    const [isHovered, setIsHovered] = useState(false);
-    function handleMouseEnter() {
-        setIsHovered(true);
-    }
-    function handleMouseLeave() {
-        setIsHovered(false);
-    }
 
-    const handlePlayClick = useCallback(function handlePlayClickCallback(event: React.MouseEvent) {
-        // Prevent triggering chip's onClick
-        event.stopPropagation();
-        onToggleToolExclusive();
-    }, [onToggleToolExclusive]);
 
-    const handleToolToggle = useCallback(function handleToolToggleCallback(event: React.MouseEvent) {
-        // Stop propagation to prevent focusing the input
-        event.stopPropagation();
-        onToggleTool();
-    }, [onToggleTool]);
 
-    const chipVariant = state === AITaskDisplayState.Disabled ? "outlined" : "filled";
-    const chipStyle = useMemo(() => {
-        let backgroundColor: string;
-        let color: string;
-        let border: string;
 
-        switch (state) {
-            case AITaskDisplayState.Disabled: {
-                backgroundColor = "transparent";
-                color = palette.background.textSecondary;
-                border = `1px solid ${palette.divider}`;
-                break;
-            }
-            case AITaskDisplayState.Enabled: {
-                backgroundColor = palette.secondary.light,
-                    color = palette.secondary.contrastText,
-                    border = "none";
-                break;
-            }
-            case AITaskDisplayState.Exclusive: {
-                backgroundColor = palette.secondary.main;
-                color = palette.secondary.contrastText;
-                border = "none";
-                break;
-            }
-        }
-        return {
-            backgroundColor,
-            color,
-            border,
-            cursor: "pointer",
-            "&:hover": {
-                backgroundColor,
-                color,
-                filter: "brightness(1.05)",
-            },
-        } as const;
-    }, [state, palette]);
 
-    const chipIcon = useMemo(() => {
-        if (isHovered) {
-            if (state !== AITaskDisplayState.Exclusive) {
-                return (
-                    <CustomIconButton
-                        size={20}
-                        onClick={handlePlayClick}
-                        className={toolChipIconButtonClassName}
-                    >
-                        <IconCommon
-                            decorative
-                            name="Play"
-                        />
-                    </CustomIconButton>
-                );
-            }
-            return (
-                <CustomIconButton
-                    size={20}
-                    onClick={handlePlayClick}
-                    className={toolChipIconButtonClassName}
-                >
-                    <IconCommon
-                        decorative
-                        name="Pause"
-                    />
-                </CustomIconButton>
-            );
-        }
-        return <Icon decorative info={iconInfo} />;
-    }, [isHovered, iconInfo, state, handlePlayClick]);
 
-    return (
-        <Chip
-            data-type="task" // Keep this for the selector
-            key={`${name}-${index}`}
-            icon={chipIcon}
-            label={displayName}
-            onDelete={onRemoveTool} // MuiChip handles stopPropagation internally for deleteIcon
-            onClick={handleToolToggle}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            sx={chipStyle}
-            variant={chipVariant}
-        />
-    );
-}
-
-export function useTaskActions(tasks: AITaskDisplay[], onTasksChange?: (updatedTools: AITaskDisplay[]) => unknown) {
-    const handleToggleTask = useCallback(
-        (index: number) => {
-            if (!onTasksChange) return;
-            const updated = [...tasks];
-            const currentState = updated[index].state;
-            let newState: AITaskDisplayState;
-            if (currentState === AITaskDisplayState.Disabled) {
-                newState = AITaskDisplayState.Enabled;
-            } else if (currentState === AITaskDisplayState.Enabled) {
-                newState = AITaskDisplayState.Disabled;
-            } else {
-                // Exclusive -> Enabled
-                newState = AITaskDisplayState.Enabled;
-            }
-            updated[index] = { ...updated[index], state: newState };
-            onTasksChange(updated);
-        },
-        [tasks, onTasksChange],
-    );
-
-    const handleToggleTaskExclusive = useCallback(
-        (index: number) => {
-            if (!onTasksChange) return;
-            let updated = [...tasks];
-            // If the task is already exclusive, set it to enabled
-            const currentState = tasks[index].state;
-            if (currentState === AITaskDisplayState.Exclusive) {
-                updated = tasks.map((task, i) => {
-                    if (i === index) {
-                        return { ...task, state: AITaskDisplayState.Enabled };
-                    } else {
-                        return task;
-                    }
-                });
-            }
-            // Otherwise, set the task to exclusive and any existing exclusives to enabled
-            else {
-                updated = tasks.map((task, i) => {
-                    if (i === index) {
-                        return { ...task, state: AITaskDisplayState.Exclusive };
-                    } else if (task.state === AITaskDisplayState.Exclusive) {
-                        return { ...task, state: AITaskDisplayState.Enabled };
-                    } else {
-                        return task;
-                    }
-                });
-            }
-            onTasksChange(updated);
-        },
-        [tasks, onTasksChange],
-    );
-
-    const handleRemoveTask = useCallback(
-        (index: number) => {
-            if (!onTasksChange) return;
-            const updated = [...tasks];
-            updated.splice(index, 1);
-            onTasksChange(updated);
-        },
-        [tasks, onTasksChange],
-    );
-
-    return { handleToggleTask, handleToggleTaskExclusive, handleRemoveTask };
-}
-
-/** Prevents input from losing focus when the toolbar is pressed */
-function preventInputLossOnToolbarClick(event: React.MouseEvent) {
-    // Check for the toolbar ID at each parent element
-    let parent = event.target as HTMLElement | null | undefined;
-    let numParentsTraversed = 0;
-    const maxParentsToTraverse = 10;
-    do {
-        // If the toolbar is clicked, prevent default (stops focus loss) and stop propagation (prevents outer click handler)
-        if (parent?.classList.contains(TOOLBAR_CLASS_NAME)) {
-            event.preventDefault();
-            // We don't stop propagation here anymore, let the Outer click handler decide based on selector
-            // event.stopPropagation();
-            return;
-        }
-        parent = parent?.parentElement;
-        numParentsTraversed++;
-    } while (parent && numParentsTraversed < maxParentsToTraverse);
-}
-
-const PreviewContainer = styled("div")(({ theme }) => ({
-    position: "relative",
-    width: theme.spacing(7),
-    height: theme.spacing(7),
-    borderRadius: theme.spacing(1),
-    overflow: "visible",
-    marginRight: theme.spacing(1),
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-}));
-
-function previewImageStyle(theme: Theme) {
-    return {
-        width: "100%",
-        height: "100%",
-        objectFit: "cover",
-        borderRadius: theme.spacing(1),
-        border: `1px solid ${theme.palette.divider}`,
-    } as const;
-}
-
-const PreviewImageAvatar = styled(Avatar)(({ theme }) => ({
-    width: "100%",
-    height: "100%",
-    borderRadius: theme.spacing(1),
-    border: `1px solid ${theme.palette.divider}`,
-}));
-// RemoveIconButton is now a wrapper component instead of styled component
-const RemoveIconButton = ({ onClick, children }: { onClick: (event: React.MouseEvent) => void, children: React.ReactNode }) => {
-    const theme = useTheme();
-    return (
-        <div className="tw-absolute -tw-top-1 -tw-right-1">
-            <CustomIconButton
-                size={16}
-                onClick={onClick}
-                variant="solid"
-                className="tw-p-0.5"
-            >
-                {children}
-            </CustomIconButton>
-        </div>
-    );
-};
-const ContextItemChip = styled(Chip)(({ theme }) => ({
-    marginRight: theme.spacing(1),
-    marginBottom: theme.spacing(1),
-}));
-
-type ContextItemDisplayProps = {
-    imgStyle: CSSProperties;
-    item: ContextItem;
-    onRemove: (id: string) => unknown;
-};
-
-const MAX_LABEL_LENGTH = 20;
-const CONTEXT_ITEM_LIMIT = 20;
-const IMAGE_FILE_REGEX = /\.(jpg|jpeg|png|gif|bmp|tiff|ico|webp|svg|heic|heif|ppt|pptx)$/i;
-const TEXT_FILE_REGEX = /\.(md|txt|markdown|word|doc|docx|pdf)$/i;
-const CODE_FILE_REGEX = /\.(js|jsx|ts|tsx|json|xls|xlsx|yaml|yml|xml|html|css|scss|less|py|java|c|cpp|h|hxx|cxx|hpp|hxx|rb|php|go|swift|kotlin|scala|groovy|rust|haskell|erlang|elixir|dart|typescript|kotlin|swift|ruby|php|go|rust|haskell|erlang|elixir|dart|typescript)$/i;
-const VIDEO_FILE_REGEX = /\.(mp4|mov|avi|wmv|flv|mpeg|mpg|m4v|webm|mkv)$/i;
-const ENV_FILE_REGEX = /\.(env|env-example|env-local|env-production|env-development|env-test)$/i;
-const EXECUTABLE_FILE_REGEX = /\.(exe|bat|sh|bash|cmd|ps1|ps2|ps3|ps4|ps5|ps6|ps7|ps8|ps9|ps10)$/i;
-
-function truncateLabel(label: string, maxLength: number): string {
-    if (label.length <= maxLength) return label;
-    const extension = label.split(".").pop();
-    const nameWithoutExt = label.slice(0, label.lastIndexOf("."));
-    if (!extension || nameWithoutExt.length <= maxLength - 4) return label;
-    return `${nameWithoutExt.slice(0, maxLength - 4)}...${extension}`;
-}
-
-function ContextItemDisplay({
-    imgStyle,
-    item,
-    onRemove,
-}: ContextItemDisplayProps) {
-    function handleRemove(event: React.MouseEvent) {
-        // Stop propagation to prevent Outer click handler
-        event.stopPropagation();
-        onRemove(item.id);
-    }
-
-    const fallbackIconInfo = useMemo<IconInfo>(function fallbackInfoBasedOnTypeMemo() {
-        if (item.type === "image") return { name: "Image", type: "Common" } as const;
-        if (item.type === "text") return { name: "Article", type: "Common" } as const;
-        // For files, check if it's a text-based file
-        if (item.type === "file" && item.file?.type) {
-            // Image files
-            if (item.file.type.startsWith("image/") || IMAGE_FILE_REGEX.test(item.file.name)) {
-                return { name: "Image", type: "Common" } as const;
-            }
-            // Text/document files
-            if (item.file.type.startsWith("text/") || TEXT_FILE_REGEX.test(item.file.name)) {
-                return { name: "Article", type: "Common" } as const;
-            }
-            // Code files
-            if (item.file.type.includes("javascript") ||
-                item.file.type.includes("json") ||
-                CODE_FILE_REGEX.test(item.file.name)) {
-                return { name: "Object", type: "Common" } as const;
-            }
-            // Video files
-            if (item.file.type.startsWith("video/") || VIDEO_FILE_REGEX.test(item.file.name)) {
-                return { name: "SocialVideo", type: "Common" } as const;
-            }
-            // Environment files
-            if (ENV_FILE_REGEX.test(item.file.name)) {
-                return { name: "Invisible", type: "Common" } as const;
-            }
-            // Executable files
-            if (EXECUTABLE_FILE_REGEX.test(item.file.name)) {
-                return { name: "Terminal", type: "Common" } as const;
-            }
-        }
-        return { name: "File", type: "Common" } as const;
-    }, [item.type, item.file?.type, item.file?.name]);
-
-    // Check if this is an image that should be displayed as a preview
-    const shouldShowPreview = useMemo(() => {
-        if (item.type === "image") return true;
-        if (item.type === "file" && item.file?.type?.startsWith("image/")) return true;
-        if (item.type === "file" && IMAGE_FILE_REGEX.test(item.file?.name ?? "")) return true;
-        return false;
-    }, [item.type, item.file?.type, item.file?.name]);
-
-    const truncatedLabel = useMemo(() => truncateLabel(item.label, MAX_LABEL_LENGTH), [item.label]);
-
-    if (shouldShowPreview) {
-        return (
-            <PreviewContainer data-type="context-item"> {/* Add data-type */}
-                {item.src ? (
-                    <img src={item.src} alt={item.label} style={imgStyle} />
-                ) : (
-                    <PreviewImageAvatar variant="square">
-                        <Icon
-                            decorative
-                            info={fallbackIconInfo}
-                        />
-                    </PreviewImageAvatar>
-                )}
-                {/* Ensure the remove button stops propagation */}
-                <RemoveIconButton onClick={handleRemove}>
-                    <IconCommon
-                        decorative
-                        fill="background.default"
-                        name="Close"
-                    />
-                </RemoveIconButton>
-            </PreviewContainer>
-        );
-    }
-
-    return (
-        <ContextItemChip
-            data-type="context-item" // Add data-type
-            icon={<Icon decorative info={fallbackIconInfo} />}
-            label={truncatedLabel}
-            onDelete={handleRemove} // MuiChip handles stopPropagation for deleteIcon
-            title={item.label} // Show full name on hover
-        // No onClick needed here, delete is handled
-        />
-    );
-}
-
-// Add these styles near the top with other styles
-const toolbarIconButtonClassName = "tw-p-1 tw-opacity-50" as const;
-
-// Move style objects to constants
-const verticalMiddleStyle = { verticalAlign: "middle" } as const;
-const dividerStyle = { my: 1, opacity: 0.2 } as const;
-
-/**
- * PlusMenu Component - renders the popover for additional actions.
- */
-interface PlusMenuProps {
-    anchorEl: HTMLElement | null;
-    onClose: () => unknown;
-    onAttachFile?: () => unknown;
-    onConnectExternalApp?: () => unknown;
-    onTakePhoto?: () => unknown;
-    onAddRoutine?: () => unknown;
-}
-
-const PlusMenu: React.FC<PlusMenuProps> = React.memo(
-    ({
-        anchorEl,
-        onClose,
-        onAttachFile,
-        onConnectExternalApp,
-        onTakePhoto,
-        onAddRoutine,
-    }) => {
-        const [externalAppAnchor, setExternalAppAnchor] = useState<HTMLElement | null>(null);
-
-        function handleOpenExternalApps(event: MouseEvent<HTMLElement>) {
-            setExternalAppAnchor(event.currentTarget);
-        }
-
-        function handleCloseExternalApps() {
-            setExternalAppAnchor(null);
-        }
-
-        const handleAppConnection = useCallback((appId: string) => {
-            // Toggle connection for this app, e.g., call a function like toggleAppConnection(app.id)
-            handleCloseExternalApps();
-        }, []);
-
-        return (
-            <>
-                <Popover
-                    open={Boolean(anchorEl)}
-                    anchorEl={anchorEl}
-                    onClose={onClose}
-                    anchorOrigin={popoverAnchorOrigin}
-                    transformOrigin={popoverTransformOrigin}
-                >
-                    <Box>
-                        {onAttachFile && <MenuItem onClick={onAttachFile}>
-                            <ListItemIcon>
-                                <IconCommon
-                                    decorative
-                                    name="File"
-                                />
-                            </ListItemIcon>
-                            <ListItemText primary="Attach File" secondary="Attach a file from your device" />
-                        </MenuItem>}
-                        {externalApps.length > 0 && onConnectExternalApp && <MenuItem onClick={handleOpenExternalApps}>
-                            <ListItemIcon>
-                                <IconCommon
-                                    decorative
-                                    name="Link"
-                                />
-                            </ListItemIcon>
-                            <ListItemText primary="Connect External App" secondary="Connect an external app to your account" />
-                        </MenuItem>}
-                        {onTakePhoto && <MenuItem onClick={onTakePhoto}>
-                            <ListItemIcon>
-                                <IconCommon
-                                    decorative
-                                    name="CameraOpen"
-                                />
-                            </ListItemIcon>
-                            <ListItemText primary="Take Photo" secondary="Take a photo from your device" />
-                        </MenuItem>}
-                        {onAddRoutine && <MenuItem onClick={onAddRoutine}>
-                            <ListItemIcon>
-                                <IconRoutine
-                                    decorative
-                                    name="Routine"
-                                />
-                            </ListItemIcon>
-                            <ListItemText primary="Add Routine" secondary="Allow the AI to perform actions" />
-                        </MenuItem>}
-                    </Box>
-                </Popover>
-                <Menu
-                    anchorEl={externalAppAnchor}
-                    open={Boolean(externalAppAnchor)}
-                    onClose={handleCloseExternalApps}
-                    anchorOrigin={popoverAnchorOrigin}
-                    transformOrigin={popoverTransformOrigin}
-                >
-                    {externalApps.map((app) => {
-                        function connectApp() {
-                            handleAppConnection(app.id);
-                        }
-
-                        return (
-                            <MenuItem
-                                key={app.id}
-                                onClick={connectApp}
-                            >
-                                <ListItemIcon>
-                                    <Icon decorative info={app.iconInfo} />
-                                </ListItemIcon>
-                                <ListItemText primary={app.name} secondary="Description about the app" />
-                                {app.connected && <IconCommon
-                                    decorative
-                                    name="Complete"
-                                />}
-                            </MenuItem>
-                        );
-                    })}
-                </Menu>
-            </>
-        );
-    });
-PlusMenu.displayName = "PlusMenu";
-
-/**
- * InfoMemo Component - renders a menu showing information about the input and customization settings.
- */
-interface InfoMemoProps {
-    anchorEl: HTMLElement | null;
-    enterWillSubmit: boolean;
-    mergedFeatures: AdvancedInputFeatures;
-    onClose: () => void;
-    onToggleEnterWillSubmit: () => void;
-    onToggleToolbar: () => void;
-    onToggleSpellcheck: () => void;
-    showToolbar: boolean;
-    spellcheck: boolean;
-}
-
-const infoMenuAnchorOrigin = { vertical: "bottom", horizontal: "left" } as const;
-const secondaryTypographyProps = {
-    style: { whiteSpace: "pre-wrap", fontSize: "0.875rem", color: "#666" },
-} as const;
-const infoMemoTipData = {
-    id: randomString(),
-    icon: "Warning",
-    isMarkdown: false,
-    label: "Some features may be unavailable depending on the AI models you're chatting with and the device this is running on.",
-    type: FormStructureType.Tip,
-} as const;
-
-const InfoMemo: React.FC<InfoMemoProps> = React.memo(({
-    anchorEl,
-    enterWillSubmit,
-    mergedFeatures,
-    onClose,
-    onToggleEnterWillSubmit,
-    onToggleToolbar,
-    onToggleSpellcheck,
-    showToolbar,
-    spellcheck,
-}: InfoMemoProps) => {
-    const theme = useTheme();
-
-    const infoMenuSlotProps = useMemo(() => ({
-        paper: {
-            style: {
-                backgroundColor: theme.palette.background.default,
-                borderRadius: "12px",
-                maxWidth: "500px",
-                maxHeight: "500px",
-                overflow: "auto",
-                padding: "8px 0",
-            },
-        },
-    }), [theme]);
-
-    return (
-        <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={onClose}
-            anchorOrigin={infoMenuAnchorOrigin}
-            slotProps={infoMenuSlotProps}
-        >
-            <Box px={2} pb={1}>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Settings
-                </Typography>
-            </Box>
-
-            <MenuItem>
-                <ListItemText
-                    primary="Enter key to submit"
-                    secondary={`When enabled, use ${keyComboToString("Enter")} to submit, and ${keyComboToString("Shift", "Enter")} to create a new line.`}
-                    secondaryTypographyProps={secondaryTypographyProps}
-                />
-                <Switch
-                    checked={enterWillSubmit}
-                    onChange={() => onToggleEnterWillSubmit()}
-                    variant="default"
-                    size="sm"
-                />
-            </MenuItem>
-
-            {mergedFeatures.allowFormatting && (
-                <MenuItem>
-                    <ListItemText
-                        primary="Show formatting toolbar"
-                        secondary="Display text formatting options above the input area."
-                        secondaryTypographyProps={secondaryTypographyProps}
-                    />
-                    <Switch
-                        checked={showToolbar}
-                        onChange={() => onToggleToolbar()}
-                        variant="default"
-                        size="sm"
-                    />
-                </MenuItem>
-            )}
-            {mergedFeatures.allowSpellcheck && (
-                <MenuItem>
-                    <ListItemText
-                        primary="Enable spellcheck"
-                        secondary="When enabled, the browser will check for spelling errors in the input."
-                        secondaryTypographyProps={secondaryTypographyProps}
-                    />
-                    <Switch
-                        checked={spellcheck}
-                        onChange={() => onToggleSpellcheck()}
-                        variant="default"
-                        size="sm"
-                    />
-                </MenuItem>
-            )}
-            <Divider sx={dividerStyle} />
-            <Box px={2}>
-                <FormTip
-                    element={infoMemoTipData}
-                    isEditing={false}
-                    onUpdate={noop}
-                    onDelete={noop}
-                />
-            </Box>
-        </Menu>
-    );
-});
-InfoMemo.displayName = "InfoMemo";
 
 const dragOverlayStyles = {
     position: "absolute",
@@ -827,27 +173,6 @@ const dragOverlayStyles = {
     pointerEvents: "none",
 } as const;
 
-// Add this function before the AdvancedInput component
-async function getFilesFromEvent(event: any): Promise<(File | DataTransferItem)[]> {
-    const items = event.dataTransfer ? [...event.dataTransfer.items] : [];
-    const files = event.dataTransfer ? [...event.dataTransfer.files] : [];
-
-    // Handle text drops
-    const textItems = items.filter(item => item.kind === "string" && item.type === "text/plain");
-    const textPromises = textItems.map(item => new Promise<File>((resolve) => {
-        item.getAsString((text: string) => {
-            // Create a file-like object for the text
-            const file = new File([text], "dropped-text.txt", { type: "text/plain" });
-            resolve(file);
-        });
-    }));
-
-    // Wait for all text items to be processed
-    const textFiles = await Promise.all(textPromises);
-
-    // Return both regular files and text files
-    return [...files, ...textFiles];
-}
 
 // Prevents click events from bubbling up and causing input focus
 const stopPropagationHandler = (e: React.MouseEvent) => {
@@ -861,7 +186,7 @@ const MicrophoneButtonWithStopPropagation: React.FC<MicrophoneButtonProps> = Rea
     }, [onTranscriptChange]);
 
     return (
-        <Box onClick={stopPropagationHandler}>
+        <Box onClick={stopPropagationHandler} sx={props.sx}>
             <MicrophoneButton onTranscriptChange={handleTranscriptChangeWithStopPropagation} {...props} />
         </Box>
     );
@@ -885,8 +210,10 @@ export function AdvancedInputBase({
     onContextDataChange,
     onSubmit,
     placeholder,
+    sxs,
     tabIndex,
     title,
+    "data-testid": dataTestId,
 }: AdvancedInputBaseProps) {
     const theme = useTheme();
 
@@ -1027,7 +354,7 @@ export function AdvancedInputBase({
                 const isDroppedText = file.name === "dropped-text.txt" && file.type === "text/plain";
 
                 return {
-                    id: crypto.randomUUID(),
+                    id: nanoid(),
                     type: isDroppedText ? "text" :
                         file.type.startsWith("image/") ? "image" : "file",
                     label: isDroppedText ? "Dropped Text" : file.name,
@@ -1142,11 +469,11 @@ export function AdvancedInputBase({
         setAnchorPlus(null);
     }, []);
 
-    const handleOpenInfoMemo = useCallback((event: MouseEvent<HTMLElement>) => {
+    const handleOpenInfoMenu = useCallback((event: MouseEvent<HTMLElement>) => {
         setAnchorSettings(event.currentTarget);
     }, []);
 
-    const handleCloseInfoMemo = useCallback(() => {
+    const handleCloseInfoMenu = useCallback(() => {
         setAnchorSettings(null);
     }, []);
 
@@ -1467,11 +794,11 @@ export function AdvancedInputBase({
     }, [disabled]);
 
     // Add this handler for the settings button
-    const handleOpenInfoMemoWithStopPropagation = useCallback((event: MouseEvent<HTMLElement>) => {
+    const handleOpenInfoMenuWithStopPropagation = useCallback((event: MouseEvent<HTMLElement>) => {
         // Stop propagation to prevent focusing the input
         event.stopPropagation();
-        handleOpenInfoMemo(event);
-    }, [handleOpenInfoMemo]);
+        handleOpenInfoMenu(event);
+    }, [handleOpenInfoMenu]);
 
     // Add this handler for the expand toggle
     const handleToggleExpandWithStopPropagation = useCallback((event: MouseEvent<HTMLElement>) => {
@@ -1498,13 +825,17 @@ export function AdvancedInputBase({
         // Add the click handler to the Outer component
         <Outer
             className="advanced-input"
+            data-testid={dataTestId || "advanced-input"}
+            data-disabled={disabled}
+            data-error={error}
             {...(mergedFeatures.allowFileAttachments ? getRootProps() : {})}
             onClick={handleOuterClick}
             ref={containerRef} // Add ref to the Outer component for hotkeys
+            sx={sxs?.root}
         >
             {mergedFeatures.allowFileAttachments && <input {...getInputProps()} />}
             {mergedFeatures.allowFileAttachments && isDragActive && (
-                <Box sx={dragOverlayStyles}>
+                <Box sx={{ ...dragOverlayStyles, ...(sxs?.dragOverlay ?? {}) }}>
                     <Typography variant="body1" color="text.secondary">
                         Drop files here...
                     </Typography>
@@ -1529,12 +860,14 @@ export function AdvancedInputBase({
             </Collapse>
             {/* Top Section */}
             {/* Make toolbar prevent default on mouse down to avoid focus loss but allow outer click */}
-            <Box onMouseDown={preventInputLossOnToolbarClick} sx={toolbarRowStyles}>
+            <Box onMouseDown={preventInputLossOnToolbarClick} sx={{ ...toolbarRowStyles, ...(sxs?.toolbar ?? {}) }}>
                 {mergedFeatures.allowSettingsCustomization && (
                     <CustomIconButton
-                        onClick={handleOpenInfoMemoWithStopPropagation}
+                        onClick={handleOpenInfoMenuWithStopPropagation}
                         className={toolbarIconButtonClassName}
                         size={28}
+                        data-testid="settings-button"
+                        aria-label="Settings"
                     >
                         <IconCommon
                             decorative
@@ -1552,7 +885,7 @@ export function AdvancedInputBase({
                     handleActiveStatesChange={handleActiveStatesChange}
                     isMarkdownOn={isMarkdownOn}
                 />}
-                {(!mergedFeatures.allowFormatting || !showToolbar) && <Box sx={contextRowStyles}>
+                {(!mergedFeatures.allowFormatting || !showToolbar) && <Box sx={{ ...contextRowStyles, ...(sxs?.contextRow ?? {}) }}>
                     {sortedContextData.map((item) => (
                         <ContextItemDisplay
                             key={item.id}
@@ -1578,7 +911,7 @@ export function AdvancedInputBase({
                     </Tooltip>
                 )}
             </Box>
-            {mergedFeatures.allowFormatting && showToolbar && <Box sx={contextRowStyles}>
+            {mergedFeatures.allowFormatting && showToolbar && <Box sx={{ ...contextRowStyles, ...(sxs?.contextRow ?? {}) }}>
                 {sortedContextData.map((item) => (
                     <ContextItemDisplay
                         key={item.id}
@@ -1590,18 +923,19 @@ export function AdvancedInputBase({
             </Box>}
             {/* Title Section */}
             {title && (
-                <Box sx={titleStyles}>
+                <Box sx={{ ...titleStyles, ...(sxs?.title ?? {}) }}>
                     <Typography variant="subtitle1" fontWeight="medium" color="text.secondary">
                         {title}
                         {isRequired && <Typography component="span" variant="subtitle1" color="error" paddingLeft="4px">*</Typography>}                    </Typography>
                 </Box>
             )}
             {/* Input Area */}
-            <Box sx={inputRowStyles}>
+            <Box sx={{ ...inputRowStyles, ...(sxs?.inputContainer ?? {}) }}>
                 <Box
                     ref={inputWrapperRef}
                     maxHeight={isExpanded ? "calc(100vh - 150px)" : "unset"}
                     overflow="auto"
+                    sx={sxs?.inputWrapper}
                 >
                     {/* Conditionally render Markdown or Lexical, passing the inputRef */}
                     {useMarkdownEditor ? MarkdownComponent : LexicalComponent}
@@ -1609,16 +943,16 @@ export function AdvancedInputBase({
             </Box>
 
             {/* Bottom Section */}
-            <Box sx={bottomRowStyles}>
+            <Box sx={{ ...bottomRowStyles, ...(sxs?.bottomRow ?? {}) }}>
                 {mergedFeatures.allowTasks && (
-                    <Box ref={tasksContainerRef} sx={tasksContainerStyles}>
+                    <Box ref={tasksContainerRef} sx={{ ...tasksContainerStyles, ...(sxs?.tasksContainer ?? {}) }}>
                         {(mergedFeatures.allowFileAttachments ||
                             mergedFeatures.allowImageAttachments ||
                             mergedFeatures.allowTextAttachments) && (
-                                <CustomIconButton 
+                                <CustomIconButton
                                     variant="transparent"
                                     size={iconWidth}
-                                    disabled={false} 
+                                    disabled={false}
                                     onClick={handleOpenPlusMenu}
                                     className="tw-p-1"
                                 >
@@ -1645,11 +979,11 @@ export function AdvancedInputBase({
 
                             return (
                                 <React.Fragment key={`${task.displayName || task.label}-${index}`}>
-                                    {canAddShowButton && <CustomIconButton 
-                                        data-id="show-all-tasks-button" 
+                                    {canAddShowButton && <CustomIconButton
+                                        data-id="show-all-tasks-button"
                                         variant="transparent"
                                         size={iconWidth}
-                                        disabled={false} 
+                                        disabled={false}
                                         onClick={toggleToolsExpandedWithStopPropagation}
                                         className="tw-p-1"
                                     >
@@ -1666,11 +1000,11 @@ export function AdvancedInputBase({
                                         onToggleToolExclusive={onToggleToolExclusive}
                                         onToggleTool={onToggleTool}
                                     />
-                                    {canAddHideButton && <CustomIconButton 
-                                        data-id="hide-all-tasks-button" 
+                                    {canAddHideButton && <CustomIconButton
+                                        data-id="hide-all-tasks-button"
                                         variant="transparent"
                                         size={iconWidth}
-                                        disabled={false} 
+                                        disabled={false}
                                         onClick={toggleToolsExpandedWithStopPropagation}
                                         className="tw-p-1"
                                     >
@@ -1694,6 +1028,7 @@ export function AdvancedInputBase({
                             disabled={false}
                             height={iconHeight}
                             width={iconWidth}
+                            sx={sxs?.voiceButton}
                         />
                     )}
                     {(mergedFeatures.allowCharacterLimit || mergedFeatures.allowSubmit) && (
@@ -1703,7 +1038,7 @@ export function AdvancedInputBase({
                                 <Box
                                     display="inline-flex"
                                     position="relative"
-                                    sx={verticalMiddleStyle}
+                                    sx={{ ...verticalMiddleStyle, ...(sxs?.characterCount ?? {}) }}
                                 >
                                     <CircularProgress
                                         aria-label={
@@ -1735,6 +1070,9 @@ export function AdvancedInputBase({
                                             disabled={!(internalValue ?? "").trim() || charsOverLimit > 0}
                                             onClick={handleSubmitWithStopPropagation}
                                             className="tw-p-0"
+                                            data-testid="submit-button-inline"
+                                            aria-label="Send"
+                                            sx={sxs?.submitButton}
                                         >
                                             <IconCommon
                                                 decorative
@@ -1757,6 +1095,9 @@ export function AdvancedInputBase({
                                     disabled={!(internalValue ?? "").trim()}
                                     onClick={handleSubmitWithStopPropagation}
                                     className="tw-align-middle"
+                                    data-testid="submit-button"
+                                    aria-label="Send"
+                                    sx={sxs?.submitButton}
                                 >
                                     <IconCommon
                                         decorative
@@ -1789,9 +1130,9 @@ export function AdvancedInputBase({
                     />
                 )}
             {mergedFeatures.allowSettingsCustomization && (
-                <InfoMemo
+                <InfoMenu
                     anchorEl={anchorSettings}
-                    onClose={handleCloseInfoMemo}
+                    onClose={handleCloseInfoMenu}
                     enterWillSubmit={enterWillSubmit}
                     mergedFeatures={mergedFeatures}
                     onToggleEnterWillSubmit={handleToggleEnterWillSubmit}
@@ -1893,6 +1234,7 @@ export function TranslatedAdvancedInput({
             onBlur={handleBlur}
             onChange={handleChange}
             isRequired={isRequired}
+            data-testid={props["data-testid"] || `input-${name}`}
         />
     );
 }

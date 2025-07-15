@@ -1,14 +1,18 @@
-import { promises as fs } from "fs";
 import * as fsSync from "fs";
-import * as path from "path";
 import * as os from "os";
+import * as path from "path";
 import { logger } from "./logger.js";
+import { TIMEOUTS } from "./constants.js";
+import type { Session } from "@vrooli/shared";
 
 export interface ProfileConfig {
     url: string;
     authToken?: string;
     refreshToken?: string;
     tokenExpiry?: number;
+    userId?: string;
+    handle?: string;
+    timeZone?: string;
 }
 
 export interface CliConfig {
@@ -20,8 +24,8 @@ export class ConfigManager {
     private configDir: string;
     private configPath: string;
     private config!: CliConfig;
-    private debug: boolean = false;
-    private jsonOutput: boolean = false;
+    private debug = false;
+    private jsonOutput = false;
 
     constructor() {
         this.configDir = path.join(os.homedir(), ".vrooli");
@@ -31,7 +35,7 @@ export class ConfigManager {
 
     private loadConfig(): void {
         try {
-            const configData = JSON.parse(fsSync.readFileSync(this.configPath, 'utf-8'));
+            const configData = JSON.parse(fsSync.readFileSync(this.configPath, "utf-8"));
             this.config = configData;
         } catch (error) {
             // Create default config if it doesn't exist
@@ -114,13 +118,13 @@ export class ConfigManager {
 
     public getAuthToken(): string | undefined {
         const profile = this.getActiveProfile();
-        
+
         // Check if token is expired
         if (profile.tokenExpiry && Date.now() > profile.tokenExpiry) {
             this.clearAuth();
             return undefined;
         }
-        
+
         return profile.authToken;
     }
 
@@ -130,12 +134,23 @@ export class ConfigManager {
 
     public setAuth(authToken: string, refreshToken?: string, expiresIn?: number): void {
         const profileName = this.config.currentProfile;
-        const tokenExpiry = expiresIn ? Date.now() + (expiresIn * 1000) : undefined;
-        
+        const tokenExpiry = expiresIn ? Date.now() + (expiresIn * TIMEOUTS.COMMAND_TIMEOUT_MS) : undefined;
+
         this.updateProfile(profileName, {
             authToken,
             refreshToken,
             tokenExpiry,
+        });
+    }
+
+    public setSession(session: Session): void {
+        const profileName = this.config.currentProfile;
+        const user = session.users?.[0];
+        
+        this.updateProfile(profileName, {
+            userId: user?.publicId,
+            handle: user?.handle || undefined,
+            timeZone: session.timeZone || undefined,
         });
     }
 
@@ -145,6 +160,9 @@ export class ConfigManager {
             authToken: undefined,
             refreshToken: undefined,
             tokenExpiry: undefined,
+            userId: undefined,
+            handle: undefined,
+            timeZone: undefined,
         });
     }
 
@@ -166,5 +184,9 @@ export class ConfigManager {
 
     public getServerUrl(): string {
         return this.getActiveProfile().url;
+    }
+
+    public getConfigDir(): string {
+        return this.configDir;
     }
 }

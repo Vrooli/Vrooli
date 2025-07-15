@@ -4,16 +4,16 @@ import Divider from "@mui/material/Divider";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
-import { CodeLanguage, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, resourceVersionTranslationValidation, resourceVersionValidation, endpointsResource, noopSubmit, orDefault, shapeResourceVersion, ResourceSubType, type ResourceShape, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionShape, type ResourceVersionUpdateInput, type Session } from "@vrooli/shared";
+import { CodeLanguage, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, dataConverterFormConfig, endpointsResource, noopSubmit, orDefault, ResourceSubType, type ResourceShape, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionShape, type ResourceVersionUpdateInput, type Session } from "@vrooli/shared";
 import { Formik, useField } from "formik";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useSubmitHelper } from "../../../api/fetchWrapper.js";
 import { PageContainer } from "../../../components/Page/Page.js";
 import { AutoFillButton } from "../../../components/buttons/AutoFillButton.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
 import { SearchExistingButton } from "../../../components/buttons/SearchExistingButton.js";
-import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
+import { Dialog } from "../../../components/dialogs/Dialog/Dialog.js";
+import { useIsMobile } from "../../../hooks/useIsMobile.js";
 import { TranslatedAdvancedInput } from "../../../components/inputs/AdvancedInput/AdvancedInput.js";
 import { detailsInputFeatures, nameInputFeatures } from "../../../components/inputs/AdvancedInput/styles.js";
 import { CodeInput } from "../../../components/inputs/CodeInput/CodeInput.js";
@@ -25,12 +25,10 @@ import { ResourceListInput } from "../../../components/lists/ResourceList/Resour
 import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
-import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, type UseAutoFillProps } from "../../../hooks/tasks.js";
 import { useDimensions } from "../../../hooks/useDimensions.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
-import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
-import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
+import { useStandardUpsertForm } from "../../../hooks/useStandardUpsertForm.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { FormContainer, ScrollBox } from "../../../styles.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
@@ -75,9 +73,6 @@ export function dataConverterInitialValues(
     };
 }
 
-function transformDataConverterVersionValues(values: ResourceVersionShape, existing: ResourceVersionShape, isCreate: boolean) {
-    return isCreate ? shapeResourceVersion.create(values) : shapeResourceVersion.update(existing, values);
-}
 
 /** Code to display when an example is requested */
 const exampleCode = `
@@ -127,55 +122,59 @@ function DataConverterForm({
     existing,
     handleUpdate,
     isCreate,
+    isMutate,
     isOpen,
     isReadLoading,
+    onCancel,
     onClose,
+    onCompleted,
+    onDeleted,
     values,
     versions,
     ...props
 }: DataConverterFormProps) {
-    const session = useContext(SessionContext);
     const { t } = useTranslation();
     const theme = useTheme();
     const { dimensions, ref } = useDimensions<HTMLDivElement>();
     const isStacked = dimensions.width < theme.breakpoints.values.lg;
-
-    // Handle translations
-    const {
-        handleAddLanguage,
-        handleDeleteLanguage,
-        language,
-        languages,
-        setLanguage,
-        translationErrors,
-    } = useTranslatedFields({
-        defaultLanguage: getUserLanguages(session)[0],
-        validationSchema: resourceVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
-    });
+    const isMobile = useIsMobile();
 
     const resourceListParent = useMemo(function resourceListParentMemo() {
         return { __typename: "ResourceVersion", id: values.id } as const;
     }, [values]);
 
-    const { handleCancel, handleCompleted } = useUpsertActions<ResourceVersion>({
-        display,
-        isCreate,
-        objectId: values.id,
-        objectType: "ResourceVersion",
-        rootObjectId: values.root?.id,
-        ...props,
-    });
+    // Use the standardized form hook
     const {
-        fetch,
-        isCreateLoading,
-        isUpdateLoading,
-    } = useUpsertFetch<ResourceVersion, ResourceVersionCreateInput, ResourceVersionUpdateInput>({
+        session,
+        isLoading,
+        handleCancel,
+        handleCompleted,
+        onSubmit,
+        language,
+        languages,
+        handleAddLanguage,
+        handleDeleteLanguage,
+        setLanguage,
+        translationErrors,
+    } = useStandardUpsertForm({
+        ...dataConverterFormConfig,
+        rootObjectType: "Resource",
+    }, {
+        values,
+        existing,
         isCreate,
-        isMutate: true,
-        endpointCreate: endpointsResource.createOne,
-        endpointUpdate: endpointsResource.updateOne,
+        display,
+        disabled,
+        isMutate,
+        isReadLoading,
+        isSubmitting: props.isSubmitting,
+        handleUpdate,
+        setSubmitting: props.setSubmitting,
+        onCancel,
+        onCompleted,
+        onDeleted,
+        onClose,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "ResourceVersion" });
 
     const getAutoFillInput = useCallback(function getAutoFillInput() {
         return {
@@ -213,20 +212,10 @@ function DataConverterForm({
         task: isCreate ? LlmTask.DataConverterAdd : LlmTask.DataConverterUpdate,
     });
 
-    const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
-
-    const onSubmit = useSubmitHelper<ResourceVersionCreateInput | ResourceVersionUpdateInput, ResourceVersion>({
-        disabled,
-        existing,
-        fetch,
-        inputs: transformDataConverterVersionValues(values, existing, isCreate),
-        isCreate,
-        onSuccess: (data) => { handleCompleted(data); },
-        onCompleted: () => { props.setSubmitting(false); },
-    });
+    const finalIsLoading = useMemo(() => isAutoFillLoading || isLoading, [isAutoFillLoading, isLoading]);
 
     const [, , codeLanguageHelpers] = useField<CodeLanguage>("codeLanguage");
-    const [, , contentHelpers] = useField<string>("content");
+    const [, , contentHelpers] = useField<string>("config.content");
     function showExample() {
         // We only have an example for JavaScript, so switch to that
         codeLanguageHelpers.setValue(CodeLanguage.Javascript);
@@ -234,13 +223,13 @@ function DataConverterForm({
         contentHelpers.setValue(exampleCode);
     }
 
-    return (
-        <MaybeLargeDialog
-            display={display}
-            id="code-upsert-dialog"
-            isOpen={isOpen}
-            onClose={onClose}
-        >
+    if (display === "Page" || isMobile) {
+        return (
+            <Dialog
+                isOpen={isOpen}
+                onClose={onClose}
+                size="full"
+            >
             <TopBar
                 display={display}
                 onClose={onClose}
@@ -252,7 +241,7 @@ function DataConverterForm({
             />
             <BaseForm
                 display={display}
-                isLoading={isLoading}
+                isLoading={finalIsLoading}
                 maxWidth={1200}
                 ref={ref}
             >
@@ -333,7 +322,7 @@ function DataConverterForm({
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 hideButtons={disabled}
                 isCreate={isCreate}
-                loading={isLoading}
+                loading={finalIsLoading}
                 onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
@@ -342,13 +331,124 @@ function DataConverterForm({
                     isAutoFillLoading={isAutoFillLoading}
                 />}
             />
-        </MaybeLargeDialog>
+            </Dialog>
+        );
+    }
+    return (
+        <Dialog
+            isOpen={isOpen}
+            onClose={onClose}
+            size="lg"
+        >
+            <TopBar
+                display={display}
+                onClose={onClose}
+                title={t(isCreate ? "CreateDataConverter" : "UpdateDataConverter")}
+            />
+            <SearchExistingButton
+                href={`${LINKS.Search}?type="${SearchPageTabOption.DataConverter}"`}
+                text="Search existing codes"
+            />
+            <BaseForm
+                display={display}
+                isLoading={finalIsLoading}
+                maxWidth={1200}
+                ref={ref}
+            >
+                <FormContainer>
+                    <Grid container spacing={2}>
+                        <Grid item xs={12} lg={isStacked ? 12 : 6}>
+                            <Box width="100%" padding={2}>
+                                <Typography variant="h4" sx={formSectionTitleStyle}>Basic info</Typography>
+                                <Box display="flex" flexDirection="column" gap={4}>
+                                    <RelationshipList
+                                        isEditing={true}
+                                        objectType={"Resource"}
+                                    />
+                                    <ResourceListInput
+                                        horizontal
+                                        isCreate={true}
+                                        parent={resourceListParent}
+                                        sxs={resourceListStyle}
+                                    />
+                                    <TranslatedAdvancedInput
+                                        features={nameInputFeatures}
+                                        isRequired={true}
+                                        language={language}
+                                        name="name"
+                                        title={t("Name")}
+                                        placeholder={"CSV to JSON Converter..."}
+                                    />
+                                    <TranslatedAdvancedInput
+                                        features={detailsInputFeatures}
+                                        isRequired={false}
+                                        language={language}
+                                        name="description"
+                                        title={t("Description")}
+                                        placeholder={"Converts comma-separated values into a structured JSON format..."}
+                                    />
+                                    <LanguageInput
+                                        currentLanguage={language}
+                                        flexDirection="row-reverse"
+                                        handleAdd={handleAddLanguage}
+                                        handleDelete={handleDeleteLanguage}
+                                        handleCurrent={setLanguage}
+                                        languages={languages}
+                                    />
+                                    <TagSelector name="root.tags" sx={tagSelectorStyle} />
+                                    <VersionInput
+                                        fullWidth
+                                        versions={versions}
+                                    />
+                                </Box>
+                            </Box>
+                        </Grid>
+                        <Grid item xs={12} lg={isStacked ? 12 : 6}>
+                            <Divider sx={dividerStyle} />
+                            <Box width="100%" padding={2}>
+                                <Box display="flex" alignItems="center" sx={formSectionTitleStyle}>
+                                    <Typography variant="h4">Code</Typography>
+                                    <Button
+                                        variant="outlined"
+                                        onClick={showExample}
+                                        startIcon={<IconCommon name="Help" />}
+                                        sx={exampleButtonStyle}
+                                    >
+                                        Show example
+                                    </Button>
+                                </Box>
+                                <CodeInput
+                                    disabled={false}
+                                    limitTo={codeLimitTo}
+                                    name="config.content"
+                                />
+                            </Box>
+                        </Grid>
+                    </Grid>
+                </FormContainer>
+            </BaseForm>
+            <BottomActionsButtons
+                display={display}
+                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                hideButtons={disabled}
+                isCreate={isCreate}
+                loading={finalIsLoading}
+                onCancel={handleCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={onSubmit}
+                sideActionButtons={<AutoFillButton
+                    handleAutoFill={autoFill}
+                    isAutoFillLoading={isAutoFillLoading}
+                />}
+            />
+        </Dialog>
     );
 }
 
 export function DataConverterUpsert({
     display,
     isCreate,
+    isMutate,
     isOpen,
     overrideObject,
     ...props
@@ -365,7 +465,7 @@ export function DataConverterUpsert({
     });
 
     async function validateValues(values: ResourceVersionShape) {
-        return await validateFormValues(values, existing, isCreate, transformDataConverterVersionValues, resourceVersionValidation);
+        return await validateFormValues(values, existing, isCreate, dataConverterFormConfig.transformFunction, dataConverterFormConfig.validation);
     }
 
     const versions = useMemo(function versionsMemo() {
@@ -387,6 +487,7 @@ export function DataConverterUpsert({
                         existing={existing}
                         handleUpdate={setExisting}
                         isCreate={isCreate}
+                        isMutate={isMutate}
                         isReadLoading={isReadLoading}
                         isOpen={isOpen}
                         versions={versions}

@@ -1,5 +1,6 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
 import { generatePK } from "@vrooli/shared";
-import { type Prisma } from "@prisma/client";
+import { type Prisma, type PrismaClient } from "@prisma/client";
 
 /**
  * Database fixtures for Payment model - used for seeding transaction test data
@@ -20,7 +21,7 @@ export const paymentDbIds = {
 /**
  * Successful user payment - Premium Monthly
  */
-export const successfulUserPaymentDb: Prisma.PaymentCreateInput = {
+export const successfulUserPaymentDb: Prisma.paymentCreateInput = {
     id: paymentDbIds.successfulUser,
     amount: 999, // $9.99 in cents
     checkoutId: "cs_test_successful_123",
@@ -28,7 +29,7 @@ export const successfulUserPaymentDb: Prisma.PaymentCreateInput = {
     description: "Premium Monthly Subscription",
     paymentMethod: "card_visa",
     paymentType: "PremiumMonthly",
-    status: "Succeeded",
+    status: "Paid",
     user: {
         connect: { id: generatePK() },
     },
@@ -37,7 +38,7 @@ export const successfulUserPaymentDb: Prisma.PaymentCreateInput = {
 /**
  * Successful team payment - Premium Annual
  */
-export const successfulTeamPaymentDb: Prisma.PaymentCreateInput = {
+export const successfulTeamPaymentDb: Prisma.paymentCreateInput = {
     id: paymentDbIds.successfulTeam,
     amount: 9999, // $99.99 in cents
     checkoutId: "cs_test_team_annual_456",
@@ -45,7 +46,7 @@ export const successfulTeamPaymentDb: Prisma.PaymentCreateInput = {
     description: "Team Premium Annual Subscription",
     paymentMethod: "card_mastercard",
     paymentType: "PremiumAnnual",
-    status: "Succeeded",
+    status: "Paid",
     team: {
         connect: { id: generatePK() },
     },
@@ -54,7 +55,7 @@ export const successfulTeamPaymentDb: Prisma.PaymentCreateInput = {
 /**
  * Pending user payment
  */
-export const pendingUserPaymentDb: Prisma.PaymentCreateInput = {
+export const pendingUserPaymentDb: Prisma.paymentCreateInput = {
     id: paymentDbIds.pendingUser,
     amount: 1999, // $19.99 in cents
     checkoutId: "cs_test_pending_789",
@@ -71,7 +72,7 @@ export const pendingUserPaymentDb: Prisma.PaymentCreateInput = {
 /**
  * Failed user payment
  */
-export const failedUserPaymentDb: Prisma.PaymentCreateInput = {
+export const failedUserPaymentDb: Prisma.paymentCreateInput = {
     id: paymentDbIds.failedUser,
     amount: 999, // $9.99 in cents
     checkoutId: "cs_test_failed_101",
@@ -88,7 +89,7 @@ export const failedUserPaymentDb: Prisma.PaymentCreateInput = {
 /**
  * Refunded user payment
  */
-export const refundedUserPaymentDb: Prisma.PaymentCreateInput = {
+export const refundedUserPaymentDb: Prisma.paymentCreateInput = {
     id: paymentDbIds.refundedUser,
     amount: 999, // $9.99 in cents
     checkoutId: "cs_test_refunded_202",
@@ -96,7 +97,7 @@ export const refundedUserPaymentDb: Prisma.PaymentCreateInput = {
     description: "Premium Monthly Subscription (Refunded)",
     paymentMethod: "card_visa",
     paymentType: "PremiumMonthly",
-    status: "Refunded",
+    status: "Failed", // Note: PaymentStatus enum doesn't have Refunded
     user: {
         connect: { id: generatePK() },
     },
@@ -105,7 +106,7 @@ export const refundedUserPaymentDb: Prisma.PaymentCreateInput = {
 /**
  * Canceled team payment
  */
-export const canceledTeamPaymentDb: Prisma.PaymentCreateInput = {
+export const canceledTeamPaymentDb: Prisma.paymentCreateInput = {
     id: paymentDbIds.canceledTeam,
     amount: 29999, // $299.99 in cents
     checkoutId: "cs_test_canceled_303",
@@ -113,7 +114,7 @@ export const canceledTeamPaymentDb: Prisma.PaymentCreateInput = {
     description: "Team Enterprise Monthly (Canceled)",
     paymentMethod: "invoice",
     paymentType: "TeamAnnual",
-    status: "Canceled",
+    status: "Failed", // Note: PaymentStatus enum doesn't have Canceled
     team: {
         connect: { id: generatePK() },
     },
@@ -122,7 +123,7 @@ export const canceledTeamPaymentDb: Prisma.PaymentCreateInput = {
 /**
  * Large enterprise payment
  */
-export const enterprisePaymentDb: Prisma.PaymentCreateInput = {
+export const enterprisePaymentDb: Prisma.paymentCreateInput = {
     id: paymentDbIds.enterpriseTeam,
     amount: 99999, // $999.99 in cents
     checkoutId: "cs_test_enterprise_404",
@@ -130,7 +131,7 @@ export const enterprisePaymentDb: Prisma.PaymentCreateInput = {
     description: "Enterprise Annual Subscription - 100 seats",
     paymentMethod: "wire_transfer",
     paymentType: "TeamAnnual",
-    status: "Succeeded",
+    status: "Paid",
     team: {
         connect: { id: generatePK() },
     },
@@ -143,7 +144,7 @@ export class PaymentDbFactory {
     /**
      * Create minimal payment
      */
-    static createMinimal(overrides?: Partial<Prisma.PaymentCreateInput>): Prisma.PaymentCreateInput {
+    static createMinimal(overrides?: Partial<Prisma.paymentCreateInput>): Prisma.paymentCreateInput {
         return {
             id: generatePK(),
             amount: 999,
@@ -164,8 +165,8 @@ export class PaymentDbFactory {
         userId: bigint,
         type: "PremiumMonthly" | "PremiumAnnual" = "PremiumMonthly",
         status: "Pending" | "Succeeded" | "Failed" | "Refunded" | "Canceled" = "Succeeded",
-        overrides?: Partial<Prisma.PaymentCreateInput>,
-    ): Prisma.PaymentCreateInput {
+        overrides?: Partial<Prisma.paymentCreateInput>,
+    ): Prisma.paymentCreateInput {
         const amounts = {
             PremiumMonthly: 999,
             PremiumAnnual: 9999,
@@ -198,8 +199,8 @@ export class PaymentDbFactory {
         type: "TeamMonthly" | "TeamAnnual" = "TeamMonthly",
         status: "Pending" | "Succeeded" | "Failed" | "Refunded" | "Canceled" = "Succeeded",
         seats = 10,
-        overrides?: Partial<Prisma.PaymentCreateInput>,
-    ): Prisma.PaymentCreateInput {
+        overrides?: Partial<Prisma.paymentCreateInput>,
+    ): Prisma.paymentCreateInput {
         const baseAmounts = {
             TeamMonthly: 1999, // $19.99 base
             TeamAnnual: 19999, // $199.99 base
@@ -231,8 +232,8 @@ export class PaymentDbFactory {
         dollarAmount: number,
         creditsAmount: number,
         status: "Pending" | "Succeeded" | "Failed" | "Refunded" | "Canceled" = "Succeeded",
-        overrides?: Partial<Prisma.PaymentCreateInput>,
-    ): Prisma.PaymentCreateInput {
+        overrides?: Partial<Prisma.paymentCreateInput>,
+    ): Prisma.paymentCreateInput {
         return {
             id: generatePK(),
             amount: Math.round(dollarAmount * 100), // Convert to cents
@@ -257,8 +258,8 @@ export class PaymentDbFactory {
         entityId: bigint,
         entityType: "user" | "team",
         failureReason: "card_declined" | "insufficient_funds" | "expired_card" | "invalid_cvc" = "card_declined",
-        overrides?: Partial<Prisma.PaymentCreateInput>,
-    ): Prisma.PaymentCreateInput {
+        overrides?: Partial<Prisma.paymentCreateInput>,
+    ): Prisma.paymentCreateInput {
         return {
             id: generatePK(),
             amount: 999,
@@ -283,8 +284,8 @@ export class PaymentDbFactory {
         entityId: bigint,
         entityType: "user" | "team",
         currency: "EUR" | "GBP" | "CAD" | "AUD" = "EUR",
-        overrides?: Partial<Prisma.PaymentCreateInput>,
-    ): Prisma.PaymentCreateInput {
+        overrides?: Partial<Prisma.paymentCreateInput>,
+    ): Prisma.paymentCreateInput {
         const amounts = {
             EUR: 899,  // €8.99
             GBP: 799,  // £7.99
@@ -300,7 +301,7 @@ export class PaymentDbFactory {
             description: `Premium Monthly Subscription (${currency})`,
             paymentMethod: "card_visa",
             paymentType: "PremiumMonthly",
-            status: "Succeeded",
+            status: "Paid",
             ...(entityType === "user" 
                 ? { user: { connect: { id: entityId } } }
                 : { team: { connect: { id: entityId } } }
@@ -316,8 +317,8 @@ export class PaymentDbFactory {
         teamId: bigint,
         seats = 100,
         customAmount?: number,
-        overrides?: Partial<Prisma.PaymentCreateInput>,
-    ): Prisma.PaymentCreateInput {
+        overrides?: Partial<Prisma.paymentCreateInput>,
+    ): Prisma.paymentCreateInput {
         const amount = customAmount || (seats * 10 * 100); // $10 per seat per month, in cents
 
         return {
@@ -328,7 +329,7 @@ export class PaymentDbFactory {
             description: `Enterprise Annual Subscription - ${seats} seats`,
             paymentMethod: "wire_transfer",
             paymentType: "TeamAnnual",
-            status: "Succeeded",
+            status: "Paid",
             team: { connect: { id: teamId } },
             ...overrides,
         };
@@ -342,7 +343,7 @@ export class PaymentDbFactory {
 /**
  * Seed basic payment scenarios for testing
  */
-export async function seedTestPayments(db: any) {
+export async function seedTestPayments(db: PrismaClient) {
     // Create users and teams first
     const user1 = await db.user.create({
         data: {

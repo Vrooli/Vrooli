@@ -142,7 +142,7 @@ import { endpointsMyObject } from "@vrooli/shared";
 Start with minimal and complete variants:
 
 ```typescript
-// packages/shared/src/__test/fixtures/api/myObjectFixtures.ts
+// packages/shared/src/__test/fixtures/api-inputs/myObjectFixtures.ts
 
 import { generatePK } from "@vrooli/shared";
 import type { Shape } from "@vrooli/shared";
@@ -250,7 +250,7 @@ export const myObjectScenarios = {
 For dynamic or unique data:
 
 ```typescript
-// packages/shared/src/__test/fixtures/api/myObjectFactories.ts
+// packages/shared/src/__test/fixtures/api-inputs/myObjectFactories.ts
 
 let counter = 0;
 
@@ -288,7 +288,7 @@ export function createMyObjectWithRelations(config: {
 Make fixtures easily importable:
 
 ```typescript
-// packages/shared/src/__test/fixtures/api/index.ts
+// packages/shared/src/__test/fixtures/api-inputs/index.ts
 
 export * from './myObjectFixtures.js';
 export * from './myObjectFactories.js';

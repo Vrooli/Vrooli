@@ -1109,7 +1109,7 @@ describe("FormBuilder", () => {
                 label: "Test Field",
                 type: InputType.Text,
                 props: { defaultValue: "hello", maxChars: 500 },
-                yup: { required: true, checks: [] }
+                yup: { required: true, checks: [] },
             });
 
             expect(input).not.toBeNull();
@@ -1127,7 +1127,7 @@ describe("FormBuilder", () => {
                 fieldName: "testField",
                 type: "InvalidType" as any,
                 props: {},
-                yup: {}
+                yup: {},
             });
 
             expect(input).toBeNull();
@@ -1139,7 +1139,7 @@ describe("FormBuilder", () => {
                 fieldName: "testField",
                 type: InputType.Text,
                 props: propsString,
-                yup: { required: false, checks: [] }
+                yup: { required: false, checks: [] },
             });
 
             expect(input).not.toBeNull();
@@ -1153,7 +1153,7 @@ describe("FormBuilder", () => {
                 fieldName: "testField",
                 type: InputType.Text,
                 props: {},
-                yup: yupString
+                yup: yupString,
             });
 
             expect(input).not.toBeNull();
@@ -1169,7 +1169,7 @@ describe("FormBuilder", () => {
                 fieldName: "testField",
                 type: InputType.Text,
                 props: "invalid json {",
-                yup: {}
+                yup: {},
             });
 
             // Invalid JSON should result in null return value
@@ -1188,7 +1188,7 @@ describe("FormBuilder", () => {
                 fieldName: "testField",
                 type: InputType.Text,
                 props: {},
-                yup: "invalid json ["
+                yup: "invalid json [",
             });
 
             // Invalid JSON should result in null return value
@@ -1205,7 +1205,7 @@ describe("FormBuilder", () => {
                 fieldName: "testField",
                 type: InputType.Text,
                 props: null,
-                yup: undefined
+                yup: undefined,
             });
 
             expect(input).not.toBeNull();
@@ -1218,7 +1218,7 @@ describe("FormBuilder", () => {
                 fieldName: "testField",
                 type: InputType.Text,
                 props: {},
-                yup: {}
+                yup: {},
             });
 
             expect(input).not.toBeNull();
@@ -1230,7 +1230,7 @@ describe("FormBuilder", () => {
             const input = createFormInput({
                 type: InputType.Text,
                 props: {},
-                yup: {}
+                yup: {},
             });
 
             expect(input).not.toBeNull();
@@ -1242,8 +1242,8 @@ describe("FormBuilder", () => {
             const input = createFormInput({
                 fieldName: "testField",
                 type: InputType.Text,
-                props: '"string instead of object"',
-                yup: {}
+                props: "\"string instead of object\"",
+                yup: {},
             });
 
             expect(input).not.toBeNull();
@@ -1255,7 +1255,7 @@ describe("FormBuilder", () => {
                 fieldName: "testField", 
                 type: InputType.Text,
                 props: {},
-                yup: '"string instead of object"'
+                yup: "\"string instead of object\"",
             });
 
             expect(input).not.toBeNull();
@@ -1272,7 +1272,7 @@ describe("FormBuilder", () => {
                 type: InputType.Text,
                 props: {},
                 yup: {},
-                customProperty: "customValue"
+                customProperty: "customValue",
             } as any);
 
             expect(input).not.toBeNull();
@@ -1360,7 +1360,7 @@ describe("FormBuilder", () => {
 
             it("should preserve existing JSON props", () => {
                 const props = {
-                    defaultValue: '{"key": "value"}',
+                    defaultValue: "{\"key\": \"value\"}",
                 };
                 const healed = healFormInputPropsMap[InputType.JSON](props);
                 expect(healed).toEqual(props);

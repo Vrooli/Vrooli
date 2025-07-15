@@ -1,6 +1,7 @@
-import { type FindByIdInput, type FindByPublicIdInput, type FindVersionInput, ModelType, type PageInfo, type TimeFrame, ViewFor, camelCase, validatePK, validatePublicId } from "@vrooli/shared";
+import { type FindByIdInput, type FindByPublicIdInput, type FindVersionInput, ModelType, type PageInfo, type TimeFrame, ViewFor, VisibilityType, camelCase, validatePK, validatePublicId } from "@vrooli/shared";
 import { SessionService } from "../auth/session.js";
 import { combineQueries } from "../builders/combineQueries.js";
+// AI_CHECK: TYPE_SAFETY=phase2-actions | LAST: 2025-07-04 - Improved type safety in read operations
 import { InfoConverter, addSupplementalFields } from "../builders/infoConverter.js";
 import { timeFrameToSql } from "../builders/timeFrame.js";
 import { type PaginatedSearchResult, type PartialApiInfo, type PrismaDelegate } from "../builders/types.js";
@@ -42,7 +43,8 @@ const supportVersionLabels: ModelType[] = [ModelType.ResourceVersion];
  * Helper function for reading one object in a single line
  * @returns GraphQL response object
  */
-export async function readOneHelper<ObjectModel extends { [x: string]: any }>({
+// AI_CHECK: TYPE_SAFETY=tier1-1 | LAST: 2025-07-03 - Fixed visibility type casting, searchString casting, cursor type assertions, and offset type assertions
+export async function readOneHelper<ObjectModel extends Record<string, unknown>>({
     info,
     input,
     objectType,
@@ -52,7 +54,7 @@ export async function readOneHelper<ObjectModel extends { [x: string]: any }>({
     const model = ModelMap.get(objectType);
     // Build where clause
     const { id, publicId, versionLabel } = (input as FindByIdInput & FindByPublicIdInput & FindVersionInput);
-    let where: Record<string, any> = {};
+    let where: Record<string, unknown> = {};
     // Only allow one publicId or id
     // Check for publicId (sometimes it's a handle)
     if (publicId && validatePublicId(publicId) && !publicId.startsWith("@") && supportPublicIds.includes(objectType as ModelType)) {
@@ -100,7 +102,11 @@ export async function readOneHelper<ObjectModel extends { [x: string]: any }>({
     // Get the Prisma object
     let object: any;
     try {
-        object = await (DbProvider.get()[model.dbTable] as PrismaDelegate).findUnique({ where, ...InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo) });
+        const prismaSelect = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo);
+        if (!prismaSelect) {
+            throw new CustomError("0348", "InternalError", { objectType });
+        }
+        object = await (DbProvider.get()[model.dbTable] as PrismaDelegate).findUnique({ where, ...prismaSelect });
         if (!object)
             throw new CustomError("0022", "NotFound", { objectType });
     } catch (error) {
@@ -116,12 +122,13 @@ export async function readOneHelper<ObjectModel extends { [x: string]: any }>({
     await permissionsCheck(authDataById, { ["Read"]: [objectId] }, {}, userData);
 
     // Return formatted for GraphQL
-    const formatted = InfoConverter.get().fromDbToApi(object, partialInfo) as RecursivePartial<ObjectModel>;
+    const formatted = InfoConverter.get().fromDbToApi<ObjectModel>(object, partialInfo);
     // If logged in and object tracks view counts, add a view
     if (userData?.id && objectType in ViewFor) {
         ModelMap.get<ViewModelLogic>("View").view(userData, { forId: object.id, viewFor: objectType as ViewFor });
     }
-    const result = (await addSupplementalFields(userData, [formatted], partialInfo))[0] as RecursivePartial<ObjectModel>;
+    const supplemented = await addSupplementalFields(userData, [formatted], partialInfo);
+    const result = supplemented[0] as RecursivePartial<ObjectModel>;
     return result;
 }
 
@@ -132,7 +139,7 @@ export async function readOneHelper<ObjectModel extends { [x: string]: any }>({
  * NOTE: Permissions queries should be passed into additionalQueries
  * @returns Paginated search result
  */
-export async function readManyHelper<Input extends { [x: string]: any }>({
+export async function readManyHelper<Input extends Record<string, unknown>>({
     additionalQueries,
     addSupplemental = true,
     info,
@@ -153,19 +160,19 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         req,
         searchInput: input,
         userData,
-        visibility: input.visibility ?? visibility,
+        visibility: (input.visibility ?? visibility ?? VisibilityType.Public) as VisibilityType,
     };
     // Determine text search query
-    const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchStringQuery({ objectType: model.__typename, searchString: input.searchString }) : undefined;
+    const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchStringQuery({ objectType: model.__typename, searchString: input.searchString as string }) : undefined;
     // Loop through search fields and add each to the search query, 
     // if the field is specified in the input
-    const customQueries: object[] = [];
+    const customQueries: Record<string, unknown>[] = [];
     if (searcher) {
         for (const field of Object.keys(searcher.searchFields)) {
             const fieldInput = input[field];
             const searchMapper = SearchMap[field];
             if (fieldInput !== undefined && searchMapper !== undefined) {
-                customQueries.push(searchMapper(fieldInput, searchData));
+                customQueries.push(searchMapper(fieldInput, searchData) as Record<string, unknown>);
             }
         }
     }
@@ -180,7 +187,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     // Find requested search array
     const select = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo);
     // Search results have at least an id
-    let searchResults: Record<string, any>[] = [];
+    let searchResults: Record<string, unknown>[] = [];
     try {
         searchResults = await (DbProvider.get()[model.dbTable] as PrismaDelegate).findMany({
             where,
@@ -204,12 +211,12 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         searchResults.pop(); // remove the extra item
     }
     if (searchResults.length > 0) {
-        endCursor = searchResults[searchResults.length - 1].id;
+        endCursor = searchResults[searchResults.length - 1].id as string;
     }
     //TODO validate that the user has permission to read all of the results, including relationships
     // Add supplemental fields, if requested
     if (addSupplemental) {
-        searchResults = searchResults.map(n => InfoConverter.get().fromDbToApi(n, partialInfo as PartialApiInfo));
+        searchResults = searchResults.map(n => InfoConverter.get().fromDbToApi(n, partialInfo));
         searchResults = await addSupplementalFields(userData, searchResults, partialInfo);
     }
     // Return formatted for GraphQL
@@ -222,7 +229,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         },
         edges: searchResults.map((result) => ({
             __typename: `${model.__typename}Edge` as const,
-            cursor: result.id,
+            cursor: result.id as string,
             node: result,
         })),
     };
@@ -237,7 +244,7 @@ export type ReadManyAsFeedResult = {
  * Helper function for reading many objects and converting them to a GraphQL response
  * (except for supplemental fields). This is useful when querying feeds
  */
-export async function readManyAsFeedHelper<Input extends { [x: string]: any }>({
+export async function readManyAsFeedHelper<Input extends Record<string, unknown>>({
     additionalQueries,
     info,
     input,
@@ -270,7 +277,7 @@ export async function readManyAsFeedHelper<Input extends { [x: string]: any }>({
  * NOTE: This mode uses raw SQL to search for results, which comes with more limitations than the normal search mode.
  * @returns Paginated search result
  */
-export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: any }>({
+export async function readManyWithEmbeddingsHelper<Input extends Record<string, unknown>>({
     fetchMode = "full",
     info,
     input,
@@ -281,7 +288,7 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     const userData = SessionService.getUser(req);
     const model = ModelMap.get(objectType);
     const desiredTake = getDesiredTake(input.take, objectType);
-    const searchStringTrimmed = (input.searchString ?? "").trim();
+    const searchStringTrimmed = ((input.searchString as string | undefined) ?? "").trim();
     // If there isn't a search string, we can perform non-embedding search
     if (searchStringTrimmed.length === 0) {
         // Call normal search function
@@ -301,7 +308,7 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     const take = desiredTake + 1; // Add 1 for hasNextPage check
 
     let idsNeeded = take;
-    let finalResults: Record<string, any>[] = [];
+    let finalResults: Record<string, unknown>[] = [];
 
     // Get visibility query
     const searchData = {
@@ -309,13 +316,13 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
         req,
         searchInput: input,
         userData,
-        visibility: input.visibility ?? visibility,
+        visibility: (input.visibility ?? visibility) as VisibilityType | null | undefined,
     };
     const { query: visibilityQuery, visibilityUsed } = visibilityBuilderPrisma(searchData);
 
     // Check cache for previously fetched IDs for this specific situation
     const cacheKey = EmbeddingService.createSearchResultCacheKey({ objectType, searchString: searchStringTrimmed, sortOption, userId: userData?.id, visibility: visibilityUsed });
-    const cachedResults = await EmbeddingService.checkSearchResultCacheRange({ cacheKey, offset, take });
+    const cachedResults = await EmbeddingService.checkSearchResultCacheRange({ cacheKey, offset: offset as number, take });
 
     // Add all cached results to the final results
     if (cachedResults && cachedResults.length > 0) {
@@ -325,7 +332,7 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
 
     // If we still need more results (i.e. no cached results or only some cached), fetch them
     if (idsNeeded > 0) {
-        const newOffset = offset + (cachedResults ? cachedResults.length : 0);
+        const newOffset = (offset as number) + (cachedResults ? cachedResults.length : 0);
         const translationObjectType = (objectType + "Translation") as ModelType;
         // Create builder to construct the SQL query to fetch missing data
         const builder = new SqlBuilder(objectType);
@@ -415,7 +422,7 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
             },
             edges: finalResults.map(t => ({
                 __typename: `${model.__typename}Edge` as const,
-                cursor: t.id,
+                cursor: t.id as string,
                 node: { id: t.id }, // Returning only IDs
             })),
         };
@@ -454,8 +461,8 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
         },
         edges: finalResults.map(t => ({
             __typename: `${model.__typename}Edge` as const,
-            cursor: t.id,
-            node: formattedNodesMap.get(t.id),
+            cursor: t.id as string,
+            node: formattedNodesMap.get(t.id as string) ?? {} as Record<string, unknown>,
         })),
     };
 }

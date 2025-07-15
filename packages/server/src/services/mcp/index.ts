@@ -1,6 +1,6 @@
 import { type Express } from "express";
 import fs from "fs";
-import path from "path";
+import * as path from "path";
 import { fileURLToPath } from "url";
 import { logger } from "../../events/logger.js";
 import { McpServerApp, McpServerMode, type ServerConfig } from "./server.js";
@@ -116,7 +116,7 @@ export async function setupMCP(
     }
 
     logger.info("Initializing MCP server...");
-    serverInstance = new McpServerApp(config, logger, app);
+    serverInstance = new McpServerApp(config, app);
 
     // Start the server logic (which now primarily sets up routes on the provided app)
     await serverInstance.start();

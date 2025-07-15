@@ -12,6 +12,8 @@ import { chatMessage } from "./chatMessage.js";
 import { seedTestChat } from "../../__test/fixtures/db/chatFixtures.js";
 import { seedChatMessages, seedConversationTree } from "../../__test/fixtures/db/chatMessageFixtures.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 // Import validation fixtures for API input testing
 
@@ -23,10 +25,19 @@ describe("EndpointsChatMessage", () => {
     });
 
     beforeEach(async () => {
-        // Clean up tables used in tests
-        const prisma = DbProvider.get();
-        await prisma.chatMessage.deleteMany();
-        await prisma.user.deleteMany();
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.chat(DbProvider.get());
+    });
+
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["chat","chat_message","chat_participants","chat_invite","user"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn("Test cleanup incomplete:", orphans);
+        }
     });
 
     afterAll(async () => {

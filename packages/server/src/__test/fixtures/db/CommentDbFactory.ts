@@ -1,5 +1,5 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+import { nanoid } from "@vrooli/shared";
+import { type Prisma, type PrismaClient, type comment } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
     DbTestFixtures, 
@@ -33,11 +33,12 @@ interface CommentRelationConfig extends RelationConfig {
  * - Comprehensive validation
  */
 export class CommentDbFactory extends EnhancedDatabaseFactory<
-    Prisma.commentCreateInput,
+    comment,
     Prisma.commentCreateInput,
     Prisma.commentInclude,
     Prisma.commentUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
         super("comment", prisma);
         this.initializeScenarios();
@@ -53,33 +54,33 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
     protected getFixtures(): DbTestFixtures<Prisma.commentCreateInput, Prisma.commentUpdateInput> {
         return {
             minimal: {
-                id: generatePK().toString(),
-                ownedByUserId: generatePK().toString(),
+                id: this.generateId(),
+                ownedByUser: { connect: { id: this.generateId() } },
                 translations: {
                     create: [{
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         language: "en",
                         text: "This is a test comment",
                     }],
                 },
                 // Must have at least one target
-                resourceVersionId: generatePK().toString(),
+                resourceVersion: { connect: { id: this.generateId() } },
             },
             complete: {
-                id: generatePK().toString(),
-                ownedByUserId: generatePK().toString(),
-                resourceVersionId: generatePK().toString(),
+                id: this.generateId(),
+                ownedByUser: { connect: { id: this.generateId() } },
+                resourceVersion: { connect: { id: this.generateId() } },
                 score: 5,
                 bookmarks: 2,
                 translations: {
                     create: [
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             text: "This is a detailed comment with multiple paragraphs.\n\nIt includes formatting and links.",
                         },
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "es",
                             text: "Este es un comentario detallado con múltiples párrafos.\n\nIncluye formato y enlaces.",
                         },
@@ -89,7 +90,7 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
             invalid: {
                 missingRequired: {
                     // Missing id and owner
-                    resourceVersionId: generatePK().toString(),
+                    resourceVersion: { connect: { id: this.generateId() } },
                 },
                 invalidTypes: {
                     id: "not-a-bigint",
@@ -98,100 +99,100 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
                     bookmarks: true, // Should be number
                 },
                 noOwner: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     // Missing both ownedByUserId and ownedByTeamId
-                    resourceVersionId: generatePK().toString(),
+                    resourceVersion: { connect: { id: this.generateId() } },
                 },
                 noTarget: {
-                    id: generatePK().toString(),
-                    ownedByUserId: generatePK().toString(),
+                    id: this.generateId(),
+                    ownedByUser: { connect: { id: this.generateId() } },
                     // Missing any target (resourceVersion, issue, pullRequest)
                 },
                 multipleOwners: {
-                    id: generatePK().toString(),
-                    ownedByUserId: generatePK().toString(),
-                    ownedByTeamId: generatePK().toString(), // Should not have both
-                    resourceVersionId: generatePK().toString(),
+                    id: this.generateId(),
+                    ownedByUser: { connect: { id: this.generateId() } },
+                    ownedByTeam: { connect: { id: this.generateId() } }, // Should not have both
+                    resourceVersion: { connect: { id: this.generateId() } },
                 },
                 invalidParentRelation: {
-                    id: generatePK().toString(),
-                    ownedByUserId: generatePK().toString(),
-                    parentId: "self_id", // Cannot be parent of itself
-                    resourceVersionId: generatePK().toString(),
+                    id: this.generateId(),
+                    ownedByUser: { connect: { id: this.generateId() } },
+                    parent: { connect: { id: this.generateId() } }, // Cannot be parent of itself
+                    resourceVersion: { connect: { id: this.generateId() } },
                 },
             },
             edgeCases: {
                 deeplyNestedComment: {
-                    id: generatePK().toString(),
-                    ownedByUserId: generatePK().toString(),
-                    parentId: generatePK().toString(), // Deep nesting
-                    resourceVersionId: generatePK().toString(),
+                    id: this.generateId(),
+                    ownedByUser: { connect: { id: this.generateId() } },
+                    parent: { connect: { id: this.generateId() } }, // Deep nesting
+                    resourceVersion: { connect: { id: this.generateId() } },
                     translations: {
                         create: [{
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             text: "Reply to a reply to a reply...",
                         }],
                     },
                 },
                 maxLengthComment: {
-                    id: generatePK().toString(),
-                    ownedByUserId: generatePK().toString(),
-                    resourceVersionId: generatePK().toString(),
+                    id: this.generateId(),
+                    ownedByUser: { connect: { id: this.generateId() } },
+                    resourceVersion: { connect: { id: this.generateId() } },
                     translations: {
                         create: [{
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             text: "a".repeat(32768), // Max length text
                         }],
                     },
                 },
                 unicodeComment: {
-                    id: generatePK().toString(),
-                    ownedByUserId: generatePK().toString(),
-                    resourceVersionId: generatePK().toString(),
+                    id: this.generateId(),
+                    ownedByUser: { connect: { id: this.generateId() } },
+                    resourceVersion: { connect: { id: this.generateId() } },
                     translations: {
                         create: [{
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             text: "Unicode test: 🎉 测试 테스트 тест اختبار",
                         }],
                     },
                 },
                 highlyRatedComment: {
-                    id: generatePK().toString(),
-                    ownedByUserId: generatePK().toString(),
-                    resourceVersionId: generatePK().toString(),
+                    id: this.generateId(),
+                    ownedByUser: { connect: { id: this.generateId() } },
+                    resourceVersion: { connect: { id: this.generateId() } },
                     score: 1000,
                     bookmarks: 500,
                     translations: {
                         create: [{
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             text: "This comment was extremely helpful!",
                         }],
                     },
                 },
                 negativeScoreComment: {
-                    id: generatePK().toString(),
-                    ownedByUserId: generatePK().toString(),
-                    resourceVersionId: generatePK().toString(),
+                    id: this.generateId(),
+                    ownedByUser: { connect: { id: this.generateId() } },
+                    resourceVersion: { connect: { id: this.generateId() } },
                     score: -50,
                     translations: {
                         create: [{
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             text: "This comment was not well received",
                         }],
                     },
                 },
                 teamOwnedComment: {
-                    id: generatePK().toString(),
-                    ownedByTeamId: generatePK().toString(), // Team owned instead of user
-                    issueId: generatePK().toString(),
+                    id: this.generateId(),
+                    ownedByTeam: { connect: { id: this.generateId() } }, // Team owned instead of user
+                    issue: { connect: { id: this.generateId() } },
                     translations: {
                         create: [{
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             text: "Official team response",
                         }],
@@ -203,10 +204,7 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
                     translations: {
                         update: [{
                             where: { 
-                                commentId_language: {
-                                    commentId: generatePK().toString(),
-                                    language: "en",
-                                },
+                                id: this.generateId(),
                             },
                             data: { text: "Updated comment text" },
                         }],
@@ -217,16 +215,13 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
                     bookmarks: 5,
                     translations: {
                         create: [{
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "fr",
                             text: "Texte de commentaire mis à jour",
                         }],
                         update: [{
                             where: { 
-                                commentId_language: {
-                                    commentId: generatePK().toString(),
-                                    language: "en",
-                                },
+                                id: this.generateId(),
                             },
                             data: { text: "Completely updated comment with new information" },
                         }],
@@ -238,12 +233,12 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.commentCreateInput>): Prisma.commentCreateInput {
         return {
-            id: generatePK().toString(),
-            ownedByUserId: generatePK().toString(),
-            resourceVersionId: generatePK().toString(),
+            id: this.generateId(),
+            ownedByUser: { connect: { id: this.generateId() } },
+            resourceVersion: { connect: { id: this.generateId() } },
             translations: {
                 create: [{
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     language: "en",
                     text: "Test comment",
                 }],
@@ -254,20 +249,20 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
 
     protected generateCompleteData(overrides?: Partial<Prisma.commentCreateInput>): Prisma.commentCreateInput {
         return {
-            id: generatePK().toString(),
-            ownedByUserId: generatePK().toString(),
-            resourceVersionId: generatePK().toString(),
+            id: this.generateId(),
+            ownedByUser: { connect: { id: this.generateId() } },
+            resourceVersion: { connect: { id: this.generateId() } },
             score: 0,
             bookmarks: 0,
             translations: {
                 create: [
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         language: "en",
                         text: "This is a comprehensive test comment with detailed information.",
                     },
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         language: "es",
                         text: "Este es un comentario de prueba completo con información detallada.",
                     },
@@ -289,7 +284,7 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         translations: {
                             create: [{
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "en",
                                 text: "Great resource, very helpful!",
                             }],
@@ -302,11 +297,11 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
                 description: "Comment in an issue discussion",
                 config: {
                     overrides: {
-                        issueId: generatePK().toString(),
-                        resourceVersionId: undefined,
+                        issue: { connect: { id: this.generateId() } },
+                        resourceVersion: undefined,
                         translations: {
                             create: [{
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "en",
                                 text: "I can reproduce this issue on version 2.1.0",
                             }],
@@ -321,7 +316,7 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         translations: {
                             create: [{
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "en",
                                 text: "Starting a discussion thread",
                             }],
@@ -335,11 +330,11 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
                 description: "Code review comment on pull request",
                 config: {
                     overrides: {
-                        pullRequestId: generatePK().toString(),
-                        resourceVersionId: undefined,
+                        pullRequest: { connect: { id: this.generateId() } },
+                        resourceVersion: undefined,
                         translations: {
                             create: [{
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "en",
                                 text: "This code looks good, but consider adding error handling",
                             }],
@@ -352,11 +347,11 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
                 description: "Official team response comment",
                 config: {
                     overrides: {
-                        ownedByTeamId: generatePK().toString(),
-                        ownedByUserId: undefined,
+                        ownedByTeam: { connect: { id: this.generateId() } },
+                        ownedByUser: undefined,
                         translations: {
                             create: [{
-                                id: generatePK().toString(),
+                                id: this.generateId(),
                                 language: "en",
                                 text: "Thank you for your feedback. We'll address this in the next release.",
                             }],
@@ -370,13 +365,13 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create comment for specific contexts
      */
-    async createResourceComment(userId: string, resourceVersionId: string, text: string): Promise<Prisma.comment> {
+    async createResourceComment(userId: string, resourceVersionId: string, text: string): Promise<comment> {
         return await this.createMinimal({
-            ownedByUserId: userId,
-            resourceVersionId,
+            ownedByUser: { connect: { id: BigInt(userId) } },
+            resourceVersion: { connect: { id: BigInt(resourceVersionId) } },
             translations: {
                 create: [{
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     language: "en",
                     text,
                 }],
@@ -384,14 +379,14 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    async createIssueComment(userId: string, issueId: string, text: string): Promise<Prisma.comment> {
+    async createIssueComment(userId: string, issueId: string, text: string): Promise<comment> {
         return await this.createMinimal({
-            ownedByUserId: userId,
-            issueId,
-            resourceVersionId: undefined,
+            ownedByUser: { connect: { id: BigInt(userId) } },
+            issue: { connect: { id: BigInt(issueId) } },
+            resourceVersion: undefined,
             translations: {
                 create: [{
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     language: "en",
                     text,
                 }],
@@ -399,14 +394,14 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    async createPullRequestComment(userId: string, pullRequestId: string, text: string): Promise<Prisma.comment> {
+    async createPullRequestComment(userId: string, pullRequestId: string, text: string): Promise<comment> {
         return await this.createMinimal({
-            ownedByUserId: userId,
-            pullRequestId,
-            resourceVersionId: undefined,
+            ownedByUser: { connect: { id: BigInt(userId) } },
+            pullRequest: { connect: { id: BigInt(pullRequestId) } },
+            resourceVersion: undefined,
             translations: {
                 create: [{
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     language: "en",
                     text,
                 }],
@@ -417,10 +412,10 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a comment reply
      */
-    async createReply(parentId: string, userId: string, text: string): Promise<Prisma.comment> {
+    async createReply(parentId: string, userId: string, text: string): Promise<comment> {
         // Get parent to inherit target
         const parent = await this.prisma.comment.findUnique({
-            where: { id: parentId },
+            where: { id: BigInt(parentId) },
         });
         
         if (!parent) {
@@ -428,14 +423,14 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
         }
 
         return await this.createMinimal({
-            ownedByUserId: userId,
-            parentId,
-            resourceVersionId: parent.resourceVersionId,
-            issueId: parent.issueId,
-            pullRequestId: parent.pullRequestId,
+            ownedByUser: { connect: { id: BigInt(userId) } },
+            parent: { connect: { id: BigInt(parentId) } },
+            ...(parent.resourceVersionId && { resourceVersion: { connect: { id: parent.resourceVersionId } } }),
+            ...(parent.issueId && { issue: { connect: { id: parent.issueId } } }),
+            ...(parent.pullRequestId && { pullRequest: { connect: { id: parent.pullRequestId } } }),
             translations: {
                 create: [{
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     language: "en",
                     text,
                 }],
@@ -446,8 +441,8 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a comment thread with replies
      */
-    async createCommentThread(rootComment: Partial<Prisma.commentCreateInput>, replyCount = 3): Promise<Prisma.comment[]> {
-        const comments: Prisma.comment[] = [];
+    async createCommentThread(rootComment: Partial<Prisma.commentCreateInput>, replyCount = 3): Promise<comment[]> {
+        const comments: comment[] = [];
         
         // Create root comment
         const root = await this.createMinimal(rootComment);
@@ -456,8 +451,8 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
         // Create replies
         for (let i = 0; i < replyCount; i++) {
             const reply = await this.createReply(
-                root.id,
-                generatePK().toString(),
+                this.bigIntToString(root.id),
+                this.bigIntToString(this.generateId()),
                 `Reply ${i + 1} to the comment`,
             );
             comments.push(reply);
@@ -502,46 +497,46 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
 
         // Handle owner relationships
         if (config.withOwnerUser) {
-            const userId = typeof config.withOwnerUser === "string" ? config.withOwnerUser : generatePK().toString();
-            data.ownedByUserId = userId;
-            data.ownedByTeamId = undefined;
+            const userId = typeof config.withOwnerUser === "string" ? BigInt(config.withOwnerUser) : this.generateId();
+            data.ownedByUser = { connect: { id: userId } };
+            data.ownedByTeam = undefined;
         }
         
         if (config.withOwnerTeam) {
-            const teamId = typeof config.withOwnerTeam === "string" ? config.withOwnerTeam : generatePK().toString();
-            data.ownedByTeamId = teamId;
-            data.ownedByUserId = undefined;
+            const teamId = typeof config.withOwnerTeam === "string" ? BigInt(config.withOwnerTeam) : this.generateId();
+            data.ownedByTeam = { connect: { id: teamId } };
+            data.ownedByUser = undefined;
         }
 
         // Handle target relationships
         if (config.withResourceVersion) {
-            const resourceVersionId = typeof config.withResourceVersion === "string" ? config.withResourceVersion : generatePK().toString();
-            data.resourceVersionId = resourceVersionId;
+            const resourceVersionId = typeof config.withResourceVersion === "string" ? BigInt(config.withResourceVersion) : this.generateId();
+            data.resourceVersion = { connect: { id: resourceVersionId } };
         }
         
         if (config.withIssue) {
-            const issueId = typeof config.withIssue === "string" ? config.withIssue : generatePK().toString();
-            data.issueId = issueId;
-            data.resourceVersionId = undefined;
+            const issueId = typeof config.withIssue === "string" ? BigInt(config.withIssue) : this.generateId();
+            data.issue = { connect: { id: issueId } };
+            data.resourceVersion = undefined;
         }
         
         if (config.withPullRequest) {
-            const pullRequestId = typeof config.withPullRequest === "string" ? config.withPullRequest : generatePK().toString();
-            data.pullRequestId = pullRequestId;
-            data.resourceVersionId = undefined;
+            const pullRequestId = typeof config.withPullRequest === "string" ? BigInt(config.withPullRequest) : this.generateId();
+            data.pullRequest = { connect: { id: pullRequestId } };
+            data.resourceVersion = undefined;
         }
 
         // Handle parent relationship
         if (config.withParent) {
-            const parentId = typeof config.withParent === "string" ? config.withParent : generatePK().toString();
-            data.parentId = parentId;
+            const parentId = typeof config.withParent === "string" ? BigInt(config.withParent) : this.generateId();
+            data.parent = { connect: { id: parentId } };
         }
 
         // Handle translations
         if (config.withTranslations && Array.isArray(config.withTranslations)) {
             data.translations = {
                 create: config.withTranslations.map(trans => ({
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     ...trans,
                 })),
             };
@@ -555,7 +550,7 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
         return data;
     }
 
-    protected async checkModelConstraints(record: Prisma.comment): Promise<string[]> {
+    protected async checkModelConstraints(record: comment): Promise<string[]> {
         const violations: string[] = [];
         
         // Check that comment has an owner
@@ -632,7 +627,7 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.comment,
+        record: comment,
         remainingDepth: number,
         tx: any,
         includeOnly?: string[],
@@ -642,49 +637,52 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
             !includeOnly || includeOnly.includes(relation);
 
         // Delete child comments (replies)
-        if (shouldDelete("parents") && record.parents?.length) {
-            for (const child of record.parents) {
-                await this.cascadeDelete(child.id, remainingDepth, tx, includeOnly);
+        if (shouldDelete("parents")) {
+            const children = await tx.comment.findMany({
+                where: { parentId: record.id },
+            });
+            for (const child of children) {
+                await this.delete(child.id);
             }
         }
 
         // Delete translations
-        if (shouldDelete("translations") && record.translations?.length) {
+        if (shouldDelete("translations")) {
             await tx.comment_translation.deleteMany({
                 where: { commentId: record.id },
             });
         }
 
         // Delete bookmarks
-        if (shouldDelete("bookmarkedBy") && record.bookmarkedBy?.length) {
+        if (shouldDelete("bookmarkedBy")) {
             await tx.bookmark.deleteMany({
                 where: { commentId: record.id },
             });
         }
 
         // Delete reactions
-        if (shouldDelete("reactions") && record.reactions?.length) {
+        if (shouldDelete("reactions")) {
             await tx.reaction.deleteMany({
                 where: { commentId: record.id },
             });
         }
 
         // Delete reaction summaries
-        if (shouldDelete("reactionSummaries") && record.reactionSummaries?.length) {
+        if (shouldDelete("reactionSummaries")) {
             await tx.reaction_summary.deleteMany({
                 where: { commentId: record.id },
             });
         }
 
         // Delete reports
-        if (shouldDelete("reports") && record.reports?.length) {
+        if (shouldDelete("reports")) {
             await tx.report.deleteMany({
                 where: { commentId: record.id },
             });
         }
 
         // Delete notification subscriptions
-        if (shouldDelete("subscriptions") && record.subscriptions?.length) {
+        if (shouldDelete("subscriptions")) {
             await tx.notification_subscription.deleteMany({
                 where: { commentId: record.id },
             });
@@ -694,9 +692,9 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get comment thread (parent and all replies)
      */
-    async getCommentThread(commentId: string): Promise<Prisma.comment[]> {
+    async getCommentThread(commentId: string): Promise<comment[]> {
         const rootComment = await this.prisma.comment.findUnique({
-            where: { id: commentId },
+            where: { id: BigInt(commentId) },
             include: this.getDefaultInclude(),
         });
         
@@ -716,18 +714,18 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
         }
 
         // Get all comments in thread
-        const thread = await this.getThreadComments(currentComment.id);
+        const thread = await this.getThreadComments(this.bigIntToString(currentComment.id));
         return thread;
     }
 
     /**
      * Recursively get all comments in a thread
      */
-    private async getThreadComments(rootId: string): Promise<Prisma.comment[]> {
-        const comments: Prisma.comment[] = [];
+    private async getThreadComments(rootId: string): Promise<comment[]> {
+        const comments: comment[] = [];
         
         const root = await this.prisma.comment.findUnique({
-            where: { id: rootId },
+            where: { id: BigInt(rootId) },
             include: this.getDefaultInclude(),
         });
         
@@ -737,13 +735,13 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
         
         // Get all replies
         const replies = await this.prisma.comment.findMany({
-            where: { parentId: rootId },
+            where: { parentId: BigInt(rootId) },
             include: this.getDefaultInclude(),
             orderBy: { createdAt: "asc" },
         });
         
         for (const reply of replies) {
-            const subThread = await this.getThreadComments(reply.id);
+            const subThread = await this.getThreadComments(this.bigIntToString(reply.id));
             comments.push(...subThread);
         }
         
@@ -753,7 +751,7 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createCommentDbFactory = (prisma: PrismaClient) => 
-    CommentDbFactory.getInstance("comment", prisma);
+    new CommentDbFactory(prisma);
 
 // Export the class for type usage
 export { CommentDbFactory as CommentDbFactoryClass };

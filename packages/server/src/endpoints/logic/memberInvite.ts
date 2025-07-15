@@ -51,7 +51,8 @@ export const memberInvite: EndpointsMemberInvite = createStandardCrudEndpoints({
         },
     },
     customEndpoints: {
-        acceptOne: async ({ input }, { req }, info) => {
+        acceptOne: async (data, { req }, info) => {
+            const input = data?.input;
             await RequestService.get().rateLimit({ maxUser: 250, req });
             RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
             if (!input || !input.id || !validatePK(input.id)) {
@@ -85,6 +86,7 @@ export const memberInvite: EndpointsMemberInvite = createStandardCrudEndpoints({
                         },
                     },
                     create: {
+                        id: invite.id,
                         publicId: generatePublicId(),
                         teamId: invite.teamId,
                         userId: invite.userId,
@@ -97,7 +99,8 @@ export const memberInvite: EndpointsMemberInvite = createStandardCrudEndpoints({
             const result = await readOneHelper({ info: partialInfo, input: { id: invite.id.toString() }, objectType, req });
             return result as MemberInvite;
         },
-        declineOne: async ({ input }, { req }, info) => {
+        declineOne: async (data, { req }, info) => {
+            const input = data?.input;
             await RequestService.get().rateLimit({ maxUser: 250, req });
             RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
             if (!input || !input.id || !validatePK(input.id)) {

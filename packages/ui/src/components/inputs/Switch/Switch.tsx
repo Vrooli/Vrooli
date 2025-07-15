@@ -1,5 +1,4 @@
-import type { ReactNode } from "react";
-import { forwardRef, useCallback, useMemo, useId } from "react";
+import React, { type ReactNode, forwardRef, useCallback, useMemo, useId } from "react";
 import { useField } from "formik";
 import { cn } from "../../../utils/tailwind-theme.js";
 import {
@@ -35,6 +34,13 @@ const SwitchLabel = ({
 }) => {
     if (position === "none" || !children) return null;
     
+    // Ensure children is a valid React node (not an empty object)
+    const validChildren = React.isValidElement(children) || typeof children === 'string' || typeof children === 'number' 
+        ? children 
+        : null;
+    
+    if (!validChildren) return null;
+    
     return (
         <label 
             htmlFor={htmlFor}
@@ -43,7 +49,7 @@ const SwitchLabel = ({
                 disabled && "tw-opacity-50 tw-cursor-not-allowed",
             )}
         >
-            {children}
+            {validChildren}
         </label>
     );
 };
@@ -197,6 +203,7 @@ export const SwitchBase = forwardRef<HTMLInputElement, SwitchBaseProps>(
                     ref={ref}
                     type="checkbox"
                     id={id}
+                    name={props.name}
                     checked={checked}
                     disabled={disabled}
                     onChange={handleChange}
@@ -207,7 +214,8 @@ export const SwitchBase = forwardRef<HTMLInputElement, SwitchBaseProps>(
                     aria-describedby={ariaDescribedBy}
                     role="switch"
                     aria-checked={checked}
-                    {...props}
+                    onBlur={props.onBlur}
+                    value={checked ? "true" : "false"}
                 />
                 
                 {/* Visual switch container */}
@@ -289,7 +297,7 @@ export const SwitchBase = forwardRef<HTMLInputElement, SwitchBaseProps>(
                             )}
                             
                             {/* Custom icons inside thumb */}
-                            {currentIcon && variant !== "theme" && (
+                            {currentIcon && typeof currentIcon === 'string' && variant !== "theme" && (
                                 <div className="tw-absolute tw-inset-0 tw-flex tw-items-center tw-justify-center">
                                     <Icon
                                         info={currentIcon}
@@ -337,7 +345,7 @@ export const SwitchBase = forwardRef<HTMLInputElement, SwitchBaseProps>(
         return wrapInTooltip(
             <div className="tw-flex tw-flex-col tw-gap-1">
                 {switchElement}
-                {helperText && (
+                {helperText && typeof helperText === 'string' && (
                     <div className={cn(
                         "tw-text-sm tw-ml-1",
                         error ? "tw-text-red-500" : "tw-text-gray-600",
@@ -385,15 +393,25 @@ export const Switch = forwardRef<HTMLInputElement, SwitchFormikProps>(({
         field.onChange(event);
     }, [field]);
     
+    // Filter out any props that might cause rendering issues
+    const { value, ...fieldWithoutValue } = field;
+    const safeProps = Object.entries(props).reduce((acc, [key, val]) => {
+        // Only include props that are safe to render
+        if (val !== undefined && val !== null && (typeof val !== 'object' || React.isValidElement(val))) {
+            acc[key] = val;
+        }
+        return acc;
+    }, {} as any);
+    
     return (
         <SwitchBase
-            {...field}
-            {...props}
+            {...fieldWithoutValue}
+            {...safeProps}
             id={inputId}
             checked={field.value || false}
             onChange={handleChange}
             error={meta.touched && Boolean(meta.error)}
-            helperText={meta.touched && meta.error}
+            helperText={meta.touched && meta.error && typeof meta.error === 'string' ? meta.error : undefined}
             data-testid={props["data-testid"] || `switch-${name}`}
             ref={ref}
         />

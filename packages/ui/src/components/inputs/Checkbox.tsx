@@ -57,7 +57,10 @@ export const CheckboxBase = forwardRef<HTMLInputElement, CheckboxBaseProps>(({
     const handleClick = useCallback((e: React.MouseEvent<HTMLSpanElement>) => {
         if (!disabled) {
             const rect = e.currentTarget.getBoundingClientRect();
-            addRipple(e.clientX - rect.left, e.clientY - rect.top);
+            // Center the ripple in the checkbox wrapper instead of using cursor position
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            addRipple(centerX, centerY);
         }
     }, [disabled, addRipple]);
 

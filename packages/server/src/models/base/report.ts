@@ -1,5 +1,5 @@
-import { DEFAULT_LANGUAGE, generatePublicId, MaxObjects, type ModelType, type ReportFor, type ReportSearchInput, ReportSortBy, ReportStatus, reportValidation } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { DEFAULT_LANGUAGE, generatePublicId, MaxObjects, type ModelType, type ReportFor, type ReportSearchInput, ReportSortBy, ReportStatus, reportValidation } from "@vrooli/shared";
 import i18next from "i18next";
 import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
@@ -148,11 +148,11 @@ export const ReportModel: ReportModelLogic = ({
             canUpdate: () => isLoggedIn && (isAdmin || (data.createdBy?.id === userId)) && data.status === "Open",
             isOwn: () => isAdmin || (data.createdBy?.id === userId),
         }),
-        owner: (data) => ({
+        owner: (data, _userId) => ({
             User: data?.createdBy,
         }),
         isDeleted: () => false,
-        isPublic: () => true,
+        isPublic: (_data, _getParentInfo?) => true,
         profanityFields: ["reason", "details"],
         visibility: {
             own: function getOwn(data) {

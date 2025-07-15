@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId, nanoid, ReportStatus, ReportSuggestedAction } from "@vrooli/shared";
+import { generatePublicId, nanoid, ReportStatus, ReportSuggestedAction } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -37,6 +37,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
     Prisma.reportInclude,
     Prisma.reportUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
         super("report", prisma);
         this.initializeScenarios();
@@ -52,24 +53,24 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
     protected getFixtures(): DbTestFixtures<Prisma.reportCreateInput, Prisma.reportUpdateInput> {
         return {
             minimal: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 publicId: generatePublicId(),
                 reason: "Inappropriate content",
                 language: "en",
                 status: ReportStatus.Open,
-                createdById: generatePK().toString(),
+                createdBy: { connect: { id: this.generateId() } },
                 // Must have at least one target
-                userId: generatePK().toString(),
+                user: { connect: { id: this.generateId() } },
             },
             complete: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 publicId: generatePublicId(),
                 reason: "Spam and misleading information",
                 details: "This user is posting spam links and misleading information about cryptocurrency investments. Multiple posts contain phishing links.",
                 language: "en",
                 status: ReportStatus.Open,
-                createdById: generatePK().toString(),
-                userId: generatePK().toString(),
+                createdBy: { connect: { id: this.generateId() } },
+                user: { connect: { id: this.generateId() } },
                 createdAt: new Date(),
                 updatedAt: new Date(),
             },
@@ -86,118 +87,118 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
                     createdById: null, // Should be string
                 },
                 noTarget: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     reason: "Test reason",
                     language: "en",
                     status: ReportStatus.Open,
-                    createdById: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
                     // No target specified
                 },
                 multipleTargets: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     reason: "Test reason",
                     language: "en",
                     status: ReportStatus.Open,
-                    createdById: generatePK().toString(),
-                    userId: generatePK().toString(),
-                    teamId: generatePK().toString(), // Multiple targets not allowed
+                    createdBy: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } },
+                    team: { connect: { id: this.generateId() } }, // Multiple targets not allowed
                 },
                 reasonTooLong: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     reason: "a".repeat(129), // Exceeds 128 character limit
                     language: "en",
                     status: ReportStatus.Open,
-                    createdById: generatePK().toString(),
-                    userId: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 detailsTooLong: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     reason: "Valid reason",
                     details: "a".repeat(8193), // Exceeds 8192 character limit
                     language: "en",
                     status: ReportStatus.Open,
-                    createdById: generatePK().toString(),
-                    userId: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 invalidLanguageCode: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     reason: "Valid reason",
                     language: "invalid", // Should be valid ISO language code
                     status: ReportStatus.Open,
-                    createdById: generatePK().toString(),
-                    userId: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } },
                 },
             },
             edgeCases: {
                 reportWithoutDetails: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     reason: "Offensive language",
                     language: "en",
                     status: ReportStatus.Open,
-                    createdById: generatePK().toString(),
-                    userId: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 closedReport: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     reason: "Spam",
                     language: "en",
                     status: ReportStatus.ClosedDeleted,
-                    createdById: generatePK().toString(),
-                    userId: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 falseReport: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     reason: "Harassment",
                     details: "Actually just a disagreement",
                     language: "en",
                     status: ReportStatus.ClosedFalseReport,
-                    createdById: generatePK().toString(),
-                    userId: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 reportOfComment: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     reason: "Hate speech",
                     language: "en",
                     status: ReportStatus.Open,
-                    createdById: generatePK().toString(),
-                    commentId: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
+                    comment: { connect: { id: this.generateId() } },
                 },
                 reportOfChatMessage: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     reason: "Inappropriate content",
                     language: "en",
                     status: ReportStatus.Open,
-                    createdById: generatePK().toString(),
-                    chatMessageId: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
+                    chatMessageId: this.generateId(),
                 },
                 reportOfTeam: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     reason: "Impersonation",
                     language: "en",
                     status: ReportStatus.Open,
-                    createdById: generatePK().toString(),
-                    teamId: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
+                    team: { connect: { id: this.generateId() } },
                 },
                 multiLanguageReport: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     reason: "Contenido inapropiado",
                     details: "Este usuario está publicando contenido ofensivo",
                     language: "es",
                     status: ReportStatus.Open,
-                    createdById: generatePK().toString(),
-                    userId: generatePK().toString(),
+                    createdBy: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } },
                 },
             },
             updates: {
@@ -215,27 +216,27 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.reportCreateInput>): Prisma.reportCreateInput {
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             publicId: generatePublicId(),
             reason: "Inappropriate content",
             language: "en",
             status: ReportStatus.Open,
-            createdById: generatePK().toString(),
-            userId: generatePK().toString(), // Default to user report
+            createdBy: { connect: { id: this.generateId() } },
+            user: { connect: { id: this.generateId() } }, // Default to user report
             ...overrides,
         };
     }
 
     protected generateCompleteData(overrides?: Partial<Prisma.reportCreateInput>): Prisma.reportCreateInput {
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             publicId: generatePublicId(),
             reason: "Multiple violations",
             details: "This content violates multiple community guidelines including spam, harassment, and misleading information.",
             language: "en",
             status: ReportStatus.Open,
-            createdById: generatePK().toString(),
-            userId: generatePK().toString(),
+            createdBy: { connect: { id: this.generateId() } },
+            user: { connect: { id: this.generateId() } },
             createdAt: new Date(),
             updatedAt: new Date(),
             ...overrides,
@@ -299,7 +300,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
                     },
                     withResponses: [
                         {
-                            createdById: generatePK().toString(),
+                            createdBy: { connect: { id: this.generateId() } },
                             actionSuggested: ReportSuggestedAction.Delete,
                             details: "Content violated terms of service and has been removed",
                         },
@@ -315,12 +316,12 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
                     },
                     withResponses: [
                         {
-                            createdById: generatePK().toString(),
+                            createdBy: { connect: { id: this.generateId() } },
                             actionSuggested: ReportSuggestedAction.Delete,
                             details: "This is clearly misleading",
                         },
                         {
-                            createdById: generatePK().toString(),
+                            createdBy: { connect: { id: this.generateId() } },
                             actionSuggested: ReportSuggestedAction.NonIssue,
                             details: "This is just an opinion, not misleading",
                         },
@@ -466,7 +467,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
         if (config.withResponses && Array.isArray(config.withResponses)) {
             data.responses = {
                 create: config.withResponses.map(response => ({
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     createdById: response.createdById,
                     actionSuggested: response.actionSuggested,
                     details: response.details,
@@ -661,7 +662,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
         const report = await this.createReportFor(
             targetType as any,
             targetId,
-            generatePK().toString(),
+            this.generateId(),
             "Test report for workflow",
             "Testing report workflow progression",
         );
@@ -672,7 +673,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
             if (step.response) {
                 await this.prisma.report_response.create({
                     data: {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         reportId: report.id,
                         createdById: step.response.createdById,
                         actionSuggested: step.response.actionSuggested,
@@ -770,7 +771,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createReportDbFactory = (prisma: PrismaClient) => 
-    ReportDbFactory.getInstance("report", prisma);
+    new ReportDbFactory(prisma);
 
 // Export the class for type usage
 export { ReportDbFactory as ReportDbFactoryClass };

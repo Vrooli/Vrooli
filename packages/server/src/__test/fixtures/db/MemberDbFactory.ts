@@ -1,7 +1,7 @@
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { DbTestFixtures, RelationConfig } from "./types.js";
-import { generatePK } from "./idHelpers.js";
+// Removed generatePK import - using this.generateId() instead
 
 interface MemberRelationConfig extends RelationConfig {
     withUser?: boolean;
@@ -23,7 +23,7 @@ interface MemberRelationConfig extends RelationConfig {
  * - Predefined test scenarios
  */
 export class MemberDbFactory extends EnhancedDatabaseFactory<
-    any, // Using any to avoid type issues
+    member, // Using any to avoid type issues
     Prisma.memberCreateInput,
     Prisma.memberInclude,
     Prisma.memberUpdateInput
@@ -38,9 +38,9 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.memberCreateInput>): Prisma.memberCreateInput {
         return {
-            id: generatePK(),
-            user: { connect: { id: generatePK() } },
-            team: { connect: { id: generatePK() } },
+            id: this.generateId(),
+            user: { connect: { id: this.generateId() } },
+            team: { connect: { id: this.generateId() } },
             role: "Member",
             ...overrides,
         };
@@ -58,8 +58,8 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
      * Get complete test fixtures for Member model
      */
     protected getFixtures(): DbTestFixtures<Prisma.memberCreateInput, Prisma.memberUpdateInput> {
-        const userId = generatePK();
-        const teamId = generatePK();
+        const userId = this.generateId();
+        const teamId = this.generateId();
         
         return {
             minimal: this.generateMinimalData(),
@@ -68,21 +68,21 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
             
             edgeCases: {
                 owner: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     user: { connect: { id: userId } },
                     team: { connect: { id: teamId } },
                     role: "Owner",
                 },
                 
                 admin: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     user: { connect: { id: userId } },
                     team: { connect: { id: teamId } },
                     role: "Admin",
                 },
                 
                 regularMember: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     user: { connect: { id: userId } },
                     team: { connect: { id: teamId } },
                     role: "Member",
@@ -91,7 +91,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
             
             invalid: {
                 missingRequired: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     team: { connect: { id: teamId } },
                     role: "Member",
                     // Missing user connection
@@ -107,7 +107,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
             
             edgeCase: {
                 duplicateMembership: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     user: { connect: { id: userId } },
                     team: { connect: { id: teamId } },
                     role: "Member",
@@ -149,7 +149,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
         overrides?: Partial<Prisma.memberCreateInput>,
     ) {
         const data = {
-            id: generatePK(),
+            id: this.generateId(),
             user: { connect: { id: userId } },
             team: { connect: { id: teamId } },
             role,
@@ -192,10 +192,10 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
             if (!userId && config.withUser) {
                 const user = await tx.user.create({
                     data: {
-                        id: generatePK(),
-                        publicId: generatePK().toString(),
+                        id: this.generateId(),
+                        publicId: this.generateId().toString(),
                         name: "Test User",
-                        handle: `test_user_${generatePK().toString().slice(-6)}`,
+                        handle: `test_user_${this.generateId().toString().slice(-6)}`,
                         status: "Unlocked",
                         isBot: false,
                         isBotDepictingPerson: false,
@@ -209,12 +209,12 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
             if (!teamId && config.withTeam) {
                 const team = await tx.team.create({
                     data: {
-                        id: generatePK(),
-                        publicId: generatePK().toString(),
+                        id: this.generateId(),
+                        publicId: this.generateId().toString(),
                         name: "Test Team",
-                        handle: `test_team_${generatePK().toString().slice(-6)}`,
+                        handle: `test_team_${this.generateId().toString().slice(-6)}`,
                         isPrivate: false,
-                        createdBy: { connect: { id: userId || generatePK() } },
+                        createdBy: { connect: { id: userId || this.generateId() } },
                     },
                 });
                 teamId = team.id;
@@ -226,7 +226,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
 
             return tx.member.create({
                 data: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     user: { connect: { id: userId } },
                     team: { connect: { id: teamId } },
                     role: config.role || "Member",
@@ -252,7 +252,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
             for (const member of members) {
                 const created = await tx.member.create({
                     data: {
-                        id: generatePK(),
+                        id: this.generateId(),
                         user: { connect: { id: member.userId } },
                         team: { connect: { id: teamId } },
                         role: member.role || "Member",

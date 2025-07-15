@@ -522,7 +522,13 @@ describe("shape models", () => {
         it("should create report response shape", () => {
             const input = { id: "123" };
             const result = shapeReportResponse.create(input);
-            expect(result).toEqual({});
+            expect(result).toEqual({
+                id: "123",
+                actionSuggested: "NonIssue",
+                details: undefined,
+                language: undefined,
+                reportConnect: "0",
+            });
         });
     });
 

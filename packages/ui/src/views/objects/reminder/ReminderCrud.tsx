@@ -1,10 +1,11 @@
-import { DragDropContext, Draggable, Droppable, type DropResult } from "@hello-pangea/dnd";
+// AI_CHECK: TYPE_SAFETY=39 | LAST: 2025-06-28
+import { DragDropContext, Draggable, Droppable, type DropResult, type DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import Divider from "@mui/material/Divider";
 import Grid from "@mui/material/Grid";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../../components/buttons/IconButton.js";
 import InputBase from "@mui/material/InputBase";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
@@ -19,7 +20,7 @@ import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper, useSubmitHelper } from "../../../api/fetchWrapper.js";
 import { AutoFillButton } from "../../../components/buttons/AutoFillButton.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
-import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
+import { Dialog } from "../../../components/dialogs/Dialog/Dialog.js";
 import { AdvancedInput } from "../../../components/inputs/AdvancedInput/AdvancedInput.js";
 import { detailsInputFeatures, nameInputFeatures } from "../../../components/inputs/AdvancedInput/styles.js";
 import { DateInput } from "../../../components/inputs/DateInput/DateInput.js";
@@ -37,6 +38,9 @@ import { getDisplay } from "../../../utils/display/listTools.js";
 import { firstString } from "../../../utils/display/stringTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
 import { type ReminderCrudProps, type ReminderFormProps } from "./types.js";
+
+// Type for values that can be assigned to ReminderItemShape fields
+type ReminderItemFieldValue = string | boolean | number | Date | null;
 
 export function reminderInitialValues(existing?: Partial<ReminderShape> & { reminderList: CanConnect<ReminderListShape> } | null | undefined): ReminderShape {
     return {
@@ -122,8 +126,8 @@ interface ReminderStepProps {
     styles: ReturnType<typeof useReminderFormStyles>;
     onFocus: (index: number) => void;
     onDelete: () => void;
-    onUpdateField: (index: number, field: keyof ReminderItemShape, value: any) => void;
-    dragHandleProps: any;
+    onUpdateField: (index: number, field: keyof ReminderItemShape, value: ReminderItemFieldValue) => void;
+    dragHandleProps: DraggableProvidedDragHandleProps | null;
 }
 
 // Memoized ReminderStep component
@@ -480,10 +484,11 @@ function ReminderForm({
     const [reminderItemsField, meta, reminderItemsHelpers] = useField<ReminderItemShape[]>("reminderItems");
 
     // Stable handler to update a specific field of a step
-    const handleUpdateStepField = useCallback((index: number, field: keyof ReminderItemShape, value: any) => {
+    const handleUpdateStepField = useCallback((index: number, field: keyof ReminderItemShape, value: ReminderItemFieldValue) => {
         const newItems = [...reminderItemsField.value];
         if (newItems[index]) {
-            (newItems[index] as any)[field] = value;
+            // TypeScript needs help with the dynamic key assignment, but we know the types are compatible
+            (newItems[index] as Record<keyof ReminderItemShape, ReminderItemFieldValue>)[field] = value;
             reminderItemsHelpers.setValue(newItems);
         }
     }, [reminderItemsField.value, reminderItemsHelpers]);
@@ -550,123 +555,237 @@ function ReminderForm({
     }, [handleDelete, isCreate, t]);
 
     return (
-        <MaybeLargeDialog
-            display={display}
-            id="reminder-crud-dialog"
-            isOpen={isOpen}
-            onClose={onClose}
-            sxs={dialogSx}
-        >
-            <TopBar
-                display={display}
-                onClose={onClose}
-                // Display original title so it doesn't keep changing as you type a new name
-                title={firstString(getDisplay(existing).title, t(isCreate ? "CreateReminder" : "UpdateReminder"))}
-                options={topBarOptions}
-            />
-            <DragDropContext onDragEnd={onDragEnd}>
-                <BaseForm
-                    display={display}
-                    maxWidth={1200}
-                    isLoading={isLoading}
+        <>
+            {display === "Dialog" ? (
+                <Dialog
+                    isOpen={isOpen ?? false}
+                    onClose={onClose ?? (() => console.warn("onClose not passed to dialog"))}
+                    size="md"
                 >
-                    <Box width="100%" padding={2}>
-                        <Grid container spacing={2}>
-                            <Grid item xs={12} lg={6}>
-                                <Box display="flex" flexDirection="column" gap={4} maxWidth="600px" margin="auto">
-                                    <Typography variant="h5" sx={styles.sectionTitle}>Basic info</Typography>
-                                    <RelationshipList
-                                        isEditing={true}
-                                        objectType={"Reminder"}
-                                    />
-                                    <AdvancedInput
-                                        features={nameInputFeatures}
-                                        isRequired={true}
-                                        name="name"
-                                        title={t("Name")}
-                                        placeholder={t("NamePlaceholder")}
-                                    />
-                                    <AdvancedInput
-                                        features={detailsInputFeatures}
-                                        isRequired={false}
-                                        name="description"
-                                        title={t("Description")}
-                                        placeholder={t("DescriptionPlaceholder")}
-                                    />
-                                    <DateInput
-                                        isRequired={false}
-                                        name="dueDate"
-                                        label={t("DueDate")}
-                                        type="datetime-local"
-                                    />
-                                </Box>
-                            </Grid>
-                            <Grid item xs={12} lg={6}>
-                                <Divider sx={styles.dividerStyle} />
-                                <Box display="flex" flexDirection="column" gap={4} justifyContent="flex-start" maxWidth="600px" margin="auto">
-                                    <Typography variant="h5" sx={styles.sectionTitle}>Steps to complete</Typography>
-                                    <Box borderRadius="24px" overflow="overlay">
-                                        <Droppable droppableId="reminderItems">
-                                            {(provided) => (
-                                                <div ref={provided.innerRef} {...provided.droppableProps}>
-                                                    {
-                                                        (reminderItemsField.value ?? []).map((reminderItem, i) => (
-                                                            <Draggable key={reminderItem.id} draggableId={String(reminderItem.id)} index={i}>
-                                                                {(providedDraggable) => (
-                                                                    <Paper
-                                                                        ref={providedDraggable.innerRef}
-                                                                        {...providedDraggable.draggableProps}
-                                                                        sx={styles.stepPaper}
-                                                                        elevation={2}
-                                                                    >
-                                                                        <ReminderStep
-                                                                            reminderItem={reminderItem}
-                                                                            index={i}
-                                                                            isEditing={focusedStepIndex === i}
-                                                                            styles={styles}
-                                                                            onFocus={handleStepFocusByIndex}
-                                                                            onDelete={() => handleDeleteStep(i)}
-                                                                            onUpdateField={handleUpdateStepField}
-                                                                            dragHandleProps={providedDraggable.dragHandleProps}
-                                                                        />
-                                                                    </Paper>
-                                                                )}
-                                                            </Draggable>
-                                                        ))
-                                                    }
-                                                    {provided.placeholder}
-                                                </div>
-                                            )}
-                                        </Droppable>
-                                        <AddButton
-                                            fullWidth
-                                            startIcon={<IconCommon name="Add" />}
-                                            onClick={handleAddStep}
-                                            variant="contained"
-                                        >
-                                            {t("StepAdd")}
-                                        </AddButton>
-                                    </Box>
-                                </Box>
-                            </Grid>
-                        </Grid>
-                    </Box>
-                </BaseForm>
-            </DragDropContext>
-            <BottomActionsButtons
-                display={display}
-                errors={props.errors}
-                isCreate={isCreate}
-                loading={isLoading}
-                onCancel={handleCancel}
-                onSetSubmitting={props.setSubmitting}
-                onSubmit={onSubmit}
-                sideActionButtons={<AutoFillButton
-                    handleAutoFill={autoFill}
-                    isAutoFillLoading={isAutoFillLoading}
-                />}
-            />
-        </MaybeLargeDialog>
+                    <TopBar
+                        display={display}
+                        onClose={onClose}
+                        // Display original title so it doesn't keep changing as you type a new name
+                        title={firstString(getDisplay(existing).title, t(isCreate ? "CreateReminder" : "UpdateReminder"))}
+                        options={topBarOptions}
+                    />
+                    <DragDropContext onDragEnd={onDragEnd}>
+                        <BaseForm
+                            display={display}
+                            maxWidth={1200}
+                            isLoading={isLoading}
+                        >
+                            <Box width="100%" padding={2}>
+                                <Grid container spacing={2}>
+                                    <Grid item xs={12} lg={6}>
+                                        <Box display="flex" flexDirection="column" gap={4} maxWidth="600px" margin="auto">
+                                            <Typography variant="h5" sx={styles.sectionTitle}>Basic info</Typography>
+                                            <RelationshipList
+                                                isEditing={true}
+                                                objectType={"Reminder"}
+                                            />
+                                            <AdvancedInput
+                                                features={nameInputFeatures}
+                                                isRequired={true}
+                                                name="name"
+                                                title={t("Name")}
+                                                placeholder={t("NamePlaceholder")}
+                                            />
+                                            <AdvancedInput
+                                                features={detailsInputFeatures}
+                                                isRequired={false}
+                                                name="description"
+                                                title={t("Description")}
+                                                placeholder={t("DescriptionPlaceholder")}
+                                            />
+                                            <DateInput
+                                                isRequired={false}
+                                                name="dueDate"
+                                                label={t("DueDate")}
+                                                type="datetime-local"
+                                            />
+                                        </Box>
+                                    </Grid>
+                                    <Grid item xs={12} lg={6}>
+                                        <Divider sx={styles.dividerStyle} />
+                                        <Box display="flex" flexDirection="column" gap={4} justifyContent="flex-start" maxWidth="600px" margin="auto">
+                                            <Typography variant="h5" sx={styles.sectionTitle}>Steps to complete</Typography>
+                                            <Box borderRadius="24px" overflow="overlay">
+                                                <Droppable droppableId="reminderItems">
+                                                    {(provided) => (
+                                                        <div ref={provided.innerRef} {...provided.droppableProps}>
+                                                            {
+                                                                (reminderItemsField.value ?? []).map((reminderItem, i) => (
+                                                                    <Draggable key={reminderItem.id} draggableId={String(reminderItem.id)} index={i}>
+                                                                        {(providedDraggable) => (
+                                                                            <Paper
+                                                                                ref={providedDraggable.innerRef}
+                                                                                {...providedDraggable.draggableProps}
+                                                                                sx={styles.stepPaper}
+                                                                                elevation={2}
+                                                                            >
+                                                                                <ReminderStep
+                                                                                    reminderItem={reminderItem}
+                                                                                    index={i}
+                                                                                    isEditing={focusedStepIndex === i}
+                                                                                    styles={styles}
+                                                                                    onFocus={handleStepFocusByIndex}
+                                                                                    onDelete={() => handleDeleteStep(i)}
+                                                                                    onUpdateField={handleUpdateStepField}
+                                                                                    dragHandleProps={providedDraggable.dragHandleProps}
+                                                                                />
+                                                                            </Paper>
+                                                                        )}
+                                                                    </Draggable>
+                                                                ))
+                                                            }
+                                                            {provided.placeholder}
+                                                        </div>
+                                                    )}
+                                                </Droppable>
+                                                <AddButton
+                                                    fullWidth
+                                                    startIcon={<IconCommon name="Add" />}
+                                                    onClick={handleAddStep}
+                                                    variant="contained"
+                                                >
+                                                    {t("StepAdd")}
+                                                </AddButton>
+                                            </Box>
+                                        </Box>
+                                    </Grid>
+                                </Grid>
+                            </Box>
+                        </BaseForm>
+                    </DragDropContext>
+                    <BottomActionsButtons
+                        display={display}
+                        errors={props.errors}
+                        isCreate={isCreate}
+                        loading={isLoading}
+                        onCancel={handleCancel}
+                        onSetSubmitting={props.setSubmitting}
+                        onSubmit={onSubmit}
+                        sideActionButtons={<AutoFillButton
+                            handleAutoFill={autoFill}
+                            isAutoFillLoading={isAutoFillLoading}
+                        />}
+                    />
+                </Dialog>
+            ) : (
+                <>
+                    <TopBar
+                        display={display}
+                        onClose={onClose}
+                        // Display original title so it doesn't keep changing as you type a new name
+                        title={firstString(getDisplay(existing).title, t(isCreate ? "CreateReminder" : "UpdateReminder"))}
+                        options={topBarOptions}
+                    />
+                    <DragDropContext onDragEnd={onDragEnd}>
+                        <BaseForm
+                            display={display}
+                            maxWidth={1200}
+                            isLoading={isLoading}
+                        >
+                            <Box width="100%" padding={2}>
+                                <Grid container spacing={2}>
+                                    <Grid item xs={12} lg={6}>
+                                        <Box display="flex" flexDirection="column" gap={4} maxWidth="600px" margin="auto">
+                                            <Typography variant="h5" sx={styles.sectionTitle}>Basic info</Typography>
+                                            <RelationshipList
+                                                isEditing={true}
+                                                objectType={"Reminder"}
+                                            />
+                                            <AdvancedInput
+                                                features={nameInputFeatures}
+                                                isRequired={true}
+                                                name="name"
+                                                title={t("Name")}
+                                                placeholder={t("NamePlaceholder")}
+                                            />
+                                            <AdvancedInput
+                                                features={detailsInputFeatures}
+                                                isRequired={false}
+                                                name="description"
+                                                title={t("Description")}
+                                                placeholder={t("DescriptionPlaceholder")}
+                                            />
+                                            <DateInput
+                                                isRequired={false}
+                                                name="dueDate"
+                                                label={t("DueDate")}
+                                                type="datetime-local"
+                                            />
+                                        </Box>
+                                    </Grid>
+                                    <Grid item xs={12} lg={6}>
+                                        <Divider sx={styles.dividerStyle} />
+                                        <Box display="flex" flexDirection="column" gap={4} justifyContent="flex-start" maxWidth="600px" margin="auto">
+                                            <Typography variant="h5" sx={styles.sectionTitle}>Steps to complete</Typography>
+                                            <Box borderRadius="24px" overflow="overlay">
+                                                <Droppable droppableId="reminderItems">
+                                                    {(provided) => (
+                                                        <div ref={provided.innerRef} {...provided.droppableProps}>
+                                                            {
+                                                                (reminderItemsField.value ?? []).map((reminderItem, i) => (
+                                                                    <Draggable key={reminderItem.id} draggableId={String(reminderItem.id)} index={i}>
+                                                                        {(providedDraggable) => (
+                                                                            <Paper
+                                                                                ref={providedDraggable.innerRef}
+                                                                                {...providedDraggable.draggableProps}
+                                                                                sx={styles.stepPaper}
+                                                                                elevation={2}
+                                                                            >
+                                                                                <ReminderStep
+                                                                                    reminderItem={reminderItem}
+                                                                                    index={i}
+                                                                                    isEditing={focusedStepIndex === i}
+                                                                                    styles={styles}
+                                                                                    onFocus={handleStepFocusByIndex}
+                                                                                    onDelete={() => handleDeleteStep(i)}
+                                                                                    onUpdateField={handleUpdateStepField}
+                                                                                    dragHandleProps={providedDraggable.dragHandleProps}
+                                                                                />
+                                                                            </Paper>
+                                                                        )}
+                                                                    </Draggable>
+                                                                ))
+                                                            }
+                                                            {provided.placeholder}
+                                                        </div>
+                                                    )}
+                                                </Droppable>
+                                                <AddButton
+                                                    fullWidth
+                                                    startIcon={<IconCommon name="Add" />}
+                                                    onClick={handleAddStep}
+                                                    variant="contained"
+                                                >
+                                                    {t("StepAdd")}
+                                                </AddButton>
+                                            </Box>
+                                        </Box>
+                                    </Grid>
+                                </Grid>
+                            </Box>
+                        </BaseForm>
+                    </DragDropContext>
+                    <BottomActionsButtons
+                        display={display}
+                        errors={props.errors}
+                        isCreate={isCreate}
+                        loading={isLoading}
+                        onCancel={handleCancel}
+                        onSetSubmitting={props.setSubmitting}
+                        onSubmit={onSubmit}
+                        sideActionButtons={<AutoFillButton
+                            handleAutoFill={autoFill}
+                            isAutoFillLoading={isAutoFillLoading}
+                        />}
+                    />
+                </>
+            )}
+        </>
     );
 }
 

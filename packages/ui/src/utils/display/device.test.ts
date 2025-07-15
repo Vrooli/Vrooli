@@ -1,28 +1,27 @@
-// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-19
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Clear the global mock before importing
 vi.unmock("./device.js");
 
 // Import the actual implementation
-const actualModule = await vi.importActual("./device.js") as any;
+const actualModule = await vi.importActual("./device.js") as typeof import("./device.js");
 const { DeviceOS, MacKeyFromWindows, WindowsKey } = actualModule;
 
 // Create a mock for getDeviceInfo that can be controlled
 const mockGetDeviceInfo = vi.fn();
 
 // Import with partial mocking
-import { keyComboToString, getDeviceInfo } from "./device.js";
+import { keyComboToString } from "./device.js";
 
 // Override just getDeviceInfo
 vi.mock("./device.js", async () => {
-    const actual = await vi.importActual("./device.js") as any;
-    
+    const actual = await vi.importActual("./device.js") as typeof import("./device.js");
+
     return {
         ...actual,
         getDeviceInfo: () => mockGetDeviceInfo(),
         // Preserve the actual keyComboToString implementation
-        keyComboToString: (...keys: any[]) => {
+        keyComboToString: (...keys: (MacKeyFromWindows | WindowsKey)[]) => {
             const keyComboSeparator = " + ";
             // Find the device's operating system
             const { deviceOS } = mockGetDeviceInfo();

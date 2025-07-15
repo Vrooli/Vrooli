@@ -1,4 +1,5 @@
 // AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-19
+// AI_CHECK: TYPE_SAFETY=fixed-53-type-assertions | LAST: 2025-07-01
 // AI_CHECK: TYPE_SAFETY=eliminated-51-ts-ignore-comments | LAST: 2025-06-28
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -13,13 +14,13 @@ import * as yup from "yup";
 import { addEmptyTranslation, combineErrorsWithTranslations, getFormikErrorsWithTranslations, getLanguageSubtag, getPreferredLanguage, getShortenedLabel, getTranslationData, getUserLanguages, getUserLocale, handleTranslationChange, loadLocale, removeTranslation, translateSnackMessage, updateTranslation, updateTranslationFields, type TranslationObject } from "./translationTools.js";
 
 // Mocks for navigator.language and navigator.languages
-function mockNavigatorLanguage(language) {
+function mockNavigatorLanguage(language: string | undefined) {
     Object.defineProperty(global.navigator, "language", {
         value: language,
         writable: true,
     });
 }
-function mockNavigatorLanguages(languages) {
+function mockNavigatorLanguages(languages: readonly string[]) {
     Object.defineProperty(global.navigator, "languages", {
         value: languages,
         writable: true,
@@ -51,7 +52,7 @@ describe("loadLocale", () => {
     ];
 
     it.each(localeTestCases)("should $description", async ({ input, expected }) => {
-        const locale = await loadLocale(input as string | undefined);
+        const locale = await loadLocale(input);
         expect(locale.code).toEqual(expected);
     });
 });
@@ -136,8 +137,10 @@ describe("updateTranslationFields", () => {
 
     it("should not update fields if changes object is null or undefined", () => {
         const language = "en";
-        const updatedTranslationsNullChanges = updateTranslationFields({ translations: mockTranslations }, language, null as any);
-        const updatedTranslationsUndefinedChanges = updateTranslationFields({ translations: mockTranslations }, language, undefined as any);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const updatedTranslationsNullChanges = updateTranslationFields({ translations: mockTranslations }, language, null as any); // Testing null input
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const updatedTranslationsUndefinedChanges = updateTranslationFields({ translations: mockTranslations }, language, undefined as any); // Testing undefined input
         expect(updatedTranslationsNullChanges).toEqual(mockTranslations);
         expect(updatedTranslationsUndefinedChanges).toEqual(mockTranslations);
     });
@@ -164,15 +167,18 @@ describe("updateTranslation", () => {
     });
 
     it("should return the original translations if the translation object is empty", () => {
-        const newTranslation = {} as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const newTranslation = {} as any; // Testing empty translation object
         const updatedTranslations = updateTranslation({ translations: mockTranslations }, newTranslation);
         expect(updatedTranslations).toEqual(mockTranslations);
     });
 
     it("should handle null or undefined translations property", () => {
         const newTranslation = { id: generatePK().toString(), language: "fr", content: "Bonjour" };
-        expect(updateTranslation({ translations: null as any }, newTranslation)).toHaveLength(0);
-        expect(updateTranslation({ translations: undefined as any }, newTranslation)).toHaveLength(0);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        expect(updateTranslation({ translations: null as any }, newTranslation)).toHaveLength(0); // Testing null translations
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        expect(updateTranslation({ translations: undefined as any }, newTranslation)).toHaveLength(0); // Testing undefined translations
     });
 
     it("should handle empty translations array", () => {
@@ -181,7 +187,8 @@ describe("updateTranslation", () => {
     });
 
     it("should not update translations if the provided translation does not have a language", () => {
-        const newTranslation = { id: generatePK().toString(), content: "Bonjour" } as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const newTranslation = { id: generatePK().toString(), content: "Bonjour" } as any; // Testing translation without language
         const updatedTranslations = updateTranslation({ translations: mockTranslations }, newTranslation);
         expect(updatedTranslations).toEqual(mockTranslations);
     });
@@ -209,10 +216,12 @@ describe("getLanguageSubtag", () => {
     });
 
     it("should return empty string for undefined input", () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(getLanguageSubtag(undefined as any)).toEqual("");
     });
 
     it("should return empty string for null input", () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(getLanguageSubtag(null as any)).toEqual("");
     });
 
@@ -221,7 +230,9 @@ describe("getLanguageSubtag", () => {
     });
 
     it("should return empty string for non-string input", () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(getLanguageSubtag(1234 as any)).toEqual("");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(getLanguageSubtag({} as any)).toEqual("");
     });
 
@@ -385,9 +396,13 @@ describe("getPreferredLanguage", () => {
     });
 
     it("should handle null and undefined inputs", () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(getPreferredLanguage(null as any, ["fr"])).toEqual("fr");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(getPreferredLanguage(["fr"], null as any)).toEqual("fr");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(getPreferredLanguage(undefined as any, ["fr"])).toEqual("fr");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(getPreferredLanguage(["fr"], undefined as any)).toEqual("fr");
     });
 });
@@ -418,8 +433,11 @@ describe("getShortenedLabel", () => {
     });
 
     it("should handle non-string inputs gracefully", () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(getShortenedLabel(null as any)).toEqual("");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(getShortenedLabel(undefined as any)).toEqual("");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(getShortenedLabel(123 as any)).toEqual("");
     });
 
@@ -474,7 +492,9 @@ describe("getTranslationData", () => {
 
     it("should handle null or undefined field values", () => {
         const language = "en";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const resultFromNull = getTranslationData({ ...mockField, value: null as any }, mockMeta, language);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const resultFromUndefined = getTranslationData({ ...mockField, value: undefined as any }, mockMeta, language);
         expect(resultFromNull).toEqual({ error: undefined, index: -1, touched: undefined, value: undefined });
         expect(resultFromUndefined).toEqual({ error: undefined, index: -1, touched: undefined, value: undefined });
@@ -482,12 +502,14 @@ describe("getTranslationData", () => {
 
     it("should handle non-array field values", () => {
         const language = "en";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const result = getTranslationData({ ...mockField, value: "not an array" as any }, mockMeta, language);
         expect(result).toEqual({ error: undefined, index: -1, touched: undefined, value: undefined });
     });
 
     it("should handle missing meta properties", () => {
         const language = "en";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const resultNoTouched = getTranslationData(mockField, { ...mockMeta, touched: undefined as any }, language);
         const resultNoError = getTranslationData(mockField, { ...mockMeta, error: undefined }, language);
         expect(resultNoTouched.touched).toBeUndefined();
@@ -496,7 +518,9 @@ describe("getTranslationData", () => {
 
     it("should handle empty meta properties", () => {
         const language = "en";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const resultEmptyTouched = getTranslationData(mockField, { ...mockMeta, touched: [] as any }, language);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const resultEmptyError = getTranslationData(mockField, { ...mockMeta, error: [] as any }, language);
         expect(resultEmptyTouched.touched).toBeUndefined();
         expect(resultEmptyError.error).toBeUndefined();
@@ -526,6 +550,7 @@ describe("handleTranslationChange", () => {
     it("should correctly update the translation for the given language", () => {
         const event = { target: { name: "content", value: "Hi" } };
         const language = "en";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         handleTranslationChange(mockField, mockMeta, mockHelpers, event as any, language);
         expect(mockHelpers.setValue).toHaveBeenCalledWith([
             { language: "en", content: "Hi" },
@@ -536,6 +561,7 @@ describe("handleTranslationChange", () => {
     it("should not update other translations", () => {
         const event = { target: { name: "content", value: "Hi" } };
         const language = "en";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         handleTranslationChange(mockField, mockMeta, mockHelpers, event as any, language);
         const secondTranslation = mockHelpers.setValue.mock.calls[0][0][1];
         expect(secondTranslation).toEqual(mockField.value[1]);
@@ -544,6 +570,7 @@ describe("handleTranslationChange", () => {
     it("should add translation when specified language is not found", () => {
         const event = { target: { name: "content", value: "Bonjour" } };
         const language = "fr";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         handleTranslationChange(mockField, mockMeta, mockHelpers, event as any, language);
         expect(mockHelpers.setValue).toHaveBeenCalledWith([
             ...mockField.value,
@@ -554,6 +581,7 @@ describe("handleTranslationChange", () => {
     it("should add field when it's missing from the translation object", () => {
         const event = { target: { name: "note", value: "Note" } };
         const language = "en";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         handleTranslationChange(mockField, mockMeta, mockHelpers, event as any, language);
         const expectedTranslation = { language: "en", content: "Hello", note: "Note" };
         expect(mockHelpers.setValue).toHaveBeenCalledWith([expectedTranslation, mockField.value[1]]);
@@ -562,6 +590,7 @@ describe("handleTranslationChange", () => {
     it("should recover from null values", () => {
         const event = { target: { name: "content", value: "Hi" } };
         const language = "en";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         handleTranslationChange({ ...mockField, value: null as any }, mockMeta, mockHelpers, event as any, language);
         expect(mockHelpers.setValue).toHaveBeenCalledWith([{ id: expect.any(String), language: "en", content: "Hi" }]);
     });
@@ -569,6 +598,7 @@ describe("handleTranslationChange", () => {
     it("should recover from undefined values", () => {
         const event = { target: { name: "content", value: "Hi" } };
         const language = "en";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         handleTranslationChange({ ...mockField, value: undefined as any }, mockMeta, mockHelpers, event as any, language);
         expect(mockHelpers.setValue).toHaveBeenCalledWith([{ id: expect.any(String), language: "en", content: "Hi" }]);
     });
@@ -576,6 +606,7 @@ describe("handleTranslationChange", () => {
     it("should recover from non-array field values", () => {
         const event = { target: { name: "content", value: "Hi" } };
         const language = "en";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         handleTranslationChange({ ...mockField, value: "not an array" as any }, mockMeta, mockHelpers, event as any, language);
         expect(mockHelpers.setValue).toHaveBeenCalledWith([{ id: expect.any(String), language: "en", content: "Hi" }]);
     });
@@ -630,12 +661,15 @@ describe("getFormikErrorsWithTranslations", () => {
     it("should handle null or undefined field values", () => {
         const nullField = { ...mockField, value: null };
         const undefinedField = { ...mockField, value: undefined };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(getFormikErrorsWithTranslations(nullField as any, validationSchema)).toEqual({});
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(getFormikErrorsWithTranslations(undefinedField as any, validationSchema)).toEqual({});
     });
 
     it("should handle non-array field values", () => {
         const nonArrayField = { ...mockField, value: "not an array" };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(getFormikErrorsWithTranslations(nonArrayField as any, validationSchema)).toEqual({});
     });
 
@@ -692,7 +726,9 @@ describe("combineErrorsWithTranslations", () => {
     });
 
     it("should handle null or undefined error objects", () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const combinedErrorsWithNull = combineErrorsWithTranslations(null as any, translationErrors);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const combinedErrorsWithUndefined = combineErrorsWithTranslations(undefined as any, translationErrors);
         expect(combinedErrorsWithNull).toEqual(translationErrors);
         expect(combinedErrorsWithUndefined).toEqual(translationErrors);
@@ -700,9 +736,9 @@ describe("combineErrorsWithTranslations", () => {
 });
 
 describe("addEmptyTranslation", () => {
-    let mockField: any;
-    let mockMeta: any;
-    let mockHelpers: any;
+    let mockField: FieldInputProps<Array<TranslationObject>>;
+    let mockMeta: FieldMetaProps<unknown>;
+    let mockHelpers: { setValue: ReturnType<typeof vi.fn> };
 
     beforeEach(() => {
         mockField = {
@@ -727,7 +763,7 @@ describe("addEmptyTranslation", () => {
 
     it("should correctly add an empty translation with determined fields", () => {
         const language = "es";
-        addEmptyTranslation(mockField as any, mockMeta, mockHelpers, language);
+        addEmptyTranslation(mockField, mockMeta, mockHelpers, language);
         const newValue = mockHelpers.setValue.mock.calls[0][0][1];
         expect(newValue).toHaveProperty("language", language);
         expect(newValue).toHaveProperty("content", "");
@@ -745,7 +781,9 @@ describe("addEmptyTranslation", () => {
 
     it("should handle null or undefined field values", () => {
         const language = "es";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         addEmptyTranslation({ ...mockField, value: null as any }, mockMeta, mockHelpers, language);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         addEmptyTranslation({ ...mockField, value: undefined as any }, mockMeta, mockHelpers, language);
         expect(mockHelpers.setValue).toHaveBeenCalledTimes(2);
         const firstCallNewValue = mockHelpers.setValue.mock.calls[0][0][0];
@@ -756,6 +794,7 @@ describe("addEmptyTranslation", () => {
 
     it("should handle non-array field values", () => {
         const language = "es";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         addEmptyTranslation({ ...mockField, value: "not an array" as any }, mockMeta, mockHelpers, language);
         const newValue = mockHelpers.setValue.mock.calls[0][0][0];
         expect(newValue).toHaveProperty("language", language);
@@ -765,7 +804,7 @@ describe("addEmptyTranslation", () => {
 
     it("should handle empty translations array", () => {
         const language = "es";
-        addEmptyTranslation({ ...mockField, value: [] as any }, mockMeta, mockHelpers, language);
+        addEmptyTranslation({ ...mockField, value: [] }, mockMeta, mockHelpers, language);
         const newValue = mockHelpers.setValue.mock.calls[0][0][0];
         expect(newValue).toHaveProperty("language", language);
         expect(newValue).toHaveProperty("content", "");
@@ -774,9 +813,9 @@ describe("addEmptyTranslation", () => {
 });
 
 describe("removeTranslation", () => {
-    let mockField: any;
-    let mockMeta: any;
-    let mockHelpers: any;
+    let mockField: FieldInputProps<Array<TranslationObject>>;
+    let mockMeta: FieldMetaProps<unknown>;
+    let mockHelpers: { setValue: ReturnType<typeof vi.fn> };
 
     beforeEach(() => {
         mockField = {
@@ -802,7 +841,7 @@ describe("removeTranslation", () => {
 
     it("should correctly remove the translation for the given language", () => {
         const language = "es";
-        removeTranslation(mockField as any, mockMeta, mockHelpers, language);
+        removeTranslation(mockField, mockMeta, mockHelpers, language);
         expect(mockHelpers.setValue).toHaveBeenCalledWith([
             { language: "en", content: "Hello" },
             { language: "fr", content: "Bonjour" },
@@ -811,13 +850,15 @@ describe("removeTranslation", () => {
 
     it("should not remove any translations when the language is not found", () => {
         const language = "de";
-        removeTranslation(mockField as any, mockMeta, mockHelpers, language);
+        removeTranslation(mockField, mockMeta, mockHelpers, language);
         expect(mockHelpers.setValue).toHaveBeenCalledWith(mockField.value);
     });
 
     it("should handle null or undefined field values", () => {
         const language = "en";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         removeTranslation({ ...mockField, value: null as any }, mockMeta, mockHelpers, language);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         removeTranslation({ ...mockField, value: undefined as any }, mockMeta, mockHelpers, language);
         expect(mockHelpers.setValue).toHaveBeenCalledTimes(2);
         expect(mockHelpers.setValue).toHaveBeenCalledWith([]);
@@ -825,19 +866,20 @@ describe("removeTranslation", () => {
 
     it("should handle non-array field values", () => {
         const language = "en";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         removeTranslation({ ...mockField, value: "not an array" as any }, mockMeta, mockHelpers, language);
         expect(mockHelpers.setValue).toHaveBeenCalledWith([]);
     });
 
     it("should handle empty translations array", () => {
         const language = "en";
-        removeTranslation({ ...mockField, value: [] as any }, mockMeta, mockHelpers, language);
+        removeTranslation({ ...mockField, value: [] }, mockMeta, mockHelpers, language);
         expect(mockHelpers.setValue).toHaveBeenCalledWith([]);
     });
 
     it("should handle the only translation being removed", () => {
         const language = "en";
-        removeTranslation({ ...mockField, value: [{ language: "en", content: "Hello" }] as any }, mockMeta, mockHelpers, language);
+        removeTranslation({ ...mockField, value: [{ id: "1", language: "en", content: "Hello" }] }, mockMeta, mockHelpers, language);
         expect(mockHelpers.setValue).toHaveBeenCalledWith([]);
     });
 });
@@ -897,6 +939,7 @@ describe("translateSnackMessage", () => {
     });
 
     it("should handle undefined variables - test 2", () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (vi.mocked(i18next.t) as any).mockImplementation((key: any, options: any) => {
             return `Message with variable ${options?.variable}`;
         });
@@ -905,6 +948,7 @@ describe("translateSnackMessage", () => {
     });
 
     it("should interpolate variables into the message", () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (vi.mocked(i18next.t) as any).mockImplementation((key: any, options: any) => {
             return `Message with variable ${options?.variable}`;
         });

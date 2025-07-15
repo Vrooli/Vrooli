@@ -23,7 +23,7 @@ function isPeriodType(value: unknown): value is PeriodType {
  * @param period Time interval to calculate the start of
  * @returns Unix timestamp of the start of the given time interval
  */
-function getPeriodStart(period: PeriodType) {
+function getPeriodStart(period: PeriodType): number {
     const now = new Date();
     switch (period) {
         case PeriodType.Hourly:
@@ -60,7 +60,7 @@ export const statsPeriodCron = {
  * by combining all matching period rows within a periodStart and periodEnd.
  */
 
-export function initStatsPeriod(cron: string) {
+export function initStatsPeriod(cron: string): void {
     const periodEntry = Object.entries(statsPeriodCron).find(([_, cronValue]) => cronValue === cron);
     
     // Return early if unknown cron expression

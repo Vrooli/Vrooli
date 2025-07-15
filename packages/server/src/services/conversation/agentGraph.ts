@@ -1,7 +1,5 @@
-import { type BotParticipant, type ChatMessage } from "@vrooli/shared";
-const match = require("mqtt-match");
-import type { UnifiedSwarmContext } from "../execution/shared/UnifiedSwarmContext.js";
-import { type MessageState } from "./types.js";
+import type { SwarmState } from "@vrooli/shared";
+import { type BotParticipant, type ConversationTrigger } from "@vrooli/shared";
 
 /**
  * Responsible for deciding **which bots** should act when a trigger arrives.
@@ -9,8 +7,8 @@ import { type MessageState } from "./types.js";
  */
 export abstract class AgentGraph {
     abstract selectResponders(
-        context: UnifiedSwarmContext,
-        trigger: Pick<ChatMessage, "config">,
+        context: SwarmState,
+        trigger: ConversationTrigger,
     ): Promise<AgentSelectionResult>;
 }
 
@@ -26,20 +24,25 @@ export type AgentSelectionResult = {
 };
 
 /**
- * Reads {@link MessageState.respondingBots}. Ignores duplicates / invalid IDs.
+ * Reads {@link MessageConfigObject.respondingBots} from user_message triggers.
+ * For other triggers, no direct responders are selected (only makes sense for user_message triggers)
+ * Ignores duplicates / invalid IDs.
  */
 export class DirectResponderGraph extends AgentGraph {
     async selectResponders(
-        context: UnifiedSwarmContext,
-        trigger: Pick<ChatMessage, "config">,
+        context: SwarmState,
+        trigger: ConversationTrigger,
     ): Promise<AgentSelectionResult> {
         const agents = context.execution.agents;
         let respondingBotIds: string[] | undefined;
         const strategy = "direct_mention" as const;
 
-        if (trigger && trigger.config) {
-            respondingBotIds = trigger.config.respondingBots;
+        // Extract respondingBots based on trigger type
+        if (trigger.type === "user_message") {
+            respondingBotIds = trigger.message.config?.respondingBots;
         }
+        // For other triggers, there are no direct responders
+        // The event type doesn't have respondingBots in its config
 
         if (agents.length === 0 || !respondingBotIds) {
             return { responders: [], strategy };
@@ -49,48 +52,9 @@ export class DirectResponderGraph extends AgentGraph {
             return { responders: agents, strategy };
         }
 
-        const matchingAgents = agents.filter((p) => respondingBotIds!.includes(p.id)); // Non-null assertion is safe due to the check above
+        const matchingAgents = agents.filter((p) => respondingBotIds.includes(p.id));
         const uniqueAgents = Array.from(new Map(matchingAgents.map(bot => [bot.id, bot])).values());
         return { responders: uniqueAgents, strategy };
-    }
-}
-
-/**
- * conversation.meta.eventSubscriptions example:
- * {
- *   "sensor/#":        ["bot_sensor"],
- *   "irrigation/*":    ["bot_irrigator"],
- * }
- */
-export class SubscriptionGraph extends AgentGraph {
-    /**
-     * Selects bot participants that are subscribed to an event topic present in the trigger message.
-     * Subscriptions are defined in `conversation.config.eventSubscriptions`.
-     * It uses the {@link matchTopic} function to determine if a bot's subscribed pattern matches
-     * the `eventTopic` from the trigger message.
-     */
-    async selectResponders(
-        context: UnifiedSwarmContext,
-        trigger: Pick<ChatMessage, "config">,
-    ): Promise<AgentSelectionResult> {
-        let topic: string | undefined;
-        const strategy = "subscription" as const;
-
-        if (trigger && trigger.config) {
-            topic = trigger.config.eventTopic;
-        }
-        if (!topic) {
-            return { responders: [], strategy };
-        }
-
-        const subs: Record<string, string[]> = context.configuration.eventSubscriptions ?? {};
-
-        const responderIds = new Set<string>();
-        for (const [pattern, botIds] of Object.entries(subs)) {
-            if (match(pattern, topic)) botIds.forEach((id) => responderIds.add(id));
-        }
-        const selectedResponders = context.execution.agents.filter((p) => responderIds.has(p.id));
-        return { responders: selectedResponders, strategy };
     }
 }
 
@@ -119,12 +83,12 @@ export class ActiveBotGraph extends AgentGraph {
     }
 
     async selectResponders(
-        context: UnifiedSwarmContext,
-        _trigger: Pick<ChatMessage, "config">,
+        context: SwarmState,
+        _trigger: ConversationTrigger,
     ): Promise<AgentSelectionResult> {
         const strategy = "swarm_baton" as const;
 
-        const active = context.execution.activeBotId;
+        const active = context.chatConfig?.activeBotId;
         if (!active) {                         // no baton ⇒ arbitrator
             // The correct role is "arbitrator", but since this could be set by a bot, 
             // we'll be more lenient in what's considered an "arbitrator".
@@ -132,7 +96,7 @@ export class ActiveBotGraph extends AgentGraph {
             // So it's best to keep this check.
             // First, specifically look for a participant with the "arbitrator" role.
             let arb = context.execution.agents.find(p => {
-                const role = p.meta?.role;
+                const role = p.config?.agentSpec?.role;
                 return typeof role === "string" && role.trim().toLowerCase() === "arbitrator";
             });
 
@@ -140,7 +104,7 @@ export class ActiveBotGraph extends AgentGraph {
             if (!arb) {
                 const secondaryArbRoles = ["leader", "delegator", "coordinator"]; // Roles other than "arbitrator"
                 arb = context.execution.agents.find(p => {
-                    const role = p.meta?.role;
+                    const role = p.config?.agentSpec?.role;
                     if (typeof role === "string") {
                         return secondaryArbRoles.includes(role.trim().toLowerCase());
                     }
@@ -174,12 +138,7 @@ export class ActiveBotGraph extends AgentGraph {
  *     If the trigger message explicitly specifies `respondingBots` in its configuration,
  *     those bots are selected. This allows for direct addressing or commanding of specific bots.
  *
- * 2.  **Subscription-Based Responders (`SubscriptionGraph`):**
- *     If the trigger contains an `eventTopic`, bots that are subscribed to a matching topic
- *     pattern (defined in `conversation.config.eventSubscriptions`) are selected. This enables
- *     event-driven agent activation.
- *
- * 3.  **Active Bot / Arbitrator - Swarm Baton (`ActiveBotGraph`):**
+ * 2.  **Active Bot / Arbitrator - Swarm Baton (`ActiveBotGraph`):**
  *     This graph implements the OpenAI "swarm" baton pattern.
  *     - If `conversation.config.activeBotId` is set, only that bot (the "baton holder") is selected.
  *       This bot is expected to manage the conversation flow until it hands off the baton.
@@ -188,12 +147,16 @@ export class ActiveBotGraph extends AgentGraph {
  *     The `CompositeGraph` respects this mechanism, allowing the swarm itself to manage
  *     turn-taking and primary responsibility.
  *
- * 4.  **Fallback - First Participant:**
+ * 3.  **Fallback - First Participant:**
  *     If none of the above strategies yield any responders, and if there are participants
  *     in the conversation, the `CompositeGraph` will select the *first* participant from the
  *     `conversation.participants` array. This acts as a final fallback to ensure that
  *     a trigger is handled if possible, preventing messages from being dropped if other
  *     more specific routing mechanisms don't apply.
+ * 
+ * NOTE: We used to include a subscription-based responder graph, but it was removed because 
+ * the event publishing system already handles this. Event subscriptions must be handled earlier, 
+ * since they can call routines instead of responding in a conversation, and can also cancel the event.
  *
  * The overall design ensures that specific routing rules take precedence, followed by the
  * swarm's active agent or arbitrator, and finally, a general fallback, providing a robust
@@ -202,34 +165,29 @@ export class ActiveBotGraph extends AgentGraph {
 export class CompositeGraph extends AgentGraph {
     constructor(
         private readonly direct = new DirectResponderGraph(),
-        private readonly subGraph = new SubscriptionGraph(),
         private readonly activeBotGraph = new ActiveBotGraph(true),
     ) { super(); }
 
     async selectResponders(
-        context: UnifiedSwarmContext,
-        trigger: Pick<ChatMessage, "config">,
+        context: SwarmState,
+        trigger: ConversationTrigger,
     ): Promise<AgentSelectionResult> {
         // 1️⃣ explicit responders override everything
         const directResult = await this.direct.selectResponders(context, trigger);
         if (directResult.responders.length) return directResult;
 
-        // 2️⃣ topic/event subscriptions
-        const subResult = await this.subGraph.selectResponders(context, trigger);
-        if (subResult.responders.length) return subResult;
-
-        // 3️⃣ Swarm baton
+        // 2️⃣ Swarm baton
         const activeResult = await this.activeBotGraph.selectResponders(context, trigger);
         // If activeResult has responders, OR if an activeBotId was configured in the conversation
         // (meaning the baton was explicitly intended to be active), then this result from ActiveBotGraph
         // is considered definitive for the swarm step. If activeBotId was set but the bot
         // was missing, activeResult.responders will be empty, and we should return that
         // (i.e., no one responds via swarm) rather than proceeding to fallback.
-        if (activeResult.responders.length || context.execution?.activeBotId) {
+        if (activeResult.responders.length || context.chatConfig?.activeBotId) {
             return activeResult;
         }
 
-        // 4️⃣ If all else fails, just pick the first bot
+        // 3️⃣ If all else fails, just pick the first bot
         if (context.execution.agents.length) {
             return { responders: [context.execution.agents[0]], strategy: "fallback" };
         }

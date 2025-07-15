@@ -1,4 +1,5 @@
 /* c8 ignore start */
+// AI_CHECK: TYPE_SAFETY=improved-global-types | LAST: 2025-06-28
 // Defines common props
 import type { Theme } from "@mui/material";
 import { type SystemStyleObject } from "@mui/system";
@@ -41,7 +42,7 @@ export type Wrap<T, K extends string> = { [P in K]: T };
 export type IWrap<T> = { input: T }
 
 /** Extracts the arguments from a function */
-export type ArgsType<T> = T extends (...args: infer U) => any ? U : never;
+export type ArgsType<T> = T extends (...args: infer U) => unknown ? U : never;
 
 /**
  * All information required to display an award, its progress, and information about the next tier.
@@ -66,10 +67,10 @@ export type AwardDisplay = {
 declare global {
     interface Window {
         // Enable Nami integration
-        cardano: any;
+        cardano: Record<string, unknown>;
         // Enable speech recognition
-        SpeechRecognition: any
-        webkitSpeechRecognition: any
+        SpeechRecognition: typeof SpeechRecognition;
+        webkitSpeechRecognition: typeof SpeechRecognition;
     }
     // Add ID to EventTarget
     interface EventTarget { id?: string; }
@@ -174,7 +175,7 @@ export interface PageProps {
     sx?: SxType;
 }
 
-export type FormProps<Model extends OrArray<ListObject>, ModelShape extends OrArray<object>> = Omit<CrudProps<Model>, "isLoading"> & FormikProps<ModelShape> & {
+export type FormProps<Model extends OrArray<ListObject>, ModelShape extends OrArray<Record<string, unknown>>> = Omit<CrudProps<Model>, "isLoading"> & FormikProps<ModelShape> & {
     disabled: boolean;
     existing: ModelShape;
     handleUpdate: Dispatch<SetStateAction<ModelShape>>;
@@ -206,5 +207,5 @@ export type AITaskDisplay = AITaskInfo & {
     /** UI state for the tool picker: disabled, enabled, or exclusive */
     state: AITaskDisplayState;
     /** Arguments to pass to the tool */
-    arguments: Record<string, any>;
+    arguments: Record<string, unknown>;
 }

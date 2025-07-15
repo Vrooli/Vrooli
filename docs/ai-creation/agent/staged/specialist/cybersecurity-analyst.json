@@ -1,108 +1,106 @@
 {
-  "identity": {
-    "name": "cybersecurity-analyst",
-    "version": "1.0.0"
-  },
-  "goal": "Identifies vulnerabilities and security best practices",
-  "role": "specialist",
-  "subscriptions": [
-    "safety/pre_action",
-    "safety/post_action",
-    "run/failed"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "safety/pre_action",
-        "when": "event.data.action.type == 'external_api_call' || event.data.action.type == 'data_access'"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Security Scanner",
-        "inputMap": {
-          "action": "event.data.action",
-          "context": "event.data.context",
-          "threatDatabase": "blackboard.security.threats",
-          "vulnerabilities": "blackboard.security.vulnerabilities"
+    "identity": {
+        "name": "cybersecurity-analyst",
+        "version": "1.0.0"
+    },
+    "goal": "Identifies vulnerabilities and security best practices",
+    "role": "specialist",
+    "subscriptions": [
+        "safety/pre_action",
+        "safety/post_action",
+        "run/failed"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "safety/pre_action",
+                "when": "event.data.action.type == 'external_api_call' || event.data.action.type == 'data_access'"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Security Scanner",
+                "inputMap": {
+                    "action": "event.data.action",
+                    "context": "event.data.context",
+                    "threatDatabase": "blackboard.security.threats",
+                    "vulnerabilities": "blackboard.security.vulnerabilities"
+                }
+            },
+            "qos": 2
+        },
+        {
+            "trigger": {
+                "topic": "safety/post_action",
+                "when": "event.data.output.contains('password') || event.data.output.contains('key') || event.data.output.contains('token')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Detect potential security leaks in outputs and recommend secure handling practices"
+            },
+            "qos": 2
+        },
+        {
+            "trigger": {
+                "topic": "run/failed",
+                "when": "event.data.error.type == 'security_violation' || event.data.error.type == 'unauthorized'"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Threat Analyzer",
+                "inputMap": {
+                    "incident": "event.data.error",
+                    "attackPatterns": "blackboard.security.attackPatterns",
+                    "securityLogs": "blackboard.security.logs"
+                }
+            },
+            "qos": 2
         }
-      },
-      "qos": 2
-    },
-    {
-      "trigger": {
-        "topic": "safety/post_action",
-        "when": "event.data.output.contains('password') || event.data.output.contains('key') || event.data.output.contains('token')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Detect potential security leaks in outputs and recommend secure handling practices"
-      },
-      "qos": 2
-    },
-    {
-      "trigger": {
-        "topic": "run/failed",
-        "when": "event.data.error.type == 'security_violation' || event.data.error.type == 'unauthorized'"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Threat Analyzer",
-        "inputMap": {
-          "incident": "event.data.error",
-          "attackPatterns": "blackboard.security.attackPatterns",
-          "securityLogs": "blackboard.security.logs"
+    ],
+    "prompt": "You are a cybersecurity analyst focused on identifying vulnerabilities and security best practices. You MUST scan all external interactions for security threats and vulnerabilities. You are ALLOWED to block suspicious activities, implement security controls, and recommend protective measures. You must NEVER allow unencrypted secrets or sensitive data to be exposed. Prioritize proactive threat detection, secure communication protocols, and comprehensive security monitoring to protect system integrity.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "security-scanners",
+            "permissions": [
+                "read"
+            ],
+            "scope": "security.scanners",
+            "description": "Access security scanning tools and vulnerability detectors"
+        },
+        {
+            "type": "blackboard",
+            "label": "threat-databases",
+            "permissions": [
+                "read"
+            ],
+            "scope": "security.threats",
+            "description": "Read threat intelligence and vulnerability databases"
+        },
+        {
+            "type": "blackboard",
+            "label": "vulnerability-assessments",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "security.vulnerabilities",
+            "description": "Track and update vulnerability assessments"
+        },
+        {
+            "type": "routine",
+            "label": "Security Scanner",
+            "permissions": [
+                "read"
+            ],
+            "description": "Scan for security vulnerabilities and threats"
+        },
+        {
+            "type": "routine",
+            "label": "Threat Analyzer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Analyze security incidents and threat patterns"
         }
-      },
-      "qos": 2
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "scan-all-external-interactions"
-    },
-    {
-      "modality": "prohibition",
-      "target": "allow-unencrypted-secrets"
-    },
-    {
-      "modality": "permission",
-      "target": "block-suspicious-activities"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "security-scanners",
-      "permissions": ["read"],
-      "scope": "security.scanners",
-      "description": "Access security scanning tools and vulnerability detectors"
-    },
-    {
-      "type": "blackboard",
-      "label": "threat-databases",
-      "permissions": ["read"],
-      "scope": "security.threats",
-      "description": "Read threat intelligence and vulnerability databases"
-    },
-    {
-      "type": "blackboard",
-      "label": "vulnerability-assessments",
-      "permissions": ["read", "write"],
-      "scope": "security.vulnerabilities",
-      "description": "Track and update vulnerability assessments"
-    },
-    {
-      "type": "routine",
-      "label": "Security Scanner",
-      "permissions": ["read"],
-      "description": "Scan for security vulnerabilities and threats"
-    },
-    {
-      "type": "routine",
-      "label": "Threat Analyzer",
-      "permissions": ["read"],
-      "description": "Analyze security incidents and threat patterns"
-    }
-  ]
+    ]
 }

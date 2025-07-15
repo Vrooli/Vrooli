@@ -55,7 +55,7 @@ export const MemberModel: MemberModelLogic = ({
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => ModelMap.get<TeamModelLogic>("Team").validate().owner(data?.team as TeamModelInfo["DbModel"], userId),
         isDeleted: (data) => ModelMap.get<TeamModelLogic>("Team").validate().isDeleted(data.team as TeamModelInfo["DbModel"]),
-        isPublic: (...rest) => oneIsPublic<MemberModelInfo["DbSelect"]>([["team", "Team"]], ...rest),
+        isPublic: (data, getParentInfo?) => oneIsPublic<MemberModelInfo["DbSelect"]>([["team", "Team"]], data, getParentInfo),
         // Not sure which search methods are needed, so we'll add them as needed
         visibility: {
             own: null,
@@ -74,5 +74,3 @@ export const MemberModel: MemberModelLogic = ({
         },
     }),
 });
-
-// AI_CHECK: TASK_ID=fix-role-model-logic | LAST: 2025-01-29

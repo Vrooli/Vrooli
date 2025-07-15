@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId, nanoid, ReportSuggestedAction } from "@vrooli/shared";
+import { generatePublicId, nanoid, ReportSuggestedAction } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -30,6 +30,7 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
     Prisma.report_responseInclude,
     Prisma.report_responseUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
         super("report_response", prisma);
         this.initializeScenarios();
@@ -45,15 +46,15 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
     protected getFixtures(): DbTestFixtures<Prisma.report_responseCreateInput, Prisma.report_responseUpdateInput> {
         return {
             minimal: {
-                id: generatePK().toString(),
-                reportId: generatePK().toString(),
-                createdById: generatePK().toString(),
+                id: this.generateId(),
+                report: { connect: { id: this.generateId() } },
+                createdBy: { connect: { id: this.generateId() } },
                 actionSuggested: ReportSuggestedAction.NonIssue,
             },
             complete: {
-                id: generatePK().toString(),
-                reportId: generatePK().toString(),
-                createdById: generatePK().toString(),
+                id: this.generateId(),
+                report: { connect: { id: this.generateId() } },
+                createdBy: { connect: { id: this.generateId() } },
                 actionSuggested: ReportSuggestedAction.Delete,
                 details: "After reviewing the reported content, I confirm it violates our community guidelines on hate speech. The content should be removed immediately and the user warned.",
                 language: "en",
@@ -73,21 +74,21 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
                     language: 456, // Should be string
                 },
                 detailsTooLong: {
-                    id: generatePK().toString(),
-                    reportId: generatePK().toString(),
-                    createdById: generatePK().toString(),
+                    id: this.generateId(),
+                    report: { connect: { id: this.generateId() } },
+                    createdBy: { connect: { id: this.generateId() } },
                     actionSuggested: ReportSuggestedAction.Delete,
                     details: "a".repeat(8193), // Exceeds 8192 character limit
                 },
                 invalidLanguageCode: {
-                    id: generatePK().toString(),
-                    reportId: generatePK().toString(),
-                    createdById: generatePK().toString(),
+                    id: this.generateId(),
+                    report: { connect: { id: this.generateId() } },
+                    createdBy: { connect: { id: this.generateId() } },
                     actionSuggested: ReportSuggestedAction.NonIssue,
                     language: "invalid", // Should be valid ISO language code
                 },
                 duplicateResponse: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     reportId: "existing-report-id",
                     createdById: "existing-user-id", // Same user responding to same report
                     actionSuggested: ReportSuggestedAction.FalseReport,
@@ -95,51 +96,51 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
             },
             edgeCases: {
                 deleteResponse: {
-                    id: generatePK().toString(),
-                    reportId: generatePK().toString(),
-                    createdById: generatePK().toString(),
+                    id: this.generateId(),
+                    report: { connect: { id: this.generateId() } },
+                    createdBy: { connect: { id: this.generateId() } },
                     actionSuggested: ReportSuggestedAction.Delete,
                     details: "Content violates terms of service",
                 },
                 falseReportResponse: {
-                    id: generatePK().toString(),
-                    reportId: generatePK().toString(),
-                    createdById: generatePK().toString(),
+                    id: this.generateId(),
+                    report: { connect: { id: this.generateId() } },
+                    createdBy: { connect: { id: this.generateId() } },
                     actionSuggested: ReportSuggestedAction.FalseReport,
                     details: "This report is baseless and appears to be harassment",
                 },
                 hideUntilFixedResponse: {
-                    id: generatePK().toString(),
-                    reportId: generatePK().toString(),
-                    createdById: generatePK().toString(),
+                    id: this.generateId(),
+                    report: { connect: { id: this.generateId() } },
+                    createdBy: { connect: { id: this.generateId() } },
                     actionSuggested: ReportSuggestedAction.HideUntilFixed,
                     details: "Content needs minor edits to comply with guidelines",
                 },
                 nonIssueResponse: {
-                    id: generatePK().toString(),
-                    reportId: generatePK().toString(),
-                    createdById: generatePK().toString(),
+                    id: this.generateId(),
+                    report: { connect: { id: this.generateId() } },
+                    createdBy: { connect: { id: this.generateId() } },
                     actionSuggested: ReportSuggestedAction.NonIssue,
                     details: "Content does not violate any guidelines",
                 },
                 suspendUserResponse: {
-                    id: generatePK().toString(),
-                    reportId: generatePK().toString(),
-                    createdById: generatePK().toString(),
+                    id: this.generateId(),
+                    report: { connect: { id: this.generateId() } },
+                    createdBy: { connect: { id: this.generateId() } },
                     actionSuggested: ReportSuggestedAction.SuspendUser,
                     details: "Repeated violations warrant account suspension",
                 },
                 minimalDetailsResponse: {
-                    id: generatePK().toString(),
-                    reportId: generatePK().toString(),
-                    createdById: generatePK().toString(),
+                    id: this.generateId(),
+                    report: { connect: { id: this.generateId() } },
+                    createdBy: { connect: { id: this.generateId() } },
                     actionSuggested: ReportSuggestedAction.NonIssue,
                     // No details provided
                 },
                 multiLanguageResponse: {
-                    id: generatePK().toString(),
-                    reportId: generatePK().toString(),
-                    createdById: generatePK().toString(),
+                    id: this.generateId(),
+                    report: { connect: { id: this.generateId() } },
+                    createdBy: { connect: { id: this.generateId() } },
                     actionSuggested: ReportSuggestedAction.Delete,
                     details: "Este contenido viola las directrices de la comunidad",
                     language: "es",
@@ -160,9 +161,9 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.report_responseCreateInput>): Prisma.report_responseCreateInput {
         return {
-            id: generatePK().toString(),
-            reportId: generatePK().toString(),
-            createdById: generatePK().toString(),
+            id: this.generateId(),
+            report: { connect: { id: this.generateId() } },
+            createdBy: { connect: { id: this.generateId() } },
             actionSuggested: ReportSuggestedAction.NonIssue,
             ...overrides,
         };
@@ -170,9 +171,9 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
 
     protected generateCompleteData(overrides?: Partial<Prisma.report_responseCreateInput>): Prisma.report_responseCreateInput {
         return {
-            id: generatePK().toString(),
-            reportId: generatePK().toString(),
-            createdById: generatePK().toString(),
+            id: this.generateId(),
+            report: { connect: { id: this.generateId() } },
+            createdBy: { connect: { id: this.generateId() } },
             actionSuggested: ReportSuggestedAction.Delete,
             details: "After thorough review, this content clearly violates our community guidelines and should be removed.",
             language: "en",
@@ -542,7 +543,7 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createReportResponseDbFactory = (prisma: PrismaClient) => 
-    ReportResponseDbFactory.getInstance("report_response", prisma);
+    new ReportResponseDbFactory(prisma);
 
 // Export the class for type usage
 export { ReportResponseDbFactory as ReportResponseDbFactoryClass };

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { getNavigator, getNavigatorByType, getSupportedTypes } from "./navigatorFactory.js";
+import { getNavigator, getNavigatorByType, getSupportedNavigatorTypes } from "./navigatorFactory.js";
 
 describe("navigatorFactory", () => {
     describe("getNavigator", () => {
@@ -73,9 +73,9 @@ describe("navigatorFactory", () => {
         });
     });
 
-    describe("getSupportedTypes", () => {
+    describe("getSupportedNavigatorTypes", () => {
         test("should return supported types", () => {
-            const types = getSupportedTypes();
+            const types = getSupportedNavigatorTypes();
             expect(types).toEqual(["sequential", "bpmn"]);
         });
     });

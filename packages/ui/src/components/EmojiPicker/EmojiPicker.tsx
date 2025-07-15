@@ -1,6 +1,6 @@
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../buttons/IconButton.js";
 import Input from "@mui/material/Input";
 import Paper from "@mui/material/Paper";
 import Popover from "@mui/material/Popover";
@@ -389,7 +389,7 @@ async function getSuggestedAsync(): Promise<SuggestedItem[]> {
             }
         };
         
-        if ('requestIdleCallback' in window) {
+        if ("requestIdleCallback" in window) {
             window.requestIdleCallback(callback);
         } else {
             setTimeout(callback, 0);
@@ -414,7 +414,7 @@ async function saveSuggestedAsync(items: SuggestedItem[]): Promise<void> {
             resolve();
         };
         
-        if ('requestIdleCallback' in window) {
+        if ("requestIdleCallback" in window) {
             window.requestIdleCallback(callback);
         } else {
             setTimeout(callback, 0);
@@ -870,13 +870,13 @@ const SkinToneOptions = memo(({
     isSkinTonePickerOpen, 
     setActiveSkinTone, 
     setIsSkinTonePickerOpen,
-    t
+    t,
 }: {
     activeSkinTone: SkinTone;
     isSkinTonePickerOpen: boolean;
     setActiveSkinTone: (tone: SkinTone) => void;
     setIsSkinTonePickerOpen: (open: boolean) => void;
-    t: (key: string, options?: any) => string;
+    t: (key: string, options?: Record<string, unknown>) => string;
 }) => {
     const handleSkinToneClick = useCallback((skinToneValue: SkinTone, isActive: boolean) => {
         if (isSkinTonePickerOpen) {
@@ -1018,7 +1018,7 @@ export function FallbackEmojiPicker({
             
             // Filter using the pre-built search index for O(1) lookups
             const filtered = emojis.filter(emoji => 
-                filterEmojiWithIndex(searchString, emoji, searchResults)
+                filterEmojiWithIndex(searchString, emoji, searchResults),
             );
             
             result[category as CategoryTabOption] = filtered;
@@ -1130,7 +1130,7 @@ export function FallbackEmojiPicker({
                     numEmojisInCategory = suggestedEmojis.length;
                 } else {
                     numEmojisInCategory = suggestedEmojis.filter(suggestedItem =>
-                        searchResults?.has(suggestedItem.unified) ?? false
+                        searchResults?.has(suggestedItem.unified) ?? false,
                     ).length;
                 }
             } else {
@@ -1202,6 +1202,7 @@ export function FallbackEmojiPicker({
                             <IconButton
                                 aria-label={t("Search")}
                                 disabled={emojiData === null}
+                                variant="transparent"
                                 sx={searchIconButtonStyle}
                             >
                                 <IconCommon
@@ -1385,7 +1386,8 @@ export function EmojiPicker({
         <>
             <IconButton
                 aria-label={t("Add")}
-                size="small"
+                size="sm"
+                variant="transparent"
                 style={addEmojiIconButtonStyle}
                 onClick={handleButtonClick}
             >

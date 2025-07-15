@@ -5,7 +5,17 @@
  * resource hierarchy management (Swarm → Run → Step).
  */
 
-import { type ResourcePool } from "@vrooli/shared";
+import { type BranchExecution } from "@vrooli/shared";
+
+/**
+ * Resource limits for run/step allocations
+ */
+export interface RunResourceLimits {
+    credits: string;
+    timeoutMs: number;
+    memoryMB: number;
+    concurrentExecutions: number;
+}
 
 /**
  * Run-level resource allocation request
@@ -35,8 +45,8 @@ export interface RunAllocation {
     allocationId: string;
     runId: string;
     swarmId: string;
-    allocated: ResourcePool;
-    remaining: ResourcePool;
+    allocated: RunResourceLimits;
+    remaining: RunResourceLimits;
     allocatedAt: Date;
     expiresAt: Date;
 }
@@ -65,7 +75,7 @@ export interface StepAllocation {
     allocationId: string;
     stepId: string;
     runId: string;
-    allocated: ResourcePool;
+    allocated: RunResourceLimits;
     allocatedAt: Date;
     expiresAt: Date;
 }
@@ -127,4 +137,73 @@ export interface StepInfo {
     type: string;
     description?: string;
     config?: Record<string, unknown>;
+}
+
+/**
+ * Run configuration
+ */
+export interface RunConfig {
+    id: string;
+    routineId: string;
+    userId: string;
+    inputs: Record<string, unknown>;
+    metadata: Record<string, unknown>;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+/**
+ * RunExecutionContext - Comprehensive execution state for Tier 2
+ * 
+ * This type represents the complete state of a routine execution,
+ * including navigation, variables, resource tracking, and progress.
+ */
+export interface RunExecutionContext {
+    // Core identification
+    runId: string;
+    routineId: string;
+    swarmId?: string;
+
+    // Navigation state
+    navigator: any; // Dynamic navigator instance based on routine type
+    currentLocation: Location;
+    visitedLocations: Location[];
+
+    // Execution state
+    variables: Record<string, unknown>;
+    outputs: Record<string, unknown>;
+    completedSteps: string[];
+    parallelBranches: BranchExecution[];
+
+    // Swarm inheritance (optional - populated when run is part of a swarm)
+    parentContext?: any; // Reference to parent swarm context
+    availableResources?: any[]; // Resources allocated from swarm pool
+    sharedKnowledge?: Record<string, unknown>; // Shared swarm state
+
+    // Resource tracking
+    resourceLimits: {
+        maxCredits: string; // stringified BigInt
+        maxDurationMs: number;
+        maxMemoryMB: number;
+        maxSteps: number;
+    };
+    resourceUsage: {
+        creditsUsed: string; // stringified BigInt
+        durationMs: number;
+        memoryUsedMB: number;
+        stepsExecuted: number;
+        startTime: Date;
+    };
+
+    // Progress tracking
+    progress: {
+        currentStepId: string | null;
+        completedSteps: string[];
+        totalSteps: number;
+        percentComplete: number;
+    };
+
+    // Error handling
+    retryCount: number;
+    lastError?: Error | unknown;
 }

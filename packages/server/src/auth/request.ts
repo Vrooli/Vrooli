@@ -1,8 +1,8 @@
+// AI_CHECK: TYPE_SAFETY=server-phase3-1 | LAST: 2025-07-03 - Replaced Record<string, any> with Record<string, unknown> and improved getUserLanguages function type safety
 import { ApiKeyPermission, DAYS_1_S, DEFAULT_LANGUAGE, type SessionUser } from "@vrooli/shared";
 import { type Request } from "express";
 import fs from "fs";
 import { type Cluster, type Redis } from "ioredis";
-import pkg from "lodash";
 import path from "path";
 import { type Socket } from "socket.io";
 import { fileURLToPath } from "url";
@@ -12,7 +12,10 @@ import { CacheService } from "../redisConn.js";
 import { type SessionData } from "../types.js";
 import { SessionService } from "./session.js";
 
-const { escapeRegExp } = pkg;
+// Simple escape regex function since lodash.escapeRegExp is not available
+function escapeRegExp(string: string): string {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 const DEFAULT_RATE_LIMIT = 250;
 const DEFAULT_RATE_LIMIT_WINDOW_S = DAYS_1_S;
@@ -176,7 +179,7 @@ export class RequestService {
             origins.push(RequestService.localhostRegex, RequestService.localhostIpRegex);
         }
         // Split VIRTUAL_HOST by comma, trim whitespace, and remove empty entries
-        const domains = (process.env.VIRTUAL_HOST ?? "").split(",").map(d => d.trim()).filter(d => d !== "");
+        const domains = (process.env.VIRTUAL_HOST ?? "").split(",").map((d: string) => d.trim()).filter((d: string) => d !== "");
         for (const domain of domains) {
             if (!RequestService.isValidDomain(domain)) continue;
             // Hostnames are case-insensitive, so use 'i' flag
@@ -201,7 +204,7 @@ export class RequestService {
         if (process.env.NODE_ENV === "development") return true;
         const origins = this.safeOrigins();
         // Use Origin header, or fallback to Referer header if Origin is missing
-        const headers = req.headers as Record<string, any>;
+        const headers = req.headers as Record<string, unknown>;
         let originHeader = headers.origin;
         if (typeof originHeader !== "string" || !originHeader) {
             const refererHeader = headers.referer;
@@ -265,7 +268,7 @@ export class RequestService {
      * @param req The request
      * @returns A list of languages without any subtags
      */
-    static parseAcceptLanguage(req: { headers: Record<string, any> }): string[] {
+    static parseAcceptLanguage(req: { headers: Record<string, unknown> }): string[] {
         const acceptString = req.headers["accept-language"];
         // Default to english if not found or a wildcard
         if (!acceptString || typeof acceptString !== "string" || acceptString === "*") return [DEFAULT_LANGUAGE];
@@ -677,4 +680,36 @@ export class RequestService {
             }
         }
     }
+}
+
+/**
+ * Extracts user languages from user object with translations
+ */
+export function getUserLanguages(user: unknown): string[] {
+    if (!user || typeof user !== "object" || user === null) {
+        return [DEFAULT_LANGUAGE];
+    }
+    
+    const userObj = user as Record<string, unknown>;
+    const translations = userObj.translations;
+    
+    if (!translations || !Array.isArray(translations)) {
+        return [DEFAULT_LANGUAGE];
+    }
+    
+    const languages = translations
+        .map((translation: unknown) => {
+            if (typeof translation === "object" && translation !== null) {
+                const translationObj = translation as Record<string, unknown>;
+                const language = translationObj.language;
+                if (typeof language === "object" && language !== null) {
+                    const languageObj = language as Record<string, unknown>;
+                    return languageObj.locale;
+                }
+            }
+            return undefined;
+        })
+        .filter((locale: unknown): locale is string => typeof locale === "string");
+    
+    return languages.length > 0 ? languages : [DEFAULT_LANGUAGE];
 }

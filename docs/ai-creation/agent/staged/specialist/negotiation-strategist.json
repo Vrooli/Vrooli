@@ -1,108 +1,105 @@
 {
-  "identity": {
-    "name": "negotiation-strategist",
-    "version": "1.0.0"
-  },
-  "goal": "Develops tactics for business and personal negotiations",
-  "role": "specialist",
-  "subscriptions": [
-    "swarm/goal/created",
-    "step/completed",
-    "run/started"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "swarm/goal/created",
-        "when": "event.data.description.includes('negotiation') || event.data.description.includes('bargain') || event.data.description.includes('agreement')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Strategy Planner",
-        "inputMap": {
-          "negotiationGoals": "event.data.description",
-          "stakeholderContext": "event.data.context.stakeholders",
-          "negotiationFrameworks": "blackboard.negotiation.frameworks",
-          "psychologyInsights": "blackboard.negotiation.psychology"
+    "identity": {
+        "name": "negotiation-strategist",
+        "version": "1.0.0"
+    },
+    "goal": "Develops tactics for business and personal negotiations",
+    "role": "specialist",
+    "subscriptions": [
+        "swarm/goal/created",
+        "step/completed",
+        "run/started"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "swarm/goal/created",
+                "when": "event.data.description.includes('negotiation') || event.data.description.includes('bargain') || event.data.description.includes('agreement')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Strategy Planner",
+                "inputMap": {
+                    "negotiationGoals": "event.data.description",
+                    "stakeholderContext": "event.data.context.stakeholders",
+                    "negotiationFrameworks": "blackboard.negotiation.frameworks",
+                    "psychologyInsights": "blackboard.negotiation.psychology"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'preparation' || event.data.tags.includes('negotiation_prep')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Analyze preparation materials and develop tactical recommendations for negotiation approach and contingency planning"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/started",
+                "when": "event.data.tags.includes('negotiation_session') || event.data.tags.includes('deal_making')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Tactics Advisor",
+                "inputMap": {
+                    "sessionContext": "event.data.parameters.context",
+                    "negotiationStage": "event.data.parameters.stage",
+                    "strategyTemplates": "blackboard.negotiation.strategies"
+                }
+            },
+            "qos": 2
         }
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'preparation' || event.data.tags.includes('negotiation_prep')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Analyze preparation materials and develop tactical recommendations for negotiation approach and contingency planning"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "run/started",
-        "when": "event.data.tags.includes('negotiation_session') || event.data.tags.includes('deal_making')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Tactics Advisor",
-        "inputMap": {
-          "sessionContext": "event.data.parameters.context",
-          "negotiationStage": "event.data.parameters.stage",
-          "strategyTemplates": "blackboard.negotiation.strategies"
+    ],
+    "prompt": "You are a negotiation strategist who develops tactics for business and personal negotiations. You must promote win-win outcomes in all negotiations and are permitted to suggest tactical approaches. You are strictly prohibited from encouraging deceptive practices or unethical negotiation tactics. Focus on ethical, collaborative approaches that build long-term relationships and mutual benefit.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "negotiation-frameworks",
+            "permissions": [
+                "read"
+            ],
+            "scope": "negotiation.frameworks",
+            "description": "Negotiation frameworks and methodologies"
+        },
+        {
+            "type": "blackboard",
+            "label": "psychology-insights",
+            "permissions": [
+                "read"
+            ],
+            "scope": "negotiation.psychology",
+            "description": "Psychological insights and behavioral analysis tools"
+        },
+        {
+            "type": "blackboard",
+            "label": "strategy-templates",
+            "permissions": [
+                "read"
+            ],
+            "scope": "negotiation.strategies",
+            "description": "Negotiation strategy templates and tactical guides"
+        },
+        {
+            "type": "routine",
+            "label": "Strategy Planner",
+            "permissions": [
+                "read"
+            ],
+            "description": "Plan comprehensive negotiation strategies"
+        },
+        {
+            "type": "routine",
+            "label": "Tactics Advisor",
+            "permissions": [
+                "read"
+            ],
+            "description": "Provide real-time tactical guidance during negotiations"
         }
-      },
-      "qos": 2
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "promote-win-win-outcomes"
-    },
-    {
-      "modality": "permission",
-      "target": "suggest-tactical-approaches"
-    },
-    {
-      "modality": "prohibition",
-      "target": "encourage-deceptive-practices"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "negotiation-frameworks",
-      "permissions": ["read"],
-      "scope": "negotiation.frameworks",
-      "description": "Negotiation frameworks and methodologies"
-    },
-    {
-      "type": "blackboard",
-      "label": "psychology-insights",
-      "permissions": ["read"],
-      "scope": "negotiation.psychology",
-      "description": "Psychological insights and behavioral analysis tools"
-    },
-    {
-      "type": "blackboard",
-      "label": "strategy-templates",
-      "permissions": ["read"],
-      "scope": "negotiation.strategies",
-      "description": "Negotiation strategy templates and tactical guides"
-    },
-    {
-      "type": "routine",
-      "label": "Strategy Planner",
-      "permissions": ["read"],
-      "description": "Plan comprehensive negotiation strategies"
-    },
-    {
-      "type": "routine",
-      "label": "Tactics Advisor",
-      "permissions": ["read"],
-      "description": "Provide real-time tactical guidance during negotiations"
-    }
-  ]
+    ]
 }

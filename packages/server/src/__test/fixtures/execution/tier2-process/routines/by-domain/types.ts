@@ -4,9 +4,9 @@
  * Provides type-safe interfaces for all routine fixture configurations
  */
 
-import type { 
+import type {
+    ResourceSubType,
     RoutineVersionConfigObject,
-    ResourceSubType, 
 } from "@vrooli/shared";
 
 /**
@@ -48,9 +48,9 @@ export interface RoutineFixture {
  */
 export function isRoutineFixture(obj: unknown): obj is RoutineFixture {
     if (typeof obj !== "object" || obj === null) return false;
-    
+
     const fixture = obj as Record<string, unknown>;
-    
+
     return (
         typeof fixture.id === "string" &&
         typeof fixture.name === "string" &&
@@ -108,8 +108,3 @@ export interface RoutineStats {
  * Category type for routine filtering
  */
 export type RoutineCategory = "security" | "medical" | "performance" | "system" | "bpmn" | "api_bootstrap" | "document_bootstrap" | "data_transformation";
-
-/**
- * Execution strategy type
- */
-export type ExecutionStrategy = "reasoning" | "deterministic" | "conversational" | "auto";

@@ -1,17 +1,17 @@
+import { styled, useTheme } from "@mui/material";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Checkbox from "@mui/material/Checkbox";
-import Divider from "@mui/material/Divider";
 import FormControl from "@mui/material/FormControl";
-import FormControlLabel from "@mui/material/FormControlLabel";
 import FormHelperText from "@mui/material/FormHelperText";
 import Link from "@mui/material/Link";
 import Typography from "@mui/material/Typography";
 import { alpha } from "@mui/material/styles";
-import { styled, useTheme } from "@mui/material";
+import { Button } from "../../components/buttons/Button.js";
+import { Checkbox } from "../../components/inputs/Checkbox.js";
+import { Divider } from "../../components/layout/Divider.js";
+import { FormControlLabel } from "../../components/inputs/FormControlLabel.js";
 import { BUSINESS_NAME, LINKS, emailSignUpFormValidation, endpointsAuth, type EmailSignUpInput, type Session } from "@vrooli/shared";
-import { Field, Formik, type FormikHelpers } from "formik";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { Field, Formik, type FormikHelpers, type FormikProps } from "formik";
+import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { ServerResponseParser } from "../../api/responseParser.js";
@@ -22,7 +22,6 @@ import { TextInput } from "../../components/inputs/TextInput/TextInput.js";
 import { TopBar } from "../../components/navigation/TopBar.js";
 import { SessionContext } from "../../contexts/session.js";
 import { InnerForm } from "../../forms/BaseForm/BaseForm.js";
-import { formSubmit } from "../../forms/styles.js";
 import { useLazyFetch } from "../../hooks/useFetch.js";
 import { useReactSearch } from "../../hooks/useReactSearch.js";
 import { IconFavicon } from "../../icons/Icons.js";
@@ -36,11 +35,11 @@ import { setupPush } from "../../utils/push.js";
 import { type SignupViewProps } from "../../views/types.js";
 import { AuthContainer, AuthFormContainer, FormSection, OAUTH_PROVIDERS_INFO, OAuthButton, OAuthContainer, OAuthSection, OrDivider, OuterAuthFormContainer, baseFormStyle, breadcrumbsStyle, emailStartAdornment, nameStartAdornment, oAuthSpanStyle } from "./authStyles.js";
 
-type FormInput = EmailSignUpInput & {
+export type SignupViewFormInput = EmailSignUpInput & {
     agreeToTerms: boolean;
 }
 
-const initialValues: FormInput = {
+const initialValues: SignupViewFormInput = {
     agreeToTerms: false,
     marketingEmails: true,
     name: "",
@@ -54,25 +53,25 @@ const agreementTextStyle = {
     fontStyle: "italic",
     margin: 0,
 } as const;
-const StyledSignUpButton = styled(Button)(({ theme }) => ({
-    ...formSubmit,
-    background: `linear-gradient(45deg, ${theme.palette.secondary.main}, ${theme.palette.primary.main})`,
-    borderRadius: theme.spacing(2),
-    fontSize: "1.1rem",
-    padding: "12px",
-    textTransform: "none",
-    fontWeight: 600,
-    transition: "all 0.3s ease",
-    "& .MuiTouchRipple-root": {
-        transition: "transform 0.3s ease",
-    },
-    "&:hover": {
-        background: `linear-gradient(45deg, ${theme.palette.secondary.dark}, ${theme.palette.primary.dark})`,
-        // eslint-disable-next-line no-magic-numbers
-        boxShadow: `0 8px 20px ${alpha(theme.palette.secondary.main, 0.4)}`,
-        transform: "scale(1.05)",
-    },
-}));
+// Custom sign up button component using Tailwind Button
+function StyledSignUpButton({ children, ...props }: React.ComponentProps<typeof Button>) {
+    const theme = useTheme();
+    const SHADOW_ALPHA = 0.3;
+    const buttonStyle = {
+        boxShadow: `0 4px 15px ${alpha(theme.palette.secondary.main, SHADOW_ALPHA)}`,
+    };
+    return (
+        <Button
+            {...props}
+            variant="primary"
+            size="lg"
+            className="w-full bg-gradient-to-r from-secondary-500 to-primary-500 hover:from-secondary-600 hover:to-primary-600 text-lg font-semibold transition-all duration-300 hover:scale-105 hover:shadow-lg rounded-2xl"
+            style={buttonStyle}
+        >
+            {children}
+        </Button>
+    );
+}
 const StyledOuterAuthFormContainer = styled(OuterAuthFormContainer)(({ theme }) => ({
     marginBottom: 0,
 }));
@@ -88,6 +87,119 @@ const BREADCRUMB_PATHS = [
         link: LINKS.ForgotPassword,
     },
 ] as const;
+
+/**
+ * SignupFormFields Component
+ * 
+ * Extracted form fields for better testability.
+ * This component contains just the form fields and their layout,
+ * while SignupForm handles the Formik wrapper and submission logic.
+ */
+interface SignupFormFieldsProps {
+    formik: FormikProps<SignupViewFormInput>;
+    inputFieldStyle?: Record<string, unknown>;
+}
+
+export function SignupFormFields({
+    formik,
+    inputFieldStyle = {},
+}: SignupFormFieldsProps) {
+    const { t } = useTranslation();
+
+    return (
+        <>
+            <Field
+                fullWidth
+                autoComplete="name"
+                id="name"
+                name="name"
+                label={t("Name")}
+                placeholder={t("NamePlaceholder")}
+                as={TextInput}
+                startAdornment={nameStartAdornment.startAdornment}
+            />
+            <Field
+                fullWidth
+                autoComplete="email"
+                id="email"
+                name="email"
+                label={t("Email", { count: 1 })}
+                placeholder={t("EmailPlaceholder")}
+                as={TextInput}
+                startAdornment={emailStartAdornment.startAdornment}
+                helperText={formik.touched.email && formik.errors.email}
+                error={formik.touched.email && Boolean(formik.errors.email)}
+            />
+            <Divider />
+            <PasswordTextInput
+                fullWidth
+                name="password"
+                autoComplete="new-password"
+                label={t("Password")}
+            />
+            <PasswordTextInput
+                fullWidth
+                name="confirmPassword"
+                autoComplete="new-password"
+                label={t("PasswordConfirm")}
+            />
+            <Box>
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            id="marketingEmails"
+                            name="marketingEmails"
+                            color="secondary"
+                            checked={Boolean(formik.values.marketingEmails)}
+                            onBlur={formik.handleBlur}
+                            onChange={formik.handleChange}
+                            aria-label="Send me updates and offers"
+                        />
+                    }
+                    label={
+                        <Typography variant="caption">
+                            Send me updates and offers
+                        </Typography>
+                    }
+                />
+                <FormControl required error={!formik.values.agreeToTerms && formik.touched.agreeToTerms}>
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                id="agreeToTerms"
+                                name="agreeToTerms"
+                                color="secondary"
+                                checked={Boolean(formik.values.agreeToTerms)}
+                                onBlur={formik.handleBlur}
+                                onChange={formik.handleChange}
+                                aria-label="I agree to the terms"
+                            />
+                        }
+                        label={
+                            <Typography variant="caption">
+                                I agree to the{" "}
+                                <Link
+                                    href={LINKS.Terms}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={stopPropagation}
+                                >
+                                    terms
+                                </Link>
+                                .
+                            </Typography>
+                        }
+                    />
+                    {!formik.values.agreeToTerms && formik.touched.agreeToTerms && (
+                        <FormHelperText component="p" sx={agreementTextStyle}>
+                            Please accept the terms to continue
+                        </FormHelperText>
+                    )}
+                </FormControl>
+            </Box>
+        </>
+    );
+}
 
 function SignupForm() {
     const session = useContext(SessionContext);
@@ -125,7 +237,7 @@ function SignupForm() {
         link: path.link,
     })), [t]);
 
-    const onSubmit = useCallback(function onSubmitCallback(values: FormInput, helpers: FormikHelpers<FormInput>) {
+    const onSubmit = useCallback(function onSubmitCallback(values: SignupViewFormInput, helpers: FormikHelpers<SignupViewFormInput>) {
         if (values.password !== values.confirmPassword) {
             PubSub.get().publish("snack", { messageKey: "PasswordsDontMatch", severity: "Error" });
             helpers.setSubmitting(false);
@@ -203,101 +315,15 @@ function SignupForm() {
                                 style={baseFormStyle}
                             >
                                 <FormSection>
-                                    <Field
-                                        fullWidth
-                                        autoComplete="name"
-                                        name="name"
-                                        label={t("Name")}
-                                        placeholder={t("NamePlaceholder")}
-                                        as={TextInput}
-                                        InputProps={nameStartAdornment}
-                                        sx={inputFieldStyle}
+                                    <SignupFormFields
+                                        formik={formik}
+                                        inputFieldStyle={inputFieldStyle}
                                     />
-                                    <Field
-                                        fullWidth
-                                        autoComplete="email"
-                                        name="email"
-                                        label={t("Email", { count: 1 })}
-                                        placeholder={t("EmailPlaceholder")}
-                                        as={TextInput}
-                                        InputProps={emailStartAdornment}
-                                        sx={inputFieldStyle}
-                                        helperText={formik.touched.email && formik.errors.email}
-                                        error={formik.touched.email && Boolean(formik.errors.email)}
-                                    />
-                                    <Divider />
-                                    <PasswordTextInput
-                                        fullWidth
-                                        name="password"
-                                        autoComplete="new-password"
-                                        label={t("Password")}
-                                    />
-                                    <PasswordTextInput
-                                        fullWidth
-                                        name="confirmPassword"
-                                        autoComplete="new-password"
-                                        label={t("PasswordConfirm")}
-                                    />
-                                    <Box>
-                                        <FormControlLabel
-                                            control={
-                                                <Checkbox
-                                                    id="marketingEmails"
-                                                    name="marketingEmails"
-                                                    color="secondary"
-                                                    checked={Boolean(formik.values.marketingEmails)}
-                                                    onBlur={formik.handleBlur}
-                                                    onChange={formik.handleChange}
-                                                />
-                                            }
-                                            label={
-                                                <Typography variant="caption">
-                                                    Send me updates and offers
-                                                </Typography>
-                                            }
-                                        />
-                                        <FormControl required error={!formik.values.agreeToTerms && formik.touched.agreeToTerms}>
-                                            <FormControlLabel
-                                                control={
-                                                    <Checkbox
-                                                        id="agreeToTerms"
-                                                        name="agreeToTerms"
-                                                        color="secondary"
-                                                        checked={Boolean(formik.values.agreeToTerms)}
-                                                        onBlur={formik.handleBlur}
-                                                        onChange={formik.handleChange}
-                                                    />
-                                                }
-                                                label={
-                                                    <Typography variant="caption">
-                                                        I agree to the{" "}
-                                                        <Link
-                                                            href={LINKS.Terms}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            onClick={stopPropagation}
-                                                        >
-                                                            terms
-                                                        </Link>
-                                                        .
-                                                    </Typography>
-                                                }
-                                            />
-                                            {!formik.values.agreeToTerms && formik.touched.agreeToTerms && (
-                                                <FormHelperText component="p" sx={agreementTextStyle}>
-                                                    Please accept the terms to continue
-                                                </FormHelperText>
-                                            )}
-                                        </FormControl>
-                                    </Box>
                                     <Box display="flex" flexDirection="column">
                                         <StyledSignUpButton
                                             id="sign-up-button"
-                                            fullWidth
                                             disabled={loading}
                                             type="submit"
-                                            color="secondary"
-                                            variant="contained"
                                         >
                                             {t("SignUp")}
                                         </StyledSignUpButton>

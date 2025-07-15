@@ -14,7 +14,7 @@ OUTPUT RULES:
   – choose `"routine"` when the reaction must run deterministically
   – choose `"invoke"` when the agent should think first
 • Refer to routines **by the exact name** listed in the AVAILABLE_ROUTINES table
-• You may create up to 3 behaviours per agent
+• You may create up to 3 behaviors per agent
 • Keep it minimal; omit optional fields unless they add clear value
 
 QOS (QUALITY OF SERVICE) LEVELS:
@@ -82,12 +82,23 @@ RESOURCES (use ResourceSpec format with type, label, permissions, scope, descrip
 - Keep resources focused and relevant to the agent's role
 - IMPORTANT: Each resource must have a UNIQUE label within the agent (no duplicates)
 
+PROMPT GUIDANCE:
+- ALWAYS use "source": "direct" (never "resource")
+- ALWAYS use "mode": "supplement" (NEVER "replace" - this preserves core swarm functionality)
+- The supplement mode adds agent-specific guidance on top of default prompting that explains:
+  - How to use swarm tools and subscribe to events
+  - How to interact with the blackboard and other agents
+  - Core safety and coordination protocols
+- Provide natural language guidance that captures behavioral constraints
+- Convert any modality-based rules (obligations/permissions/prohibitions) to clear instructions
+- Keep prompts concise but specific about expected behaviors
+
 {{RESOURCE_HINTS}}
 
 Constraints
 1. Name must be unique within the swarm.
 2. The first behaviour **must** address the primary subscription topic.
-3. Norms are optional but, if provided, should be < 3 and use simple verbs.
+3. Prompt is optional but should provide clear natural language guidance for agent behavior.
 
 Return only JSON inside a single ```json code-block``` and nothing else.
 
@@ -101,8 +112,8 @@ interface AgentSpec {
   goal: string;
   role: string;
   subscriptions: string[];
-  behaviours: BehaviourSpec[];
-  norms?: { modality:"obligation"|"permission"|"prohibition"; target:string }[];
+  behaviors: BehaviourSpec[];
+  prompt?: { mode: "supplement"; source: "direct"; content: string };
   resources?: ResourceSpec[];
 }
 interface BehaviourSpec {

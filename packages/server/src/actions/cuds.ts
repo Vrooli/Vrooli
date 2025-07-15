@@ -1,5 +1,5 @@
-import { generatePK, type ModelType, type SessionUser, validatePK, type YupMutateParams } from "@vrooli/shared";
 import { type PrismaPromise } from "@prisma/client";
+import { generatePK, type ModelType, type SessionUser, validatePK, type YupMutateParams } from "@vrooli/shared";
 import { type AnyObjectSchema, ValidationError as YupError } from "yup";
 import { InfoConverter } from "../builders/infoConverter.js";
 import { type PartialApiInfo, type PrismaCreate, type PrismaDelegate, type PrismaUpdate } from "../builders/types.js";
@@ -91,7 +91,7 @@ async function validateAndCastInputs(inputData: CudInputData[]): Promise<void> {
                     action,
                     errors: fieldErrors,
                     context: {
-                        inputKeys: Object.keys(input),
+                        inputKeys: typeof input === "object" && input !== null ? Object.keys(input) : [],
                         errorCount: fieldErrors.length,
                         firstErrorMessage: err.message,
                     },
@@ -123,7 +123,8 @@ export function convertCreateIds(inputData: CudInputData[]) {
     const placeholderToSnowflakeMap = new Map<string, bigint>();
 
     // Pass 1: Collect all placeholder IDs from 'Create' inputs and map them to new Snowflakes.
-    function collectPlaceholderIdsRecursive(obj: any, action: CudInputData["action"]) {
+    // AI_CHECK: TYPE_SAFETY=server-actions-cuds-type-safety-maintenance-1 | LAST: 2025-07-03 - Replaced any parameter with Record<string, unknown> and added return type
+    function collectPlaceholderIdsRecursive(obj: unknown, action: CudInputData["action"]): void {
         if (!obj || typeof obj !== "object") {
             return;
         }
@@ -135,17 +136,20 @@ export function convertCreateIds(inputData: CudInputData[]) {
             return;
         }
 
+        // Cast to Record<string, unknown> after type narrowing
+        const record = obj as Record<string, unknown>;
+
         // For 'Create' actions, if we find an 'id' field that's a placeholder, map it.
-        if (action === "Create" && Object.prototype.hasOwnProperty.call(obj, "id")) {
-            const currentId = String(obj.id); // Ensure obj.id is treated as a string
+        if (action === "Create" && Object.prototype.hasOwnProperty.call(record, "id")) {
+            const currentId = String(record.id); // Ensure obj.id is treated as a string
             if (!validatePK(currentId) && !placeholderToSnowflakeMap.has(currentId)) {
                 placeholderToSnowflakeMap.set(currentId, generatePK());
             }
         }
 
         // Recurse for other properties
-        for (const key of Object.keys(obj)) {
-            collectPlaceholderIdsRecursive(obj[key], action);
+        for (const key of Object.keys(record)) {
+            collectPlaceholderIdsRecursive(record[key], action);
         }
     }
 
@@ -158,7 +162,8 @@ export function convertCreateIds(inputData: CudInputData[]) {
     // Pass 2: Recursively replace all placeholder IDs (keys in the map) with their Snowflake values.
     // This pass also handles replacing foreign key references in Update/Create inputs.
     // It creates new objects/arrays to avoid in-place modification issues.
-    function replacePlaceholdersRecursive(obj: any): any {
+    // AI_CHECK: TYPE_SAFETY=server-actions-cuds-type-safety-maintenance-1 | LAST: 2025-07-03 - Replaced any types with unknown
+    function replacePlaceholdersRecursive(obj: unknown): unknown {
         if (typeof obj === "string") {
             const snowflake = placeholderToSnowflakeMap.get(obj);
             return snowflake ? snowflake.toString() : obj;
@@ -194,7 +199,9 @@ export function convertCreateIds(inputData: CudInputData[]) {
     }
 
     for (let i = 0; i < inputData.length; i++) {
-        inputData[i].input = replacePlaceholdersRecursive(inputData[i].input);
+        const current = inputData[i];
+        const transformed = replacePlaceholdersRecursive(current.input);
+        current.input = transformed as typeof current.input;
     }
 
     return placeholderToSnowflakeMap;
@@ -268,7 +275,7 @@ async function buildOperations(
 
     for (const [objectType, { Create, Update, Delete }] of Object.entries(topInputsByType)) {
         const { dbTable, idField, mutate } = ModelMap.getLogic(["dbTable", "idField", "mutate"], objectType as ModelType, true, "cudHelper loop");
-        const deletingIds = Delete.map(({ input }) => input);
+        const deletingIds = Delete.map(({ input }) => String(input));
 
         // Calculate select object once per type, default if empty
         let select = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo)?.select;
@@ -319,7 +326,7 @@ async function buildOperations(
             }
 
             // Verify that the "where" object is valid
-            const where = { id: typeof input === "string" ? input : input.id };
+            const where = { id: typeof input === "string" ? input : (typeof input === "object" && input !== null && "id" in input ? (input as any).id : undefined) };
             if (typeof where.id !== "string") {
                 logger.error(`[buildOperations] Invalid where object for update operation: ${JSON.stringify({ objectType, input, where })}`, { trace: "0802" });
                 throw new CustomError("0802", "InternalError", { objectType });
@@ -345,7 +352,7 @@ async function buildOperations(
                         where: { [idField]: { in: deletingIds } },
                         select: { id: true },
                     })
-                    .then((records) => records.map(({ id }) => id));
+                    .then((records) => records.map(({ id }) => id as string));
 
                 deletedIdsByType[objectType as ModelType] = existingIds;
 

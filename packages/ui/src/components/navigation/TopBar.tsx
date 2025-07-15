@@ -19,17 +19,23 @@ export const TopBar = forwardRef(({
         <DialogTitle
             ref={ref}
             id={titleData?.titleId ?? randomString()}
+            data-testid="topbar-dialog"
+            data-display-type={display}
             {...titleData}
         />
     );
     if (display === ViewDisplayType.Partial) return (
         <PartialNavbar
+            data-testid="topbar-partial"
+            data-display-type={display}
             {...titleData}
         />
     );
     return (
         <Navbar
             titleBehavior={titleBehavior}
+            data-testid="topbar-page"
+            data-display-type={display}
             {...titleData}
         />
     );

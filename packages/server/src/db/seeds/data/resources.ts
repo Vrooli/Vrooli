@@ -1,5 +1,6 @@
-import { CodeLanguage, CodeVersionConfig, DEFAULT_LANGUAGE, FormElement, FormStructureType, InputType, nanoid, ResourceSubType, ResourceType, RoutineVersionConfig, SEEDED_PUBLIC_IDS, SEEDED_TAGS, StandardVersionConfig } from "@vrooli/shared";
-import { ResourceImportData } from "../../../builders/importExport.js";
+// AI_CHECK: TASK_ID=type-safety-fixes | LAST: 2025-07-03
+import { CodeLanguage, CodeVersionConfig, DEFAULT_LANGUAGE, type FormElement, FormStructureType, InputType, nanoid, ResourceSubType, ResourceType, RoutineVersionConfig, SEEDED_PUBLIC_IDS, SEEDED_TAGS, StandardVersionConfig } from "@vrooli/shared";
+import type { ResourceImportData } from "../../../builders/importExport.js";
 
 const VERSION = "1.0.0" as const;
 const CODE_LANGUAGE = CodeLanguage.Javascript;

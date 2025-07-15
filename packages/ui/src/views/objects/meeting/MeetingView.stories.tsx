@@ -1,7 +1,9 @@
+// AI_CHECK: TYPE_SAFETY=fixed-6-type-assertions | LAST: 2025-07-01
 /* eslint-disable no-magic-numbers */
 import { DUMMY_ID, MeetingInviteStatus, endpointsMeeting, generatePK, getObjectUrl, type Meeting } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
+import { getMockUrl, getStoryRoutePath } from "../../../__test/helpers/storybookMocking.js";
 import { MeetingView } from "./MeetingView.js";
 
 // Create simplified mock data for Meeting responses
@@ -20,10 +22,12 @@ const mockMeetingData: Meeting = {
             updatedAt: new Date().toISOString(),
             status: MeetingInviteStatus.Pending,
             message: "Please join our weekly planning meeting",
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             meeting: {} as any, // This will be set by the circular reference
             user: {
                 __typename: "User" as const,
                 id: generatePK().toString(),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any,
             you: {
                 __typename: "MeetingInviteYou" as const,
@@ -54,11 +58,13 @@ const mockMeetingData: Meeting = {
                 interval: 1, // Every week
                 month: null,
                 recurrenceType: "Weekly",
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 schedule: {} as any, // This will be set by the circular reference
             },
         ],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any,
     showOnTeamProfile: true,
     team: {
@@ -82,8 +88,10 @@ const mockMeetingData: Meeting = {
                 id: generatePK().toString(),
                 isAdmin: true,
                 permissions: "{}",
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any,
         },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any,
     translations: [
         {
@@ -127,7 +135,7 @@ Loading.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsMeeting.findOne.endpoint}`, async () => {
+            http.get(getMockUrl(endpointsMeeting.findOne), async () => {
                 // Delay the response to simulate loading
                 const LOADING_DELAY = 120_000; // 2 minutes delay
                 await new Promise(resolve => setTimeout(resolve, LOADING_DELAY));
@@ -136,7 +144,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockMeetingData)}`,
+        path: getStoryRoutePath(mockMeetingData),
     },
 };
 
@@ -149,13 +157,13 @@ SignInWithResults.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsMeeting.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsMeeting.findOne), () => {
                 return HttpResponse.json({ data: mockMeetingData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockMeetingData)}`,
+        path: getStoryRoutePath(mockMeetingData),
     },
 };
 
@@ -168,12 +176,12 @@ LoggedOutWithResults.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsMeeting.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsMeeting.findOne), () => {
                 return HttpResponse.json({ data: mockMeetingData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockMeetingData)}`,
+        path: getStoryRoutePath(mockMeetingData),
     },
 }; 

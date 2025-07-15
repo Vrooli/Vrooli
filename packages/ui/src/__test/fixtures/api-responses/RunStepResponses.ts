@@ -4,18 +4,18 @@
  * This file provides comprehensive API response fixtures for run step endpoints.
  * It includes success responses, error responses, and MSW handlers for testing.
  */
+// AI_CHECK: TYPE_SAFETY=fixed-runstep-types | LAST: 2025-07-02 - Fixed RunStep type usage and MSW v2 syntax
 
-import { http, type RestHandler } from "msw";
+import { http, HttpResponse, type RequestHandler } from "msw";
 import type { 
     RunStep,
-    RunProjectStep,
-    RunRoutineStep,
     RunStepStatus,
+    RunStepCreateInput,
+    RunStepUpdateInput,
+    ResourceVersion,
+    Run,
 } from "@vrooli/shared";
-import { 
-    runStepValidation,
-    RunStepStatus as RunStepStatusEnum, 
-} from "@vrooli/shared";
+import { RunStepStatus as RunStepStatusEnum } from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -75,14 +75,14 @@ export class RunStepResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique run step ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -109,16 +109,11 @@ export class RunStepResponseFactory {
     private getRelatedLinks(runStep: RunStep): Record<string, string> {
         const links: Record<string, string> = {};
         
-        if (runStep.__typename === "RunRoutineStep" && runStep.runRoutine) {
-            links.runRoutine = `${this.baseUrl}/api/run/${runStep.runRoutine.id}`;
-            if (runStep.step) {
-                links.step = `${this.baseUrl}/api/routine-step/${runStep.step.id}`;
-            }
-        } else if (runStep.__typename === "RunProjectStep" && runStep.runProject) {
-            links.runProject = `${this.baseUrl}/api/run-project/${runStep.runProject.id}`;
-            if (runStep.directory) {
-                links.directory = `${this.baseUrl}/api/project-directory/${runStep.directory.id}`;
-            }
+        if (runStep.resourceVersion) {
+            links.resourceVersion = `${this.baseUrl}/api/resource-version/${runStep.resourceVersion.id}`;
+        }
+        if (runStep.nodeId) {
+            links.node = `${this.baseUrl}/api/node/${runStep.nodeId}`;
         }
         
         return links;
@@ -256,90 +251,26 @@ export class RunStepResponseFactory {
     }
     
     /**
-     * Create mock routine run step data
+     * Create mock run step data
      */
-    createMockRoutineRunStep(overrides?: Partial<RunRoutineStep>): RunRoutineStep {
+    createMockRunStep(overrides?: Partial<RunStep>): RunStep {
         const now = new Date().toISOString();
         const id = this.generateId();
         
-        const defaultStep: RunRoutineStep = {
-            __typename: "RunRoutineStep",
+        const defaultStep: RunStep = {
+            __typename: "RunStep",
             id,
-            order: 1,
-            contextSwitches: 0,
-            startedAt: null,
             completedAt: null,
-            timeElapsed: null,
-            status: RunStepStatusEnum.NotStarted,
-            runRoutine: {
-                __typename: "RunRoutine",
-                id: `run_${id}`,
-                completedAt: null,
-                startedAt: now,
-                isPrivate: false,
-                timeElapsed: 0,
-                title: "Test Run",
-                runProject: null,
-                steps: [],
-                inputs: [],
-                outputs: [],
-            },
-            step: {
-                __typename: "RoutineVersionStep",
-                id: `step_${id}`,
-                index: 0,
-                name: "Test Step",
-                optional: false,
-                translations: [{
-                    __typename: "RoutineVersionStepTranslation",
-                    id: `trans_${id}`,
-                    language: "en",
-                    description: "Test step description",
-                    title: "Test Step",
-                }],
-            },
-        };
-        
-        return {
-            ...defaultStep,
-            ...overrides,
-        };
-    }
-    
-    /**
-     * Create mock project run step data
-     */
-    createMockProjectRunStep(overrides?: Partial<RunProjectStep>): RunProjectStep {
-        const now = new Date().toISOString();
-        const id = this.generateId();
-        
-        const defaultStep: RunProjectStep = {
-            __typename: "RunProjectStep",
-            id,
-            order: 1,
+            complexity: 1,
             contextSwitches: 0,
+            name: "Test Step",
+            nodeId: `node_${id}`,
+            order: 1,
+            resourceInId: null,
+            resourceVersion: null,
             startedAt: null,
-            completedAt: null,
+            status: RunStepStatusEnum.InProgress,
             timeElapsed: null,
-            status: RunStepStatusEnum.NotStarted,
-            runProject: {
-                __typename: "RunProject",
-                id: `project_${id}`,
-                completedAt: null,
-                startedAt: now,
-                isPrivate: false,
-                timeElapsed: 0,
-                title: "Test Project Run",
-                steps: [],
-            },
-            directory: {
-                __typename: "ProjectVersionDirectory",
-                id: `dir_${id}`,
-                created_at: now,
-                updated_at: now,
-                isRoot: false,
-                childOrder: 0,
-            },
         };
         
         return {
@@ -353,21 +284,19 @@ export class RunStepResponseFactory {
      */
     createRunStepsWithAllStatuses(): RunStep[] {
         return Object.values(RunStepStatusEnum).map((status, index) => {
-            const baseStep = index % 2 === 0 
-                ? this.createMockRoutineRunStep()
-                : this.createMockProjectRunStep();
+            const baseStep = this.createMockRunStep();
             
             return {
                 ...baseStep,
                 status,
                 order: index + 1,
-                startedAt: [RunStepStatusEnum.InProgress, RunStepStatusEnum.Completed, RunStepStatusEnum.Failed, RunStepStatusEnum.Skipped].includes(status)
+                startedAt: [RunStepStatusEnum.InProgress, RunStepStatusEnum.Completed, RunStepStatusEnum.Skipped].includes(status)
                     ? new Date(Date.now() - 1800000).toISOString()
                     : null,
-                completedAt: [RunStepStatusEnum.Completed, RunStepStatusEnum.Failed, RunStepStatusEnum.Skipped].includes(status)
+                completedAt: [RunStepStatusEnum.Completed, RunStepStatusEnum.Skipped].includes(status)
                     ? new Date().toISOString()
                     : null,
-                timeElapsed: [RunStepStatusEnum.Completed, RunStepStatusEnum.Failed, RunStepStatusEnum.Skipped].includes(status)
+                timeElapsed: [RunStepStatusEnum.Completed, RunStepStatusEnum.Skipped].includes(status)
                     ? 1800
                     : null,
             };
@@ -385,7 +314,7 @@ export class RunStepResponseFactory {
             updatedStep.startedAt = now;
         }
         
-        if ([RunStepStatusEnum.Completed, RunStepStatusEnum.Failed, RunStepStatusEnum.Skipped].includes(status)) {
+        if ([RunStepStatusEnum.Completed, RunStepStatusEnum.Skipped].includes(status)) {
             if (!updatedStep.startedAt) {
                 updatedStep.startedAt = new Date(Date.now() - 1800000).toISOString();
             }
@@ -412,45 +341,36 @@ export class RunStepMSWHandlers {
     /**
      * Create success handlers for all run step endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): RequestHandler[] {
         return [
             // Get run step by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/run-step/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/run-step/:id`, ({ request, params }) => {
+                const { id } = params;
                 
-                // Randomly return routine or project step
-                const runStep = Math.random() > 0.5
-                    ? this.responseFactory.createMockRoutineRunStep({ id: id as string })
-                    : this.responseFactory.createMockProjectRunStep({ id: id as string });
+                const runStep = this.responseFactory.createMockRunStep({ id: id as string });
                 
                 const response = this.responseFactory.createSuccessResponse(runStep);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Update run step status
-            http.put(`${this.responseFactory["baseUrl"]}/api/run-step/:id/status`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const { status } = await req.json() as { status: RunStepStatus };
+            http.put(`${this.responseFactory["baseUrl"]}/api/run-step/:id/status`, async ({ request, params }) => {
+                const { id } = params;
+                const { status } = await request.json() as { status: RunStepStatus };
                 
                 // Create a run step and update its status
-                const runStep = this.responseFactory.createMockRoutineRunStep({ id: id as string });
+                const runStep = this.responseFactory.createMockRunStep({ id: id as string });
                 const updatedStep = this.responseFactory.updateRunStepStatus(runStep, status);
                 
                 const response = this.responseFactory.createSuccessResponse(updatedStep);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // List run steps
-            http.get(`${this.responseFactory["baseUrl"]}/api/run-step`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/run-step`, ({ request, params }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 const status = url.searchParams.get("status") as RunStepStatus;
@@ -463,16 +383,10 @@ export class RunStepMSWHandlers {
                     runSteps = runSteps.filter(s => s.status === status);
                 }
                 
-                // Filter by run ID if specified
+                // Filter by run ID if specified - RunStep doesn't have direct run reference
                 if (runId) {
-                    runSteps = runSteps.filter(s => {
-                        if (s.__typename === "RunRoutineStep") {
-                            return s.runRoutine?.id === runId;
-                        } else if (s.__typename === "RunProjectStep") {
-                            return s.runProject?.id === runId;
-                        }
-                        return false;
-                    });
+                    // For now, we'll filter based on a pattern in the ID
+                    runSteps = runSteps.filter(s => s.id.includes(runId));
                 }
                 
                 // Paginate
@@ -488,32 +402,26 @@ export class RunStepMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Start run step
-            http.post(`${this.responseFactory["baseUrl"]}/api/run-step/:id/start`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.post(`${this.responseFactory["baseUrl"]}/api/run-step/:id/start`, ({ request, params }) => {
+                const { id } = params;
                 
-                const runStep = this.responseFactory.createMockRoutineRunStep({ id: id as string });
+                const runStep = this.responseFactory.createMockRunStep({ id: id as string });
                 const updatedStep = this.responseFactory.updateRunStepStatus(runStep, RunStepStatusEnum.InProgress);
                 
                 const response = this.responseFactory.createSuccessResponse(updatedStep);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Complete run step
-            http.post(`${this.responseFactory["baseUrl"]}/api/run-step/:id/complete`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.post(`${this.responseFactory["baseUrl"]}/api/run-step/:id/complete`, ({ request, params }) => {
+                const { id } = params;
                 
-                const runStep = this.responseFactory.createMockRoutineRunStep({ 
+                const runStep = this.responseFactory.createMockRunStep({ 
                     id: id as string,
                     startedAt: new Date(Date.now() - 1800000).toISOString(),
                 });
@@ -521,25 +429,19 @@ export class RunStepMSWHandlers {
                 
                 const response = this.responseFactory.createSuccessResponse(updatedStep);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Skip run step
-            http.post(`${this.responseFactory["baseUrl"]}/api/run-step/:id/skip`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.post(`${this.responseFactory["baseUrl"]}/api/run-step/:id/skip`, ({ request, params }) => {
+                const { id } = params;
                 
-                const runStep = this.responseFactory.createMockRoutineRunStep({ id: id as string });
+                const runStep = this.responseFactory.createMockRunStep({ id: id as string });
                 const updatedStep = this.responseFactory.updateRunStepStatus(runStep, RunStepStatusEnum.Skipped);
                 
                 const response = this.responseFactory.createSuccessResponse(updatedStep);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -547,30 +449,30 @@ export class RunStepMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): RequestHandler[] {
         return [
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/run-step/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
+            http.get(`${this.responseFactory["baseUrl"]}/api/run-step/:id`, ({ request, params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string),
+                    { status: 404 }
                 );
             }),
             
             // Permission error
-            http.put(`${this.responseFactory["baseUrl"]}/api/run-step/:id/status`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("update")),
+            http.put(`${this.responseFactory["baseUrl"]}/api/run-step/:id/status`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("update"),
+                    { status: 403 }
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/run-step/:id/start`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/run-step/:id/start`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse(),
+                    { status: 500 }
                 );
             }),
         ];
@@ -579,21 +481,18 @@ export class RunStepMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RequestHandler[] {
         return [
-            http.put(`${this.responseFactory["baseUrl"]}/api/run-step/:id/status`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const { status } = await req.json() as { status: RunStepStatus };
+            http.put(`${this.responseFactory["baseUrl"]}/api/run-step/:id/status`, async ({ request, params }) => {
+                const { id } = params;
+                const { status } = await request.json() as { status: RunStepStatus };
                 
-                const runStep = this.responseFactory.createMockRoutineRunStep({ id: id as string });
+                const runStep = this.responseFactory.createMockRunStep({ id: id as string });
                 const updatedStep = this.responseFactory.updateRunStepStatus(runStep, status);
                 const response = this.responseFactory.createSuccessResponse(updatedStep);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -601,14 +500,14 @@ export class RunStepMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): RequestHandler[] {
         return [
-            http.get(`${this.responseFactory["baseUrl"]}/api/run-step/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/run-step/:id`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
             
-            http.put(`${this.responseFactory["baseUrl"]}/api/run-step/:id/status`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.put(`${this.responseFactory["baseUrl"]}/api/run-step/:id/status`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -622,18 +521,17 @@ export class RunStepMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): RequestHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        const httpMethod = method.toLowerCase() as keyof typeof http;
+        return http[httpMethod](fullEndpoint, async ({ request, params }) => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }
@@ -643,17 +541,10 @@ export class RunStepMSWHandlers {
  */
 export const runStepResponseScenarios = {
     // Success scenarios
-    createRoutineStepSuccess: (step?: RunRoutineStep) => {
+    createStepSuccess: (step?: RunStep) => {
         const factory = new RunStepResponseFactory();
         return factory.createSuccessResponse(
-            step || factory.createMockRoutineRunStep(),
-        );
-    },
-    
-    createProjectStepSuccess: (step?: RunProjectStep) => {
-        const factory = new RunStepResponseFactory();
-        return factory.createSuccessResponse(
-            step || factory.createMockProjectRunStep(),
+            step || factory.createMockRunStep(),
         );
     },
     

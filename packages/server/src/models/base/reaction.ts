@@ -1,14 +1,14 @@
 import { type Prisma } from "@prisma/client";
-import { MaxObjects, type ModelType, type ReactInput, ReactionFor, type ReactionSearchInput, ReactionSortBy, type SessionUser, camelCase, exists, generatePK, getReactionScore, lowercaseFirstLetter, removeModifiers } from "@vrooli/shared";
+import { EventTypes, MaxObjects, type ModelType, type ReactInput, ReactionFor, type ReactionSearchInput, ReactionSortBy, type SessionUser, camelCase, exists, generatePK, getReactionScore, lowercaseFirstLetter, removeModifiers } from "@vrooli/shared";
 import { onlyValidIds } from "../../builders/onlyValid.js";
 import { permissionsSelectHelper } from "../../builders/permissionsSelectHelper.js";
+import { type PrismaDelegate } from "../../builders/types.js";
 import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { Trigger } from "../../events/trigger.js";
 import { SocketService } from "../../sockets/io.js";
-import { type PrismaDelegate } from "../../builders/types.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { calculatePermissions, defaultPermissions } from "../../validators/permissions.js";
 import { ReactionFormat } from "../formats.js";
@@ -79,7 +79,7 @@ export const ReactionModel: ReactionModelLogic = ({
                 // Try to find this id in the reactions array
                 if (exists(ids[i])) {
                     // If found, set result index to value of emoji field
-                    result[i] = reactionsArray.find((vote: { [key: string]: unknown; emoji: string }) => vote[fieldName] === ids[i])?.emoji ?? null;
+                    result[i] = reactionsArray.find((vote) => (vote as any)[fieldName]?.toString() === ids[i])?.emoji ?? null;
                 }
             }
             return result;
@@ -123,7 +123,7 @@ export const ReactionModel: ReactionModelLogic = ({
             throw new CustomError("0118", "NotFound", { reactionFor: input.reactionFor, forId: input.forConnect });
         }
         // Check if the user has permission to react on this object
-        const authData = { __typename: input.reactionFor, ...reactedOnObject };
+        const authData = { __typename: input.reactionFor, id: (reactedOnObject.id as bigint).toString(), ...reactedOnObject };
         const permissions = await calculatePermissions(authData, userData, reactedOnValidator);
         const ownerData = reactedOnValidator.owner(authData, userData.id);
         const objectOwner = ownerData.Team
@@ -140,7 +140,7 @@ export const ReactionModel: ReactionModelLogic = ({
         // Find sentiment of current and new reaction
         const isRemove = !exists(input.emoji);
         const deltaScore = getReactionScore(input.emoji) - getReactionScore(reaction?.emoji);
-        const updatedScore = reactedOnObject.score + deltaScore;
+        const updatedScore = (reactedOnObject.score as number) + deltaScore;
         // If we're setting the reaction to the same as the current one, skip
         const isSame = (isRemove && !reaction) || (reaction && removeModifiers(input.emoji!) === removeModifiers(reaction.emoji));
         if (isSame) return true;
@@ -156,12 +156,12 @@ export const ReactionModel: ReactionModelLogic = ({
         transactionOps.push((DbProvider.get()[reactedOnDbTable] as PrismaDelegate).update({
             where: { id: BigInt(input.forConnect) },
             data: {
-                score: reactedOnObject.score + deltaScore,
+                score: (reactedOnObject.score as number) + deltaScore,
                 reactions: reactionQuery,
             },
         }) as Prisma.PrismaPromise<object>);
         // Prepare in-memory reaction summaries for updating chat room
-        const updatedReactionSummaries = [...reactedOnObject.reactionSummaries];
+        const updatedReactionSummaries = [...(reactedOnObject.reactionSummaries as any[] ?? [])];
         // Determine reaction summary query
         const reactedOnIdField = `${reactionForToRelation(input.reactionFor)}Id` as keyof Prisma.reaction_summaryWhereInput;
         type EmojiAdjustment = { emoji: string, delta: number };
@@ -197,7 +197,7 @@ export const ReactionModel: ReactionModelLogic = ({
                     VALUES ($1::BIGINT, $2, $3, $4::BIGINT)
                     ON CONFLICT (emoji, "apiId", "chatMessageId", "codeId", "commentId", "issueId", "noteId", "projectId", "routineId", "standardId")
                     DO UPDATE SET count = reaction_summary.count + $5
-                  `, createId, emoji, delta, input.forConnect, delta) as Prisma.PrismaPromise<number>,
+                  `, createId, emoji, delta, input.forConnect, delta) as unknown as Prisma.PrismaPromise<object>,
                 );
                 // Add/update in-memory summaries
                 const summary = updatedReactionSummaries.find((s) => s.emoji === emoji);
@@ -247,7 +247,10 @@ export const ReactionModel: ReactionModelLogic = ({
         await DbProvider.get().$transaction(transactionOps);
         // If we reacted to a chat message, send the updated reaction summaries to the chat room
         if (isChatMessage && reactedOnObject.chatId) {
-            SocketService.get().emitSocketEvent("messages", reactedOnObject.chatId, { updated: [{ id: input.forConnect, reactionSummaries: updatedReactionSummaries }] });
+            SocketService.get().emitSocketEvent(EventTypes.CHAT.MESSAGE_UPDATED, reactedOnObject.chatId as string, {
+                chatId: reactedOnObject.chatId,
+                messages: [{ id: input.forConnect, reactionSummaries: updatedReactionSummaries }],
+            });
         }
         // Handle trigger
         await Trigger(userData.languages).objectReact({
@@ -275,7 +278,7 @@ export const ReactionModel: ReactionModelLogic = ({
     },
     validate: () => ({
         isDeleted: () => false,
-        isPublic: function getIsPublic(data, ...rest) {
+        isPublic: function getIsPublic(data, getParentInfo?) {
             if (!data.by) return false;
             if (data.by.isPrivateVotes) return false;
             return oneIsPublic<ReactionModelInfo["DbSelect"]>([
@@ -283,11 +286,11 @@ export const ReactionModel: ReactionModelLogic = ({
                 ["comment", "Comment"],
                 ["issue", "Issue"],
                 ["resource", "Resource"],
-            ], data, ...rest);
+            ], data, getParentInfo);
         },
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => ({
+        owner: (data, _userId) => ({
             User: data?.by,
         }),
         permissionResolvers: defaultPermissions,

@@ -1,108 +1,107 @@
 {
-  "identity": {
-    "name": "supply-chain-risk-analyst",
-    "version": "1.0.0"
-  },
-  "goal": "Identifies vulnerabilities in procurement networks",
-  "role": "specialist",
-  "subscriptions": [
-    "swarm/resource/updated",
-    "step/completed",
-    "run/failed"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "swarm/resource/updated",
-        "when": "event.data.type == 'supplier' || event.data.source == 'external'"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Risk Assessor",
-        "inputMap": {
-          "supplierData": "event.data.supplierData",
-          "resourceType": "event.data.type",
-          "riskAssessment": "blackboard.supply.riskAssessment",
-          "vulnerabilityAnalysis": "blackboard.supply.vulnerabilities"
+    "identity": {
+        "name": "supply-chain-risk-analyst",
+        "version": "1.0.0"
+    },
+    "goal": "Identifies vulnerabilities in procurement networks",
+    "role": "specialist",
+    "subscriptions": [
+        "swarm/resource/updated",
+        "step/completed",
+        "run/failed"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "swarm/resource/updated",
+                "when": "event.data.type == 'supplier' || event.data.source == 'external'"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Risk Assessor",
+                "inputMap": {
+                    "supplierData": "event.data.supplierData",
+                    "resourceType": "event.data.type",
+                    "riskAssessment": "blackboard.supply.riskAssessment",
+                    "vulnerabilityAnalysis": "blackboard.supply.vulnerabilities"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'supplier_evaluation' || event.data.tags.includes('risk_analysis')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Analyze supplier evaluation results to identify potential supply chain vulnerabilities and risk mitigation strategies"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/failed",
+                "when": "event.data.error.type == 'supplier_failure' || event.data.tags.includes('supply_chain')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Disruption Analyzer",
+                "inputMap": {
+                    "failureData": "event.data.error",
+                    "supplierNetwork": "blackboard.supply.network",
+                    "mitigationStrategies": "blackboard.supply.mitigation"
+                }
+            },
+            "qos": 2
         }
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'supplier_evaluation' || event.data.tags.includes('risk_analysis')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Analyze supplier evaluation results to identify potential supply chain vulnerabilities and risk mitigation strategies"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "run/failed",
-        "when": "event.data.error.type == 'supplier_failure' || event.data.tags.includes('supply_chain')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Disruption Analyzer",
-        "inputMap": {
-          "failureData": "event.data.error",
-          "supplierNetwork": "blackboard.supply.network",
-          "mitigationStrategies": "blackboard.supply.mitigation"
+    ],
+    "prompt": "You are a supply chain risk analyst specializing in identifying vulnerabilities in procurement networks. You must assess all suppliers thoroughly and systematically. You may recommend risk mitigation strategies based on your analysis. You must never ignore critical vulnerabilities, no matter how inconvenient they may be to address. Focus on comprehensive risk assessment, dependency mapping, and proactive threat identification.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "risk-assessment",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "supply.riskAssessment",
+            "description": "Supply chain risk assessment tools and methodologies"
+        },
+        {
+            "type": "blackboard",
+            "label": "supply-chain-mapping",
+            "permissions": [
+                "read"
+            ],
+            "scope": "supply.mapping",
+            "description": "Supply chain network mapping and dependency analysis"
+        },
+        {
+            "type": "blackboard",
+            "label": "vulnerability-analysis",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "supply.vulnerabilities",
+            "description": "Vulnerability analysis and threat assessment tools"
+        },
+        {
+            "type": "routine",
+            "label": "Risk Assessor",
+            "permissions": [
+                "read"
+            ],
+            "description": "Assess supply chain risks and vulnerabilities"
+        },
+        {
+            "type": "routine",
+            "label": "Disruption Analyzer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Analyze supply chain disruptions and failures"
         }
-      },
-      "qos": 2
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "assess-all-suppliers"
-    },
-    {
-      "modality": "permission",
-      "target": "recommend-risk-mitigation"
-    },
-    {
-      "modality": "prohibition",
-      "target": "ignore-critical-vulnerabilities"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "risk-assessment",
-      "permissions": ["read", "write"],
-      "scope": "supply.riskAssessment",
-      "description": "Supply chain risk assessment tools and methodologies"
-    },
-    {
-      "type": "blackboard",
-      "label": "supply-chain-mapping",
-      "permissions": ["read"],
-      "scope": "supply.mapping",
-      "description": "Supply chain network mapping and dependency analysis"
-    },
-    {
-      "type": "blackboard",
-      "label": "vulnerability-analysis",
-      "permissions": ["read", "write"],
-      "scope": "supply.vulnerabilities",
-      "description": "Vulnerability analysis and threat assessment tools"
-    },
-    {
-      "type": "routine",
-      "label": "Risk Assessor",
-      "permissions": ["read"],
-      "description": "Assess supply chain risks and vulnerabilities"
-    },
-    {
-      "type": "routine",
-      "label": "Disruption Analyzer",
-      "permissions": ["read"],
-      "description": "Analyze supply chain disruptions and failures"
-    }
-  ]
+    ]
 }

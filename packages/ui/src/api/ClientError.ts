@@ -4,8 +4,7 @@
  * This class provides a client-side implementation of the VrooliError interface
  * that integrates seamlessly with ServerResponseParser for UI error handling.
  */
-
-import { type ServerError, type TranslationKeyError, type ParseableError } from "@vrooli/shared";
+import { type ParseableError, type ServerError, type TranslationKeyError } from "@vrooli/shared";
 
 /**
  * Client-side error implementation that integrates with ServerResponseParser.

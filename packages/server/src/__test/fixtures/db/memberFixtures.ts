@@ -9,8 +9,8 @@ export class MemberDbFactory {
     static createMinimal(
         userId: string,
         teamId: string,
-        overrides?: Partial<Prisma.MemberCreateInput>,
-    ): Prisma.MemberCreateInput {
+        overrides?: Partial<Prisma.memberCreateInput>,
+    ): Prisma.memberCreateInput {
         return {
             id: generatePK(),
             user: { connect: { id: userId } },
@@ -23,8 +23,8 @@ export class MemberDbFactory {
     static createOwner(
         userId: string,
         teamId: string,
-        overrides?: Partial<Prisma.MemberCreateInput>,
-    ): Prisma.MemberCreateInput {
+        overrides?: Partial<Prisma.memberCreateInput>,
+    ): Prisma.memberCreateInput {
         return this.createMinimal(userId, teamId, {
             role: "Owner",
             ...overrides,
@@ -34,8 +34,8 @@ export class MemberDbFactory {
     static createAdmin(
         userId: string,
         teamId: string,
-        overrides?: Partial<Prisma.MemberCreateInput>,
-    ): Prisma.MemberCreateInput {
+        overrides?: Partial<Prisma.memberCreateInput>,
+    ): Prisma.memberCreateInput {
         return this.createMinimal(userId, teamId, {
             role: "Admin",
             ...overrides,
@@ -46,8 +46,8 @@ export class MemberDbFactory {
         userId: string,
         teamId: string,
         permissions: string[],
-        overrides?: Partial<Prisma.MemberCreateInput>,
-    ): Prisma.MemberCreateInput {
+        overrides?: Partial<Prisma.memberCreateInput>,
+    ): Prisma.memberCreateInput {
         return this.createMinimal(userId, teamId, {
             permissions,
             ...overrides,

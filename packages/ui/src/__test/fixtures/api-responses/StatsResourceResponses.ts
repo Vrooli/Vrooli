@@ -5,14 +5,11 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { http, type RestHandler } from "msw";
-import type { 
-    StatsResource,
-    StatsResourceSearchInput,
-    PeriodType,
-} from "@vrooli/shared";
+import { http, HttpResponse, type RequestHandler } from "msw";
 import { 
-    PeriodType as PeriodTypeEnum, 
+    type StatsResource,
+    type StatsResourceSearchInput,
+    StatPeriodType,
 } from "@vrooli/shared";
 
 /**
@@ -73,14 +70,14 @@ export class StatsResourceResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique stats ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -96,7 +93,7 @@ export class StatsResourceResponseFactory {
                 links: {
                     self: `${this.baseUrl}/api/stats/resource/${stats.id}`,
                     related: {
-                        resource: `${this.baseUrl}/api/resource/${stats.resource?.id}`,
+                        // StatsResource doesn't have a resource property
                     },
                 },
             },
@@ -246,32 +243,13 @@ export class StatsResourceResponseFactory {
             id,
             periodStart: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
             periodEnd: now,
-            periodType: PeriodTypeEnum.Week,
-            views: Math.floor(Math.random() * 500) + 50,
-            downloads: Math.floor(Math.random() * 100) + 10,
-            bookmarks: Math.floor(Math.random() * 50) + 5,
-            uses: Math.floor(Math.random() * 200) + 20,
-            resource: {
-                __typename: "Resource",
-                id: `resource_${id}`,
-                created_at: now,
-                updated_at: now,
-                isInternal: false,
-                isPrivate: false,
-                usedBy: [],
-                usedByCount: Math.floor(Math.random() * 10),
-                versions: [],
-                versionsCount: Math.floor(Math.random() * 5) + 1,
-                you: {
-                    __typename: "ResourceYou",
-                    canDelete: false,
-                    canUpdate: false,
-                    canReport: false,
-                    isBookmarked: false,
-                    isReacted: false,
-                    reaction: null,
-                },
-            },
+            periodType: StatPeriodType.Weekly,
+            references: Math.floor(Math.random() * 50) + 5,
+            referencedBy: Math.floor(Math.random() * 100) + 10,
+            runCompletionTimeAverage: Math.random() * 3600 + 300,
+            runContextSwitchesAverage: Math.random() * 5 + 0.5,
+            runsCompleted: Math.floor(Math.random() * 100) + 10,
+            runsStarted: Math.floor(Math.random() * 120) + 15,
         };
         
         return {
@@ -286,25 +264,25 @@ export class StatsResourceResponseFactory {
     createTrendingResourceStats(): StatsResource[] {
         return [
             this.createMockStats({
-                views: 2500,
-                downloads: 500,
-                bookmarks: 150,
-                uses: 800,
-                periodType: PeriodTypeEnum.Month,
+                references: 250,
+                referencedBy: 500,
+                runsCompleted: 150,
+                runsStarted: 180,
+                periodType: StatPeriodType.Monthly,
             }),
             this.createMockStats({
-                views: 1800,
-                downloads: 350,
-                bookmarks: 120,
-                uses: 600,
-                periodType: PeriodTypeEnum.Month,
+                references: 180,
+                referencedBy: 350,
+                runsCompleted: 120,
+                runsStarted: 140,
+                periodType: StatPeriodType.Monthly,
             }),
             this.createMockStats({
-                views: 1200,
-                downloads: 200,
-                bookmarks: 80,
-                uses: 400,
-                periodType: PeriodTypeEnum.Month,
+                references: 120,
+                referencedBy: 200,
+                runsCompleted: 80,
+                runsStarted: 95,
+                periodType: StatPeriodType.Monthly,
             }),
         ];
     }
@@ -312,60 +290,47 @@ export class StatsResourceResponseFactory {
     /**
      * Create statistics for different time periods
      */
-    createStatsByPeriod(resourceId: string): Record<PeriodType, StatsResource> {
-        const baseStats = this.createMockStats({
-            resource: {
-                ...this.createMockStats().resource,
-                id: resourceId,
-            },
-        });
+    createStatsByPeriod(resourceId: string): Partial<Record<StatPeriodType, StatsResource>> {
+        const baseStats = this.createMockStats();
         
         return {
-            [PeriodTypeEnum.Day]: {
+            [StatPeriodType.Daily]: {
                 ...baseStats,
-                periodType: PeriodTypeEnum.Day,
+                periodType: StatPeriodType.Daily,
                 periodStart: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-                views: 45,
-                downloads: 8,
-                bookmarks: 3,
-                uses: 12,
+                references: 4,
+                referencedBy: 8,
+                runsCompleted: 3,
+                runsStarted: 5,
             },
-            [PeriodTypeEnum.Week]: {
+            [StatPeriodType.Weekly]: {
                 ...baseStats,
-                periodType: PeriodTypeEnum.Week,
+                periodType: StatPeriodType.Weekly,
                 periodStart: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-                views: 320,
-                downloads: 65,
-                bookmarks: 25,
-                uses: 95,
+                references: 32,
+                referencedBy: 65,
+                runsCompleted: 25,
+                runsStarted: 30,
             },
-            [PeriodTypeEnum.Month]: {
+            [StatPeriodType.Monthly]: {
                 ...baseStats,
-                periodType: PeriodTypeEnum.Month,
+                periodType: StatPeriodType.Monthly,
                 periodStart: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-                views: 1500,
-                downloads: 280,
-                bookmarks: 110,
-                uses: 450,
+                references: 150,
+                referencedBy: 280,
+                runsCompleted: 110,
+                runsStarted: 125,
             },
-            [PeriodTypeEnum.Year]: {
+            [StatPeriodType.Yearly]: {
                 ...baseStats,
-                periodType: PeriodTypeEnum.Year,
+                periodType: StatPeriodType.Yearly,
                 periodStart: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(),
-                views: 18000,
-                downloads: 3500,
-                bookmarks: 1200,
-                uses: 5800,
+                references: 1800,
+                referencedBy: 3500,
+                runsCompleted: 1200,
+                runsStarted: 1350,
             },
-            [PeriodTypeEnum.AllTime]: {
-                ...baseStats,
-                periodType: PeriodTypeEnum.AllTime,
-                periodStart: new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000).toISOString(),
-                views: 35000,
-                downloads: 7200,
-                bookmarks: 2500,
-                uses: 12000,
-            },
+            // Note: AllTime doesn't exist in StatPeriodType
         };
     }
     
@@ -381,17 +346,13 @@ export class StatsResourceResponseFactory {
             const dayEnd = dayStart + oneDay;
             
             return this.createMockStats({
-                resource: {
-                    ...this.createMockStats().resource,
-                    id: resourceId,
-                },
-                periodType: PeriodTypeEnum.Day,
+                periodType: StatPeriodType.Daily,
                 periodStart: new Date(dayStart).toISOString(),
                 periodEnd: new Date(dayEnd).toISOString(),
-                views: Math.floor(Math.random() * 100) + 10,
-                downloads: Math.floor(Math.random() * 20) + 1,
-                bookmarks: Math.floor(Math.random() * 10),
-                uses: Math.floor(Math.random() * 30) + 5,
+                references: Math.floor(Math.random() * 10) + 1,
+                referencedBy: Math.floor(Math.random() * 20) + 2,
+                runsCompleted: Math.floor(Math.random() * 10),
+                runsStarted: Math.floor(Math.random() * 15) + 2,
             });
         });
     }
@@ -402,15 +363,11 @@ export class StatsResourceResponseFactory {
     createComparativeStats(resourceIds: string[]): StatsResource[] {
         return resourceIds.map(resourceId => 
             this.createMockStats({
-                resource: {
-                    ...this.createMockStats().resource,
-                    id: resourceId,
-                },
-                periodType: PeriodTypeEnum.Month,
-                views: Math.floor(Math.random() * 2000) + 100,
-                downloads: Math.floor(Math.random() * 400) + 20,
-                bookmarks: Math.floor(Math.random() * 150) + 10,
-                uses: Math.floor(Math.random() * 600) + 50,
+                periodType: StatPeriodType.Monthly,
+                references: Math.floor(Math.random() * 200) + 10,
+                referencedBy: Math.floor(Math.random() * 400) + 20,
+                runsCompleted: Math.floor(Math.random() * 150) + 10,
+                runsStarted: Math.floor(Math.random() * 180) + 15,
             }),
         );
     }
@@ -429,50 +386,39 @@ export class StatsResourceMSWHandlers {
     /**
      * Create success handlers for all resource statistics endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): RequestHandler[] {
         return [
             // Get resource statistics by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                const url = new URL(req.url);
-                const period = url.searchParams.get("period") as PeriodType;
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, ({ request, params }) => {
+                const { id } = params;
+                const url = new URL(request.url);
+                const period = url.searchParams.get("period") as StatPeriodType;
                 
                 if (period) {
                     const statsByPeriod = this.responseFactory.createStatsByPeriod(id as string);
-                    const stats = statsByPeriod[period] || statsByPeriod[PeriodTypeEnum.Month];
+                    const stats = statsByPeriod[period] || statsByPeriod[StatPeriodType.Monthly];
                     const response = this.responseFactory.createSuccessResponse(stats);
                     
-                    return res(
-                        ctx.status(200),
-                        ctx.json(response),
-                    );
+                    return HttpResponse.json(response, { status: 200 });
                 }
                 
-                const stats = this.responseFactory.createMockStats({
-                    resource: {
-                        ...this.responseFactory.createMockStats().resource,
-                        id: id as string,
-                    },
-                });
+                const stats = this.responseFactory.createMockStats();
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Search resource statistics
-            http.post(`${this.responseFactory["baseUrl"]}/api/stats/resource/search`, async (req, res, ctx) => {
-                const body = await req.json() as StatsResourceSearchInput;
-                const url = new URL(req.url);
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/resource/search`, async ({ request, params }) => {
+                const body = await request.json() as StatsResourceSearchInput;
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 
                 let statsList: StatsResource[] = [];
                 
-                if (body.resourceIds && body.resourceIds.length > 0) {
-                    statsList = this.responseFactory.createComparativeStats(body.resourceIds);
+                if (body.ids && body.ids.length > 0) {
+                    statsList = this.responseFactory.createComparativeStats(body.ids);
                 } else {
                     statsList = this.responseFactory.createTrendingResourceStats();
                 }
@@ -498,16 +444,13 @@ export class StatsResourceMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Get trending resources
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/trending`, (req, res, ctx) => {
-                const url = new URL(req.url);
-                const period = url.searchParams.get("period") as PeriodType || PeriodTypeEnum.Month;
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/trending`, ({ request, params }) => {
+                const url = new URL(request.url);
+                const period = url.searchParams.get("period") as StatPeriodType || StatPeriodType.Monthly;
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 
                 const trendingStats = this.responseFactory.createTrendingResourceStats()
@@ -516,32 +459,26 @@ export class StatsResourceMSWHandlers {
                 
                 const response = this.responseFactory.createStatsListResponse(trendingStats);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Get time series data for resource
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id/timeseries`, (req, res, ctx) => {
-                const { id } = req.params;
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id/timeseries`, ({ request, params }) => {
+                const { id } = params;
+                const url = new URL(request.url);
                 const days = parseInt(url.searchParams.get("days") || "30");
                 
                 const timeSeriesData = this.responseFactory.createTimeSeriesStats(id as string, days);
                 const response = this.responseFactory.createStatsListResponse(timeSeriesData);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Get aggregated statistics for multiple resources
-            http.post(`${this.responseFactory["baseUrl"]}/api/stats/resource/aggregate`, async (req, res, ctx) => {
-                const { resourceIds, periodType } = await req.json() as {
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/resource/aggregate`, async ({ request, params }) => {
+                const { resourceIds, periodType } = await request.json() as {
                     resourceIds: string[];
-                    periodType: PeriodType;
+                    periodType: StatPeriodType;
                 };
                 
                 const aggregatedStats = this.responseFactory.createComparativeStats(resourceIds)
@@ -549,10 +486,7 @@ export class StatsResourceMSWHandlers {
                 
                 const response = this.responseFactory.createStatsListResponse(aggregatedStats);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -560,30 +494,30 @@ export class StatsResourceMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): RequestHandler[] {
         return [
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, ({ request, params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string),
+                    { status: 404 }
                 );
             }),
             
             // Permission error
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("view")),
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("view"),
+                    { status: 403 }
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/stats/resource/search`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/resource/search`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse(),
+                    { status: 500 }
                 );
             }),
         ];
@@ -592,23 +526,15 @@ export class StatsResourceMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RequestHandler[] {
         return [
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                const stats = this.responseFactory.createMockStats({
-                    resource: {
-                        ...this.responseFactory.createMockStats().resource,
-                        id: id as string,
-                    },
-                });
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, async ({ request, params }) => {
+                const { id } = params;
+                const stats = this.responseFactory.createMockStats();
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -616,14 +542,14 @@ export class StatsResourceMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): RequestHandler[] {
         return [
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
             
-            http.post(`${this.responseFactory["baseUrl"]}/api/stats/resource/search`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/resource/search`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -637,18 +563,17 @@ export class StatsResourceMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): RequestHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        const httpMethod = http[method.toLowerCase() as keyof typeof http] as any;
+        return httpMethod(fullEndpoint, async ({ request, params }) => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }
@@ -672,7 +597,7 @@ export const statsResourceResponseScenarios = {
         );
     },
     
-    trendingResources: (period?: PeriodType) => {
+    trendingResources: (period?: StatPeriodType) => {
         const factory = new StatsResourceResponseFactory();
         const trending = factory.createTrendingResourceStats();
         if (period) {

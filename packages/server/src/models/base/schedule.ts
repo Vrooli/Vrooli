@@ -41,9 +41,10 @@ export const ScheduleModel: ScheduleModelLogic = ({
                 return {
                     id: BigInt(data.id),
                     publicId: generatePublicId(),
-                    startTime: noNull(data.startTime),
-                    endTime: noNull(data.endTime),
+                    startTime: data.startTime,
+                    endTime: data.endTime,
                     timezone: data.timezone,
+                    user: { connect: { id: BigInt(userData.id) } },
                     exceptions: await shapeHelper({ relation: "exceptions", relTypes: ["Create"], isOneToOne: false, objectType: "ScheduleException", parentRelationshipName: "schedule", data, additionalData, idsCreateToConnect, preMap, userData }),
                     recurrences: await shapeHelper({ relation: "recurrences", relTypes: ["Create"], isOneToOne: false, objectType: "ScheduleRecurrence", parentRelationshipName: "schedule", data, additionalData, idsCreateToConnect, preMap, userData }),
                     // These relations are treated as one-to-one in the API, but not in the database.
@@ -88,19 +89,42 @@ export const ScheduleModel: ScheduleModelLogic = ({
     },
     validate: () => ({
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<ScheduleModelInfo["DbSelect"]>(Object.entries(forMapper).map(([key, value]) => [value, key as ModelType]), ...rest),
+        isPublic: (data, getParentInfo?) => oneIsPublic<ScheduleModelInfo["DbSelect"]>(Object.entries(forMapper).map(([key, value]) => [value, key as ModelType]), data, getParentInfo),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => ({
-            Team: data?.meetings?.[0]?.team,
-            User: data?.user ?? data?.runs?.[0]?.user,
-        }),
+        owner: (data, _userId) => {
+            // Extract team ownership from meetings
+            const firstMeeting = data?.meetings?.[0] as any;
+            const teamOwner = firstMeeting?.team ? { id: firstMeeting.team.id } : null;
+
+            // Extract user ownership from direct user or runs
+            const directUser = (data as any)?.user;
+            const runUser = (data as any)?.runs?.[0]?.user;
+            const userOwner = directUser ? { id: directUser.id } : (runUser ? { id: runUser.id } : null);
+
+            return {
+                Team: teamOwner,
+                User: userOwner,
+            };
+        },
         permissionResolvers: (params) => defaultPermissions(params),
         permissionsSelect: () => ({
             id: true,
             user: { select: { id: true } },
-            meetings: { select: { id: true, team: { select: { id: true } } } },
-            runs: { select: { id: true, user: { select: { id: true } } } },
+            meetings: {
+                select: {
+                    id: true,
+                    team: { select: { id: true } },
+                },
+                take: 1, // Only need first meeting for ownership
+            },
+            runs: {
+                select: {
+                    id: true,
+                    user: { select: { id: true } },
+                },
+                take: 1, // Only need first run for ownership
+            },
         }),
         visibility: {
             own: function getOwn(data) {

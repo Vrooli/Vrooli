@@ -8,10 +8,10 @@ import { type ChatSocketEventPayloads, type StreamErrorPayload } from "../../../
 import { chatMessageFixtures } from "../api-inputs/chatMessageFixtures.js";
 import { userFixtures } from "../api-inputs/userFixtures.js";
 import { BaseEventFactory } from "./BaseEventFactory.js";
-import { type BaseEvent, type CorrelatedEvent, type StatefulEvent, type TimedEvent } from "./types.js";
+import { type BaseFixtureEvent, type CorrelatedEvent, type StatefulEvent, type TimedEvent } from "./types.js";
 
 // Type helpers for chat events
-type ChatEvent<TPayload> = BaseEvent & {
+type ChatEvent<TPayload> = BaseFixtureEvent & {
     event: keyof ChatSocketEventPayloads;
     data: TPayload;
 };

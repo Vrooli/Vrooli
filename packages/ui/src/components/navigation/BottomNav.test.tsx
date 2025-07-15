@@ -29,13 +29,16 @@ let mockPathname = "/";
 // Create router mock with custom pathname
 const routerMock = createRouterMock({
     pathname: mockPathname,
-    setLocation: mockSetLocation,
 });
 
 // Override the translation mock to use our controlled mockT
 const mockT = vi.fn((key: string) => key);
 mockUseTranslation.mockReturnValue({
     t: mockT,
+    i18n: {
+        language: "en",
+        changeLanguage: vi.fn(),
+    },
 });
 
 // Mock hooks and modules
@@ -216,7 +219,7 @@ describe("BottomNav", () => {
 
     describe("Navigation structure for logged-in users", () => {
         beforeEach(() => {
-            mockSession = { id: "user123", name: "Test User" };
+            mockSession = { id: "user123", isLoggedIn: true };
             mockPathname = "/search"; // Not home page
         });
 

@@ -2,7 +2,7 @@ import { parseSearchParams } from "@vrooli/shared";
 import { Fragment, Suspense, cloneElement, createContext, createElement, isValidElement, useCallback, useContext, useEffect, useLayoutEffect, useRef, type AnchorHTMLAttributes, type FunctionComponent, type ReactNode } from "react";
 import makeMatcher, { type DefaultParams, type Match, type MatcherFn } from "./matcher.js";
 import { type SetLocationOptions } from "./types.js";
-import locationHook, { type HookNavigationOptions, type Pathname, type UseLocationHook, type UseLocationResult } from "./useLocation.js";
+import locationHook, { type HookNavigationOptions, type Pathname, type UseLocationHook, type UseLocationResult } from "./useLocation.tsx";
 
 export type ExtractRouteOptionalParam<PathType extends Pathname> =
     PathType extends `${infer Param}?`
@@ -54,13 +54,16 @@ export type LinkProps = Omit<
 // when no value is provided — default object is used.
 // allows us to use the router context as a global ref to store
 // the implicitly created router (see `useRouter` below)
-const RouterCtx = createContext<{ [x: string]: any }>({});
+interface RouterContext {
+    v?: RouterProps;
+}
+const RouterCtx = createContext<RouterContext>({});
 
 function buildRouter({
     hook = locationHook,
     base = "",
     matcher = makeMatcher(),
-} = {}) {
+}: Partial<RouterProps> = {}): RouterProps {
     return { hook, base, matcher };
 }
 
@@ -89,7 +92,7 @@ export function useRoute<
 
 // internal hook used by Link and Redirect in order to perform navigation
 function useNavigate(options: NavigationalProps & SetLocationOptions) {
-    const navRef = useRef<any>();
+    const navRef = useRef<(() => void) | null>(null);
     const [, navigate] = useLocation();
 
     navRef.current = () => navigate((options.to || options.href) as string, options);
@@ -100,8 +103,12 @@ function useNavigate(options: NavigationalProps & SetLocationOptions) {
  * Part 2, Low Carb Router API: Router, Route, Link, Switch
  */
 
-export function Router(props: RouterProps): FunctionComponent<Partial<RouterProps> & { children: ReactNode }> {
-    const ref = useRef<any>();
+interface RouterComponentProps extends Partial<RouterProps> {
+    children: ReactNode;
+}
+
+export function Router(props: RouterComponentProps): JSX.Element {
+    const ref = useRef<RouterContext | null>(null);
 
     // this little trick allows to avoid having unnecessary
     // calls to potentially expensive `buildRouter` method.
@@ -110,16 +117,16 @@ export function Router(props: RouterProps): FunctionComponent<Partial<RouterProp
 
     return createElement(RouterCtx.Provider, {
         value,
-        children: (props as any).children,
-    }) as any;
+        children: props.children,
+    });
 }
 
 export type RouteProps = {
     /** If sitemapIndex is true, this specifies the change frequency of the page  */
     changeFreq?: "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
-    children: ReactNode;
-    component?: any;
-    match?: any;
+    children: ReactNode | ((params: Record<string, string>) => ReactNode);
+    component?: FunctionComponent<{ params: Record<string, string> }>;
+    match?: [boolean, Record<string, string>];
     /** Should be provided for every route except the 404 page */
     path?: string;
     /** If sitemapIndex is true, this specifies the priority of the page. */
@@ -128,8 +135,8 @@ export type RouteProps = {
     sitemapIndex?: boolean;
 }
 
-export function Route({ path, match, component, children }: RouteProps) {
-    const useRouteMatch = useRoute(path as any);
+export function Route({ path, match, component, children }: RouteProps): JSX.Element | null {
+    const useRouteMatch = useRoute(path || "");
 
     // Store last and current url data in session storage, if not already stored
     useEffect(() => {
@@ -150,7 +157,7 @@ export function Route({ path, match, component, children }: RouteProps) {
     if (component) return createElement(component, { params });
 
     // support render prop or plain children
-    return typeof children === "function" ? (children as any)(params) : children;
+    return typeof children === "function" ? children(params) : children;
 }
 
 export function Link(props: LinkProps) {
@@ -159,7 +166,7 @@ export function Link(props: LinkProps) {
 
     const { to, href = to, children, onClick } = props;
 
-    const handleClick = useCallback((event: any) => {
+    const handleClick = useCallback((event: React.MouseEvent<HTMLAnchorElement>) => {
         // ignores the navigation when clicked using right mouse button or
         // by holding a special modifier key: ctrl, command, win, alt, shift
         if (
@@ -185,7 +192,7 @@ export function Link(props: LinkProps) {
         onClick: handleClick,
         to: null,
     };
-    const jsx = isValidElement(children) ? children : createElement("a", props as any);
+    const jsx = isValidElement(children) ? children : createElement("a", props);
 
     return cloneElement(jsx, extraProps);
 }
@@ -195,16 +202,17 @@ export function Link(props: LinkProps) {
  * @param children
  * @returns 
  */
-function flattenChildren(children: Array<any> | any): any {
-    return Array.isArray(children)
-        ? [].concat(
+function flattenChildren(children: ReactNode): ReactNode[] {
+    if (Array.isArray(children)) {
+        return ([] as ReactNode[]).concat(
             ...children.map((c) =>
-                c && c.type === Fragment
-                    ? flattenChildren(c.props.children)
+                c && typeof c === "object" && "type" in c && c.type === Fragment
+                    ? flattenChildren((c as React.ReactElement).props.children)
                     : flattenChildren(c),
             ),
-        )
-        : [children];
+        );
+    }
+    return [children];
 }
 
 type SwitchProps = {
@@ -217,12 +225,12 @@ type SwitchProps = {
     fallback?: JSX.Element;
 }
 
-export function Switch({ children, location, fallback }: SwitchProps) {
+export function Switch({ children, location, fallback }: SwitchProps): JSX.Element | null {
     const { matcher } = useRouter();
     const [{ pathname: originalPath }] = useLocation();
 
     for (const element of flattenChildren(children)) {
-        let match = 0;
+        let match: [boolean, Record<string, string>] | null = null;
 
         if (
             isValidElement(element) &&
@@ -230,16 +238,16 @@ export function Switch({ children, location, fallback }: SwitchProps) {
             // but we do require it to contain a truthy `path` prop.
             // this allows to use different components that wrap Route
             // inside of a switch, for example <AnimatedRoute />.
-            (match = (element as any).props.path
-                ? matcher((element as any).props.path, location || originalPath)
+            (match = (element.props as { path?: string }).path
+                ? matcher((element.props as { path: string }).path, location || originalPath)
                 : [true, {}])[0]
         ) {
             // If there is a fallback, wrap the route in it
             if (fallback) {
-                return createElement(Suspense, { fallback }, cloneElement(element, { match } as any));
+                return createElement(Suspense, { fallback }, cloneElement(element, { match }));
             }
             // Otherwise, just return the route
-            return cloneElement(element, { match } as any);
+            return cloneElement(element, { match });
         }
     }
 

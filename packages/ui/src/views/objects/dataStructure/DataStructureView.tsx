@@ -1,8 +1,8 @@
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../../components/buttons/IconButton.js";
 import Stack from "@mui/material/Stack";
 import { useTheme } from "@mui/material/styles";
-import { CommentFor, endpointsResource, exists, getTranslation, noop, noopSubmit, type ResourceListShape, type Resource, type ResourceVersion, type TagShape } from "@vrooli/shared";
+import { CommentFor, endpointsResource, exists, getTranslation, noop, noopSubmit, type ResourceList as ResourceListType, type ResourceListShape, type Resource, type ResourceVersion, type TagShape } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -28,6 +28,8 @@ import { firstString } from "../../../utils/display/stringTools.js";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { dataStructureInitialValues } from "./DataStructureUpsert.js";
 import { type DataStructureViewProps } from "./types.js";
+
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-01 - Removed unnecessary 'as any[]' cast for tags
 
 const contextActionsExcluded = [ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp] as const;
 
@@ -105,7 +107,7 @@ export function DataStructureView({
                     {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceList
                         horizontal
                         title={"Resources"}
-                        list={resourceList as any}
+                        list={resourceList as unknown as ResourceListType}
                         canUpdate={false}
                         handleUpdate={noop}
                         loading={isLoading}
@@ -131,7 +133,7 @@ export function DataStructureView({
                     {/* Tags */}
                     {Array.isArray(tags) && tags!.length > 0 && <TagList
                         maxCharacters={30}
-                        tags={tags as any[]}
+                        tags={tags}
                         sx={{ marginTop: 4 }}
                     />}
                     {/* Date and version labels */}

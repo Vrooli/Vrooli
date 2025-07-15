@@ -9,9 +9,6 @@
 export * from "./routines/by-domain/index.js";
 export * from "./routines/by-domain/types.js";
 
-// Run state management
-export * from "./run-states/runFixtures.js";
-
 /**
  * Key Tier 2 Components:
  * - RunStateMachine: Orchestrating routine execution
@@ -29,6 +26,5 @@ export function getRoutinesByEvolutionStage() {
         conversational: routines.filter(r => r.config.executionStrategy === "conversational"),
         reasoning: routines.filter(r => r.config.executionStrategy === "reasoning"),
         deterministic: routines.filter(r => r.config.executionStrategy === "deterministic"),
-        routing: routines.filter(r => r.config.executionStrategy === "routing"),
     };
 }

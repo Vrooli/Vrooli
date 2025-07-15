@@ -27,7 +27,7 @@ export const bookmarkDbIds = {
 /**
  * Enhanced test fixtures for Bookmark model following standard structure
  */
-export const bookmarkDbFixtures: DbTestFixtures<Prisma.BookmarkCreateInput> = {
+export const bookmarkDbFixtures: DbTestFixtures<Prisma.bookmarkCreateInput> = {
     minimal: {
         id: generatePK(),
         publicId: generatePublicId(),
@@ -190,12 +190,12 @@ export const bookmarkListDbFixtures: DbTestFixtures<Prisma.BookmarkListCreateInp
 /**
  * Enhanced factory for creating bookmark database fixtures
  */
-export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.BookmarkCreateInput> {
+export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.bookmarkCreateInput> {
     
     /**
      * Get the test fixtures for Bookmark model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.BookmarkCreateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.bookmarkCreateInput> {
         return bookmarkDbFixtures;
     }
 
@@ -246,7 +246,7 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.BookmarkCreateIn
     /**
      * Bookmark-specific validation
      */
-    protected validateSpecific(data: Prisma.BookmarkCreateInput): { errors: string[]; warnings: string[] } {
+    protected validateSpecific(data: Prisma.bookmarkCreateInput): { errors: string[]; warnings: string[] } {
         const errors: string[] = [];
         const warnings: string[] = [];
 
@@ -256,7 +256,7 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.BookmarkCreateIn
 
         // Check business logic - must have exactly one bookmarkable object
         const bookmarkableFields = ["api", "code", "comment", "issue", "note", "post", "project", "prompt", "question", "quiz", "routine", "runProject", "runRoutine", "smartContract", "standard", "team", "user"];
-        const connectedObjects = bookmarkableFields.filter(field => data[field as keyof Prisma.BookmarkCreateInput]);
+        const connectedObjects = bookmarkableFields.filter(field => data[field as keyof Prisma.bookmarkCreateInput]);
         
         if (connectedObjects.length === 0) {
             errors.push("Bookmark must reference exactly one bookmarkable object");
@@ -278,8 +278,8 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.BookmarkCreateIn
     // Static methods for backward compatibility
     static createMinimal(
         byId: string,
-        overrides?: Partial<Prisma.BookmarkCreateInput>,
-    ): Prisma.BookmarkCreateInput {
+        overrides?: Partial<Prisma.bookmarkCreateInput>,
+    ): Prisma.bookmarkCreateInput {
         const factory = new BookmarkDbFactory();
         return factory.createMinimal({
             by: { connect: { id: byId } },
@@ -291,8 +291,8 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.BookmarkCreateIn
         byId: string,
         objectId: string,
         objectType: BookmarkFor | string,
-        overrides?: Partial<Prisma.BookmarkCreateInput>,
-    ): Prisma.BookmarkCreateInput {
+        overrides?: Partial<Prisma.bookmarkCreateInput>,
+    ): Prisma.bookmarkCreateInput {
         const baseBookmark = this.createMinimal(byId, overrides);
         
         // Add the appropriate connection based on object type
@@ -335,8 +335,8 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.BookmarkCreateIn
         listId: string,
         objectId: string,
         objectType: string,
-        overrides?: Partial<Prisma.BookmarkCreateInput>,
-    ): Prisma.BookmarkCreateInput {
+        overrides?: Partial<Prisma.bookmarkCreateInput>,
+    ): Prisma.bookmarkCreateInput {
         return {
             ...this.createForObject(byId, objectId, objectType, overrides),
             list: { connect: { id: listId } },

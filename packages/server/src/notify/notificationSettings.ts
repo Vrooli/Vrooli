@@ -22,12 +22,13 @@ export async function getNotificationSettingsAndRecipients(userIds: string[]): P
     const results: Array<{ settings: NotificationSettings } & NotificationRecipients> = [];
     // Get the current notification settings for each user
     const usersData = await DbProvider.get().user.findMany({
-        where: { id: { in: userIds } },
+        where: { id: { in: userIds.map(id => BigInt(id)) } },
         select: {
             id: true,
             notificationSettings: true,
             pushDevices: true,
             emails: true,
+            phones: true,
         },
     });
     // If no results, return default settings
@@ -35,7 +36,7 @@ export async function getNotificationSettingsAndRecipients(userIds: string[]): P
     // For each user, parse the notification settings and add to the results array
     for (let i = 0; i < userIds.length; i++) {
         // Find queried user data
-        const user = usersData.find(u => u.id === userIds[i]);
+        const user = usersData.find(u => u.id.toString() === userIds[i]);
         // If no user data, return default settings
         if (!user) {
             results.push({ settings: defaultNotificationSettings, pushDevices: [], emails: [], phoneNumbers: [] });
@@ -48,7 +49,7 @@ export async function getNotificationSettingsAndRecipients(userIds: string[]): P
             settings,
             pushDevices: user.pushDevices,
             emails: user.emails,
-            phoneNumbers: [],
+            phoneNumbers: user.phones || [],
         });
     }
     return results;
@@ -79,7 +80,7 @@ export async function updateNotificationSettings(
     }
     // Update the user's notification settings
     const updated = await DbProvider.get().user.update({
-        where: { id: userId },
+        where: { id: BigInt(userId) },
         data: { notificationSettings: JSON.stringify(newSettings) },
         select: { notificationSettings: true },
     });
@@ -119,17 +120,17 @@ export async function findRecipientsAndLimit(
         }
         // Add included devices, emails, and numbers to the return object
         if (settings.includedPush && settings.toPush !== false) {
-            userResult.pushDevices = pushDevices.filter(device => settings.includedPush?.some(({ id }) => id === device.id));
+            userResult.pushDevices = pushDevices.filter(device => settings.includedPush?.some(({ id }) => id === device.id.toString()));
         } else {
             userResult.pushDevices = pushDevices;
         }
         if (settings.includedEmails && settings.toEmails !== false) {
-            userResult.emails = emails.filter(email => settings.includedEmails?.some(({ id }) => id === email.id));
+            userResult.emails = emails.filter(email => settings.includedEmails?.some(({ id }) => id === email.id.toString()));
         } else {
             userResult.emails = emails;
         }
         if (settings.includedSms && settings.toSms !== false) {
-            userResult.phoneNumbers = phoneNumbers.filter(phoneNumber => settings.includedSms?.includes(phoneNumber.id));
+            userResult.phoneNumbers = phoneNumbers.filter(phoneNumber => settings.includedSms?.some(phone => phone.id === phoneNumber.id.toString()));
         } else {
             userResult.phoneNumbers = phoneNumbers;
         }

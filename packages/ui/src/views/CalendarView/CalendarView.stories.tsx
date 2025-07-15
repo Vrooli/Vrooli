@@ -1,5 +1,6 @@
 import { http, HttpResponse } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
+import { getMockApiUrl } from "../../__test/helpers/storybookMocking.js";
 import { CalendarTabs, CalendarView } from "./CalendarView.js";
 
 // Generate mock dates based on the current month
@@ -124,7 +125,7 @@ const generateSchedules = () => {
     let id = 1;
 
     // Get current month name
-    const currentMonthName = now.toLocaleString('default', { month: 'long' });
+    const currentMonthName = now.toLocaleString("default", { month: "long" });
     
     // Meeting events - 2 per day for first week
     for (let day = 1; day <= 7; day++) {
@@ -264,19 +265,19 @@ const mockTriggers = {
                         {
                             field: "dayOfWeek",
                             operator: "equals",
-                            value: 1 // Monday
+                            value: 1, // Monday
                         },
                         {
                             field: "timeOfDay",
                             operator: "equals",
-                            value: "09:00"
-                        }
+                            value: "09:00",
+                        },
                     ],
                     action: "SendNotification",
                     actionConfig: {
                         title: "Weekly Planning Time",
                         message: "Don't forget to plan your week ahead!",
-                        type: "reminder"
+                        type: "reminder",
                     },
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString(),
@@ -301,13 +302,13 @@ const mockTriggers = {
                         {
                             field: "routineType",
                             operator: "equals",
-                            value: "project"
-                        }
+                            value: "project",
+                        },
                     ],
                     action: "StartRun",
                     actionConfig: {
                         routineId: "retrospective-routine-id",
-                        delay: 30 // minutes
+                        delay: 30, // minutes
                     },
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString(),
@@ -332,15 +333,15 @@ const mockTriggers = {
                         {
                             field: "tags",
                             operator: "contains",
-                            value: "sprint"
-                        }
+                            value: "sprint",
+                        },
                     ],
                     action: "CreateMeeting",
                     actionConfig: {
                         title: "Sprint Retrospective Meeting",
                         duration: 60,
                         teamId: "team-id",
-                        scheduledOffset: "1 day"
+                        scheduledOffset: "1 day",
                     },
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString(),
@@ -365,17 +366,17 @@ const mockTriggers = {
                         {
                             field: "timeOfDay",
                             operator: "equals",
-                            value: "09:30"
+                            value: "09:30",
                         },
                         {
                             field: "weekdaysOnly",
                             operator: "equals",
-                            value: true
-                        }
+                            value: true,
+                        },
                     ],
                     action: "StartRun",
                     actionConfig: {
-                        routineId: "daily-standup-routine-id"
+                        routineId: "daily-standup-routine-id",
                     },
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString(),
@@ -400,14 +401,14 @@ const mockTriggers = {
                         {
                             field: "tags",
                             operator: "contains", 
-                            value: "important"
-                        }
+                            value: "important",
+                        },
                     ],
                     action: "CreateNote",
                     actionConfig: {
                         title: "Documentation Update Required",
                         template: "project-doc-template",
-                        parentProject: "auto-detect"
+                        parentProject: "auto-detect",
                     },
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString(),
@@ -435,7 +436,7 @@ export default {
         msw: {
             handlers: [
                 // Mock the exact query we saw in the request
-                http.post(`${API_URL}/v2/schedules`, async ({ request }) => {
+                http.post(getMockApiUrl("/schedules"), async ({ request }) => {
                     console.log("Intercepted POST schedule request", request.url);
                     // Get the request body and examine it
                     let body;
@@ -458,7 +459,7 @@ export default {
                 }),
 
                 // Also handle GET requests with query parameters
-                http.get(`${API_URL}/v2/schedules*`, ({ request }) => {
+                http.get(`${getMockApiUrl("/schedules")}*`, ({ request }) => {
                     console.log("Intercepted GET schedule request", request.url);
                     const url = new URL(request.url);
                     console.log("GET request parameters:",
@@ -525,7 +526,7 @@ export default {
                 }),
 
                 // Handle any GraphQL requests that might be happening
-                http.post(`${API_URL}/v2/graphql`, async ({ request }) => {
+                http.post(getMockApiUrl("/graphql"), async ({ request }) => {
                     console.log("Intercepted GraphQL request");
                     const body = await request.json();
 

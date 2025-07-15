@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-06-26
 /**
  * Functions for manipulating state objects
  */
@@ -7,17 +8,27 @@ import { exists } from "../../utils/exists.js";
  * Grabs data from an object using dot notation (ex: 'parent.child.property')
  */
 export function valueFromDot<T = unknown>(object: Record<string, unknown>, notation: string): T | null {
-    // Utility function to index into object using string key
-    function index(obj: Record<string, unknown> | null, i: string): Record<string, unknown> | null {
-        // Return null if obj is falsy
-        return exists(obj) ? (obj[i] as Record<string, unknown>) : null;
-    }
     // Return null if either object or notation is falsy
     if (!object || !notation) return null;
-    // Use reduce method to traverse the object using dot notation
-    // If the final result is falsy, return null
-    const value = notation.split(".").reduce(index, object);
-    return exists(value) ? (value as T) : null;
+    
+    // Split notation and traverse the object
+    const keys = notation.split(".");
+    let current: unknown = object;
+    
+    for (const key of keys) {
+        if (current === null || current === undefined) {
+            return null;
+        }
+        
+        // Handle both objects and arrays
+        if (typeof current === "object") {
+            current = (current as Record<string | number, unknown>)[key];
+        } else {
+            return null;
+        }
+    }
+    
+    return exists(current) ? (current as T) : null;
 }
 
 /**
@@ -26,7 +37,7 @@ export function valueFromDot<T = unknown>(object: Record<string, unknown>, notat
 export function convertToDot(
     obj: Record<string, unknown>, 
     parent: string[] = [], 
-    keyValue: Record<string, unknown> = {}
+    keyValue: Record<string, unknown> = {},
 ): Record<string, unknown> {
     for (const key in obj) {
         const keyPath: string[] = [...parent, key];

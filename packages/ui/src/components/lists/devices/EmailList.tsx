@@ -4,7 +4,7 @@ import InputAdornment from "@mui/material/InputAdornment";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
-import { Tooltip } from "../../../Tooltip/Tooltip.js";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import { useTheme } from "@mui/material";
 import { DUMMY_ID, DeleteType, emailValidation, endpointsActions, endpointsEmail, generatePK, type DeleteOneInput, type Email, type EmailCreateInput, type SendVerificationEmailInput, type Success } from "@vrooli/shared";
 import { useFormik } from "formik";

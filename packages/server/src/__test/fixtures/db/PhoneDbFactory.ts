@@ -1,4 +1,4 @@
-import { generatePK, nanoid } from "@vrooli/shared";
+import { nanoid } from "@vrooli/shared";
 import { type Prisma, type phone } from "@prisma/client";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
 import type { 
@@ -25,18 +25,18 @@ export class PhoneDbFactory extends EnhancedDbFactory<
      * Get complete test fixtures for Phone model
      */
     protected getFixtures(): DbTestFixtures<Prisma.phoneCreateInput, Prisma.phoneUpdateInput> {
-        const userId = generatePK();
+        const userId = this.generateId();
         
         return {
             minimal: {
-                id: generatePK(),
+                id: this.generateId(),
                 phoneNumber: `+1555${Math.floor(Math.random() * 10000000).toString().padStart(7, "0")}`,
                 user: {
                     connect: { id: userId },
                 },
             },
             complete: {
-                id: generatePK(),
+                id: this.generateId(),
                 phoneNumber: `+1555${Math.floor(Math.random() * 10000000).toString().padStart(7, "0")}`,
                 verifiedAt: new Date(),
                 verificationCode: `${Math.floor(Math.random() * 1000000).toString().padStart(6, "0")}`,
@@ -58,7 +58,7 @@ export class PhoneDbFactory extends EnhancedDbFactory<
                     verifiedAt: "not-a-date" as any, // Should be Date
                 },
                 invalidFormat: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     phoneNumber: "not-a-phone-number",
                     user: {
                         connect: { id: userId },
@@ -67,7 +67,7 @@ export class PhoneDbFactory extends EnhancedDbFactory<
             },
             edgeCases: {
                 unverifiedWithCode: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     phoneNumber: `+1555${Math.floor(Math.random() * 10000000).toString().padStart(7, "0")}`,
                     verificationCode: "123456",
                     lastVerificationCodeRequestAttempt: new Date(),
@@ -76,22 +76,22 @@ export class PhoneDbFactory extends EnhancedDbFactory<
                     },
                 },
                 internationalPhone: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     phoneNumber: `+44${Math.floor(Math.random() * 1000000000).toString().padStart(9, "0")}`, // UK
                     user: {
                         connect: { id: userId },
                     },
                 },
                 teamPhone: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     phoneNumber: `+1800${Math.floor(Math.random() * 10000000).toString().padStart(7, "0")}`,
                     verifiedAt: new Date(),
                     team: {
-                        connect: { id: generatePK() },
+                        connect: { id: this.generateId() },
                     },
                 },
                 shortCode: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     phoneNumber: "+12345", // Short codes are typically 5-6 digits
                     verifiedAt: new Date(),
                     user: {

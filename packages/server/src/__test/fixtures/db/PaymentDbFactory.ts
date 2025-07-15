@@ -1,4 +1,4 @@
-import { generatePK, nanoid } from "@vrooli/shared";
+import { nanoid } from "@vrooli/shared";
 import { type Prisma, type payment } from "@prisma/client";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
 import type { 
@@ -26,11 +26,11 @@ export class PaymentDbFactory extends EnhancedDbFactory<
      * Get complete test fixtures for Payment model
      */
     protected getFixtures(): DbTestFixtures<Prisma.paymentCreateInput, Prisma.paymentUpdateInput> {
-        const userId = generatePK();
+        const userId = this.generateId();
         
         return {
             minimal: {
-                id: generatePK(),
+                id: this.generateId(),
                 amount: 999, // $9.99 in cents
                 currency: "USD",
                 paymentType: "Credits",
@@ -40,13 +40,13 @@ export class PaymentDbFactory extends EnhancedDbFactory<
                 },
             },
             complete: {
-                id: generatePK(),
+                id: this.generateId(),
                 amount: 1999, // $19.99 in cents
                 currency: "USD",
                 paymentType: "PremiumMonthly",
                 status: "Paid",
-                stripePaymentIntentId: `pi_${nanoid(24)}`,
-                stripeClientSecret: `pi_${nanoid(24)}_secret_${nanoid(16)}`,
+                stripePaymentIntentId: `pi_${nanoid()}`,
+                stripeClientSecret: `pi_${nanoid()}_secret_${nanoid()}`,
                 description: "Premium subscription payment",
                 processingFee: 58, // Stripe fee: 2.9% + 30 cents
                 receivedAt: new Date(),
@@ -67,7 +67,7 @@ export class PaymentDbFactory extends EnhancedDbFactory<
                     status: 123 as any, // Should be string
                 },
                 negativeAmount: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     amount: -500, // Negative amount
                     currency: "USD",
                     paymentType: "Credits",
@@ -79,7 +79,7 @@ export class PaymentDbFactory extends EnhancedDbFactory<
             },
             edgeCases: {
                 creditsPurchase: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     amount: 5000, // $50.00
                     currency: "USD",
                     paymentType: "Credits",
@@ -92,24 +92,24 @@ export class PaymentDbFactory extends EnhancedDbFactory<
                     },
                 },
                 failedPayment: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     amount: 2999, // $29.99
                     currency: "USD",
                     paymentType: "PremiumYearly",
                     status: "Failed",
-                    stripePaymentIntentId: `pi_${nanoid(24)}`,
+                    stripePaymentIntentId: `pi_${nanoid()}`,
                     description: "Failed premium subscription",
                     user: {
                         connect: { id: userId },
                     },
                 },
                 donationPayment: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     amount: 1499, // $14.99
                     currency: "USD",
                     paymentType: "Donation",
                     status: "Paid",
-                    stripePaymentIntentId: `pi_${nanoid(24)}`,
+                    stripePaymentIntentId: `pi_${nanoid()}`,
                     description: "Platform donation",
                     processingFee: 43, // Processing fee
                     receivedAt: new Date(Date.now() - 86400000), // 1 day ago
@@ -118,12 +118,12 @@ export class PaymentDbFactory extends EnhancedDbFactory<
                     },
                 },
                 foreignCurrency: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     amount: 1200, // €12.00 in cents
                     currency: "EUR",
                     paymentType: "PremiumMonthly",
                     status: "Paid",
-                    stripePaymentIntentId: `pi_${nanoid(24)}`,
+                    stripePaymentIntentId: `pi_${nanoid()}`,
                     description: "European premium subscription",
                     processingFee: 65, // Different fee structure for EUR
                     receivedAt: new Date(),
@@ -132,7 +132,7 @@ export class PaymentDbFactory extends EnhancedDbFactory<
                     },
                 },
                 yearlySubscription: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     amount: 99999, // $999.99
                     currency: "USD",
                     paymentType: "PremiumYearly",

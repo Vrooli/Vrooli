@@ -9,8 +9,8 @@ export class MeetingInviteDbFactory {
     static createMinimal(
         meetingId: string,
         userId: string,
-        overrides?: Partial<Prisma.MeetingInviteCreateInput>,
-    ): Prisma.MeetingInviteCreateInput {
+        overrides?: Partial<Prisma.meeting_inviteCreateInput>,
+    ): Prisma.meeting_inviteCreateInput {
         return {
             id: generatePK(),
             publicId: generatePublicId(),
@@ -25,8 +25,8 @@ export class MeetingInviteDbFactory {
         meetingId: string,
         userId: string,
         message: string,
-        overrides?: Partial<Prisma.MeetingInviteCreateInput>,
-    ): Prisma.MeetingInviteCreateInput {
+        overrides?: Partial<Prisma.meeting_inviteCreateInput>,
+    ): Prisma.meeting_inviteCreateInput {
         return this.createMinimal(meetingId, userId, {
             message,
             ...overrides,
@@ -36,8 +36,8 @@ export class MeetingInviteDbFactory {
     static createAccepted(
         meetingId: string,
         userId: string,
-        overrides?: Partial<Prisma.MeetingInviteCreateInput>,
-    ): Prisma.MeetingInviteCreateInput {
+        overrides?: Partial<Prisma.meeting_inviteCreateInput>,
+    ): Prisma.meeting_inviteCreateInput {
         return this.createMinimal(meetingId, userId, {
             status: "Accepted",
             ...overrides,
@@ -47,8 +47,8 @@ export class MeetingInviteDbFactory {
     static createDeclined(
         meetingId: string,
         userId: string,
-        overrides?: Partial<Prisma.MeetingInviteCreateInput>,
-    ): Prisma.MeetingInviteCreateInput {
+        overrides?: Partial<Prisma.meeting_inviteCreateInput>,
+    ): Prisma.meeting_inviteCreateInput {
         return this.createMinimal(meetingId, userId, {
             status: "Declined",
             ...overrides,
@@ -73,7 +73,7 @@ export async function seedMeetingInvites(
 
     for (let i = 0; i < options.userIds.length; i++) {
         const userId = options.userIds[i];
-        let inviteData: Prisma.MeetingInviteCreateInput;
+        let inviteData: Prisma.meeting_inviteCreateInput;
 
         if (options.status === "Accepted") {
             inviteData = MeetingInviteDbFactory.createAccepted(options.meetingId, userId);

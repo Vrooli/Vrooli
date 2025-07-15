@@ -132,10 +132,10 @@ k8s_cluster::install_vault_helm_chart() {
             return 1
         fi
 
-        if helm install vault hashicorp/vault \\
-            --namespace vault \\
-            --create-namespace \\
-            -f "$vault_values_file" \\
+        if helm install vault hashicorp/vault \
+            --namespace vault \
+            --create-namespace \
+            -f "$vault_values_file" \
             --wait --timeout 10m; then # Wait for resources to be ready
             log::success "HashiCorp Vault Helm chart installed successfully in 'vault' namespace."
             log::info "Vault UI might be accessible via LoadBalancer or 'kubectl port-forward svc/vault-ui -n vault 8200:8200'"
@@ -154,9 +154,9 @@ k8s_cluster::install_vault_helm_chart() {
 k8s_cluster::install_vso_helm_chart() {
     if ! helm status vault-secrets-operator -n vault-secrets-operator-system > /dev/null 2>&1; then
         log::info "📦 Installing HashiCorp Vault Secrets Operator Helm chart..."
-        if helm install vault-secrets-operator hashicorp/vault-secrets-operator \\
-            --namespace vault-secrets-operator-system \\
-            --create-namespace \\
+        if helm install vault-secrets-operator hashicorp/vault-secrets-operator \
+            --namespace vault-secrets-operator-system \
+            --create-namespace \
             --wait --timeout 5m; then # Wait for VSO to be ready
             log::success "HashiCorp Vault Secrets Operator Helm chart installed successfully in 'vault-secrets-operator-system' namespace."
         else
@@ -209,7 +209,7 @@ k8s_cluster::install_spotahome_redis_operator() {
     local operator_release_name="spotahome-redis-operator"
     local operator_chart_name="redis-operator/redis-operator"
     # Check Spotahome Redis Operator releases for the latest chart version
-    local operator_chart_version="1.2.4" # As of last check, but verify latest stable from their repo
+    local operator_chart_version="3.2.9" # Chart version that includes app version 1.2.4
 
     if ! helm status "$operator_release_name" -n "$operator_namespace" > /dev/null 2>&1; then
         log::info "📦 Installing Spotahome Redis Operator Helm chart..."

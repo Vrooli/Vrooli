@@ -9,10 +9,38 @@ export default {
       fontFamily: {
         sans: ['Roboto', 'Helvetica', 'Arial', 'sans-serif'],
       },
-      // Custom animations for spinners
+      // Custom animations for spinners and dialogs
       animation: {
         'spin': 'spin 1s linear infinite',
         'pulse': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'float': 'float 3s ease-in-out infinite',
+        'float-delayed': 'float-delayed 3s ease-in-out infinite 1.5s',
+        'scale-in': 'scale-in 0.2s ease-out',
+        'success-pop': 'success-pop 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+        'slide-infinite': 'slide-infinite 3s linear infinite',
+      },
+      keyframes: {
+        float: {
+          '0%, 100%': { transform: 'translateY(0) scale(1)' },
+          '50%': { transform: 'translateY(-20px) scale(1.1)' },
+        },
+        'float-delayed': {
+          '0%, 100%': { transform: 'translateX(0) scale(1)' },
+          '50%': { transform: 'translateX(20px) scale(1.1)' },
+        },
+        'scale-in': {
+          from: { transform: 'scale(0)', opacity: '0' },
+          to: { transform: 'scale(1)', opacity: '1' },
+        },
+        'success-pop': {
+          '0%': { transform: 'scale(0)', opacity: '0' },
+          '50%': { transform: 'scale(1.2)', opacity: '1' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        'slide-infinite': {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
       },
       // Sync with MUI theme colors
       colors: {

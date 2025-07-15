@@ -1,8 +1,10 @@
+// AI_CHECK: TYPE_SAFETY=phase3-triggers | LAST: 2025-07-04 - Enhanced type safety for owner property access using type guards
 import { type ModelType, type SessionUser } from "@vrooli/shared";
 import { type PrismaDelegate } from "../../builders/types.js";
 import { DbProvider } from "../../db/provider.js";
 import { Trigger } from "../../events/trigger.js";
 import { ModelMap } from "../../models/base/index.js";
+import { hasProperty } from "../typeGuards.js";
 
 /**
  * Used in mutate.trigger.afterMutations of non-root and non-version objects. 
@@ -47,11 +49,17 @@ export async function afterMutationsPlain({
         const id = createAndUpdateIds[i];
         const owner = ownersData.find(o => o.id === id);
         if (owner) {
-            if (ownerTeamField && owner[ownerTeamField]) {
-                ownerMap[id] = { id: owner[ownerTeamField].id, __typename: "Team" };
+            if (ownerTeamField && hasProperty(owner, ownerTeamField)) {
+                const teamOwner = owner[ownerTeamField];
+                if (teamOwner && typeof teamOwner === "object" && hasProperty(teamOwner, "id")) {
+                    ownerMap[id] = { id: String(teamOwner.id), __typename: "Team" };
+                }
             }
-            if (ownerUserField && owner[ownerUserField]) {
-                ownerMap[id] = { id: owner[ownerUserField].id, __typename: "User" };
+            if (ownerUserField && hasProperty(owner, ownerUserField)) {
+                const userOwner = owner[ownerUserField];
+                if (userOwner && typeof userOwner === "object" && hasProperty(userOwner, "id")) {
+                    ownerMap[id] = { id: String(userOwner.id), __typename: "User" };
+                }
             }
         }
     }

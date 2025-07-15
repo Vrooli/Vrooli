@@ -40,7 +40,7 @@ export const StatsTeamModel: StatsTeamModelLogic = ({
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => ModelMap.get<TeamModelLogic>("Team").validate().owner(data?.team as TeamModelInfo["DbModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<StatsTeamModelInfo["DbSelect"]>([["team", "Team"]], ...rest),
+        isPublic: (data, getParentInfo?) => oneIsPublic<StatsTeamModelInfo["DbSelect"]>([["team", "Team"]], data, getParentInfo),
         visibility: {
             own: function getOwn(data) {
                 return {

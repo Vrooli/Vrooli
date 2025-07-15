@@ -1,7 +1,5 @@
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Dialog from "@mui/material/Dialog";
-import IconButton from "@mui/material/IconButton";
 import LinearProgress from "@mui/material/LinearProgress";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -10,20 +8,16 @@ import ListSubheader from "@mui/material/ListSubheader";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import MobileStepper from "@mui/material/MobileStepper";
-import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import type { PaperProps } from "@mui/material";
 import { styled, useTheme } from "@mui/material";
-import { FormStructureType, LINKS, SEEDED_PUBLIC_IDS, SearchPageTabOption, UrlTools, getObjectUrl, nanoid, type FormInformationalType, type TutorialViewSearchParams } from "@vrooli/shared";
+import { IconButton } from "../buttons/IconButton.js";
+import { LINKS, SEEDED_PUBLIC_IDS, SearchPageTabOption, UrlTools, getObjectUrl, parseSearchParams, type TutorialViewSearchParams } from "@vrooli/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Draggable from "react-draggable";
 import { useTranslation } from "react-i18next";
-import { FormRunView } from "../../forms/FormView/FormView.js";
+import { FormRunView } from "../../forms/FormView/FormRunView.js";
 import { useHotkeys } from "../../hooks/useHotkeys.js";
-import { useMenu } from "../../hooks/useMenu.js";
-import { usePopover } from "../../hooks/usePopover.js";
-import { useWindowSize } from "../../hooks/useWindowSize.js";
+import { useIsMobile } from "../../hooks/useIsMobile.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { addSearchParams, removeSearchParams } from "../../route/searchParams.js";
@@ -31,902 +25,12 @@ import { ELEMENT_IDS, Z_INDEX } from "../../utils/consts.js";
 import { TUTORIAL_HIGHLIGHT, addHighlight, removeHighlights } from "../../utils/display/documentTools.js";
 import { PubSub, type MenuPayloads } from "../../utils/pubsub.js";
 import { routineTypes } from "../../utils/search/schemas/resource.js";
-import { PopoverWithArrow } from "../dialogs/PopoverWithArrow/PopoverWithArrow.js";
-import { MarkdownDisplay } from "../text/MarkdownDisplay.js";
-import { DialogTitle } from "./DialogTitle/DialogTitle.js";
+import { Dialog, DialogContent, DialogActions } from "./Dialog/Dialog.js";
+import { tutorialSections } from "./TutorialDialog/tutorialSections.js";
+import type { Place, TutorialDialogProps, TutorialSection, TutorialStep } from "./TutorialDialog/types.js";
 
-type Place = {
-    section: number;
-    step: number;
-}
-
-type TutorialStep = {
-    /**
-     * Action triggered when step is reached. 
-     * Useful for opening side menus, putting components in 
-     * a certain state, etc.
-     */
-    action?: () => unknown;
-    content: FormInformationalType[];
-    location?: {
-        /**
-         * ID of the element to anchor the tutorial step to.
-         */
-        element?: string;
-        /**
-         * What page to navigate to when the step is reached.
-         */
-        page?: string;
-    };
-    /**
-     * Overrides the next step to go to.
-     */
-    next?: Place;
-    /**
-     * Allows you to specify options for what place to go next. 
-     * Useful for giving the user a choice of what to learn about.
-     * 
-     * NOTE: If only one option is provided, the user will be taken there automatically. 
-     * No option will be shown.
-     */
-    options?: {
-        label: string;
-        place: Place;
-    }[];
-    /**
-     * Overrides the previous step.
-     */
-    previous?: Place;
-}
-
-export type TutorialSection = {
-    hideFromMenu?: boolean;
-    title: string;
-    steps: TutorialStep[];
-}
-
-// Sections of the tutorial
-const sections: TutorialSection[] = [
-    {
-        title: "Welcome to Vrooli!",
-        steps: [
-            {
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "This tutorial will show you how to use Vrooli to assist your personal and professional life.",
-                        tag: "body1",
-                    },
-                    {
-                        type: FormStructureType.Header,
-                        color: "secondary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "It will only take a few minutes, and you can skip it at any time.",
-                        tag: "body2",
-                    },
-                    {
-                        type: FormStructureType.Divider,
-                        id: nanoid(),
-                        label: "",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        id: nanoid(),
-                        label: "Watch the tutorial video instead (recommended for mobile users)",
-                        link: "https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1", //TODO: Add video link
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        icon: "Info",
-                        id: nanoid(),
-                        label: "Need this again? Look for \"Tutorial\" in the user menu",
-                    },
-                ],
-                location: {
-                    page: LINKS.Home,
-                },
-            },
-        ],
-    },
-    {
-        title: "Home Page",
-        steps: [
-            {
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "The home page shows the most important information for you.",
-                        tag: "body1",
-                    },
-                ],
-                location: {
-                    page: LINKS.Home,
-                },
-            },
-            {
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "The first thing you'll see is a customizable list of resource cards.\nThese can be anything you want, such as links to your favorite websites, or objects on Vrooli.",
-                        tag: "body1",
-                    },
-                    {
-                        type: FormStructureType.Divider,
-                        id: nanoid(),
-                        label: "",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        icon: "Info",
-                        id: nanoid(),
-                        label: "Press the last card to add a new resource",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        icon: "Info",
-                        id: nanoid(),
-                        label: "Hold or right-click on a resource to edit or delete it",
-                    },
-                ],
-                location: {
-                    element: ELEMENT_IDS.DashboardResourceList,
-                    page: LINKS.Home,
-                },
-            },
-            {
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "Next is a list of upcoming events. These can be for meetings, focus mode sessions, or scheduled tasks (more on that later).",
-                        tag: "body1",
-                    },
-                    {
-                        type: FormStructureType.Divider,
-                        id: nanoid(),
-                        label: "",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        icon: "Info",
-                        id: nanoid(),
-                        isMarkdown: true,
-                        label: "Press the **Open** button to see a full calendar view",
-                    },
-                ],
-                location: {
-                    element: ELEMENT_IDS.DashboardEventList,
-                    page: LINKS.Home,
-                },
-            },
-            {
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "Then there's a list of reminders.",
-                        tag: "body1",
-                    },
-                    {
-                        type: FormStructureType.Header,
-                        color: "secondary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "These reminders are associated with the current focus mode.",
-                        tag: "body2",
-                    },
-                    {
-                        type: FormStructureType.Divider,
-                        id: nanoid(),
-                        label: "",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        icon: "Info",
-                        id: nanoid(),
-                        label: "Press the **Open** icon to view all reminders, regardless of focus mode",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        icon: "Info",
-                        id: nanoid(),
-                        label: "Press the **Add** icon to create a new reminder",
-                    },
-                ],
-                location: {
-                    element: ELEMENT_IDS.DashboardReminderList,
-                    page: LINKS.Home,
-                },
-            },
-        ],
-    },
-    {
-        title: "User Menu",
-        steps: [
-            {
-                action: () => { PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: false }); },
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "The user menu has many useful features.\nOpen it by pressing on your profile picture.",
-                        tag: "body1",
-                    },
-                ],
-                location: {
-                    element: ELEMENT_IDS.UserMenuProfileIcon,
-                },
-            },
-            {
-                action: () => { PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: true }); },
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "The first section lists all logged-in accounts.",
-                        tag: "body1",
-                    },
-                    {
-                        type: FormStructureType.Divider,
-                        id: nanoid(),
-                        label: "",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        icon: "Info",
-                        id: nanoid(),
-                        label: "Press on your current account to open your profile",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        icon: "Info",
-                        id: nanoid(),
-                        label: "Press on another account to switch to it",
-                    },
-                ],
-                location: {
-                    element: ELEMENT_IDS.UserMenuAccountList,
-                },
-            },
-            {
-                action: () => {
-                    PubSub.get().publish("menu", {
-                        id: ELEMENT_IDS.UserMenu,
-                        isOpen: true,
-                        data: { isDisplaySettingsCollapsed: false },
-                    });
-                },
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "The second section allows you to control your display settings. This includes:\n- **Theme**: Choose between light and dark mode.\n- **Text size**: Grow or shrink the text on all pages.\n- **Left handed**: Flip the layout of the app to be left-handed.\n- **Language**: Change the language of the app.\n- **Focus mode**: Switch between focus modes.",
-                        tag: "body1",
-                    },
-                ],
-                location: {
-                    element: ELEMENT_IDS.UserMenuDisplaySettings,
-                },
-            },
-            {
-                action: () => { PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: true }); },
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "The third section displays additional pages not listed in the main navigation bar.",
-                        tag: "body1",
-                    },
-                ],
-                location: {
-                    element: ELEMENT_IDS.UserMenuQuickLinks,
-                },
-            },
-        ],
-    },
-    {
-        title: "Searching Objects",
-        steps: [
-            {
-                action: () => { PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: false }); },
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "The **Search** page allows you to explore public objects available on Vrooli.",
-                        tag: "body1",
-                    },
-                ],
-                location: {
-                    page: LINKS.Search,
-                },
-            },
-            {
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "Use the tabs to switch between different types of objects.",
-                        tag: "body1",
-                    },
-                ],
-                location: {
-                    element: ELEMENT_IDS.SearchTabs,
-                    page: LINKS.Search,
-                },
-            },
-        ],
-    },
-    {
-        title: "Routines",
-        steps: [
-            {
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "Routines enable you to automate and streamline various tasks.",
-                        tag: "body1",
-                    },
-                    {
-                        type: FormStructureType.Header,
-                        color: "secondary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "There are several types of routines, each with different capabilities. Let's explore them.",
-                        tag: "body2",
-                    },
-                    {
-                        type: FormStructureType.Divider,
-                        id: nanoid(),
-                        label: "",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        icon: "Info",
-                        id: nanoid(),
-                        label: "Routines can be used for anything, from simple tasks to complex workflows.",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        id: nanoid(),
-                        label: "Watch an example of a routine in action",
-                        link: "https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1", //TODO: Add video link
-                    },
-                ],
-                location: {
-                    page: `${LINKS.Search}?type="${SearchPageTabOption.RoutineMultiStep}"`,
-                },
-            },
-            {
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "Here's an overview of each routine type.",
-                        tag: "body1",
-                    },
-                    {
-                        type: FormStructureType.Header,
-                        color: "secondary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: routineTypes.map(type => `\n- **${type.label}**: ${type.description}`).join(""),
-                        tag: "body2",
-                    },
-                    {
-                        type: FormStructureType.Divider,
-                        id: nanoid(),
-                        label: "",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        icon: "Info",
-                        id: nanoid(),
-                        label: "Routines can be created using AI, so you don't need to worry about the details.",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        icon: "Warning",
-                        id: nanoid(),
-                        label: "Not all routine types are fully implemented yet.",
-                    },
-                ],
-                location: {
-                    page: `${LINKS.Search}?type="${SearchPageTabOption.RoutineMultiStep}"`,
-                },
-            },
-            {
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "Choose a routine to explore, or press the check mark to skip to the next section.",
-                        tag: "body1",
-                    },
-                ],
-                location: {
-                    page: `${LINKS.Search}?type="${SearchPageTabOption.RoutineMultiStep}"`,
-                },
-                next: { section: 10, step: 0 },
-                options: [
-                    {
-                        label: "Project kickoff checklist (Basic)",
-                        place: { section: 5, step: 0 }, //TODO
-                    },
-                    {
-                        label: "Workout plan generator (Generate)",
-                        place: { section: 6, step: 0 }, //TODO
-                    },
-                    {
-                        label: "Fiction book writer (Multi-step)",
-                        place: { section: 7, step: 0 }, //TODO
-                    },
-                    {
-                        label: "Create reminder (Action)",
-                        place: { section: 8, step: 0 }, //TODO
-                    },
-                    {
-                        label: "Plaintext to JSON converter (Code)",
-                        place: { section: 9, step: 0 }, //TODO
-                    },
-                ],
-            },
-            // TODO move steps below to other sections
-            // {
-            //     content: [
-            //         {
-            //             type: FormStructureType.Header,
-            //             id: nanoid(),
-            //             isCollapsible: false,
-            //             isMarkdown: true,
-            //             label: "This routine is more complex and includes multiple steps.",
-            //             tag: "body1",
-            //         },
-            //         {
-            //             type: FormStructureType.Header,
-            //             id: nanoid(),
-            //             isCollapsible: false,
-            //             isMarkdown: true,
-            //             label: "Steps help break down tasks into manageable parts and can be reused in other routines.",
-            //             tag: "body2",
-            //         },
-            //     ],
-            // },
-            // {
-            //     content: [
-            //         {
-            //             type: FormStructureType.Header,
-            //             id: nanoid(),
-            //             isCollapsible: false,
-            //             isMarkdown: true,
-            //             label: "Finally, we have a fully automated routine.",
-            //             tag: "body1",
-            //         },
-            //         {
-            //             type: FormStructureType.Header,
-            //             id: nanoid(),
-            //             isCollapsible: false,
-            //             isMarkdown: true,
-            //             label: "An AI bot handles the entire task, requiring minimal input from you.",
-            //             tag: "body2",
-            //         },
-            //     ],
-            // },
-            // {
-            //     content: [
-            //         {
-            //             type: FormStructureType.Header,
-            //             id: nanoid(),
-            //             isCollapsible: false,
-            //             isMarkdown: true,
-            //             label: "This is just one example of how routines can be utilized.",
-            //             tag: "body1",
-            //         },
-            //         {
-            //             type: FormStructureType.Tip,
-            //             icon: "Info",
-            //             id: nanoid(),
-            //             label: "Explore and create routines to automate tasks and enhance productivity.",
-            //         },
-            //     ],
-            // },
-        ],
-    },
-    {
-        hideFromMenu: true,
-        title: "Routine - Project Kickoff Checklist",
-        steps: [
-            {
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "In this example, we're showing off the form-building capabilities of routines.",
-                        tag: "body1",
-                    },
-                    {
-                        type: FormStructureType.Header,
-                        color: "secondary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "Typically, basic routines like this one are created as part of a multi-step routine. They're important for collecting information to use in later steps.",
-                        tag: "body2",
-                    },
-                ],
-                location: {
-                    page: getObjectUrl({ __typename: "Resource", publicId: SEEDED_PUBLIC_IDS.ProjectKickoffChecklist } as const),
-                },
-                previous: { section: 4, step: 2 },
-            },
-            {
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "Here is some general information about the routine, such as its completion status and owner.",
-                        tag: "body1",
-                    },
-                    {
-                        type: FormStructureType.Divider,
-                        id: nanoid(),
-                        label: "",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        icon: "Info",
-                        id: nanoid(),
-                        label: "Press on the owner's name to view their profile",
-                    },
-                ],
-                location: {
-                    element: ELEMENT_IDS.RelationshipList,
-                    page: getObjectUrl({ __typename: "Resource", publicId: SEEDED_PUBLIC_IDS.ProjectKickoffChecklist } as const),
-                },
-            },
-            {
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "Here are relevant links and resources for the routine.",
-                        tag: "body1",
-                    },
-                ],
-                location: {
-                    element: ELEMENT_IDS.ResourceCards,
-                    page: getObjectUrl({ __typename: "Resource", publicId: SEEDED_PUBLIC_IDS.ProjectKickoffChecklist } as const),
-                },
-            },
-            {
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "Here is the form that is filled out when running the routine.",
-                        tag: "body1",
-                    },
-                    {
-                        type: FormStructureType.Header,
-                        color: "secondary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "All of the text and input components you see here (and more!) can be added to your own routines.",
-                        tag: "body2",
-                    },
-                ],
-                location: {
-                    element: ELEMENT_IDS.RoutineTypeForm,
-                    page: getObjectUrl({ __typename: "Resource", publicId: SEEDED_PUBLIC_IDS.ProjectKickoffChecklist } as const),
-                },
-                next: { section: 4, step: 2 },
-            },
-        ],
-    },
-    {
-        hideFromMenu: true,
-        title: "Routine - Workout Plan Generator",
-        steps: [
-            {
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "In this example, we're showcasing the AI generation capabilities of routines.",
-                        tag: "body1",
-                    },
-                    {
-                        type: FormStructureType.Header,
-                        color: "secondary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "\"Generate\" routines use the inputs you provide to produce an output.",
-                        tag: "body2",
-                    },
-                    {
-                        type: FormStructureType.Divider,
-                        id: nanoid(),
-                        label: "",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        icon: "Warning",
-                        id: nanoid(),
-                        label: "We currently support only text inputs and outputs. This will be expanded in the future.",
-                    },
-
-                ],
-                location: {
-                    page: getObjectUrl({ __typename: "Resource", publicId: SEEDED_PUBLIC_IDS.WorkoutPlanGenerator } as const),
-                },
-                previous: { section: 4, step: 2 },
-            },
-            {
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "Here is some general information about the routine, such as its completion status and owner.",
-                        tag: "body1",
-                    },
-                    {
-                        type: FormStructureType.Divider,
-                        id: nanoid(),
-                        label: "",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        icon: "Info",
-                        id: nanoid(),
-                        label: "Press on the owner's name to view their profile.",
-                    },
-                ],
-                location: {
-                    element: ELEMENT_IDS.RelationshipList,
-                    page: getObjectUrl({ __typename: "Resource", publicId: SEEDED_PUBLIC_IDS.WorkoutPlanGenerator } as const),
-                },
-            },
-            {
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "You can choose the AI model and bot style for generating the output.",
-                        tag: "body1",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        icon: "Info",
-                        id: nanoid(),
-                        label: "Selecting different bots or styles can significantly affect the generated output.",
-                    },
-                ],
-                location: {
-                    element: ELEMENT_IDS.RoutineGenerateSettings,
-                    page: getObjectUrl({ __typename: "Resource", publicId: SEEDED_PUBLIC_IDS.WorkoutPlanGenerator } as const),
-                },
-            },
-            {
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "Here is the form that is filled out when running the routine.",
-                        tag: "body1",
-                    },
-                    {
-                        type: FormStructureType.Header,
-                        color: "secondary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "The inputs you provide here will be used by the AI to generate a personalized workout plan.",
-                        tag: "body2",
-                    },
-                ],
-                location: {
-                    element: `input-${ELEMENT_IDS.FormRunView}`,
-                    page: getObjectUrl({ __typename: "Resource", publicId: SEEDED_PUBLIC_IDS.WorkoutPlanGenerator } as const),
-                },
-                next: { section: 4, step: 2 },
-            },
-        ],
-    },
-    {
-        hideFromMenu: true,
-        title: "Routine - Fiction Book Writer",
-        steps: [],//TODO
-    },
-    {
-        hideFromMenu: true,
-        title: "Routine - Create Reminder",
-        steps: [],//TODO
-    },
-    {
-        hideFromMenu: true,
-        title: "Routine - Plaintext to JSON Converter",
-        steps: [],//TODO
-    },
-    {
-        title: "Site Navigator Menu",
-        steps: [
-            {
-                action: () => { PubSub.get().publish("menu", { id: ELEMENT_IDS.LeftDrawer, isOpen: false }); },
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: nanoid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "Open the navigation menu by pressing the list icon.",
-                        tag: "body1",
-                    },
-                ],
-                location: {
-                    element: ELEMENT_IDS.SiteNavigatorMenuIcon,
-                    page: LINKS.Search,
-                },
-                previous: { section: 4, step: 2 },
-            },
-        ],
-    },
-    // {
-    //     title: "Informational Routine",
-    //     steps: [],//TODO
-    // },
-    // {
-    //     title: "Action Routine",
-    //     steps: [],//TODO
-    // },
-    // {
-    //     title: "Code Routine",
-    //     steps: [],//TODO
-    // },
-    // {
-    //     title: "Multi-step Routine",
-    //     steps: [],//TODO
-    // },
-    // //TODO add sections for projects and teams maybe
-    // {
-    //     title: "Other Objects",
-    //     steps: [],//TODO should replace "Create Objects"
-    // },
-    // {
-    //     title: "Creating Objects",
-    //     steps: [
-    //         {
-    //             content: {
-    //                 text: "This page allows you to create new objects on Vrooli.",
-    //             },
-    //             location: {
-    //                 page: LINKS.Create,
-    //             },
-    //         },
-    //     ],
-    // },
-    // {
-    //     title: "Your Stuff",
-    //     steps: [
-    //         {
-    //             content: {
-    //                 text: "After you've created an object, you can find it here.",
-    //             },
-    //             location: {
-    //                 page: LINKS.MyStuff,
-    //             },
-    //         },
-    //         {
-    //             content: {
-    //                 text: "Just like the search page, you can use these tabs to switch between different types of objects.",
-    //             },
-    //             location: {
-    //                 element: ELEMENT_IDS.MyStuffTabs,
-    //                 page: LINKS.MyStuff,
-    //             },
-    //         },
-    //     ],
-    // },
-    // {
-    //     title: "Inbox",
-    //     steps: [
-    //         {
-    //             content: {
-    //                 text: "This page allows you to view your messages and notifications.\n\nIf you have a premium account, you can message bots and have them run tasks and perform other actions for you.",
-    //             },
-    //             location: {
-    //                 page: LINKS.Inbox,
-    //             },
-    //         },
-    //     ],
-    // },
-    // {
-    //     title: "That's it!",
-    //     steps: [
-    //         {
-    //             content: {
-    //                 text: "Now you know the basics of Vrooli. Have fun!",
-    //             },
-    //         },
-    //         // TODO add suggested next steps, like buying premium/credits, creating a team, etc.
-    //     ],
-    // },
-];
+// Use sections from external file
+const sections: TutorialSection[] = tutorialSections;
 
 function getTotalSteps(sections) {
     return sections.reduce((total, section) => total + section.steps.length, 0);
@@ -991,42 +95,40 @@ export function getNextPlace(
         return { section: 0, step: 0 };
     }
 
-    // Check if section is valid
-    const currentSection = sections[place.section];
-    if (!currentSection) {
-        return null; // Invalid section
-    }
+    const section = sections[place.section];
+    if (!section) return null;
 
-    // Check if step is valid, if not but section is valid, move to next section
-    const currentStep = currentSection.steps[place.step];
-    if (!currentStep) {
-        const nextSection = sections[place.section + 1];
-        if (nextSection && nextSection.steps[0]) {
+    const step = section.steps[place.step];
+    if (!step) {
+        // If step doesn't exist and we're beyond the section, move to next section
+        if (place.step >= section.steps.length) {
+            // If this is the last section
+            if (place.section === sections.length - 1) {
+                return null; // No next place
+            }
+            // Move to the first step of the next section
             return { section: place.section + 1, step: 0 };
-        } else {
-            return null; // No next section
         }
+        return null;
     }
 
-    // If the step has a specific next place, use that
-    if (currentStep.next) return currentStep.next;
-
-    // If current step has exactly one option, use that as next place
-    if (currentStep.options?.length === 1) {
-        return currentStep.options[0].place;
+    // Check if there's a custom next place
+    if (step.next) {
+        return step.next;
     }
 
-    // Otherwise follow normal sequential flow
-    if (currentSection.steps[place.step + 1]) {
-        return { section: place.section, step: place.step + 1 };
-    } else {
-        const nextSection = sections[place.section + 1];
-        if (nextSection && nextSection.steps[0]) {
-            return { section: place.section + 1, step: 0 };
-        } else {
-            return null; // No more steps
+    // If this is the last step in the section
+    if (place.step === section.steps.length - 1) {
+        // If this is the last section
+        if (place.section === sections.length - 1) {
+            return null; // No next place
         }
+        // Move to the first step of the next section
+        return { section: place.section + 1, step: 0 };
     }
+
+    // Move to the next step in the same section
+    return { section: place.section, step: place.step + 1 };
 }
 
 export function getPrevPlace(
@@ -1035,562 +137,510 @@ export function getPrevPlace(
 ): Place | null {
     // Check if place object exists and has valid properties
     if (!place || typeof place.section !== "number" || typeof place.step !== "number") {
-        return { section: 0, step: 0 };
+        return null;
     }
 
-    // Check if section is valid
-    const currentSection = sections[place.section];
-    if (!currentSection) {
-        return null; // Invalid section
-    }
+    const section = sections[place.section];
+    if (!section) return null;
 
-    // Check if step is valid, if not but section is valid, move to previous section's last step
-    const currentStep = currentSection.steps[place.step];
-    if (!currentStep) {
-        const previousSection = sections[place.section - 1];
-        if (previousSection && previousSection.steps.length > 0) {
-            const prevStepIndex = previousSection.steps.length - 1;
-            return { section: place.section - 1, step: prevStepIndex };
-        } else {
-            return null; // No previous section
+    const step = section.steps[place.step];
+    if (!step) {
+        // If step doesn't exist and we're before the section, move to prev section
+        if (place.step < 0) {
+            // If this is the first section
+            if (place.section === 0) {
+                return null; // No previous place
+            }
+            // Move to the last step of the previous section
+            const prevSection = sections[place.section - 1];
+            return { section: place.section - 1, step: prevSection.steps.length - 1 };
         }
+        return null;
     }
 
-    // If the step has a specific previous place, use that
-    if (currentStep.previous) return currentStep.previous;
+    // Check if there's a custom previous place
+    if (step.previous) {
+        return step.previous;
+    }
 
-    // Otherwise follow normal sequential flow
-    if (currentSection.steps[place.step - 1]) {
-        return { section: place.section, step: place.step - 1 };
-    } else {
-        const previousSection = sections[place.section - 1];
-        if (previousSection && previousSection.steps.length > 0) {
-            const prevStepIndex = previousSection.steps.length - 1;
-            return { section: place.section - 1, step: prevStepIndex };
-        } else {
-            return null; // No previous steps
+    // If this is the first step in the section
+    if (place.step === 0) {
+        // If this is the first section
+        if (place.section === 0) {
+            return null; // No previous place
         }
+        // Move to the last step of the previous section
+        const prevSection = sections[place.section - 1];
+        return { section: place.section - 1, step: prevSection.steps.length - 1 };
     }
+
+    // Move to the previous step in the same section
+    return { section: place.section, step: place.step - 1 };
 }
 
-export function getCurrentElement(
-    sections: TutorialSection[],
-    place: Place,
-): HTMLElement | null {
-    if (!isValidPlace(sections, place)) return null;
-    const currentSection = sections[place.section];
-    const currentStep = currentSection?.steps[place.step];
-    const elementId = currentStep?.location?.element;
-    return elementId ? document.getElementById(elementId) : null;
+export function getCurrentElement(sections: TutorialSection[], place: Place): HTMLElement | null {
+    const section = sections[place.section];
+    if (!section) return null;
+    const step = section.steps[place.step];
+    if (!step?.location?.element) return null;
+    return document.getElementById(step.location.element);
 }
 
-export function getCurrentStep(
-    sections: TutorialSection[],
-    place: Place,
-): TutorialStep | null {
-    if (!isValidPlace(sections, place)) return null;
-    const currentSection = sections[place.section];
-    return currentSection?.steps[place.step] || null;
+export function getCurrentStep(sections: TutorialSection[], place: Place): TutorialStep | null {
+    const section = sections[place.section];
+    if (!section) return null;
+    const step = section.steps[place.step];
+    return step || null;
 }
 
-const titleId = "tutorial-dialog-title";
-/** Poll interval for finding anchor element */
-const POLL_INTERVAL_MS = 1000;
-const INITIAL_RENDER_DELAY_MS = 100;
-
-const wrongPageDialogTitleStyle = { root: { cursor: "move" } } as const;
-const popoverWithArrowStyle = {
-    root: {
-        zIndex: Z_INDEX.TutorialDialog,
-        maxWidth: "500px",
-    },
-    content: { padding: 0 },
-} as const;
-const sectionMenuSlotProps = {
-    root: {
-        style: {
-            zIndex: Z_INDEX.TutorialDialog + 1,
-        },
-    },
-    paper: {
-        style: {
-            maxHeight: "60vh",
-            width: "250px",
-        },
-    },
-} as const;
-
-function DraggableDialogPaper(props: PaperProps) {
-    return (
-        <Draggable
-            handle={`#${titleId}`}
-            cancel={"[class*=\"MuiDialogContent-root\"]"}
-        >
-            <Paper {...props} />
-        </Draggable>
-    );
-}
-
-const ContentWrapper = styled(Box)(({ theme }) => ({
-    display: "flex",
-    flexDirection: "column",
-    height: "100%",
-    "& .content": {
-        flex: 1,
-        overflowY: "auto",
-        padding: theme.spacing(2),
-    },
-    "& .stepper": {
-        flexShrink: 0,
-        borderTop: `1px solid ${theme.palette.divider}`,
-    },
-}));
-const SectionTitleBox = styled(Box)(({ theme }) => ({
-    display: "flex",
-    flexDirection: "row",
-    gap: 0,
-    paddingBottom: theme.spacing(2),
-    cursor: "pointer",
-}));
 const StyledStepper = styled(MobileStepper)(({ theme }) => ({
-    background: theme.palette.background.paper,
-    borderTop: `1px solid ${theme.palette.divider}`,
+    background: "transparent",
+    padding: theme.spacing(0.5, 1),
+    "& .MuiMobileStepper-dots": {
+        display: "flex",
+        gap: theme.spacing(0.5),
+    },
+    "& .MuiMobileStepper-dot": {
+        width: 14,
+        height: 14,
+        margin: 0,
+        backgroundColor: theme.palette.action.disabled,
+        cursor: "pointer",
+        transition: "all 0.2s ease",
+        "&:hover": {
+            backgroundColor: theme.palette.primary.light,
+            transform: "scale(1.1)",
+        },
+    },
+    "& .MuiMobileStepper-dotActive": {
+        backgroundColor: theme.palette.primary.main,
+        width: 18,
+        height: 18,
+        "&:hover": {
+            backgroundColor: theme.palette.primary.dark,
+        },
+    },
+}));
+
+
+const StyledLinearProgress = styled(LinearProgress)(({ theme }) => ({
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.palette.action.hover,
+    "& .MuiLinearProgress-bar": {
+        borderRadius: 3,
+        backgroundColor: theme.palette.secondary.main,
+    },
+}));
+
+const StyledMenuItem = styled(MenuItem)(({ theme }) => ({
     position: "relative",
+    paddingLeft: theme.spacing(6),
+    "&::before": {
+        content: "''",
+        position: "absolute",
+        left: theme.spacing(3),
+        top: "50%",
+        width: 2,
+        height: "100%",
+        backgroundColor: theme.palette.divider,
+        transform: "translateY(-50%)",
+        zIndex: 1,
+    },
+    "&:first-of-type::before": {
+        height: "50%",
+        top: "50%",
+    },
+    "&:last-of-type::before": {
+        height: "50%",
+        top: 0,
+    },
+    "&:only-of-type::before": {
+        display: "none",
+    },
+}));
+
+const StyledListSubheader = styled(ListSubheader)(({ theme }) => ({
+    backgroundColor: theme.palette.background.paper,
+    borderBottom: `1px solid ${theme.palette.divider}`,
+    fontWeight: theme.typography.fontWeightMedium,
+}));
+
+const SectionNumber = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "completed",
+})<{ completed: boolean }>(({ theme, completed }) => ({
+    position: "absolute",
+    left: theme.spacing(1.5),
+    top: "50%",
+    transform: "translateY(-50%)",
+    width: 24,
+    height: 24,
+    borderRadius: "50%",
+    backgroundColor: completed ? theme.palette.success.main : theme.palette.primary.main,
+    color: theme.palette.primary.contrastText,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "0.75rem",
+    fontWeight: theme.typography.fontWeightBold,
+    zIndex: 2,
 }));
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
-    zIndex: Z_INDEX.TutorialDialog,
-    pointerEvents: "none",
-    "& > .MuiDialog-container": {
-        "& > .MuiPaper-root": {
-            zIndex: Z_INDEX.TutorialDialog,
-            pointerEvents: "auto",
-            borderRadius: theme.spacing(2),
-            margin: theme.spacing(2),
-            maxWidth: "500px",
-            background: theme.palette.background.paper,
-            position: "absolute",
-            top: "0",
-            left: "0",
-        },
+    "& .MuiDialog-paper": {
+        minWidth: "min(90vw, 600px)",
+        maxWidth: "min(95vw, 800px)",
+        minHeight: "min(90vh, 500px)",
+        maxHeight: "95vh",
+        margin: theme.spacing(1),
     },
     "& .MuiBackdrop-root": {
         display: "none",
     },
 }));
 
-export function TutorialDialog() {
-    const { breakpoints, palette } = useTheme();
+export function TutorialDialog(props: TutorialDialogProps = {}) {
+    const { bypassPageValidation = false } = props;
+
     const { t } = useTranslation();
-    const [{ pathname, search }, setLocation] = useLocation();
-    const [place, setPlace] = useState<Place>({ section: 0, step: 0 });
-    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    const { palette } = useTheme();
+    const [location, setLocation] = useLocation();
 
-    // Handle opening and closing
-    const onEvent = useCallback(function onEventCallback({ data }: MenuPayloads[typeof ELEMENT_IDS.Tutorial]) {
-        if (!data) return;
-        // Add data here
+    const [anchorElement, setAnchorElement] = useState<HTMLElement | null>(null);
+    const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+    
+    const openMenu = useCallback((event: React.MouseEvent<HTMLElement>) => {
+        setMenuAnchor(event.currentTarget);
     }, []);
-    const { isOpen, close } = useMenu({
-        id: ELEMENT_IDS.Tutorial,
-        isMobile,
-        onEvent,
-    });
-
-    useEffect(function initializePlaceEffect() {
-        const searchParams = UrlTools.parseSearchParams("Tutorial");
-        const section = searchParams.tutorial_section ? parseInt(searchParams.tutorial_section + "", 10) : undefined;
-        const step = searchParams.tutorial_step ? parseInt(searchParams.tutorial_step + "", 10) : undefined;
-        // If we have a valid place, open the dialog (if not already open)
-        if (section !== undefined && step !== undefined && isValidPlace(sections, { section, step })) {
-            setPlace({ section, step });
-            PubSub.get().publish("menu", { id: ELEMENT_IDS.Tutorial, isOpen: true });
-        }
+    
+    const closeMenu = useCallback(() => {
+        setMenuAnchor(null);
     }, []);
-    useEffect(function updatePlaceInUrlEffect() {
-        if (!isOpen) return;
-        addSearchParams(setLocation, {
-            tutorial_section: place.section,
-            tutorial_step: place.step,
-        } as TutorialViewSearchParams);
-    }, [place.section, place.step, isOpen, setLocation]);
 
-    const pollIntervalRef = useRef<number>();
-    // Add a ref to track initial render. Added to prevent hotkeys 
-    // from triggering on initial render, if tutorial is selected using 
-    // hotkeys in the command palette.
-    const initialRenderRef = useRef(true);
-    const [isInitialRender, setIsInitialRender] = useState(true);
+    const isMobile = useIsMobile();
 
-    useEffect(function clearInitialRenderEffect() {
-        // Clear the initial render flag after a short delay
-        if (isOpen && initialRenderRef.current) {
-            const timer = setTimeout(() => {
-                initialRenderRef.current = false;
-                setIsInitialRender(false);
-            }, INITIAL_RENDER_DELAY_MS); // Small delay to avoid the initial Enter keypress
-            return () => clearTimeout(timer);
+    // Parse tutorial step from URL
+    const parsedParams = useMemo(() => {
+        const parsed = parseSearchParams(location.search, ["TutorialView"]);
+        return parsed?.TutorialView as TutorialViewSearchParams | undefined;
+    }, [location.search]);
+
+    const place = useMemo<Place>(() => {
+        if (!parsedParams) return { section: 0, step: 0 };
+        const section = Math.max(0, parsedParams.section ?? 0);
+        const step = Math.max(0, parsedParams.step ?? 0);
+        return { section, step };
+    }, [parsedParams]);
+
+    const isOpen = useMemo(() => {
+        if (!parsedParams) return false;
+        // In Storybook, bypass page validation if prop is set
+        if (bypassPageValidation) {
+            return parsedParams.hasOwnProperty("section") || parsedParams.hasOwnProperty("step");
         }
-    }, [isOpen]);
+        return parsedParams.hasOwnProperty("section") || parsedParams.hasOwnProperty("step");
+    }, [parsedParams, bypassPageValidation]);
 
-    const handleClose = useCallback(function handleCloseCallback() {
-        setPlace({ section: 0, step: 0 });
-        removeHighlights(TUTORIAL_HIGHLIGHT);
-        removeSearchParams(setLocation, ["tutorial_section", "tutorial_step"]);
-        close();
-        setTimeout(() => {
-            setIsInitialRender(true);
-            initialRenderRef.current = true;
-        }, INITIAL_RENDER_DELAY_MS);
-    }, [close, setLocation]);
+    const stepInfo = useMemo(() => getTutorialStepInfo(sections, place), [place]);
+    const currentStep = useMemo(() => getCurrentStep(sections, place), [place]);
+    const currentElement = useMemo(() => getCurrentElement(sections, place), [place]);
 
-    useEffect(function triggerStepLoadAction() {
-        if (!isOpen || !isValidPlace(sections, place)) return;
-        sections[place.section]?.steps[place.step]?.action?.();
-    }, [isOpen, place]);
-
-    // Find information about our position in the tutorial
-    const {
-        isFinalStep,
-        isFinalStepInSection,
-        nextStep,
-    } = useMemo(() => getTutorialStepInfo(sections, place), [place]);
-
-    const totalSteps = getTotalSteps(sections);
-    const currentStepIndex = getCurrentStepIndex(sections, place);
-    const percentageComplete = Math.round(((currentStepIndex + 1) / totalSteps) * 100);
-
-    const handleNext = useCallback(function handleNextCallback() {
-        const nextPlace = getNextPlace(sections, place);
-        if (nextPlace) {
-            const nextStep = getCurrentStep(sections, nextPlace);
-            const nextPage = nextStep?.location?.page;
-            if (nextPage && nextPage !== pathname) {
-                setLocation(nextPage);
+    const handleStepDotClick = useCallback((index: number) => {
+        let currentIndex = 0;
+        for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
+            const section = sections[sectionIndex];
+            if (currentIndex + section.steps.length > index) {
+                const stepIndex = index - currentIndex;
+                const newPlace = { section: sectionIndex, step: stepIndex };
+                setLocation({
+                    search: addSearchParams(location.search, {
+                        "TutorialView": {
+                            section: newPlace.section,
+                            step: newPlace.step,
+                        },
+                    }),
+                });
+                return;
             }
-            setPlace(nextPlace);
-        } else {
-            handleClose();
+            currentIndex += section.steps.length;
         }
-    }, [pathname, handleClose, place, setLocation]);
+    }, [location.search, setLocation]);
 
-    const handlePrev = useCallback(function handlePreviousCallback() {
-        const prevPlace = getPrevPlace(sections, place);
-        if (prevPlace) {
-            const prevStep = getCurrentStep(sections, prevPlace);
-            const prevPage = prevStep?.location?.page;
-            if (prevPage && prevPage !== pathname) {
-                setLocation(prevPage);
-            }
-            setPlace(prevPlace);
+    const handleStepperClick = useCallback((direction: "next" | "back") => {
+        const newPlace = direction === "next" 
+            ? getNextPlace(sections, place) 
+            : getPrevPlace(sections, place);
+        
+        if (newPlace) {
+            setLocation({
+                search: addSearchParams(location.search, {
+                    "TutorialView": {
+                        section: newPlace.section,
+                        step: newPlace.step,
+                    },
+                }),
+            });
         }
-    }, [pathname, place, setLocation]);
+    }, [location.search, place, setLocation]);
 
+    const closeDialog = useCallback(() => {
+        setLocation({
+            search: removeSearchParams(location.search, ["TutorialView"]),
+        });
+    }, [location.search, setLocation]);
+
+    const skipToSection = useCallback((sectionIndex: number) => {
+        const newPlace = { section: sectionIndex, step: 0 };
+        setLocation({
+            search: addSearchParams(location.search, {
+                "TutorialView": {
+                    section: newPlace.section,
+                    step: newPlace.step,
+                },
+            }),
+        });
+        closeMenu();
+    }, [closeMenu, location.search, setLocation]);
+
+    // Handle hotkeys
     useHotkeys([
         {
-            keys: ["ArrowRight", "l"],
-            callback: handleNext,
+            keys: ["ArrowRight"],
+            callback: () => {
+                if (isOpen) {
+                    const nextPlace = getNextPlace(sections, place);
+                    if (nextPlace) handleStepperClick("next");
+                }
+            },
         },
         {
-            keys: ["ArrowLeft", "h"],
-            callback: handlePrev,
+            keys: ["ArrowLeft"],
+            callback: () => {
+                if (isOpen) {
+                    const prevPlace = getPrevPlace(sections, place);
+                    if (prevPlace) handleStepperClick("back");
+                }
+            },
         },
         {
-            keys: ["Enter", " "],
-            callback: handleNext,
+            keys: ["Escape"],
+            callback: () => {
+                if (isOpen) closeDialog();
+            },
         },
-    ], isOpen && !isInitialRender);
+    ], isOpen);
 
-    const anchorElement = useMemo(
-        () => getCurrentElement(sections, place),
-        [place],
-    );
-    // Poll for anchor element, since it might not be available yet on initial render
-    useEffect(function pollForAnchorElementEffect() {
-        if (!isOpen || anchorElement) {
-            // Clear interval if dialog is closed, element is found, or polling is disabled
-            if (pollIntervalRef.current) {
-                window.clearInterval(pollIntervalRef.current);
-                pollIntervalRef.current = undefined;
+    // Handle step actions and page navigation
+    useEffect(() => {
+        if (!isOpen || !currentStep) return;
+
+        // Run step action if it exists
+        if (typeof currentStep.action === "function") {
+            try {
+                currentStep.action();
+            } catch (error) {
+                console.error("Error running tutorial step action:", error);
             }
+        }
+
+        // Handle page navigation
+        if (currentStep.location?.page && currentStep.location.page !== location.pathname) {
+            setLocation(currentStep.location.page);
+        }
+    }, [currentStep, isOpen, location.pathname, setLocation]);
+
+    // Handle element highlighting and anchoring
+    useEffect(() => {
+        if (!isOpen || !currentElement) {
+            setAnchorElement(null);
             return;
         }
 
-        // Start polling if element is not found
-        pollIntervalRef.current = window.setInterval(() => {
-            const element = getCurrentElement(sections, place);
+        const timeoutId = setTimeout(() => {
+            const element = document.getElementById(currentElement);
             if (element) {
-                // Force a re-render to update the anchor element
-                setPlace(prev => ({ ...prev }));
+                addHighlight(element, TUTORIAL_HIGHLIGHT);
+                setAnchorElement(element);
             }
-        }, POLL_INTERVAL_MS);
+        }, 300);
 
         return () => {
-            if (pollIntervalRef.current) {
-                window.clearInterval(pollIntervalRef.current);
-                pollIntervalRef.current = undefined;
+            clearTimeout(timeoutId);
+            removeHighlights(TUTORIAL_HIGHLIGHT);
+            setAnchorElement(null);
+        };
+    }, [currentElement, isOpen]);
+
+    // Subscribe to menu events
+    useEffect(() => {
+        const handleMenuEvents = (data: MenuPayloads["menu"]) => {
+            if (data.id === ELEMENT_IDS.Tutorial) {
+                if (data.isOpen) {
+                    // Open tutorial by setting URL parameters
+                    setLocation({
+                        search: addSearchParams(location.search, {
+                            "TutorialView": {
+                                section: 0,
+                                step: 0,
+                            },
+                        }),
+                    });
+                } else {
+                    // Close tutorial by removing URL parameters
+                    setLocation({
+                        search: removeSearchParams(location.search, ["TutorialView"]),
+                    });
+                }
+            } else if (data.id === ELEMENT_IDS.UserMenu && !data.isOpen) {
+                // Handle any cleanup when user menu closes
             }
         };
-    }, [isOpen, anchorElement, place]);
-    const anchorElementRef = useRef(anchorElement);
 
-    useEffect(function highlightElementEffect() {
-        // Remove highlight from previous element
-        if (anchorElementRef.current) {
-            removeHighlights(TUTORIAL_HIGHLIGHT, anchorElementRef.current);
-        }
-        // Highlight current element
-        if (anchorElement) {
-            addHighlight(TUTORIAL_HIGHLIGHT, anchorElement);
-        }
-        anchorElementRef.current = anchorElement;
-    }, [anchorElement, palette.action.hover]);
+        const unsubscribe = PubSub.get().subscribe("menu", handleMenuEvents);
+        return unsubscribe;
+    }, [location.search, setLocation]);
 
-    const [sectionMenuAnchorEl, handleSectionMenuOpen, handleSectionMenuClose, isSectionMenuOpen] = usePopover();
-    const handleSectionSelect = useCallback(function handleSectionSelectCallback(sectionIndex: number) {
-        const updatedPlace = { section: sectionIndex, step: 0 };
-        if (!isValidPlace(sections, updatedPlace)) return;
-        setPlace(updatedPlace);
-        handleSectionMenuClose();
-        const section = sections[updatedPlace.section];
-        const firstStep = section.steps[0];
-        const page = firstStep?.location?.page;
-        if (page && page !== pathname) {
-            setLocation(page);
-        }
-    }, [handleSectionMenuClose, pathname, setLocation]);
+    // Calculate progress and step info
+    const totalSteps = useMemo(() => getTotalSteps(sections), []);
+    const currentStepIndex = useMemo(() => getCurrentStepIndex(sections, place), [place]);
+    const progress = useMemo(() => ((currentStepIndex + 1) / totalSteps) * 100, [currentStepIndex, totalSteps]);
 
-    const content = useMemo(() => {
-        if (!isValidPlace(sections, place)) {
-            PubSub.get().publish("snack", { message: "Failed to load tutorial", severity: "Error" });
-            return null;
-        }
-        const currentSection = sections[place.section];
-        if (!currentSection || !currentSection.steps[place.step]) {
-            PubSub.get().publish("snack", { message: "Failed to load tutorial step", severity: "Error" });
-            return null;
-        }
-        const currentStep = currentSection.steps[place.step];
 
-        // Guide user to correct page if they're on the wrong one
-        const correctPage = currentStep.location?.page;
-        function toCorrectPage() {
-            if (!correctPage) return;
-            setLocation(correctPage);
-        }
-        if (correctPage) {
-            const correctURL = new URL(correctPage, window.location.origin);
-
-            // Compare pathnames
-            const isPathnameDifferent = pathname !== correctURL.pathname;
-
-            // Compare required query parameters
-            const correctParams = new URLSearchParams(correctURL.search);
-            const currentParams = new URLSearchParams(search);
-
-            let isQueryParamsDifferent = false;
-            for (const [key, value] of correctParams.entries()) {
-                if (currentParams.get(key) !== value) {
-                    isQueryParamsDifferent = true;
-                    break;
-                }
-            }
-
-            const isOnWrongPage = isPathnameDifferent || isQueryParamsDifferent;
-
-            if (isOnWrongPage) {
+    const sectionMenu = useMemo(() => (
+        <Menu
+            anchorEl={menuAnchor}
+            open={Boolean(menuAnchor)}
+            onClose={closeMenu}
+            PaperProps={{
+                sx: {
+                    maxHeight: 400,
+                    minWidth: 300,
+                },
+            }}
+        >
+            <StyledListSubheader>Jump to Section</StyledListSubheader>
+            {sections.map((section, index) => {
+                const isCompleted = index < place.section || (index === place.section && stepInfo.isFinalStepInSection);
                 return (
-                    <ContentWrapper>
-                        <DialogTitle
-                            id={titleId}
-                            title={"Wrong Page"}
-                            onClose={handleClose}
-                            variant="subheader"
-                            sxs={wrongPageDialogTitleStyle}
-                        />
-                        <Box className="content">
-                            <Stack direction="column" spacing={2} p={2}>
-                                <MarkdownDisplay
-                                    variant="body1"
-                                    content={"Please return to the correct page to continue the tutorial."}
-                                />
-                                <Button
-                                    fullWidth
-                                    variant="contained"
-                                    color="primary"
-                                    onClick={toCorrectPage}
-                                >
-                                    Continue
-                                </Button>
-                            </Stack>
-                        </Box>
-                    </ContentWrapper>
-                );
-            }
-        }
-
-        // Otherwise, show the current step
-        const dialogTitleStyle = { root: { cursor: anchorElement ? "auto" : "move" } } as const; // Can only drag dialogs, not popovers
-        const stepFormSchema = {
-            containers: [{
-                direction: "column",
-                disableCollapse: true,
-                totalItems: currentStep.content.length,
-            }],
-            elements: currentStep.content,
-        } as const;
-        return (
-            <ContentWrapper>
-                <DialogTitle
-                    id={titleId}
-                    title={t("Tutorial")}
-                    onClose={handleClose}
-                    variant="subheader"
-                    sxs={dialogTitleStyle}
-                />
-                <Box className="content" p={2}>
-                    <SectionTitleBox onClick={handleSectionMenuOpen}>
-                        <Typography variant="h5" component="h2" lineHeight={2}>
-                            {currentSection.title}
-                        </Typography>
-                        <IconButton edge="end" color="inherit">
-                            {
-                                isSectionMenuOpen ?
-                                    <IconCommon name="ExpandLess" fill={palette.background.textPrimary} /> :
-                                    <IconCommon name="ExpandMore" fill={palette.background.textPrimary} />
-                            }
-                        </IconButton>
-                    </SectionTitleBox>
-                    <Menu
-                        id="section-menu"
-                        anchorEl={sectionMenuAnchorEl}
-                        open={isSectionMenuOpen}
-                        onClose={handleSectionMenuClose}
-                        slotProps={sectionMenuSlotProps}
+                    <StyledMenuItem
+                        key={index}
+                        onClick={() => skipToSection(index)}
+                        selected={index === place.section}
                     >
-                        <ListSubheader>{"Sections"}</ListSubheader>
-                        {sections.filter((section) => !section.hideFromMenu).map((section, index) => {
-                            function handleSectionSelectCallback() {
-                                handleSectionSelect(index);
-                            }
+                        <SectionNumber completed={isCompleted}>
+                            {index + 1}
+                        </SectionNumber>
+                        <ListItemText
+                            primary={section.title}
+                            secondary={`${section.steps.length} step${section.steps.length !== 1 ? "s" : ""}`}
+                        />
+                    </StyledMenuItem>
+                );
+            })}
+        </Menu>
+    ), [closeMenu, menuAnchor, place.section, skipToSection, stepInfo.isFinalStepInSection]);
 
-                            return (
-                                <MenuItem
-                                    key={index}
-                                    selected={index === place.section}
-                                    onClick={handleSectionSelectCallback}
-                                >
-                                    {`${index + 1}. ${section.title}`}
-                                </MenuItem>
-                            );
-                        })}
-                    </Menu>
-                    <FormRunView
+    if (!isOpen || !currentStep) {
+        return null;
+    }
+
+    return (
+        <>
+            {sectionMenu}
+            <Dialog
+                isOpen={isOpen}
+                onClose={closeDialog}
+                title={
+                    <Box 
+                        onClick={openMenu} 
+                        data-no-drag="true"
+                        sx={{ 
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1.5,
+                            "&:hover": {
+                                opacity: 0.8,
+                            },
+                        }}
+                    >
+                        <SectionNumber completed={false}>
+                            {place.section + 1}
+                        </SectionNumber>
+                        {sections[place.section]?.title}
+                    </Box>
+                }
+                size={isMobile ? "full" : "md"}
+                draggable={!isMobile}
+                anchorEl={anchorElement}
+                anchorPlacement="auto"
+                highlightAnchor={true}
+                closeOnEscape={true}
+                closeOnOverlayClick={false}
+                showCloseButton={true}
+                contentClassName="tw-relative tw-flex tw-flex-col"
+            >
+                <DialogContent className="tw-flex-1 tw-overflow-auto" style={{ paddingBottom: "100px" }}>
+                    <FormRunView 
+                        schema={{ elements: currentStep.content }}
                         disabled={true}
-                        schema={stepFormSchema}
                     />
-                    {/* Display redirect options if available */}
-                    {currentStep.options && currentStep.options.length > 1 && (
-                        <Box mt={2}>
-                            <List>
-                                {currentStep.options.map((option, index) => {
-                                    function handleOptionSelect() {
-                                        setPlace(option.place);
-                                        const page = sections[option.place.section].steps[0].location?.page;
-                                        if (page && page !== pathname) {
-                                            setLocation(page);
-                                        }
-                                    }
+                </DialogContent>
 
-                                    return (
-                                        <ListItem
-                                            key={index}
-                                            button
-                                            onClick={handleOptionSelect}
-                                        >
-                                            <ListItemText
-                                                primary={
-                                                    <Typography color={palette.mode === "light" ? "#001cd3" : "#dd86db"}>
-                                                        ◦ {option.label}
-                                                    </Typography>
-                                                }
-                                            />
-                                        </ListItem>
-                                    );
-                                })}
-                            </List>
-                        </Box>
-                    )}
-                </Box>
-                <StyledStepper
-                    className="stepper"
-                    variant="dots"
-                    steps={currentSection.steps.length}
-                    activeStep={place.step}
-                    backButton={
+                {/* Custom navigation area outside of DialogActions */}
+                <div className="tw-sticky tw-bottom-0 tw-bg-background-paper tw-border-t tw-border-gray-200 dark:tw-border-gray-700">
+                    {/* Navigation buttons */}
+                    <div className="tw-flex tw-justify-center tw-items-center tw-p-4">
                         <IconButton
-                            onClick={handlePrev}
+                            size="small"
+                            onClick={() => handleStepperClick("back")}
                             disabled={place.section === 0 && place.step === 0}
                         >
                             <IconCommon name="ArrowLeft" />
                         </IconButton>
-                    }
-                    nextButton={
+                        
+                        <StyledStepper
+                            variant="dots"
+                            steps={totalSteps}
+                            position="static"
+                            activeStep={currentStepIndex}
+                            nextButton={<div />}
+                            backButton={<div />}
+                            sx={{
+                                "& .MuiMobileStepper-dot": {
+                                    cursor: "pointer",
+                                },
+                            }}
+                            onClick={(event) => {
+                                const target = event.target as HTMLElement;
+                                if (target.classList.contains("MuiMobileStepper-dot")) {
+                                    const dots = Array.from(target.parentElement?.children || []);
+                                    const index = dots.indexOf(target);
+                                    if (index >= 0) {
+                                        handleStepDotClick(index);
+                                    }
+                                }
+                            }}
+                        />
+                        
                         <IconButton
-                            onClick={handleNext}
+                            size="small"
+                            onClick={() => handleStepperClick("next")}
+                            disabled={stepInfo.isFinalStep}
                         >
-                            {isFinalStep ? <IconCommon name="CompleteAll" /> : isFinalStepInSection ? <IconCommon name="Complete" /> : <IconCommon name="ArrowRight" />}
+                            <IconCommon name="ArrowRight" />
                         </IconButton>
-                    }
-                />
-                <LinearProgress variant="determinate" value={percentageComplete} />
-            </ContentWrapper>
-        );
-    }, [place, anchorElement, t, handleClose, handleSectionMenuOpen, isSectionMenuOpen, palette.background.textPrimary, palette.mode, sectionMenuAnchorEl, handleSectionMenuClose, handlePrev, handleNext, isFinalStep, isFinalStepInSection, percentageComplete, setLocation, pathname, search, handleSectionSelect]);
-
-    useEffect(function autoAdvanceOnCorrectNavigationEffect() {
-        if (!isValidPlace(sections, place)) return;
-        const currentSection = sections[place.section];
-        if (!currentSection || !currentSection.steps[place.step]) {
-            PubSub.get().publish("snack", { message: "Failed to load tutorial", severity: "Error" });
-            return;
-        }
-        const currentStep = currentSection.steps[place.step];
-        // Find current step's page
-        const currPage = currentStep.location?.page;
-        // If already on the correct page, return
-        if (currPage && currPage === pathname) return;
-
-        // Find next step's page
-        const nextPage = nextStep?.location?.page;
-
-        // If next step has a page and it's the current page, advance
-        if (currPage && nextPage && nextPage === pathname) {
-            handleNext();
-        }
-    }, [handleNext, pathname, nextStep?.location?.page, place, setLocation]);
-
-    return (
-        <>
-            {anchorElement ? (
-                <PopoverWithArrow
-                    anchorEl={anchorElement}
-                    disableScrollLock={true}
-                    sxs={popoverWithArrowStyle}
-                >
-                    {content}
-                </PopoverWithArrow>
-            ) : (
-                <StyledDialog
-                    open={isOpen}
-                    scroll="paper"
-                    disableScrollLock={true}
-                    aria-labelledby={titleId}
-                    PaperComponent={DraggableDialogPaper}
-                >
-                    {content}
-                </StyledDialog>
-            )}
+                    </div>
+                    
+                    {/* Progress bar - at the very bottom with no padding */}
+                    <div className="tw-w-full tw-h-1 tw-bg-gray-200" style={{ marginTop: "-1px" }}>
+                        <div 
+                            className="tw-h-full tw-bg-secondary tw-transition-all tw-duration-300"
+                            style={{ width: `${progress}%` }}
+                        />
+                    </div>
+                </div>
+            </Dialog>
         </>
     );
 }

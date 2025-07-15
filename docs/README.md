@@ -316,41 +316,83 @@ See [architecture/execution/emergent-capabilities/README.md](architecture/execut
 
 ## Documentation Structure
 
-### Architecture Documentation (`/docs/architecture/`)
+### 📚 **Core Documentation**
+- **[Contributing Guidelines](CONTRIBUTING.md)** - How to contribute to Vrooli
+- **[Context](context.md)** - Project vision and core functionality
+- **[Decisions](decisions.md)** - Major architectural decisions
+- **[Risks](risks.md)** - Risk assessment and mitigation
+- **[Roadmap](roadmap.md)** - Future development plans
+- **[Tools](tools.md)** - Development tools and commands
+
+### 🏗️ **Architecture Documentation** (`/docs/architecture/`)
+- **[AI Implementation Guide](architecture/ai-implementation-guide.md)** - Practical three-tier architecture implementation
 - System design and architectural decisions
 - Subdirectories: `execution/`, `external-integrations/`, `data/`, `core-services/`, `api-gateway/`, `client/`
 - Key docs: Three-tier architecture, event-driven patterns, emergent capabilities
 
-### Testing Documentation (`/docs/testing/`)
+### 🔒 **Security Documentation** (`/docs/security/`)
+- **[Security Overview](security/README.md)** - Comprehensive security guide
+- **[Threat Model](security/threat-model.md)** - Risk analysis and attack scenarios
+- **[Best Practices](security/best-practices.md)** - Secure coding and operational guidelines
+- **[Incident Response](security/incident-response.md)** - Security incident handling procedures
+
+### 🌐 **API Documentation** (`/docs/api/`)
+- **[API Overview](api/README.md)** - Complete API reference with webhooks and enterprise patterns
+- **[Authentication](api/authentication.md)** - Auth flows and security
+- **[Endpoints](api/endpoints/)** - Detailed endpoint documentation
+- **[Examples](api/examples/)** - Request/response examples and use cases
+
+### 🗄️ **Data Model Documentation** (`/docs/data-model/`)
+- **[Data Architecture](data-model/README.md)** - Database design and entity relationships
+- **[Entities](data-model/entities/)** - Individual entity documentation
+- **[Data Dictionary](data-model/data-dictionary.md)** - Field definitions and constraints
+- **[Performance](data-model/performance.md)** - Query optimization and indexing
+
+### 🧪 **Testing Documentation** (`/docs/testing/`)
 - `test-strategy.md` - Overall testing approach
 - `test-plan.md` - Detailed test planning
 - `test-execution.md` - How to run tests
 - `writing-tests.md` - Best practices for test writing
 - `defect-reporting.md` - Bug reporting process
 
-### DevOps Documentation (`/docs/devops/`)
+### 🛠️ **DevOps Documentation** (`/docs/devops/`)
 - `server-deployment.md` - Deployment procedures
 - `kubernetes.md` - K8s configuration
 - `ci-cd.md` - CI/CD pipeline details
 - `environment-management.md` - Environment configuration
 - `troubleshooting.md` - Common issues and solutions
 
-### Setup Documentation (`/docs/setup/`)
+### ⚙️ **Setup Documentation** (`/docs/setup/`)
 - `prerequisites.md` - System requirements
 - `repo_setup.md` - Repository setup
 - `working_with_docker.md` - Docker usage
 - Various service setup guides (OAuth, Stripe, S3, etc.)
 
-### UI Documentation (`/docs/ui/`)
+### 🎨 **UI Documentation** (`/docs/ui/`)
 - Frontend architecture and guidelines
 - Performance optimization
 - PWA configuration
 - Design system documentation
 
-### Server Documentation (`/docs/server/`)
+### 📡 **Server Documentation** (`/docs/server/`)
 - Backend architecture
-- API documentation
+- API comprehensive guide
 - Database migration procedures
+
+### 🏭 **Operations Documentation** (`/docs/operations/`)
+- **[Production Guide](operations/production-guide.md)** - Complete deployment, monitoring, and operations guide
+
+### 📚 **User Guide** (`/docs/user-guide/`)
+- **[Interactive Tutorial](user-guide/tutorial/)** - Step-by-step platform learning
+- **[Video Scripts](user-guide/video-scripts/)** - Landing page video content
+- **[Legacy Documentation](user-guide/old/)** - Preserved reference materials
+
+### 📋 **Task Management** (`/docs/tasks/`)
+- **[Active Tasks](tasks/active.md)** - Currently in progress
+- **[Backlog](tasks/backlog.md)** - Unstructured tasks awaiting organization
+- **[Staged Tasks](tasks/staged.md)** - Ready-to-start tasks
+- **[Completed Tasks](tasks/completed.md)** - Finished work
+- **[Failed Tasks](tasks/failed.md)** - Abandoned tasks with lessons learned
 
 ## Security Guidelines
 

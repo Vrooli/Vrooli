@@ -133,7 +133,8 @@ const StyledIconButton = forwardRef<HTMLButtonElement, {
     disabled?: boolean;
     onClick: (event: React.MouseEvent<HTMLElement>) => void;
     children: React.ReactNode;
-}>(({ isActive, disabled, onClick, children }, ref) => {
+    [key: string]: any; // Allow additional props to pass through
+}>(({ isActive, disabled, onClick, children, ...rest }, ref) => {
     const theme = useTheme();
     return (
         <CustomIconButton
@@ -143,6 +144,7 @@ const StyledIconButton = forwardRef<HTMLButtonElement, {
             disabled={disabled}
             onClick={onClick}
             className="tw-rounded"
+            {...rest} // Forward all additional props
         >
             {children}
         </CustomIconButton>
@@ -179,6 +181,10 @@ const ToolButton = forwardRef(({
                 disabled={disabled}
                 isActive={isActive}
                 onClick={handleClick}
+                data-testid="tool-button"
+                data-button-label={label}
+                data-active={isActive ? "true" : "false"}
+                aria-label={label}
             >
                 {icon}
             </StyledIconButton>
@@ -192,6 +198,7 @@ const ActionPopoverList = styled(List)(({ theme }) => ({
     color: theme.palette.background.textPrimary,
 }));
 
+// AI_CHECK: TYPE_SAFETY=fixed-toolbar-props | LAST: 2025-06-28
 interface ActionPopoverListItemProps extends ListItemProps {
     action: PopoverActionItem["action"];
     activeStates: Omit<AdvancedInputActiveStates, "SetValue">;
@@ -229,9 +236,7 @@ function ActionPopover({
                         <ActionPopoverListItem
                             action={action}
                             activeStates={activeStates}
-                            // eslint-disable-next-line
-                            // @ts-ignore
-                            button
+                            button={true}
                             key={action}
                             onClick={onAction}
                         >
@@ -562,6 +567,7 @@ export function AdvancedInputToolbar({
             <LeftSection
                 disabled={disabled}
                 isLeftHanded={isLeftHanded}
+                data-testid="toolbar-left-section"
             >
                 <ToolButton
                     aria-label={t("HeaderInsert")}
@@ -716,7 +722,7 @@ export function AdvancedInputToolbar({
                 />
             </LeftSection>
             {/* Group for undo, redo, and switching between Markdown as WYSIWYG */}
-            <RightSection>
+            <RightSection data-testid="toolbar-right-section">
                 <div>
                     {(canUndo || canRedo) && <ToolButton
                         aria-label={t("Undo")}
@@ -746,7 +752,12 @@ export function AdvancedInputToolbar({
                     />}
                 </div>
                 <Tooltip placement="top" title={!isMarkdownOn ? `${t("PressToMarkdown")} (${keyComboToString("Alt", "0")})` : `${t("PressToPreview")} (${keyComboToString("Alt", "0")})`}>
-                    <ModeSelectorLabel variant="caption" onClick={handleToggleMode}>
+                    <ModeSelectorLabel 
+                        variant="caption" 
+                        onClick={handleToggleMode}
+                        data-testid="mode-toggle"
+                        data-markdown={isMarkdownOn ? "true" : "false"}
+                    >
                         {!isMarkdownOn ? t("MarkdownTo") : t("PreviewTo")}
                     </ModeSelectorLabel>
                 </Tooltip>

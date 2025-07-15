@@ -4,6 +4,7 @@
 import { CodeLanguage, DUMMY_ID, ResourceUsedFor, ResourceSubType, endpointsResource, generatePK, getObjectUrl, type Resource, type StandardVersion, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
+import { getMockEndpoint, getStoryRouteEditPath } from "../../../__test/helpers/storybookMocking.js";
 import { DataStructureUpsert } from "./DataStructureUpsert.js";
 
 // Create simplified mock data for DataStructure responses
@@ -189,13 +190,13 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findDataStructureVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findDataStructureVersion), () => {
                 return HttpResponse.json({ data: mockDataStructureVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockDataStructureVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockDataStructureVersionData),
     },
 };
 
@@ -217,13 +218,13 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findDataStructureVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findDataStructureVersion), () => {
                 return HttpResponse.json({ data: mockDataStructureVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockDataStructureVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockDataStructureVersionData),
     },
 };
 
@@ -237,7 +238,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findDataStructureVersion.findOne.endpoint}`, async () => {
+            http.get(getMockEndpoint(endpointsResource.findDataStructureVersion), async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockDataStructureVersionData });
@@ -245,7 +246,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockDataStructureVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockDataStructureVersionData),
     },
 };
 

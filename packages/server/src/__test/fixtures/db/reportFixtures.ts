@@ -9,8 +9,8 @@ export class ReportDbFactory {
     static createMinimal(
         createdById: string,
         reason: string,
-        overrides?: Partial<Prisma.ReportCreateInput>,
-    ): Prisma.ReportCreateInput {
+        overrides?: Partial<Prisma.reportCreateInput>,
+    ): Prisma.reportCreateInput {
         return {
             id: generatePK(),
             publicId: generatePublicId(),
@@ -27,8 +27,8 @@ export class ReportDbFactory {
         objectId: string,
         objectType: string,
         reason: string,
-        overrides?: Partial<Prisma.ReportCreateInput>,
-    ): Prisma.ReportCreateInput {
+        overrides?: Partial<Prisma.reportCreateInput>,
+    ): Prisma.reportCreateInput {
         const base = this.createMinimal(createdById, reason, overrides);
         
         // Add the appropriate connection based on object type
@@ -62,8 +62,8 @@ export class ReportDbFactory {
         createdById: string,
         reason: string,
         details: string,
-        overrides?: Partial<Prisma.ReportCreateInput>,
-    ): Prisma.ReportCreateInput {
+        overrides?: Partial<Prisma.reportCreateInput>,
+    ): Prisma.reportCreateInput {
         return this.createMinimal(createdById, reason, {
             details,
             ...overrides,

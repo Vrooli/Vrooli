@@ -50,7 +50,7 @@ export function createOwner<
     let fieldName = `${prefix}${ownerData.__typename}Connect`;
     fieldName = fieldName.charAt(0).toLowerCase() + fieldName.slice(1);
     // Return shaped field
-    return { [fieldName]: ownerData.id } as { [K in `${Prefix}${OType}Connect`]?: string };
+    return { [fieldName]: ownerData.id } as any;
 }
 
 /**
@@ -195,12 +195,9 @@ export function createRel<
             let filteredRelationData = Array.isArray(shapedRelationData) ? shapedRelationData : [shapedRelationData];
             filteredRelationData = filteredRelationData.filter((x) => !shouldConnect(x));
             if (filteredRelationData.length === 0) continue;
-            if (!shape) {
-                throw new Error(`Shape is required for Create operation on relation: ${relation}`);
-            }
             result[`${relation}${t}`] = isOneToOne === "one" ?
-                shape.create(filteredRelationData[0]) :
-                filteredRelationData.map((x) => shape.create(x));
+                shape!.create(filteredRelationData[0]) :
+                (filteredRelationData as any).map((x: any) => shape!.create(x));
         }
     }
     // Return result
@@ -235,7 +232,7 @@ export function updateOwner<
     originalItem: OriginalItem,
     updatedItem: UpdatedItem,
     prefix: Prefix = "" as Prefix,
-): { [K in `${Prefix}${OType}Connect`]?: string } & { [K in `${Prefix}${OType}Disconnect`]?: boolean } {
+): { [K in `${Prefix}${OType}Connect` | `${Prefix}${OType}Disconnect`]?: string | boolean } {
     const originalOwnerData = originalItem.owner;
     const updatedOwnerData = updatedItem.owner;
 
@@ -255,7 +252,7 @@ export function updateOwner<
         return { [disconnectFieldName]: true } as any;
     }
 
-    return createOwner(updatedItem, prefix) as { [K in `${Prefix}${OType}Connect`]?: string } & { [K in `${Prefix}${OType}Disconnect`]?: boolean };
+    return createOwner(updatedItem as any, prefix) as any;
 }
 
 /**
@@ -394,9 +391,8 @@ export function shapeUpdate<
     return result;
 }
 
-function asArray<T>(value: T | T[] | null | undefined): T[] {
+function asArray<T>(value: T | T[]): T[] {
     if (Array.isArray(value)) return value;
-    if (value === null || value === undefined) return [];
     return [value];
 }
 
@@ -449,8 +445,8 @@ export function updateRel<
     // We do this by removing connect/create/update from relTypes
     const filteredRelTypes = updated[relation] === null ? relTypes.filter(x => !["Create", "Connect", "Update"].includes(x)) : relTypes;
     // Find relation data in item
-    const originalRelation = asArray(original[relation]);
-    const updatedRelation = asArray(updated[relation]);
+    const originalRelation = asArray(original[relation] as any);
+    const updatedRelation = asArray(updated[relation] as any);
     const idField = shape?.idField ?? "id";
     const preShaper = preShape ?? ((x) => x);
     // Check connect

@@ -4,14 +4,14 @@ import ButtonBase from "@mui/material/ButtonBase";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../components/buttons/IconButton.js";
 import Link from "@mui/material/Link";
 import Typography from "@mui/material/Typography";
 import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, LINKS, PaymentType, YEARS_1_MONTHS, type SubscriptionPricesResponse } from "@vrooli/shared";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../components/Page/Page.js";
+import { DialogTitle } from "../../components/dialogs/DialogTitle/DialogTitle.js";
 import { Button } from "../../components/buttons/Button.js";
 import { Footer } from "../../components/navigation/Footer.js";
 import { Navbar } from "../../components/navigation/Navbar.js";
@@ -503,7 +503,7 @@ export function PricingTiers({
                             display: { xs: "none", sm: "block" },
                             zIndex: 10,
                             "&::after": {
-                                content: '""',
+                                content: "\"\"",
                                 position: "absolute",
                                 bottom: -8,
                                 right: "40%",
@@ -677,7 +677,7 @@ function SecurityBadges() {
                     variant="caption"
                     sx={{
                         color: palette.mode === "dark" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)",
-                        fontWeight: 600
+                        fontWeight: 600,
                     }}
                 >
                     Powered by Stripe
@@ -756,7 +756,7 @@ export function CreditDialog({
             label: "$10", 
             credits: "~1,000",
             tasks: "~50 tasks",
-            emoji: "⚡"
+            emoji: "⚡",
         },
         { 
             value: 20, 
@@ -765,22 +765,22 @@ export function CreditDialog({
             tasks: "~100 tasks",
             emoji: "🔥",
             popular: true,
-            savings: null
+            savings: null,
         },
         { 
             value: 50, 
             label: "$50", 
             credits: "~5,000",
             tasks: "~250 tasks",
-            emoji: "🚀"
+            emoji: "🚀",
         },
         { 
             value: 100, 
             label: "$100", 
             credits: "~10,000",
             tasks: "~500 tasks",
-            emoji: "💎"
-        }
+            emoji: "💎",
+        },
     ];
 
     function handleAmountSelect(amount: number) {
@@ -831,10 +831,13 @@ export function CreditDialog({
                     borderRadius: 3,
                     maxWidth: 520,
                     width: "100%",
-                }
+                },
             }}
         >
-            <DialogTitle id="credit-dialog" sx={{ textAlign: "center", pb: 1 }}>
+            <DialogTitle 
+                id="credit-dialog" 
+                sxs={{ root: { textAlign: "center", pb: 1 } }}
+            >
                 <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1 }}>
                     Power Up Your AI Assistant 🚀
                 </Typography>
@@ -850,7 +853,7 @@ export function CreditDialog({
                     p: 2, 
                     background: `linear-gradient(135deg, ${palette.primary.main}22, ${palette.secondary.main}22)`,
                     borderRadius: 2,
-                    textAlign: "center"
+                    textAlign: "center",
                 }}>
                     <Typography variant="body2" sx={{ fontWeight: "bold", color: palette.primary.main }}>
                         💡 Pro Tip: Buy credits as you need them!
@@ -880,12 +883,12 @@ export function CreditDialog({
                                     alignItems: "center !important",
                                     gap: "4px !important",
                                     height: "100%",
-                                    width: "100%"
+                                    width: "100%",
                                 },
                                 ...(pkg.popular && {
                                     border: `2px solid ${palette.secondary.main}`,
                                     "&::before": {
-                                        content: '"Most Popular"',
+                                        content: "\"Most Popular\"",
                                         position: "absolute",
                                         top: -10,
                                         left: "50%",
@@ -897,9 +900,9 @@ export function CreditDialog({
                                         py: 0.25,
                                         borderRadius: 1,
                                         fontWeight: "bold",
-                                        zIndex: 1
-                                    }
-                                })
+                                        zIndex: 1,
+                                    },
+                                }),
                             }}
                         >
                             <Typography variant="h6" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
@@ -910,7 +913,7 @@ export function CreditDialog({
                             </Typography>
                             <Typography variant="caption" sx={{ 
                                 color: palette.primary.main,
-                                fontWeight: "bold" 
+                                fontWeight: "bold", 
                             }}>
                                 {pkg.tasks}
                             </Typography>
@@ -943,7 +946,7 @@ export function CreditDialog({
                                 fontSize: "16px",
                                 borderRadius: "8px",
                                 border: `2px solid ${palette.primary.main}`,
-                                outline: "none"
+                                outline: "none",
                             }}
                             placeholder="Enter amount ($)"
                             autoFocus
@@ -962,7 +965,7 @@ export function CreditDialog({
                         p: 2,
                         bgcolor: palette.info.main + "11",
                         borderRadius: 2,
-                        mb: 2
+                        mb: 2,
                     }}>
                         <Typography variant="subtitle2" sx={{ fontWeight: "bold", mb: 1 }}>
                             With ${selectedAmount} you can:
@@ -1034,27 +1037,27 @@ function DonationDialog({
             value: 5, 
             label: "$5", 
             impact: "Keeps us caffeinated",
-            emoji: "☕"
+            emoji: "☕",
         },
         { 
             value: 15, 
             label: "$15", 
             impact: "Fuels a day of coding",
             emoji: "🔥",
-            popular: true
+            popular: true,
         },
         { 
             value: 25, 
             label: "$25", 
             impact: "Supports server costs",
-            emoji: "🎯"
+            emoji: "🎯",
         },
         { 
             value: 50, 
             label: "$50", 
             impact: "Funds new features",
-            emoji: "🚀"
-        }
+            emoji: "🚀",
+        },
     ];
 
     function handleAmountSelect(amount: number) {
@@ -1108,10 +1111,13 @@ function DonationDialog({
                     borderRadius: 3,
                     maxWidth: 480,
                     width: "100%",
-                }
+                },
             }}
         >
-            <DialogTitle id="donation-dialog" sx={{ textAlign: "center", pb: 1 }}>
+            <DialogTitle 
+                id="donation-dialog" 
+                sxs={{ root: { textAlign: "center", pb: 1 } }}
+            >
                 <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1 }}>
                     Support Vrooli's Mission 💙
                 </Typography>
@@ -1127,7 +1133,7 @@ function DonationDialog({
                     mb: 3, 
                     p: 2, 
                     background: `linear-gradient(135deg, ${palette.secondary.main}15, ${palette.primary.main}15)`,
-                    borderRadius: 2 
+                    borderRadius: 2, 
                 }}>
                     <Box display="flex" justifyContent="space-between" mb={1}>
                         <Typography variant="body2" color="textSecondary">
@@ -1141,13 +1147,13 @@ function DonationDialog({
                         height: 8, 
                         bgcolor: palette.action.disabledBackground,
                         borderRadius: 1,
-                        overflow: "hidden"
+                        overflow: "hidden",
                     }}>
                         <Box sx={{
                             width: "78%",
                             height: "100%",
                             background: `linear-gradient(90deg, ${palette.secondary.main}, ${palette.primary.main})`,
-                            transition: "width 0.5s ease"
+                            transition: "width 0.5s ease",
                         }} />
                     </Box>
                     <Typography variant="caption" color="textSecondary" sx={{ mt: 0.5, display: "block" }}>
@@ -1179,12 +1185,12 @@ function DonationDialog({
                                     alignItems: "center !important",
                                     gap: "4px !important",
                                     height: "100%",
-                                    width: "100%"
+                                    width: "100%",
                                 },
                                 ...(option.popular && {
                                     border: `2px solid ${palette.secondary.main}`,
                                     "&::before": {
-                                        content: '"Most Common"',
+                                        content: "\"Most Common\"",
                                         position: "absolute",
                                         top: -10,
                                         left: "50%",
@@ -1196,9 +1202,9 @@ function DonationDialog({
                                         py: 0.25,
                                         borderRadius: 1,
                                         fontWeight: "bold",
-                                        zIndex: 1
-                                    }
-                                })
+                                        zIndex: 1,
+                                    },
+                                }),
                             }}
                         >
                             <Typography variant="h6" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
@@ -1236,7 +1242,7 @@ function DonationDialog({
                                 fontSize: "16px",
                                 borderRadius: "8px",
                                 border: `2px solid ${palette.primary.main}`,
-                                outline: "none"
+                                outline: "none",
                             }}
                             placeholder="Enter amount ($)"
                             autoFocus
@@ -1251,7 +1257,7 @@ function DonationDialog({
                         bgcolor: palette.success.main + "15",
                         borderRadius: 2,
                         mb: 2,
-                        textAlign: "center"
+                        textAlign: "center",
                     }}>
                         <Typography variant="body2" sx={{ fontWeight: "bold", color: palette.success.dark }}>
                             {getImpactMessage(selectedAmount)}
@@ -1265,7 +1271,7 @@ function DonationDialog({
                     bgcolor: palette.background.paper,
                     borderRadius: 2,
                     mb: 2,
-                    borderLeft: `4px solid ${palette.primary.main}`
+                    borderLeft: `4px solid ${palette.primary.main}`,
                 }}>
                     <Typography variant="caption" sx={{ fontStyle: "italic" }}>
                         "Your support directly helps us build a platform where AI is accessible to everyone. 

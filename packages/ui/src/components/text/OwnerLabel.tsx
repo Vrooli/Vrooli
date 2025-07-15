@@ -1,4 +1,5 @@
-import Tooltip from "@mui/material/Tooltip";
+import React from "react";
+import { Tooltip } from "../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
 import { getObjectUrl, getTranslation } from "@vrooli/shared";
@@ -47,7 +48,7 @@ export function OwnerLabel({
         if (link.length === 0) return;
         setLocation(link);
     }, [link, setLocation]);
-    const onClick = useCallback((e: any) => {
+    const onClick = useCallback((e: React.MouseEvent<HTMLElement>) => {
         if (typeof confirmOpen === "function") {
             confirmOpen(toOwner);
         } else {
@@ -86,3 +87,5 @@ export function OwnerLabel({
         </a>
     );
 }
+
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed onClick event handler type from 'any' to React.MouseEvent<HTMLElement>

@@ -31,7 +31,7 @@ import type {
     ValidationResult, 
     MSWHandlers,
 } from "../types.js";
-import { rest } from "msw";
+import { http, HttpResponse } from "msw";
 
 /**
  * UI-specific form data for routine creation
@@ -594,18 +594,18 @@ export class RoutineFixtureFactory implements FixtureFactory<
         return {
             success: [
                 // Create routine
-                rest.post(`${baseUrl}/api/routine`, async (req, res, ctx) => {
-                    const body = await req.json();
+                http.post(`${baseUrl}/api/routine`, async ({ request }) => {
+                    const body = await request.json() as RoutineFormData;
                     
                     // Validate the request body
                     const validation = await this.validateFormData(body);
                     if (!validation.isValid) {
-                        return res(
-                            ctx.status(400),
-                            ctx.json({ 
+                        return HttpResponse.json(
+                            { 
                                 errors: validation.errors,
                                 fieldErrors: validation.fieldErrors, 
-                            }),
+                            },
+                            { status: 400 }
                         );
                     }
 
@@ -623,49 +623,39 @@ export class RoutineFixtureFactory implements FixtureFactory<
                         }],
                     });
 
-                    return res(
-                        ctx.status(201),
-                        ctx.json(mockRoutine),
-                    );
+                    return HttpResponse.json(mockRoutine, { status: 201 });
                 }),
 
                 // Update routine
-                rest.put(`${baseUrl}/api/routine/:id`, async (req, res, ctx) => {
-                    const { id } = req.params;
-                    const body = await req.json();
+                http.put(`${baseUrl}/api/routine/:id`, async ({ request, params }) => {
+                    const { id } = params;
+                    const body = await request.json();
 
                     const mockRoutine = this.createMockResponse({ 
                         id: id as string,
                         updatedAt: new Date().toISOString(),
                     });
 
-                    return res(
-                        ctx.status(200),
-                        ctx.json(mockRoutine),
-                    );
+                    return HttpResponse.json(mockRoutine, { status: 200 });
                 }),
 
                 // Get routine
-                rest.get(`${baseUrl}/api/routine/:handle`, (req, res, ctx) => {
-                    const { handle } = req.params;
+                http.get(`${baseUrl}/api/routine/:handle`, ({ params }) => {
+                    const { handle } = params;
                     const mockRoutine = this.createMockResponse({ 
                         handle: handle as string, 
                     });
                     
-                    return res(
-                        ctx.status(200),
-                        ctx.json(mockRoutine),
-                    );
+                    return HttpResponse.json(mockRoutine, { status: 200 });
                 }),
 
                 // Run routine
-                rest.post(`${baseUrl}/api/routine/:id/run`, async (req, res, ctx) => {
-                    const { id } = req.params;
-                    const body = await req.json();
+                http.post(`${baseUrl}/api/routine/:id/run`, async ({ request, params }) => {
+                    const { id } = params;
+                    const body = await request.json() as { inputs?: Record<string, any> };
 
-                    return res(
-                        ctx.status(201),
-                        ctx.json({
+                    return HttpResponse.json(
+                        {
                             __typename: "Run",
                             id: this.generateId(),
                             routineId: id as string,
@@ -674,74 +664,72 @@ export class RoutineFixtureFactory implements FixtureFactory<
                             completedAt: null,
                             progress: 0,
                             inputs: body.inputs || {},
-                        }),
+                        },
+                        { status: 201 }
                     );
                 }),
 
                 // Delete routine
-                rest.delete(`${baseUrl}/api/routine/:id`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(204),
-                    );
+                http.delete(`${baseUrl}/api/routine/:id`, ({ params }) => {
+                    return new HttpResponse(null, { status: 204 });
                 }),
             ],
 
             error: [
-                rest.post(`${baseUrl}/api/routine`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(409),
-                        ctx.json({ 
+                http.post(`${baseUrl}/api/routine`, ({ request }) => {
+                    return HttpResponse.json(
+                        { 
                             message: "Routine handle already exists",
                             code: "HANDLE_EXISTS", 
-                        }),
+                        },
+                        { status: 409 }
                     );
                 }),
 
-                rest.put(`${baseUrl}/api/routine/:id`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(403),
-                        ctx.json({ 
+                http.put(`${baseUrl}/api/routine/:id`, ({ request, params }) => {
+                    return HttpResponse.json(
+                        { 
                             message: "You do not have permission to update this routine",
                             code: "PERMISSION_DENIED", 
-                        }),
+                        },
+                        { status: 403 }
                     );
                 }),
 
-                rest.post(`${baseUrl}/api/routine/:id/run`, (req, res, ctx) => {
-                    return res(
-                        ctx.status(400),
-                        ctx.json({ 
+                http.post(`${baseUrl}/api/routine/:id/run`, ({ request, params }) => {
+                    return HttpResponse.json(
+                        { 
                             message: "Invalid input parameters",
                             code: "INVALID_INPUTS", 
-                        }),
+                        },
+                        { status: 400 }
                     );
                 }),
             ],
 
             loading: [
-                rest.post(`${baseUrl}/api/routine`, (req, res, ctx) => {
-                    return res(
-                        ctx.delay(2000), // 2 second delay
-                        ctx.status(201),
-                        ctx.json(this.createMockResponse()),
-                    );
+                http.post(`${baseUrl}/api/routine`, async ({ request }) => {
+                    // 2 second delay
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    return HttpResponse.json(this.createMockResponse(), { status: 201 });
                 }),
 
-                rest.post(`${baseUrl}/api/routine/:id/run`, (req, res, ctx) => {
-                    return res(
-                        ctx.delay(3000), // 3 second delay for running
-                        ctx.status(201),
-                        ctx.json({
+                http.post(`${baseUrl}/api/routine/:id/run`, async ({ request, params }) => {
+                    // 3 second delay for running
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    return HttpResponse.json(
+                        {
                             id: this.generateId(),
                             status: RunStatus.InProgress,
-                        }),
+                        },
+                        { status: 201 }
                     );
                 }),
             ],
 
             networkError: [
-                rest.post(`${baseUrl}/api/routine`, (req, res, ctx) => {
-                    return res.networkError("Network connection failed");
+                http.post(`${baseUrl}/api/routine`, ({ request }) => {
+                    return HttpResponse.error();
                 }),
             ],
         };

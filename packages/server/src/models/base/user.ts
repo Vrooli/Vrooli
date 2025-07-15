@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { type BotCreateInput, type BotUpdateInput, generatePublicId, getTranslation, MaxObjects, type ProfileUpdateInput, UserSortBy, userValidation } from "@vrooli/shared";
 import { noNull } from "../../builders/noNull.js";
 import { DbProvider } from "../../db/provider.js";
@@ -6,7 +7,7 @@ import { EmbeddingService } from "../../services/embedding.js";
 import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
 import { handlesCheck } from "../../validators/handlesCheck.js";
-import { defaultPermissions, getSingleTypePermissions } from "../../validators/permissions.js";
+import { defaultPermissions, filterPermissions, getSingleTypePermissions } from "../../validators/permissions.js";
 import { UserFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
@@ -35,7 +36,10 @@ export const UserModel: UserModelLogic = ({
         embed: {
             select: () => ({ id: true, name: true, handle: true, translations: { select: { id: true, bio: true, embeddingExpiredAt: true } } }),
             get: ({ name, handle, translations }, languages) => {
-                const trans = getTranslation({ translations }, languages);
+                const trans = getTranslation({ translations }, languages) as Partial<{
+                    language: string;
+                    bio: string;
+                }>;
                 return EmbeddingService.getEmbeddableString({
                     bio: trans?.bio || "",
                     handle,
@@ -53,10 +57,10 @@ export const UserModel: UserModelLogic = ({
                 return { ...maps };
             },
             // Create only applies for bots normally, but seeding and tests might create non-bot users
-            create: async ({ data, ...rest }) => {
-                const preData = rest.preMap[__typename] as UserPre;
+            create: async ({ additionalData, data, idsCreateToConnect, isSeeding: _isSeeding, preMap, userData }) => {
+                const preData = preMap[__typename] as UserPre;
                 const adminId = await DbProvider.getAdminId();
-                const isUser = rest.userData.id === adminId && rest.additionalData?.isBot !== true;
+                const isUser = userData.id === adminId && additionalData?.isBot !== true;
                 const commonData = {
                     id: BigInt(data.id),
                     publicId: generatePublicId(),
@@ -65,16 +69,18 @@ export const UserModel: UserModelLogic = ({
                     isPrivate: noNull(data.isPrivate),
                     name: data.name ?? "",
                     profileImage: typeof data.profileImage === "string" ? data.profileImage : null,
-                    translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, additionalData, idsCreateToConnect, preMap, userData }),
                 };
                 if (!isUser) {
                     const botData = data as BotCreateInput;
                     return {
                         ...commonData,
-                        botSettings: typeof botData.botSettings === "object" ? botData.botSettings : null,
+                        // Cast to unknown first to satisfy Prisma's InputJsonValue type requirement
+                        // BotConfigObject has specific properties but Prisma expects an index signature
+                        botSettings: typeof botData.botSettings === "object" && botData.botSettings !== null ? botData.botSettings as unknown as Prisma.InputJsonValue : Prisma.DbNull,
                         isBot: true,
                         isBotDepictingPerson: botData.isBotDepictingPerson,
-                        invitedByUser: { connect: { id: BigInt(rest.userData.id) } },
+                        invitedByUser: { connect: { id: BigInt(userData.id) } },
                     };
                 }
                 const profileData = data as (ProfileUpdateInput & { id: string });
@@ -90,14 +96,14 @@ export const UserModel: UserModelLogic = ({
                     isPrivateTeamsCreated: noNull(profileData.isPrivateTeamsCreated),
                     isPrivateBookmarks: noNull(profileData.isPrivateBookmarks),
                     isPrivateVotes: noNull(profileData.isPrivateVotes),
-                    notificationSettings: profileData.notificationSettings ?? null,
+                    notificationSettings: profileData.notificationSettings ? JSON.stringify(profileData.notificationSettings) : null,
                     // languages: TODO!!!
                 };
             },
             /** Update can be either a bot or your profile */
-            update: async ({ data, ...rest }) => {
-                const preData = rest.preMap[__typename] as UserPre;
-                const isBot = rest.additionalData?.isBot ?? false;
+            update: async ({ additionalData, data, idsCreateToConnect, preMap, userData }) => {
+                const preData = preMap[__typename] as UserPre;
+                const isBot = additionalData?.isBot ?? false;
                 const commonData = {
                     bannerImage: typeof data.bannerImage === "string" ? data.bannerImage : (data.bannerImage === null ? null : undefined),
                     handle: data.handle ?? null,
@@ -109,9 +115,11 @@ export const UserModel: UserModelLogic = ({
                     const botData = data as BotUpdateInput;
                     return {
                         ...commonData,
-                        botSettings: typeof botData.botSettings === "object" ? botData.botSettings : (botData.botSettings === null ? null : undefined),
+                        // Cast to unknown first to satisfy Prisma's InputJsonValue type requirement
+                        // BotConfigObject has specific properties but Prisma expects an index signature
+                        botSettings: typeof botData.botSettings === "object" && botData.botSettings !== null ? botData.botSettings as unknown as Prisma.InputJsonValue : (botData.botSettings === null ? Prisma.DbNull : undefined),
                         isBotDepictingPerson: noNull(botData.isBotDepictingPerson),
-                        translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                        translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, additionalData, idsCreateToConnect, preMap, userData }),
                     };
                 }
                 const profileData = data as ProfileUpdateInput;
@@ -135,7 +143,7 @@ export const UserModel: UserModelLogic = ({
 
                 return {
                     ...commonData,
-                    creditSettings: sanitizedCreditSettings,
+                    creditSettings: sanitizedCreditSettings ? sanitizedCreditSettings as unknown as Prisma.InputJsonValue : undefined,
                     theme: noNull(profileData.theme),
                     isPrivate: noNull(profileData.isPrivate),
                     isPrivateMemberships: noNull(profileData.isPrivateMemberships),
@@ -145,9 +153,9 @@ export const UserModel: UserModelLogic = ({
                     isPrivateTeamsCreated: noNull(profileData.isPrivateTeamsCreated),
                     isPrivateBookmarks: noNull(profileData.isPrivateBookmarks),
                     isPrivateVotes: noNull(profileData.isPrivateVotes),
-                    notificationSettings: profileData.notificationSettings ?? null,
+                    notificationSettings: profileData.notificationSettings ? JSON.stringify(profileData.notificationSettings) : undefined,
                     // languages: TODO!!!
-                    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[rest.userData.id], data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[userData.id], data, additionalData, idsCreateToConnect, preMap, userData }),
                 };
             },
         },
@@ -212,10 +220,18 @@ export const UserModel: UserModelLogic = ({
             isPrivate: true,
             languages: true,
         }),
-        permissionResolvers: defaultPermissions,
-        owner: (data) => ({ User: data?.isBot ? data.invitedByUser : data }),
+        permissionResolvers: ({ isAdmin, isDeleted, isLoggedIn, isPublic }) => {
+            const base = defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic });
+            return filterPermissions(base, [
+                "canDelete", "canReport", "canUpdate",
+                "canConnect", "canDisconnect", "canRead",
+            ]);
+        },
+        owner: (data, _userId) => ({
+            User: data?.isBot ? data.invitedByUser : data,
+        }),
         isDeleted: () => false,
-        isPublic: (data) => data.isPrivate === false,
+        isPublic: (data, _getParentInfo?) => data.isPrivate === false,
         profanityFields: ["name", "handle"],
         visibility: {
             own: function getOwn(data) {

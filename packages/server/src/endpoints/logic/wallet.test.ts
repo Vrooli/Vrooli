@@ -1,7 +1,7 @@
 import { type WalletUpdateInput, generatePK } from "@vrooli/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockAuthenticatedSession, mockLoggedOutSession, mockApiSession, mockWriteAuthPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
-import { testEndpointRequiresAuth } from "../../__test/endpoints.js";
+import { assertEndpointRequiresAuth } from "../../__test/endpoints.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
@@ -11,6 +11,8 @@ import { wallet } from "./wallet.js";
 // Import database fixtures
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { WalletDbFactory } from "../../__test/fixtures/db/walletFixtures.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsWallet", () => {
     beforeAll(async () => {
@@ -20,14 +22,21 @@ describe("EndpointsWallet", () => {
         vi.spyOn(logger, "warning").mockImplementation(() => logger);
     });
 
-    beforeEach(async () => {
-        // Clean up tables used in tests
-        const prisma = DbProvider.get();
-        await prisma.wallet.deleteMany();
-        await prisma.user.deleteMany();
-        // Clear Redis cache
-        await CacheService.get().flushAll();
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["user","user_auth","email","session"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn('Test cleanup incomplete:', orphans);
+        }
     });
+
+    beforeEach(async () => {
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.minimal(DbProvider.get());
+    }););
 
     afterAll(async () => {
         // Restore all mocks
@@ -36,8 +45,8 @@ describe("EndpointsWallet", () => {
 
     describe("updateOne", () => {
         describe("authentication", () => {
-            it("requires authentication", async () => {
-                await testEndpointRequiresAuth(
+            it("not logged in", async () => {
+                await assertEndpointRequiresAuth(
                     wallet.updateOne,
                     { id: generatePK() },
                     wallet_updateOne,

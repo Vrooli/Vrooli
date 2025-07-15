@@ -1,8 +1,39 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { ScheduleRecurrenceType, HOURS_1_MS, MINUTES_1_MS } from "@vrooli/shared";
-import { parseICalFile, convertICalEventsToSchedules, createICalFromSchedules, createICalEvent } from "./calendar.js";
+import { HOURS_1_MS, ScheduleRecurrenceType } from "@vrooli/shared";
+import type { CalendarResponse, DateWithTimeZone, VEvent } from "node-ical";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { RequestFile } from "../types.js";
-import type { CalendarResponse, VEvent, DateWithTimeZone } from "node-ical";
+import { convertICalEventsToSchedules, createICalEvent, createICalFromSchedules, parseICalFile } from "./calendar.js";
+
+// AI_CHECK: TYPE_SAFETY=phase1-test-3 | LAST: 2025-07-04 - Replaced 'as any' with proper types and helper functions for test objects
+
+// Helper function to create a proper VEvent for testing
+function createTestVEvent(overrides: any = {}): VEvent {
+    const defaultEvent = {
+        type: "VEVENT" as const,
+        summary: "Test Event",
+        start: new Date("2024-01-01T12:00:00Z"),
+        end: new Date("2024-01-01T13:00:00Z"),
+        uid: "test-event-uid",
+        dtstamp: new Date(),
+    };
+    return {
+        ...defaultEvent,
+        ...overrides,
+    } as VEvent;
+}
+
+// Helper function to create a non-VEvent calendar component for testing
+interface CalendarComponent {
+    type: string;
+    [key: string]: unknown;
+}
+
+function createTestCalendarComponent(type: string, overrides: Record<string, unknown> = {}): CalendarComponent {
+    return {
+        type,
+        ...overrides,
+    };
+}
 
 // Mock setup for generatePK
 let mockIdCounter = 0;
@@ -37,9 +68,11 @@ END:VEVENT
 END:VCALENDAR`;
 
             const file: RequestFile = {
-                buffer: Buffer.from(validIcalContent, "utf-8"),
+                fieldname: "file",
                 originalname: "test.ics",
+                encoding: "utf-8",
                 mimetype: "text/calendar",
+                buffer: Buffer.from(validIcalContent, "utf-8"),
                 size: validIcalContent.length,
             };
 
@@ -51,9 +84,11 @@ END:VCALENDAR`;
         it("should handle malformed iCalendar content gracefully", async () => {
             const malformedContent = "This is not a valid iCalendar file";
             const file: RequestFile = {
-                buffer: Buffer.from(malformedContent, "utf-8"),
+                fieldname: "file",
                 originalname: "invalid.ics",
+                encoding: "utf-8",
                 mimetype: "text/calendar",
+                buffer: Buffer.from(malformedContent, "utf-8"),
                 size: malformedContent.length,
             };
 
@@ -67,13 +102,12 @@ END:VCALENDAR`;
     describe("convertICalEventsToSchedules", () => {
         it("should convert simple event to schedule", () => {
             const mockEvents: CalendarResponse = {
-                "test-event": {
-                    type: "VEVENT",
+                "test-event": createTestVEvent({
                     summary: "Test Meeting",
                     description: "A test meeting",
                     start: new Date("2024-01-01T12:00:00Z"),
                     end: new Date("2024-01-01T13:00:00Z"),
-                } as VEvent,
+                }),
             };
 
             const result = convertICalEventsToSchedules(mockEvents, "user-123");
@@ -92,11 +126,11 @@ END:VCALENDAR`;
 
         it("should handle event without end time", () => {
             const mockEvents: CalendarResponse = {
-                "test-event": {
-                    type: "VEVENT",
+                "test-event": createTestVEvent({
                     summary: "Test Event",
                     start: new Date("2024-01-01T12:00:00Z"),
-                } as VEvent,
+                    end: undefined,
+                }),
             };
 
             const result = convertICalEventsToSchedules(mockEvents, "user-123");
@@ -110,12 +144,11 @@ END:VCALENDAR`;
             Object.assign(startDate, { tz: "America/New_York" });
 
             const mockEvents: CalendarResponse = {
-                "test-event": {
-                    type: "VEVENT",
+                "test-event": createTestVEvent({
                     summary: "Timezone Event",
                     start: startDate as DateWithTimeZone,
                     end: new Date("2024-01-01T13:00:00Z"),
-                } as VEvent,
+                }),
             };
 
             const result = convertICalEventsToSchedules(mockEvents, "user-123");
@@ -126,12 +159,11 @@ END:VCALENDAR`;
 
         it("should handle event with string dates", () => {
             const mockEvents: CalendarResponse = {
-                "test-event": {
-                    type: "VEVENT",
+                "test-event": createTestVEvent({
                     summary: "String Date Event",
                     start: "2024-01-01T12:00:00Z",
                     end: "2024-01-01T13:00:00Z",
-                } as VEvent,
+                }),
             };
 
             const result = convertICalEventsToSchedules(mockEvents, "user-123");
@@ -142,12 +174,11 @@ END:VCALENDAR`;
 
         it("should handle event with object date format", () => {
             const mockEvents: CalendarResponse = {
-                "test-event": {
-                    type: "VEVENT",
+                "test-event": createTestVEvent({
                     summary: "Object Date Event",
                     start: { date: "2024-01-01T12:00:00Z", tz: "Europe/London" },
                     end: { date: "2024-01-01T13:00:00Z" },
-                } as VEvent,
+                }),
             };
 
             const result = convertICalEventsToSchedules(mockEvents, "user-123");
@@ -159,12 +190,11 @@ END:VCALENDAR`;
 
         it("should skip events without start time", () => {
             const mockEvents: CalendarResponse = {
-                "invalid-event": {
-                    type: "VEVENT",
+                "invalid-event": createTestVEvent({
                     summary: "Invalid Event",
                     start: null,
                     end: null,
-                } as VEvent,
+                }),
             };
 
             const result = convertICalEventsToSchedules(mockEvents, "user-123");
@@ -174,10 +204,9 @@ END:VCALENDAR`;
 
         it("should skip non-VEVENT entries", () => {
             const mockEvents: CalendarResponse = {
-                "not-an-event": {
-                    type: "VTIMEZONE",
+                "not-an-event": createTestCalendarComponent("VTIMEZONE", {
                     tzid: "America/New_York",
-                } as any,
+                }),
             };
 
             const result = convertICalEventsToSchedules(mockEvents, "user-123");
@@ -187,17 +216,18 @@ END:VCALENDAR`;
 
         it("should handle daily recurrence", () => {
             const mockEvents: CalendarResponse = {
-                "recurring-event": {
-                    type: "VEVENT",
+                "recurring-event": createTestVEvent({
                     summary: "Daily Meeting",
                     start: new Date("2024-01-01T12:00:00Z"),
                     end: new Date("2024-01-01T13:00:00Z"),
                     rrule: {
-                        freq: "DAILY",
-                        interval: 1,
-                        until: new Date("2024-01-31T12:00:00Z"),
+                        options: {
+                            freq: 3, // Frequency.DAILY = 3
+                            interval: 1,
+                            until: new Date("2024-01-31T12:00:00Z"),
+                        },
                     },
-                } as VEvent,
+                }),
             };
 
             const result = convertICalEventsToSchedules(mockEvents, "user-123");
@@ -215,17 +245,18 @@ END:VCALENDAR`;
 
         it("should handle weekly recurrence with specific day", () => {
             const mockEvents: CalendarResponse = {
-                "weekly-event": {
-                    type: "VEVENT",
+                "weekly-event": createTestVEvent({
                     summary: "Weekly Meeting",
                     start: new Date("2024-01-01T12:00:00Z"), // Monday
                     end: new Date("2024-01-01T13:00:00Z"),
                     rrule: {
-                        freq: "WEEKLY",
-                        interval: 2,
-                        byweekday: "MO",
+                        options: {
+                            freq: 2, // Frequency.WEEKLY = 2
+                            interval: 2,
+                            byweekday: "MO",
+                        },
                     },
-                } as VEvent,
+                }),
             };
 
             const result = convertICalEventsToSchedules(mockEvents, "user-123");
@@ -240,16 +271,17 @@ END:VCALENDAR`;
 
         it("should handle monthly recurrence with specific day of month", () => {
             const mockEvents: CalendarResponse = {
-                "monthly-event": {
-                    type: "VEVENT",
+                "monthly-event": createTestVEvent({
                     summary: "Monthly Meeting",
                     start: new Date("2024-01-15T12:00:00Z"),
                     end: new Date("2024-01-15T13:00:00Z"),
                     rrule: {
-                        freq: "MONTHLY",
-                        bymonthday: 15,
+                        options: {
+                            freq: 1, // Frequency.MONTHLY = 1
+                            bymonthday: 15,
+                        },
                     },
-                } as VEvent,
+                }),
             };
 
             const result = convertICalEventsToSchedules(mockEvents, "user-123");
@@ -263,21 +295,24 @@ END:VCALENDAR`;
 
         it("should handle yearly recurrence with specific month", () => {
             const mockEvents: CalendarResponse = {
-                "yearly-event": {
-                    type: "VEVENT",
+                "yearly-event": createTestVEvent({
                     summary: "Yearly Meeting",
                     start: new Date("2024-06-01T12:00:00Z"),
                     end: new Date("2024-06-01T13:00:00Z"),
                     rrule: {
-                        freq: "YEARLY",
-                        bymonth: 6,
+                        options: {
+                            freq: 0, // Frequency.YEARLY = 0
+                            bymonth: 6,
+                        },
                     },
-                } as VEvent,
+                }),
             };
 
             const result = convertICalEventsToSchedules(mockEvents, "user-123");
 
             expect(result).toHaveLength(1);
+            expect(result[0].recurrences).toBeDefined();
+            expect(result[0].recurrences).toHaveLength(1);
             expect(result[0].recurrences![0]).toMatchObject({
                 recurrenceType: ScheduleRecurrenceType.Yearly,
                 month: 6,
@@ -286,15 +321,16 @@ END:VCALENDAR`;
 
         it("should handle unsupported recurrence frequency", () => {
             const mockEvents: CalendarResponse = {
-                "unsupported-event": {
-                    type: "VEVENT",
+                "unsupported-event": createTestVEvent({
                     summary: "Unsupported Recurrence",
                     start: new Date("2024-01-01T12:00:00Z"),
                     end: new Date("2024-01-01T13:00:00Z"),
                     rrule: {
-                        freq: "MINUTELY", // Unsupported
+                        options: {
+                            freq: 5, // Frequency.MINUTELY = 5 (Unsupported)
+                        },
                     },
-                } as VEvent,
+                }),
             };
 
             const result = convertICalEventsToSchedules(mockEvents, "user-123");
@@ -305,10 +341,10 @@ END:VCALENDAR`;
 
         it("should use default title and description when missing", () => {
             const mockEvents: CalendarResponse = {
-                "minimal-event": {
-                    type: "VEVENT",
+                "minimal-event": createTestVEvent({
                     start: new Date("2024-01-01T12:00:00Z"),
-                } as VEvent,
+                    summary: undefined,
+                }),
             };
 
             const result = convertICalEventsToSchedules(mockEvents, "user-123");
@@ -328,7 +364,7 @@ END:VCALENDAR`;
                     endTime: new Date("2024-01-01T13:00:00Z"),
                     timezone: "UTC",
                     recurrences: [],
-                } as any,
+                },
                 meeting: {
                     translations: [
                         { name: "Team Meeting", description: "Weekly team sync", language: "en" },
@@ -359,7 +395,7 @@ END:VCALENDAR`;
                     endTime: new Date("2024-01-01T13:00:00Z"),
                     timezone: "America/New_York",
                     recurrences: [],
-                } as any,
+                },
                 run: {
                     name: "Data Processing",
                     resourceVersion: {
@@ -391,7 +427,7 @@ END:VCALENDAR`;
                         duration: 60,
                         endDate: new Date("2024-12-31T12:00:00Z"),
                     }],
-                } as any,
+                },
                 meeting: {
                     translations: [{ name: "Weekly Standup", language: "en" }],
                 },
@@ -410,7 +446,7 @@ END:VCALENDAR`;
                     endTime: new Date("2024-01-01T13:00:00Z"),
                     timezone: "UTC",
                     recurrences: [],
-                } as any,
+                },
                 meeting: {
                     translations: [{
                         name: "Meeting with, special; characters\\and\nnewlines",
@@ -434,7 +470,7 @@ END:VCALENDAR`;
                     endTime: new Date("2024-01-01T13:00:00Z"),
                     timezone: "UTC",
                     recurrences: [],
-                } as any,
+                },
             }];
 
             const result = createICalFromSchedules(schedules);
@@ -470,7 +506,7 @@ END:VCALENDAR`;
             };
 
             const recurrence = {
-                recurrenceType: "weekly",
+                recurrenceType: ScheduleRecurrenceType.Weekly,
                 interval: 2,
                 dayOfWeek: "MO",
                 endDate: new Date("2024-12-31T12:00:00Z"),
@@ -492,7 +528,7 @@ END:VCALENDAR`;
                     endTime: new Date("2024-01-01T13:30:45.123Z"),
                     timezone: "UTC",
                     recurrences: [],
-                } as any,
+                },
                 meeting: {
                     translations: [{ name: "Date Test", language: "en" }],
                 },
@@ -519,7 +555,7 @@ END:VCALENDAR`;
                         dayOfMonth: 15,
                         duration: 60,
                     }],
-                } as any,
+                },
                 meeting: {
                     translations: [{ name: "Monthly Event", language: "en" }],
                 },
@@ -543,7 +579,7 @@ END:VCALENDAR`;
                         month: 6,
                         duration: 60,
                     }],
-                } as any,
+                },
                 meeting: {
                     translations: [{ name: "Yearly Event", language: "en" }],
                 },
@@ -566,7 +602,7 @@ END:VCALENDAR`;
                         interval: 3,
                         duration: 60,
                     }],
-                } as any,
+                },
                 meeting: {
                     translations: [{ name: "Every 3 Days", language: "en" }],
                 },
@@ -595,7 +631,7 @@ END:VCALENDAR`;
                     endTime: new Date("2024-01-01T13:00:00Z"),
                     timezone: "UTC",
                     recurrences: [],
-                } as any,
+                },
                 meeting: {
                     translations: [
                         { name: "German Event", description: "German description", language: "de" },
@@ -617,7 +653,7 @@ END:VCALENDAR`;
                     endTime: new Date("2024-01-01T13:00:00Z"),
                     timezone: "UTC",
                     recurrences: [],
-                } as any,
+                },
                 run: {
                     name: "Simple Run",
                 },

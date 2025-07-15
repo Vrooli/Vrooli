@@ -1,6 +1,4 @@
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import { styled } from "@mui/material";
+import { Box, Typography, styled } from "@mui/material";
 import { endpointsUser, profileValidation, type ProfileUpdateInput, type User } from "@vrooli/shared";
 import { Formik, useField, type FormikHelpers, type FormikProps } from "formik";
 import { useCallback, useMemo, useRef } from "react";
@@ -16,6 +14,7 @@ import { useAutoSave } from "../../hooks/useAutoSave.js";
 import { useLazyFetch } from "../../hooks/useFetch.js";
 import { useProfileQuery } from "../../hooks/useProfileQuery.js";
 import { ScrollBox } from "../../styles.js";
+import { ViewDisplayType } from "../../types.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { type SettingsPrivacyFormProps, type SettingsPrivacyViewProps } from "./types.js";
 
@@ -146,6 +145,7 @@ export function SettingsPrivacyView({
                         display={display}
                         isLoading={isProfileLoading || isUpdating}
                         onCancel={formik.resetForm}
+                        numVerifiedWallets={profile?.wallets?.filter(w => w.verified)?.length ?? 0}
                         {...formik}
                     />}
                 </Formik>

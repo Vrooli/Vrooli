@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
+import { generatePublicId, nanoid } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -26,11 +26,12 @@ interface ReactionRelationConfig extends RelationConfig {
  * - Reaction summary synchronization testing
  */
 export class ReactionDbFactory extends EnhancedDatabaseFactory<
-    Prisma.reactionCreateInput,
+    reaction,
     Prisma.reactionCreateInput,
     Prisma.reactionInclude,
     Prisma.reactionUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
         super("reaction", prisma);
         this.initializeScenarios();
@@ -46,17 +47,17 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
     protected getFixtures(): DbTestFixtures<Prisma.reactionCreateInput, Prisma.reactionUpdateInput> {
         return {
             minimal: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 emoji: "👍",
-                byId: generatePK().toString(),
+                byId: this.generateId(),
                 // Must have at least one target
-                resourceId: generatePK().toString(),
+                resourceId: this.generateId(),
             },
             complete: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 emoji: "❤️",
-                byId: generatePK().toString(),
-                resourceId: generatePK().toString(),
+                byId: this.generateId(),
+                resourceId: this.generateId(),
                 createdAt: new Date(),
                 updatedAt: new Date(),
             },
@@ -71,61 +72,61 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
                     resourceId: true, // Should be string
                 },
                 noTarget: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji: "👍",
-                    byId: generatePK().toString(),
+                    byId: this.generateId(),
                     // No target specified (resourceId, chatMessageId, commentId, or issueId)
                 },
                 multipleTargets: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji: "👍",
-                    byId: generatePK().toString(),
-                    resourceId: generatePK().toString(),
-                    chatMessageId: generatePK().toString(), // Multiple targets not allowed
+                    byId: this.generateId(),
+                    resourceId: this.generateId(),
+                    chatMessageId: this.generateId(), // Multiple targets not allowed
                 },
                 invalidEmoji: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji: "not_an_emoji", // Invalid emoji format
-                    byId: generatePK().toString(),
-                    resourceId: generatePK().toString(),
+                    byId: this.generateId(),
+                    resourceId: this.generateId(),
                 },
             },
             edgeCases: {
                 unicodeEmoji: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji: "🏳️‍🌈", // Complex unicode emoji
-                    byId: generatePK().toString(),
-                    resourceId: generatePK().toString(),
+                    byId: this.generateId(),
+                    resourceId: this.generateId(),
                 },
                 textEmoji: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji: ":heart:", // Text representation
-                    byId: generatePK().toString(),
-                    resourceId: generatePK().toString(),
+                    byId: this.generateId(),
+                    resourceId: this.generateId(),
                 },
                 multipleEmojis: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji: "👍❤️🎉", // Multiple emojis
-                    byId: generatePK().toString(),
-                    resourceId: generatePK().toString(),
+                    byId: this.generateId(),
+                    resourceId: this.generateId(),
                 },
                 reactionToComment: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji: "💬",
-                    byId: generatePK().toString(),
-                    commentId: generatePK().toString(),
+                    byId: this.generateId(),
+                    comment: { connect: { id: this.generateId() } },
                 },
                 reactionToIssue: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji: "🐛",
-                    byId: generatePK().toString(),
-                    issueId: generatePK().toString(),
+                    byId: this.generateId(),
+                    issue: { connect: { id: this.generateId() } },
                 },
                 reactionToChatMessage: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     emoji: "💬",
-                    byId: generatePK().toString(),
-                    chatMessageId: generatePK().toString(),
+                    byId: this.generateId(),
+                    chatMessageId: this.generateId(),
                 },
             },
             updates: {
@@ -142,20 +143,20 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.reactionCreateInput>): Prisma.reactionCreateInput {
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             emoji: "👍",
-            byId: generatePK().toString(),
-            resourceId: generatePK().toString(), // Default to resource
+            byId: this.generateId(),
+            resourceId: this.generateId(), // Default to resource
             ...overrides,
         };
     }
 
     protected generateCompleteData(overrides?: Partial<Prisma.reactionCreateInput>): Prisma.reactionCreateInput {
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             emoji: "❤️",
-            byId: generatePK().toString(),
-            resourceId: generatePK().toString(),
+            byId: this.generateId(),
+            resourceId: this.generateId(),
             createdAt: new Date(),
             updatedAt: new Date(),
             ...overrides,
@@ -473,7 +474,7 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createReactionDbFactory = (prisma: PrismaClient) => 
-    ReactionDbFactory.getInstance("reaction", prisma);
+    new ReactionDbFactory(prisma);
 
 // Export the class for type usage
 export { ReactionDbFactory as ReactionDbFactoryClass };

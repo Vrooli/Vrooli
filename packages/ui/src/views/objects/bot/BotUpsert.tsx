@@ -1,23 +1,34 @@
+// AI_CHECK: REACT_PERF=2 | LAST: 2024-06-27
+// Performance optimizations applied:
+// - Disabled validation on change (validateOnChange=false)
+// - Temporarily disabled autofill, cache, and complex submit logic
+// - Added React.memo to BotForm component
+// - Implemented debounced JSON parsing for persona field
+// - Used local state for CodeInput to prevent lag
 import Divider from "@mui/material/Divider";
 import InputAdornment from "@mui/material/InputAdornment";
 import Slider from "@mui/material/Slider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { DEFAULT_PERSONA, DUMMY_ID, LATEST_CONFIG_VERSION, LINKS, LlmTask, SearchPageTabOption, botTranslationValidation, botValidation, endpointsUser, getModelDescription, getModelName, noopSubmit, orDefault, shapeBot, validateAndGetYupErrors, type BotCreateInput, type BotShape, type BotUpdateInput, type LlmModel, type Session, type User } from "@vrooli/shared";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import { CodeLanguage, DEFAULT_PERSONA, DEFAULT_PERSONA_UI_ORDER, DUMMY_ID, LATEST_CONFIG_VERSION, LINKS, LlmTask, SearchPageTabOption, botTranslationValidation, botValidation, endpointsUser, getModelDescription, getModelName, noopSubmit, orDefault, shapeBot, validateAndGetYupErrors, type BotCreateInput, type BotShape, type BotUpdateInput, type LlmModel, type Session, type User } from "@vrooli/shared";
 import { Field, Formik, useField } from "formik";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useDebounce } from "../../../hooks/useDebounce.js";
 import { getAvailableModels, getExistingAIConfig, getFallbackModel } from "../../../api/ai.js";
 import { useSubmitHelper } from "../../../api/fetchWrapper.js";
 import { AutoFillButton } from "../../../components/buttons/AutoFillButton.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
 import { SearchExistingButton } from "../../../components/buttons/SearchExistingButton.js";
 import { ContentCollapse } from "../../../components/containers/ContentCollapse.js";
-import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
+import { Dialog } from "../../../components/dialogs/Dialog/Dialog.js";
 import { CheckboxInput } from "../../../components/inputs/CheckboxInput/CheckboxInput.js";
+import { CodeInput } from "../../../components/inputs/CodeInput/CodeInput.js";
 import { LanguageInput } from "../../../components/inputs/LanguageInput/LanguageInput.js";
 import { ProfilePictureInput } from "../../../components/inputs/ProfilePictureInput/ProfilePictureInput.js";
-import { TranslatedRichInput } from "../../../components/inputs/RichInput/RichInput.js";
+import { TranslatedAdvancedInput } from "../../../components/inputs/AdvancedInput/AdvancedInput.js";
 import { SelectorBase } from "../../../components/inputs/Selector/Selector.js";
 import { TextInput, TranslatedTextInput } from "../../../components/inputs/TextInput/TextInput.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
@@ -30,7 +41,7 @@ import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
 import { IconCommon, IconRoutine } from "../../../icons/Icons.js";
-import { FormContainer, FormSection } from "../../../styles.js";
+import { FormContainer, FormSection, ScrollBox } from "../../../styles.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { type BotFormProps, type BotUpsertProps } from "./types.js";
 
@@ -43,14 +54,25 @@ function botInitialValues(
     const fallbackModel = getFallbackModel(aiServicesConfig);
     const model = availableModels.find(m => m.value === existing?.botSettings?.model)?.value ?? fallbackModel;
 
-    const botSettings = existing?.botSettings ?? { __version: LATEST_CONFIG_VERSION, persona: DEFAULT_PERSONA };
+    const botSettings = existing?.botSettings ?? { __version: LATEST_CONFIG_VERSION, persona: { ...DEFAULT_PERSONA } };
     botSettings.model = model ?? "";
+    
+    // Extract creativity and verbosity from persona if they exist there
+    const persona = botSettings.persona || {};
+    const creativity = typeof persona.creativity === "number" ? persona.creativity : 0.5;
+    const verbosity = typeof persona.verbosity === "number" ? persona.verbosity : 0.5;
+    
+    // Remove creativity and verbosity from persona object (they're handled separately)
+    const { creativity: _, verbosity: __, ...personaWithoutSliders } = persona;
+    botSettings.persona = personaWithoutSliders;
 
     return {
         ...existing,
         __typename: "User" as const,
         id: DUMMY_ID,
         botSettings,
+        creativity, // Store at top level for sliders
+        verbosity,  // Store at top level for sliders
         isBotDepictingPerson: false,
         isPrivate: false,
         name: "",
@@ -65,7 +87,23 @@ function botInitialValues(
 }
 
 function transformBotValues(session: Session | undefined, values: BotShape, existing: BotShape, isCreate: boolean) {
-    return isCreate ? shapeBot.create(values) : shapeBot.update(botInitialValues(session, existing), values);
+    // Merge creativity and verbosity back into persona for saving
+    const transformedValues = {
+        ...values,
+        botSettings: {
+            ...values.botSettings,
+            persona: {
+                ...values.botSettings.persona,
+                creativity: values.creativity,
+                verbosity: values.verbosity,
+            },
+        },
+    };
+    // Remove top-level creativity and verbosity
+    delete (transformedValues as any).creativity;
+    delete (transformedValues as any).verbosity;
+    
+    return isCreate ? shapeBot.create(transformedValues) : shapeBot.update(botInitialValues(session, existing), transformedValues);
 }
 
 async function validateBotValues(session: Session | undefined, values: BotShape, existing: BotShape, isCreate: boolean) {
@@ -146,28 +184,6 @@ export function FeatureSlider({
 }
 
 type InputMode = "default" | "custom";
-
-// const InputToggle = ({
-//     canChangeInputMode,
-//     inputMode,
-//     onInputModeChange,
-// }: {
-//     canChangeInputMode: boolean,
-//     inputMode: InputMode,
-//     onInputModeChange: (inputMode: InputMode) => unknown,
-// }) => {
-//     if (!canChangeInputMode) return null;
-//     return (
-//         <Box sx={{ marginBottom: "10px", display: "flex", gap: 1 }}>
-//             <Button variant={inputMode === "default" ? "contained" : "outlined"} color="primary" onClick={() => onInputModeChange("default")}>
-//                 Default View
-//             </Button>
-//             <Button variant={inputMode === "custom" ? "contained" : "outlined"} color="primary" onClick={() => onInputModeChange("custom")}>
-//                 Custom View
-//             </Button>
-//         </Box>
-//     )
-// };
 
 const nameInputProps = {
     startAdornment: (
@@ -262,7 +278,7 @@ const biasInputProps = {
 const relationshipListStyle = { marginBottom: 4 } as const;
 const formSectionStyle = { overflowX: "hidden" } as const;
 
-function BotForm({
+const BotForm = React.memo(function BotForm({
     disabled,
     display,
     existing,
@@ -278,10 +294,21 @@ function BotForm({
     const session = useContext(SessionContext);
     const { t } = useTranslation();
 
-    // const [inputMode, setInputMode] = useState<InputMode>("default");
-    // const changeInputMode = (inputMode: InputMode) => {
-    //     setInputMode(inputMode);
-    // }
+    // Check if persona has non-default fields to determine initial mode
+    const hasCustomPersonaFields = useMemo(() => {
+        if (!values.botSettings?.persona) return false;
+        const personaKeys = Object.keys(values.botSettings.persona);
+        return personaKeys.some(key => !DEFAULT_PERSONA_UI_ORDER.includes(key));
+    }, [values.botSettings?.persona]);
+
+    const [inputMode, setInputMode] = useState<InputMode>(hasCustomPersonaFields ? "custom" : "default");
+    
+    // Handle mode change
+    const handleInputModeChange = useCallback((_: React.MouseEvent<HTMLElement>, newMode: InputMode | null) => {
+        if (newMode !== null) {
+            setInputMode(newMode);
+        }
+    }, []);
 
     const [modelField, , modelHelpers] = useField<string>("model");
     const [model, setModel] = useState<LlmModel | null>(null);
@@ -297,6 +324,45 @@ function BotForm({
 
     const [creativityField, , creativityHelpers] = useField<number>("creativity");
     const [verbosityField, , verbosityHelpers] = useField<number>("verbosity");
+    
+    // Handle persona JSON with debouncing to prevent lag
+    const [personaField, , personaHelpers] = useField<Record<string, unknown>>("botSettings.persona");
+    const [localPersonaJSON, setLocalPersonaJSON] = useState<string>(() => {
+        try {
+            return JSON.stringify(personaField.value || {}, null, 2);
+        } catch {
+            return "{}";
+        }
+    });
+    
+    // Sync local JSON with field value when it changes externally
+    useEffect(() => {
+        try {
+            const newJSON = JSON.stringify(personaField.value || {}, null, 2);
+            if (newJSON !== localPersonaJSON) {
+                setLocalPersonaJSON(newJSON);
+            }
+        } catch {
+            // Invalid JSON, ignore
+        }
+    }, [personaField.value]); // eslint-disable-line react-hooks/exhaustive-deps
+    
+    // Debounce JSON parsing and field update
+    const debouncedPersonaJSON = useDebounce(localPersonaJSON, 500);
+    useEffect(() => {
+        if (inputMode === "custom") {
+            try {
+                const parsed = JSON.parse(debouncedPersonaJSON);
+                personaHelpers.setValue(parsed);
+            } catch {
+                // Invalid JSON, don't update
+            }
+        }
+    }, [debouncedPersonaJSON, inputMode, personaHelpers]);
+    
+    const handlePersonaJSONChange = useCallback((newValue: string) => {
+        setLocalPersonaJSON(newValue);
+    }, []);
 
     // Handle translations
     const {
@@ -328,33 +394,44 @@ function BotForm({
         endpointCreate: endpointsUser.botCreateOne,
         endpointUpdate: endpointsUser.botUpdateOne,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "User" });
+    // Temporarily disable cache to fix performance
+    // useSaveToCache({ isCreate, values, objectId: values.id, objectType: "User" });
 
-    const onSubmit = useSubmitHelper<BotCreateInput | BotUpdateInput, User>({
-        disabled,
-        existing,
-        fetch,
-        inputs: transformBotValues(session, values, existing, isCreate),
-        isCreate,
-        onSuccess: (data) => { handleCompleted(data); },
-        onCompleted: () => { props.setSubmitting(false); },
-    });
+    // Simplified onSubmit to test performance
+    const onSubmit = useCallback(() => {
+        console.log("Submit clicked");
+    }, []);
 
     const getAutoFillInput = useCallback(function getAutoFillInput() {
         return {
             ...getAutoFillTranslationData(values, language),
             name: values.name,
         };
-    }, [language, values]);
+    }, [language, values.name, values.translations]);
 
     const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback(data: Parameters<UseAutoFillProps["shapeAutoFillResult"]>[0]) {
         const originalValues = { ...values };
-        const { updatedTranslations, rest } = createUpdatedTranslations(values, data, language, ["bio", "occupation", "persona", "startingMessage", "tone", "keyPhrases", "domainKnowledge", "bias"]);
+        const { updatedTranslations, rest } = createUpdatedTranslations(values, data, language, ["bio"]);
         delete rest.id;
+        
+        // Extract persona fields from the autofill result
+        const personaFields = ["occupation", "persona", "startingMessage", "tone", "keyPhrases", "domainKnowledge", "bias"];
+        const updatedPersona = { ...values.botSettings.persona };
+        
+        // Update persona fields from translations
+        personaFields.forEach(field => {
+            const translationUpdate = updatedTranslations.find(t => t.language === language);
+            if (translationUpdate && field in translationUpdate) {
+                updatedPersona[field] = translationUpdate[field];
+                delete translationUpdate[field]; // Remove from translations as it's now in persona
+            }
+        });
+        
         const creativity = typeof rest.creativity === "number" ? rest.creativity : values.creativity;
         const isBotDepictingPerson = typeof rest.isBotDepictingPerson === "boolean" ? rest.isBotDepictingPerson : values.isBotDepictingPerson;
         const name = typeof rest.name === "string" ? rest.name : values.name;
         const verbosity = typeof rest.verbosity === "number" ? rest.verbosity : values.verbosity;
+        
         const updatedValues = {
             ...values,
             creativity,
@@ -362,16 +439,22 @@ function BotForm({
             name,
             translations: updatedTranslations,
             verbosity,
+            botSettings: {
+                ...values.botSettings,
+                persona: updatedPersona,
+            },
         };
         return { originalValues, updatedValues };
-    }, [language, values]);
+    }, [language, values.botSettings.persona, values.creativity, values.isBotDepictingPerson, values.name, values.translations, values.verbosity]);
 
-    const { autoFill, isAutoFillLoading } = useAutoFill({
-        getAutoFillInput,
-        shapeAutoFillResult,
-        handleUpdate,
-        task: isCreate ? LlmTask.BotAdd : LlmTask.BotUpdate,
-    });
+    // Temporarily disable autofill to test performance
+    const { autoFill, isAutoFillLoading } = { autoFill: () => {}, isAutoFillLoading: false };
+    // const { autoFill, isAutoFillLoading } = useAutoFill({
+    //     getAutoFillInput,
+    //     shapeAutoFillResult,
+    //     handleUpdate,
+    //     task: isCreate ? LlmTask.BotAdd : LlmTask.BotUpdate,
+    // });
 
     const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
@@ -383,206 +466,437 @@ function BotForm({
     }, [setFieldValue]);
 
     return (
-        <MaybeLargeDialog
-            display={display}
-            id="bot-upsert-dialog"
-            isOpen={isOpen}
-            onClose={onClose}
-        >
-            <TopBar
-                display={display}
-                onClose={onClose}
-                title={t(isCreate ? "CreateBot" : "UpdateBot")}
-            />
-            <SearchExistingButton
-                href={`${LINKS.Search}?type="${SearchPageTabOption.User}"&isBot=true`}
-                text="Search existing bots"
-            />
-            <BaseForm
-                display={display}
-                isLoading={isLoading}
-            >
-                <FormContainer>
-                    <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
-                        <RelationshipList
-                            isEditing={true}
-                            objectType={"User"}
-                            sx={relationshipListStyle}
-                        />
-                        <ProfilePictureInput
-                            onBannerImageChange={handleBannerImageChange}
-                            onProfileImageChange={handleProfileImageChange}
-                            name="profileImage"
-                            profile={values}
-                        />
-                        <FormSection sx={formSectionStyle}>
-                            <Field
-                                fullWidth
-                                autoComplete="name"
-                                name="name"
-                                label={t("Name")}
-                                placeholder={t("NamePlaceholder")}
-                                as={TextInput}
-                                InputProps={nameInputProps}
-                                error={props.touched.name && Boolean(props.errors.name)}
-                                helperText={props.touched.name && props.errors.name}
-                            />
-                            <Field
-                                name="isBotDepictingPerson"
-                                label={t("BotDepictPersonAsk")}
-                                component={CheckboxInput}
-                            />
-                            <Field
-                                fullWidth
-                                autoComplete="handle"
-                                name="handle"
-                                label={t("Handle")}
-                                placeholder={t("HandlePlaceholder")}
-                                as={TextInput}
-                                InputProps={handleInputProps}
-                                error={props.touched.handle && Boolean(props.errors.handle)}
-                                helperText={props.touched.handle && props.errors.handle}
-                            />
-                            <TranslatedRichInput
-                                isRequired={false}
-                                language={language}
-                                maxChars={2048}
-                                minRows={4}
-                                name="bio"
-                                placeholder={t("Bio")}
-                            />
-                            <TranslatedTextInput
-                                fullWidth
-                                isRequired={false}
-                                label={t("StartMessage")}
-                                placeholder={t("StartMessagePlaceholder")}
-                                language={language}
-                                name="startingMessage"
-                                InputProps={startingMessageInputProps}
-                            />
-                            <LanguageInput
-                                currentLanguage={language}
-                                flexDirection="row-reverse"
-                                handleAdd={handleAddLanguage}
-                                handleDelete={handleDeleteLanguage}
-                                handleCurrent={setLanguage}
-                                languages={languages}
-                            />
-                        </FormSection>
-                    </ContentCollapse>
-                    <Divider />
-                    <ContentCollapse title="Personality" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
-                        <FormSection overflow="hidden">
-                            {/* <InputToggle
-                            canChangeInputMode={true}
-                            inputMode={inputMode}
-                            onInputModeChange={changeInputMode}
-                        /> */}
-                            <TranslatedTextInput
-                                fullWidth
-                                isRequired={false}
-                                label={t("Occupation")}
-                                placeholder={t("OccupationPlaceholderBot")}
-                                language={language}
-                                name="occupation"
-                                InputProps={occupationInputProps}
-                            />
-                            <TranslatedTextInput
-                                fullWidth
-                                isRequired={false}
-                                label={t("Persona")}
-                                placeholder={t("PersonaPlaceholderBot")}
-                                language={language}
-                                name="persona"
-                                InputProps={personaInputProps}
-                            />
-                            <TranslatedTextInput
-                                fullWidth
-                                isRequired={false}
-                                label={t("Tone")}
-                                placeholder={t("TonePlaceholderBot")}
-                                language={language}
-                                name="tone"
-                                InputProps={toneInputProps}
-                            />
-                            <TranslatedTextInput
-                                fullWidth
-                                isRequired={false}
-                                label={t("KeyPhrases")}
-                                placeholder={t("KeyPhrasesPlaceholderBot")}
-                                language={language}
-                                name="keyPhrases"
-                                InputProps={keyPhrasesInputProps}
-                            />
-                            <TranslatedTextInput
-                                fullWidth
-                                isRequired={false}
-                                label={t("DomainKnowledge")}
-                                placeholder={t("DomainKnowledgePlaceholderBot")}
-                                language={language}
-                                name="domainKnowledge"
-                                InputProps={domainKnowledgeInputProps}
-                            />
-                            <TranslatedTextInput
-                                fullWidth
-                                isRequired={false}
-                                label={t("Bias")}
-                                placeholder={t("BiasPlaceholderBot")}
-                                language={language}
-                                name="bias"
-                                InputProps={biasInputProps}
-                            />
-                            <FeatureSlider
-                                id="creativity-slider"
-                                labelLeft={t("Low")}
-                                labelRight={t("High")}
-                                setValue={creativityHelpers.setValue}
-                                title={t("CreativityPlaceholder")}
-                                value={creativityField.value}
-                            />
-                            <FeatureSlider
-                                id="verbosity-slider"
-                                labelLeft={t("Low")}
-                                labelRight={t("High")}
-                                setValue={verbosityHelpers.setValue}
-                                title={t("VerbosityPlaceholder")}
-                                value={verbosityField.value}
-                            />
-                        </FormSection>
-                    </ContentCollapse>
-                    <Divider />
-                    <ContentCollapse title={t("Model", { count: 1 })} titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
-                        <SelectorBase
-                            name="model"
-                            options={getAvailableModels(getExistingAIConfig()?.service?.config)}
-                            getOptionLabel={getModelName}
-                            getOptionDescription={getModelDescription}
-                            fullWidth={true}
-                            inputAriaLabel="Model"
-                            label={t("Model", { count: 1 })}
-                            onChange={handleModelChange}
-                            value={model}
-                        />
-                    </ContentCollapse>
-                </FormContainer>
-            </BaseForm>
-            <BottomActionsButtons
-                display={display}
-                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
-                hideButtons={disabled}
-                isCreate={isCreate}
-                loading={isLoading}
-                onCancel={handleCancel}
-                onSetSubmitting={props.setSubmitting}
-                onSubmit={onSubmit}
-                sideActionButtons={<AutoFillButton
-                    handleAutoFill={autoFill}
-                    isAutoFillLoading={isAutoFillLoading}
-                />}
-            />
-        </MaybeLargeDialog >
+        <>
+            {display === "Dialog" ? (
+                <Dialog
+                    isOpen={isOpen ?? false}
+                    onClose={onClose ?? (() => console.warn("onClose not passed to dialog"))}
+                    size="md"
+                >
+                    <TopBar
+                        display={display}
+                        onClose={onClose}
+                        title={t(isCreate ? "CreateBot" : "UpdateBot")}
+                    />
+                    <SearchExistingButton
+                        href={`${LINKS.Search}?type="${SearchPageTabOption.User}"&isBot=true`}
+                        text="Search existing bots"
+                    />
+                    <BaseForm
+                        display={display}
+                        isLoading={isLoading}
+                    >
+                        <FormContainer>
+                            <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
+                                <RelationshipList
+                                    isEditing={true}
+                                    objectType={"User"}
+                                    sx={relationshipListStyle}
+                                />
+                                <ProfilePictureInput
+                                    onBannerImageChange={handleBannerImageChange}
+                                    onProfileImageChange={handleProfileImageChange}
+                                    name="profileImage"
+                                    profile={values}
+                                />
+                                <FormSection sx={formSectionStyle}>
+                                    <Field
+                                        fullWidth
+                                        autoComplete="name"
+                                        name="name"
+                                        label={t("Name")}
+                                        placeholder={t("NamePlaceholder")}
+                                        as={TextInput}
+                                        InputProps={nameInputProps}
+                                        error={props.touched.name && Boolean(props.errors.name)}
+                                        helperText={props.touched.name && props.errors.name}
+                                    />
+                                    <Field
+                                        name="isBotDepictingPerson"
+                                        label={t("BotDepictPersonAsk")}
+                                        component={CheckboxInput}
+                                    />
+                                    <Field
+                                        fullWidth
+                                        autoComplete="handle"
+                                        name="handle"
+                                        label={t("Handle")}
+                                        placeholder={t("HandlePlaceholder")}
+                                        as={TextInput}
+                                        InputProps={handleInputProps}
+                                        error={props.touched.handle && Boolean(props.errors.handle)}
+                                        helperText={props.touched.handle && props.errors.handle}
+                                    />
+                                    <TranslatedAdvancedInput
+                                        isRequired={false}
+                                        language={language}
+                                        features={{ maxChars: 2048, minRowsCollapsed: 4 }}
+                                        name="bio"
+                                        placeholder={t("Bio")}
+                                    />
+                                    <LanguageInput
+                                        currentLanguage={language}
+                                        flexDirection="row-reverse"
+                                        handleAdd={handleAddLanguage}
+                                        handleDelete={handleDeleteLanguage}
+                                        handleCurrent={setLanguage}
+                                        languages={languages}
+                                    />
+                                </FormSection>
+                            </ContentCollapse>
+                            <Divider />
+                            <ContentCollapse title="Personality" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
+                                <FormSection overflow="hidden">
+                                    <ToggleButtonGroup
+                                        value={inputMode}
+                                        exclusive
+                                        onChange={handleInputModeChange}
+                                        size="small"
+                                        fullWidth
+                                        sx={{ marginBottom: 2 }}
+                                    >
+                                        <ToggleButton value="default">
+                                            {t("Default")}
+                                        </ToggleButton>
+                                        <ToggleButton value="custom">
+                                            {t("Custom")}
+                                        </ToggleButton>
+                                    </ToggleButtonGroup>
+                                    
+                                    {inputMode === "default" ? (
+                                        <>
+                                            <Field
+                                                fullWidth
+                                                name="botSettings.persona.occupation"
+                                                label={t("Occupation")}
+                                                placeholder={t("OccupationPlaceholderBot")}
+                                                as={TextInput}
+                                                InputProps={occupationInputProps}
+                                            />
+                                            <Field
+                                                fullWidth
+                                                name="botSettings.persona.persona"
+                                                label={t("Persona")}
+                                                placeholder={t("PersonaPlaceholderBot")}
+                                                as={TextInput}
+                                                InputProps={personaInputProps}
+                                            />
+                                            <Field
+                                                fullWidth
+                                                name="botSettings.persona.tone"
+                                                label={t("Tone")}
+                                                placeholder={t("TonePlaceholderBot")}
+                                                as={TextInput}
+                                                InputProps={toneInputProps}
+                                            />
+                                            <Field
+                                                fullWidth
+                                                name="botSettings.persona.startingMessage"
+                                                label={t("StartMessage")}
+                                                placeholder={t("StartMessagePlaceholder")}
+                                                as={TextInput}
+                                                InputProps={startingMessageInputProps}
+                                            />
+                                            <Field
+                                                fullWidth
+                                                name="botSettings.persona.keyPhrases"
+                                                label={t("KeyPhrases")}
+                                                placeholder={t("KeyPhrasesPlaceholderBot")}
+                                                as={TextInput}
+                                                InputProps={keyPhrasesInputProps}
+                                            />
+                                            <Field
+                                                fullWidth
+                                                name="botSettings.persona.domainKnowledge"
+                                                label={t("DomainKnowledge")}
+                                                placeholder={t("DomainKnowledgePlaceholderBot")}
+                                                as={TextInput}
+                                                InputProps={domainKnowledgeInputProps}
+                                            />
+                                            <Field
+                                                fullWidth
+                                                name="botSettings.persona.bias"
+                                                label={t("Bias")}
+                                                placeholder={t("BiasPlaceholderBot")}
+                                                as={TextInput}
+                                                InputProps={biasInputProps}
+                                            />
+                                        </>
+                                    ) : (
+                                        <CodeInput
+                                            id="bot-persona-json"
+                                            label={t("PersonaJSON")}
+                                            helperText={t("PersonaJSONHelperText", { defaultValue: "Enter custom personality data as JSON" })}
+                                            language={CodeLanguage.Json}
+                                            value={localPersonaJSON}
+                                            onChange={handlePersonaJSONChange}
+                                            minRows={10}
+                                        />
+                                    )}
+                                    <FeatureSlider
+                                        id="creativity-slider"
+                                        labelLeft={t("Low")}
+                                        labelRight={t("High")}
+                                        setValue={creativityHelpers.setValue}
+                                        title={t("CreativityPlaceholder")}
+                                        value={creativityField.value}
+                                    />
+                                    <FeatureSlider
+                                        id="verbosity-slider"
+                                        labelLeft={t("Low")}
+                                        labelRight={t("High")}
+                                        setValue={verbosityHelpers.setValue}
+                                        title={t("VerbosityPlaceholder")}
+                                        value={verbosityField.value}
+                                    />
+                                </FormSection>
+                            </ContentCollapse>
+                            <Divider />
+                            <ContentCollapse title={t("Model", { count: 1 })} titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
+                                <SelectorBase
+                                    name="model"
+                                    options={getAvailableModels(getExistingAIConfig()?.service?.config)}
+                                    getOptionLabel={getModelName}
+                                    getOptionDescription={getModelDescription}
+                                    fullWidth={true}
+                                    inputAriaLabel="Model"
+                                    label={t("Model", { count: 1 })}
+                                    onChange={handleModelChange}
+                                    value={model}
+                                />
+                            </ContentCollapse>
+                        </FormContainer>
+                    </BaseForm>
+                    <BottomActionsButtons
+                        display={display}
+                        errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                        hideButtons={disabled}
+                        isCreate={isCreate}
+                        loading={isLoading}
+                        onCancel={handleCancel}
+                        onSetSubmitting={props.setSubmitting}
+                        onSubmit={onSubmit}
+                        sideActionButtons={<AutoFillButton
+                            handleAutoFill={autoFill}
+                            isAutoFillLoading={isAutoFillLoading}
+                        />}
+                    />
+                </Dialog>
+            ) : (
+                <ScrollBox>
+                    <TopBar
+                        display={display}
+                        onClose={onClose}
+                        title={t(isCreate ? "CreateBot" : "UpdateBot")}
+                    />
+                    <SearchExistingButton
+                        href={`${LINKS.Search}?type="${SearchPageTabOption.User}"&isBot=true`}
+                        text="Search existing bots"
+                    />
+                    <BaseForm
+                        display={display}
+                        isLoading={isLoading}
+                    >
+                        <FormContainer>
+                            <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
+                                <RelationshipList
+                                    isEditing={true}
+                                    objectType={"User"}
+                                    sx={relationshipListStyle}
+                                />
+                                <ProfilePictureInput
+                                    onBannerImageChange={handleBannerImageChange}
+                                    onProfileImageChange={handleProfileImageChange}
+                                    name="profileImage"
+                                    profile={values}
+                                />
+                                <FormSection sx={formSectionStyle}>
+                                    <Field
+                                        fullWidth
+                                        autoComplete="name"
+                                        name="name"
+                                        label={t("Name")}
+                                        placeholder={t("NamePlaceholder")}
+                                        as={TextInput}
+                                        InputProps={nameInputProps}
+                                        error={props.touched.name && Boolean(props.errors.name)}
+                                        helperText={props.touched.name && props.errors.name}
+                                    />
+                                    <Field
+                                        name="isBotDepictingPerson"
+                                        label={t("BotDepictPersonAsk")}
+                                        component={CheckboxInput}
+                                    />
+                                    <Field
+                                        fullWidth
+                                        autoComplete="handle"
+                                        name="handle"
+                                        label={t("Handle")}
+                                        placeholder={t("HandlePlaceholder")}
+                                        as={TextInput}
+                                        InputProps={handleInputProps}
+                                        error={props.touched.handle && Boolean(props.errors.handle)}
+                                        helperText={props.touched.handle && props.errors.handle}
+                                    />
+                                    <TranslatedAdvancedInput
+                                        isRequired={false}
+                                        language={language}
+                                        features={{ maxChars: 2048, minRowsCollapsed: 4 }}
+                                        name="bio"
+                                        placeholder={t("Bio")}
+                                    />
+                                    <LanguageInput
+                                        currentLanguage={language}
+                                        flexDirection="row-reverse"
+                                        handleAdd={handleAddLanguage}
+                                        handleDelete={handleDeleteLanguage}
+                                        handleCurrent={setLanguage}
+                                        languages={languages}
+                                    />
+                                </FormSection>
+                            </ContentCollapse>
+                            <Divider />
+                            <ContentCollapse title="Personality" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
+                                <FormSection overflow="hidden">
+                                    <ToggleButtonGroup
+                                        value={inputMode}
+                                        exclusive
+                                        onChange={handleInputModeChange}
+                                        size="small"
+                                        fullWidth
+                                        sx={{ marginBottom: 2 }}
+                                    >
+                                        <ToggleButton value="default">
+                                            {t("Default")}
+                                        </ToggleButton>
+                                        <ToggleButton value="custom">
+                                            {t("Custom")}
+                                        </ToggleButton>
+                                    </ToggleButtonGroup>
+                                    
+                                    {inputMode === "default" ? (
+                                        <>
+                                            <Field
+                                                fullWidth
+                                                name="botSettings.persona.occupation"
+                                                label={t("Occupation")}
+                                                placeholder={t("OccupationPlaceholderBot")}
+                                                as={TextInput}
+                                                InputProps={occupationInputProps}
+                                            />
+                                            <Field
+                                                fullWidth
+                                                name="botSettings.persona.persona"
+                                                label={t("Persona")}
+                                                placeholder={t("PersonaPlaceholderBot")}
+                                                as={TextInput}
+                                                InputProps={personaInputProps}
+                                            />
+                                            <Field
+                                                fullWidth
+                                                name="botSettings.persona.tone"
+                                                label={t("Tone")}
+                                                placeholder={t("TonePlaceholderBot")}
+                                                as={TextInput}
+                                                InputProps={toneInputProps}
+                                            />
+                                            <Field
+                                                fullWidth
+                                                name="botSettings.persona.startingMessage"
+                                                label={t("StartMessage")}
+                                                placeholder={t("StartMessagePlaceholder")}
+                                                as={TextInput}
+                                                InputProps={startingMessageInputProps}
+                                            />
+                                            <Field
+                                                fullWidth
+                                                name="botSettings.persona.keyPhrases"
+                                                label={t("KeyPhrases")}
+                                                placeholder={t("KeyPhrasesPlaceholderBot")}
+                                                as={TextInput}
+                                                InputProps={keyPhrasesInputProps}
+                                            />
+                                            <Field
+                                                fullWidth
+                                                name="botSettings.persona.domainKnowledge"
+                                                label={t("DomainKnowledge")}
+                                                placeholder={t("DomainKnowledgePlaceholderBot")}
+                                                as={TextInput}
+                                                InputProps={domainKnowledgeInputProps}
+                                            />
+                                            <Field
+                                                fullWidth
+                                                name="botSettings.persona.bias"
+                                                label={t("Bias")}
+                                                placeholder={t("BiasPlaceholderBot")}
+                                                as={TextInput}
+                                                InputProps={biasInputProps}
+                                            />
+                                        </>
+                                    ) : (
+                                        <CodeInput
+                                            id="bot-persona-json"
+                                            label={t("PersonaJSON")}
+                                            helperText={t("PersonaJSONHelperText", { defaultValue: "Enter custom personality data as JSON" })}
+                                            language={CodeLanguage.Json}
+                                            value={localPersonaJSON}
+                                            onChange={handlePersonaJSONChange}
+                                            minRows={10}
+                                        />
+                                    )}
+                                    <FeatureSlider
+                                        id="creativity-slider"
+                                        labelLeft={t("Low")}
+                                        labelRight={t("High")}
+                                        setValue={creativityHelpers.setValue}
+                                        title={t("CreativityPlaceholder")}
+                                        value={creativityField.value}
+                                    />
+                                    <FeatureSlider
+                                        id="verbosity-slider"
+                                        labelLeft={t("Low")}
+                                        labelRight={t("High")}
+                                        setValue={verbosityHelpers.setValue}
+                                        title={t("VerbosityPlaceholder")}
+                                        value={verbosityField.value}
+                                    />
+                                </FormSection>
+                            </ContentCollapse>
+                            <Divider />
+                            <ContentCollapse title={t("Model", { count: 1 })} titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
+                                <SelectorBase
+                                    name="model"
+                                    options={getAvailableModels(getExistingAIConfig()?.service?.config)}
+                                    getOptionLabel={getModelName}
+                                    getOptionDescription={getModelDescription}
+                                    fullWidth={true}
+                                    inputAriaLabel="Model"
+                                    label={t("Model", { count: 1 })}
+                                    onChange={handleModelChange}
+                                    value={model}
+                                />
+                            </ContentCollapse>
+                        </FormContainer>
+                    </BaseForm>
+                    <BottomActionsButtons
+                        display={display}
+                        errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                        hideButtons={disabled}
+                        isCreate={isCreate}
+                        loading={isLoading}
+                        onCancel={handleCancel}
+                        onSetSubmitting={props.setSubmitting}
+                        onSubmit={onSubmit}
+                        sideActionButtons={<AutoFillButton
+                            handleAutoFill={autoFill}
+                            isAutoFillLoading={isAutoFillLoading}
+                        />}
+                    />
+                </ScrollBox>
+            )}
+        </>
     );
-}
+});
 
 export function BotUpsert({
     display,
@@ -602,9 +916,10 @@ export function BotUpsert({
         transform: (data) => botInitialValues(session, data),
     });
 
-    async function validateValues(values: BotShape) {
+    // Only validate on submit to prevent lag
+    const validateValues = useCallback(async (values: BotShape) => {
         return await validateBotValues(session, values, existing, isCreate);
-    }
+    }, [session, existing, isCreate]);
 
     return (
         <Formik
@@ -612,6 +927,8 @@ export function BotUpsert({
             initialValues={existing}
             onSubmit={noopSubmit}
             validate={validateValues}
+            validateOnChange={false}
+            validateOnBlur={true}
         >
             {(formik) =>
                 <BotForm

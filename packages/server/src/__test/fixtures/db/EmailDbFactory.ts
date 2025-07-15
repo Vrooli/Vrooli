@@ -1,4 +1,5 @@
-import { generatePK, generatePublicId, nanoid } from "./idHelpers.js";
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: removed temporary any type parameter, improved invalid type casts
+import { nanoid } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -25,7 +26,7 @@ interface EmailRelationConfig extends RelationConfig {
  * - Predefined test scenarios
  */
 export class EmailDbFactory extends EnhancedDatabaseFactory<
-    any, // Using any temporarily to avoid type issues
+    email,
     Prisma.emailCreateInput,
     Prisma.emailInclude,
     Prisma.emailUpdateInput
@@ -40,9 +41,9 @@ export class EmailDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.emailCreateInput>): Prisma.emailCreateInput {
         return {
-            id: generatePK(),
-            emailAddress: `test_${generatePublicId()}@example.com`,
-            user: { connect: { id: generatePK() } },
+            id: this.generateId(),
+            emailAddress: `test_${this.generatePublicId()}@example.com`,
+            user: { connect: { id: this.generateId() } },
             ...overrides,
         };
     }
@@ -50,9 +51,9 @@ export class EmailDbFactory extends EnhancedDatabaseFactory<
     protected generateCompleteData(overrides?: Partial<Prisma.emailCreateInput>): Prisma.emailCreateInput {
         return {
             ...this.generateMinimalData(),
-            emailAddress: `complete_${generatePublicId()}@example.com`,
+            emailAddress: `complete_${this.generatePublicId()}@example.com`,
             verifiedAt: new Date(),
-            verificationCode: `verify_${generatePublicId()}`,
+            verificationCode: `verify_${this.generatePublicId()}`,
             lastVerificationCodeRequestAttempt: new Date(Date.now() - 60000), // 1 minute ago
             ...overrides,
         };
@@ -61,7 +62,7 @@ export class EmailDbFactory extends EnhancedDatabaseFactory<
      * Get complete test fixtures for Email model
      */
     protected getFixtures(): DbTestFixtures<Prisma.emailCreateInput, Prisma.emailUpdateInput> {
-        const userId = generatePK();
+        const userId = this.generateId();
         
         return {
             minimal: this.generateMinimalData(),
@@ -74,12 +75,12 @@ export class EmailDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 invalidTypes: {
-                    id: 123 as any, // Should be bigint
-                    emailAddress: null as any, // Should be string
-                    verifiedAt: "not-a-date" as any, // Should be Date
+                    id: 123 as unknown as bigint, // Should be bigint
+                    emailAddress: null as unknown as string, // Should be string
+                    verifiedAt: "not-a-date" as unknown as Date, // Should be Date
                 },
                 duplicateEmail: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     emailAddress: "existing@example.com", // Assumes this exists
                     user: {
                         connect: { id: userId },
@@ -88,7 +89,7 @@ export class EmailDbFactory extends EnhancedDatabaseFactory<
             },
             edgeCases: {
                 unverifiedWithCode: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     emailAddress: `unverified_${nanoid()}@example.com`,
                     verificationCode: `verify_${nanoid()}`,
                     lastVerificationCodeRequestAttempt: new Date(),
@@ -97,7 +98,7 @@ export class EmailDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 verifiedNoCode: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     emailAddress: `verified_${nanoid()}@example.com`,
                     verifiedAt: new Date(),
                     verificationCode: null,
@@ -106,15 +107,15 @@ export class EmailDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 teamEmail: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     emailAddress: `team_${nanoid()}@company.com`,
                     verifiedAt: new Date(),
                     team: {
-                        connect: { id: generatePK() },
+                        connect: { id: this.generateId() },
                     },
                 },
                 caseInsensitiveEmail: {
-                    id: generatePK(),
+                    id: this.generateId(),
                     emailAddress: `MiXeD.CaSe_${nanoid()}@ExAmPlE.CoM`,
                     user: {
                         connect: { id: userId },

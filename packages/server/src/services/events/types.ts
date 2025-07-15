@@ -8,19 +8,64 @@
  * true emergent capabilities through agent-extensible event types.
  */
 
+import type { BotParticipant, SocketEvent, SocketEventPayloads } from "@vrooli/shared";
 
 /**
- * Interface for SocketService to avoid circular dependencies
+ * Event progression control - determines what happens after an event is processed
  */
-export interface SocketServiceInterface {
-    emitSocketEvent<T extends string>(event: T, roomId: string, payload: any): void;
+export type ProgressionControl = "continue" | "block" | "defer" | "retry";
+
+/**
+ * Bot response to an event, including progression decision
+ */
+export interface BotEventResponse {
+    /** What should happen next in the event flow */
+    progression: ProgressionControl;
+    /** Human-readable reason for the decision */
+    reason?: string;
+    /** Additional data to pass along */
+    data?: any;
+    /** Should other bots be prevented from processing this event? */
+    exclusive?: boolean;
+    /** For defer/retry, how long to wait before retrying (ms) */
+    retryAfter?: number;
+}
+
+/**
+ * Event execution modes for the unified model
+ */
+export enum EventMode {
+    /** Emit and continue (old fire-and-forget) */
+    PASSIVE = "passive",
+    /** Allow interception, but don't wait if no subscribers */
+    INTERCEPTABLE = "interceptable",
+    /** Always wait for explicit approval */
+    APPROVAL = "approval",
+    /** Wait for all safety agents */
+    CONSENSUS = "consensus",
+}
+
+/**
+ * Unified event behavior configuration
+ */
+export interface EventBehavior {
+    /** Event execution mode */
+    mode: EventMode;
+    /** Can bots intercept and handle this event? */
+    interceptable: boolean;
+    /** Barrier configuration for APPROVAL/CONSENSUS modes */
+    barrierConfig?: BarrierSyncConfig;
+    /** Default priority level */
+    defaultPriority?: "low" | "medium" | "high" | "critical";
 }
 
 /**
  * Base event interface that all Vrooli events must implement.
  * Provides essential metadata for routing, correlation, and tracking.
  */
-export interface BaseServiceEvent {
+export interface ServiceEvent<
+    T extends SocketEventPayloads[SocketEvent] = SocketEventPayloads[SocketEvent]
+> {
     /** Unique event identifier */
     id: string;
 
@@ -30,75 +75,86 @@ export interface BaseServiceEvent {
     /** When the event occurred */
     timestamp: Date;
 
-    /** Where the event originated */
-    source: EventSource;
-
-    /** Optional correlation ID for tracking related events */
-    correlationId?: string;
-
     /** Event-specific payload data */
-    data: unknown;
+    data: T;
 
     /** Additional metadata for routing and processing */
     metadata?: EventMetadata;
+
+    /** Progression control for event processing */
+    progression?: {
+        /** Current progression state */
+        state: ProgressionControl;
+        /** Bots that have processed this event */
+        processedBy: Array<{
+            botId: string;
+            response: BotEventResponse;
+            timestamp: Date;
+        }>;
+        /** Final progression decision (after all bot processing) */
+        finalDecision?: ProgressionControl;
+        /** Reason for final decision */
+        finalReason?: string;
+    };
+
+    /** Execution context for tool and routine events */
+    execution?: {
+        /** For tool events */
+        toolCallId?: string;
+        /** For routine events */
+        runId?: string;
+        /** Originating swarm */
+        parentSwarmId?: string;
+        /** Preserve full tool context */
+        originalToolCall?: {
+            function: {
+                name: string;
+                arguments: any;
+            };
+            id: string;
+        };
+    };
 }
 
 /**
- * Event source information for tracing and debugging
- */
-export interface EventSource {
-    /** Which execution tier (1=coordination, 2=process, 3=execution, "cross-cutting") */
-    tier: 1 | 2 | 3 | "cross-cutting" | "safety";
-
-    /** Component name within the tier */
-    component: string;
-
-    /** Specific instance ID for distributed systems */
-    instanceId?: string;
-}
-
-/**
- * Event metadata for delivery and processing
+ * Event metadata for routing and processing
  */
 export interface EventMetadata {
-    /** Delivery guarantee level */
-    deliveryGuarantee: "fire-and-forget" | "reliable" | "barrier-sync";
-
     /** Priority for queue processing */
     priority: "low" | "medium" | "high" | "critical";
 
-    /** Barrier sync configuration (for approval events) */
-    barrierConfig?: BarrierSyncConfig;
-
-    /** Additional tags for filtering */
-    tags?: string[];
+    /** Delivery guarantee for event processing */
+    deliveryGuarantee?: "fire-and-forget" | "reliable" | "barrier-sync";
 
     /** User ID for permission-based routing */
     userId?: string;
-
-    /** Conversation/swarm ID for context */
-    conversationId?: string;
 }
 
 /**
  * Configuration for barrier synchronization (blocking events)
  */
 export interface BarrierSyncConfig {
-    /** Minimum number of OK responses required */
-    quorum: number;
+    /** Minimum number of responses required (can be number or "all") */
+    quorum: number | "all";
 
     /** Maximum wait time for responses (ms) */
     timeoutMs: number;
 
-    /** Action to take on timeout */
-    timeoutAction: "auto-approve" | "auto-reject" | "keep-pending";
+    /** What progression to use on timeout */
+    timeoutAction: ProgressionControl;
 
     /** Which agent types must respond */
     requiredResponders?: string[];
+
+    /** Minimum number of "continue" responses to proceed */
+    continueThreshold?: number;
+
+    /** If any bot returns "block", immediately block? */
+    blockOnFirst?: boolean;
 }
 
 /**
- * Safety events that require barrier synchronization.
+ * Safety events that require consensus from safety agents.
  * These events BLOCK execution until safety agents respond.
  * 
  * @example
@@ -111,18 +167,12 @@ export interface BarrierSyncConfig {
  *     requiredApprovals: ["fraud_detection", "compliance_check"]
  *   },
  *   metadata: {
- *     deliveryGuarantee: "barrier-sync",
- *     barrierConfig: { quorum: 2, timeoutMs: 5000, timeoutAction: "auto-reject" }
+ *     priority: "critical"
  *   }
  * }
  */
-export interface SafetyEvent extends BaseServiceEvent {
-    source: EventSource & { tier: "safety" };
+export interface SafetyEvent extends ServiceEvent {
     type: `safety/${string}` | `emergency/${string}` | `threat/${string}`;
-    metadata: EventMetadata & {
-        deliveryGuarantee: "barrier-sync";
-        barrierConfig: BarrierSyncConfig;
-    };
 }
 
 /**
@@ -141,8 +191,7 @@ export interface SafetyEvent extends BaseServiceEvent {
  *   }
  * }
  */
-export interface CoordinationEvent extends BaseServiceEvent {
-    source: EventSource & { tier: 1 };
+export interface CoordinationEvent extends ServiceEvent {
     type: `swarm/${string}` | `goal/${string}` | `team/${string}` | `resource/${string}`;
 }
 
@@ -164,8 +213,7 @@ export interface CoordinationEvent extends BaseServiceEvent {
  *   metadata: { deliveryGuarantee: "reliable" }
  * }
  */
-export interface ProcessEvent extends BaseServiceEvent {
-    source: EventSource & { tier: 2 };
+export interface ProcessEvent extends ServiceEvent {
     type: `routine/${string}` | `state/${string}` | `context/${string}`;
 }
 
@@ -186,126 +234,21 @@ export interface ProcessEvent extends BaseServiceEvent {
  *   }
  * }
  */
-export interface ExecutionEvent extends BaseServiceEvent {
-    source: EventSource & { tier: 3 };
+export interface ExecutionEvent extends ServiceEvent {
     type: `step/${string}` | `tool/${string}` | `strategy/${string}`;
-}
-
-/**
- * Goal-related events for tracking objectives and outcomes.
- * Triggered when swarm goals are created, updated, completed, or failed.
- */
-export interface GoalEvent extends CoordinationEvent {
-    type: "swarm/goal/created" | "swarm/goal/updated" | "swarm/goal/completed" | "swarm/goal/failed";
-    data: GoalEventData;
-}
-
-export interface GoalEventData {
-    swarmId: string;
-    goalId?: string;
-    goalDescription: string;
-    priority: "low" | "medium" | "high" | "critical";
-    estimatedCredits?: string;
-    deadline?: Date;
-    teamId?: string;
-    requiredCapabilities?: string[];
-    // For updates/completion
-    previousGoal?: string;
-    completionTime?: Date;
-    actualCredits?: string;
-    failureReason?: string;
-}
-
-/**
- * Tool execution events for external system integration.
- * Includes approval workflow, execution tracking, and cost monitoring.
- */
-export interface ToolEvent extends ExecutionEvent {
-    type: "tool/called" | "tool/completed" | "tool/failed" |
-    "tool/approval_required" | "tool/approval_granted" | "tool/approval_rejected" |
-    "tool/approval_timeout" | "tool/approval_cancelled" |
-    "tool/scheduled_execution" | "tool/rate_limited";
-    data: ToolEventData;
-}
-
-export interface ToolEventData {
-    toolName: string;
-    toolCallId: string;
-    parameters?: Record<string, unknown>;
-    result?: unknown;
-    error?: string;
-    duration?: number;
-    creditsUsed?: string;
-    // Approval-specific
-    pendingId?: string;
-    callerBotId?: string;
-    approvalTimeoutAt?: number;
-    approvedBy?: string;
-    rejectedBy?: string;
-    reason?: string;
-    approvalDuration?: number;
-    cancellationReason?: string;
-    timeoutDuration?: number;
-    autoRejected?: boolean;
-}
-
-/**
- * Pre-action events that require safety clearance before proceeding.
- * Always use barrier-sync delivery to block execution pending approval.
- */
-export interface PreActionEvent extends SafetyEvent {
-    type: "safety/pre_action";
-    data: PreActionEventData;
-    metadata: EventMetadata & {
-        deliveryGuarantee: "barrier-sync";
-        barrierConfig: BarrierSyncConfig;
-    };
-}
-
-export interface PreActionEventData {
-    action: string;
-    context: Record<string, unknown>;
-    riskLevel: "low" | "medium" | "high" | "critical";
-    requiredApprovals: string[];
-    estimatedCost?: string;
-    timeoutMs?: number;
-    fallbackAction?: "emergency_stop" | "safe_fallback" | "user_prompt";
-}
-
-/**
- * Resource rate limiting events for monitoring and control.
- * Emitted when rate limits are exceeded or quotas are approached.
- */
-export interface ResourceRateLimitEvent extends BaseServiceEvent {
-    type: "resource/rate_limited" | "resource/quota_warning" | "resource/quota_exhausted";
-    source: EventSource & { tier: "cross-cutting" };
-    data: ResourceRateLimitEventData;
-}
-
-export interface ResourceRateLimitEventData {
-    originalEventId: string;
-    originalEventType: string;
-    limitType: "user" | "event_type" | "global" | "cost";
-    retryAfterMs?: number;
-    userId?: string;
-    conversationId?: string;
-    quotaRemaining?: number;
-    quotaLimit?: number;
-    resetTime?: Date;
-    costIncurred?: number;
 }
 
 /**
  * Event handler function type
  */
-export type EventHandler<T extends BaseServiceEvent = BaseServiceEvent> = (event: T) => Promise<void>;
+export type EventHandler<T extends ServiceEvent = ServiceEvent> = (event: T) => Promise<void>;
 
 /**
  * Event subscription options
  */
 export interface SubscriptionOptions {
     /** Filter events before calling handler */
-    filter?: (event: BaseServiceEvent) => boolean;
+    filter?: (event: ServiceEvent) => boolean;
     /** Maximum number of events to process per batch */
     batchSize?: number;
     /** Maximum number of retries on handler failure */
@@ -318,7 +261,7 @@ export interface SubscriptionOptions {
 export type EventSubscriptionId = string;
 
 /**
- * Result of publishing an event
+ * Result of publishing an event (unified for all modes)
  */
 export interface EventPublishResult {
     /** Whether the event was successfully published */
@@ -327,17 +270,20 @@ export interface EventPublishResult {
     error?: Error;
     /** Time taken to publish (ms) */
     duration: number;
+    /** The ID of the published event */
+    eventId?: string;
+    /** For blocking events - the progression result */
+    progression?: ProgressionControl;
+    /** For blocking events - bot responses */
+    responses?: Array<{
+        responderId: string;
+        response: BotEventResponse;
+        timestamp: Date;
+    }>;
+    /** Whether this was a blocking operation */
+    wasBlocking?: boolean;
 }
 
-/**
- * Result of barrier synchronization
- */
-export interface EventBarrierSyncResult {
-    success: boolean;
-    responses: Array<{ responderId: string; response: "OK" | "ALARM"; reason?: string }>;
-    timedOut: boolean;
-    duration: number;
-}
 
 /**
  * Event schema definition for validation
@@ -373,20 +319,20 @@ export interface ValidationResult {
 }
 
 /**
- * Enhanced event bus interface supporting delivery guarantees and barrier synchronization
+ * Unified event bus interface with intelligent barrier handling
  */
 export interface IEventBus {
     /**
-     * Publish an event with specified delivery guarantee
+     * Publish an event with automatic mode detection
      */
-    publish<T extends BaseServiceEvent>(event: T): Promise<EventPublishResult>;
+    publish(event: Omit<ServiceEvent, "id" | "timestamp">): Promise<EventPublishResult>;
 
     /**
      * Subscribe to event patterns with optional filtering
      */
-    subscribe<T extends BaseServiceEvent>(
+    subscribe(
         pattern: string | string[],
-        handler: EventHandler<T>,
+        handler: EventHandler,
         options?: SubscriptionOptions
     ): Promise<EventSubscriptionId>;
 
@@ -394,13 +340,6 @@ export interface IEventBus {
      * Unsubscribe from events
      */
     unsubscribe(subscriptionId: EventSubscriptionId): Promise<void>;
-
-    /**
-     * Handle barrier sync events (blocking until responses received)
-     */
-    publishBarrierSync<T extends SafetyEvent>(
-        event: T
-    ): Promise<EventBarrierSyncResult>;
 
     /**
      * Start the event bus
@@ -411,6 +350,11 @@ export interface IEventBus {
      * Stop the event bus
      */
     stop(): Promise<void>;
+
+    /**
+     * Get subscriber count for a pattern (for optimization)
+     */
+    getSubscriberCount(pattern: string): number;
 }
 
 /**
@@ -424,30 +368,64 @@ export interface EventSubscription {
     createdAt: Date;
 }
 
+/**
+ * Bot decision interfaces for event interception
+ */
+export interface BotDecisionContext {
+    event: ServiceEvent;
+    bot: BotParticipant;
+    /** Current swarm state for JEXL evaluation */
+    swarmState?: any;
+}
+
+export interface BotDecision {
+    /** Should this bot handle the event? */
+    shouldHandle: boolean;
+    /** Bot's response if it handles the event */
+    response?: BotEventResponse;
+    /** Priority for handling order */
+    priority?: number;
+}
 
 /**
- * Unified Event System Configuration
+ * Bot decision maker interface - bots implement this
  */
-export interface UnifiedEventSystemConfig {
-    /** Backend type */
-    backend: "redis" | "memory" | "hybrid";
-
-    /** Redis configuration (if using Redis backend) */
-    redis?: {
-        url?: string;
-        streamName?: string;
-        maxHistorySize?: number;
-        eventTtl?: number;
-    };
-
-    /** Performance settings */
-    batchSize?: number;
-    maxEventHistory?: number;
-
-    /** Integration settings */
-    enableMetrics?: boolean;
-    enableReplay?: boolean;
-
-    /** Socket service for automatic socket event emission */
-    socketService?: SocketServiceInterface;
+export interface IDecisionMaker {
+    decide(context: BotDecisionContext): Promise<BotDecision>;
 }
+
+/**
+ * Interception result
+ */
+export interface InterceptionResult {
+    /** Was the event intercepted by any bot? */
+    intercepted: boolean;
+    /** Final progression decision after all bot processing */
+    progression: ProgressionControl;
+    /** Bot responses */
+    responses: Array<{
+        botId: string;
+        response: BotEventResponse;
+    }>;
+    /** Aggregated data from all responses */
+    aggregatedData?: any;
+}
+
+
+/**
+ * Lock service interface for distributed locking
+ */
+export interface ILockService {
+    acquire(key: string, options: LockOptions): Promise<Lock>;
+}
+
+export interface Lock {
+    release(): Promise<void>;
+}
+
+export interface LockOptions {
+    ttl: number;       // Time to live in ms
+    retries?: number;  // Number of retry attempts
+}
+
+

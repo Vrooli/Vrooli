@@ -1,16 +1,26 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ApiVersionConfig, type ApiVersionConfigObject } from "./api.js";
 import { apiConfigFixtures } from "../../__test/fixtures/config/apiConfigFixtures.js";
+import { runComprehensiveConfigTests } from "./__test/configTestUtils.js";
 
 describe("ApiVersionConfig", () => {
-    const mockLogger = {
-        log: vi.fn(),
-        info: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
-    };
+    // Standardized config tests using fixtures
+    runComprehensiveConfigTests(
+        ApiVersionConfig,
+        apiConfigFixtures,
+        "api",
+    );
 
-    describe("constructor", () => {
+    // API-specific business logic tests
+    describe("api-specific functionality", () => {
+        const mockLogger = {
+            log: vi.fn(),
+            info: vi.fn(),
+            warn: vi.fn(),
+            error: vi.fn(),
+        };
+
+        describe("constructor", () => {
         it("should create config with provided values", () => {
             const configObj = apiConfigFixtures.complete;
 
@@ -81,11 +91,22 @@ describe("ApiVersionConfig", () => {
                 const config = ApiVersionConfig.parse(version, mockLogger, { useFallbacks: true });
 
                 expect(config.authentication?.type).toBe("oauth2");
-                // Should have default values for other properties
-                expect(config.rateLimiting).toEqual(ApiVersionConfig.defaultRateLimiting());
+                
+                // Should keep existing values from fixture, not defaults
+                expect(config.rateLimiting).toEqual({
+                    requestsPerMinute: 5000,
+                    burstLimit: 500,
+                    useGlobalRateLimit: false,
+                });
+                expect(config.retry).toEqual({
+                    maxAttempts: 5,
+                    backoffStrategy: "exponential",
+                    initialDelay: 500,
+                });
+                
+                // Should have default values for missing properties only
                 expect(config.caching).toEqual(ApiVersionConfig.defaultCaching());
                 expect(config.timeout).toEqual(ApiVersionConfig.defaultTimeout());
-                expect(config.retry).toEqual(ApiVersionConfig.defaultRetry());
             });
 
             it("should parse config without fallbacks", () => {
@@ -96,11 +117,22 @@ describe("ApiVersionConfig", () => {
                 const config = ApiVersionConfig.parse(version, mockLogger, { useFallbacks: false });
 
                 expect(config.authentication?.type).toBe("oauth2");
-                // Should not have default values for other properties
-                expect(config.rateLimiting).toBeUndefined();
+                
+                // Should keep explicitly provided values
+                expect(config.rateLimiting).toEqual({
+                    requestsPerMinute: 5000,
+                    burstLimit: 500,
+                    useGlobalRateLimit: false,
+                });
+                expect(config.retry).toEqual({
+                    maxAttempts: 5,
+                    backoffStrategy: "exponential",
+                    initialDelay: 500,
+                });
+                
+                // Should not have default values for missing properties
                 expect(config.caching).toBeUndefined();
                 expect(config.timeout).toBeUndefined();
-                expect(config.retry).toBeUndefined();
             });
 
             it("should parse config with default useFallbacks (true)", () => {
@@ -302,7 +334,11 @@ describe("ApiVersionConfig", () => {
             const exported = parsed.export();
 
             expect(exported.authentication).toEqual(originalConfig.authentication);
-            expect(exported.rateLimiting).toEqual(originalConfig.rateLimiting);
+            expect(exported.timeout).toEqual(originalConfig.timeout);
+            // rateLimiting should be undefined since it wasn't in the original config
+            expect(exported.rateLimiting).toBeUndefined();
+            expect(originalConfig.rateLimiting).toBeUndefined();
         });
+    });
     });
 });

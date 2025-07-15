@@ -1,110 +1,115 @@
 {
-  "identity": {
-    "name": "run-failure-recovery-agent",
-    "version": "1.0.0"
-  },
-  "goal": "Analyze failed runs and implement recovery strategies",
-  "role": "specialist",
-  "subscriptions": [
-    "run/failed",
-    "step/failed",
-    "safety/post_action"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "run/failed"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Error Analyzer",
-        "inputMap": {
-          "error": "event.data.error",
-          "runId": "event.data.runId",
-          "runContext": "event.data.context",
-          "previousFailures": "blackboard.failures.history"
+    "identity": {
+        "name": "run-failure-recovery-agent",
+        "version": "1.0.0"
+    },
+    "goal": "Analyze failed runs and implement recovery strategies",
+    "role": "specialist",
+    "subscriptions": [
+        "run/failed",
+        "step/failed",
+        "safety/post_action"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "run/failed"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Error Analyzer",
+                "inputMap": {
+                    "error": "event.data.error",
+                    "runId": "event.data.runId",
+                    "runContext": "event.data.context",
+                    "previousFailures": "blackboard.failures.history"
+                }
+            },
+            "qos": 2
+        },
+        {
+            "trigger": {
+                "topic": "step/failed",
+                "when": "bot.performance.tasksFailed > 3"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Analyze recurring step failures to identify systemic issues and recommend process improvements"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "safety/post_action",
+                "when": "event.data.action == 'retry' && event.data.retryCount > 2"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Recovery Strategy Planner",
+                "inputMap": {
+                    "failurePattern": "event.data.pattern",
+                    "availableStrategies": "blackboard.recovery.strategies",
+                    "resourceConstraints": "stats.totalCredits"
+                }
+            },
+            "qos": 2
         }
-      },
-      "qos": 2
-    },
-    {
-      "trigger": {
-        "topic": "step/failed",
-        "when": "bot.performance.tasksFailed > 3"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Analyze recurring step failures to identify systemic issues and recommend process improvements"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "safety/post_action",
-        "when": "event.data.action == 'retry' && event.data.retryCount > 2"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Recovery Strategy Planner",
-        "inputMap": {
-          "failurePattern": "event.data.pattern",
-          "availableStrategies": "blackboard.recovery.strategies",
-          "resourceConstraints": "stats.totalCredits"
+    ],
+    "prompt": "You are a run failure recovery agent who analyzes failed runs and implements recovery strategies. You MUST analyze root causes of failures and provide comprehensive diagnostic insights. You MAY trigger recovery routines and recommend process improvements. Focus on systematic failure analysis, identifying patterns, and implementing effective recovery strategies to prevent future failures.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "error-analysis-tools",
+            "permissions": [
+                "read"
+            ],
+            "scope": "tools.analysis.error",
+            "description": "Access error analysis tools and diagnostic utilities"
+        },
+        {
+            "type": "blackboard",
+            "label": "recovery-strategies",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "recovery.strategies",
+            "description": "Read and update recovery strategy database"
+        },
+        {
+            "type": "blackboard",
+            "label": "retry-policies",
+            "permissions": [
+                "read"
+            ],
+            "scope": "policies.retry",
+            "description": "Read retry policies and backoff configurations"
+        },
+        {
+            "type": "blackboard",
+            "label": "failure-history",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "failures.history",
+            "description": "Track and analyze historical failure patterns"
+        },
+        {
+            "type": "routine",
+            "label": "Error Analyzer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Analyze error patterns and identify root causes"
+        },
+        {
+            "type": "routine",
+            "label": "Recovery Strategy Planner",
+            "permissions": [
+                "read"
+            ],
+            "description": "Plan recovery strategies based on failure analysis"
         }
-      },
-      "qos": 2
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "analyze-root-causes"
-    },
-    {
-      "modality": "permission",
-      "target": "trigger-recovery-routines"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "error-analysis-tools",
-      "permissions": ["read"],
-      "scope": "tools.analysis.error",
-      "description": "Access error analysis tools and diagnostic utilities"
-    },
-    {
-      "type": "blackboard",
-      "label": "recovery-strategies",
-      "permissions": ["read", "write"],
-      "scope": "recovery.strategies",
-      "description": "Read and update recovery strategy database"
-    },
-    {
-      "type": "blackboard",
-      "label": "retry-policies",
-      "permissions": ["read"],
-      "scope": "policies.retry",
-      "description": "Read retry policies and backoff configurations"
-    },
-    {
-      "type": "blackboard",
-      "label": "failure-history",
-      "permissions": ["read", "write"],
-      "scope": "failures.history",
-      "description": "Track and analyze historical failure patterns"
-    },
-    {
-      "type": "routine",
-      "label": "Error Analyzer",
-      "permissions": ["read"],
-      "description": "Analyze error patterns and identify root causes"
-    },
-    {
-      "type": "routine",
-      "label": "Recovery Strategy Planner",
-      "permissions": ["read"],
-      "description": "Plan recovery strategies based on failure analysis"
-    }
-  ]
+    ]
 }

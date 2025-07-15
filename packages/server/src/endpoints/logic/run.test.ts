@@ -1,7 +1,7 @@
 import { type FindByIdInput, type RunCreateInput, type RunSearchInput, type RunUpdateInput, runTestDataFactory, generatePK, RunStatus } from "@vrooli/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockAuthenticatedSession, mockLoggedOutSession, mockApiSession, mockReadPrivatePermissions, mockWritePrivatePermissions } from "../../__test/session.js";
-import { testEndpointRequiresAuth, testEndpointRequiresApiKeyReadPermissions, testEndpointRequiresApiKeyWritePermissions } from "../../__test/endpoints.js";
+import { assertEndpointRequiresAuth, assertEndpointRequiresApiKeyReadPermissions, assertEndpointRequiresApiKeyWritePermissions } from "../../__test/endpoints.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
@@ -15,6 +15,8 @@ import { run } from "./run.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { RunDbFactory } from "../../__test/fixtures/db/runFixtures.js";
 import { createResourceDbFactory } from "../../__test/fixtures/db/ResourceDbFactory.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsRun", () => {
     beforeAll(async () => {
@@ -24,18 +26,21 @@ describe("EndpointsRun", () => {
         vi.spyOn(logger, "warning").mockImplementation(() => logger);
     });
 
-    beforeEach(async () => {
-        // Clean up tables used in tests
-        const prisma = DbProvider.get();
-        await prisma.runProject.deleteMany();
-        await prisma.runRoutine.deleteMany();
-        await prisma.resource_version.deleteMany();
-        await prisma.resource.deleteMany();
-        await prisma.schedule.deleteMany();
-        await prisma.user.deleteMany();
-        // Clear Redis cache
-        await CacheService.get().flushAll();
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["run","run_step","run_io","resource","resource_version","user"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn('Test cleanup incomplete:', orphans);
+        }
     });
+
+    beforeEach(async () => {
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.execution(DbProvider.get());
+    }););
 
     afterAll(async () => {
         // Restore all mocks
@@ -123,16 +128,16 @@ describe("EndpointsRun", () => {
 
     describe("findOne", () => {
         describe("authentication", () => {
-            it("requires authentication", async () => {
-                await testEndpointRequiresAuth(
+            it("not logged in", async () => {
+                await assertEndpointRequiresAuth(
                     run.findOne,
                     { id: generatePK() },
                     run_findOne,
                 );
             });
 
-            it("requires API key with read permissions", async () => {
-                await testEndpointRequiresApiKeyReadPermissions(
+            it("API key - no read permissions", async () => {
+                await assertEndpointRequiresApiKeyReadPermissions(
                     run.findOne,
                     { id: generatePK() },
                     run_findOne,
@@ -233,16 +238,16 @@ describe("EndpointsRun", () => {
 
     describe("findMany", () => {
         describe("authentication", () => {
-            it("requires authentication", async () => {
-                await testEndpointRequiresAuth(
+            it("not logged in", async () => {
+                await assertEndpointRequiresAuth(
                     run.findMany,
                     {},
                     run_findMany,
                 );
             });
 
-            it("requires API key with read permissions", async () => {
-                await testEndpointRequiresApiKeyReadPermissions(
+            it("API key - no read permissions", async () => {
+                await assertEndpointRequiresApiKeyReadPermissions(
                     run.findMany,
                     {},
                     run_findMany,
@@ -412,16 +417,16 @@ describe("EndpointsRun", () => {
 
     describe("createOne", () => {
         describe("authentication", () => {
-            it("requires authentication", async () => {
-                await testEndpointRequiresAuth(
+            it("not logged in", async () => {
+                await assertEndpointRequiresAuth(
                     run.createOne,
                     runTestDataFactory.createMinimal(),
                     run_createOne,
                 );
             });
 
-            it("requires API key with write permissions", async () => {
-                await testEndpointRequiresApiKeyWritePermissions(
+            it("API key - no write permissions", async () => {
+                await assertEndpointRequiresApiKeyWritePermissions(
                     run.createOne,
                     runTestDataFactory.createMinimal(),
                     run_createOne,
@@ -650,16 +655,16 @@ describe("EndpointsRun", () => {
 
     describe("updateOne", () => {
         describe("authentication", () => {
-            it("requires authentication", async () => {
-                await testEndpointRequiresAuth(
+            it("not logged in", async () => {
+                await assertEndpointRequiresAuth(
                     run.updateOne,
                     { id: generatePK() },
                     run_updateOne,
                 );
             });
 
-            it("requires API key with write permissions", async () => {
-                await testEndpointRequiresApiKeyWritePermissions(
+            it("API key - no write permissions", async () => {
+                await assertEndpointRequiresApiKeyWritePermissions(
                     run.updateOne,
                     { id: generatePK() },
                     run_updateOne,

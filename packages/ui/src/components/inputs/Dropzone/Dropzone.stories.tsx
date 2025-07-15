@@ -8,6 +8,8 @@ import TextField from "@mui/material/TextField";
 import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
 import { Dropzone } from "./Dropzone.js";
+
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-01 - Fixed 2 'any[]' type assertions with proper types
 import { Switch } from "../Switch/Switch.js";
 
 const meta: Meta<typeof Dropzone> = {
@@ -33,9 +35,15 @@ export const DropzoneShowcase: Story = {
         const [acceptedFileTypes, setAcceptedFileTypes] = useState(["image/*", ".heic", ".heif"]);
         
         // Track uploaded files across all examples
-        const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
+        type UploadedFileInfo = {
+            name: string;
+            size: number;
+            type: string;
+            uploadedAt: string;
+        };
+        const [uploadedFiles, setUploadedFiles] = useState<UploadedFileInfo[]>([]);
 
-        const handleUpload = (files: any[]) => {
+        const handleUpload = (files: File[]) => {
             console.log("Files uploaded:", files);
             setUploadedFiles(prev => [...prev, ...files.map(file => ({
                 name: file.name,
@@ -454,7 +462,7 @@ export const DropzoneShowcase: Story = {
                                     p: 2, 
                                     borderRadius: 1, 
                                     fontSize: "0.875rem",
-                                    overflow: "auto"
+                                    overflow: "auto",
                                 }}>
 {`<Dropzone
   acceptedFileTypes={["image/*"]}
@@ -475,7 +483,7 @@ export const DropzoneShowcase: Story = {
                                     p: 2, 
                                     borderRadius: 1, 
                                     fontSize: "0.875rem",
-                                    overflow: "auto"
+                                    overflow: "auto",
                                 }}>
 {`<Dropzone
   acceptedFileTypes={[".pdf", ".doc", ".docx"]}
@@ -496,7 +504,7 @@ export const DropzoneShowcase: Story = {
                                     p: 2, 
                                     borderRadius: 1, 
                                     fontSize: "0.875rem",
-                                    overflow: "auto"
+                                    overflow: "auto",
                                 }}>
 {`<Dropzone
   acceptedFileTypes={["image/*"]}
@@ -517,7 +525,7 @@ export const DropzoneShowcase: Story = {
                                     p: 2, 
                                     borderRadius: 1, 
                                     fontSize: "0.875rem",
-                                    overflow: "auto"
+                                    overflow: "auto",
                                 }}>
 {`<Dropzone
   acceptedFileTypes={[]}

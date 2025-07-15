@@ -1,17 +1,26 @@
+// AI_CHECK: TYPE_SAFETY=basemodel-constraints | LAST: 2025-07-06 - Fixed BaseModelLogic constraint to allow specific model types, resolving ~119 type errors
 import { ModelType, lowercaseFirstLetter } from "@vrooli/shared";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
-import type { Danger, Displayer, Duplicator, Formatter, ModelLogic, Mutater, Searcher, Validator } from "../types.js";
+import type { Danger, Displayer, Duplicator, Formatter, ModelLogic, ModelLogicType, Mutater, Searcher, Validator } from "../types.js";
 
-export type GenericModelLogic = ModelLogic<any, any, any>;
-type ObjectMap = { [key in ModelType]: GenericModelLogic | Record<string, never> };
+// Base type for model logic with minimal constraints
+export type BaseModelLogic = ModelLogic<any, any, any>;
+
+export type GenericModelLogic = BaseModelLogic;
+
+type ObjectMap = { [key in ModelType]: BaseModelLogic | Record<string, never> };
+
 type LogicProps = "danger" | "dbTable" | "dbTranslationTable" | "display" | "duplicate" | "format" | "idField" | "mutate" | "search" | "validate";
+
+// Type-safe return type based on requested logic properties
 type GetLogicReturn<
     Logic extends LogicProps,
 > = {
+    __typename: ModelType,
     danger: "danger" extends Logic ? Danger : never,
     dbTable: "dbTable" extends Logic ? string : never,
     dbTranslationTable: "dbTranslationTable" extends Logic ? string : never,
@@ -88,7 +97,12 @@ export class ModelMap {
                     import(importPath),
                     timeoutPromise,
                 ]);
-                this.map[modelName] = module[`${modelName}Model`] || {};
+                const modelExport = module[`${modelName}Model`];
+                if (modelExport && typeof modelExport === "object") {
+                    this.map[modelName] = modelExport as BaseModelLogic;
+                } else {
+                    this.map[modelName] = {} as Record<string, never>;
+                }
 
                 const translationTable = this.map[modelName].dbTranslationTable;
                 if (translationTable) {
@@ -121,6 +135,9 @@ export class ModelMap {
         return model && typeof model === "object" && Object.prototype.hasOwnProperty.call(model, "dbTable");
     }
 
+    /**
+     * Get model logic with type-safe error handling
+     */
     public static get<
         T extends GenericModelLogic,
         ThrowError extends boolean = true,
@@ -212,7 +229,7 @@ export class ModelMap {
      * Reset the ModelMap instance. Only for testing purposes.
      */
     public static reset() {
-        ModelMap.instance = null as any;
+        ModelMap.instance = null as unknown as ModelMap;
         ModelMap.initPromise = null;
         ModelMap.isMapInitialized = false;
     }

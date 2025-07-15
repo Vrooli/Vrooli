@@ -89,11 +89,11 @@ export const MemberInviteModel: MemberInviteModelLogic = ({
                 canRead: () => basePermissions.canRead() || isYourInvite,
             };
         },
-        owner: (data) => ({
+        owner: (data, _userId) => ({
             Team: data?.team,
         }),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<MemberInviteModelInfo["DbSelect"]>([["team", "Team"]], ...rest),
+        isPublic: (data, getParentInfo?) => oneIsPublic<MemberInviteModelInfo["DbSelect"]>([["team", "Team"]], data, getParentInfo),
         visibility: {
             own: function getOwn(data) {
                 return { // If you created the invite or were invited

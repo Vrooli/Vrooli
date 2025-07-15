@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-04
 import { type Prisma } from "@prisma/client";
 import { DbProvider, batch, logger } from "@vrooli/server";
 import { DAYS_90_MS, ModelType } from "@vrooli/shared";
@@ -17,7 +18,7 @@ export async function cleanupRevokedSessions(): Promise<void> {
         const counts: number[] = [];
         await batch<Prisma.sessionFindManyArgs, SessionIdPayload>({
             objectType: ModelType.Session,
-            processBatch: async (sessions) => {
+            processBatch: async (sessions: SessionIdPayload[]) => {
                 const sessionIds = sessions.map(session => session.id);
                 // Delete sessions
                 const { count } = await DbProvider.get().session.deleteMany({

@@ -1,108 +1,106 @@
 {
-  "identity": {
-    "name": "build-pipeline-orchestrator",
-    "version": "1.0.0"
-  },
-  "goal": "Ensure builds, lint, and type-checks pass for every commit",
-  "role": "coordinator",
-  "subscriptions": [
-    "step/completed",
-    "run/failed",
-    "swarm/goal/created"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "swarm/goal/created",
-        "when": "event.data.tags.includes('build') || event.data.tags.includes('ci')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Build Pipeline Designer",
-        "inputMap": {
-          "buildGoal": "event.data.description",
-          "projectType": "event.data.context.projectType",
-          "buildServer": "blackboard.ci.buildServer",
-          "pipelineTemplates": "blackboard.ci.templates"
+    "identity": {
+        "name": "build-pipeline-orchestrator",
+        "version": "1.0.0"
+    },
+    "goal": "Ensure builds, lint, and type-checks pass for every commit",
+    "role": "coordinator",
+    "subscriptions": [
+        "step/completed",
+        "run/failed",
+        "swarm/goal/created"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "swarm/goal/created",
+                "when": "event.data.tags.includes('build') || event.data.tags.includes('ci')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Build Pipeline Designer",
+                "inputMap": {
+                    "buildGoal": "event.data.description",
+                    "projectType": "event.data.context.projectType",
+                    "buildServer": "blackboard.ci.buildServer",
+                    "pipelineTemplates": "blackboard.ci.templates"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "run/failed",
+                "when": "event.data.tags.includes('lint') || event.data.tags.includes('typecheck') || event.data.tags.includes('build')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Analyze build failures, identify flaky tests, and coordinate retry strategies with appropriate fixes"
+            },
+            "qos": 2
+        },
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'ci_step' && event.data.duration > blackboard.ci.thresholds.stepDuration"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Build Optimizer",
+                "inputMap": {
+                    "stepMetrics": "event.data.metrics",
+                    "stepType": "event.data.type",
+                    "optimizationStrategies": "blackboard.ci.optimizations"
+                }
+            },
+            "qos": 0
         }
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "run/failed",
-        "when": "event.data.tags.includes('lint') || event.data.tags.includes('typecheck') || event.data.tags.includes('build')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Analyze build failures, identify flaky tests, and coordinate retry strategies with appropriate fixes"
-      },
-      "qos": 2
-    },
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'ci_step' && event.data.duration > blackboard.ci.thresholds.stepDuration"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Build Optimizer",
-        "inputMap": {
-          "stepMetrics": "event.data.metrics",
-          "stepType": "event.data.type",
-          "optimizationStrategies": "blackboard.ci.optimizations"
+    ],
+    "prompt": "You ensure builds, lint, and type-checks pass for every commit. You are obligated to maintain green builds. You have permission to retry flaky steps. You are prohibited from ignoring failing tests.",
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "build-server",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "ci.buildServer",
+            "description": "Access and control build server operations"
+        },
+        {
+            "type": "blackboard",
+            "label": "lint-suite",
+            "permissions": [
+                "read"
+            ],
+            "scope": "ci.linting",
+            "description": "Access linting configurations and tools"
+        },
+        {
+            "type": "blackboard",
+            "label": "type-checker",
+            "permissions": [
+                "read"
+            ],
+            "scope": "ci.typeChecking",
+            "description": "Access TypeScript type checking tools"
+        },
+        {
+            "type": "routine",
+            "label": "Build Pipeline Designer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Design optimal CI/CD pipelines"
+        },
+        {
+            "type": "routine",
+            "label": "Build Optimizer",
+            "permissions": [
+                "read"
+            ],
+            "description": "Optimize build performance and reliability"
         }
-      },
-      "qos": 0
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "maintain-green-builds"
-    },
-    {
-      "modality": "permission",
-      "target": "retry-flaky-steps"
-    },
-    {
-      "modality": "prohibition",
-      "target": "ignore-failing-tests"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "build-server",
-      "permissions": ["read", "write"],
-      "scope": "ci.buildServer",
-      "description": "Access and control build server operations"
-    },
-    {
-      "type": "blackboard",
-      "label": "lint-suite",
-      "permissions": ["read"],
-      "scope": "ci.linting",
-      "description": "Access linting configurations and tools"
-    },
-    {
-      "type": "blackboard",
-      "label": "type-checker",
-      "permissions": ["read"],
-      "scope": "ci.typeChecking",
-      "description": "Access TypeScript type checking tools"
-    },
-    {
-      "type": "routine",
-      "label": "Build Pipeline Designer",
-      "permissions": ["read"],
-      "description": "Design optimal CI/CD pipelines"
-    },
-    {
-      "type": "routine",
-      "label": "Build Optimizer",
-      "permissions": ["read"],
-      "description": "Optimize build performance and reliability"
-    }
-  ]
+    ]
 }

@@ -5,14 +5,8 @@
  * execution types and the existing conversation types.
  */
 
-import type {
-    ChatMessage, ExecutionError,
-    ExecutionResourceUsage,
-    ResponseContext,
-    ToolCall,
-} from "@vrooli/shared";
-import type { Tool } from "../mcp/types.js";
-import type { ContextBuilder as ConversationContextBuilder } from "./contextBuilder.js";
+import type { ChatMessage, ExecutionError, ExecutionResourceUsage, ResponseContext, ToolCall } from "@vrooli/shared";
+import type { MessageState } from "../conversation/types.js";
 import type { LlmRouter } from "./router.js";
 import type { ToolRunner } from "./toolRunner.js";
 
@@ -31,6 +25,12 @@ export interface ResponseServiceConfig {
 
     /** Whether to enable detailed logging */
     enableDetailedLogging: boolean;
+
+    /** Whether to enable streaming for real-time response updates */
+    enableStreaming?: boolean;
+
+    /** Chat ID for streaming events (required when enableStreaming is true) */
+    streamingChatId?: string;
 }
 
 /**
@@ -119,7 +119,7 @@ export interface LlmCallResult {
  */
 export interface ResponseGenerationState {
     /** All messages generated so far */
-    messages: ChatMessage[];
+    messages: MessageState[];
 
     /** All tool calls made so far */
     toolCalls: ToolCall[];
@@ -141,38 +141,6 @@ export interface ResponseGenerationState {
 }
 
 /**
- * Bridge types for compatibility with existing conversation system
- */
-
-/**
- * Convert unified ResponseContext to existing conversation types
- */
-export interface ConversationContextBridge {
-    /** Convert ResponseContext to parameters for existing ContextBuilder */
-    toContextBuilderParams(context: ResponseContext): {
-        conversationHistory: ChatMessage[];
-        botConfig: unknown;
-        maxTokens?: number;
-    };
-
-    /** Convert ResponseContext to parameters for existing LlmRouter */
-    toLlmRouterParams(context: ResponseContext, systemMessage: string, tools: Tool[]): {
-        model: string;
-        messages: ChatMessage[];
-        tools: Tool[];
-        temperature?: number;
-        userId: string;
-    };
-
-    /** Convert ResponseContext to parameters for existing ToolRunner */
-    toToolRunnerMeta(context: ResponseContext): {
-        conversationId?: string;
-        callerBotId?: string;
-        sessionUser?: unknown;
-    };
-}
-
-/**
  * Factory interface for creating ResponseService with proper dependencies
  */
 export interface ResponseServiceDependencies {
@@ -181,9 +149,6 @@ export interface ResponseServiceDependencies {
 
     /** Tool runner for executing tools */
     toolRunner: ToolRunner;
-
-    /** Context builder for conversation history */
-    contextBuilder: ConversationContextBuilder;
 
     /** Service configuration */
     config?: Partial<ResponseServiceConfig>;

@@ -1,9 +1,8 @@
+// AI_CHECK: TASK_ID=TYPE_SAFETY COUNT=2 | LAST: 2025-07-04
 import { DbProvider, ModelMap, UI_URL_REMOTE, logger, type PrismaDelegate } from "@vrooli/server";
-import { LINKS, ResourceSubType, ResourceType, generateSitemap, generateSitemapIndex, type SitemapEntryContent, ModelType } from "@vrooli/shared";
+import { LINKS, ResourceSubType, ResourceType, generateSitemap, generateSitemapIndex, type SitemapEntryContent } from "@vrooli/shared";
 import { 
     MAX_ENTRIES_PER_SITEMAP, 
-    BYTES_PER_KILOBYTE, 
-    SITEMAP_SIZE_LIMIT_MB, 
     MAX_SITEMAP_FILE_SIZE_BYTES, 
     ESTIMATED_ENTRY_OVERHEAD_BYTES, 
     BATCH_SIZE_SMALL, 
@@ -229,12 +228,13 @@ async function genSitemapForObject(
                         },
                     };
                     break;
-                default:
+                default: {
                     // Fallback to validate function if available
                     const validateVisibility = validate().visibility?.public;
                     if (validateVisibility) {
                         visibilityFilter = validateVisibility;
                     }
+                }
             }
             
             const whereCondition = visibilityFilter;
@@ -293,7 +293,6 @@ async function genSitemapForObject(
                     const result: SitemapProperties = {
                         id: idStr,
                         publicId: typeof item.publicId === "string" ? item.publicId : "",
-                        handle: undefined,
                         translations: Array.isArray(item.translations) ? item.translations : [],
                     };
                     
@@ -314,12 +313,12 @@ async function genSitemapForObject(
                         result.versionLabel = item.versionLabel;
                     }
                     
-                    if (hasProperty(item, "root") && isValidRootObject(item.root)) {
+                    if (hasProperty(item, "root") && item.root && isValidRootObject(item.root)) {
                         result.root = item.root;
                     }
                     
                     batch.push(result);
-                } catch (error) {
+                } catch (error: unknown) {
                     logger.error(`Error processing batch item for ${objectType}`, { error, item });
                 }
             }
@@ -347,14 +346,22 @@ async function genSitemapForObject(
                 }
 
                 const entryContent: SitemapEntryContent = {
-                    handle: entry.handle,
                     publicId: entry.publicId,
-                    versionLabel: entry.versionLabel,
                     languages: entry.translations.map(translation => translation.language),
                     objectLink,
-                    rootHandle: entry.root?.handle,
-                    rootPublicId: entry.root?.publicId,
                 };
+                if (entry.handle) {
+                    entryContent.handle = entry.handle;
+                }
+                if (entry.versionLabel) {
+                    entryContent.versionLabel = entry.versionLabel;
+                }
+                if (entry.root?.handle) {
+                    entryContent.rootHandle = entry.root.handle;
+                }
+                if (entry.root?.publicId) {
+                    entryContent.rootPublicId = entry.root.publicId;
+                }
                 // Add entry to collected entries
                 collectedEntries.push(entryContent);
                 // Estimate bytes for entry, based on how many languages it has
@@ -379,7 +386,7 @@ async function genSitemapForObject(
             fs.writeFileSync(`${sitemapDir}/${sitemapFileName}`, buffer as unknown as Uint8Array);
             // Add sitemap file name to array only after successful write
             sitemapFileNames.push(sitemapFileName);
-        } catch (error) {
+        } catch (error: unknown) {
             logger.error("Failed to create or write sitemap file", { sitemapFileName, error });
         }
     } while (currentBatchSize === BATCH_SIZE_SMALL);
@@ -436,7 +443,7 @@ export async function genSitemap(): Promise<void> {
         // Write sitemap index file
         fs.writeFileSync(`${sitemapIndexDir}/sitemap.xml`, sitemapIndex);
         logger.info("✅ Sitemap generated successfully");
-    } catch (error) {
+    } catch (error: unknown) {
         logger.error("genSitemap caught error", { error: error instanceof Error ? { message: error.message, name: error.name, stack: error.stack } : error, trace: "0463", routeSitemapFileName, sitemapDir });
     }
 }

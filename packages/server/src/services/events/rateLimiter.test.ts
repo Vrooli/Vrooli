@@ -6,16 +6,12 @@
  * are properly rate limited based on tier, user, and event type.
  */
 
-import { nanoid } from "nanoid";
+import { nanoid } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type Logger } from "winston";
 import { getEventBus } from "./eventBus.js";
 import { DEFAULT_EVENT_COSTS, DEFAULT_RATE_LIMITS, EventBusRateLimiter } from "./rateLimiter.js";
-import {
-    type BaseServiceEvent,
-    type CoordinationEvent,
-    type ExecutionEvent,
-} from "./types.js";
+import { type CoordinationEvent, type ExecutionEvent, type ServiceEvent } from "./types.js";
 
 // Mock logger
 const mockLogger: Logger = {
@@ -74,8 +70,7 @@ describe("EventBusRateLimiter", () => {
                 id: nanoid(),
                 type: "swarm/goal/created",
                 timestamp: new Date(),
-                source: { tier: 1, component: "swarm-coordinator" },
-                data: { swarmId: "test-swarm", goal: "test goal" },
+                data: { chatId: "test-chat", goalId: "test-goal", description: "test goal" },
                 metadata: { deliveryGuarantee: "fire-and-forget", priority: "medium" },
             };
 
@@ -91,8 +86,7 @@ describe("EventBusRateLimiter", () => {
                 id: nanoid(),
                 type: "tool/called",
                 timestamp: new Date(),
-                source: { tier: 3, component: "tool-orchestrator" },
-                data: { toolName: "expensive_api", parameters: {} },
+                data: { chatId: "test-chat", toolCallId: "test-call", toolName: "expensive_api", parameters: {}, callerBotId: "test-bot" },
                 metadata: { deliveryGuarantee: "reliable", priority: "high" },
             };
 
@@ -104,20 +98,14 @@ describe("EventBusRateLimiter", () => {
         });
 
         it("should always allow safety events", async () => {
-            const safetyEvent: BaseServiceEvent = {
+            const safetyEvent: ServiceEvent = {
                 id: nanoid(),
                 type: "safety/pre_action",
                 timestamp: new Date(),
-                source: { tier: "safety", component: "safety-validator" },
-                data: { action: "dangerous_operation", riskLevel: "critical" },
+                data: { chatId: "test-chat", triggeredBy: { id: "test-user", type: "user" }, severity: "critical", action: "dangerous_operation", riskLevel: "critical" },
                 metadata: {
                     deliveryGuarantee: "barrier-sync",
                     priority: "critical",
-                    barrierConfig: {
-                        quorum: 1,
-                        timeoutMs: 5000,
-                        timeoutAction: "auto-reject",
-                    },
                 },
             };
 
@@ -130,12 +118,11 @@ describe("EventBusRateLimiter", () => {
 
     describe("Rate Limiting Logic", () => {
         it("should rate limit when token bucket is empty", async () => {
-            const event: BaseServiceEvent = {
+            const event: ServiceEvent = {
                 id: nanoid(),
                 type: "tool/called",
                 timestamp: new Date(),
-                source: { tier: 3, component: "tool-orchestrator" },
-                data: { toolName: "expensive_api" },
+                data: { chatId: "test-chat", toolCallId: "test-call", toolName: "expensive_api", callerBotId: "test-bot" },
                 metadata: { deliveryGuarantee: "fire-and-forget", priority: "medium" },
             };
 
@@ -149,12 +136,11 @@ describe("EventBusRateLimiter", () => {
         });
 
         it("should allow events when tokens are available", async () => {
-            const event: BaseServiceEvent = {
+            const event: ServiceEvent = {
                 id: nanoid(),
                 type: "step/completed",
                 timestamp: new Date(),
-                source: { tier: 3, component: "step-executor" },
-                data: { stepId: "step-123", success: true },
+                data: { runId: "test-run", routineId: "test-routine", stepId: "step-123", success: true },
                 metadata: { deliveryGuarantee: "fire-and-forget", priority: "low" },
             };
 
@@ -167,12 +153,11 @@ describe("EventBusRateLimiter", () => {
         });
 
         it("should handle Redis failures gracefully", async () => {
-            const event: BaseServiceEvent = {
+            const event: ServiceEvent = {
                 id: nanoid(),
                 type: "routine/started",
                 timestamp: new Date(),
-                source: { tier: 2, component: "routine-orchestrator" },
-                data: { routineId: "routine-123" },
+                data: { runId: "test-run", routineId: "routine-123" },
                 metadata: { deliveryGuarantee: "fire-and-forget", priority: "medium" },
             };
 
@@ -192,12 +177,11 @@ describe("EventBusRateLimiter", () => {
         });
 
         it("should publish events when rate limits allow", async () => {
-            const event: BaseServiceEvent = {
+            const event: ServiceEvent = {
                 id: nanoid(),
                 type: "state/changed",
                 timestamp: new Date(),
-                source: { tier: 2, component: "state-manager" },
-                data: { entityId: "entity-123", newState: "active" },
+                data: { chatId: "test-chat", runId: "test-run", taskId: "test-task", componentName: "test-component", previousState: "idle", newState: "active" },
                 metadata: { deliveryGuarantee: "fire-and-forget", priority: "low" },
             };
 
@@ -210,17 +194,15 @@ describe("EventBusRateLimiter", () => {
         });
 
         it("should reject events when rate limits are exceeded", async () => {
-            const event: BaseServiceEvent = {
+            const event: ServiceEvent = {
                 id: nanoid(),
                 type: "tool/called",
                 timestamp: new Date(),
-                source: { tier: 3, component: "tool-orchestrator" },
-                data: { toolName: "expensive_api" },
+                data: { chatId: "test-chat", toolCallId: "test-call", toolName: "expensive_api", callerBotId: "test-bot" },
                 metadata: {
                     deliveryGuarantee: "fire-and-forget",
                     priority: "medium",
                     userId: "user-123",
-                    conversationId: "conv-456",
                 },
             };
 
@@ -238,12 +220,11 @@ describe("EventBusRateLimiter", () => {
             // Subscribe to rate limited events
             await getEventBus().subscribe("resource/rate_limited", subscriptionHandler);
 
-            const event: BaseServiceEvent = {
+            const event: ServiceEvent = {
                 id: nanoid(),
                 type: "tool/called",
                 timestamp: new Date(),
-                source: { tier: 3, component: "tool-orchestrator" },
-                data: { toolName: "expensive_api" },
+                data: { chatId: "test-chat", toolCallId: "test-call", toolName: "expensive_api", callerBotId: "test-bot" },
                 metadata: {
                     deliveryGuarantee: "fire-and-forget",
                     priority: "medium",
@@ -291,12 +272,11 @@ describe("EventBusRateLimiter", () => {
 
     describe("User and Conversation Context", () => {
         it("should extract user ID from event metadata", async () => {
-            const event: BaseServiceEvent = {
+            const event: ServiceEvent = {
                 id: nanoid(),
                 type: "swarm/goal/created",
                 timestamp: new Date(),
-                source: { tier: 1, component: "swarm-coordinator" },
-                data: { swarmId: "swarm-123", goal: "test goal" },
+                data: { chatId: "test-chat", goalId: "test-goal", description: "test goal" },
                 metadata: {
                     deliveryGuarantee: "fire-and-forget",
                     priority: "medium",
@@ -322,15 +302,11 @@ describe("EventBusRateLimiter", () => {
         });
 
         it("should extract conversation ID from event data", async () => {
-            const event: BaseServiceEvent = {
+            const event: ServiceEvent = {
                 id: nanoid(),
                 type: "routine/started",
                 timestamp: new Date(),
-                source: { tier: 2, component: "routine-orchestrator" },
-                data: {
-                    routineId: "routine-123",
-                    conversationId: "conv-789",
-                },
+                data: { runId: "test-run", routineId: "routine-123" },
                 metadata: { deliveryGuarantee: "fire-and-forget", priority: "medium" },
             };
 
@@ -367,16 +343,11 @@ describe("Event Bus Rate Limiter Integration", () => {
             id: nanoid(),
             type: "tool/called",
             timestamp: new Date(),
-            source: { tier: 3, component: "tool-orchestrator" },
-            data: {
-                toolName: "openai_completion",
-                parameters: { model: "gpt-4", tokens: 1000 },
-            },
+            data: { chatId: "test-chat", toolCallId: "test-call", toolName: "openai_completion", parameters: { model: "gpt-4", tokens: 1000 }, callerBotId: "test-bot" },
             metadata: {
                 deliveryGuarantee: "reliable",
                 priority: "high",
                 userId: "user-123",
-                conversationId: "conv-456",
             },
         };
 

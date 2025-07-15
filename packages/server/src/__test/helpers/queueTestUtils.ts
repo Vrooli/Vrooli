@@ -1,17 +1,72 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import IORedis from "ioredis";
-import { Queue, Worker, QueueEvents } from "bullmq";
+import { type Queue, Worker, type QueueEvents } from "bullmq";
 import { logger } from "../../events/logger.js";
+import { clearRedisCache } from "../../tasks/queueFactory.js";
 
 /**
  * Test utilities for queue resilience and robustness testing
  */
+
+/**
+ * Utility to track and clean up process listeners in tests
+ */
+export class ProcessListenerTracker {
+    private initialListenerCounts: Map<string, number> = new Map();
+    
+    /**
+     * Capture the current listener counts for process signals
+     */
+    captureInitialState(): void {
+        const signals = ["SIGTERM", "SIGINT", "SIGQUIT", "SIGHUP"];
+        for (const signal of signals) {
+            const count = process.listenerCount(signal);
+            this.initialListenerCounts.set(signal, count);
+        }
+    }
+    
+    /**
+     * Check for leaked listeners and optionally clean them up
+     */
+    checkForLeaks(cleanupLeaks = false): { hasLeaks: boolean; leaks: Array<{ signal: string; initial: number; current: number }> } {
+        const leaks: Array<{ signal: string; initial: number; current: number }> = [];
+        
+        for (const [signal, initialCount] of this.initialListenerCounts) {
+            const currentCount = process.listenerCount(signal);
+            if (currentCount > initialCount) {
+                leaks.push({ signal, initial: initialCount, current: currentCount });
+                
+                if (cleanupLeaks) {
+                    // Remove excess listeners (careful approach)
+                    const listeners = process.listeners(signal as NodeJS.Signals);
+                    const excessCount = currentCount - initialCount;
+                    for (let i = 0; i < excessCount && i < listeners.length; i++) {
+                        process.removeListener(signal as NodeJS.Signals, listeners[listeners.length - 1 - i]);
+                    }
+                }
+            }
+        }
+        
+        return { hasLeaks: leaks.length > 0, leaks };
+    }
+    
+    /**
+     * Force cleanup of all process listeners (use with caution)
+     */
+    forceCleanup(): void {
+        const signals = ["SIGTERM", "SIGINT", "SIGQUIT", "SIGHUP"];
+        for (const signal of signals) {
+            process.removeAllListeners(signal as NodeJS.Signals);
+        }
+    }
+}
 
 export interface QueueTestHarness {
     redis: IORedis;
     queues: Queue[];
     workers: Worker[];
     events: QueueEvents[];
+    processTracker: ProcessListenerTracker;
     cleanup: () => Promise<void>;
 }
 
@@ -23,29 +78,56 @@ export async function createQueueTestHarness(redisUrl: string): Promise<QueueTes
         maxRetriesPerRequest: null,
         retryDelayOnFailover: 100,
     });
+    
+    // Increase max listeners for test environment to prevent warnings
+    // BullMQ queues add multiple listeners per queue instance
+    redis.setMaxListeners(50);
 
     const queues: Queue[] = [];
     const workers: Worker[] = [];
     const events: QueueEvents[] = [];
+    const processTracker = new ProcessListenerTracker();
+    
+    // Capture initial process listener state
+    processTracker.captureInitialState();
 
     const cleanup = async () => {
-        // Close workers first
-        await Promise.all(workers.map(worker => 
-            worker.close().catch(e => console.log('Worker close error:', e))
-        ));
+        // Helper to add timeout to any promise
+        const withTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+            return Promise.race([
+                promise,
+                new Promise<T>((_, reject) => 
+                    setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs}ms`)), timeoutMs),
+                ),
+            ]);
+        };
+
+        // Close workers first with timeout protection
+        const workerClosePromises = workers.map(worker => 
+            withTimeout(worker.close(), 5000).catch(e => console.log("Worker close error:", e)),
+        );
+        await Promise.allSettled(workerClosePromises);
         
-        // Close queue events
-        await Promise.all(events.map(event => 
-            event.close().catch(e => console.log('Events close error:', e))
-        ));
+        // Close queue events with timeout protection
+        const eventsClosePromises = events.map(event => 
+            withTimeout(event.close(), 3000).catch(e => console.log("Events close error:", e)),
+        );
+        await Promise.allSettled(eventsClosePromises);
         
-        // Close queues
-        await Promise.all(queues.map(queue => 
-            queue.close().catch(e => console.log('Queue close error:', e))
-        ));
+        // Close queues with timeout protection
+        const queueClosePromises = queues.map(queue => 
+            withTimeout(queue.close(), 3000).catch(e => console.log("Queue close error:", e)),
+        );
+        await Promise.allSettled(queueClosePromises);
         
-        // Close Redis connection
-        await redis.quit().catch(e => console.log('Redis close error:', e));
+        // Close Redis connection with timeout protection
+        await withTimeout(redis.quit(), 2000).catch(e => console.log("Redis close error:", e));
+        
+        // Check for process listener leaks and clean them up if needed
+        const leakCheck = processTracker.checkForLeaks(true);
+        if (leakCheck.hasLeaks) {
+            console.warn("Process listener leaks detected and cleaned up:", leakCheck.leaks);
+        }
     };
 
     return {
@@ -53,6 +135,7 @@ export async function createQueueTestHarness(redisUrl: string): Promise<QueueTes
         queues,
         workers,
         events,
+        processTracker,
         cleanup,
     };
 }
@@ -71,7 +154,7 @@ export async function simulateRedisMemoryExhaustion(redis: IORedis): Promise<voi
     // Fill Redis with dummy data until memory is exhausted
     try {
         for (let i = 0; i < 10000; i++) {
-            await redis.set(`dummy:${i}`, 'x'.repeat(10000));
+            await redis.set(`dummy:${i}`, "x".repeat(10000));
         }
     } catch (error) {
         // Expected - Redis should run out of memory
@@ -87,7 +170,7 @@ export async function simulateNetworkPartition(redis: IORedis, durationMs: numbe
     // Block all commands
     redis.sendCommand = () => {
         return new Promise((resolve, reject) => {
-            setTimeout(() => reject(new Error('Network timeout')), 5000);
+            setTimeout(() => reject(new Error("Network timeout")), 5000);
         });
     };
     
@@ -103,7 +186,7 @@ export async function simulateNetworkPartition(redis: IORedis, durationMs: numbe
 export function createMemoryHogWorker(queueName: string, redis: IORedis): Worker {
     return new Worker(queueName, async (job) => {
         // Allocate large amounts of memory
-        const largeArray = new Array(1000000).fill('x'.repeat(1000));
+        const largeArray = new Array(1000000).fill("x".repeat(1000));
         
         // Simulate work while holding memory
         await new Promise(resolve => setTimeout(resolve, 5000));
@@ -172,7 +255,7 @@ export async function getQueueHealthMetrics(queue: Queue) {
 export async function waitForQueueState(
     queue: Queue, 
     expectedCounts: Partial<{ waiting: number; active: number; completed: number; failed: number }>,
-    timeoutMs = 10000
+    timeoutMs = 10000,
 ): Promise<boolean> {
     const startTime = Date.now();
     
@@ -197,7 +280,7 @@ export async function waitForQueueState(
 export async function generateQueueLoad(
     queue: Queue,
     jobCount: number,
-    jobData = { test: true }
+    jobData = { test: true },
 ): Promise<string[]> {
     const jobIds: string[] = [];
     
@@ -221,7 +304,7 @@ export async function generateQueueLoad(
  */
 export async function measureQueuePerformance(
     queue: Queue,
-    testDurationMs = 10000
+    testDurationMs = 10000,
 ): Promise<{
     jobsProcessed: number;
     averageProcessingTime: number;
@@ -298,5 +381,127 @@ export function mockEnvVars(vars: Record<string, string>): () => void {
                 process.env[key] = value;
             }
         });
+    };
+}
+
+/**
+ * Creates an isolated test connection that won't be cached.
+ * Use this for tests that manipulate connections (disconnect, fail, etc.)
+ * @param baseUrl - Base Redis URL
+ * @returns A new Redis connection marked for test isolation
+ */
+export async function createIsolatedTestConnection(baseUrl: string): Promise<IORedis> {
+    // Use unique URL parameters to avoid cache pollution
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(7);
+    const testUrl = `${baseUrl}?test_isolation=${timestamp}_${random}`;
+    
+    const conn = new IORedis(testUrl, {
+        maxRetriesPerRequest: null,
+        lazyConnect: false,
+        // Shorter timeouts for tests
+        connectTimeout: 5000,
+        commandTimeout: 5000,
+        // Mark as test connection
+        connectionName: `test_isolated_${timestamp}`,
+    });
+    
+    // Mark this connection as isolated - it should never be cached
+    (conn as any).__isIsolatedTestConnection = true;
+    (conn as any).__testId = `${timestamp}_${random}`;
+    
+    // Set higher max listeners for test connections
+    conn.setMaxListeners(100);
+    
+    return conn;
+}
+
+/**
+ * Creates a queue test harness with isolated connections for resilience testing.
+ * This version is specifically for tests that manipulate Redis connections.
+ */
+export async function createIsolatedQueueTestHarness(redisUrl: string): Promise<QueueTestHarness & {
+    isolatedConnection: IORedis;
+    forceCleanup: () => Promise<void>;
+}> {
+    // Create an isolated connection that won't pollute the cache
+    const isolatedConnection = await createIsolatedTestConnection(redisUrl);
+    
+    const queues: Queue[] = [];
+    const workers: Worker[] = [];
+    const events: QueueEvents[] = [];
+    const processTracker = new ProcessListenerTracker();
+    
+    // Capture initial process listener state
+    processTracker.captureInitialState();
+
+    const forceCleanup = async () => {
+        // Helper to add timeout to any promise
+        const withTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+            return Promise.race([
+                promise,
+                new Promise<T>((_, reject) => 
+                    setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs}ms`)), timeoutMs),
+                ),
+            ]);
+        };
+
+        // Close workers first with timeout protection
+        const workerClosePromises = workers.map(worker => 
+            withTimeout(worker.close(), 2000).catch(e => {
+                logger.debug("Worker force close error (expected in connection tests):", e);
+            }),
+        );
+        await Promise.allSettled(workerClosePromises);
+        
+        // Close queue events with timeout protection
+        const eventsClosePromises = events.map(event => 
+            withTimeout(event.close(), 2000).catch(e => {
+                logger.debug("Events force close error (expected in connection tests):", e);
+            }),
+        );
+        await Promise.allSettled(eventsClosePromises);
+        
+        // Close queues with timeout protection
+        const queueClosePromises = queues.map(queue => 
+            withTimeout(queue.close(), 2000).catch(e => {
+                logger.debug("Queue force close error (expected in connection tests):", e);
+            }),
+        );
+        await Promise.allSettled(queueClosePromises);
+        
+        // Force cleanup of isolated connection
+        try {
+            isolatedConnection.removeAllListeners();
+            if (isolatedConnection.status !== "end") {
+                isolatedConnection.disconnect();
+            }
+        } catch (e) {
+            logger.debug("Isolated connection cleanup error (expected):", e);
+        }
+        
+        // Clear the Redis cache to remove any corrupted connections
+        clearRedisCache();
+        
+        // Check for process listener leaks and clean them up
+        const leakCheck = processTracker.checkForLeaks(true);
+        if (leakCheck.hasLeaks) {
+            logger.debug("Process listener leaks detected and cleaned up:", leakCheck.leaks);
+        }
+    };
+
+    const cleanup = async () => {
+        await forceCleanup();
+    };
+
+    return {
+        redis: isolatedConnection,
+        queues,
+        workers,
+        events,
+        processTracker,
+        cleanup,
+        isolatedConnection,
+        forceCleanup,
     };
 }

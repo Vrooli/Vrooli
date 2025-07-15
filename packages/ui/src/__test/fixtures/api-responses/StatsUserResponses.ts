@@ -5,14 +5,11 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { http, type RestHandler } from "msw";
-import type { 
-    StatsUser,
-    StatsUserSearchInput,
-    PeriodType,
-} from "@vrooli/shared";
+import { http, HttpResponse, type RequestHandler } from "msw";
 import { 
-    PeriodType as PeriodTypeEnum, 
+    type StatsUser,
+    type StatsUserSearchInput,
+    StatPeriodType,
 } from "@vrooli/shared";
 
 /**
@@ -73,14 +70,14 @@ export class StatsUserResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique stats ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -96,7 +93,7 @@ export class StatsUserResponseFactory {
                 links: {
                     self: `${this.baseUrl}/api/stats/user/${stats.id}`,
                     related: {
-                        user: `${this.baseUrl}/api/user/${stats.user?.id}`,
+                        // StatsUser doesn't have a user property
                     },
                 },
             },
@@ -246,60 +243,29 @@ export class StatsUserResponseFactory {
             id,
             periodStart: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
             periodEnd: now,
-            periodType: PeriodTypeEnum.Week,
+            periodType: StatPeriodType.Weekly,
             
-            // Content creation statistics
-            apis: Math.floor(Math.random() * 10) + 1,
-            apisCreated: Math.floor(Math.random() * 3),
-            projects: Math.floor(Math.random() * 15) + 2,
-            projectsCreated: Math.floor(Math.random() * 5) + 1,
-            projectsCompleted: Math.floor(Math.random() * 3),
-            routines: Math.floor(Math.random() * 25) + 5,
-            routinesCreated: Math.floor(Math.random() * 8) + 1,
-            routinesCompleted: Math.floor(Math.random() * 12) + 2,
-            
-            // Activity statistics
-            runs: Math.floor(Math.random() * 50) + 10,
+            // StatsUser specific properties
+            resourcesCreatedByType: JSON.stringify({
+                "routine": Math.floor(Math.random() * 25) + 5,
+                "project": Math.floor(Math.random() * 15) + 2,
+                "api": Math.floor(Math.random() * 10) + 1
+            }),
+            resourcesCompletedByType: JSON.stringify({
+                "routine": Math.floor(Math.random() * 12) + 2,
+                "project": Math.floor(Math.random() * 3),
+                "api": Math.floor(Math.random() * 2)
+            }),
+            resourceCompletionTimeAverageByType: JSON.stringify({
+                "routine": Math.floor(Math.random() * 3600) + 300,
+                "project": Math.floor(Math.random() * 7200) + 600,
+                "api": Math.floor(Math.random() * 1800) + 200
+            }),
             runsStarted: Math.floor(Math.random() * 20) + 5,
             runsCompleted: Math.floor(Math.random() * 18) + 4,
-            
-            // Engagement statistics
-            views: Math.floor(Math.random() * 500) + 50,
-            bookmarks: Math.floor(Math.random() * 25) + 3,
-            
-            user: {
-                __typename: "User",
-                id: `user_${id}`,
-                handle: `user_${id}`,
-                name: "Test User",
-                created_at: now,
-                updated_at: now,
-                isBot: false,
-                isPrivate: false,
-                profileImage: null,
-                bannerImage: null,
-                premium: false,
-                premiumExpiration: null,
-                roles: [],
-                wallets: [],
-                translations: [],
-                translationsCount: 0,
-                you: {
-                    __typename: "UserYou",
-                    isBlocked: false,
-                    isBlockedByYou: false,
-                    canDelete: false,
-                    canReport: false,
-                    canUpdate: false,
-                    isBookmarked: false,
-                    isReacted: false,
-                    reactionSummary: {
-                        __typename: "ReactionSummary",
-                        emotion: null,
-                        count: 0,
-                    },
-                },
-            },
+            runCompletionTimeAverage: Math.random() * 3600 + 300,
+            runContextSwitchesAverage: Math.random() * 5 + 0.5,
+            teamsCreated: Math.floor(Math.random() * 3),
         };
         
         return {
@@ -314,49 +280,58 @@ export class StatsUserResponseFactory {
     createHighPerformingUserStats(): StatsUser[] {
         return [
             this.createMockStats({
-                routinesCreated: 25,
-                routinesCompleted: 80,
-                projectsCreated: 12,
-                projectsCompleted: 10,
+                resourcesCreatedByType: JSON.stringify({
+                    "routine": 25,
+                    "project": 12,
+                    "api": 8
+                }),
+                resourcesCompletedByType: JSON.stringify({
+                    "routine": 80,
+                    "project": 10,
+                    "api": 5
+                }),
                 runsCompleted: 200,
-                views: 5000,
-                bookmarks: 300,
-                periodType: PeriodTypeEnum.Month,
-                user: {
-                    ...this.createMockStats().user,
-                    name: "Top Contributor",
-                    handle: "top_contributor",
-                },
+                runsStarted: 220,
+                runCompletionTimeAverage: 1200,
+                runContextSwitchesAverage: 1.5,
+                teamsCreated: 5,
+                periodType: StatPeriodType.Monthly,
             }),
             this.createMockStats({
-                routinesCreated: 18,
-                routinesCompleted: 65,
-                projectsCreated: 8,
-                projectsCompleted: 7,
+                resourcesCreatedByType: JSON.stringify({
+                    "routine": 18,
+                    "project": 8,
+                    "api": 5
+                }),
+                resourcesCompletedByType: JSON.stringify({
+                    "routine": 65,
+                    "project": 7,
+                    "api": 3
+                }),
                 runsCompleted: 150,
-                views: 3500,
-                bookmarks: 220,
-                periodType: PeriodTypeEnum.Month,
-                user: {
-                    ...this.createMockStats().user,
-                    name: "Active Creator",
-                    handle: "active_creator",
-                },
+                runsStarted: 165,
+                runCompletionTimeAverage: 1400,
+                runContextSwitchesAverage: 2.1,
+                teamsCreated: 3,
+                periodType: StatPeriodType.Monthly,
             }),
             this.createMockStats({
-                routinesCreated: 12,
-                routinesCompleted: 45,
-                projectsCreated: 6,
-                projectsCompleted: 5,
+                resourcesCreatedByType: JSON.stringify({
+                    "routine": 12,
+                    "project": 6,
+                    "api": 3
+                }),
+                resourcesCompletedByType: JSON.stringify({
+                    "routine": 45,
+                    "project": 5,
+                    "api": 2
+                }),
                 runsCompleted: 120,
-                views: 2800,
-                bookmarks: 180,
-                periodType: PeriodTypeEnum.Month,
-                user: {
-                    ...this.createMockStats().user,
-                    name: "Productive User",
-                    handle: "productive_user",
-                },
+                runsStarted: 130,
+                runCompletionTimeAverage: 1600,
+                runContextSwitchesAverage: 2.5,
+                teamsCreated: 2,
+                periodType: StatPeriodType.Monthly,
             }),
         ];
     }
@@ -364,79 +339,63 @@ export class StatsUserResponseFactory {
     /**
      * Create statistics for different time periods
      */
-    createStatsByPeriod(userId: string): Record<PeriodType, StatsUser> {
-        const baseStats = this.createMockStats({
-            user: {
-                ...this.createMockStats().user,
-                id: userId,
-            },
-        });
+    createStatsByPeriod(userId: string): Partial<Record<StatPeriodType, StatsUser>> {
+        const baseStats = this.createMockStats();
         
         return {
-            [PeriodTypeEnum.Day]: {
+            [StatPeriodType.Daily]: {
                 ...baseStats,
-                periodType: PeriodTypeEnum.Day,
+                periodType: StatPeriodType.Daily,
                 periodStart: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
                 runsStarted: 3,
                 runsCompleted: 2,
-                views: 15,
-                bookmarks: 1,
-                routinesCompleted: 2,
+                resourcesCreatedByType: JSON.stringify({"routine": 1}),
+                resourcesCompletedByType: JSON.stringify({"routine": 2}),
+                resourceCompletionTimeAverageByType: JSON.stringify({"routine": 300}),
+                runCompletionTimeAverage: 250.5,
+                runContextSwitchesAverage: 1.2,
+                teamsCreated: 0,
             },
-            [PeriodTypeEnum.Week]: {
+            [StatPeriodType.Weekly]: {
                 ...baseStats,
-                periodType: PeriodTypeEnum.Week,
+                periodType: StatPeriodType.Weekly,
                 periodStart: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
                 runsStarted: 20,
                 runsCompleted: 16,
-                views: 120,
-                bookmarks: 8,
-                routinesCreated: 2,
-                routinesCompleted: 12,
-                projectsCreated: 1,
+                resourcesCreatedByType: JSON.stringify({"routine": 2, "project": 1}),
+                resourcesCompletedByType: JSON.stringify({"routine": 12}),
+                resourceCompletionTimeAverageByType: JSON.stringify({"routine": 450, "project": 1200}),
+                runCompletionTimeAverage: 680.3,
+                runContextSwitchesAverage: 2.1,
+                teamsCreated: 1,
             },
-            [PeriodTypeEnum.Month]: {
+            [StatPeriodType.Monthly]: {
                 ...baseStats,
-                periodType: PeriodTypeEnum.Month,
+                periodType: StatPeriodType.Monthly,
                 periodStart: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
                 runsStarted: 85,
                 runsCompleted: 70,
-                views: 500,
-                bookmarks: 35,
-                routinesCreated: 8,
-                routinesCompleted: 45,
-                projectsCreated: 3,
-                projectsCompleted: 2,
-                apisCreated: 1,
+                resourcesCreatedByType: JSON.stringify({"routine": 8, "project": 3, "api": 1}),
+                resourcesCompletedByType: JSON.stringify({"routine": 45, "project": 2}),
+                resourceCompletionTimeAverageByType: JSON.stringify({"routine": 520, "project": 1800, "api": 350}),
+                runCompletionTimeAverage: 890.7,
+                runContextSwitchesAverage: 2.8,
+                teamsCreated: 2,
             },
-            [PeriodTypeEnum.Year]: {
+            [StatPeriodType.Yearly]: {
                 ...baseStats,
-                periodType: PeriodTypeEnum.Year,
+                periodType: StatPeriodType.Yearly,
                 periodStart: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(),
                 runsStarted: 1000,
                 runsCompleted: 850,
-                views: 8000,
-                bookmarks: 450,
-                routinesCreated: 95,
-                routinesCompleted: 500,
-                projectsCreated: 35,
-                projectsCompleted: 28,
-                apisCreated: 12,
+                resourcesCreatedByType: JSON.stringify({"routine": 95, "project": 35, "api": 12}),
+                resourcesCompletedByType: JSON.stringify({"routine": 500, "project": 28}),
+                resourceCompletionTimeAverageByType: JSON.stringify({"routine": 480, "project": 2100, "api": 420}),
+                runCompletionTimeAverage: 720.5,
+                runContextSwitchesAverage: 3.2,
+                teamsCreated: 5,
             },
-            [PeriodTypeEnum.AllTime]: {
-                ...baseStats,
-                periodType: PeriodTypeEnum.AllTime,
-                periodStart: new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000).toISOString(),
-                runsStarted: 2000,
-                runsCompleted: 1700,
-                views: 15000,
-                bookmarks: 900,
-                routinesCreated: 180,
-                routinesCompleted: 1000,
-                projectsCreated: 70,
-                projectsCompleted: 58,
-                apisCreated: 25,
-            },
+            // Note: AllTime doesn't exist in StatPeriodType
         };
     }
     
@@ -452,18 +411,13 @@ export class StatsUserResponseFactory {
             const dayEnd = dayStart + oneDay;
             
             return this.createMockStats({
-                user: {
-                    ...this.createMockStats().user,
-                    id: userId,
-                },
-                periodType: PeriodTypeEnum.Day,
+                // StatsUser doesn't have a user property
+                periodType: StatPeriodType.Daily,
                 periodStart: new Date(dayStart).toISOString(),
                 periodEnd: new Date(dayEnd).toISOString(),
                 runsStarted: Math.floor(Math.random() * 8) + 1,
                 runsCompleted: Math.floor(Math.random() * 6) + 1,
-                views: Math.floor(Math.random() * 30) + 5,
-                bookmarks: Math.floor(Math.random() * 3),
-                routinesCompleted: Math.floor(Math.random() * 4),
+                resourcesCompletedByType: JSON.stringify({"routine": Math.floor(Math.random() * 4)}),
             });
         });
     }
@@ -474,17 +428,11 @@ export class StatsUserResponseFactory {
     createComparativeStats(userIds: string[]): StatsUser[] {
         return userIds.map(userId => 
             this.createMockStats({
-                user: {
-                    ...this.createMockStats().user,
-                    id: userId,
-                    name: `User ${userId}`,
-                    handle: `user_${userId}`,
-                },
-                periodType: PeriodTypeEnum.Month,
+                id: `stats_${userId}`,
+                periodType: StatPeriodType.Monthly,
                 runsCompleted: Math.floor(Math.random() * 100) + 20,
-                routinesCreated: Math.floor(Math.random() * 15) + 2,
-                projectsCompleted: Math.floor(Math.random() * 8) + 1,
-                views: Math.floor(Math.random() * 1000) + 100,
+                resourcesCreatedByType: JSON.stringify({"routine": Math.floor(Math.random() * 15) + 2}),
+                resourcesCompletedByType: JSON.stringify({"project": Math.floor(Math.random() * 8) + 1}),
             }),
         );
     }
@@ -494,26 +442,12 @@ export class StatsUserResponseFactory {
      */
     createPersonalDashboardStats(userId: string): StatsUser {
         return this.createMockStats({
-            user: {
-                ...this.createMockStats().user,
-                id: userId,
-                name: "Your Profile",
-                handle: "your_handle",
-            },
-            periodType: PeriodTypeEnum.Month,
-            routines: 45,
-            routinesCreated: 12,
-            routinesCompleted: 38,
-            projects: 18,
-            projectsCreated: 6,
-            projectsCompleted: 4,
-            apis: 8,
-            apisCreated: 3,
-            runs: 180,
+            // StatsUser doesn't have a user property
+            periodType: StatPeriodType.Monthly,
+            resourcesCreatedByType: JSON.stringify({"routine": 12, "project": 6, "api": 3}),
+            resourcesCompletedByType: JSON.stringify({"routine": 38, "project": 4}),
             runsStarted: 65,
             runsCompleted: 58,
-            views: 1200,
-            bookmarks: 85,
         });
     }
 }
@@ -531,65 +465,53 @@ export class StatsUserMSWHandlers {
     /**
      * Create success handlers for all user statistics endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): RequestHandler[] {
         return [
             // Get user statistics by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/user/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                const url = new URL(req.url);
-                const period = url.searchParams.get("period") as PeriodType;
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/user/:id`, ({ request, params }) => {
+                const { id } = params;
+                const url = new URL(request.url);
+                const period = url.searchParams.get("period") as StatPeriodType;
                 
                 if (period) {
                     const statsByPeriod = this.responseFactory.createStatsByPeriod(id as string);
-                    const stats = statsByPeriod[period] || statsByPeriod[PeriodTypeEnum.Month];
+                    const stats = statsByPeriod[period] || statsByPeriod[StatPeriodType.Monthly];
                     const response = this.responseFactory.createSuccessResponse(stats);
                     
-                    return res(
-                        ctx.status(200),
-                        ctx.json(response),
-                    );
+                    return HttpResponse.json(response, { status: 200 });
                 }
                 
                 const stats = this.responseFactory.createMockStats({
-                    user: {
-                        ...this.responseFactory.createMockStats().user,
-                        id: id as string,
-                    },
+                    id: `stats_${id}`,
                 });
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Get current user's statistics
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/user/me`, (req, res, ctx) => {
-                const url = new URL(req.url);
-                const period = url.searchParams.get("period") as PeriodType || PeriodTypeEnum.Month;
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/user/me`, ({ request, params }) => {
+                const url = new URL(request.url);
+                const period = url.searchParams.get("period") as StatPeriodType || StatPeriodType.Monthly;
                 
                 const stats = this.responseFactory.createPersonalDashboardStats("current-user");
                 stats.periodType = period;
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Search user statistics
-            http.post(`${this.responseFactory["baseUrl"]}/api/stats/user/search`, async (req, res, ctx) => {
-                const body = await req.json() as StatsUserSearchInput;
-                const url = new URL(req.url);
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/user/search`, async ({ request, params }) => {
+                const body = await request.json() as StatsUserSearchInput;
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 
                 let statsList: StatsUser[] = [];
                 
-                if (body.userIds && body.userIds.length > 0) {
-                    statsList = this.responseFactory.createComparativeStats(body.userIds);
+                if (body.ids && body.ids.length > 0) {
+                    statsList = this.responseFactory.createComparativeStats(body.ids);
                 } else {
                     statsList = this.responseFactory.createHighPerformingUserStats();
                 }
@@ -615,16 +537,13 @@ export class StatsUserMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Get top performing users
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/user/top-performers`, (req, res, ctx) => {
-                const url = new URL(req.url);
-                const period = url.searchParams.get("period") as PeriodType || PeriodTypeEnum.Month;
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/user/top-performers`, ({ request, params }) => {
+                const url = new URL(request.url);
+                const period = url.searchParams.get("period") as StatPeriodType || StatPeriodType.Monthly;
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 
                 const topUsers = this.responseFactory.createHighPerformingUserStats()
@@ -633,32 +552,26 @@ export class StatsUserMSWHandlers {
                 
                 const response = this.responseFactory.createStatsListResponse(topUsers);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Get time series data for user
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/user/:id/timeseries`, (req, res, ctx) => {
-                const { id } = req.params;
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/user/:id/timeseries`, ({ request, params }) => {
+                const { id } = params;
+                const url = new URL(request.url);
                 const days = parseInt(url.searchParams.get("days") || "30");
                 
                 const timeSeriesData = this.responseFactory.createTimeSeriesStats(id as string, days);
                 const response = this.responseFactory.createStatsListResponse(timeSeriesData);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Get aggregated statistics for multiple users
-            http.post(`${this.responseFactory["baseUrl"]}/api/stats/user/aggregate`, async (req, res, ctx) => {
-                const { userIds, periodType } = await req.json() as {
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/user/aggregate`, async ({ request, params }) => {
+                const { userIds, periodType } = await request.json() as {
                     userIds: string[];
-                    periodType: PeriodType;
+                    periodType: StatPeriodType;
                 };
                 
                 const aggregatedStats = this.responseFactory.createComparativeStats(userIds)
@@ -666,10 +579,7 @@ export class StatsUserMSWHandlers {
                 
                 const response = this.responseFactory.createStatsListResponse(aggregatedStats);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -677,30 +587,30 @@ export class StatsUserMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): RequestHandler[] {
         return [
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/user/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/user/:id`, ({ request, params }) => {
+                const { id } = params;
+                return HttpResponse.json(
+                    this.responseFactory.createNotFoundErrorResponse(id as string),
+                    { status: 404 }
                 );
             }),
             
             // Permission error
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/user/:id`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("view")),
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/user/:id`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createPermissionErrorResponse("view"),
+                    { status: 403 }
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/stats/user/search`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/user/search`, ({ request, params }) => {
+                return HttpResponse.json(
+                    this.responseFactory.createServerErrorResponse(),
+                    { status: 500 }
                 );
             }),
         ];
@@ -709,23 +619,17 @@ export class StatsUserMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RequestHandler[] {
         return [
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/user/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/user/:id`, async ({ request, params }) => {
+                const { id } = params;
                 const stats = this.responseFactory.createMockStats({
-                    user: {
-                        ...this.responseFactory.createMockStats().user,
-                        id: id as string,
-                    },
+                    id: `stats_${id}`,
                 });
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -733,14 +637,14 @@ export class StatsUserMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): RequestHandler[] {
         return [
-            http.get(`${this.responseFactory["baseUrl"]}/api/stats/user/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/user/:id`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
             
-            http.post(`${this.responseFactory["baseUrl"]}/api/stats/user/search`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/user/search`, ({ request, params }) => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -754,18 +658,17 @@ export class StatsUserMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): RequestHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        const httpMethod = http[method.toLowerCase() as keyof typeof http] as any;
+        return httpMethod(fullEndpoint, async ({ request, params }) => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }
@@ -796,7 +699,7 @@ export const statsUserResponseScenarios = {
         );
     },
     
-    topPerformers: (period?: PeriodType) => {
+    topPerformers: (period?: StatPeriodType) => {
         const factory = new StatsUserResponseFactory();
         const topUsers = factory.createHighPerformingUserStats();
         if (period) {

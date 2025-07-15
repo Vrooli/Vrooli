@@ -32,16 +32,16 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
                 const rawKeyToShowUser = ApiKeyEncryptionService.generateSiteKey();
                 const id = generatePK();
                 // Store the raw key temporarily for the supplemental fields to pick up
-                rawKeyStore.set(id, rawKeyToShowUser);
+                rawKeyStore.set(id.toString(), rawKeyToShowUser);
                 // Clean up after a short delay (in case of errors)
-                setTimeout(() => rawKeyStore.delete(id), 10000);
+                setTimeout(() => rawKeyStore.delete(id.toString()), 10000);
                 return {
                     id,
                     creditsUsed: BigInt(0),
                     disabledAt: data.disabled === true ? new Date() : data.disabled === false ? null : undefined,
                     limitHard: BigInt(data.limitHard),
                     limitSoft: data.limitSoft ? BigInt(data.limitSoft) : null,
-                    key: ApiKeyEncryptionService.get().hashSiteKey(rawKeyToShowUser),
+                    key: ApiKeyEncryptionService.hashSiteKey(rawKeyToShowUser),
                     name: data.name,
                     permissions: data.permissions,
                     stopAtLimit: data.stopAtLimit,

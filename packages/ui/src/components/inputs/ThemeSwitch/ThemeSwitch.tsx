@@ -9,7 +9,7 @@ import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { noSelect } from "../../../styles.js";
 import { PubSub } from "../../../utils/pubsub.js";
-import { ToggleSwitch } from "../ToggleSwitch/ToggleSwitch.js";
+import { Switch } from "../Switch/Switch.js";
 
 const offIconInfo = { name: "LightMode", type: "Common" } as const;
 const onIconInfo = { name: "DarkMode", type: "Common" } as const;
@@ -26,9 +26,9 @@ export function ThemeSwitch({
     const { t } = useTranslation();
 
     const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointsUser.profileUpdate);
-    const handleChange = useCallback(() => {
+    const handleChange = useCallback((checked: boolean) => {
         if (isUpdating) return;
-        const newTheme = palette.mode === "light" ? "dark" : "light";
+        const newTheme = checked ? "dark" : "light";
         PubSub.get().publish("theme", newTheme);
         if (updateServer) {
             fetchLazyWrapper<ProfileUpdateInput, User>({
@@ -36,7 +36,7 @@ export function ThemeSwitch({
                 inputs: { theme: newTheme },
             });
         }
-    }, [fetch, isUpdating, palette.mode, updateServer]);
+    }, [fetch, isUpdating, updateServer]);
 
     const isDark = useMemo(() => palette.mode === "dark", [palette.mode]);
 
@@ -52,11 +52,13 @@ export function ThemeSwitch({
             <Typography variant="body1" sx={noSelect}>
                 {palette.mode === "light" ? t("Light") : t("Dark")}
             </Typography>
-            <ToggleSwitch
+            <Switch
                 checked={isDark}
                 onChange={handleChange}
-                offIconInfo={offIconInfo}
-                onIconInfo={onIconInfo}
+                offIcon={offIconInfo}
+                onIcon={onIconInfo}
+                size="md"
+                labelPosition="none"
             />
         </Box>
     );

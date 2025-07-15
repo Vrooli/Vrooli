@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-01 - Fixed 4 'as any' type assertions (replaced with null for circular refs, proper CodeVersion type)
 import { CodeLanguage, ResourceSubType, ResourceUsedFor, endpointsResource, generatePK, getObjectUrl, type Code, type CodeVersion, type CodeVersionTranslation } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
+import { getMockEndpoint, getStoryRouteEditPath } from "../../../__test/helpers/storybookMocking.js";
 import { SmartContractUpsert } from "./SmartContractUpsert.js";
 
 // Create simplified mock data for CodeVersion responses
@@ -73,7 +75,7 @@ contract SimpleStorage {
         id: generatePK().toString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        listFor: {} as any, // Circular reference
+        listFor: null, // Circular reference handled by null
         resources: [
             {
                 __typename: "Resource" as const,
@@ -82,7 +84,7 @@ contract SimpleStorage {
                 updatedAt: new Date().toISOString(),
                 usedFor: ResourceUsedFor.Context,
                 link: "https://ethereum.org/en/developers/docs/smart-contracts/",
-                list: {} as any, // Circular reference
+                list: null, // Circular reference handled by null
                 translations: [{
                     __typename: "ResourceTranslation" as const,
                     id: generatePK().toString(),
@@ -98,7 +100,7 @@ contract SimpleStorage {
                 updatedAt: new Date().toISOString(),
                 usedFor: ResourceUsedFor.Context,
                 link: "https://solidity.readthedocs.io/",
-                list: {} as any, // Circular reference
+                list: null, // Circular reference handled by null
                 translations: [{
                     __typename: "ResourceTranslation" as const,
                     id: generatePK().toString(),
@@ -129,7 +131,7 @@ contract SimpleStorage {
         canUpdate: true,
         canUse: true,
     },
-} as any; // Cast to any to fix type issues
+} as CodeVersion; // Cast to CodeVersion with proper typing
 
 export default {
     title: "Views/Objects/SmartContract/SmartContractUpsert",
@@ -174,13 +176,13 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findSmartContractVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findSmartContractVersion), () => {
                 return HttpResponse.json({ data: mockCodeVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockCodeVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockCodeVersionData),
     },
 };
 
@@ -202,13 +204,13 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findSmartContractVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findSmartContractVersion), () => {
                 return HttpResponse.json({ data: mockCodeVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockCodeVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockCodeVersionData),
     },
 };
 
@@ -222,7 +224,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findSmartContractVersion.findOne.endpoint}`, async () => {
+            http.get(getMockEndpoint(endpointsResource.findSmartContractVersion), async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockCodeVersionData });
@@ -230,7 +232,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockCodeVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockCodeVersionData),
     },
 };
 

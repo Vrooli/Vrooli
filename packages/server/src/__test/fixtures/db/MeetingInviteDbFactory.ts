@@ -1,4 +1,4 @@
-import { generatePK, InviteStatus } from "@vrooli/shared";
+import { ChatInviteStatus as InviteStatus } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -25,37 +25,38 @@ interface MeetingInviteRelationConfig extends RelationConfig {
  * - Constraint validation
  */
 export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
-    Prisma.MeetingInviteCreateInput,
-    Prisma.MeetingInviteCreateInput,
-    Prisma.MeetingInviteInclude,
-    Prisma.MeetingInviteUpdateInput
+    meeting_invite,
+    Prisma.meeting_inviteCreateInput,
+    Prisma.meeting_inviteInclude,
+    Prisma.meeting_inviteUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
         super("MeetingInvite", prisma);
         this.initializeScenarios();
     }
 
     protected getPrismaDelegate() {
-        return this.prisma.meetingInvite;
+        return this.prisma.meeting_invite;
     }
 
     /**
      * Get complete test fixtures for MeetingInvite model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.MeetingInviteCreateInput, Prisma.MeetingInviteUpdateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.meeting_inviteCreateInput, Prisma.meeting_inviteUpdateInput> {
         return {
             minimal: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 status: InviteStatus.Pending,
-                meeting: { connect: { id: "meeting-123" } },
-                user: { connect: { id: "user-123" } },
+                meeting: { connect: { id: this.generateId() } },
+                user: { connect: { id: this.generateId() } },
             },
             complete: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 status: InviteStatus.Pending,
                 message: "You're invited to our quarterly planning meeting. Your input would be valuable!",
-                meeting: { connect: { id: "meeting-456" } },
-                user: { connect: { id: "user-456" } },
+                meeting: { connect: { id: this.generateId() } },
+                user: { connect: { id: this.generateId() } },
             },
             invalid: {
                 missingRequired: {
@@ -71,61 +72,61 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
                     user: null, // Should be object
                 },
                 duplicateInvite: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     status: InviteStatus.Pending,
-                    meeting: { connect: { id: "existing-meeting" } },
-                    user: { connect: { id: "existing-user" } }, // Assumes this combo exists
+                    meeting: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } }, // Assumes this combo exists
                 },
                 invalidStatus: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     // @ts-expect-error - Intentionally invalid status
                     status: "InvalidStatus",
-                    meeting: { connect: { id: "meeting-123" } },
-                    user: { connect: { id: "user-123" } },
+                    meeting: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } },
                 },
             },
             edgeCases: {
                 maxLengthMessage: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     status: InviteStatus.Pending,
                     message: "a".repeat(4096), // Max length message
-                    meeting: { connect: { id: "meeting-789" } },
-                    user: { connect: { id: "user-789" } },
+                    meeting: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 unicodeMessage: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     status: InviteStatus.Pending,
                     message: "You're invited! 🎉 Join us for an important meeting 📅",
-                    meeting: { connect: { id: "meeting-unicode" } },
-                    user: { connect: { id: "user-unicode" } },
+                    meeting: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 acceptedInvite: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     status: InviteStatus.Accepted,
                     message: "Looking forward to your participation",
-                    meeting: { connect: { id: "meeting-accepted" } },
-                    user: { connect: { id: "user-accepted" } },
+                    meeting: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 declinedInvite: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     status: InviteStatus.Declined,
                     message: "Unfortunately, I have a conflict at that time",
-                    meeting: { connect: { id: "meeting-declined" } },
-                    user: { connect: { id: "user-declined" } },
+                    meeting: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 noMessageInvite: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     status: InviteStatus.Pending,
                     message: null,
-                    meeting: { connect: { id: "meeting-no-msg" } },
-                    user: { connect: { id: "user-no-msg" } },
+                    meeting: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 lastMinuteInvite: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     status: InviteStatus.Pending,
                     message: "Urgent: Meeting starting in 30 minutes. Can you join?",
-                    meeting: { connect: { id: "meeting-urgent" } },
-                    user: { connect: { id: "user-urgent" } },
+                    meeting: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } },
                 },
             },
             updates: {
@@ -140,18 +141,18 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateMinimalData(overrides?: Partial<Prisma.MeetingInviteCreateInput>): Prisma.MeetingInviteCreateInput {
+    protected generateMinimalData(overrides?: Partial<Prisma.meeting_inviteCreateInput>): Prisma.meeting_inviteCreateInput {
         // Note: meeting and user connections must be provided via overrides or config
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             status: InviteStatus.Pending,
             ...overrides,
         };
     }
 
-    protected generateCompleteData(overrides?: Partial<Prisma.MeetingInviteCreateInput>): Prisma.MeetingInviteCreateInput {
+    protected generateCompleteData(overrides?: Partial<Prisma.meeting_inviteCreateInput>): Prisma.meeting_inviteCreateInput {
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             status: InviteStatus.Pending,
             message: "You're invited to join our team meeting. Your expertise would be valuable for this discussion.",
             ...overrides,
@@ -171,8 +172,8 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
                         status: InviteStatus.Pending,
                         message: "Please join us for our weekly team meeting",
                     },
-                    meeting: { meetingId: "meeting-pending" },
-                    user: { userId: "user-pending" },
+                    meeting: { meetingId: this.bigIntToString(this.generateId()) },
+                    user: { user: { connect: { id: this.generateId() } } },
                 },
             },
             acceptedInvite: {
@@ -183,8 +184,8 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
                         status: InviteStatus.Accepted,
                         message: "I'll be there! Looking forward to it",
                     },
-                    meeting: { meetingId: "meeting-accepted" },
-                    user: { userId: "user-accepted" },
+                    meeting: { meetingId: this.bigIntToString(this.generateId()) },
+                    user: { user: { connect: { id: this.generateId() } } },
                 },
             },
             declinedInvite: {
@@ -195,8 +196,8 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
                         status: InviteStatus.Declined,
                         message: "Sorry, I have another commitment at that time",
                     },
-                    meeting: { meetingId: "meeting-declined" },
-                    user: { userId: "user-declined" },
+                    meeting: { meetingId: this.bigIntToString(this.generateId()) },
+                    user: { user: { connect: { id: this.generateId() } } },
                 },
             },
             executiveInvite: {
@@ -207,8 +208,8 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
                         status: InviteStatus.Pending,
                         message: "Your presence is requested at the quarterly board meeting",
                     },
-                    meeting: { meetingId: "meeting-executive" },
-                    user: { userId: "user-executive" },
+                    meeting: { meetingId: this.bigIntToString(this.generateId()) },
+                    user: { user: { connect: { id: this.generateId() } } },
                 },
             },
             clientInvite: {
@@ -219,8 +220,8 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
                         status: InviteStatus.Pending,
                         message: "We'd love to show you our new product features. Are you available for a demo?",
                     },
-                    meeting: { meetingId: "meeting-client" },
-                    user: { userId: "user-client" },
+                    meeting: { meetingId: this.bigIntToString(this.generateId()) },
+                    user: { user: { connect: { id: this.generateId() } } },
                 },
             },
             teamRetroInvite: {
@@ -231,14 +232,14 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
                         status: InviteStatus.Pending,
                         message: "Time for our sprint retrospective. Please prepare your thoughts on what went well and what could improve.",
                     },
-                    meeting: { meetingId: "meeting-retro" },
-                    user: { userId: "user-team-member" },
+                    meeting: { meetingId: this.bigIntToString(this.generateId()) },
+                    user: { user: { connect: { id: this.generateId() } } },
                 },
             },
         };
     }
 
-    protected getDefaultInclude(): Prisma.MeetingInviteInclude {
+    protected getDefaultInclude(): Prisma.meeting_inviteInclude {
         return {
             meeting: {
                 select: {
@@ -275,10 +276,10 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async applyRelationships(
-        baseData: Prisma.MeetingInviteCreateInput,
+        baseData: Prisma.meeting_inviteCreateInput,
         config: MeetingInviteRelationConfig,
         tx: any,
-    ): Promise<Prisma.MeetingInviteCreateInput> {
+    ): Promise<Prisma.meeting_inviteCreateInput> {
         const data = { ...baseData };
 
         // Handle meeting connection (required)
@@ -309,7 +310,7 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
         meetingId: string,
         userId: string,
         message?: string,
-    ): Promise<Prisma.MeetingInvite> {
+    ): Promise<MeetingInvite> {
         return await this.createWithRelations({
             overrides: {
                 status: InviteStatus.Pending,
@@ -327,7 +328,7 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
         meetingId: string,
         userIds: string[],
         message?: string,
-    ): Promise<Prisma.MeetingInvite[]> {
+    ): Promise<meeting_invite[]> {
         const invites = await Promise.all(
             userIds.map(userId => 
                 this.createPendingInvite(meetingId, userId, message),
@@ -339,22 +340,22 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
     /**
      * Accept an invite
      */
-    async acceptInvite(inviteId: string): Promise<Prisma.MeetingInvite> {
-        const updated = await this.prisma.meetingInvite.update({
+    async acceptInvite(inviteId: string): Promise<MeetingInvite> {
+        const updated = await this.prisma.meeting_invite.update({
             where: { id: inviteId },
             data: { status: InviteStatus.Accepted },
             include: this.getDefaultInclude(),
         });
 
         // Also add as attendee
-        const invite = await this.prisma.meetingInvite.findUnique({
+        const invite = await this.prisma.meeting_invite.findUnique({
             where: { id: inviteId },
         });
         
         if (invite) {
-            await this.prisma.meetingAttendee.create({
+            await this.prisma.meeting_attendee.create({
                 data: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     meetingId: invite.meetingId,
                     userId: invite.userId,
                 },
@@ -367,8 +368,8 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
     /**
      * Decline an invite
      */
-    async declineInvite(inviteId: string, reason?: string): Promise<Prisma.MeetingInvite> {
-        const updated = await this.prisma.meetingInvite.update({
+    async declineInvite(inviteId: string, reason?: string): Promise<MeetingInvite> {
+        const updated = await this.prisma.meeting_invite.update({
             where: { id: inviteId },
             data: { 
                 status: InviteStatus.Declined,
@@ -379,11 +380,11 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
         return updated;
     }
 
-    protected async checkModelConstraints(record: Prisma.MeetingInvite): Promise<string[]> {
+    protected async checkModelConstraints(record: MeetingInvite): Promise<string[]> {
         const violations: string[] = [];
         
         // Check for duplicate invite
-        const duplicate = await this.prisma.meetingInvite.findFirst({
+        const duplicate = await this.prisma.meeting_invite.findFirst({
             where: {
                 meetingId: record.meetingId,
                 userId: record.userId,
@@ -396,7 +397,7 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
         }
 
         // Check if user is already an attendee
-        const existingAttendee = await this.prisma.meetingAttendee.findFirst({
+        const existingAttendee = await this.prisma.meeting_attendee.findFirst({
             where: {
                 meetingId: record.meetingId,
                 userId: record.userId,
@@ -436,7 +437,7 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.MeetingInvite,
+        record: meeting_invite,
         remainingDepth: number,
         tx: any,
         includeOnly?: string[],
@@ -450,13 +451,13 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
     async getInvitesByStatus(
         status: InviteStatus,
         meetingId?: string,
-    ): Promise<Prisma.MeetingInvite[]> {
-        const where: Prisma.MeetingInviteWhereInput = { status };
+    ): Promise<meeting_invite[]> {
+        const where: Prisma.meeting_inviteWhereInput = { status };
         if (meetingId) {
             where.meetingId = meetingId;
         }
 
-        return await this.prisma.meetingInvite.findMany({
+        return await this.prisma.meeting_invite.findMany({
             where,
             include: this.getDefaultInclude(),
             orderBy: { createdAt: "desc" },
@@ -466,8 +467,8 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get user's pending meeting invites
      */
-    async getUserPendingInvites(userId: string): Promise<Prisma.MeetingInvite[]> {
-        return await this.prisma.meetingInvite.findMany({
+    async getUserPendingInvites(userId: string): Promise<meeting_invite[]> {
+        return await this.prisma.meeting_invite.findMany({
             where: {
                 userId,
                 status: InviteStatus.Pending,
@@ -482,10 +483,10 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
      */
     async getReminderCandidates(
         hoursBeforeMeeting = 24,
-    ): Promise<Prisma.MeetingInvite[]> {
+    ): Promise<meeting_invite[]> {
         const cutoffTime = new Date(Date.now() + hoursBeforeMeeting * 60 * 60 * 1000);
         
-        return await this.prisma.meetingInvite.findMany({
+        return await this.prisma.meeting_invite.findMany({
             where: {
                 status: InviteStatus.Pending,
                 meeting: {
@@ -511,9 +512,9 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
         meetingId: string,
         userIds: string[],
     ): Promise<{
-        pending: Prisma.MeetingInvite[];
-        accepted: Prisma.MeetingInvite[];
-        declined: Prisma.MeetingInvite[];
+        pending: meeting_invite[];
+        accepted: meeting_invite[];
+        declined: meeting_invite[];
     }> {
         if (userIds.length < 3) {
             throw new Error("Need at least 3 user IDs for test set");
@@ -553,10 +554,10 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
      * Create invites for different meeting types
      */
     async createMeetingTypeInvites(userId: string): Promise<{
-        teamMeeting: Prisma.MeetingInvite;
-        clientMeeting: Prisma.MeetingInvite;
-        webinar: Prisma.MeetingInvite;
-        oneOnOne: Prisma.MeetingInvite;
+        teamMeeting: meeting_invite;
+        clientMeeting: meeting_invite;
+        webinar: meeting_invite;
+        oneOnOne: meeting_invite;
     }> {
         const teamMeeting = await this.createPendingInvite(
             "meeting-team",
@@ -593,7 +594,7 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createMeetingInviteDbFactory = (prisma: PrismaClient) => 
-    MeetingInviteDbFactory.getInstance("MeetingInvite", prisma);
+    new MeetingInviteDbFactory(prisma);
 
 // Export the class for type usage
 export { MeetingInviteDbFactory as MeetingInviteDbFactoryClass };

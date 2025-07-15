@@ -1,0 +1,61 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: automatic-docker-cleanup
+  namespace: kube-system
+spec:
+  # Run every Sunday at 2:00 AM UTC
+  schedule: "0 2 * * 0"
+  jobTemplate:
+    spec:
+      parallelism: 3  # Run on all 3 nodes simultaneously
+      completions: 3
+      template:
+        spec:
+          hostNetwork: true
+          hostPID: true
+          tolerations:
+          - operator: Exists
+          containers:
+          - name: cleanup
+            image: alpine:latest
+            command: ["/bin/sh"]
+            args: 
+            - "-c"
+            - |
+              echo "=== Automatic Weekly Docker Cleanup Started ==="
+              echo "Node: $(hostname)"
+              echo "Date: $(date)"
+              
+              nsenter -t 1 -m -u -n -i -p -- /bin/sh -c "
+                echo 'Cleaning up unused Docker images and containers...'
+                
+                # Clean up containerd images
+                if command -v crictl >/dev/null 2>&1; then
+                  echo 'Running crictl cleanup...'
+                  crictl rmi --prune 2>/dev/null || echo 'crictl cleanup completed'
+                fi
+                
+                # Clean up Docker if available
+                if command -v docker >/dev/null 2>&1; then
+                  echo 'Running docker system prune...'
+                  docker system prune -af --volumes 2>/dev/null || echo 'docker cleanup completed'
+                fi
+                
+                echo 'Node cleanup finished successfully'
+              "
+              
+              echo "=== Automatic Cleanup Completed ==="
+            securityContext:
+              privileged: true
+            volumeMounts:
+            - name: host-root
+              mountPath: /host
+          volumes:
+          - name: host-root
+            hostPath:
+              path: /
+          restartPolicy: Never
+  # Keep last 3 cleanup job results for debugging
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3

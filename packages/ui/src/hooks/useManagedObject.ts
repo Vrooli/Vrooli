@@ -20,7 +20,7 @@ const MAX_FETCH_RETRIES = 3;
 /**
  * Determines the return type based on whether a transform function is provided.
  */
-type ObjectReturnType<TData extends UrlObject, TFunc> = TFunc extends (data: any) => infer R
+type ObjectReturnType<TData extends UrlObject, TFunc> = TFunc extends (data: unknown) => infer R
     ? R
     : PartialWithType<TData>;
 
@@ -172,11 +172,11 @@ export function applyDataTransform<PData extends UrlObject, TData extends UrlObj
                 console.error("[applyDataTransform] Transform function threw an error:", error);
             }
             // Return the untransformed data as fallback
-            return data as unknown as TData;
+            return data as TData;
         }
     }
     
-    return data as unknown as TData;
+    return data as TData;
 }
 
 /**
@@ -195,10 +195,10 @@ export function useObjectForm<
     const getFormCacheData = useFormCacheStore(state => state.getCacheData);
 
     // Get stored form data if it exists (memoized)
-    const storedFormData = useMemo(() => pathname && pathname.length > 1 ? getFormCacheData(pathname) as PData : undefined, [pathname, getFormCacheData]);
+    const storedFormData = useMemo(() => pathname && pathname.length > 1 ? getFormCacheData(pathname) as Partial<PData> : undefined, [pathname, getFormCacheData]);
 
     // Memoize transform function to prevent unnecessary recalculations
-    const stableTransform = useCallback(transform || ((data: Partial<PData>) => data as unknown as TData), [transform]);
+    const stableTransform = useCallback(transform || ((data: Partial<PData>) => data as TData), [transform]);
 
     // Determine initial data with priorities
     const initialObject = useMemo(() => {
@@ -292,7 +292,7 @@ export function useManagedObject<
 }: UseManagedObjectParams<PData, TData, TFunc>): UseManagedObjectReturn<TData, TFunc> {
 
     // Create stable callbacks/objects
-    const overrideObject = useStableObject(unstableOverrideObject as any);
+    const overrideObject = useStableObject(unstableOverrideObject);
 
     // Initialize data fetching if not disabled and no override object
     const shouldFetch = !disabled && !overrideObject;
@@ -428,7 +428,7 @@ export function useManagedObject<
 
     // Determine permissions based on the object
     const permissions = useMemo(() =>
-        formData ? getYou(formData as unknown as PData) : defaultYou,
+        formData ? getYou(formData as PData) : defaultYou,
         [formData],
     );
 

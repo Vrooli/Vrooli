@@ -107,13 +107,31 @@ export type ModelLogic<
  * are a single ModelType, while unions are handled with an object. 
  * A union object maps Prisma relation fields to ModelTypes.
  */
+/**
+ * Empty ApiRelMap type for fallback support
+ */
+export type EmptyApiRelMap<Typename extends `${ModelType}`> = {
+    __typename: Typename;
+};
+
+/**
+ * Union type that allows both full ApiRelMap and empty fallback
+ */
+export type SafeApiRelMap<
+    Typename extends `${ModelType}`,
+    ApiModel extends ModelLogicType["ApiModel"],
+    DbModel extends ModelLogicType["DbModel"],
+> = ApiRelMap<Typename, ApiModel, DbModel> | EmptyApiRelMap<Typename>;
+
 export type ApiRelMap<
     Typename extends `${ModelType}`,
     ApiModel extends ModelLogicType["ApiModel"],
     DbModel extends ModelLogicType["DbModel"],
 > = {
-    [K in keyof ApiModel]?: `${ModelType}` | ({ [K2 in keyof DbModel]?: `${ModelType}` })
-} & { __typename: Typename };
+    [K in keyof ApiModel]?: `${ModelType}` | Record<string, `${ModelType}`>
+} & { 
+    __typename: Typename;
+};
 
 /**
  * Allows Prisma select fields to map to ModelTypes

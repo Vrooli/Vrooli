@@ -17,12 +17,42 @@ import { SocketService } from "../../sockets/io.js";
 import type { ApiEndpoint, SessionData } from "../../types.js";
 import { hasProfanity } from "../../utils/censor.js";
 
+// AI_CHECK: TYPE_SAFETY=server-auth-type-safety-fixes | LAST: 2025-07-02 - Fixed OAuth config 'as any' casting and unsafe string casting in database queries
+
 // Constants
 const OAUTH_STATE_LENGTH = 32;
 const OAUTH_STATE_EXPIRY_MINUTES = 15;
 const MS_IN_SECOND = 1000;
 const SECONDS_IN_MINUTE = 60;
 const MINUTES_TO_MS = SECONDS_IN_MINUTE * MS_IN_SECOND;
+
+// Type guards for safer type checking
+function isValidStringId(value: unknown): value is string {
+    return typeof value === "string" && value.trim().length > 0;
+}
+
+function isValidNonceDescription(value: unknown): value is string | undefined {
+    return value === undefined || (typeof value === "string" && value.trim().length > 0);
+}
+
+function isValidPassword(value: unknown): value is string {
+    return typeof value === "string" && value.length > 0;
+}
+
+function getSessionUserId(session: { users?: Array<{ id?: unknown }> }): string {
+    const userId = session.users?.[0]?.id;
+    if (!isValidStringId(userId)) {
+        throw new CustomError("0323", "InvalidSessionUser");
+    }
+    return userId;
+}
+
+function validateUserId(value: unknown, context: string): string {
+    if (!isValidStringId(value)) {
+        throw new CustomError("0321", "InvalidArgs", { detail: `Invalid user ID in ${context}` });
+    }
+    return value;
+}
 
 export type OAuthInitiateInput = {
     resourceId: string;
@@ -76,7 +106,7 @@ const GUEST_SESSION: Session & SessionData = {
     users: [],
 };
 
-async function establishGuestSession(res: Response) {
+async function establishGuestSession(res: Response): Promise<Session> {
     res.clearCookie(COOKIE.Jwt);
     const session = GUEST_SESSION;
     await AuthTokensService.generateSessionToken(res, session);
@@ -153,7 +183,10 @@ export const auth: EndpointsAuth = {
                 }
             }
             // Create new session
-            const session = await PasswordAuthService.logIn(input?.password as string, user, req);
+            if (!isValidPassword(input?.password)) {
+                throw new CustomError("0325", "InvalidArgs", { detail: "Invalid password provided" });
+            }
+            const session = await PasswordAuthService.logIn(input.password, user, req);
             if (session) {
                 // Set session token
                 await AuthTokensService.generateSessionToken(res, session);
@@ -258,9 +291,13 @@ export const auth: EndpointsAuth = {
         RequestService.assertRequestFrom(req, { isApiToken: false });
         // Validate input format
         emailResetPasswordSchema.validateSync(input, { abortEarly: false });
-        // Find user
+        // Find user with proper type validation
+        const whereClause = input.id 
+            ? { id: BigInt(validateUserId(input.id, "email reset password")) }
+            : { publicId: validateUserId(input.publicId, "email reset password") };
+        
         const user = await DbProvider.get().user.findUnique({
-            where: input.id ? { id: BigInt(input.id as string) } : { publicId: input.publicId as string },
+            where: whereClause,
             select: PasswordAuthService.selectUserForPasswordAuth(),
         });
         if (!user) {
@@ -511,7 +548,10 @@ export const auth: EndpointsAuth = {
         if (!deserializedStakingAddress.startsWith("stake1"))
             throw new CustomError("0149", "MustUseMainnet");
         // Generate nonce for handshake
-        const nonce = await generateNonce(input.nonceDescription as string | undefined);
+        if (!isValidNonceDescription(input.nonceDescription)) {
+            throw new CustomError("0324", "InvalidArgs", { detail: "Invalid nonce description" });
+        }
+        const nonce = await generateNonce(input.nonceDescription);
         // Find existing wallet data in database
         let walletData = await DbProvider.get().wallet.findUnique({
             where: {
@@ -622,8 +662,9 @@ export const auth: EndpointsAuth = {
         else {
             // If wallet is not verified, link it to your account
             if (!walletData.verifiedAt) {
+                const currentUserId = getSessionUserId(req.session);
                 await DbProvider.get().user.update({
-                    where: { id: BigInt(req.session.users?.[0]?.id as string) },
+                    where: { id: BigInt(currentUserId) },
                     data: {
                         wallets: {
                             connect: { id: walletData.id },
@@ -648,21 +689,40 @@ export const auth: EndpointsAuth = {
                 stakingAddress: true,
             },
         });
-        // Create session token
-        // const session = await SessionService.createSession(userData, sessionData, req);
-        const session = {} as Session; //TODO 11/21
-        // Add session token to return payload
-        await AuthTokensService.generateSessionToken(res, session);
+        // Create session token if user exists
+        let session: Session | undefined;
+        if (userId) {
+            // Fetch user data for session creation
+            const userData = await DbProvider.get().user.findUnique({
+                where: { id: userId },
+                select: PasswordAuthService.selectUserForPasswordAuth(),
+            });
+            if (userData) {
+                // Find the wallet auth record's ID
+                const walletAuthId = userData.auths.find(a => a.provider === "wallet")?.id;
+                if (walletAuthId) {
+                    // Create session record
+                    const recordedSessionData = await SessionService.createAndRecordSession(userId.toString(), walletAuthId.toString(), req);
+                    // Create response session
+                    session = await SessionService.createSession(userData, recordedSessionData, req);
+                    await AuthTokensService.generateSessionToken(res, session);
+                }
+            }
+        }
+        
         return {
             __typename: "WalletComplete",
             firstLogIn,
             session,
-            wallet: {
+            wallet: wallet ? {
                 ...wallet,
                 id: wallet.id.toString(),
-                __typename: "Wallet",
-            },
-        } as const;
+                __typename: "Wallet" as const,
+                verifiedAt: typeof wallet.verifiedAt === 'string' ? wallet.verifiedAt : wallet.verifiedAt?.toISOString() ?? new Date().toISOString(),
+                user: undefined,
+                team: undefined,
+            } : undefined,
+        };
     },
     oauthInitiate: async ({ input }, { req }) => {
         await RequestService.get().rateLimit({ maxUser: 100, req });
@@ -670,7 +730,7 @@ export const auth: EndpointsAuth = {
 
         const userData = SessionService.getUser(req);
         if (!userData?.id) {
-            throw new CustomError("0002", "NotSignedIn");
+            throw new CustomError("0002", "NotLoggedIn");
         }
 
         const resourceId = BigInt(input.resourceId);
@@ -697,16 +757,22 @@ export const auth: EndpointsAuth = {
 
         const version = resource.versions[0];
         const { ApiVersionConfig } = await import("@vrooli/shared");
-        const { logger } = await import("../../events/logger.js");
-        const config = ApiVersionConfig.parse(version, logger);
+        
+        // Validate config structure before creating ApiVersionConfig
+        if (!version.config || typeof version.config !== "object") {
+            throw new CustomError("0320", "InvalidArgs", { detail: "Invalid API resource configuration" });
+        }
+        
+        // AI_CHECK: TYPE_SAFETY=phase1-4 | LAST: 2025-07-03 - Added missing __version property to ApiVersionConfig object
+        const config = new ApiVersionConfig({ config: { ...version.config as Record<string, unknown>, __version: "1.0" } });
 
         if (config.authentication?.type !== "oauth2") {
-            throw new CustomError("0315", "InvalidAuthType", { expected: "oauth2", actual: config.authentication?.type });
+            throw new CustomError("0315", "InvalidArgs", { expected: "oauth2", actual: config.authentication?.type });
         }
 
         const oauthSettings = config.authentication.settings;
         if (!oauthSettings?.clientId || !oauthSettings?.authUrl) {
-            throw new CustomError("0316", "IncompleteOAuthConfig");
+            throw new CustomError("0316", "InvalidArgs");
         }
 
         // Generate state for CSRF protection
@@ -725,7 +791,10 @@ export const auth: EndpointsAuth = {
         // await redis.setex(stateKey, 900, JSON.stringify(stateData));
 
         // For now, store in session
-        req.session.oauthState = { [state]: stateData };
+        if (!req.session.oauthState) {
+            req.session.oauthState = {};
+        }
+        req.session.oauthState[state] = stateData;
 
         // Build authorization URL
         const authUrl = new URL(oauthSettings.authUrl);
@@ -749,23 +818,27 @@ export const auth: EndpointsAuth = {
 
         const userData = SessionService.getUser(req);
         if (!userData?.id) {
-            throw new CustomError("0002", "NotSignedIn");
+            throw new CustomError("0002", "NotLoggedIn");
         }
 
         // Verify state from session
         const stateData = req.session.oauthState?.[input.state];
         if (!stateData || stateData.userId !== userData.id) {
-            throw new CustomError("0317", "InvalidOAuthState");
+            throw new CustomError("0317", "InvalidArgs");
         }
 
         // Check if state expired
         if (stateData.expires < Date.now()) {
-            delete req.session.oauthState[input.state];
-            throw new CustomError("0318", "OAuthStateExpired");
+            if (req.session.oauthState) {
+                delete req.session.oauthState[input.state];
+            }
+            throw new CustomError("0318", "SessionExpired");
         }
 
         // Remove state after validation
-        delete req.session.oauthState[input.state];
+        if (req.session.oauthState) {
+            delete req.session.oauthState[input.state];
+        }
 
         const resourceId = BigInt(stateData.resourceId);
 
@@ -791,13 +864,19 @@ export const auth: EndpointsAuth = {
 
         const version = resource.versions[0];
         const { ApiVersionConfig } = await import("@vrooli/shared");
-        const { logger } = await import("../../events/logger.js");
-        const config = ApiVersionConfig.parse(version, logger);
+        
+        // Validate config structure before creating ApiVersionConfig
+        if (!version.config || typeof version.config !== "object") {
+            throw new CustomError("0320", "InvalidArgs", { detail: "Invalid API resource configuration" });
+        }
+        
+        // AI_CHECK: TYPE_SAFETY=phase1-4 | LAST: 2025-07-03 - Added missing __version property to ApiVersionConfig object
+        const config = new ApiVersionConfig({ config: { ...version.config as Record<string, unknown>, __version: "1.0" } });
         const providerName = version.translations[0].name.toLowerCase();
 
         const oauthSettings = config.authentication?.settings;
         if (!oauthSettings?.clientId || !oauthSettings?.clientSecret || !oauthSettings?.tokenUrl) {
-            throw new CustomError("0316", "IncompleteOAuthConfig");
+            throw new CustomError("0316", "InvalidArgs");
         }
 
         // Exchange code for tokens
@@ -817,8 +896,9 @@ export const auth: EndpointsAuth = {
 
         if (!tokenResponse.ok) {
             const errorText = await tokenResponse.text();
+            const { logger } = await import("../../events/logger.js");
             logger.error("OAuth token exchange failed", { error: errorText });
-            throw new CustomError("0319", "OAuthTokenExchangeFailed");
+            throw new CustomError("0319", "ExternalServiceError");
         }
 
         const tokenData = await tokenResponse.json();

@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.com/schemas/execution-config.schema.json",
+  "title": "Vrooli Local Execution Configuration",
+  "description": "Configuration schema for Vrooli local code execution environment",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "enabled": {
+      "type": "boolean",
+      "description": "Whether local code execution is enabled",
+      "default": false
+    },
+    "allowedLanguages": {
+      "type": "array",
+      "description": "Programming languages allowed for local execution",
+      "items": {
+        "type": "string",
+        "enum": ["javascript", "shell", "python"]
+      },
+      "uniqueItems": true,
+      "default": ["javascript"]
+    },
+    "security": {
+      "type": "object",
+      "description": "Security restrictions and limits",
+      "properties": {
+        "allowedPaths": {
+          "type": "array",
+          "description": "Directories where code execution is allowed (relative to project root)",
+          "items": {
+            "type": "string"
+          },
+          "default": ["./"]
+        },
+        "deniedPaths": {
+          "type": "array",
+          "description": "Directories where code execution is forbidden (takes precedence over allowedPaths)",
+          "items": {
+            "type": "string"
+          },
+          "default": ["./node_modules/", "./.git/"]
+        },
+        "maxTimeoutMs": {
+          "type": "integer",
+          "description": "Maximum allowed timeout for code execution in milliseconds",
+          "minimum": 1000,
+          "maximum": 600000,
+          "default": 300000
+        },
+        "maxMemoryLimitMb": {
+          "type": "integer",
+          "description": "Maximum allowed memory limit in megabytes",
+          "minimum": 64,
+          "maximum": 4096,
+          "default": 1024
+        },
+        "maxOutputBufferKb": {
+          "type": "integer",
+          "description": "Maximum output buffer size in kilobytes",
+          "minimum": 64,
+          "maximum": 10240,
+          "default": 2048
+        },
+        "allowNetworkAccess": {
+          "type": "boolean",
+          "description": "Whether executed code can access the network",
+          "default": false
+        },
+        "allowFileSystemWrites": {
+          "type": "boolean",
+          "description": "Whether executed code can write to the file system",
+          "default": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "defaults": {
+      "type": "object",
+      "description": "Default values for execution parameters",
+      "properties": {
+        "timeoutMs": {
+          "type": "integer",
+          "description": "Default timeout for code execution in milliseconds",
+          "minimum": 1000,
+          "default": 30000
+        },
+        "workingDirectory": {
+          "type": "string",
+          "description": "Default working directory for code execution",
+          "default": "./"
+        },
+        "memoryLimitMb": {
+          "type": "integer",
+          "description": "Default memory limit in megabytes",
+          "minimum": 64,
+          "default": 512
+        }
+      },
+      "additionalProperties": false
+    },
+    "runtime": {
+      "type": "object",
+      "description": "Runtime environment configuration",
+      "properties": {
+        "executables": {
+          "type": "object",
+          "description": "Paths to language executables",
+          "properties": {
+            "node": {
+              "type": "string",
+              "description": "Path to Node.js executable",
+              "default": "node"
+            },
+            "python3": {
+              "type": "string",
+              "description": "Path to Python 3 executable",
+              "default": "python3"
+            },
+            "bash": {
+              "type": "string",
+              "description": "Path to Bash executable",
+              "default": "bash"
+            }
+          },
+          "additionalProperties": false
+        },
+        "environment": {
+          "type": "object",
+          "description": "Environment variables to set for executed code",
+          "patternProperties": {
+            "^[A-Z_][A-Z0-9_]*$": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "logging": {
+      "type": "object",
+      "description": "Logging configuration for code execution",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether to enable execution logging",
+          "default": true
+        },
+        "level": {
+          "type": "string",
+          "description": "Log level for execution events",
+          "enum": ["error", "warn", "info", "debug"],
+          "default": "info"
+        },
+        "auditExecution": {
+          "type": "boolean",
+          "description": "Whether to audit code execution for security review",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "_documentation": {
+      "type": "object",
+      "description": "Documentation and usage notes (ignored by the execution engine)",
+      "additionalProperties": true
+    }
+  },
+  "required": ["enabled"],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "enabled": { "const": true }
+        }
+      },
+      "then": {
+        "properties": {
+          "defaults": {
+            "properties": {
+              "timeoutMs": {
+                "maximum": { "$data": "3/security/maxTimeoutMs" }
+              },
+              "memoryLimitMb": {
+                "maximum": { "$data": "3/security/maxMemoryLimitMb" }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

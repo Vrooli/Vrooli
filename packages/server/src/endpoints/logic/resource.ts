@@ -20,6 +20,7 @@ export const resource: EndpointsResource = createStandardCrudEndpoints({
         findMany: {
             rateLimit: RateLimitPresets.HIGH,
             permissions: PermissionPresets.READ_PUBLIC,
+            useEmbeddings: true,
         },
         createOne: {
             rateLimit: RateLimitPresets.MEDIUM,

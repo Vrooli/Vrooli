@@ -24,7 +24,7 @@ export const tagDbIds = {
 /**
  * Enhanced test fixtures for Tag model following standard structure
  */
-export const tagDbFixtures: DbTestFixtures<Prisma.TagUncheckedCreateInput> = {
+export const tagDbFixtures: DbTestFixtures<Prisma.tag_uncheckedCreateInput> = {
     minimal: {
         id: generatePK(),
         publicId: generatePublicId(),
@@ -129,12 +129,12 @@ export const tagDbFixtures: DbTestFixtures<Prisma.TagUncheckedCreateInput> = {
 /**
  * Enhanced factory for creating tag database fixtures
  */
-export class TagDbFactory extends EnhancedDbFactory<Prisma.TagUncheckedCreateInput> {
+export class TagDbFactory extends EnhancedDbFactory<Prisma.tag_uncheckedCreateInput> {
     
     /**
      * Get the test fixtures for Tag model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.TagUncheckedCreateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.tag_uncheckedCreateInput> {
         return tagDbFixtures;
     }
 
@@ -207,7 +207,7 @@ export class TagDbFactory extends EnhancedDbFactory<Prisma.TagUncheckedCreateInp
     /**
      * Tag-specific validation
      */
-    protected validateSpecific(data: Prisma.TagUncheckedCreateInput): { errors: string[]; warnings: string[] } {
+    protected validateSpecific(data: Prisma.tag_uncheckedCreateInput): { errors: string[]; warnings: string[] } {
         const errors: string[] = [];
         const warnings: string[] = [];
 
@@ -242,15 +242,15 @@ export class TagDbFactory extends EnhancedDbFactory<Prisma.TagUncheckedCreateInp
     }
 
     // Static methods for backward compatibility
-    static createMinimal(overrides?: Partial<Prisma.TagUncheckedCreateInput>): Prisma.TagUncheckedCreateInput {
+    static createMinimal(overrides?: Partial<Prisma.tag_uncheckedCreateInput>): Prisma.tag_uncheckedCreateInput {
         const factory = new TagDbFactory();
         return factory.createMinimal(overrides);
     }
 
     static createWithTranslations(
         translations: Array<{ language: string; description: string }>,
-        overrides?: Partial<Prisma.TagUncheckedCreateInput>,
-    ): Prisma.TagUncheckedCreateInput {
+        overrides?: Partial<Prisma.tag_uncheckedCreateInput>,
+    ): Prisma.tag_uncheckedCreateInput {
         const factory = new TagDbFactory();
         return factory.createMinimal({
             ...overrides,
@@ -264,7 +264,7 @@ export class TagDbFactory extends EnhancedDbFactory<Prisma.TagUncheckedCreateInp
         });
     }
 
-    static createPopular(overrides?: Partial<Prisma.TagUncheckedCreateInput>): Prisma.TagUncheckedCreateInput {
+    static createPopular(overrides?: Partial<Prisma.tag_uncheckedCreateInput>): Prisma.tag_uncheckedCreateInput {
         const factory = new TagDbFactory();
         return factory.createMinimal({
             bookmarks: 100,
@@ -272,7 +272,7 @@ export class TagDbFactory extends EnhancedDbFactory<Prisma.TagUncheckedCreateInp
         });
     }
 
-    static createComplete(overrides?: Partial<Prisma.TagUncheckedCreateInput>): Prisma.TagUncheckedCreateInput {
+    static createComplete(overrides?: Partial<Prisma.tag_uncheckedCreateInput>): Prisma.tag_uncheckedCreateInput {
         const factory = new TagDbFactory();
         return factory.createComplete(overrides);
     }
@@ -283,8 +283,8 @@ export class TagDbFactory extends EnhancedDbFactory<Prisma.TagUncheckedCreateInp
     static createHierarchical(
         parentTag: string,
         childTags: string[],
-        overrides?: Partial<Prisma.TagUncheckedCreateInput>,
-    ): Prisma.TagUncheckedCreateInput[] {
+        overrides?: Partial<Prisma.tag_uncheckedCreateInput>,
+    ): Prisma.tag_uncheckedCreateInput[] {
         const factory = new TagDbFactory();
         const parentId = generatePK();
         
@@ -310,7 +310,7 @@ export class TagDbFactory extends EnhancedDbFactory<Prisma.TagUncheckedCreateInp
      */
     static createTagCloud(
         tags: Array<{ name: string; popularity?: number }>,
-    ): Prisma.TagUncheckedCreateInput[] {
+    ): Prisma.tag_uncheckedCreateInput[] {
         const factory = new TagDbFactory();
         return tags.map(t => 
             factory.createMinimal({
@@ -326,8 +326,8 @@ export class TagDbFactory extends EnhancedDbFactory<Prisma.TagUncheckedCreateInp
     static createMultilingualTag(
         tag: string,
         descriptions: Record<string, string>,
-        overrides?: Partial<Prisma.TagUncheckedCreateInput>,
-    ): Prisma.TagUncheckedCreateInput {
+        overrides?: Partial<Prisma.tag_uncheckedCreateInput>,
+    ): Prisma.tag_uncheckedCreateInput {
         const factory = new TagDbFactory();
         return factory.createMinimal({
             tag,

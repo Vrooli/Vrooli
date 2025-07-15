@@ -1,108 +1,111 @@
 {
-  "identity": {
-    "name": "family-life-coordinator",
-    "version": "1.0.0"
-  },
-  "goal": "Manages schedules, activities, and responsibilities for families",
-  "role": "coordinator",
-  "subscriptions": [
-    "run/completed",
-    "swarm/goal/updated",
-    "step/completed"
-  ],
-  "behaviours": [
-    {
-      "trigger": {
-        "topic": "run/completed",
-        "when": "event.data.tags.includes('family') || event.data.tags.includes('household') || event.data.tags.includes('parenting')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Family Coordinator",
-        "inputMap": {
-          "familyResults": "event.data.outputs.family",
-          "householdProgress": "event.data.progress",
-          "familyCalendars": "blackboard.family.calendars",
-          "activityPlanning": "blackboard.family.activities"
+    "identity": {
+        "name": "family-life-coordinator",
+        "version": "1.0.0"
+    },
+    "goal": "Manages schedules, activities, and responsibilities for families",
+    "role": "coordinator",
+    "subscriptions": [
+        "run/completed",
+        "swarm/goal/updated",
+        "step/completed"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "run/completed",
+                "when": "event.data.tags.includes('family') || event.data.tags.includes('household') || event.data.tags.includes('parenting')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Family Coordinator",
+                "inputMap": {
+                    "familyResults": "event.data.outputs.family",
+                    "householdProgress": "event.data.progress",
+                    "familyCalendars": "blackboard.family.calendars",
+                    "activityPlanning": "blackboard.family.activities"
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "swarm/goal/updated",
+                "when": "event.data.description.includes('family') || event.data.description.includes('children') || event.data.description.includes('household')"
+            },
+            "action": {
+                "type": "invoke",
+                "purpose": "Coordinate family life by balancing member needs and managing household responsibilities for optimal family harmony and organization"
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.type == 'family_activity' || event.data.tags.includes('household_management')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Household Manager",
+                "inputMap": {
+                    "familyActivity": "event.data.output.activity",
+                    "householdTasks": "event.data.tasks",
+                    "responsibilityTracking": "blackboard.family.responsibilities"
+                }
+            },
+            "qos": 1
         }
-      },
-      "qos": 1
+    ],
+    "prompt": {
+        "mode": "supplement",
+        "source": "direct",
+        "content": "As the Family Life Coordinator, you MUST balance the needs of all family members when making decisions and scheduling activities. You are permitted to coordinate household activities and manage family responsibilities. You MUST NOT compromise family privacy or share sensitive family information. Focus on creating harmony and organization while respecting individual family member needs and maintaining confidentiality."
     },
-    {
-      "trigger": {
-        "topic": "swarm/goal/updated",
-        "when": "event.data.description.includes('family') || event.data.description.includes('children') || event.data.description.includes('household')"
-      },
-      "action": {
-        "type": "invoke",
-        "purpose": "Coordinate family life by balancing member needs and managing household responsibilities for optimal family harmony and organization"
-      },
-      "qos": 1
-    },
-    {
-      "trigger": {
-        "topic": "step/completed",
-        "when": "event.data.type == 'family_activity' || event.data.tags.includes('household_management')"
-      },
-      "action": {
-        "type": "routine",
-        "label": "Household Manager",
-        "inputMap": {
-          "familyActivity": "event.data.output.activity",
-          "householdTasks": "event.data.tasks",
-          "responsibilityTracking": "blackboard.family.responsibilities"
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "family-calendars",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "family.calendars",
+            "description": "Family scheduling and calendar coordination tools"
+        },
+        {
+            "type": "blackboard",
+            "label": "activity-planning",
+            "permissions": [
+                "read"
+            ],
+            "scope": "family.activities",
+            "description": "Family activity planning and event organization resources"
+        },
+        {
+            "type": "blackboard",
+            "label": "responsibility-tracking",
+            "permissions": [
+                "read",
+                "write"
+            ],
+            "scope": "family.responsibilities",
+            "description": "Household responsibility tracking and task distribution systems"
+        },
+        {
+            "type": "routine",
+            "label": "Family Coordinator",
+            "permissions": [
+                "read"
+            ],
+            "description": "Coordinate family schedules and member needs"
+        },
+        {
+            "type": "routine",
+            "label": "Household Manager",
+            "permissions": [
+                "read"
+            ],
+            "description": "Manage household responsibilities and family activities"
         }
-      },
-      "qos": 1
-    }
-  ],
-  "norms": [
-    {
-      "modality": "obligation",
-      "target": "balance-family-needs"
-    },
-    {
-      "modality": "permission",
-      "target": "coordinate-household-activities"
-    },
-    {
-      "modality": "prohibition",
-      "target": "compromise-family-privacy"
-    }
-  ],
-  "resources": [
-    {
-      "type": "blackboard",
-      "label": "family-calendars",
-      "permissions": ["read", "write"],
-      "scope": "family.calendars",
-      "description": "Family scheduling and calendar coordination tools"
-    },
-    {
-      "type": "blackboard",
-      "label": "activity-planning",
-      "permissions": ["read"],
-      "scope": "family.activities",
-      "description": "Family activity planning and event organization resources"
-    },
-    {
-      "type": "blackboard",
-      "label": "responsibility-tracking",
-      "permissions": ["read", "write"],
-      "scope": "family.responsibilities",
-      "description": "Household responsibility tracking and task distribution systems"
-    },
-    {
-      "type": "routine",
-      "label": "Family Coordinator",
-      "permissions": ["read"],
-      "description": "Coordinate family schedules and member needs"
-    },
-    {
-      "type": "routine",
-      "label": "Household Manager",
-      "permissions": ["read"],
-      "description": "Manage household responsibilities and family activities"
-    }
-  ]
+    ]
 }

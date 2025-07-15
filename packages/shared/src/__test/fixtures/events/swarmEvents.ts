@@ -6,25 +6,25 @@ import { type SwarmSocketEventPayloads } from "../../../consts/socketEvents.js";
 import { type ChatConfigObject } from "../../../shape/configs/chat.js";
 import { chatConfigFixtures } from "../config/chatConfigFixtures.js";
 import { BaseEventFactory } from "./BaseEventFactory.js";
-import { type BaseEvent } from "./types.js";
+import { type BaseFixtureEvent } from "./types.js";
 
 // Type definitions for swarm events
-type SwarmConfigEvent = BaseEvent & {
+type SwarmConfigEvent = BaseFixtureEvent & {
     event: "swarmConfigUpdate";
     data: SwarmSocketEventPayloads["swarmConfigUpdate"];
 };
 
-type SwarmStateEvent = BaseEvent & {
+type SwarmStateEvent = BaseFixtureEvent & {
     event: "swarmStateUpdate";
     data: SwarmSocketEventPayloads["swarmStateUpdate"];
 };
 
-type SwarmResourceEvent = BaseEvent & {
+type SwarmResourceEvent = BaseFixtureEvent & {
     event: "swarmResourceUpdate";
     data: SwarmSocketEventPayloads["swarmResourceUpdate"];
 };
 
-type SwarmTeamEvent = BaseEvent & {
+type SwarmTeamEvent = BaseFixtureEvent & {
     event: "swarmTeamUpdate";
     data: SwarmSocketEventPayloads["swarmTeamUpdate"];
 };
@@ -877,11 +877,6 @@ export const swarmEventFixtures = {
             swarmConfigFactory.create({
                 chatId: "chat_multi",
                 config: {
-                    eventSubscriptions: {
-                        "task_complete": ["agent_coordinator"],
-                        "resource_warning": ["agent_coordinator", "agent_resource_manager"],
-                        "error": ["agent_coordinator", "agent_error_handler"],
-                    },
                     __typename: "ChatConfigObject" as const,
                 },
             }),

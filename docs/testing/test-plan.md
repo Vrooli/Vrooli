@@ -222,11 +222,11 @@ export function createMockSession(overrides?: Partial<Session>) {
 ```typescript
 // ✅ CORRECT - Always use .js extension for relative imports
 import { UserModel } from "../models/User.js";
-import { uuid } from "@vrooli/shared";  // Package imports (@vrooli/*) don't need extension
+import { generatePK } from "@vrooli/shared";  // Package imports (@vrooli/*) don't need extension
 
 // ❌ WRONG - Missing .js extension on relative import
 import { UserModel } from "../models/User";
-import { uuid } from "@vrooli/shared/id/uuid.js";  // Never use deep imports
+import { generatePK } from "@vrooli/shared/id/index.js";  // Never use deep imports from packages
 ```
 
 ### 5.2. Database Test Pattern

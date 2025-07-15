@@ -6,13 +6,13 @@ import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material";
 import { MINUTES_1_MS } from "@vrooli/shared";
 import { useField } from "formik";
-import { useCallback, useMemo, useState } from "react";
+import React, { forwardRef, useCallback, useMemo, useState } from "react";
 import { FixedSizeList } from "react-window";
 import { usePopover } from "../../../hooks/usePopover.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { MenuTitle } from "../../dialogs/MenuTitle/MenuTitle.js";
-import { TextInput } from "../TextInput/TextInput.js";
-import { type TimezoneSelectorProps } from "../types.js";
+import { TextInput, TextInputBase } from "../TextInput/TextInput.js";
+import { type TimezoneSelectorProps, type TimezoneSelectorBaseProps, type TimezoneSelectorFormikProps } from "../types.js";
 
 function formatOffset(offset: number) {
     const sign = offset > 0 ? "-" : "+";
@@ -45,13 +45,24 @@ const transformOrigin = {
     horizontal: "center",
 } as const;
 
-export function TimezoneSelector({
+/**
+ * Base timezone selector component without Formik integration.
+ * This is the pure visual component that handles all styling and interaction logic.
+ */
+export const TimezoneSelectorBase = forwardRef<HTMLInputElement, TimezoneSelectorBaseProps>(({
+    value,
     onChange,
+    onBlur,
+    error,
+    helperText,
+    label,
+    isRequired,
+    disabled,
+    name,
     ...props
-}: TimezoneSelectorProps) {
+}, ref) => {
     const { palette } = useTheme();
 
-    const [field, , helpers] = useField(props.name);
     const [searchString, setSearchString] = useState("");
     const updateSearchString = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         setSearchString(event.target.value);
@@ -73,12 +84,16 @@ export function TimezoneSelector({
         });
     }, [timezones]);
 
-
     const [anchorEl, onOpen, onClose, isOpen] = usePopover();
     const handleClose = useCallback(() => {
         setSearchString("");
         onClose();
     }, [onClose]);
+
+    const handleTimezoneSelect = useCallback((timezone: string) => {
+        onChange(timezone);
+        handleClose();
+    }, [onChange, handleClose]);
 
     return (
         <>
@@ -102,7 +117,7 @@ export function TimezoneSelector({
                     onClose={handleClose}
                 />
                 <Stack direction="column" spacing={2} p={2}>
-                    <TextInput
+                    <TextInputBase
                         placeholder="Enter timezone..."
                         autoFocus={true}
                         value={searchString}
@@ -125,11 +140,8 @@ export function TimezoneSelector({
                                     button
                                     key={index}
                                     style={style}
-                                    onClick={() => {
-                                        helpers.setValue(timezone);
-                                        onChange?.(timezone);
-                                        handleClose();
-                                    }}
+                                    onClick={() => handleTimezoneSelect(timezone)}
+                                    disabled={disabled}
                                 >
                                     <Stack direction="row" justifyContent="space-between" alignItems="center" width="100%">
                                         <Typography>{timezone}</Typography>
@@ -142,15 +154,25 @@ export function TimezoneSelector({
                 </Stack>
             </Popover>
             {/* Text input that looks like a selector */}
-            <TextInput
+            <TextInputBase
                 {...props}
-                value={field.value}
+                ref={ref}
+                name={name}
+                label={label}
+                value={value}
                 onClick={onOpen}
+                onBlur={onBlur}
+                error={error}
+                helperText={helperText}
+                isRequired={isRequired}
+                disabled={disabled}
                 InputProps={{
+                    readOnly: true,
                     endAdornment: (
                         <IconButton
                             aria-label="timezone-select"
                             size="small"
+                            disabled={disabled}
                         >
                             {isOpen ?
                                 <IconCommon
@@ -171,4 +193,50 @@ export function TimezoneSelector({
             />
         </>
     );
-}
+});
+
+TimezoneSelectorBase.displayName = "TimezoneSelectorBase";
+
+/**
+ * Formik-integrated timezone selector component.
+ * Automatically connects to Formik context using the field name.
+ * 
+ * @example
+ * ```tsx
+ * // Inside a Formik form
+ * <TimezoneSelector name="timezone" label="Timezone" />
+ * 
+ * // With validation
+ * <TimezoneSelector 
+ *   name="userTimezone" 
+ *   label="Your Timezone"
+ *   validate={(value) => !value ? "Timezone is required" : undefined}
+ * />
+ * ```
+ */
+export const TimezoneSelector = forwardRef<HTMLInputElement, TimezoneSelectorFormikProps>(({
+    name,
+    validate,
+    ...props
+}, ref) => {
+    const [field, meta, helpers] = useField({ name, validate });
+
+    const handleChange = useCallback((value: string) => {
+        helpers.setValue(value);
+    }, [helpers]);
+
+    return (
+        <TimezoneSelectorBase
+            {...props}
+            ref={ref}
+            name={name}
+            value={field.value || ""}
+            onChange={handleChange}
+            onBlur={field.onBlur}
+            error={meta.touched && Boolean(meta.error)}
+            helperText={meta.touched && meta.error}
+        />
+    );
+});
+
+TimezoneSelector.displayName = "TimezoneSelector";

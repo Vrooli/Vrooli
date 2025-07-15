@@ -4,8 +4,9 @@
  * This file provides comprehensive API response fixtures for issue endpoints.
  * It includes success responses, error responses, and MSW handlers for testing.
  */
+// AI_CHECK: TYPE_SAFETY=fixed-user-resource-properties | LAST: 2025-07-02 - Fixed UserYou, ResourceYou properties and removed invalid User properties
 
-import { http, type RestHandler } from "msw";
+import { http, HttpResponse, type RequestHandler } from "msw";
 import type { 
     Issue, 
     IssueCreateInput, 
@@ -81,14 +82,14 @@ export class IssueResponseFactory {
      * Generate unique request ID
      */
     private generateRequestId(): string {
-        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
      * Generate unique resource ID
      */
     private generateId(): string {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     }
     
     /**
@@ -316,29 +317,35 @@ export class IssueResponseFactory {
                 createdAt: now,
                 updatedAt: now,
                 isBot: false,
+                isBotDepictingPerson: false,
                 isPrivate: false,
+                isPrivateBookmarks: true,
+                isPrivateMemberships: true,
+                isPrivatePullRequests: true,
+                isPrivateResources: false,
+                isPrivateResourcesCreated: false,
+                isPrivateTeamsCreated: true,
+                isPrivateVotes: true,
+                bookmarkedBy: [],
+                bookmarks: 0,
                 profileImage: null,
                 bannerImage: null,
-                premium: false,
-                premiumExpiration: null,
-                roles: [],
+                premium: null,
+                publicId: `user_public_${id}`,
+                views: 0,
                 wallets: [],
                 translations: [],
-                translationsCount: 0,
+                membershipsCount: 0,
+                reportsReceived: [],
+                reportsReceivedCount: 0,
+                resourcesCount: 0,
                 you: {
                     __typename: "UserYou",
-                    isBlocked: false,
-                    isBlockedByYou: false,
                     canDelete: false,
                     canReport: false,
                     canUpdate: false,
                     isBookmarked: false,
-                    isReacted: false,
-                    reactionSummary: {
-                        __typename: "ReactionSummary",
-                        emotion: null,
-                        count: 0,
-                    },
+                    isViewed: false,
                 },
             },
             closedBy: null,
@@ -347,19 +354,43 @@ export class IssueResponseFactory {
                 id: `resource_${id}`,
                 createdAt: now,
                 updatedAt: now,
+                bookmarkedBy: [],
+                bookmarks: 0,
+                completedAt: null,
+                createdBy: null,
+                hasCompleteVersion: false,
+                isDeleted: false,
                 isInternal: false,
                 isPrivate: false,
-                usedBy: [],
-                usedByCount: 0,
+                issues: [],
+                issuesCount: 0,
+                owner: null,
+                parent: null,
+                permissions: "{}",
+                publicId: `resource_public_${id}`,
+                pullRequests: [],
+                pullRequestsCount: 0,
+                resourceType: "Api" as any,
+                score: 0,
+                stats: [],
+                tags: [],
+                transfers: [],
+                transfersCount: 0,
+                translatedName: "Test Resource",
                 versions: [],
                 versionsCount: 0,
+                views: 0,
                 you: {
                     __typename: "ResourceYou",
+                    canBookmark: true,
+                    canComment: true,
                     canDelete: false,
+                    canReact: true,
+                    canRead: true,
+                    canTransfer: false,
                     canUpdate: false,
-                    canReport: false,
                     isBookmarked: false,
-                    isReacted: false,
+                    isViewed: false,
                     reaction: null,
                 },
             },
@@ -430,7 +461,7 @@ export class IssueResponseFactory {
                     isReacted: false,
                     role: null,
                 },
-            } as Team;
+            } as unknown as Team;
         }
         
         // Add translations if provided
@@ -460,7 +491,7 @@ export class IssueResponseFactory {
         return Object.values(IssueStatusEnum).map((status, index) => {
             const issue = this.createMockIssue();
             issue.status = status;
-            issue.id = `issue_${status.toLowerCase()}_${index}`;
+            issue.id = `issue_${(status as string).toLowerCase()}_${index}`;
             
             // Set closed fields for closed statuses
             if (status === IssueStatusEnum.ClosedResolved || status === IssueStatusEnum.ClosedUnresolved) {
@@ -487,7 +518,7 @@ export class IssueResponseFactory {
     createIssuesForAllTypes(): Issue[] {
         return Object.values(IssueForEnum).map((issueFor, index) => {
             const issue = this.createMockIssue();
-            issue.id = `issue_${issueFor.toLowerCase()}_${index}`;
+            issue.id = `issue_${(issueFor as string).toLowerCase()}_${index}`;
             
             if (issueFor === IssueForEnum.Team) {
                 issue.to = {
@@ -513,7 +544,7 @@ export class IssueResponseFactory {
                         isReacted: false,
                         role: null,
                     },
-                } as Team;
+                } as unknown as Team;
             }
             
             issue.translations[0].name = `Issue for ${issueFor}`;
@@ -554,7 +585,7 @@ export class IssueResponseFactory {
         errors?: Record<string, string>;
     }> {
         try {
-            await issueValidation.create.validate(input);
+            await issueValidation.create({}).validate(input);
             return { valid: true };
         } catch (error: any) {
             const fieldErrors: Record<string, string> = {};
@@ -584,7 +615,7 @@ export class IssueResponseFactory {
         errors?: Record<string, string>;
     }> {
         try {
-            await issueValidation.update.validate(input);
+            await issueValidation.update({}).validate(input);
             return { valid: true };
         } catch (error: any) {
             const fieldErrors: Record<string, string> = {};
@@ -620,56 +651,44 @@ export class IssueMSWHandlers {
     /**
      * Create success handlers for all issue endpoints
      */
-    createSuccessHandlers(): RestHandler[] {
+    createSuccessHandlers(): RequestHandler[] {
         return [
             // Create issue
-            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, async (req, res, ctx) => {
-                const body = await req.json() as IssueCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, async ({ request }) => {
+                const body = await request.json() as IssueCreateInput;
                 
                 // Validate input
                 const validation = await this.responseFactory.validateCreateInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
-                    );
+                    return HttpResponse.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}), { status: 400 });
                 }
                 
                 // Create issue
                 const issue = this.responseFactory.createIssueFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(issue);
                 
-                return res(
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 201 });
             }),
             
             // Get issue by ID
-            http.get(`${this.responseFactory["baseUrl"]}/api/issue/:id`, (req, res, ctx) => {
-                const { id } = req.params;
+            http.get(`${this.responseFactory["baseUrl"]}/api/issue/:id`, ({ params }) => {
+                const { id } = params;
                 
                 const issue = this.responseFactory.createMockIssue({ id: id as string });
                 const response = this.responseFactory.createSuccessResponse(issue);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Update issue
-            http.put(`${this.responseFactory["baseUrl"]}/api/issue/:id`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const body = await req.json() as IssueUpdateInput;
+            http.put(`${this.responseFactory["baseUrl"]}/api/issue/:id`, async ({ request, params }) => {
+                const { id } = params;
+                const body = await request.json() as IssueUpdateInput;
                 
                 // Validate input
                 const validation = await this.responseFactory.validateUpdateInput(body);
                 if (!validation.valid) {
-                    return res(
-                        ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
-                    );
+                    return HttpResponse.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}), { status: 400 });
                 }
                 
                 const issue = this.responseFactory.createMockIssue({ 
@@ -679,16 +698,13 @@ export class IssueMSWHandlers {
                 
                 const response = this.responseFactory.createSuccessResponse(issue);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Close issue
-            http.patch(`${this.responseFactory["baseUrl"]}/api/issue/:id/close`, async (req, res, ctx) => {
-                const { id } = req.params;
-                const body = await req.json() as { status: IssueStatus };
+            http.patch(`${this.responseFactory["baseUrl"]}/api/issue/:id/close`, async ({ request, params }) => {
+                const { id } = params;
+                const body = await request.json() as { status: IssueStatus };
                 
                 const issue = this.responseFactory.createMockIssue({ 
                     id: id as string,
@@ -699,20 +715,17 @@ export class IssueMSWHandlers {
                 
                 const response = this.responseFactory.createSuccessResponse(issue);
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
             
             // Delete issue
-            http.delete(`${this.responseFactory["baseUrl"]}/api/issue/:id`, (req, res, ctx) => {
-                return res(ctx.status(204));
+            http.delete(`${this.responseFactory["baseUrl"]}/api/issue/:id`, ({ params }) => {
+                return new HttpResponse(null, { status: 204 });
             }),
             
             // List issues
-            http.get(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
-                const url = new URL(req.url);
+            http.get(`${this.responseFactory["baseUrl"]}/api/issue`, ({ request }) => {
+                const url = new URL(request.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
                 const status = url.searchParams.get("status") as IssueStatus;
@@ -749,10 +762,7 @@ export class IssueMSWHandlers {
                     },
                 );
                 
-                return res(
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -760,54 +770,39 @@ export class IssueMSWHandlers {
     /**
      * Create error handlers for testing error scenarios
      */
-    createErrorHandlers(): RestHandler[] {
+    createErrorHandlers(): RequestHandler[] {
         return [
             // Validation error
-            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
-                return res(
-                    ctx.status(400),
-                    ctx.json(this.responseFactory.createValidationErrorResponse({
-                        forConnect: "Target object ID is required",
-                        issueFor: "Issue type must be specified",
-                        "translationsCreate.0.name": "Issue name is required",
-                    })),
-                );
+            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, ({ request }) => {
+                return HttpResponse.json(this.responseFactory.createValidationErrorResponse({
+                    forConnect: "Target object ID is required",
+                    issueFor: "Issue type must be specified",
+                    "translationsCreate.0.name": "Issue name is required",
+                }), { status: 400 });
             }),
             
             // Not found error
-            http.get(`${this.responseFactory["baseUrl"]}/api/issue/:id`, (req, res, ctx) => {
-                const { id } = req.params;
-                return res(
-                    ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
-                );
+            http.get(`${this.responseFactory["baseUrl"]}/api/issue/:id`, ({ params }) => {
+                const { id } = params;
+                return HttpResponse.json(this.responseFactory.createNotFoundErrorResponse(id as string), { status: 404 });
             }),
             
             // Permission error
-            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
-                return res(
-                    ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
-                );
+            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, ({ request }) => {
+                return HttpResponse.json(this.responseFactory.createPermissionErrorResponse("create"), { status: 403 });
             }),
             
             // Status conflict error
-            http.patch(`${this.responseFactory["baseUrl"]}/api/issue/:id/close`, (req, res, ctx) => {
-                return res(
-                    ctx.status(409),
-                    ctx.json(this.responseFactory.createStatusConflictErrorResponse(
+            http.patch(`${this.responseFactory["baseUrl"]}/api/issue/:id/close`, ({ request }) => {
+                return HttpResponse.json(this.responseFactory.createStatusConflictErrorResponse(
                         IssueStatusEnum.ClosedResolved,
                         IssueStatusEnum.Draft,
-                    )),
-                );
+                    ), { status: 409 });
             }),
             
             // Server error
-            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
-                return res(
-                    ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse()),
-                );
+            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, ({ request }) => {
+                return HttpResponse.json(this.responseFactory.createServerErrorResponse(), { status: 500 });
             }),
         ];
     }
@@ -815,29 +810,31 @@ export class IssueMSWHandlers {
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, async (req, res, ctx) => {
-                const body = await req.json() as IssueCreateInput;
+            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, async ({ request }) => {
+                const body = await request.json() as IssueCreateInput;
                 const issue = this.responseFactory.createIssueFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(issue);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(201),
-                    ctx.json(response),
-                );
+                // Add delay if specified
+                if (delay) {
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+                
+                return HttpResponse.json(response, { status: 201 });
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/issue`, async (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/issue`, async ({ request }) => {
                 const issues = this.responseFactory.createIssuesWithAllStatuses();
                 const response = this.responseFactory.createIssueListResponse(issues);
                 
-                return res(
-                    ctx.delay(delay),
-                    ctx.status(200),
-                    ctx.json(response),
-                );
+                // Add delay if specified
+                if (delay) {
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+                
+                return HttpResponse.json(response, { status: 200 });
             }),
         ];
     }
@@ -845,18 +842,18 @@ export class IssueMSWHandlers {
     /**
      * Create network error handlers
      */
-    createNetworkErrorHandlers(): RestHandler[] {
+    createNetworkErrorHandlers(): RequestHandler[] {
         return [
-            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
-                return res.networkError("Network connection failed");
+            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, ({ request }) => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/issue/:id`, (req, res, ctx) => {
-                return res.networkError("Connection timeout");
+            http.get(`${this.responseFactory["baseUrl"]}/api/issue/:id`, ({ request }) => {
+                return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
-                return res.networkError("Service unavailable");
+            http.get(`${this.responseFactory["baseUrl"]}/api/issue`, ({ request }) => {
+                return HttpResponse.error();
             }),
         ];
     }
@@ -870,18 +867,16 @@ export class IssueMSWHandlers {
         status: number;
         response: any;
         delay?: number;
-    }): RestHandler {
+    }): RequestHandler {
         const { endpoint, method, status, response, delay } = config;
         const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
-        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
-            const responseCtx = [ctx.status(status), ctx.json(response)];
-            
+        return http[method.toLowerCase() as keyof typeof http](fullEndpoint, async ({ request, params }) => {
             if (delay) {
-                responseCtx.unshift(ctx.delay(delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
-            return res(...responseCtx);
+            return HttpResponse.json(response, { status });
         });
     }
 }

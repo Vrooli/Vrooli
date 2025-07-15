@@ -84,7 +84,7 @@ export class ApiVersionConfig extends BaseConfig<ApiVersionConfigObject> {
     callLink?: ApiVersionConfigObject["callLink"];
 
     constructor({ config }: { config: ApiVersionConfigObject }) {
-        super(config);
+        super({ config });
         this.rateLimiting = config.rateLimiting;
         this.authentication = config.authentication;
         this.caching = config.caching;
@@ -103,16 +103,16 @@ export class ApiVersionConfig extends BaseConfig<ApiVersionConfigObject> {
         return super.parseBase<ApiVersionConfigObject, ApiVersionConfig>(
             version.config,
             logger,
-            (cfg) => {
+            ({ config }) => {
                 // ensure defaults for input/output/testcases
                 if (opts?.useFallbacks ?? true) {
-                    cfg.rateLimiting ??= ApiVersionConfig.defaultRateLimiting();
-                    cfg.authentication ??= ApiVersionConfig.defaultAuthentication();
-                    cfg.caching ??= ApiVersionConfig.defaultCaching();
-                    cfg.timeout ??= ApiVersionConfig.defaultTimeout();
-                    cfg.retry ??= ApiVersionConfig.defaultRetry();
+                    config.rateLimiting ??= ApiVersionConfig.defaultRateLimiting();
+                    config.authentication ??= ApiVersionConfig.defaultAuthentication();
+                    config.caching ??= ApiVersionConfig.defaultCaching();
+                    config.timeout ??= ApiVersionConfig.defaultTimeout();
+                    config.retry ??= ApiVersionConfig.defaultRetry();
                 }
-                return new ApiVersionConfig({ config: cfg });
+                return new ApiVersionConfig({ config });
             },
         );
     }

@@ -1,1 +1,2 @@
-- Make the notificationSettings field Json
+- Make the notificationSettings field Json and run.data field Json
+- Add code routine that picks a random string from an array of strings

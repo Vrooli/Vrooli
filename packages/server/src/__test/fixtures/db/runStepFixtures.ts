@@ -1,5 +1,6 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
 import { generatePK } from "@vrooli/shared";
-import { type Prisma } from "@prisma/client";
+import { type Prisma, type PrismaClient } from "@prisma/client";
 
 /**
  * Database fixtures for RunStep model - used for seeding test data
@@ -398,7 +399,7 @@ export function createApiResponseRunStep(overrides?: Partial<Prisma.run_stepCrea
 /**
  * Helper to clean up test run steps
  */
-export async function cleanupRunSteps(prisma: any, stepIds: string[]) {
+export async function cleanupRunSteps(prisma: PrismaClient, stepIds: string[]) {
     await prisma.run_step.deleteMany({
         where: { id: { in: stepIds } },
     });

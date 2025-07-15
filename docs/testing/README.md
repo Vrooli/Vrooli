@@ -53,7 +53,7 @@ New to testing in Vrooli? Start here:
 
 ### Fixture Layer Documentation
 Each fixture layer has its own detailed README with architecture, patterns, and migration guides:
-- **[API Fixtures](/packages/shared/src/__test/fixtures/api/README.md)** - Validation and transformation layer
+- **[API Fixtures](/packages/shared/src/__test/fixtures/api-inputs/README.md)** - Validation and transformation layer
 - **[Database Fixtures](/packages/server/src/__test/fixtures/db/README.md)** - Persistence and seeding layer
 - **[UI Fixtures](/packages/ui/src/__test/fixtures/README.md)** - Frontend integration and round-trip orchestration
 - **[Config Fixtures](/packages/shared/src/__test/fixtures/config/README.md)** - Configuration foundation layer

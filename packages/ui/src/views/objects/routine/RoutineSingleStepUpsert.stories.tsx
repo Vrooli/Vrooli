@@ -4,6 +4,7 @@
 import { DUMMY_ID, InputType, ResourceUsedFor, endpointsResource, generatePK, getObjectUrl, type RoutineVersion, type RoutineVersionYou } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
+import { getMockEndpoint, getStoryRouteEditPath } from "../../../__test/helpers/storybookMocking.js";
 import { RoutineSingleStepUpsert } from "./RoutineSingleStepUpsert.js";
 
 // Create simplified mock data for Routine responses
@@ -210,13 +211,13 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findRoutineSingleStepVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findRoutineSingleStepVersion), () => {
                 return HttpResponse.json({ data: mockRoutineVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockRoutineVersionData),
     },
 };
 
@@ -238,13 +239,13 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findRoutineSingleStepVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findRoutineSingleStepVersion), () => {
                 return HttpResponse.json({ data: mockRoutineVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockRoutineVersionData),
     },
 };
 
@@ -258,7 +259,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findRoutineSingleStepVersion.findOne.endpoint}`, async () => {
+            http.get(getMockEndpoint(endpointsResource.findRoutineSingleStepVersion), async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120_000));
                 return HttpResponse.json({ data: mockRoutineVersionData });
@@ -266,7 +267,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockRoutineVersionData),
     },
 };
 

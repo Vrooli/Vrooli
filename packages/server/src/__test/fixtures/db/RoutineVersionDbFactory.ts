@@ -1,7 +1,7 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
+import { generatePublicId, nanoid } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import { routineConfigFixtures } from "@vrooli/shared/test-fixtures";
+import { routineConfigFixtures } from "../../../../../shared/src/__test/fixtures/config/routineConfigFixtures.js";
 import type { 
     DbTestFixtures, 
     RelationConfig,
@@ -40,27 +40,28 @@ interface RoutineVersionRelationConfig extends RelationConfig {
  * - Comprehensive validation
  */
 export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
-    Prisma.RoutineVersionCreateInput,
-    Prisma.RoutineVersionCreateInput,
-    Prisma.RoutineVersionInclude,
-    Prisma.RoutineVersionUpdateInput
+    routine_version,
+    Prisma.routine_versionCreateInput,
+    Prisma.routine_versionInclude,
+    Prisma.routine_versionUpdateInput
 > {
+    protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
         super("RoutineVersion", prisma);
         this.initializeScenarios();
     }
 
     protected getPrismaDelegate() {
-        return this.prisma.routineVersion;
+        return this.prisma.routine_version;
     }
 
     /**
      * Get complete test fixtures for RoutineVersion model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.RoutineVersionCreateInput, Prisma.RoutineVersionUpdateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.routine_versionCreateInput, Prisma.routine_versionUpdateInput> {
         return {
             minimal: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 publicId: generatePublicId(),
                 isComplete: false,
                 isLatest: true,
@@ -71,7 +72,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                 routineConfig: routineConfigFixtures.minimal,
             },
             complete: {
-                id: generatePK().toString(),
+                id: this.generateId(),
                 publicId: generatePublicId(),
                 isComplete: true,
                 isLatest: true,
@@ -86,14 +87,14 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                 translations: {
                     create: [
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "en",
                             name: "Complete Routine Version",
                             description: "A comprehensive automation routine with all features",
                             instructions: "Follow these steps to execute the routine workflow",
                         },
                         {
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: "es",
                             name: "Versión Completa de Rutina",
                             description: "Una rutina de automatización integral con todas las características",
@@ -123,7 +124,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                     routineConfig: "not an object", // Should be object
                 },
                 invalidVersionIndex: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     isComplete: true,
                     isLatest: true,
@@ -134,7 +135,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                     routineConfig: routineConfigFixtures.minimal,
                 },
                 invalidConfig: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     isComplete: true,
                     isLatest: true,
@@ -147,7 +148,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
             },
             edgeCases: {
                 simpleActionVersion: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     isComplete: true,
                     isLatest: true,
@@ -159,7 +160,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                     routineConfig: routineConfigFixtures.action.simple,
                 },
                 textGenerationVersion: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     isComplete: true,
                     isLatest: true,
@@ -171,7 +172,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                     routineConfig: routineConfigFixtures.generate.basic,
                 },
                 multiStepVersion: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     isComplete: true,
                     isLatest: true,
@@ -183,7 +184,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                     routineConfig: routineConfigFixtures.multiStep.sequential,
                 },
                 manualVersion: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     isComplete: true,
                     isLatest: true,
@@ -195,7 +196,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                     routineConfig: routineConfigFixtures.minimal,
                 },
                 betaVersion: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     isComplete: false,
                     isLatest: false,
@@ -208,7 +209,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                     routineConfig: routineConfigFixtures.complete,
                 },
                 multiLanguageVersion: {
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     publicId: generatePublicId(),
                     isComplete: true,
                     isLatest: true,
@@ -220,7 +221,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                     routineConfig: routineConfigFixtures.complete,
                     translations: {
                         create: Array.from({ length: 5 }, (_, i) => ({
-                            id: generatePK().toString(),
+                            id: this.generateId(),
                             language: ["en", "es", "fr", "de", "ja"][i],
                             name: `Routine Version ${i}`,
                             description: `Description in language ${i}`,
@@ -251,9 +252,9 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateMinimalData(overrides?: Partial<Prisma.RoutineVersionCreateInput>): Prisma.RoutineVersionCreateInput {
+    protected generateMinimalData(overrides?: Partial<Prisma.routine_versionCreateInput>): Prisma.routine_versionCreateInput {
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             publicId: generatePublicId(),
             isComplete: false,
             isLatest: true,
@@ -266,9 +267,9 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateCompleteData(overrides?: Partial<Prisma.RoutineVersionCreateInput>): Prisma.RoutineVersionCreateInput {
+    protected generateCompleteData(overrides?: Partial<Prisma.routine_versionCreateInput>): Prisma.routine_versionCreateInput {
         return {
-            id: generatePK().toString(),
+            id: this.generateId(),
             publicId: generatePublicId(),
             isComplete: true,
             isLatest: true,
@@ -283,14 +284,14 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
             translations: {
                 create: [
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         language: "en",
                         name: "Complete Routine Version",
                         description: "A comprehensive automation routine with all features",
                         instructions: "Follow these steps to execute the routine workflow",
                     },
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         language: "es",
                         name: "Versión Completa de Rutina",
                         description: "Una rutina de automatización integral con todas las características",
@@ -448,7 +449,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected getDefaultInclude(): Prisma.RoutineVersionInclude {
+    protected getDefaultInclude(): Prisma.routine_versionInclude {
         return {
             root: {
                 select: {
@@ -502,10 +503,10 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async applyRelationships(
-        baseData: Prisma.RoutineVersionCreateInput,
+        baseData: Prisma.routine_versionCreateInput,
         config: RoutineVersionRelationConfig,
         tx: any,
-    ): Promise<Prisma.RoutineVersionCreateInput> {
+    ): Promise<Prisma.routine_versionCreateInput> {
         const data = { ...baseData };
 
         // Handle root routine connection
@@ -517,7 +518,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
         if (config.translations && Array.isArray(config.translations)) {
             data.translations = {
                 create: config.translations.map(trans => ({
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     ...trans,
                 })),
             };
@@ -527,7 +528,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
         if (config.nodes && Array.isArray(config.nodes)) {
             data.nodes = {
                 create: config.nodes.map(node => ({
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     nodeType: node.nodeType,
                     coordinateX: node.coordinateX ?? 0,
                     coordinateY: node.coordinateY ?? 0,
@@ -540,7 +541,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
         if (config.nodeLinks && Array.isArray(config.nodeLinks)) {
             data.nodeLinks = {
                 create: config.nodeLinks.map(link => ({
-                    id: generatePK().toString(),
+                    id: this.generateId(),
                     from: { connect: { id: link.fromNodeId } },
                     to: { connect: { id: link.toNodeId } },
                     operation: link.operation,
@@ -694,23 +695,23 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
         });
 
         // Create links after nodes are created
-        const createdNodes = await this.prisma.routineVersionNode.findMany({
+        const createdNodes = await this.prisma.routine_version_node.findMany({
             where: { routineVersionId: version.id },
             orderBy: { coordinateX: "asc" },
         });
 
         if (createdNodes.length >= 3) {
-            await this.prisma.routineVersionNodeLink.createMany({
+            await this.prisma.routine_version_nodeLink.createMany({
                 data: [
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         routineVersionId: version.id,
                         fromId: createdNodes[0].id,
                         toId: createdNodes[1].id,
                         operation: "next",
                     },
                     {
-                        id: generatePK().toString(),
+                        id: this.generateId(),
                         routineVersionId: version.id,
                         fromId: createdNodes[1].id,
                         toId: createdNodes[2].id,
@@ -753,7 +754,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
 
         // Check that only one version is marked as latest per routine
         if (record.isLatest && record.rootId) {
-            const otherLatest = await this.prisma.routineVersion.count({
+            const otherLatest = await this.prisma.routine_version.count({
                 where: {
                     rootId: record.rootId,
                     isLatest: true,
@@ -803,7 +804,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
 
         // Delete node links
         if (shouldDelete("nodeLinks") && record.nodeLinks?.length) {
-            await tx.routineVersionNodeLink.deleteMany({
+            await tx.routine_version_node_link.deleteMany({
                 where: { routineVersionId: record.id },
             });
         }
@@ -817,7 +818,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
 
         // Delete translations
         if (shouldDelete("translations") && record.translations?.length) {
-            await tx.routineVersionTranslation.deleteMany({
+            await tx.routine_version_translation.deleteMany({
                 where: { routineVersionId: record.id },
             });
         }
@@ -862,7 +863,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createRoutineVersionDbFactory = (prisma: PrismaClient) => 
-    RoutineVersionDbFactory.getInstance("RoutineVersion", prisma);
+    new RoutineVersionDbFactory(prisma);
 
 // Export the class for type usage
 export { RoutineVersionDbFactory as RoutineVersionDbFactoryClass };

@@ -66,7 +66,7 @@ export const RunStepModel: RunStepModelLogic = ({
         profanityFields: ["name"],
         owner: (data, userId) => ModelMap.get<RunModelLogic>("Run").validate().owner(data?.run as RunModelInfo["DbModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<RunStepModelInfo["DbSelect"]>([["run", "Run"]], ...rest),
+        isPublic: (data, getParentInfo?) => oneIsPublic<RunStepModelInfo["DbSelect"]>([["run", "Run"]], data, getParentInfo),
         visibility: {
             own: function getOwn(data) {
                 return {

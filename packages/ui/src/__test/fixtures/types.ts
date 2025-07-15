@@ -5,6 +5,8 @@
  * and ensure proper integration with @vrooli/shared functions.
  */
 
+// AI_CHECK: TYPE_SAFETY=replaced-17-any-types-with-specific-types | LAST: 2025-06-28
+
 import type { 
     Bookmark, 
     BookmarkCreateInput, 
@@ -13,9 +15,9 @@ import type {
     BookmarkList,
     BookmarkListCreateInput,
     BookmarkListUpdateInput,
-    User 
+    User, 
 } from "@vrooli/shared";
-import type { UseFormReturn } from "react-hook-form";
+import type { FormikProps } from "formik";
 import type { RestHandler } from "msw";
 
 // ============================================
@@ -121,13 +123,13 @@ export interface IntegrationTestConfig<TFormData> {
 /**
  * Result of integration test execution
  */
-export interface IntegrationTestResult<TObject> {
+export interface IntegrationTestResult<TObject, TFormData = Record<string, unknown>, TApiInput = Record<string, unknown>> {
     success: boolean;
     data?: {
-        formData: any;
-        apiInput: any;
+        formData: TFormData;
+        apiInput: TApiInput;
         apiResponse: TObject;
-        databaseRecord: any;
+        databaseRecord: Record<string, unknown>;
         fetchedData: TObject;
     };
     errors?: string[];
@@ -149,7 +151,7 @@ export interface AuthContext {
  */
 export interface DatabasePreCondition {
     table: string;
-    data: Record<string, any>;
+    data: Record<string, unknown>;
     cleanup?: boolean;
 }
 
@@ -174,7 +176,7 @@ export interface ScenarioStep {
     name: string;
     action: "create" | "update" | "delete" | "verify" | "wait";
     objectType: string;
-    data?: any;
+    data?: Record<string, unknown>;
     assertions?: Assertion[];
     dependencies?: string[];
 }
@@ -185,7 +187,7 @@ export interface ScenarioStep {
 export interface Assertion {
     type: "exists" | "equals" | "contains" | "count" | "custom";
     target: string;
-    expected: any;
+    expected: unknown;
     message?: string;
 }
 
@@ -197,7 +199,7 @@ export interface ScenarioResult {
     stepResults: StepResult[];
     duration: number;
     error?: string;
-    data?: Record<string, any>;
+    data?: Record<string, unknown>;
 }
 
 /**
@@ -207,7 +209,7 @@ export interface StepResult {
     stepName: string;
     success: boolean;
     duration: number;
-    data?: any;
+    data?: unknown;
     error?: string;
     assertions?: AssertionResult[];
 }
@@ -218,8 +220,8 @@ export interface StepResult {
 export interface AssertionResult {
     assertion: string;
     passed: boolean;
-    actual?: any;
-    expected?: any;
+    actual?: unknown;
+    expected?: unknown;
     message?: string;
 }
 
@@ -230,13 +232,13 @@ export interface AssertionResult {
 /**
  * Generic UI state fixture factory
  */
-export interface UIStateFactory<TState> {
+export interface UIStateFactory<TState, TData = unknown> {
     createLoadingState(context?: LoadingContext): TState;
     createErrorState(error: AppError): TState;
-    createSuccessState(data: any, message?: string): TState;
+    createSuccessState(data: TData, message?: string): TState;
     createEmptyState(): TState;
     transitionToLoading(currentState: TState): TState;
-    transitionToSuccess(currentState: TState, data: any): TState;
+    transitionToSuccess(currentState: TState, data: TData): TState;
     transitionToError(currentState: TState, error: AppError): TState;
 }
 
@@ -255,7 +257,7 @@ export interface LoadingContext {
 export interface AppError {
     code: string;
     message: string;
-    details?: any;
+    details?: Record<string, unknown>;
     recoverable?: boolean;
 }
 
@@ -271,10 +273,10 @@ export interface ComponentTestUtils<TProps> {
     renderWithProviders(props: TProps): ComponentRenderResult;
     
     /** Simulate form submission */
-    simulateFormSubmission(formData: any): Promise<void>;
+    simulateFormSubmission(formData: Record<string, unknown>): Promise<void>;
     
     /** Simulate field changes */
-    simulateFieldChange(fieldName: string, value: any): Promise<void>;
+    simulateFieldChange(fieldName: string, value: unknown): Promise<void>;
     
     /** Wait for API calls to complete */
     waitForAPICall(endpoint: string): Promise<void>;
@@ -288,17 +290,17 @@ export interface ComponentTestUtils<TProps> {
  */
 export interface ComponentRenderResult {
     container: HTMLElement;
-    rerender: (props: any) => void;
+    rerender: (props: unknown) => void;
     unmount: () => void;
     
     // Form-specific utilities
-    getFormValues: () => Record<string, any>;
-    setFormValues: (values: Record<string, any>) => Promise<void>;
+    getFormValues: () => Record<string, unknown>;
+    setFormValues: (values: Record<string, unknown>) => Promise<void>;
     submitForm: () => Promise<void>;
     
     // State utilities
-    getComponentState: () => any;
-    waitForState: (predicate: (state: any) => boolean) => Promise<void>;
+    getComponentState: () => unknown;
+    waitForState: (predicate: (state: unknown) => boolean) => Promise<void>;
     
     // Query utilities
     queryByTestId: (testId: string) => HTMLElement | null;
@@ -312,23 +314,23 @@ export interface ComponentRenderResult {
 // ============================================
 
 /**
- * React Hook Form integration utilities
+ * Formik integration utilities
  */
 export interface FormIntegration<TFormData> {
     /** Create form instance with fixture data */
-    createFormInstance(data: TFormData): UseFormReturn<TFormData>;
+    createFormInstance(data: TFormData): FormikProps<TFormData>;
     
     /** Simulate form validation */
-    validateForm(formInstance: UseFormReturn<TFormData>): Promise<ValidationResult>;
+    validateForm(formInstance: FormikProps<TFormData>): Promise<ValidationResult>;
     
     /** Simulate form submission */
-    submitForm(formInstance: UseFormReturn<TFormData>): Promise<any>;
+    submitForm(formInstance: FormikProps<TFormData>): Promise<unknown>;
     
     /** Set form errors */
-    setFormErrors(formInstance: UseFormReturn<TFormData>, errors: Record<string, string>): void;
+    setFormErrors(formInstance: FormikProps<TFormData>, errors: Record<string, string>): void;
     
     /** Clear form */
-    clearForm(formInstance: UseFormReturn<TFormData>): void;
+    clearForm(formInstance: FormikProps<TFormData>): void;
 }
 
 // ============================================
@@ -343,13 +345,13 @@ export interface DatabaseVerifier {
     verifyRecordExists(table: string, id: string): Promise<boolean>;
     
     /** Verify record data matches expected */
-    verifyRecordData(table: string, id: string, expected: Record<string, any>): Promise<boolean>;
+    verifyRecordData(table: string, id: string, expected: Record<string, unknown>): Promise<boolean>;
     
     /** Get record from database */
-    getRecord(table: string, id: string): Promise<any>;
+    getRecord(table: string, id: string): Promise<Record<string, unknown>>;
     
     /** Count records matching criteria */
-    countRecords(table: string, criteria: Record<string, any>): Promise<number>;
+    countRecords(table: string, criteria: Record<string, unknown>): Promise<number>;
     
     /** Clean up test data */
     cleanup(tables: string[]): Promise<void>;
@@ -384,10 +386,10 @@ export interface TestAPIClient {
     get<T>(endpoint: string, options?: RequestOptions): Promise<APIResponse<T>>;
     
     /** Make POST request */
-    post<T>(endpoint: string, data: any, options?: RequestOptions): Promise<APIResponse<T>>;
+    post<T>(endpoint: string, data: unknown, options?: RequestOptions): Promise<APIResponse<T>>;
     
     /** Make PUT request */
-    put<T>(endpoint: string, data: any, options?: RequestOptions): Promise<APIResponse<T>>;
+    put<T>(endpoint: string, data: unknown, options?: RequestOptions): Promise<APIResponse<T>>;
     
     /** Make DELETE request */
     delete<T>(endpoint: string, options?: RequestOptions): Promise<APIResponse<T>>;

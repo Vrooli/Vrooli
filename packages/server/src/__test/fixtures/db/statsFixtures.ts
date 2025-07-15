@@ -1,5 +1,6 @@
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
 import { generatePK } from "@vrooli/shared";
-import { type Prisma } from "@prisma/client";
+import { type Prisma, type PrismaClient } from "@prisma/client";
 
 /**
  * Database fixtures for Stats models - used for seeding analytics test data
@@ -38,7 +39,7 @@ export const statsDbIds = {
 /**
  * Basic resource stats
  */
-export const basicResourceStatsDb: Prisma.StatsResourceCreateInput = {
+export const basicResourceStatsDb: Prisma.stats_resourceCreateInput = {
     id: statsDbIds.resourceStats1,
     periodStart: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
     periodEnd: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
@@ -56,7 +57,7 @@ export const basicResourceStatsDb: Prisma.StatsResourceCreateInput = {
 /**
  * Popular resource with high engagement
  */
-export const popularResourceStatsDb: Prisma.StatsResourceCreateInput = {
+export const popularResourceStatsDb: Prisma.stats_resourceCreateInput = {
     id: statsDbIds.popularResource,
     periodStart: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
     periodEnd: new Date(),
@@ -74,7 +75,7 @@ export const popularResourceStatsDb: Prisma.StatsResourceCreateInput = {
 /**
  * Resource with detailed engagement metrics
  */
-export const detailedResourceStatsDb: Prisma.StatsResourceCreateInput = {
+export const detailedResourceStatsDb: Prisma.stats_resourceCreateInput = {
     id: statsDbIds.resourceStats2,
     periodStart: new Date(Date.now() - 24 * 60 * 60 * 1000), // 24 hours ago
     periodEnd: new Date(),
@@ -229,8 +230,8 @@ export class StatsDbFactory {
         periodType: "Daily" | "Weekly" | "Monthly" | "Yearly" = "Daily",
         daysAgo = 1,
         engagement: "low" | "medium" | "high" = "medium",
-        overrides?: Partial<Prisma.StatsResourceCreateInput>,
-    ): Prisma.StatsResourceCreateInput {
+        overrides?: Partial<Prisma.stats_resourceCreateInput>,
+    ): Prisma.stats_resourceCreateInput {
         const periodDays = { Daily: 1, Weekly: 7, Monthly: 30, Yearly: 365 }[periodType];
         const multiplier = { low: 0.3, medium: 1, high: 3 }[engagement];
 
@@ -374,7 +375,7 @@ export class StatsDbFactory {
         entityId: bigint | null,
         days = 30,
         periodType: "Daily" | "Weekly" | "Monthly" = "Daily",
-    ): Prisma.StatsResourceCreateInput[] | Prisma.StatsSiteCreateInput[] | Prisma.StatsTeamCreateInput[] | Prisma.StatsUserCreateInput[] {
+    ): Prisma.stats_resourceCreateInput[] | Prisma.StatsSiteCreateInput[] | Prisma.StatsTeamCreateInput[] | Prisma.StatsUserCreateInput[] {
         const stats: any[] = [];
         const periodDays = { Daily: 1, Weekly: 7, Monthly: 30 }[periodType];
 
@@ -409,7 +410,7 @@ export class StatsDbFactory {
 /**
  * Seed comprehensive stats for testing analytics
  */
-export async function seedTestStats(db: any) {
+export async function seedTestStats(db: PrismaClient) {
     // Create entities first
     const user1 = await db.user.create({
         data: {
@@ -477,7 +478,7 @@ export async function seedTestStats(db: any) {
 /**
  * Create analytics time series for dashboard testing
  */
-export async function seedAnalyticsTimeSeries(db: any, entityId: bigint, entityType: "user" | "team" | "resource") {
+export async function seedAnalyticsTimeSeries(db: PrismaClient, entityId: bigint, entityType: "user" | "team" | "resource") {
     const timeSeries = StatsDbFactory.createTimeSeries(entityType, entityId, 30, "Daily");
     
     const modelName = `stats${entityType.charAt(0).toUpperCase() + entityType.slice(1)}`;

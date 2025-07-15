@@ -136,7 +136,7 @@ validate_inputmap_paths() {
     
     # Extract all inputMap entries
     local inputmaps
-    inputmaps=$(jq -r '.behaviours[]?.action.inputMap? // empty | to_entries[] | "\(.key)=\(.value)"' "$file" 2>/dev/null || echo "")
+    inputmaps=$(jq -r '.behaviors[]?.action.inputMap? // empty | to_entries[] | "\(.key)=\(.value)"' "$file" 2>/dev/null || echo "")
     
     while IFS= read -r mapping; do
         [[ -z "$mapping" ]] && continue
@@ -169,7 +169,7 @@ validate_routine_references() {
     
     # Extract routine names from behaviors
     local routine_names
-    routine_names=$(jq -r '.behaviours[]? | select(.action.type == "routine") | .action.label' "$file" 2>/dev/null || echo "")
+    routine_names=$(jq -r '.behaviors[]? | select(.action.type == "routine") | .action.label' "$file" 2>/dev/null || echo "")
     
     if [[ -z "$routine_names" ]]; then
         log "No routine references found in $file"
@@ -216,7 +216,7 @@ validate_agent_structure() {
     fi
     
     # Check required fields
-    local required_fields=("identity.name" "goal" "role" "subscriptions" "behaviours")
+    local required_fields=("identity.name" "goal" "role" "subscriptions" "behaviors")
     for field in "${required_fields[@]}"; do
         if ! jq -e ".$field" "$file" >/dev/null 2>&1; then
             error "Missing required field: $field in $file"
@@ -226,7 +226,7 @@ validate_agent_structure() {
     
     # Check behavior structure
     local behavior_count
-    behavior_count=$(jq '.behaviours | length' "$file" 2>/dev/null || echo "0")
+    behavior_count=$(jq '.behaviors | length' "$file" 2>/dev/null || echo "0")
     
     if [[ "$behavior_count" -eq 0 ]]; then
         error "Agent must have at least one behavior in $file"

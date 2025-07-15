@@ -34,7 +34,17 @@ export const RadioBase = forwardRef<HTMLInputElement, RadioBaseProps>(({
     label,
     ...props
 }, ref) => {
-    const { addRipple, ripples } = useRippleEffect();
+    // Calculate ripple size based on radio size
+    const rippleSize = useMemo(() => {
+        switch (size) {
+            case "sm": return 24; // 6 * 4 = 24px
+            case "lg": return 40; // 10 * 4 = 40px  
+            case "md":
+            default: return 32; // 8 * 4 = 32px
+        }
+    }, [size]);
+    
+    const { addRipple, ripples } = useRippleEffect(rippleSize);
 
     const styles = useMemo(() => getRadioStyles({
         color,
@@ -48,7 +58,10 @@ export const RadioBase = forwardRef<HTMLInputElement, RadioBaseProps>(({
     const handleClick = useCallback((e: React.MouseEvent<HTMLSpanElement>) => {
         if (!disabled) {
             const rect = e.currentTarget.getBoundingClientRect();
-            addRipple(e.clientX - rect.left, e.clientY - rect.top);
+            // Center the ripple in the radio wrapper instead of using cursor position
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            addRipple(centerX, centerY);
         }
     }, [disabled, addRipple]);
 
