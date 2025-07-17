@@ -23,6 +23,7 @@ import { EventPublisher } from "../../events/publisher.js";
 import type { ServiceEvent } from "../../events/types.js";
 import type { CachedConversationStateStore } from "../../response/chatStore.js";
 import { BaseStateMachine } from "../shared/BaseStateMachine.js";
+import type { StopOptions, StopResult } from "../shared/stopTypes.js";
 import type { ISwarmContextManager } from "../shared/SwarmContextManager.js";
 
 /**
@@ -50,8 +51,8 @@ export class SwarmStateMachine extends BaseStateMachine<ServiceEvent> {
         private readonly conversationEngine: ConversationEngine, // NEW: For conversation orchestration
         private readonly chatStore: CachedConversationStateStore, // For loading chat configuration
     ) {
-        // Pass empty coordination config for now - will be updated when swarmId is set
-        super(RunState.UNINITIALIZED, "SwarmStateMachine", {});
+        // Pass minimal coordination config - contextId will be updated when swarmId is set
+        super(RunState.UNINITIALIZED, "SwarmStateMachine", { contextId: "" });
 
         // Initialize event handling services
         this.eventInterceptor = new EventInterceptor(
@@ -159,6 +160,11 @@ export class SwarmStateMachine extends BaseStateMachine<ServiceEvent> {
             }
             await this.contextManager.createContext(this.swarmId, initialContext);
 
+            // Register initial agents with EventInterceptor for event-driven coordination
+            // Note: At initialization, no agents are present yet. They will be added
+            // dynamically as they join the swarm through the ConversationEngine.
+            // We'll need to handle dynamic agent registration elsewhere.
+
             // Use ConversationEngine to initiate the swarm with an AI leader
             const trigger: ConversationTrigger = {
                 type: "start",
@@ -174,7 +180,7 @@ export class SwarmStateMachine extends BaseStateMachine<ServiceEvent> {
             const result = await this.conversationEngine.orchestrateConversation({
                 context: conversationContext,
                 trigger,
-                strategy: "conversation",
+                strategy: "conversational",
             });
 
             // Transition to appropriate state based on result
@@ -303,23 +309,29 @@ export class SwarmStateMachine extends BaseStateMachine<ServiceEvent> {
                 }
                 break;
         }
+
+        // Persist event if configured to do so
+        await this.persistEventIfConfigured(event);
     }
 
     /**
-     * Override stop to add requesting user parameter
+     * Override stop to add requesting user parameter support
+     * Maintains compatibility with BaseStateMachine's overloaded signatures
      */
     async stop(
-        mode: "graceful" | "force" = "graceful",
+        modeOrReasonOrOptions?: "graceful" | "force" | string | StopOptions,
         reason?: string,
         _requestingUser?: SessionUser,
-    ): Promise<{
-        success: boolean;
-        message?: string;
-        finalState?: any;
-        error?: string;
-    }> {
-        // Delegate to parent class
-        return super.stop(mode, reason);
+    ): Promise<StopResult> {
+        // If a SessionUser is provided as third parameter, incorporate it into options
+        if (_requestingUser && typeof modeOrReasonOrOptions === "string" && 
+            (modeOrReasonOrOptions === "graceful" || modeOrReasonOrOptions === "force")) {
+            // Called as stop(mode, reason, user)
+            return super.stop({ mode: modeOrReasonOrOptions, reason, requestingUser: _requestingUser });
+        }
+        
+        // Otherwise delegate normally to parent class
+        return super.stop(modeOrReasonOrOptions as any, reason);
     }
 
     /**
@@ -396,6 +408,33 @@ export class SwarmStateMachine extends BaseStateMachine<ServiceEvent> {
             };
         }
 
+        // Unregister all agents from EventInterceptor before shutdown
+        try {
+            const context = await this.contextManager.getContext(this.swarmId);
+            if (context?.execution?.agents) {
+                for (const agent of context.execution.agents) {
+                    try {
+                        this.eventInterceptor.unregisterBot(agent.id);
+                        logger.info("[SwarmStateMachine] Unregistered agent during shutdown", {
+                            swarmId: this.swarmId,
+                            agentId: agent.id,
+                        });
+                    } catch (error) {
+                        logger.warn("[SwarmStateMachine] Failed to unregister agent during shutdown", {
+                            swarmId: this.swarmId,
+                            agentId: agent.id,
+                            error: error instanceof Error ? error.message : String(error),
+                        });
+                    }
+                }
+            }
+        } catch (error) {
+            logger.warn("[SwarmStateMachine] Failed to unregister agents during shutdown", {
+                swarmId: this.swarmId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
+
         // Emit swarm stopped event
         const { proceed: stopProceed, reason: stopReason } = await EventPublisher.emit(EventTypes.SWARM.STATE_CHANGED, {
             chatId: this.swarmId || "unknown",
@@ -414,6 +453,88 @@ export class SwarmStateMachine extends BaseStateMachine<ServiceEvent> {
         }
 
         return finalState;
+    }
+
+    /**
+     * Register an agent with the EventInterceptor when it joins the swarm
+     * This enables event-driven coordination between agents
+     */
+    public async registerAgent(agent: BotParticipant): Promise<void> {
+        if (!this.swarmId) {
+            logger.error("[SwarmStateMachine] Cannot register agent - no swarmId");
+            return;
+        }
+
+        try {
+            // Register with EventInterceptor for event handling
+            this.eventInterceptor.registerBot(agent);
+            
+            logger.info("[SwarmStateMachine] Registered agent with EventInterceptor", {
+                swarmId: this.swarmId,
+                agentId: agent.id,
+                agentName: agent.name,
+                behaviors: agent.config?.agentSpec?.behaviors?.length || 0,
+            });
+
+            // Update context to add agent to execution.agents
+            const context = await this.contextManager.getContext(this.swarmId);
+            if (context) {
+                const updatedAgents = [...(context.execution.agents || []), agent];
+                await this.contextManager.updateContext(this.swarmId, {
+                    execution: {
+                        ...context.execution,
+                        agents: updatedAgents,
+                        lastActivityAt: new Date(),
+                    },
+                }, `Agent ${agent.name} joined swarm`);
+            }
+        } catch (error) {
+            logger.error("[SwarmStateMachine] Failed to register agent", {
+                swarmId: this.swarmId,
+                agentId: agent.id,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Unregister an agent when it leaves the swarm
+     */
+    public async unregisterAgent(agentId: string): Promise<void> {
+        if (!this.swarmId) {
+            logger.error("[SwarmStateMachine] Cannot unregister agent - no swarmId");
+            return;
+        }
+
+        try {
+            // Unregister from EventInterceptor
+            this.eventInterceptor.unregisterBot(agentId);
+            
+            logger.info("[SwarmStateMachine] Unregistered agent from EventInterceptor", {
+                swarmId: this.swarmId,
+                agentId,
+            });
+
+            // Update context to remove agent from execution.agents
+            const context = await this.contextManager.getContext(this.swarmId);
+            if (context) {
+                const updatedAgents = (context.execution.agents || []).filter(a => a.id !== agentId);
+                await this.contextManager.updateContext(this.swarmId, {
+                    execution: {
+                        ...context.execution,
+                        agents: updatedAgents,
+                        lastActivityAt: new Date(),
+                    },
+                }, `Agent ${agentId} left swarm`);
+            }
+        } catch (error) {
+            logger.error("[SwarmStateMachine] Failed to unregister agent", {
+                swarmId: this.swarmId,
+                agentId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
     }
 
     /**
@@ -606,7 +727,7 @@ export class SwarmStateMachine extends BaseStateMachine<ServiceEvent> {
             const result = await this.conversationEngine.orchestrateConversation({
                 context: conversationContext,
                 trigger,
-                strategy: "conversation",
+                strategy: "conversational",
             });
 
             logger.info("[SwarmStateMachine] Generated response to external message", {
@@ -755,7 +876,7 @@ export class SwarmStateMachine extends BaseStateMachine<ServiceEvent> {
         const result = await this.conversationEngine.orchestrateConversation({
             context: conversationContext,
             trigger,
-            strategy: "conversation",
+            strategy: "conversational",
         });
 
         logger.info("[SwarmStateMachine] Tool execution handled by conversation engine", {
@@ -840,7 +961,7 @@ export class SwarmStateMachine extends BaseStateMachine<ServiceEvent> {
         });
 
         // Stop the swarm gracefully
-        await this.stop("graceful", "User requested cancellation");
+        await this.stop({ mode: "graceful", reason: "User requested cancellation" });
     }
 
     private async handleSwarmEvent(event: ServiceEvent): Promise<void> {
@@ -894,7 +1015,7 @@ export class SwarmStateMachine extends BaseStateMachine<ServiceEvent> {
         // Safety events should be handled with high priority using EventTypes constants
         switch (event.type) {
             case EventTypes.SECURITY.EMERGENCY_STOP:
-                await this.stop("force", "Emergency stop requested");
+                await this.stop({ mode: "force", reason: "Emergency stop requested" });
                 break;
 
             case EventTypes.SECURITY.THREAT_DETECTED:
@@ -950,7 +1071,7 @@ export class SwarmStateMachine extends BaseStateMachine<ServiceEvent> {
             const result = await this.conversationEngine.orchestrateConversation({
                 context: conversationContext,
                 trigger,
-                strategy: event.type === EventTypes.RUN.FAILED ? "reasoning" : "conversation",
+                strategy: event.type === EventTypes.RUN.FAILED ? "reasoning" : "conversational",
             });
 
             logger.info("[SwarmStateMachine] Processed status update", {
@@ -968,6 +1089,50 @@ export class SwarmStateMachine extends BaseStateMachine<ServiceEvent> {
         } catch (error) {
             logger.error("[SwarmStateMachine] Error handling status update", {
                 swarmId: this.swarmId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
+    }
+
+    /**
+     * Persist event if it should be recorded according to chat config
+     */
+    private async persistEventIfConfigured(event: ServiceEvent): Promise<void> {
+        try {
+            if (!this.swarmId) {
+                return; // Can't persist without swarmId
+            }
+
+            // Get chat config from the swarm context
+            const context = await this.contextManager.getContext(this.swarmId);
+            if (!context?.chatConfig) {
+                return; // No chat config available
+            }
+
+            const chatConfig = new ChatConfig({ config: context.chatConfig });
+            const eventConfig = chatConfig.eventConfig;
+            
+            // Only persist if event type is in recorded list
+            if (eventConfig?.recordedEventTypes.includes(event.type)) {
+                chatConfig.addSwarmEvent(event);
+                
+                // Update the context with the new chat config
+                await this.contextManager.updateContext(this.swarmId, {
+                    chatConfig: chatConfig.export(),
+                }, `Recorded event: ${event.type}`);
+
+                logger.debug("[SwarmStateMachine] Persisted event", {
+                    swarmId: this.swarmId,
+                    eventType: event.type,
+                    eventId: event.id,
+                    totalRecords: chatConfig.records?.length || 0,
+                });
+            }
+        } catch (error) {
+            logger.error("[SwarmStateMachine] Failed to persist event", {
+                swarmId: this.swarmId,
+                eventType: event.type,
+                eventId: event.id,
                 error: error instanceof Error ? error.message : String(error),
             });
         }

@@ -2,6 +2,7 @@
 import { API_CREDITS_MULTIPLIER } from "../../consts/api.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
 import { DAYS_1_MS, MINUTES_10_MS, MINUTES_1_MS, SECONDS_1_MS } from "../../consts/numbers.js";
+import { EventTypes } from "../../consts/socketEvents.js";
 import { type ResourceSpec } from "./bot.js";
 
 // Keep track of config version for future compatibility
@@ -73,25 +74,6 @@ export interface BlackboardItem {
     created_at: string;
 }
 
-/** 
- * Historical record of a routine/tool invocation 
- */
-export interface ChatToolCallRecord {
-    /** The ID of the tool call */
-    id: string;
-    /** The ID of the routine that was called */
-    routine_id: string;
-    /** Display name of the routine that was called */
-    routine_name: string;
-    /** The parameters of the tool call */
-    params: Record<string, any>;
-    /** The IDs of the resources produced by the tool call */
-    output_resource_ids: string[];
-    /** The ID of the bot that invoked the tool call */
-    caller_bot_id: string;
-    /** The timestamp when the tool call was created */
-    created_at: string;
-}
 
 /**
  * Defines the possible states for a pending tool call that is awaiting approval or scheduled execution.
@@ -178,6 +160,9 @@ export interface SwarmResourceContext {
     availableResources: ResourceSpec[];
 }
 
+// Import ServiceEvent type - will be resolved at build time
+type ServiceEvent = any; // Placeholder - actual type comes from server events
+
 /**
  * Represents all data that can be stored in a chat's stringified config.
  * Corresponds to Conversation.meta in the server-side types.
@@ -204,7 +189,16 @@ export interface ChatConfigObject {
     /** A list of resources created by the swarm or that are useful context for completing the goal or current subtask. */
     resources?: SwarmResource[];
     /** A list of events that have occurred in the swarm */
-    records?: ChatToolCallRecord[];
+    records?: ServiceEvent[];
+    /** Configuration for event persistence */
+    eventConfig?: {
+        /** Which event types to record (using existing EventTypes constants) */
+        recordedEventTypes: string[];
+        /** Maximum total events to keep */
+        maxTotalEvents?: number;
+        /** Method for removing events when limit is reached */
+        compressionMethod?: "remove_oldest" | "remove_middle" | "ai_prioritize";
+    };
     /** Governs who can read, publish or join this swarm chat. Optional. */
     policy?: SwarmPolicy;
     /** Statistics about the swarm's duration and resource usage. Read-only. */
@@ -273,6 +267,7 @@ export class ChatConfig {
     blackboard?: ChatConfigObject["blackboard"];
     resources?: ChatConfigObject["resources"];
     records?: ChatConfigObject["records"];
+    eventConfig?: ChatConfigObject["eventConfig"];
     policy?: ChatConfigObject["policy"];
     stats: ChatConfigObject["stats"];
     limits?: ChatConfigObject["limits"];
@@ -291,6 +286,7 @@ export class ChatConfig {
         this.blackboard = config.blackboard ?? [];
         this.resources = config.resources ?? [];
         this.records = config.records ?? [];
+        this.eventConfig = config.eventConfig;
         this.policy = config.policy;
         this.stats = config.stats ?? ChatConfig.defaultStats();
         this.limits = config.limits;
@@ -324,6 +320,19 @@ export class ChatConfig {
         const config: ChatConfigObject = {
             __version: LATEST_CONFIG_VERSION,
             resources: [],
+            records: [],
+            eventConfig: {
+                recordedEventTypes: [
+                    EventTypes.TOOL.COMPLETED,
+                    EventTypes.TOOL.FAILED,
+                    EventTypes.TOOL.APPROVAL_GRANTED,
+                    EventTypes.TOOL.APPROVAL_REJECTED,
+                    EventTypes.SWARM.STATE_CHANGED,
+                    EventTypes.CHAT.MESSAGE_ADDED,
+                ],
+                maxTotalEvents: 500,
+                compressionMethod: "remove_oldest",
+            },
             limits: ChatConfig.defaultLimits(),
             stats: ChatConfig.defaultStats(),
             scheduling: ChatConfig.defaultScheduling(),
@@ -347,6 +356,7 @@ export class ChatConfig {
             blackboard: this.blackboard,
             resources: this.resources,
             records: this.records,
+            eventConfig: this.eventConfig,
             policy: this.policy,
             stats: this.stats,
             limits: this.limits,
@@ -512,5 +522,95 @@ export class ChatConfig {
         // which TypeScript helps enforce at compile time if types are strict.
 
         return effectiveScheduling;
+    }
+
+    /**
+     * Updates the events (records) array with size limiting and compression.
+     * Ensures the array doesn't grow unbounded while maintaining important history.
+     * 
+     * @param newEvent The new event to add to the records
+     * @param maxEvents Maximum number of events to keep (default: 500)
+     * @param compressionMethod Method for removing events when limit is reached
+     */
+    public updateEvents(
+        newEvent: ServiceEvent,
+        maxEvents = 500,
+        compressionMethod: "remove_oldest" | "remove_middle" | "ai_prioritize" = "remove_oldest",
+    ): void {
+        // Initialize records array if it doesn't exist
+        if (!this.records) {
+            this.records = [];
+        }
+
+        const updatedRecords = [...this.records, newEvent];
+
+        // Apply size limit using specified compression method
+        if (updatedRecords.length > maxEvents) {
+            switch (compressionMethod) {
+                case "remove_oldest": {
+                    this.records = updatedRecords.slice(-maxEvents); // Keep most recent
+                    break;
+                }
+                case "remove_middle": {
+                    // Keep first 25% and last 75%
+                    const keepFirst = Math.floor(maxEvents * 0.25);
+                    const keepLast = maxEvents - keepFirst;
+                    this.records = [
+                        ...updatedRecords.slice(0, keepFirst),
+                        ...updatedRecords.slice(-keepLast),
+                    ];
+                    break;
+                }
+                case "ai_prioritize": {
+                    // For now, fallback to remove_oldest (AI prioritization can be implemented later)
+                    this.records = updatedRecords.slice(-maxEvents);
+                    break;
+                }
+                default: {
+                    this.records = updatedRecords.slice(-maxEvents);
+                    break;
+                }
+            }
+        } else {
+            this.records = updatedRecords;
+        }
+    }
+
+    /**
+     * Add a swarm event to the records if it should be recorded
+     * 
+     * @param event The ServiceEvent to potentially add
+     */
+    public addSwarmEvent(event: ServiceEvent): void {
+        const eventConfig = this.eventConfig || this.getDefaultEventConfig();
+
+        // Check if this event type should be recorded
+        if (!eventConfig.recordedEventTypes.includes(event.type)) {
+            return;
+        }
+
+        this.updateEvents(
+            event,
+            eventConfig.maxTotalEvents || 500,
+            eventConfig.compressionMethod || "remove_oldest",
+        );
+    }
+
+    /**
+     * Get default event recording configuration
+     */
+    private getDefaultEventConfig() {
+        return {
+            recordedEventTypes: [
+                EventTypes.TOOL.COMPLETED,
+                EventTypes.TOOL.FAILED,
+                EventTypes.TOOL.APPROVAL_GRANTED,
+                EventTypes.TOOL.APPROVAL_REJECTED,
+                EventTypes.SWARM.STATE_CHANGED,
+                EventTypes.CHAT.MESSAGE_ADDED,
+            ],
+            maxTotalEvents: 500,
+            compressionMethod: "remove_oldest" as const,
+        };
     }
 } 

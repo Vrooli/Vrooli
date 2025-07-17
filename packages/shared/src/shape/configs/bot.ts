@@ -36,7 +36,7 @@ export interface ResourceSpec {
     label: string;
     /** Unique identifier for the resource (optional for simple references) */
     id?: string;
-    /** Access permissions for this resource (e.g., ["read", "write", "execute"]) */
+    /** Access permissions for this resource (e.g., ["read", "write", "execute", "emit"]) */
     permissions?: string[];
     /** Source of the resource for precedence resolution */
     source?: "bot" | "swarm" | "global";
@@ -105,7 +105,7 @@ export interface BehaviourSpec {
         };
     };
     /** Action to execute when the trigger conditions are met */
-    action: RoutineAction | InvokeAction;
+    action: RoutineAction | InvokeAction | EmitAction;
     /** Quality of service level for message delivery (0=fire-and-forget, 1=at-least-once, 2=exactly-once) */
     qos?: 0 | 1 | 2;
 }
@@ -122,6 +122,44 @@ export interface RoutineAction {
     routineId?: string;
     /** Mapping of routine input variables to values from trigger context (e.g., {"goalId": "event.data.goalId"}) */
     inputMap?: Record<string, string>;
+    /** Context-specific blackboard operations for routine outputs */
+    outputOperations?: {
+        /** Append routine outputs to blackboard arrays */
+        append?: Array<{
+            /** Field from routine's output (supports dot notation, e.g., "result.items") */
+            routineOutput: string;
+            /** Blackboard array to append to */
+            blackboardId: string;
+        }>;
+        /** Increment blackboard numbers */
+        increment?: Array<{
+            /** Number from routine's output (supports dot notation, e.g., "stats.count") */
+            routineOutput: string;
+            /** Blackboard counter to increment */
+            blackboardId: string;
+        }>;
+        /** Merge routine objects into blackboard (shallow merge) */
+        merge?: Array<{
+            /** Object from routine's output (supports dot notation, e.g., "config.settings") */
+            routineOutput: string;
+            /** Blackboard object to merge into */
+            blackboardId: string;
+        }>;
+        /** Deep merge routine objects into blackboard (recursive merge) */
+        deepMerge?: Array<{
+            /** Object from routine's output (supports dot notation, e.g., "nested.config") */
+            routineOutput: string;
+            /** Blackboard object to deep merge into */
+            blackboardId: string;
+        }>;
+        /** Simple assignment to blackboard (overwrites existing values) */
+        set?: Array<{
+            /** Any routine output (supports dot notation, e.g., "response.data") */
+            routineOutput: string;
+            /** Blackboard key to set */
+            blackboardId: string;
+        }>;
+    };
 }
 
 /**
@@ -132,6 +170,65 @@ export interface InvokeAction {
     type: "invoke";
     /** Description of what the agent should accomplish through reasoning */
     purpose: string;
+}
+
+/**
+ * Action that emits a new event into the event bus system.
+ * Use to trigger other agents' behaviors or coordinate swarm activities.
+ */
+export interface EmitAction {
+    type: "emit";
+    /** The event type to emit (must follow platform event patterns) */
+    eventType: string;
+    /** JEXL expressions mapping trigger context to event data fields */
+    dataMapping?: Record<string, string>;
+    /** Optional metadata for event delivery */
+    metadata?: {
+        /** Priority level for event processing */
+        priority?: "low" | "medium" | "high" | "critical";
+        /** Delivery guarantee level */
+        deliveryGuarantee?: "fire-and-forget" | "reliable" | "barrier-sync";
+        /** Time-to-live for the event in milliseconds */
+        ttl?: number;
+    };
+    /** Context-specific blackboard operations for emit outputs */
+    outputOperations?: {
+        /** Append emit outputs to blackboard arrays */
+        append?: Array<{
+            /** Field from emit result (supports dot notation, e.g., "metadata.priority", "responseData.items") */
+            emitOutput: string;
+            /** Blackboard array to append to */
+            blackboardId: string;
+        }>;
+        /** Increment blackboard numbers */
+        increment?: Array<{
+            /** Number from emit result (supports dot notation, e.g., "metadata.retryCount") */
+            emitOutput: string;
+            /** Blackboard counter to increment */
+            blackboardId: string;
+        }>;
+        /** Merge emit objects into blackboard (shallow merge) */
+        merge?: Array<{
+            /** Object from emit result (supports dot notation, e.g., "metadata", "responseData.config") */
+            emitOutput: string;
+            /** Blackboard object to merge into */
+            blackboardId: string;
+        }>;
+        /** Deep merge emit objects into blackboard (recursive merge) */
+        deepMerge?: Array<{
+            /** Object from emit result (supports dot notation, e.g., "responseData.nested") */
+            emitOutput: string;
+            /** Blackboard object to deep merge into */
+            blackboardId: string;
+        }>;
+        /** Simple assignment to blackboard (overwrites existing values) */
+        set?: Array<{
+            /** Any emit output (supports dot notation, e.g., "eventId", "timestamp", "metadata.deliveryStatus") */
+            emitOutput: string;
+            /** Blackboard key to set */
+            blackboardId: string;
+        }>;
+    };
 }
 
 /**
