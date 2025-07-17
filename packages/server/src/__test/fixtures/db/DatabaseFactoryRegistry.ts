@@ -219,7 +219,7 @@ export class DatabaseFactoryRegistry {
      * Smart cleanup using dependency-ordered cleanup helpers
      * This is more efficient than factory-by-factory cleanup
      */
-    async smartCleanup(scope: 'full' | 'userAuth' | 'chat' | 'team' | 'execution' | 'financial' | 'content' | 'minimal' = 'full'): Promise<void> {
+    async smartCleanup(scope: "full" | "userAuth" | "chat" | "team" | "execution" | "financial" | "content" | "minimal" = "full"): Promise<void> {
         // Use the dependency-ordered cleanup helpers for more efficient cleanup
         await cleanupGroups[scope](this.prisma);
         
@@ -241,7 +241,7 @@ export class DatabaseFactoryRegistry {
         
         const totalFactoryRecords = Object.values(factoryTracked).reduce(
             (total, ids) => total + ids.length, 
-            0
+            0,
         );
         const totalGlobalRecords = TestRecordTracker.totalTrackedRecords;
         
@@ -275,15 +275,15 @@ export class DatabaseFactoryRegistry {
     async createManagedTestEnvironment(config: {
         models: string[];
         relationships?: Record<string, any>;
-        trackingScope?: 'factory' | 'global' | 'both';
+        trackingScope?: "factory" | "global" | "both";
     }): Promise<{
         data: Record<string, any>;
         cleanup: () => Promise<void>;
     }> {
-        const { trackingScope = 'both' } = config;
+        const { trackingScope = "both" } = config;
         
         // Start tracking if requested
-        if (trackingScope === 'global' || trackingScope === 'both') {
+        if (trackingScope === "global" || trackingScope === "both") {
             this.startTrackingSession();
         }
         
@@ -294,13 +294,13 @@ export class DatabaseFactoryRegistry {
         return {
             data,
             cleanup: async () => {
-                if (trackingScope === 'factory') {
+                if (trackingScope === "factory") {
                     // Only clean up factory-tracked records
                     const cleanupPromises = Array.from(this.factories.values()).map(
                         factory => factory.cleanupAll(),
                     );
                     await Promise.all(cleanupPromises);
-                } else if (trackingScope === 'global') {
+                } else if (trackingScope === "global") {
                     // Only clean up globally-tracked records
                     await TestRecordTracker.cleanup(this.prisma);
                     TestRecordTracker.stop();

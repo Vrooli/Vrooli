@@ -295,57 +295,55 @@ export class NotificationDbFactory extends EnhancedDbFactory<Prisma.notification
 /**
  * Enhanced test fixtures for NotificationSubscription model
  */
-export const notificationSubscriptionDbFixtures: DbTestFixtures<Prisma.NotificationSubscriptionCreateInput> = {
+export const notificationSubscriptionDbFixtures: DbTestFixtures<Prisma.notification_subscriptionCreateInput> = {
     minimal: {
         id: generatePK(),
-        category: "Updates",
-        user: { connect: { id: "user_placeholder_id" } },
-        isEnabled: true,
+        subscriber: { connect: { id: "user_placeholder_id" } },
+        silent: false,
     },
     complete: {
         id: generatePK(),
-        category: "TeamUpdates",
-        user: { connect: { id: "user_placeholder_id" } },
-        isEnabled: true,
+        subscriber: { connect: { id: "user_placeholder_id" } },
+        silent: false,
+        context: "Test subscription context",
         team: { connect: { id: "team_placeholder_id" } },
     },
     invalid: {
         missingRequired: {
-            // Missing required category and user
-            isEnabled: true,
+            // Missing required subscriber
+            silent: false,
         },
         invalidTypes: {
             id: "not-a-valid-snowflake",
-            category: 123, // Should be string
-            isEnabled: "yes", // Should be boolean
+            silent: "yes", // Should be boolean
+            context: 123, // Should be string
         },
         invalidUserConnection: {
             id: generatePK(),
-            category: "Updates",
-            user: { connect: { id: "non-existent-user-id" } },
-            isEnabled: true,
+            subscriber: { connect: { id: "non-existent-user-id" } },
+            silent: false,
         },
     },
     edgeCases: {
-        disabledSubscription: {
+        silentSubscription: {
             id: generatePK(),
-            category: "Alerts",
-            user: { connect: { id: "user_placeholder_id" } },
-            isEnabled: false,
+            subscriber: { connect: { id: "user_placeholder_id" } },
+            silent: true,
+            context: "Silent notification subscription",
         },
-        projectSubscription: {
+        resourceSubscription: {
             id: generatePK(),
-            category: "ProjectUpdates",
-            user: { connect: { id: "user_placeholder_id" } },
-            isEnabled: true,
-            project: { connect: { id: "project_placeholder_id" } },
+            subscriber: { connect: { id: "user_placeholder_id" } },
+            silent: false,
+            resource: { connect: { id: "resource_placeholder_id" } },
+            context: "Resource update subscription",
         },
-        routineSubscription: {
+        chatSubscription: {
             id: generatePK(),
-            category: "RoutineUpdates",
-            user: { connect: { id: "user_placeholder_id" } },
-            isEnabled: true,
-            routine: { connect: { id: "routine_placeholder_id" } },
+            subscriber: { connect: { id: "user_placeholder_id" } },
+            silent: false,
+            chat: { connect: { id: "chat_placeholder_id" } },
+            context: "Chat notification subscription",
         },
     },
 };
@@ -353,12 +351,22 @@ export const notificationSubscriptionDbFixtures: DbTestFixtures<Prisma.Notificat
 /**
  * Enhanced factory for creating notification subscription database fixtures
  */
-export class NotificationSubscriptionDbFactory extends EnhancedDbFactory<Prisma.NotificationSubscriptionCreateInput> {
+export class NotificationSubscriptionDbFactory extends EnhancedDbFactory<Prisma.notification_subscriptionCreateInput> {
+    
+    /**
+     * Override to only generate fields that exist in notification_subscription schema
+     */
+    protected generateFreshIdentifiers(): Record<string, any> {
+        return {
+            id: generatePK(),
+            // notification_subscription doesn't have publicId or handle fields
+        };
+    }
     
     /**
      * Get the test fixtures for NotificationSubscription model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.NotificationSubscriptionCreateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.notification_subscriptionCreateInput> {
         return notificationSubscriptionDbFixtures;
     }
 
@@ -370,21 +378,19 @@ export class NotificationSubscriptionDbFactory extends EnhancedDbFactory<Prisma.
             constraints: {
                 uniqueViolation: {
                     id: notificationDbIds.subscription1, // Duplicate ID
-                    category: "Updates",
-                    user: { connect: { id: "user_placeholder_id" } },
-                    isEnabled: true,
+                    subscriber: { connect: { id: "user_placeholder_id" } },
+                    silent: false,
                 },
                 foreignKeyViolation: {
                     id: generatePK(),
-                    category: "Updates",
-                    user: { connect: { id: "non-existent-user-id" } },
-                    isEnabled: true,
+                    subscriber: { connect: { id: "non-existent-user-id" } },
+                    silent: false,
                 },
                 checkConstraintViolation: {
                     id: generatePK(),
-                    category: "", // Empty category violates constraint
-                    user: { connect: { id: "user_placeholder_id" } },
-                    isEnabled: true,
+                    subscriber: { connect: { id: "user_placeholder_id" } },
+                    silent: false,
+                    context: "", // Empty context might violate constraint
                 },
             },
             validation: {
@@ -392,18 +398,18 @@ export class NotificationSubscriptionDbFactory extends EnhancedDbFactory<Prisma.
                 invalidDataType: notificationSubscriptionDbFixtures.invalid.invalidTypes,
                 outOfRange: {
                     id: generatePK(),
-                    category: "A".repeat(256), // Category too long
-                    user: { connect: { id: "user_placeholder_id" } },
-                    isEnabled: true,
+                    context: "A".repeat(2049), // Context too long (max 2048)
+                    subscriber: { connect: { id: "user_placeholder_id" } },
+                    silent: false,
                 },
             },
             businessLogic: {
                 duplicateSubscription: {
                     id: generatePK(),
-                    category: "Updates",
-                    user: { connect: { id: "user_placeholder_id" } },
-                    isEnabled: true,
-                    // Same user, same category - potential duplicate
+                    subscriber: { connect: { id: "user_placeholder_id" } },
+                    silent: false,
+                    resource: { connect: { id: "resource_placeholder_id" } },
+                    // Same user, same resource - potential duplicate
                 },
             },
         };
@@ -412,22 +418,17 @@ export class NotificationSubscriptionDbFactory extends EnhancedDbFactory<Prisma.
     /**
      * Add object association to a subscription fixture
      */
-    protected addObjectAssociation(data: Prisma.NotificationSubscriptionCreateInput, objectId: string, objectType: string): Prisma.NotificationSubscriptionCreateInput {
+    protected addObjectAssociation(data: Prisma.notification_subscriptionCreateInput, objectId: string, objectType: string): Prisma.notification_subscriptionCreateInput {
         const connections: Record<string, any> = {
-            Api: { api: { connect: { id: objectId } } },
+            Resource: { resource: { connect: { id: objectId } } },
+            Chat: { chat: { connect: { id: objectId } } },
             Comment: { comment: { connect: { id: objectId } } },
             Issue: { issue: { connect: { id: objectId } } },
             Meeting: { meeting: { connect: { id: objectId } } },
-            Note: { note: { connect: { id: objectId } } },
-            Project: { project: { connect: { id: objectId } } },
-            Question: { question: { connect: { id: objectId } } },
-            Quiz: { quiz: { connect: { id: objectId } } },
+            PullRequest: { pullRequest: { connect: { id: objectId } } },
             Report: { report: { connect: { id: objectId } } },
-            Routine: { routine: { connect: { id: objectId } } },
-            SmartContract: { smartContract: { connect: { id: objectId } } },
-            Standard: { standard: { connect: { id: objectId } } },
+            Schedule: { schedule: { connect: { id: objectId } } },
             Team: { team: { connect: { id: objectId } } },
-            User: { user: { connect: { id: objectId } } },
         };
 
         return {
@@ -439,27 +440,34 @@ export class NotificationSubscriptionDbFactory extends EnhancedDbFactory<Prisma.
     /**
      * NotificationSubscription-specific validation
      */
-    protected validateSpecific(data: Prisma.NotificationSubscriptionCreateInput): { errors: string[]; warnings: string[] } {
+    protected validateSpecific(data: Prisma.notification_subscriptionCreateInput): { errors: string[]; warnings: string[] } {
         const errors: string[] = [];
         const warnings: string[] = [];
 
         // Check required fields specific to NotificationSubscription
-        if (!data.category) errors.push("Subscription category is required");
-        if (!data.user) errors.push("Subscription must be associated with a user");
-        if (data.isEnabled === undefined) errors.push("isEnabled flag is required");
+        if (!data.subscriber) errors.push("Subscription must be associated with a subscriber");
+        if (data.silent === undefined) errors.push("silent flag is required");
 
         // Check business logic
-        if (!data.isEnabled) {
-            warnings.push("Subscription is disabled - user won't receive notifications");
+        if (data.silent) {
+            warnings.push("Subscription is silent - user won't receive audio notifications");
         }
 
-        // Check category-specific requirements
-        if (data.category?.includes("Team") && !data.team) {
-            warnings.push("Team-related subscriptions should reference a team");
+        // Check that at least one entity is being subscribed to
+        const hasEntity = !!(data.resourceId || data.chatId || data.commentId || 
+                           data.issueId || data.meetingId || data.pullRequestId || 
+                           data.reportId || data.scheduleId || data.teamId ||
+                           data.resource || data.chat || data.comment ||
+                           data.issue || data.meeting || data.pullRequest ||
+                           data.report || data.schedule || data.team);
+        
+        if (!hasEntity) {
+            warnings.push("Subscription should reference at least one entity to subscribe to");
         }
 
-        if (data.category?.includes("Project") && !data.project) {
-            warnings.push("Project-related subscriptions should reference a project");
+        // Check context length
+        if (data.context && data.context.length > 2048) {
+            errors.push("Subscription context is too long (max 2048 characters)");
         }
 
         return { errors, warnings };
@@ -468,13 +476,12 @@ export class NotificationSubscriptionDbFactory extends EnhancedDbFactory<Prisma.
     // Static methods for backward compatibility
     static createMinimal(
         userId: string,
-        category: string,
-        overrides?: Partial<Prisma.NotificationSubscriptionCreateInput>,
-    ): Prisma.NotificationSubscriptionCreateInput {
+        overrides?: Partial<Prisma.notification_subscriptionCreateInput>,
+    ): Prisma.notification_subscriptionCreateInput {
         const factory = new NotificationSubscriptionDbFactory();
         return factory.createMinimal({
-            category,
-            user: { connect: { id: userId } },
+            subscriber: { connect: { id: userId } },
+            silent: false,
             ...overrides,
         });
     }
@@ -483,27 +490,27 @@ export class NotificationSubscriptionDbFactory extends EnhancedDbFactory<Prisma.
         userId: string,
         objectId: string,
         objectType: string,
-        overrides?: Partial<Prisma.NotificationSubscriptionCreateInput>,
-    ): Prisma.NotificationSubscriptionCreateInput {
+        overrides?: Partial<Prisma.notification_subscriptionCreateInput>,
+    ): Prisma.notification_subscriptionCreateInput {
         const factory = new NotificationSubscriptionDbFactory();
         const data = factory.createMinimal({
-            category: `${objectType}Updates`,
-            user: { connect: { id: userId } },
+            subscriber: { connect: { id: userId } },
+            silent: false,
+            context: `${objectType} updates subscription`,
             ...overrides,
         });
         return factory.addObjectAssociation(data, objectId, objectType);
     }
 
-    static createDisabled(
+    static createSilent(
         userId: string,
-        category: string,
-        overrides?: Partial<Prisma.NotificationSubscriptionCreateInput>,
-    ): Prisma.NotificationSubscriptionCreateInput {
+        overrides?: Partial<Prisma.notification_subscriptionCreateInput>,
+    ): Prisma.notification_subscriptionCreateInput {
         const factory = new NotificationSubscriptionDbFactory();
         return factory.createMinimal({
-            category,
-            user: { connect: { id: userId } },
-            isEnabled: false,
+            subscriber: { connect: { id: userId } },
+            silent: true,
+            context: "Silent subscription",
             ...overrides,
         });
     }
@@ -559,16 +566,20 @@ export async function seedNotifications(
     }
 
     if (options.withSubscriptions) {
-        for (const category of categories) {
-            const subscription = await prisma.notificationSubscription.create({
+        for (let i = 0; i < categories.length; i++) {
+            const subscription = await prisma.notification_subscription.create({
                 data: NotificationSubscriptionDbFactory.createMinimal(
                     options.userId,
-                    category,
+                    {
+                        context: `Subscription for ${categories[i]} notifications`,
+                        silent: i % 2 === 0, // Alternate between silent and non-silent
+                    },
                 ),
                 include: {
-                    user: true,
+                    subscriber: true,
                     team: true,
-                    project: true,
+                    resource: true,
+                    chat: true,
                 },
             });
             subscriptions.push(subscription);

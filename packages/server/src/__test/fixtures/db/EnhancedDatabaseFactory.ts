@@ -320,7 +320,7 @@ export abstract class EnhancedDatabaseFactory<
             // Subclasses can override this method to add specific constraint checks
             
         } catch (error) {
-            violations.push(`Query error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            violations.push(`Query error: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
         
         return {

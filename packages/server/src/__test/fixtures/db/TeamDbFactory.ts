@@ -52,15 +52,23 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                 id: this.generateId(),
                 publicId: generatePublicId(),
                 handle: `team_${nanoid()}`,
-                name: "Test Team",
                 isOpenToNewMembers: true,
                 isPrivate: false,
+                translations: {
+                    create: [
+                        {
+                            id: this.generateId(),
+                            language: "en",
+                            name: "Test Team",
+                            bio: "A test team for testing purposes",
+                        },
+                    ],
+                },
             },
             complete: {
                 id: this.generateId(),
                 publicId: generatePublicId(),
                 handle: `complete_team_${nanoid()}`,
-                name: "Complete Test Team",
                 isOpenToNewMembers: true,
                 isPrivate: false,
                 bannerImage: "https://example.com/team-banner.jpg",
@@ -70,8 +78,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                         {
                             id: this.generateId(),
                             language: "en",
-                            name: "Complete Test Team",
-                            bio: "A comprehensive test team with all features",
+                                        bio: "A comprehensive test team with all features",
                         },
                         {
                             id: this.generateId(),
@@ -91,7 +98,6 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                 invalidTypes: {
                     id: "not-a-snowflake",
                     publicId: 123, // Should be string
-                    name: null, // Should be string
                     handle: true, // Should be string
                     isPrivate: "yes", // Should be boolean
                     isOpenToNewMembers: 1, // Should be boolean
@@ -99,7 +105,6 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                 duplicateHandle: {
                     id: this.generateId(),
                     publicId: generatePublicId(),
-                    name: "Duplicate Handle Team",
                     handle: "existing_team_handle", // Assumes this exists
                     isPrivate: false,
                     isOpenToNewMembers: true,
@@ -107,7 +112,6 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                 conflictingPrivacy: {
                     id: this.generateId(),
                     publicId: generatePublicId(),
-                    name: "Conflicting Team",
                     handle: `conflict_${nanoid()}`,
                     isPrivate: true,
                     isOpenToNewMembers: true, // Conflict with isPrivate
@@ -115,7 +119,6 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                 teamWithoutOwner: {
                     id: this.generateId(),
                     publicId: generatePublicId(),
-                    name: "No Owner Team",
                     handle: `no_owner_${nanoid()}`,
                     isPrivate: false,
                     isOpenToNewMembers: true,
@@ -126,7 +129,6 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                 maxLengthHandle: {
                     id: this.generateId(),
                     publicId: generatePublicId(),
-                    name: "Max Length Handle Team",
                     handle: "team_" + "a".repeat(45), // Max length handle
                     isPrivate: false,
                     isOpenToNewMembers: true,
@@ -134,7 +136,6 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                 unicodeNameTeam: {
                     id: this.generateId(),
                     publicId: generatePublicId(),
-                    name: "チーム 🎌", // Unicode characters
                     handle: `unicode_team_${nanoid()}`,
                     isPrivate: false,
                     isOpenToNewMembers: true,
@@ -142,7 +143,6 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                 largeTeam: {
                     id: this.generateId(),
                     publicId: generatePublicId(),
-                    name: "Large Test Team",
                     handle: `large_team_${nanoid()}`,
                     isPrivate: false,
                     isOpenToNewMembers: true,
@@ -224,8 +224,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                     {
                         id: this.generateId(),
                         language: "en",
-                        name: "Complete Test Team",
-                        bio: "A comprehensive test team with all features",
+                                bio: "A comprehensive test team with all features",
                     },
                     {
                         id: this.generateId(),
