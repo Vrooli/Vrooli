@@ -7,22 +7,21 @@
  */
 
 import type {
+    Report,
     ReportResponse,
     ReportResponseCreateInput,
     ReportResponseUpdateInput,
-    Report,
-    ReportFor,
     ReportStatus,
     ReportSuggestedAction,
     User,
 } from "../../../api/types.js";
+import { ReportSuggestedAction as ReportSuggestedActionEnum } from "../../../api/types.js";
 import {
     ReportFor as ReportForEnum,
     ReportStatus as ReportStatusEnum,
 } from "../../../run/enums.js";
-import { ReportSuggestedAction as ReportSuggestedActionEnum } from "../../../api/types.js";
-import type { MockDataOptions } from "./types.js";
 import { BaseAPIResponseFactory } from "./base.js";
+import type { MockDataOptions } from "./types.js";
 
 // Constants for realistic data generation
 const MODERATION_REASONS = [
@@ -71,9 +70,9 @@ export class ReportResponseAPIResponseFactory extends BaseAPIResponseFactory<
      */
     private generateActionDetails(action: ReportSuggestedAction, customDetails?: string): string {
         if (customDetails) return customDetails;
-        
+
         const baseDetail = ACTION_DETAILS[action] || "Moderation action taken.";
-        const timestamp = new Date().toLocaleDateString();
+        const timestamp = new Date().toISOString().toLocaleDateString();
         return `${baseDetail} Action taken on ${timestamp}.`;
     }
 
@@ -84,7 +83,7 @@ export class ReportResponseAPIResponseFactory extends BaseAPIResponseFactory<
         const now = new Date().toISOString();
         const id = this.generateId();
         const handle = `${role}_${id.slice(-8)}`;
-        
+
         return {
             __typename: "User",
             id: `user_${id}`,
@@ -97,11 +96,11 @@ export class ReportResponseAPIResponseFactory extends BaseAPIResponseFactory<
             profileImage: null,
             bannerImage: null,
             premium: role !== "moderator",
-            premiumExpiration: role !== "moderator" ? 
-                new Date(Date.now() + PREMIUM_EXPIRY_DAYS * 24 * HOURS_IN_MS).toISOString() : null,
-            roles: role === "admin" ? ["Admin"] : 
-                  role === "super_admin" ? ["SuperAdmin"] : 
-                  ["Moderator"],
+            premiumExpiration: role !== "moderator" ?
+                new Date(Date.now().toISOString() + PREMIUM_EXPIRY_DAYS * 24 * HOURS_IN_MS).toISOString() : null,
+            roles: role === "admin" ? ["Admin"] :
+                role === "super_admin" ? ["SuperAdmin"] :
+                    ["Moderator"],
             wallets: [],
             translations: [],
             translationsCount: 0,
@@ -130,7 +129,7 @@ export class ReportResponseAPIResponseFactory extends BaseAPIResponseFactory<
         const now = new Date().toISOString();
         const id = this.generateId();
         const reason = this.generateModerationReason();
-        
+
         const defaultReport: Report = {
             __typename: "Report",
             id: `report_${id}`,
@@ -164,9 +163,9 @@ export class ReportResponseAPIResponseFactory extends BaseAPIResponseFactory<
     createMockData(options?: MockDataOptions): ReportResponse {
         const now = new Date().toISOString();
         const id = this.generateId();
-        const action = options?.overrides?.actionSuggested as ReportSuggestedAction || 
-                      ReportSuggestedActionEnum.HideUntilFixed;
-        
+        const action = options?.overrides?.actionSuggested as ReportSuggestedAction ||
+            ReportSuggestedActionEnum.HideUntilFixed;
+
         const baseResponse: ReportResponse = {
             __typename: "ReportResponse",
             id: `response_${id}`,
@@ -192,7 +191,7 @@ export class ReportResponseAPIResponseFactory extends BaseAPIResponseFactory<
                     baseResponse.you.canUpdate = false;
                     break;
                 case "complete":
-                    baseResponse.details = this.generateActionDetails(action) + 
+                    baseResponse.details = this.generateActionDetails(action) +
                         " Additional context: Reviewed by senior moderator. User notified via email.";
                     baseResponse.report = this.createMockReport({
                         status: this.getStatusForAction(action),
@@ -242,19 +241,19 @@ export class ReportResponseAPIResponseFactory extends BaseAPIResponseFactory<
      */
     createFromInput(input: ReportResponseCreateInput): ReportResponse {
         const response = this.createMockData();
-        
+
         // Update based on input
         if (input.id) response.id = input.id;
         response.actionSuggested = input.actionSuggested;
         if (input.details) response.details = input.details;
         if (input.language) response.language = input.language;
-        
+
         // Connect to report
         if (input.reportConnect) {
             response.report.id = input.reportConnect;
             response.report.status = this.getStatusForAction(input.actionSuggested);
         }
-        
+
         return response;
     }
 
@@ -264,20 +263,20 @@ export class ReportResponseAPIResponseFactory extends BaseAPIResponseFactory<
     updateFromInput(existing: ReportResponse, input: ReportResponseUpdateInput): ReportResponse {
         const updated = { ...existing };
         updated.updatedAt = new Date().toISOString();
-        
+
         if (input.actionSuggested !== undefined) {
             updated.actionSuggested = input.actionSuggested;
             updated.report.status = this.getStatusForAction(input.actionSuggested);
         }
-        
+
         if (input.details !== undefined) {
             updated.details = input.details || undefined;
         }
-        
+
         if (input.language !== undefined) {
             updated.language = input.language;
         }
-        
+
         return updated;
     }
 
@@ -289,21 +288,21 @@ export class ReportResponseAPIResponseFactory extends BaseAPIResponseFactory<
         errors?: Record<string, string>;
     }> {
         const errors: Record<string, string> = {};
-        
+
         if (!input.reportConnect) {
             errors.reportConnect = "Report connection is required";
         }
-        
+
         if (!input.actionSuggested) {
             errors.actionSuggested = "Suggested action is required";
         } else if (!Object.values(ReportSuggestedActionEnum).includes(input.actionSuggested)) {
             errors.actionSuggested = "Invalid suggested action";
         }
-        
+
         if (input.language && !/^[a-z]{2}(-[A-Z]{2})?$/.test(input.language)) {
             errors.language = "Language must be a valid language code (e.g., 'en', 'en-US')";
         }
-        
+
         return {
             valid: Object.keys(errors).length === 0,
             errors: Object.keys(errors).length > 0 ? errors : undefined,
@@ -318,19 +317,19 @@ export class ReportResponseAPIResponseFactory extends BaseAPIResponseFactory<
         errors?: Record<string, string>;
     }> {
         const errors: Record<string, string> = {};
-        
+
         if (!input.id) {
             errors.id = "Report response ID is required for updates";
         }
-        
+
         if (input.actionSuggested && !Object.values(ReportSuggestedActionEnum).includes(input.actionSuggested)) {
             errors.actionSuggested = "Invalid suggested action";
         }
-        
+
         if (input.language && !/^[a-z]{2}(-[A-Z]{2})?$/.test(input.language)) {
             errors.language = "Language must be a valid language code";
         }
-        
+
         return {
             valid: Object.keys(errors).length === 0,
             errors: Object.keys(errors).length > 0 ? errors : undefined,
@@ -341,7 +340,7 @@ export class ReportResponseAPIResponseFactory extends BaseAPIResponseFactory<
      * Create responses for all action types
      */
     createAllActionTypeResponses(): ReportResponse[] {
-        return Object.values(ReportSuggestedActionEnum).map(action => 
+        return Object.values(ReportSuggestedActionEnum).map(action =>
             this.createMockData({
                 overrides: {
                     actionSuggested: action,
@@ -372,7 +371,7 @@ export class ReportResponseAPIResponseFactory extends BaseAPIResponseFactory<
             overrides: {
                 actionSuggested: ReportSuggestedActionEnum.HideUntilFixed,
                 details: "Content temporarily hidden pending further investigation. User has been notified.",
-                createdAt: new Date(Date.now() - 4 * HOURS_IN_MS).toISOString(), // 4 hours ago
+                createdAt: new Date(Date.now().toISOString() - 4 * HOURS_IN_MS).toISOString(), // 4 hours ago
                 report: { ...baseReport, status: ReportStatusEnum.Open },
             },
             scenario: "complete",
@@ -383,7 +382,7 @@ export class ReportResponseAPIResponseFactory extends BaseAPIResponseFactory<
             overrides: {
                 actionSuggested: ReportSuggestedActionEnum.SuspendUser,
                 details: "Investigation confirmed pattern of harassment. User suspended for 7 days. Warning issued.",
-                createdAt: new Date(Date.now() - 1 * HOURS_IN_MS).toISOString(), // 1 hour ago
+                createdAt: new Date(Date.now().toISOString() - 1 * HOURS_IN_MS).toISOString(), // 1 hour ago
                 report: { ...baseReport, status: ReportStatusEnum.ClosedSuspended },
             },
             scenario: "complete",
@@ -397,13 +396,13 @@ export class ReportResponseAPIResponseFactory extends BaseAPIResponseFactory<
      */
     createEscalationWorkflow(): ReportResponse[] {
         const reportId = this.generateId();
-        
+
         // Moderator response
         const moderatorResponse = this.createMockData({
             overrides: {
                 actionSuggested: ReportSuggestedActionEnum.NonIssue,
                 details: "Initial review found no clear violation. Escalating to senior moderator.",
-                createdAt: new Date(Date.now() - 6 * HOURS_IN_MS).toISOString(),
+                createdAt: new Date(Date.now().toISOString() - 6 * HOURS_IN_MS).toISOString(),
                 report: this.createMockReport({
                     id: reportId,
                     status: ReportStatusEnum.Open,
@@ -416,7 +415,7 @@ export class ReportResponseAPIResponseFactory extends BaseAPIResponseFactory<
             overrides: {
                 actionSuggested: ReportSuggestedActionEnum.Delete,
                 details: "Senior review identified subtle policy violation. Content removed and user educated.",
-                createdAt: new Date(Date.now() - 2 * HOURS_IN_MS).toISOString(),
+                createdAt: new Date(Date.now().toISOString() - 2 * HOURS_IN_MS).toISOString(),
                 report: this.createMockReport({
                     id: reportId,
                     status: ReportStatusEnum.ClosedDeleted,
@@ -600,7 +599,7 @@ export const reportResponseResponseScenarios = {
 
     rateLimitError: () => {
         const factory = new ReportResponseAPIResponseFactory();
-        const resetTime = new Date(Date.now() + 15 * MINUTES_IN_MS); // 15 minutes from now
+        const resetTime = new Date(Date.now().toISOString() + 15 * MINUTES_IN_MS); // 15 minutes from now
         return factory.createRateLimitErrorResponse(20, 0, resetTime);
     },
 };

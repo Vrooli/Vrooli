@@ -11,9 +11,9 @@ import type {
     ResourceCreateInput,
     ResourceUpdateInput,
 } from "../../../api/types.js";
+import { generatePK } from "../../../id/index.js";
 import { BaseAPIResponseFactory } from "./base.js";
 import type { MockDataOptions } from "./types.js";
-import { generatePK } from "../../../id/index.js";
 
 // Constants
 const DEFAULT_COUNT = 10;
@@ -43,8 +43,8 @@ export class ResourceResponseFactory extends BaseAPIResponseFactory<
         const baseResource: Resource = {
             __typename: "Resource",
             id: resourceId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             isInternal: false,
             isPrivate: false,
             usedBy: [],
@@ -74,8 +74,8 @@ export class ResourceResponseFactory extends BaseAPIResponseFactory<
                 versions: [{
                     __typename: "ResourceVersion",
                     id: generatePK().toString(),
-                    created_at: now,
-                    updated_at: now,
+                    createdAt: now,
+                    updatedAt: now,
                     isLatest: true,
                     isPrivate: false,
                     versionIndex: 0,
@@ -122,8 +122,8 @@ export class ResourceResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "Resource",
             id: resourceId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             isInternal: input.isInternal || false,
             isPrivate: input.isPrivate || false,
             usedBy: [],
@@ -131,8 +131,8 @@ export class ResourceResponseFactory extends BaseAPIResponseFactory<
             versions: input.versionsCreate?.map((version, index) => ({
                 __typename: "ResourceVersion" as const,
                 id: generatePK().toString(),
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
                 isLatest: index === 0,
                 isPrivate: version.isPrivate || false,
                 versionIndex: index,
@@ -170,7 +170,7 @@ export class ResourceResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: Resource, input: ResourceUpdateInput): Resource {
         const updates: Partial<Resource> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
         if (input.isInternal !== undefined) updates.isInternal = input.isInternal;
@@ -183,7 +183,7 @@ export class ResourceResponseFactory extends BaseAPIResponseFactory<
                 if (update) {
                     return {
                         ...version,
-                        updated_at: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
                         isPrivate: update.isPrivate ?? version.isPrivate,
                         versionLabel: update.versionLabel ?? version.versionLabel,
                     };
@@ -272,8 +272,8 @@ export class ResourceResponseFactory extends BaseAPIResponseFactory<
             versions.push({
                 __typename: "ResourceVersion" as const,
                 id: generatePK().toString(),
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
                 isLatest: i === 0,
                 isPrivate: false,
                 versionIndex: i,

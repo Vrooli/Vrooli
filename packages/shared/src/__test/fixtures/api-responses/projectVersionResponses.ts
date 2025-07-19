@@ -7,18 +7,16 @@
  */
 
 import type {
+    Project,
     ProjectVersion,
     ProjectVersionCreateInput,
     ProjectVersionUpdateInput,
-    Project,
-    User,
-    Team,
 } from "../../../api/types.js";
-import { BaseAPIResponseFactory } from "./base.js";
-import type { MockDataOptions } from "./types.js";
 import { generatePK } from "../../../id/index.js";
-import { userResponseFactory } from "./userResponses.js";
+import { BaseAPIResponseFactory } from "./base.js";
 import { teamResponseFactory } from "./teamResponses.js";
+import type { MockDataOptions } from "./types.js";
+import { userResponseFactory } from "./userResponses.js";
 
 // Constants
 const DEFAULT_COUNT = 10;
@@ -51,8 +49,8 @@ export class ProjectVersionResponseFactory extends BaseAPIResponseFactory<
         const baseProjectVersion: ProjectVersion = {
             __typename: "ProjectVersion",
             id: versionId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             versionLabel: "1.0.0",
             versionNotes: null,
             isComplete: false,
@@ -74,8 +72,8 @@ export class ProjectVersionResponseFactory extends BaseAPIResponseFactory<
             root: {
                 __typename: "Project",
                 id: projectId,
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
                 handle: `project_${projectId.slice(0, 8)}`,
                 isDeleted: false,
                 isPrivate: false,
@@ -139,8 +137,8 @@ export class ProjectVersionResponseFactory extends BaseAPIResponseFactory<
                 directories: [{
                     __typename: "ProjectVersionDirectory",
                     id: generatePK().toString(),
-                    created_at: now,
-                    updated_at: now,
+                    createdAt: now,
+                    updatedAt: now,
                     isRoot: true,
                     childOrder: [],
                     translations: [{
@@ -162,20 +160,20 @@ export class ProjectVersionResponseFactory extends BaseAPIResponseFactory<
                     tags: [{
                         __typename: "Tag",
                         id: generatePK().toString(),
-                        created_at: now,
-                        updated_at: now,
+                        createdAt: now,
+                        updatedAt: now,
                         tag: "project-management",
                     }, {
                         __typename: "Tag",
                         id: generatePK().toString(),
-                        created_at: now,
-                        updated_at: now,
+                        createdAt: now,
+                        updatedAt: now,
                         tag: "automation",
                     }, {
                         __typename: "Tag",
                         id: generatePK().toString(),
-                        created_at: now,
-                        updated_at: now,
+                        createdAt: now,
+                        updatedAt: now,
                         tag: "collaboration",
                     }],
                     you: {
@@ -209,8 +207,8 @@ export class ProjectVersionResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "ProjectVersion",
             id: versionId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             versionLabel: input.versionLabel || "1.0.0",
             versionNotes: input.versionNotes || null,
             isComplete: false,
@@ -230,8 +228,8 @@ export class ProjectVersionResponseFactory extends BaseAPIResponseFactory<
             directories: input.directoriesCreate?.map((dir, index) => ({
                 __typename: "ProjectVersionDirectory" as const,
                 id: generatePK().toString(),
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
                 isRoot: index === 0,
                 childOrder: dir.childOrder || [],
                 translations: dir.translationsCreate?.map(t => ({
@@ -246,8 +244,8 @@ export class ProjectVersionResponseFactory extends BaseAPIResponseFactory<
             root: {
                 __typename: "Project",
                 id: input.rootConnect || generatePK().toString(),
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
                 handle: `project_${versionId.slice(0, 8)}`,
                 isDeleted: false,
                 isPrivate: input.isPrivate || false,
@@ -300,7 +298,7 @@ export class ProjectVersionResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: ProjectVersion, input: ProjectVersionUpdateInput): ProjectVersion {
         const updates: Partial<ProjectVersion> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
         if (input.versionLabel !== undefined) updates.versionLabel = input.versionLabel;
@@ -445,8 +443,8 @@ export class ProjectVersionResponseFactory extends BaseAPIResponseFactory<
             directories.push({
                 __typename: "ProjectVersionDirectory" as const,
                 id: generatePK().toString(),
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
                 isRoot: i === 0,
                 childOrder: [],
                 translations: [{

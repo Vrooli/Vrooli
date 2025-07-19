@@ -42,14 +42,14 @@ export const pushDeviceFixtures: ModelTestFixtures<PushDeviceCreateInput, PushDe
             unknownField1: "should be stripped",
             unknownField2: 123,
             unknownField3: true,
-        } as PushDeviceCreateInput & { unknownField1: string; unknownField2: number; unknownField3: boolean },
+        } as unknown as PushDeviceCreateInput,
         update: {
             id: validIds.id1,
             name: "Updated Device Name",
             // Add some extra fields that will be stripped
             unknownField1: "should be stripped",
             unknownField2: 456,
-        } as PushDeviceUpdateInput & { unknownField1: string; unknownField2: number },
+        } as unknown as PushDeviceUpdateInput,
     },
     invalid: {
         missingRequired: {
@@ -57,27 +57,21 @@ export const pushDeviceFixtures: ModelTestFixtures<PushDeviceCreateInput, PushDe
                 // Missing required endpoint and keys
                 expires: 86400,
                 name: "Incomplete Device",
-            } as PushDeviceCreateInput,
+            } as unknown as PushDeviceCreateInput,
             update: {
                 // Missing required id
                 name: "Updated Name",
-            } as PushDeviceUpdateInput,
+            } as unknown as PushDeviceUpdateInput,
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid types
                 endpoint: 123, // Should be string URL
-                // @ts-expect-error - Testing invalid types
                 expires: "not-a-number", // Should be number
-                // @ts-expect-error - Testing invalid types
                 keys: "not-an-object", // Should be object
-                // @ts-expect-error - Testing invalid types
                 name: 456, // Should be string
             } as unknown as PushDeviceCreateInput,
             update: {
-                // @ts-expect-error - Testing invalid types
                 id: 123, // Should be string
-                // @ts-expect-error - Testing invalid types
                 name: 789, // Should be string
             } as unknown as PushDeviceUpdateInput,
         },

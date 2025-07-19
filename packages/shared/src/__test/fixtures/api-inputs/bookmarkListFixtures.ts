@@ -60,20 +60,16 @@ export const bookmarkListFixtures: ModelTestFixtures<BookmarkListCreateInput, Bo
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid types
                 id: 123, // Should be string
-                // @ts-expect-error - Testing invalid types
                 label: 456, // Should be string
             } as unknown as BookmarkListCreateInput,
             update: {
                 id: validIds.id3,
-                // @ts-expect-error - Testing invalid types
                 label: false, // Should be string
             } as unknown as BookmarkListUpdateInput,
         },
         invalidId: {
             create: {
-                // @ts-expect-error - Testing invalid ID format
                 id: "not-a-valid-snowflake",
                 label: "Valid Label",
             } as unknown as BookmarkListCreateInput,
@@ -81,14 +77,12 @@ export const bookmarkListFixtures: ModelTestFixtures<BookmarkListCreateInput, Bo
         emptyLabel: {
             create: {
                 id: validIds.id1,
-                // @ts-expect-error - Testing empty string validation
                 label: "", // Empty string should be removed and cause required error
             } as unknown as BookmarkListCreateInput,
         },
         labelTooLong: {
             create: {
                 id: validIds.id1,
-                // @ts-expect-error - Testing label length validation
                 label: "x".repeat(LABEL_TOO_LONG_LENGTH), // Max 128 characters
             } as unknown as BookmarkListCreateInput,
         },

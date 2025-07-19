@@ -95,19 +95,14 @@ export const meetingFixtures: ModelTestFixtures<MeetingCreateInput, MeetingUpdat
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid id type
                 id: 123, // Should be string
-                // @ts-expect-error - Testing invalid boolean type
                 openToAnyoneWithInvite: "maybe", // Should be boolean
-                // @ts-expect-error - Testing invalid boolean type
                 showOnTeamProfile: 1, // Should be boolean
                 teamConnect: validIds.id2,
             } as unknown as MeetingCreateInput,
             update: {
                 id: validIds.id1,
-                // @ts-expect-error - Testing invalid boolean type
                 openToAnyoneWithInvite: "true", // Will be converted to boolean
-                // @ts-expect-error - Testing invalid boolean type
                 showOnTeamProfile: "false", // Will be converted to boolean
             } as unknown as MeetingUpdateInput,
         },
@@ -193,9 +188,7 @@ export const meetingFixtures: ModelTestFixtures<MeetingCreateInput, MeetingUpdat
             create: {
                 id: validIds.id1,
                 teamConnect: validIds.id2,
-                // @ts-expect-error - Testing string to boolean conversion
                 openToAnyoneWithInvite: "true", // String to boolean
-                // @ts-expect-error - Testing string to boolean conversion
                 showOnTeamProfile: "no", // String to boolean
             } as unknown as MeetingCreateInput,
         },

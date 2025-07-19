@@ -118,16 +118,12 @@ export const chatFixtures: ModelTestFixtures<ChatCreateInput, ChatUpdateInput> =
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error Testing invalid type - id should be string
                 id: 123,
-                // @ts-expect-error Testing invalid type - openToAnyoneWithInvite should be boolean
                 openToAnyoneWithInvite: "yes",
             } as unknown as ChatCreateInput,
             update: {
                 id: validIds.chatId1,
-                // @ts-expect-error Testing invalid type - openToAnyoneWithInvite should be boolean
                 openToAnyoneWithInvite: "no",
-                // @ts-expect-error Testing invalid type - participantsDelete should be array
                 participantsDelete: "all",
             } as unknown as ChatUpdateInput,
         },
@@ -274,15 +270,12 @@ export const chatTranslationFixtures: ModelTestFixtures<ChatTranslationCreateInp
         invalidTypes: {
             create: {
                 id: validIds.chatId3,
-                // @ts-expect-error Testing invalid type - language should be string
                 language: 123,
-                // @ts-expect-error Testing invalid type - name should be string
                 name: true,
             } as unknown as ChatTranslationCreateInput,
             update: {
                 id: validIds.chatId3,
                 language: "en",
-                // @ts-expect-error Testing invalid type - description should be string
                 description: [],
             } as unknown as ChatTranslationUpdateInput,
         },

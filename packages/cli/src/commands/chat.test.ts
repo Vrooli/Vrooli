@@ -1,18 +1,17 @@
-// AI_CHECK: TEST_COVERAGE=19 | LAST: 2025-07-13
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { Command } from "commander";
-import { ChatCommands } from "./chat.js";
-import { type ApiClient } from "../utils/client.js";
-import { type ConfigManager } from "../utils/config.js";
-import chalk from "chalk";
-import type { 
-    UserSearchResult, 
-    ChatSearchResult, 
-    ChatMessageSearchResult,
+import type {
     Chat,
     ChatMessage,
+    ChatMessageSearchResult,
+    ChatSearchResult,
     User,
+    UserSearchResult,
 } from "@vrooli/shared";
+import chalk from "chalk";
+import { Command } from "commander";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type ApiClient } from "../utils/client.js";
+import { type ConfigManager } from "../utils/config.js";
+import { ChatCommands } from "./chat.js";
 
 // Mock dependencies
 vi.mock("../utils/chatEngine.js", () => ({
@@ -297,7 +296,7 @@ describe("ChatCommands", () => {
                     } as Chat,
                 },
                 {
-                    cursor: "cursor2", 
+                    cursor: "cursor2",
                     node: {
                         id: "chat2",
                         createdAt: "2025-01-12T10:00:00Z",
@@ -519,7 +518,7 @@ describe("ChatCommands", () => {
     describe("interactive chat command", () => {
         it("should start an interactive chat session with existing chat", async () => {
             (mockClient.isAuthenticated as any).mockReturnValue(true);
-            
+
             // Mock the InteractiveChatEngine
             const { InteractiveChatEngine } = await import("../utils/chatEngine.js");
             const mockStartSession = vi.fn().mockResolvedValue(undefined);
@@ -547,7 +546,7 @@ describe("ChatCommands", () => {
 
         it("should create new chat in interactive mode when bot ID provided", async () => {
             (mockClient.isAuthenticated as any).mockReturnValue(true);
-            
+
             // Mock the InteractiveChatEngine
             const { InteractiveChatEngine } = await import("../utils/chatEngine.js");
             const mockStartSession = vi.fn().mockResolvedValue(undefined);
@@ -582,7 +581,7 @@ describe("ChatCommands", () => {
         it("should handle interactive chat errors in JSON mode", async () => {
             (mockClient.isAuthenticated as any).mockReturnValue(true);
             (mockConfig.isJsonOutput as any).mockReturnValue(true);
-            
+
             // Mock the InteractiveChatEngine to throw an error
             const { InteractiveChatEngine } = await import("../utils/chatEngine.js");
             const mockStartSession = vi.fn().mockRejectedValue(new Error("Connection failed"));
@@ -605,7 +604,7 @@ describe("ChatCommands", () => {
         it("should handle interactive chat errors in regular mode", async () => {
             (mockClient.isAuthenticated as any).mockReturnValue(true);
             (mockConfig.isJsonOutput as any).mockReturnValue(false);
-            
+
             // Mock the InteractiveChatEngine to throw an error
             const { InteractiveChatEngine } = await import("../utils/chatEngine.js");
             const mockStartSession = vi.fn().mockRejectedValue(new Error("Network timeout"));
@@ -625,7 +624,7 @@ describe("ChatCommands", () => {
         it("should handle chat creation error when creating new chat for interactive mode", async () => {
             (mockClient.isAuthenticated as any).mockReturnValue(true);
             (mockConfig.isJsonOutput as any).mockReturnValue(false);
-            
+
             // Mock chat creation to fail
             (mockClient.post as any).mockRejectedValue(new Error("Failed to create chat"));
 

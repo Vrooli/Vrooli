@@ -7,17 +7,17 @@
  */
 
 import type {
+    Team,
+    User,
     Wallet,
     WalletCreateInput,
     WalletUpdateInput,
-    User,
-    Team,
 } from "../../../api/types.js";
-import { BaseAPIResponseFactory } from "./base.js";
-import type { MockDataOptions } from "./types.js";
 import { generatePK } from "../../../id/index.js";
-import { userResponseFactory } from "./userResponses.js";
+import { BaseAPIResponseFactory } from "./base.js";
 import { teamResponseFactory } from "./teamResponses.js";
+import type { MockDataOptions } from "./types.js";
+import { userResponseFactory } from "./userResponses.js";
 
 // Constants
 const DEFAULT_COUNT = 10;
@@ -51,8 +51,8 @@ export class WalletResponseFactory extends BaseAPIResponseFactory<
         const baseWallet: Wallet = {
             __typename: "Wallet",
             id: walletId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             handle: `wallet_${walletId.slice(-8)}`,
             name: "Default Wallet",
             publicAddress: this.generateEthereumAddress(),
@@ -112,8 +112,8 @@ export class WalletResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "Wallet",
             id: walletId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             handle: input.handle || `wallet_${walletId.slice(-8)}`,
             name: input.name || "New Wallet",
             publicAddress: input.publicAddress || this.generateEthereumAddress(),
@@ -133,7 +133,7 @@ export class WalletResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: Wallet, input: WalletUpdateInput): Wallet {
         const updates: Partial<Wallet> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
         if (input.handle !== undefined) updates.handle = input.handle;
@@ -306,8 +306,8 @@ export class WalletResponseFactory extends BaseAPIResponseFactory<
      */
     createWalletsForUser(userId: string, count = 3): Wallet[] {
         const user = userResponseFactory.createMockData({ overrides: { id: userId } });
-        
-        return Array.from({ length: count }, (_, index) => 
+
+        return Array.from({ length: count }, (_, index) =>
             this.createMockData({
                 overrides: {
                     id: `wallet_${userId}_${index}`,
@@ -316,11 +316,11 @@ export class WalletResponseFactory extends BaseAPIResponseFactory<
                     name: `Wallet ${index + 1}`,
                     handle: `wallet_${index + 1}_${userId.slice(-6)}`,
                     verified: index === 0, // First wallet is typically verified
-                    publicAddress: index === 0 
+                    publicAddress: index === 0
                         ? this.generateEthereumAddress()
-                        : index === 1 
-                        ? this.generateBitcoinAddress()
-                        : this.generateCardanoAddress(),
+                        : index === 1
+                            ? this.generateBitcoinAddress()
+                            : this.generateCardanoAddress(),
                     stakingAddress: index === 2 ? this.generateCardanoStakeAddress() : null,
                 },
             }),
@@ -339,7 +339,7 @@ export class WalletResponseFactory extends BaseAPIResponseFactory<
             { name: "Polygon", generator: () => this.generateEthereumAddress() }, // Same format as Ethereum
         ];
 
-        return chains.map((chain, index) => 
+        return chains.map((chain, index) =>
             this.createMockData({
                 overrides: {
                     name: `${chain.name} Wallet`,
@@ -361,9 +361,9 @@ export class WalletResponseFactory extends BaseAPIResponseFactory<
                 id: walletId,
                 verified,
                 verificationPending: !verified && Math.random() > 0.5,
-                lastVerificationAttempt: new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString(), // 1 day ago
+                lastVerificationAttempt: new Date(Date.now().toISOString() - (24 * 60 * 60 * 1000)).toISOString(), // 1 day ago
                 verificationMethod: verified ? "signature" : null,
-                nextRetryAllowed: verified ? null : new Date(Date.now() + (60 * 60 * 1000)).toISOString(), // 1 hour from now
+                nextRetryAllowed: verified ? null : new Date(Date.now().toISOString() + (60 * 60 * 1000)).toISOString(), // 1 hour from now
             },
             meta: {
                 timestamp: new Date().toISOString(),
@@ -477,11 +477,11 @@ export class WalletResponseFactory extends BaseAPIResponseFactory<
         const length = prefix === "bc1" ? 42 : 34;
         const chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
         let address = prefix;
-        
+
         for (let i = prefix.length; i < length; i++) {
             address += chars.charAt(Math.floor(Math.random() * chars.length));
         }
-        
+
         return address;
     }
 
@@ -496,11 +496,11 @@ export class WalletResponseFactory extends BaseAPIResponseFactory<
     private generateSolanaAddress(): string {
         const chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
         let address = "";
-        
+
         for (let i = 0; i < 44; i++) {
             address += chars.charAt(Math.floor(Math.random() * chars.length));
         }
-        
+
         return address;
     }
 
@@ -510,16 +510,16 @@ export class WalletResponseFactory extends BaseAPIResponseFactory<
     private isValidAddress(address: string): boolean {
         // Ethereum address
         if (/^0x[a-fA-F0-9]{40}$/.test(address)) return true;
-        
+
         // Bitcoin address (simplified)
         if (/^[13bc1][a-zA-Z0-9]{25,42}$/.test(address)) return true;
-        
+
         // Cardano address
         if (/^addr1[a-z0-9]{96}$/.test(address)) return true;
-        
+
         // Solana address
         if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) return true;
-        
+
         return false;
     }
 
@@ -652,7 +652,7 @@ export const walletResponseScenarios = {
                 overrides: {
                     id: walletId,
                     verified: true,
-                    updated_at: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                 },
             }),
         );

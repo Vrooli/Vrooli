@@ -1,13 +1,10 @@
-// AI_CHECK: TEST_COVERAGE=2 | LAST: 2025-01-12
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import type { Session } from "@vrooli/shared";
 import { Command } from "commander";
-import { AuthCommands } from "./auth.js";
+import inquirer from "inquirer";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClient } from "../utils/client.js";
 import { ConfigManager } from "../utils/config.js";
-import chalk from "chalk";
-import ora from "ora";
-import inquirer from "inquirer";
-import type { Session } from "@vrooli/shared";
+import { AuthCommands } from "./auth.js";
 
 // Mock dependencies
 vi.mock("../utils/client.js");
@@ -50,7 +47,7 @@ describe("AuthCommands", () => {
         // Create fresh instances
         program = new Command();
         program.exitOverride(); // Prevent actual process exit during tests
-        
+
         client = new ApiClient({} as ConfigManager);
         config = new ConfigManager();
 
@@ -61,10 +58,10 @@ describe("AuthCommands", () => {
         vi.mocked(config).isDebug.mockReturnValue(false);
 
         // Setup console spies
-        consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => { 
+        consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {
             // Mock implementation
         });
-        consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => { 
+        consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {
             // Mock implementation
         });
         processExitSpy = vi.spyOn(process, "exit").mockImplementation((code?: number) => {
@@ -188,14 +185,14 @@ describe("AuthCommands", () => {
                 .mockResolvedValueOnce({ email: "test@example.com" })
                 .mockResolvedValueOnce({ password: "password" });
             vi.mocked(client.post).mockResolvedValue(mockSession);
-            
+
             // Trigger a login to capture the prompt configuration
             await program.parseAsync(["node", "cli", "auth", "login"]);
-            
+
             // Now check the validation
             const promptConfig = vi.mocked(inquirer.prompt).mock.calls[0][0] as any;
             const emailValidation = promptConfig[0].validate;
-            
+
             expect(emailValidation("invalid-email")).toBe("Please enter a valid email address");
             expect(emailValidation("valid@email.com")).toBe(true);
         });

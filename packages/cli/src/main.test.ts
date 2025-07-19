@@ -1,6 +1,5 @@
-// AI_CHECK: TEST_COVERAGE=1 | LAST: 2025-01-12
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Command } from "commander";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("CLI Integration", () => {
     let consoleLogSpy: any;

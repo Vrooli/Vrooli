@@ -5,9 +5,9 @@
  * Migrated from UI package - now leverages base factory for 75% less boilerplate.
  */
 
-import type { 
-    Bookmark, 
-    BookmarkCreateInput, 
+import type {
+    Bookmark,
+    BookmarkCreateInput,
     BookmarkUpdateInput,
 } from "../../../api/types.js";
 import { BookmarkFor as BookmarkForEnum } from "../../../consts/model.js";
@@ -133,18 +133,18 @@ export class BookmarkResponseFactory extends BaseAPIResponseFactory<
      */
     createFromInput(input: BookmarkCreateInput): Bookmark {
         const bookmark = this.createMockData();
-        
+
         // Update bookmark based on input
         bookmark.to.__typename = input.bookmarkFor;
         bookmark.to.id = input.forConnect;
-        
+
         if (input.listCreate) {
             bookmark.list.id = this.generateId();
             bookmark.list.label = input.listCreate.label;
         } else if (input.listConnect) {
             bookmark.list.id = input.listConnect;
         }
-        
+
         return bookmark;
     }
 
@@ -171,7 +171,7 @@ export class BookmarkResponseFactory extends BaseAPIResponseFactory<
             return { valid: true };
         } catch (error) {
             const fieldErrors: Record<string, string> = {};
-            
+
             const zodError = error as { errors?: Array<{ path?: string[]; message: string }> };
             if (zodError.errors) {
                 zodError.errors.forEach((err) => {
@@ -180,7 +180,7 @@ export class BookmarkResponseFactory extends BaseAPIResponseFactory<
                     }
                 });
             }
-            
+
             return {
                 valid: false,
                 errors: fieldErrors,
@@ -200,7 +200,7 @@ export class BookmarkResponseFactory extends BaseAPIResponseFactory<
             return { valid: true };
         } catch (error) {
             const fieldErrors: Record<string, string> = {};
-            
+
             const zodError = error as { errors?: Array<{ path?: string[]; message: string }> };
             if (zodError.errors) {
                 zodError.errors.forEach((err) => {
@@ -209,7 +209,7 @@ export class BookmarkResponseFactory extends BaseAPIResponseFactory<
                     }
                 });
             }
-            
+
             return {
                 valid: false,
                 errors: fieldErrors,
@@ -221,7 +221,7 @@ export class BookmarkResponseFactory extends BaseAPIResponseFactory<
      * Create multiple bookmarks for different object types
      */
     createBookmarksForAllTypes(): Bookmark[] {
-        return Object.values(BookmarkForEnum).map(bookmarkFor => 
+        return Object.values(BookmarkForEnum).map(bookmarkFor =>
             this.createMockData({
                 overrides: {
                     to: {
@@ -249,7 +249,7 @@ export const bookmarkResponseScenarios = {
             bookmark || factory.createMockData(),
         );
     },
-    
+
     listSuccess: (bookmarks?: Bookmark[]) => {
         const factory = new BookmarkResponseFactory();
         const DEFAULT_TOTAL = 10;
@@ -258,7 +258,7 @@ export const bookmarkResponseScenarios = {
             { page: 1, totalCount: bookmarks?.length || DEFAULT_TOTAL },
         );
     },
-    
+
     // Error scenarios - now use base factory methods
     validationError: (fieldErrors?: Record<string, string>) => {
         const factory = new BookmarkResponseFactory();
@@ -269,26 +269,26 @@ export const bookmarkResponseScenarios = {
             },
         );
     },
-    
+
     notFoundError: (bookmarkId?: string) => {
         const factory = new BookmarkResponseFactory();
         return factory.createNotFoundErrorResponse(
             bookmarkId || "non-existent-id",
         );
     },
-    
+
     permissionError: (operation?: string) => {
         const factory = new BookmarkResponseFactory();
         return factory.createPermissionErrorResponse(
             operation || "create",
         );
     },
-    
+
     serverError: () => {
         const factory = new BookmarkResponseFactory();
         return factory.createServerErrorResponse();
     },
-    
+
     rateLimitError: () => {
         const factory = new BookmarkResponseFactory();
         const RATE_LIMIT = 100;
@@ -297,14 +297,14 @@ export const bookmarkResponseScenarios = {
         return factory.createRateLimitErrorResponse(
             RATE_LIMIT,
             REMAINING,
-            new Date(Date.now() + ONE_HOUR_MS), // Reset in 1 hour
+            new Date(Date.now().toISOString() + ONE_HOUR_MS), // Reset in 1 hour
         );
     },
-    
+
     // MSW handlers
     handlers: {
         success: () => new BookmarkResponseFactory().createMSWHandlers(),
-        withErrors: function createWithErrors(errorRate = 0.5) { 
+        withErrors: function createWithErrors(errorRate = 0.5) {
             return new BookmarkResponseFactory().createMSWHandlers({ errorRate });
         },
         withDelay: function createWithDelay(delay?: number) {

@@ -7,17 +7,17 @@
  */
 
 import type {
+    Meeting,
+    Member,
+    Project,
     Team,
     TeamCreateInput,
     TeamUpdateInput,
-    Member,
     User,
-    Project,
-    Meeting,
 } from "../../../api/types.js";
+import { generatePK } from "../../../id/index.js";
 import { BaseAPIResponseFactory } from "./base.js";
 import type { MockDataOptions } from "./types.js";
-import { generatePK } from "../../../id/index.js";
 import { userResponseFactory } from "./userResponses.js";
 
 /**
@@ -43,8 +43,8 @@ export class TeamResponseFactory extends BaseAPIResponseFactory<
         const baseTeam: Team = {
             __typename: "Team",
             id: teamId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             bannerImage: null,
             handle: options?.overrides?.handle || `team_${teamId.slice(0, 8)}`,
             isOpenToNewMembers: true,
@@ -79,8 +79,8 @@ export class TeamResponseFactory extends BaseAPIResponseFactory<
                 resourceLists: [{
                     __typename: "ResourceList",
                     id: generatePK().toString(),
-                    created_at: now,
-                    updated_at: now,
+                    createdAt: now,
+                    updatedAt: now,
                     index: 0,
                     isUsedFor: "TeamResource",
                     translations: [{
@@ -131,8 +131,8 @@ export class TeamResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "Team",
             id: teamId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             bannerImage: input.bannerImage || null,
             handle: input.handle || `team_${teamId.slice(0, 8)}`,
             isOpenToNewMembers: input.isOpenToNewMembers ?? true,
@@ -144,8 +144,8 @@ export class TeamResponseFactory extends BaseAPIResponseFactory<
             resourceLists: input.resourceListsCreate?.map((rl, index) => ({
                 __typename: "ResourceList" as const,
                 id: generatePK().toString(),
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
                 index,
                 isUsedFor: "TeamResource",
                 translations: rl.translationsCreate?.map(t => ({
@@ -184,7 +184,7 @@ export class TeamResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: Team, input: TeamUpdateInput): Team {
         const updates: Partial<Team> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
         if (input.bannerImage !== undefined) updates.bannerImage = input.bannerImage;
@@ -266,8 +266,8 @@ export class TeamResponseFactory extends BaseAPIResponseFactory<
         members.push({
             __typename: "Member",
             id: generatePK().toString(),
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             isAdmin: true,
             role: "Owner",
             user: owner,
@@ -280,8 +280,8 @@ export class TeamResponseFactory extends BaseAPIResponseFactory<
             members.push({
                 __typename: "Member",
                 id: generatePK().toString(),
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
                 isAdmin: i === 0, // First additional member is admin
                 role: i === 0 ? "Admin" : "Member",
                 user,
@@ -304,8 +304,8 @@ export class TeamResponseFactory extends BaseAPIResponseFactory<
             projects.push({
                 __typename: "Project",
                 id: generatePK().toString(),
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
                 handle: `project${i + 1}`,
                 name: `Project ${i + 1}`,
                 isPrivate: false,
@@ -333,8 +333,8 @@ export class TeamResponseFactory extends BaseAPIResponseFactory<
             meetings.push({
                 __typename: "Meeting",
                 id: generatePK().toString(),
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
                 openToAnyoneWithInvite: false,
                 showOnTeamProfile: true,
                 team: { __typename: "Team", id: team.id } as Team,

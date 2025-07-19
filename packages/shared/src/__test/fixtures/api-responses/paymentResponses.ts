@@ -10,14 +10,12 @@ import type {
     Payment,
     PaymentStatus,
     PaymentType,
-    User,
-    Team,
 } from "../../../api/types.js";
-import { BaseAPIResponseFactory } from "./base.js";
-import type { MockDataOptions } from "./types.js";
 import { generatePK } from "../../../id/index.js";
-import { userResponseFactory } from "./userResponses.js";
+import { BaseAPIResponseFactory } from "./base.js";
 import { teamResponseFactory } from "./teamResponses.js";
+import type { MockDataOptions } from "./types.js";
+import { userResponseFactory } from "./userResponses.js";
 
 // Constants
 const DEFAULT_COUNT = 10;
@@ -64,8 +62,8 @@ export class PaymentResponseFactory extends BaseAPIResponseFactory<
         const basePayment: Payment = {
             __typename: "Payment",
             id: paymentId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             amount: 2999, // $29.99
             cardExpDate: "12/25",
             cardLast4: "4242",
@@ -111,8 +109,8 @@ export class PaymentResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "Payment",
             id: paymentId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             amount: input.amount,
             cardExpDate: "12/25", // Default for new payments
             cardLast4: "4242", // Default for new payments
@@ -133,7 +131,7 @@ export class PaymentResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: Payment, input: PaymentUpdateInput): Payment {
         const updates: Partial<Payment> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
         if (input.status !== undefined) updates.status = input.status;
@@ -282,18 +280,18 @@ export class PaymentResponseFactory extends BaseAPIResponseFactory<
      * Create payment history
      */
     createPaymentHistory(months = 6): Payment[] {
-        const now = new Date();
+        const now = new Date().toISOString();
         const payments: Payment[] = [];
 
         // Create monthly subscription payments
         for (let i = 0; i < months; i++) {
-            const date = new Date(now);
+            const date = new Date(now).toISOString();
             date.setMonth(date.getMonth() - i);
 
             payments.push(this.createMockData({
                 overrides: {
-                    created_at: date.toISOString(),
-                    updated_at: date.toISOString(),
+                    createdAt: date.toISOString(),
+                    updatedAt: date.toISOString(),
                     paymentType: "PremiumMonthly",
                     amount: 999, // $9.99
                     description: `Premium Monthly Subscription - ${date.toLocaleDateString("en-US", { month: "long", year: "numeric" })}`,
@@ -304,14 +302,14 @@ export class PaymentResponseFactory extends BaseAPIResponseFactory<
 
         // Add some credit purchases
         for (let i = 0; i < 3; i++) {
-            const date = new Date(now);
+            const date = new Date(now).toISOString();
             date.setMonth(date.getMonth() - (i * 2));
             date.setDate(15); // Mid-month
 
             payments.push(this.createMockData({
                 overrides: {
-                    created_at: date.toISOString(),
-                    updated_at: date.toISOString(),
+                    createdAt: date.toISOString(),
+                    updatedAt: date.toISOString(),
                     paymentType: "Credits",
                     amount: 2000, // $20.00
                     description: "1000 Credits Purchase",
@@ -320,7 +318,7 @@ export class PaymentResponseFactory extends BaseAPIResponseFactory<
             }));
         }
 
-        return payments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        return payments.sort((a, b) => new Date(b.created_at).toISOString().getTime() - new Date(a.created_at).toISOString().getTime());
     }
 
     /**

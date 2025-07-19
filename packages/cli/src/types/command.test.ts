@@ -1,19 +1,18 @@
-// AI_CHECK: TEST_COVERAGE=1 | LAST: 2025-07-13
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import type {
-    CommandOptions,
     AuthLoginOptions,
-    ChatStartOptions,
-    ChatListOptions,
-    RoutineRunOptions,
-    RoutineListOptions,
-    RoutineUploadOptions,
-    RoutineSearchOptions,
-    CLIError,
-    PaginatedResponse,
-    RoutineSearchResult,
-    ChatSearchResult,
     AxiosRequestConfigWithRetry,
+    ChatListOptions,
+    ChatSearchResult,
+    ChatStartOptions,
+    CLIError,
+    CommandOptions,
+    PaginatedResponse,
+    RoutineListOptions,
+    RoutineRunOptions,
+    RoutineSearchOptions,
+    RoutineSearchResult,
+    RoutineUploadOptions,
 } from "./command.js";
 
 describe("Command Types", () => {

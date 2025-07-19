@@ -10,14 +10,12 @@ import type {
     ReminderList,
     ReminderListCreateInput,
     ReminderListUpdateInput,
-    ReminderItem,
-    User,
 } from "../../../api/types.js";
-import { BaseAPIResponseFactory } from "./base.js";
-import type { MockDataOptions } from "./types.js";
 import { generatePK } from "../../../id/index.js";
-import { userResponseFactory } from "./userResponses.js";
+import { BaseAPIResponseFactory } from "./base.js";
 import { reminderItemResponseFactory } from "./reminderItemResponses.js";
+import type { MockDataOptions } from "./types.js";
+import { userResponseFactory } from "./userResponses.js";
 
 // Constants
 const DEFAULT_COUNT = 10;
@@ -68,8 +66,8 @@ export class ReminderListResponseFactory extends BaseAPIResponseFactory<
         const baseReminderList: ReminderList = {
             __typename: "ReminderList",
             id: listId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             name: "My Tasks",
             description: null,
             reminderItems: [],
@@ -87,14 +85,14 @@ export class ReminderListResponseFactory extends BaseAPIResponseFactory<
 
             return {
                 ...baseReminderList,
-                name: scenario === "edge-case" 
+                name: scenario === "edge-case"
                     ? "Z".repeat(MAX_NAME_LENGTH) // Maximum length name
                     : "Work Projects & Daily Tasks",
-                description: scenario === "complete" 
+                description: scenario === "complete"
                     ? "Comprehensive list for managing work projects, daily tasks, and personal goals with detailed tracking and progress monitoring."
                     : scenario === "edge-case"
-                    ? "Y".repeat(MAX_DESCRIPTION_LENGTH) // Maximum length description
-                    : null,
+                        ? "Y".repeat(MAX_DESCRIPTION_LENGTH) // Maximum length description
+                        : null,
                 reminderItems,
                 reminderItemsCount: reminderItems.length,
                 user: userResponseFactory.createMockData({ scenario: "complete" }),
@@ -122,8 +120,8 @@ export class ReminderListResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "ReminderList",
             id: listId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             name: input.name,
             description: input.description || null,
             reminderItems: [],
@@ -141,7 +139,7 @@ export class ReminderListResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: ReminderList, input: ReminderListUpdateInput): ReminderList {
         const updates: Partial<ReminderList> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
         if (input.name !== undefined) updates.name = input.name;
@@ -214,7 +212,7 @@ export class ReminderListResponseFactory extends BaseAPIResponseFactory<
      */
     createReminderListsForUser(userId: string, count = 5): ReminderList[] {
         const user = userResponseFactory.createMockData({ overrides: { id: userId } });
-        
+
         return Array.from({ length: count }, (_, index) => {
             const listName = COMMON_LIST_NAMES[index % COMMON_LIST_NAMES.length];
             const itemCount = Math.floor(Math.random() * 10) + 1; // 1-10 items
@@ -228,7 +226,7 @@ export class ReminderListResponseFactory extends BaseAPIResponseFactory<
                     user,
                     reminderItems: reminderItemResponseFactory.createReminderItemsForList(`list_${userId}_${index}`, itemCount),
                     reminderItemsCount: itemCount,
-                    created_at: new Date(Date.now() - (index * DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString(),
+                    createdAt: new Date(Date.now().toISOString() - (index * DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString(),
                 },
             });
         });
@@ -239,7 +237,7 @@ export class ReminderListResponseFactory extends BaseAPIResponseFactory<
      */
     createReminderListsWithVariedCounts(): ReminderList[] {
         const baseTime = Date.now();
-        
+
         return [
             // Empty list
             this.createMockData({
@@ -249,7 +247,7 @@ export class ReminderListResponseFactory extends BaseAPIResponseFactory<
                     description: "A freshly created list with no items yet",
                     reminderItems: [],
                     reminderItemsCount: 0,
-                    created_at: new Date(baseTime - (HOURS_IN_2 * MILLISECONDS_PER_HOUR)).toISOString(),
+                    createdAt: new Date(baseTime - (HOURS_IN_2 * MILLISECONDS_PER_HOUR).toISOString()).toISOString(),
                 },
             }),
 
@@ -261,7 +259,7 @@ export class ReminderListResponseFactory extends BaseAPIResponseFactory<
                     description: "Short list of urgent items",
                     reminderItems: reminderItemResponseFactory.createReminderItemsForList("small_list", 2),
                     reminderItemsCount: 2,
-                    created_at: new Date(baseTime - (HOURS_IN_6 * MILLISECONDS_PER_HOUR)).toISOString(),
+                    createdAt: new Date(baseTime - (HOURS_IN_6 * MILLISECONDS_PER_HOUR).toISOString()).toISOString(),
                 },
             }),
 
@@ -273,7 +271,7 @@ export class ReminderListResponseFactory extends BaseAPIResponseFactory<
                     description: "Tasks to complete this week",
                     reminderItems: reminderItemResponseFactory.createReminderItemsForList("medium_list", 7),
                     reminderItemsCount: 7,
-                    created_at: new Date(baseTime - (DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString(),
+                    createdAt: new Date(baseTime - (DAYS_IN_1 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
                 },
             }),
 
@@ -285,7 +283,7 @@ export class ReminderListResponseFactory extends BaseAPIResponseFactory<
                     description: "Comprehensive list of all project tasks and future enhancements",
                     reminderItems: reminderItemResponseFactory.createReminderItemsForList("large_list", 15),
                     reminderItemsCount: 15,
-                    created_at: new Date(baseTime - (DAYS_IN_3 * MILLISECONDS_PER_DAY)).toISOString(),
+                    createdAt: new Date(baseTime - (DAYS_IN_3 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
                 },
             }),
 
@@ -297,7 +295,7 @@ export class ReminderListResponseFactory extends BaseAPIResponseFactory<
                     description: "All tasks from the first sprint - completed successfully",
                     reminderItems: reminderItemResponseFactory.createReminderItemsByStatus(true, 5),
                     reminderItemsCount: 5,
-                    created_at: new Date(baseTime - (DAYS_IN_7 * MILLISECONDS_PER_DAY)).toISOString(),
+                    createdAt: new Date(baseTime - (DAYS_IN_7 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
                 },
             }),
         ];
@@ -308,7 +306,7 @@ export class ReminderListResponseFactory extends BaseAPIResponseFactory<
      */
     createReminderListsForCategories(): ReminderList[] {
         const baseTime = Date.now();
-        
+
         return [
             // Personal tasks
             this.createMockData({
@@ -320,7 +318,7 @@ export class ReminderListResponseFactory extends BaseAPIResponseFactory<
                         ...reminderItemResponseFactory.createReminderItemsForList("personal_tasks", 4),
                     ],
                     reminderItemsCount: 4,
-                    created_at: new Date(baseTime - (DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString(),
+                    createdAt: new Date(baseTime - (DAYS_IN_1 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
                 },
             }),
 
@@ -332,7 +330,7 @@ export class ReminderListResponseFactory extends BaseAPIResponseFactory<
                     description: "Professional tasks and project deliverables",
                     reminderItems: reminderItemResponseFactory.createReminderItemsForList("work_projects", 8),
                     reminderItemsCount: 8,
-                    created_at: new Date(baseTime - (DAYS_IN_3 * MILLISECONDS_PER_DAY)).toISOString(),
+                    createdAt: new Date(baseTime - (DAYS_IN_3 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
                 },
             }),
 
@@ -344,7 +342,7 @@ export class ReminderListResponseFactory extends BaseAPIResponseFactory<
                     description: "Grocery and household items to purchase",
                     reminderItems: reminderItemResponseFactory.createReminderItemsForList("shopping_list", 6),
                     reminderItemsCount: 6,
-                    created_at: new Date(baseTime - (HOURS_IN_6 * MILLISECONDS_PER_HOUR)).toISOString(),
+                    createdAt: new Date(baseTime - (HOURS_IN_6 * MILLISECONDS_PER_HOUR).toISOString()).toISOString(),
                 },
             }),
 
@@ -356,7 +354,7 @@ export class ReminderListResponseFactory extends BaseAPIResponseFactory<
                     description: "Educational objectives and skill development",
                     reminderItems: reminderItemResponseFactory.createReminderItemsForList("learning_goals", 5),
                     reminderItemsCount: 5,
-                    created_at: new Date(baseTime - (DAYS_IN_7 * MILLISECONDS_PER_DAY)).toISOString(),
+                    createdAt: new Date(baseTime - (DAYS_IN_7 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
                 },
             }),
         ];

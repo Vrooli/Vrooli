@@ -1,6 +1,15 @@
 import type { BotCreateInput, ProfileUpdateInput, UserTranslationCreateInput, UserTranslationUpdateInput } from "../../../api/types.js";
 import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
 import { userTranslationValidation, userValidation } from "../../../validation/models/user.js";
+import { setupFileMock } from "../../mocks/fileMock.js";
+
+// Ensure File mock is available before using it
+setupFileMock();
+
+// Helper function to create File objects for testing
+function createMockFile(content: string, filename: string, mimeType = "image/png"): File {
+    return new File([content], filename, { type: mimeType });
+}
 
 // Magic number constants for testing
 const HANDLE_TOO_LONG_LENGTH = 17;
@@ -56,13 +65,9 @@ export const userFixtures: ModelTestFixtures<BotCreateInput, ProfileUpdateInput>
                 __version: "1.0",
                 model: "gpt-4",
                 maxTokens: 4096,
-                persona: {
-                    creativity: 0.7,
-                    bias: "helpful and informative",
-                },
             },
-            bannerImage: "data:image/png;base64,iVBORw0KGg...",
-            profileImage: "data:image/png;base64,iVBORw0KGg...",
+            bannerImage: createMockFile("fake-user-banner-data", "banner.png", "image/png"),
+            profileImage: createMockFile("fake-user-profile-data", "profile.png", "image/png"),
             translationsCreate: [
                 {
                     id: "400000000000000001",
@@ -90,8 +95,8 @@ export const userFixtures: ModelTestFixtures<BotCreateInput, ProfileUpdateInput>
             isPrivateTeamsCreated: true,
             isPrivateBookmarks: false,
             isPrivateVotes: true,
-            bannerImage: "data:image/jpeg;base64,/9j/4AAQSkZJRg...",
-            profileImage: "data:image/jpeg;base64,/9j/4AAQSkZJRg...",
+            bannerImage: createMockFile("fake-updated-banner-data", "banner.jpg", "image/jpeg"),
+            profileImage: createMockFile("fake-updated-profile-data", "profile.jpg", "image/jpeg"),
             translationsUpdate: [
                 {
                     id: "400000000000000001",
@@ -122,21 +127,14 @@ export const userFixtures: ModelTestFixtures<BotCreateInput, ProfileUpdateInput>
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error Testing invalid type - handle should be string
                 handle: 123,
-                // @ts-expect-error Testing invalid type - isPrivate should be boolean
                 isPrivate: "yes",
-                // @ts-expect-error Testing invalid type - name should be string
                 name: true,
             } as unknown as BotCreateInput,
             update: {
-                // @ts-expect-error Testing invalid type - id should be string
                 id: true,
-                // @ts-expect-error Testing invalid type - handle should be string
                 handle: [],
-                // @ts-expect-error Testing invalid type - isPrivate should be boolean
                 isPrivate: "false",
-                // @ts-expect-error Testing invalid type - theme should be string
                 theme: 123,
             } as unknown as ProfileUpdateInput,
         },
@@ -202,7 +200,6 @@ export const userFixtures: ModelTestFixtures<BotCreateInput, ProfileUpdateInput>
                 name: "Bio Bot",
                 isBotDepictingPerson: false,
                 botSettings: {},
-                // @ts-expect-error Testing invalid structure - translations should use translationsCreate
                 translations: {
                     create: [{
                         language: "en",
@@ -212,7 +209,6 @@ export const userFixtures: ModelTestFixtures<BotCreateInput, ProfileUpdateInput>
             } as unknown as BotCreateInput,
             update: {
                 id: validIds.id1,
-                // @ts-expect-error Testing invalid structure - translations should use translationsCreate/Update
                 translations: {
                     create: [{
                         language: "en",
@@ -261,7 +257,6 @@ export const userFixtures: ModelTestFixtures<BotCreateInput, ProfileUpdateInput>
                 name: "No Translations Bot",
                 isBotDepictingPerson: false,
                 botSettings: {},
-                // @ts-expect-error Testing invalid structure - translations should use translationsCreate
                 translations: {
                     create: [],
                 },
@@ -391,16 +386,12 @@ export const userTranslationFixtures: ModelTestFixtures<UserTranslationCreateInp
         invalidTypes: {
             create: {
                 id: "400000000000000003",
-                // @ts-expect-error Testing invalid type - language should be string
                 language: 123,
-                // @ts-expect-error Testing invalid type - bio should be string
                 bio: true,
             } as unknown as UserTranslationCreateInput,
             update: {
-                // @ts-expect-error Testing invalid type - id should be string
                 id: 456,
                 language: "en",
-                // @ts-expect-error Testing invalid type - bio should be string
                 bio: [],
             } as unknown as UserTranslationUpdateInput,
         },
@@ -452,7 +443,6 @@ export const emailLogInFixtures = {
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid types
                 email: 123, // Should be string
                 password: "SecurePass123!",
             },
@@ -499,7 +489,6 @@ export const userDeleteOneFixtures = {
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid types
                 password: 123, // Should be string
                 deletePublicData: true,
             },
@@ -542,7 +531,6 @@ export const emailRequestPasswordChangeFixtures = {
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid types
                 email: 123, // Should be string
             },
         },
@@ -575,7 +563,6 @@ export const emailResetPasswordFormFixtures = {
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid types
                 newPassword: 123, // Should be string
             },
         },
@@ -618,7 +605,6 @@ export const emailResetPasswordFixtures = {
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid types
                 id: 123, // Should be string
                 code: "RESET123456",
                 newPassword: "NewSecure123!",
@@ -671,7 +657,6 @@ export const validateSessionFixtures = {
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid types
                 timeZone: 123, // Should be string
             },
         },
@@ -707,7 +692,6 @@ export const switchCurrentAccountFixtures = {
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid types
                 id: 123, // Should be string
             },
         },
@@ -763,7 +747,6 @@ export const profileEmailUpdateFixtures = {
         },
         invalidTypes: {
             update: {
-                // @ts-expect-error - Testing invalid types for validation
                 id: 123, // Should be string
                 currentPassword: "CurrentPass123!",
             } as unknown as ProfileUpdateInput,

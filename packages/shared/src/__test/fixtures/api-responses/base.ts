@@ -8,7 +8,8 @@
 
 import { http, type HttpHandler } from "msw";
 import { generatePK, nanoid } from "../../../index.js";
-import { 
+import type { ParseableError } from "../../errors/index.js";
+import {
     apiErrorFixtures,
     authErrorFixtures,
     businessErrorFixtures,
@@ -16,15 +17,14 @@ import {
     systemErrorFixtures,
     validationErrorFixtures,
 } from "../errors/index.js";
-import type { ParseableError } from "../../errors/index.js";
-import type { 
-    APIResponse, 
-    APIErrorResponse, 
-    PaginatedAPIResponse,
-    BatchAPIResponse,
+import type {
+    APIErrorResponse,
+    APIResponse,
     APIResponseFactoryConfig,
+    BatchAPIResponse,
     MockDataOptions,
     MSWHandlerConfig,
+    PaginatedAPIResponse,
 } from "./types.js";
 
 /**
@@ -323,7 +323,7 @@ export abstract class BaseAPIResponseFactory<
     /**
      * Abstract methods that must be implemented by subclasses
      */
-    
+
     /**
      * Create mock data for this entity
      */
@@ -379,7 +379,7 @@ export abstract class BaseAPIResponseFactory<
     protected createGetHandler(config: MSWHandlerConfig): HttpHandler {
         return http.get(`${config.baseUrl}${this.basePath}/:id`, ({ params }) => {
             const { id } = params;
-            
+
             // Simulate network failure
             if (Math.random() < (config.networkFailureRate || 0)) {
                 return new Response(null, { status: 0 });
@@ -398,8 +398,8 @@ export abstract class BaseAPIResponseFactory<
 
             return new Response(
                 JSON.stringify(config.responseTransformer ? config.responseTransformer(response) : response),
-                { 
-                    status: 200, 
+                {
+                    status: 200,
                     headers: { "Content-Type": "application/json" },
                 },
             );
@@ -427,8 +427,8 @@ export abstract class BaseAPIResponseFactory<
 
             return new Response(
                 JSON.stringify(config.responseTransformer ? config.responseTransformer(response) : response),
-                { 
-                    status: 200, 
+                {
+                    status: 200,
                     headers: { "Content-Type": "application/json" },
                 },
             );
@@ -456,8 +456,8 @@ export abstract class BaseAPIResponseFactory<
 
             return new Response(
                 JSON.stringify(config.responseTransformer ? config.responseTransformer(response) : response),
-                { 
-                    status: 201, 
+                {
+                    status: 201,
                     headers: { "Content-Type": "application/json" },
                 },
             );
@@ -487,8 +487,8 @@ export abstract class BaseAPIResponseFactory<
 
             return new Response(
                 JSON.stringify(config.responseTransformer ? config.responseTransformer(response) : response),
-                { 
-                    status: 200, 
+                {
+                    status: 200,
                     headers: { "Content-Type": "application/json" },
                 },
             );

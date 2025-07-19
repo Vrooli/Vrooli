@@ -2,10 +2,10 @@ import type { ScheduleCreateInput, ScheduleUpdateInput } from "../../../api/type
 import { ScheduleRecurrenceType } from "../../../api/types.js";
 import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
 import { scheduleValidation } from "../../../validation/models/schedule.js";
+import { TIMEZONE_MAX_LENGTH } from "../../../validation/utils/validationConstants.js";
 
 // Magic number constants for testing
-const TIMEZONE_TOO_LONG_LENGTH = 65;
-const TIMEZONE_MAX_LENGTH = 64;
+const TIMEZONE_TOO_LONG_LENGTH = TIMEZONE_MAX_LENGTH + 1;
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -27,33 +27,34 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
         create: {
             id: validIds.id1,
             timezone: "America/New_York",
-            startTime: new Date("2025-01-01T00:00:00Z"), // Adding startTime to avoid endTime validation issues
+            startTime: new Date("2025-01-01T00:00:00Z").toISOString(),
+            endTime: new Date("2025-01-01T01:00:00Z").toISOString(), // Required field: 1 hour after start
         },
         update: {
             id: validIds.id1,
-            startTime: new Date("2025-01-01T00:00:00Z"), // Adding startTime to avoid endTime validation issues
+            startTime: new Date("2025-01-01T00:00:00Z").toISOString(), // Adding startTime to avoid endTime validation issues
         },
     },
     complete: {
         create: {
             id: validIds.id1,
-            startTime: new Date("2025-01-01T09:00:00Z"),
-            endTime: new Date("2025-12-31T17:00:00Z"),
+            startTime: new Date("2025-01-01T09:00:00Z").toISOString(),
+            endTime: new Date("2025-12-31T17:00:00Z").toISOString(),
             timezone: "America/New_York",
             meetingConnect: validIds.id2,
             exceptionsCreate: [
                 {
                     id: validIds.id3,
-                    originalStartTime: new Date("2025-07-04T09:00:00Z"),
-                    newStartTime: new Date("2025-07-04T09:00:00Z"), // Need valid time for validation
-                    newEndTime: new Date("2025-07-04T17:00:00Z"), // Required field
+                    originalStartTime: new Date("2025-07-04T09:00:00Z").toISOString(),
+                    newStartTime: new Date("2025-07-04T09:00:00Z").toISOString(), // Need valid time for validation
+                    newEndTime: new Date("2025-07-04T17:00:00Z").toISOString(), // Required field
                     scheduleConnect: validIds.id1,
                 },
                 {
                     id: validIds.id4,
-                    originalStartTime: new Date("2025-12-25T09:00:00Z"),
-                    newStartTime: new Date("2025-12-26T10:00:00Z"), // Moved to next day
-                    newEndTime: new Date("2025-12-26T16:00:00Z"),
+                    originalStartTime: new Date("2025-12-25T09:00:00Z").toISOString(),
+                    newStartTime: new Date("2025-12-26T10:00:00Z").toISOString(), // Moved to next day
+                    newEndTime: new Date("2025-12-26T16:00:00Z").toISOString(),
                     scheduleConnect: validIds.id1,
                 },
             ],
@@ -66,7 +67,7 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
                     dayOfWeek: null,
                     dayOfMonth: null,
                     month: null,
-                    endDate: new Date("2025-12-31T23:59:59Z"),
+                    endDate: new Date("2025-12-31T23:59:59Z").toISOString(),
                     scheduleConnect: validIds.id1,
                 },
             ],
@@ -77,19 +78,19 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
         } as unknown as ScheduleCreateInput,
         update: {
             id: validIds.id1,
-            startTime: new Date("2025-02-01T10:00:00Z"),
-            endTime: new Date("2025-11-30T16:00:00Z"),
+            startTime: new Date("2025-02-01T10:00:00Z").toISOString(),
+            endTime: new Date("2025-11-30T16:00:00Z").toISOString(),
             timezone: "Europe/London",
             exceptionsCreate: [{
                 id: validIds.id6,
-                originalStartTime: new Date("2025-05-01T10:00:00Z"),
-                newStartTime: new Date("2025-05-01T10:00:00Z"), // Need valid time for validation
-                newEndTime: new Date("2025-05-01T16:00:00Z"), // Required field
+                originalStartTime: new Date("2025-05-01T10:00:00Z").toISOString(),
+                newStartTime: new Date("2025-05-01T10:00:00Z").toISOString(), // Need valid time for validation
+                newEndTime: new Date("2025-05-01T16:00:00Z").toISOString(), // Required field
                 scheduleConnect: validIds.id1,
             }],
             exceptionsUpdate: [{
                 id: validIds.id3,
-                newStartTime: new Date("2025-07-05T11:00:00Z"), // Changed time
+                newStartTime: new Date("2025-07-05T11:00:00Z").toISOString(), // Changed time
             }],
             exceptionsDelete: [validIds.id4],
             recurrencesCreate: [{
@@ -100,7 +101,7 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
                 dayOfWeek: 1, // Monday
                 dayOfMonth: null,
                 month: null,
-                endDate: new Date("2025-06-30T23:59:59Z"),
+                endDate: new Date("2025-06-30T23:59:59Z").toISOString(),
                 scheduleConnect: validIds.id1,
             }],
             recurrencesUpdate: [{
@@ -118,7 +119,7 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
             create: {
                 id: validIds.id1,
                 // Missing required timezone
-                startTime: new Date("2025-01-01T09:00:00Z"),
+                startTime: new Date("2025-01-01T09:00:00Z").toISOString(),
             } as ScheduleCreateInput,
             update: {
                 // Missing required id
@@ -127,22 +128,15 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid types
                 id: 123, // Should be string
-                // @ts-expect-error - Testing invalid types
                 timezone: 123, // Should be string
-                // @ts-expect-error - Testing invalid types
                 startTime: "not-a-date", // Should be Date
-                // @ts-expect-error - Testing invalid types
                 endTime: "invalid-date", // Should be Date
             } as unknown as ScheduleCreateInput,
             update: {
                 id: validIds.id1,
-                // @ts-expect-error - Testing invalid types
                 timezone: true, // Should be string
-                // @ts-expect-error - Testing invalid types
                 startTime: "2025-01-01", // Should be Date object
-                // @ts-expect-error - Testing invalid types
                 endTime: 12345, // Should be Date
             } as unknown as ScheduleUpdateInput,
         },
@@ -169,25 +163,24 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
             create: {
                 id: validIds.id1,
                 timezone: "America/New_York",
-                startTime: new Date("2025-12-31T17:00:00Z"),
-                endTime: new Date("2025-01-01T09:00:00Z"), // Before start time
+                startTime: new Date("2025-12-31T17:00:00Z").toISOString(),
+                endTime: new Date("2025-01-01T09:00:00Z").toISOString(), // Before start time
             },
             update: {
                 id: validIds.id1,
-                startTime: new Date("2025-06-01T17:00:00Z"),
-                endTime: new Date("2025-06-01T17:00:00Z"), // Same as start time
+                startTime: new Date("2025-06-01T17:00:00Z").toISOString(),
+                endTime: new Date("2025-06-01T17:00:00Z").toISOString(), // Same as start time
             },
         },
         invalidException: {
             create: {
                 id: validIds.id1,
                 timezone: "America/New_York",
-                startTime: new Date("2025-01-01T00:00:00Z"), // Need startTime
+                startTime: new Date("2025-01-01T00:00:00Z").toISOString(), // Need startTime
                 exceptionsCreate: [{
                     id: validIds.id3,
                     // Missing required originalStartTime
-                    newStartTime: new Date("2025-07-05T10:00:00Z"),
-                    // @ts-expect-error - Missing required originalStartTime for testing
+                    newStartTime: new Date("2025-07-05T10:00:00Z").toISOString(),
                 }],
             } as unknown as ScheduleCreateInput,
         },
@@ -195,12 +188,11 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
             create: {
                 id: validIds.id1,
                 timezone: "America/New_York",
-                startTime: new Date("2025-01-01T00:00:00Z"), // Need startTime
+                startTime: new Date("2025-01-01T00:00:00Z").toISOString(), // Need startTime
                 recurrencesCreate: [{
                     id: validIds.id5,
                     // Missing required recurrenceType and duration
                     interval: 1,
-                    // @ts-expect-error - Missing required recurrenceType and duration for testing
                 }],
             } as unknown as ScheduleCreateInput,
         },
@@ -208,7 +200,7 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
             create: {
                 id: validIds.id1,
                 timezone: "America/New_York",
-                endTime: new Date("2025-12-31T23:59:59Z"),
+                endTime: new Date("2025-12-31T23:59:59Z").toISOString(),
                 // No start time - should fail validation
             } as ScheduleCreateInput,
         },
@@ -218,48 +210,51 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
             create: {
                 id: validIds.id1,
                 timezone: "UTC",
-                startTime: new Date("2025-01-01T00:00:00Z"), // Adding startTime to avoid endTime validation issues
+                startTime: new Date("2025-01-01T00:00:00Z").toISOString(),
+                endTime: new Date("2025-01-01T01:00:00Z").toISOString(), // Required field
                 // No exceptions or recurrences
             },
             update: {
                 id: validIds.id1,
-                startTime: new Date("2025-01-01T00:00:00Z"), // Adding startTime to avoid endTime validation issues
+                startTime: new Date("2025-01-01T00:00:00Z").toISOString(), // Adding startTime to avoid endTime validation issues
                 // No changes
             },
         },
-        onlyStartTime: {
+        minimalValidSchedule: {
             create: {
                 id: validIds.id1,
                 timezone: "America/New_York",
-                startTime: new Date("2025-01-01T00:00:00Z"),
-                // No end time
+                startTime: new Date("2025-01-01T00:00:00Z").toISOString(),
+                endTime: new Date("2025-01-01T01:00:00Z").toISOString(), // Required field
             },
         },
         maxLengthTimezone: {
             create: {
                 id: validIds.id1,
                 timezone: "A".repeat(TIMEZONE_MAX_LENGTH), // Maximum length
-                startTime: new Date("2025-01-01T00:00:00Z"),
+                startTime: new Date("2025-01-01T00:00:00Z").toISOString(),
+                endTime: new Date("2025-01-01T01:00:00Z").toISOString(), // Required field
             },
         },
         differentTimezones: {
             create: {
                 id: validIds.id1,
                 timezone: "Pacific/Auckland",
-                startTime: new Date("2025-01-01T00:00:00Z"),
-                endTime: new Date("2025-12-31T23:59:59Z"),
+                startTime: new Date("2025-01-01T00:00:00Z").toISOString(),
+                endTime: new Date("2025-12-31T23:59:59Z").toISOString(),
             },
             update: {
                 id: validIds.id1,
                 timezone: "Asia/Tokyo",
-                startTime: new Date("2025-01-01T00:00:00Z"), // Need startTime
+                startTime: new Date("2025-01-01T00:00:00Z").toISOString(), // Need startTime
             },
         },
         multipleConnections: {
             create: {
                 id: validIds.id1,
                 timezone: "America/New_York",
-                startTime: new Date("2025-01-01T00:00:00Z"), // Adding startTime
+                startTime: new Date("2025-01-01T00:00:00Z").toISOString(),
+                endTime: new Date("2025-01-01T01:00:00Z").toISOString(), // Required field
                 meetingConnect: validIds.id2,
                 runConnect: validIds.id3, // Can't have both
             } as ScheduleCreateInput,
@@ -268,7 +263,8 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
             create: {
                 id: validIds.id1,
                 timezone: "America/New_York",
-                startTime: new Date("2025-01-01T00:00:00Z"), // Adding startTime
+                startTime: new Date("2025-01-01T00:00:00Z").toISOString(),
+                endTime: new Date("2025-01-01T01:00:00Z").toISOString(), // Required field
                 runConnect: validIds.id2,
             },
         },
@@ -276,12 +272,13 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
             create: {
                 id: validIds.id1,
                 timezone: "America/New_York",
-                startTime: new Date("2025-01-01T00:00:00Z"), // Adding startTime
+                startTime: new Date("2025-01-01T00:00:00Z").toISOString(),
+                endTime: new Date("2025-01-01T01:00:00Z").toISOString(), // Required field
                 exceptionsCreate: Array.from({ length: 10 }, (_, i) => ({
                     id: `10000000000000000${i}`,
-                    originalStartTime: new Date(`2025-${String(i + 1).padStart(2, "0")}-15T09:00:00Z`),
-                    newStartTime: new Date(`2025-${String(i + 1).padStart(2, "0")}-16T10:00:00Z`),
-                    newEndTime: new Date(`2025-${String(i + 1).padStart(2, "0")}-16T17:00:00Z`),
+                    originalStartTime: new Date(`2025-${String(i + 1).padStart(2, "0")}-15T09:00:00Z`).toISOString(),
+                    newStartTime: new Date(`2025-${String(i + 1).padStart(2, "0")}-16T10:00:00Z`).toISOString(),
+                    newEndTime: new Date(`2025-${String(i + 1).padStart(2, "0")}-16T17:00:00Z`).toISOString(),
                     scheduleConnect: validIds.id1,
                 })),
             },
@@ -290,7 +287,8 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
             create: {
                 id: validIds.id1,
                 timezone: "America/New_York",
-                startTime: new Date("2025-01-01T00:00:00Z"), // Adding startTime
+                startTime: new Date("2025-01-01T00:00:00Z").toISOString(),
+                endTime: new Date("2025-01-01T01:00:00Z").toISOString(), // Required field
                 recurrencesCreate: [
                     {
                         id: validIds.id5,
@@ -300,7 +298,7 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
                         dayOfWeek: null,
                         dayOfMonth: null,
                         month: null,
-                        endDate: new Date("2025-03-31T23:59:59Z"),
+                        endDate: new Date("2025-03-31T23:59:59Z").toISOString(),
                         scheduleConnect: validIds.id1,
                     },
                     {
@@ -311,7 +309,7 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
                         dayOfWeek: 3, // Wednesday
                         dayOfMonth: null,
                         month: null,
-                        endDate: new Date("2025-06-30T23:59:59Z"),
+                        endDate: new Date("2025-06-30T23:59:59Z").toISOString(),
                         scheduleConnect: validIds.id1,
                     },
                     {
@@ -322,7 +320,7 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
                         dayOfWeek: null,
                         dayOfMonth: 15,
                         month: null,
-                        endDate: new Date("2025-12-31T23:59:59Z"),
+                        endDate: new Date("2025-12-31T23:59:59Z").toISOString(),
                         scheduleConnect: validIds.id1,
                     },
                 ],
@@ -332,25 +330,25 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
             update: {
                 id: validIds.id1,
                 timezone: "Europe/Paris",
-                startTime: new Date("2025-01-01T00:00:00Z"), // Need startTime
+                startTime: new Date("2025-01-01T00:00:00Z").toISOString(), // Need startTime
                 exceptionsCreate: [
                     {
                         id: validIds.id8,
-                        originalStartTime: new Date("2025-08-15T09:00:00Z"),
-                        newStartTime: new Date("2025-08-15T09:00:00Z"), // Need valid time for validation
-                        newEndTime: new Date("2025-08-15T17:00:00Z"), // Required field
+                        originalStartTime: new Date("2025-08-15T09:00:00Z").toISOString(),
+                        newStartTime: new Date("2025-08-15T09:00:00Z").toISOString(), // Need valid time for validation
+                        newEndTime: new Date("2025-08-15T17:00:00Z").toISOString(), // Required field
                         scheduleConnect: validIds.id1,
                     },
                 ],
                 exceptionsUpdate: [
                     {
                         id: validIds.id3,
-                        newStartTime: new Date("2025-07-04T14:00:00Z"),
+                        newStartTime: new Date("2025-07-04T14:00:00Z").toISOString(),
                     },
                     {
                         id: validIds.id4,
-                        newStartTime: new Date("2025-12-26T10:00:00Z"), // Need startTime for endTime validation
-                        newEndTime: new Date("2025-12-26T15:00:00Z"),
+                        newStartTime: new Date("2025-12-26T10:00:00Z").toISOString(), // Need startTime for endTime validation
+                        newEndTime: new Date("2025-12-26T15:00:00Z").toISOString(),
                     },
                 ],
                 exceptionsDelete: [validIds.id5, validIds.id6],
@@ -380,23 +378,23 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
             create: {
                 id: validIds.id1,
                 timezone: "   America/New_York   ", // Should be trimmed
-                startTime: new Date("2025-01-01T00:00:00Z"), // Adding startTime
+                startTime: new Date("2025-01-01T00:00:00Z").toISOString(), // Adding startTime
             },
         },
         minimalValidTimeRange: {
             create: {
                 id: validIds.id1,
                 timezone: "UTC",
-                startTime: new Date("2025-01-01T00:00:00Z"),
-                endTime: new Date("2025-01-01T00:00:01Z"), // Just 1 second after
+                startTime: new Date("2025-01-01T00:00:00Z").toISOString(),
+                endTime: new Date("2025-01-01T00:00:01Z").toISOString(), // Just 1 second after
             },
         },
         largeValidTimeRange: {
             create: {
                 id: validIds.id1,
                 timezone: "UTC",
-                startTime: new Date("2025-01-01T00:00:00Z"),
-                endTime: new Date("2030-12-31T23:59:59Z"), // 5+ years
+                startTime: new Date("2025-01-01T00:00:00Z").toISOString(),
+                endTime: new Date("2030-12-31T23:59:59Z").toISOString(), // 5+ years
             },
         },
     },

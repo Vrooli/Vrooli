@@ -68,14 +68,11 @@ export const tagFixtures: ModelTestFixtures<TagCreateInput, TagUpdateInput> = {
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid type: number instead of string
                 id: 123, // Should be string
-                // @ts-expect-error - Testing invalid type: boolean instead of string
                 tag: true, // Should be string
             } as unknown as TagCreateInput,
             update: {
                 id: validIds.id5,
-                // @ts-expect-error - Testing invalid type: string instead of boolean
                 anonymous: "yes", // Should be boolean
             } as unknown as TagUpdateInput,
         },
@@ -151,19 +148,13 @@ export const tagTranslationFixtures: ModelTestFixtures<TagTranslationCreateInput
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid type: number instead of string
                 id: 123, // Should be string
-                // @ts-expect-error - Testing invalid type: boolean instead of string
                 language: true, // Should be string
-                // @ts-expect-error - Testing invalid type: array instead of string
                 description: [], // Should be string
             } as unknown as TagTranslationCreateInput,
             update: {
-                // @ts-expect-error - Testing invalid type: boolean instead of string
                 id: false, // Should be string
-                // @ts-expect-error - Testing invalid type: number instead of string
                 language: 456, // Should be string
-                // @ts-expect-error - Testing invalid type: object instead of string
                 description: {}, // Should be string
             } as unknown as TagTranslationUpdateInput,
         },

@@ -53,16 +53,13 @@ export const meetingInviteFixtures: ModelTestFixtures<MeetingInviteCreateInput, 
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid id type
                 id: 123, // Should be string
-                // @ts-expect-error - Testing invalid message type
                 message: true, // Should be string
                 meetingConnect: validIds.id2,
                 userConnect: validIds.id3,
             } as unknown as MeetingInviteCreateInput,
             update: {
                 id: validIds.id1,
-                // @ts-expect-error - Testing invalid message type
                 message: 123, // Should be string
             } as unknown as MeetingInviteUpdateInput,
         },

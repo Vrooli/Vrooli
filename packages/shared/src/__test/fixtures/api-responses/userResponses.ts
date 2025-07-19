@@ -7,18 +7,16 @@
  */
 
 import type {
+    Bot,
+    BotCreateInput,
+    Profile,
     User,
     UserCreateInput,
     UserUpdateInput,
-    Bot,
-    BotCreateInput,
-    BotUpdateInput,
-    Profile,
-    ProfileUpdateInput,
 } from "../../../api/types.js";
+import { generatePK } from "../../../id/index.js";
 import { BaseAPIResponseFactory } from "./base.js";
 import type { MockDataOptions } from "./types.js";
-import { generatePK } from "../../../id/index.js";
 
 /**
  * User API response factory
@@ -38,20 +36,20 @@ export class UserResponseFactory extends BaseAPIResponseFactory<
     createMockData(options?: MockDataOptions): User {
         const scenario = options?.scenario || "minimal";
         const now = new Date().toISOString();
-        const userId = options?.overrides?.id || generatePK().toString();
+        const userId = String(options?.overrides?.id || generatePK());
 
         const baseUser: User = {
             __typename: "User",
             id: userId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             bannerImage: null,
             bio: null,
-            handle: options?.overrides?.handle || `user_${userId.slice(0, 8)}`,
+            handle: String(options?.overrides?.handle || `user_${userId.slice(0, 8)}`),
             isBot: false,
             isBotDepictingPerson: false,
             isPrivate: false,
-            name: options?.overrides?.name || "Test User",
+            name: String(options?.overrides?.name || "Test User"),
             profileImage: null,
             isPrivateBookmarks: true,
             isPrivateVotes: true,
@@ -111,7 +109,7 @@ export class UserResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: User, input: UserUpdateInput): User {
         const updates: Partial<User> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
         if (input.bannerImage !== undefined) updates.bannerImage = input.bannerImage;
@@ -147,11 +145,11 @@ export class UserResponseFactory extends BaseAPIResponseFactory<
         valid: boolean;
         errors?: Record<string, string>;
     }> {
-        return { 
-            valid: false, 
-            errors: { 
-                general: "Users must be created through auth signup endpoints", 
-            }, 
+        return {
+            valid: false,
+            errors: {
+                general: "Users must be created through auth signup endpoints",
+            },
         };
     }
 
@@ -196,8 +194,8 @@ export class UserResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "User",
             id: botId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             bannerImage: null,
             bio: input?.bio || "I'm a helpful AI assistant.",
             handle: input?.handle || `bot_${botId.slice(0, 8)}`,
@@ -243,7 +241,7 @@ export class UserResponseFactory extends BaseAPIResponseFactory<
                 __typename: "Premium",
                 id: generatePK().toString(),
                 credits: "10000",
-                expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year
+                expiresAt: new Date(Date.now().toISOString() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year
             },
         };
     }
@@ -259,8 +257,8 @@ export class UserResponseFactory extends BaseAPIResponseFactory<
             teams.push({
                 __typename: "Team" as const,
                 id: generatePK().toString(),
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
                 handle: `team${i + 1}`,
                 name: `Team ${i + 1}`,
                 isOpenToNewMembers: true,
@@ -285,8 +283,8 @@ export class UserResponseFactory extends BaseAPIResponseFactory<
             memberships: teams.map(team => ({
                 __typename: "Member" as const,
                 id: generatePK().toString(),
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
                 isAdmin: team.you.role === "Owner",
                 role: team.you.role,
                 team,

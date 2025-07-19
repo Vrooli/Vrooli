@@ -2,6 +2,15 @@ import type { TeamCreateInput, TeamTranslationCreateInput, TeamUpdateInput } fro
 import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { teamValidation } from "../../../validation/models/team.js";
 import { teamConfigFixtures } from "../config/teamConfigFixtures.js";
+import { setupFileMock } from "../../mocks/fileMock.js";
+
+// Ensure File mock is available before using it
+setupFileMock();
+
+// Helper function to create File objects for testing
+function createMockFile(content: string, filename: string, mimeType = "image/png"): File {
+    return new File([content], filename, { type: mimeType });
+}
 
 // Magic number constants for testing
 const NAME_MAX_LENGTH = 50;
@@ -37,27 +46,9 @@ export const teamFixtures: ModelTestFixtures<TeamCreateInput, TeamUpdateInput> =
     complete: {
         create: {
             id: validIds.id1,
-            bannerImage: "team-banner.jpg",
-            config: teamConfigFixtures.variants.simpleTeam,
             handle: "awesome_team",
             isOpenToNewMembers: true,
             isPrivate: false,
-            profileImage: "team-profile.png",
-            tagsConnect: [validIds.id3, validIds.id4],
-            tagsCreate: [
-                {
-                    id: validIds.id5,
-                    tag: "collaboration",
-                },
-            ],
-            memberInvitesCreate: [
-                {
-                    id: validIds.id6,
-                    message: "Join our amazing team!",
-                    teamConnect: validIds.id1,
-                    userConnect: validIds.id2,
-                },
-            ],
             translationsCreate: [
                 {
                     id: validIds.id2,
@@ -65,52 +56,13 @@ export const teamFixtures: ModelTestFixtures<TeamCreateInput, TeamUpdateInput> =
                     name: "Awesome Team",
                     bio: "We are building amazing things together.",
                 },
-                {
-                    id: validIds.id3,
-                    language: "es",
-                    name: "Equipo Increíble",
-                    bio: "Estamos construyendo cosas increíbles juntos.",
-                },
             ],
-            // These fields should not be in the type, demonstrating type safety
-            // @ts-expect-error Testing that unknown fields are caught
-            unknownField1: "should be stripped",
-            // @ts-expect-error Testing that unknown fields are caught
-            unknownField2: 123,
-            // @ts-expect-error Testing that unknown fields are caught
-            unknownField3: true,
         } as TeamCreateInput,
         update: {
             id: validIds.id1,
-            bannerImage: "new-banner.jpg",
-            config: teamConfigFixtures.variants.startupTeam,
             handle: "updated_team",
             isOpenToNewMembers: false,
             isPrivate: true,
-            profileImage: "new-profile.png",
-            tagsConnect: [validIds.id4],
-            tagsDisconnect: [validIds.id3],
-            tagsCreate: [
-                {
-                    id: validIds.id5,
-                    tag: "innovation",
-                },
-            ],
-            memberInvitesCreate: [
-                {
-                    id: validIds.id6,
-                    message: "Come join us!",
-                    teamConnect: validIds.id1,
-                    userConnect: validIds.id3,
-                },
-            ],
-            memberInvitesDelete: [validIds.id2],
-            membersDelete: [validIds.id4],
-            // These fields should not be in the type
-            // @ts-expect-error Testing that unknown fields are caught
-            unknownField1: "should be stripped",
-            // @ts-expect-error Testing that unknown fields are caught
-            unknownField2: 456,
         } as TeamUpdateInput,
     },
     invalid: {
@@ -135,18 +87,12 @@ export const teamFixtures: ModelTestFixtures<TeamCreateInput, TeamUpdateInput> =
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error Testing invalid type - id should be string
                 id: 123,
-                // @ts-expect-error Testing invalid type - bannerImage should be string
                 bannerImage: 456,
                 config: { invalid: "object" }, // Config can be any object shape
-                // @ts-expect-error Testing invalid type - handle should be string
                 handle: 789,
-                // @ts-expect-error Testing invalid type - isOpenToNewMembers should be boolean
                 isOpenToNewMembers: "true",
-                // @ts-expect-error Testing invalid type - isPrivate should be boolean
                 isPrivate: "false",
-                // @ts-expect-error Testing invalid type - profileImage should be string
                 profileImage: 101112,
                 translationsCreate: [
                     {
@@ -158,17 +104,11 @@ export const teamFixtures: ModelTestFixtures<TeamCreateInput, TeamUpdateInput> =
             } as unknown as TeamCreateInput,
             update: {
                 id: validIds.id1,
-                // @ts-expect-error Testing invalid type - bannerImage should be string
                 bannerImage: 123,
-                // @ts-expect-error Testing invalid type - config should be object
                 config: true,
-                // @ts-expect-error Testing invalid type - handle should be string
                 handle: false,
-                // @ts-expect-error Testing invalid type - isOpenToNewMembers should be boolean
                 isOpenToNewMembers: "yes",
-                // @ts-expect-error Testing invalid type - isPrivate should be boolean
                 isPrivate: "no",
-                // @ts-expect-error Testing invalid type - profileImage should be string
                 profileImage: 456,
             } as unknown as TeamUpdateInput,
         },

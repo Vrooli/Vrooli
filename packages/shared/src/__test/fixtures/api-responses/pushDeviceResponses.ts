@@ -10,16 +10,21 @@ import type {
     PushDevice,
     PushDeviceCreateInput,
     PushDeviceUpdateInput,
-    PushDeviceTestInput,
 } from "../../../api/types.js";
+import { generatePK } from "../../../id/index.js";
 import { BaseAPIResponseFactory } from "./base.js";
 import type { MockDataOptions } from "./types.js";
-import { generatePK } from "../../../id/index.js";
+import {
+    DEFAULT_COUNT,
+    DEFAULT_DELAY_MS,
+    DEFAULT_ERROR_RATE,
+    ONE_DAY_MS,
+    ONE_THOUSAND,
+    ONE_YEAR_MS,
+    SEVEN_DAYS_MS,
+} from "../constants.js";
 
-// Constants
-const DEFAULT_COUNT = 10;
-const DEFAULT_ERROR_RATE = 0.1;
-const DEFAULT_DELAY_MS = 500;
+// Push device specific constants
 const MAX_DEVICES_PER_USER = 10;
 const MAX_NAME_LENGTH = 100;
 const PUSH_SUBSCRIPTION_EXPIRY_DAYS = 30;
@@ -55,11 +60,11 @@ export class PushDeviceResponseFactory extends BaseAPIResponseFactory<
         const basePushDevice: PushDevice = {
             __typename: "PushDevice",
             id: deviceId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             deviceId: `device_${deviceId.slice(-8)}`,
             name: "My Device",
-            expires: new Date(Date.now() + (PUSH_SUBSCRIPTION_EXPIRY_DAYS * 24 * 60 * 60 * 1000)).toISOString(),
+            expires: new Date(Date.now().toISOString() + (PUSH_SUBSCRIPTION_EXPIRY_DAYS * ONE_DAY_MS)).toISOString(),
         };
 
         if (scenario === "complete" || scenario === "edge-case") {
@@ -67,9 +72,9 @@ export class PushDeviceResponseFactory extends BaseAPIResponseFactory<
                 ...basePushDevice,
                 deviceId: "comprehensive_push_device_12345",
                 name: scenario === "edge-case" ? null : "iPhone 15 Pro Max - Safari",
-                expires: scenario === "edge-case" 
-                    ? new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString() // Expired yesterday
-                    : new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(), // 1 year from now
+                expires: scenario === "edge-case"
+                    ? new Date(Date.now().toISOString() - ONE_DAY_MS).toISOString() // Expired yesterday
+                    : new Date(Date.now().toISOString() + ONE_YEAR_MS).toISOString(), // 1 year from now
                 ...options?.overrides,
             };
         }
@@ -93,13 +98,13 @@ export class PushDeviceResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "PushDevice",
             id: deviceId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             deviceId: `device_${endpointHash}`,
             name: input.name || this.detectDeviceNameFromEndpoint(input.endpoint),
-            expires: input.expires 
-                ? new Date(Date.now() + (input.expires * 1000)).toISOString()
-                : new Date(Date.now() + (PUSH_SUBSCRIPTION_EXPIRY_DAYS * 24 * 60 * 60 * 1000)).toISOString(),
+            expires: input.expires
+                ? new Date(Date.now().toISOString() + (input.expires * 1000)).toISOString()
+                : new Date(Date.now().toISOString() + (PUSH_SUBSCRIPTION_EXPIRY_DAYS * ONE_DAY_MS)).toISOString(),
         };
     }
 
@@ -108,13 +113,13 @@ export class PushDeviceResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: PushDevice, input: PushDeviceUpdateInput): PushDevice {
         const updates: Partial<PushDevice> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
         if (input.name !== undefined) updates.name = input.name;
         if (input.expires !== undefined) {
             updates.expires = input.expires
-                ? new Date(Date.now() + (input.expires * 1000)).toISOString()
+                ? new Date(Date.now().toISOString() + (input.expires * 1000)).toISOString()
                 : null;
         }
 
@@ -243,13 +248,13 @@ export class PushDeviceResponseFactory extends BaseAPIResponseFactory<
             },
         ];
 
-        return platforms.map((platform, index) => 
+        return platforms.map((platform, index) =>
             this.createMockData({
                 overrides: {
                     id: `device_${platform.platform.toLowerCase()}_${index}`,
                     deviceId: `${platform.platform.toLowerCase()}_device_${index}`,
                     name: platform.name,
-                    expires: new Date(Date.now() + (platform.expires * 24 * 60 * 60 * 1000)).toISOString(),
+                    expires: new Date(Date.now().toISOString() + (platform.expires * ONE_DAY_MS)).toISOString(),
                 },
             }),
         );
@@ -264,14 +269,14 @@ export class PushDeviceResponseFactory extends BaseAPIResponseFactory<
                 overrides: {
                     name: "Expired Chrome Device",
                     deviceId: "expired_chrome_123",
-                    expires: new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString(), // Expired yesterday
+                    expires: new Date(Date.now().toISOString() - ONE_DAY_MS).toISOString(), // Expired yesterday
                 },
             }),
             this.createMockData({
                 overrides: {
                     name: "Old Firefox Device",
                     deviceId: "expired_firefox_456",
-                    expires: new Date(Date.now() - (7 * 24 * 60 * 60 * 1000)).toISOString(), // Expired 7 days ago
+                    expires: new Date(Date.now().toISOString() - SEVEN_DAYS_MS).toISOString(), // Expired 7 days ago
                 },
             }),
         ];
@@ -289,13 +294,13 @@ export class PushDeviceResponseFactory extends BaseAPIResponseFactory<
             { name: "Already Expired", days: -1 },
         ];
 
-        return expirationVariations.map((variation, index) => 
+        return expirationVariations.map((variation, index) =>
             this.createMockData({
                 overrides: {
                     id: `device_expiry_${index}`,
                     name: variation.name,
                     deviceId: `expiry_test_${index}`,
-                    expires: new Date(Date.now() + (variation.days * 24 * 60 * 60 * 1000)).toISOString(),
+                    expires: new Date(Date.now().toISOString() + (variation.days * ONE_DAY_MS)).toISOString(),
                 },
             }),
         );
@@ -521,8 +526,8 @@ export const pushDeviceResponseScenarios = {
     activeDevicesSuccess: () => {
         const factory = new PushDeviceResponseFactory();
         const allDevices = factory.createPushDevicesForAllPlatforms();
-        const activeDevices = allDevices.filter(device => 
-            !device.expires || new Date(device.expires) > new Date(),
+        const activeDevices = allDevices.filter(device =>
+            !device.expires || new Date(device.expires).toISOString() > new Date().toISOString(),
         );
         return factory.createPaginatedResponse(
             activeDevices,
@@ -581,7 +586,7 @@ export const pushDeviceResponseScenarios = {
         const factory = new PushDeviceResponseFactory();
         return factory.createSubscriptionExpiredErrorResponse(
             deviceId || generatePK().toString(),
-            new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString(),
+            new Date(Date.now().toISOString() - ONE_DAY_MS).toISOString(),
         );
     },
 

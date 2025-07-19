@@ -7,25 +7,29 @@
  */
 
 import type {
-    Reaction,
     ReactInput,
-    ReactionSearchInput,
-    ReactionSearchResult,
+    Reaction,
     ReactionFor,
+    ReactionSearchResult,
     ReactionSummary,
     Success,
 } from "../../../api/types.js";
+import { generatePK } from "../../../id/index.js";
 import { BaseAPIResponseFactory } from "./base.js";
 import type { MockDataOptions } from "./types.js";
-import { generatePK } from "../../../id/index.js";
 import { userResponseFactory } from "./userResponses.js";
+import {
+    DEFAULT_COUNT,
+    DEFAULT_DELAY_MS,
+    DEFAULT_ERROR_RATE,
+    ONE_HOUR_MS,
+    ONE_THOUSAND,
+    SEVEN_DAYS_MS,
+} from "../constants.js";
 
-// Constants
-const DEFAULT_COUNT = 10;
-const DEFAULT_ERROR_RATE = 0.1;
-const DEFAULT_DELAY_MS = 500;
+// Reaction specific constants
 const MAX_REACTIONS_PER_USER = 1; // One reaction per user per object
-const RATE_LIMIT_PER_HOUR = 1000;
+const RATE_LIMIT_PER_HOUR = ONE_THOUSAND;
 
 // Common emoji reactions used in tests
 const COMMON_REACTIONS = {
@@ -58,8 +62,8 @@ export class ReactionResponseFactory extends BaseAPIResponseFactory<
         const baseReaction: Reaction = {
             __typename: "Reaction",
             id: reactionId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             emoji: this.getRandomEmoji("positive"),
             by: userResponseFactory.createMockData(),
             to: this.createMockReactionTarget("Comment"),
@@ -67,7 +71,7 @@ export class ReactionResponseFactory extends BaseAPIResponseFactory<
 
         if (scenario === "complete" || scenario === "edge-case") {
             const targetType = scenario === "edge-case" ? "Issue" : "Post";
-            
+
             return {
                 ...baseReaction,
                 emoji: scenario === "edge-case" ? this.getRandomEmoji("negative") : this.getRandomEmoji("positive"),
@@ -93,8 +97,8 @@ export class ReactionResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "Reaction",
             id: reactionId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             emoji: input.emoji || this.getRandomEmoji("positive"),
             by: userResponseFactory.createMockData(), // Current user reacting
             to: this.createMockReactionTarget(input.reactionFor, input.forConnect),
@@ -138,11 +142,11 @@ export class ReactionResponseFactory extends BaseAPIResponseFactory<
      */
     createMultipleReactions(targetType: ReactionFor, targetId: string, count = 5): Reaction[] {
         const target = this.createMockReactionTarget(targetType, targetId);
-        
+
         return Array.from({ length: count }, (_, index) => {
             const categories: Array<keyof typeof COMMON_REACTIONS> = ["positive", "negative", "neutral"];
             const category = categories[index % categories.length];
-            
+
             return this.createMockData({
                 overrides: {
                     id: `reaction_${targetId}_${index}`,
@@ -211,9 +215,9 @@ export class ReactionResponseFactory extends BaseAPIResponseFactory<
      */
     createTrendingReactions(): Reaction[] {
         const trendingEmojis = ["👍", "❤️", "🎉", "🔥", "💯"];
-        
-        return trendingEmojis.flatMap((emoji, emojiIndex) => 
-            Array.from({ length: 20 - (emojiIndex * 3) }, (_, userIndex) => 
+
+        return trendingEmojis.flatMap((emoji, emojiIndex) =>
+            Array.from({ length: 20 - (emojiIndex * 3) }, (_, userIndex) =>
                 this.createMockData({
                     overrides: {
                         id: `trending_${emoji}_${userIndex}`,
@@ -231,18 +235,18 @@ export class ReactionResponseFactory extends BaseAPIResponseFactory<
      */
     createReactionsByUser(userId: string, count = 15): Reaction[] {
         const user = userResponseFactory.createMockData({ overrides: { id: userId } });
-        
+
         return Array.from({ length: count }, (_, index) => {
             const targetType = REACTION_FOR_TYPES[index % REACTION_FOR_TYPES.length];
             const category: keyof typeof COMMON_REACTIONS = index % 3 === 0 ? "positive" : index % 3 === 1 ? "neutral" : "negative";
-            
+
             return this.createMockData({
                 overrides: {
                     id: `user_reaction_${userId}_${index}`,
                     emoji: this.getRandomEmoji(category),
                     by: user,
                     to: this.createMockReactionTarget(targetType, `target_${index}`),
-                    created_at: new Date(Date.now() - (index * 60 * 60 * 1000)).toISOString(), // Spread over time
+                    createdAt: new Date(Date.now().toISOString() - (index * ONE_HOUR_MS)).toISOString(), // Spread over time
                 },
             });
         });
@@ -337,8 +341,8 @@ export class ReactionResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: type,
             id,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             // Add minimal required fields based on type
             ...(type === "ChatMessage" && { content: "Sample message" }),
             ...(type === "Comment" && { text: "Sample comment" }),
@@ -435,7 +439,7 @@ export const reactionResponseScenarios = {
         const reactions = factory.createMultipleReactions("Post", objectId || generatePK().toString(), 50);
         const summary = factory.createReactionSummary(reactions);
         const distribution = factory.createEmojiDistribution();
-        
+
         return factory.createSuccessResponse({
             objectId: objectId || generatePK().toString(),
             totalReactions: reactions.length,
@@ -443,7 +447,7 @@ export const reactionResponseScenarios = {
             summary,
             distribution,
             timeRange: {
-                start: new Date(Date.now() - (7 * 24 * 60 * 60 * 1000)).toISOString(), // 7 days ago
+                start: new Date(Date.now().toISOString() - SEVEN_DAYS_MS).toISOString(), // 7 days ago
                 end: new Date().toISOString(),
             },
         });

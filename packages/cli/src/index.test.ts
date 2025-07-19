@@ -1,10 +1,5 @@
-// AI_CHECK: TEST_COVERAGE=15 | LAST: 2025-07-13  
-// Coverage improved from 0.97% to 81.18% (statements) in CLI package
-// Fixed critical test failures caused by unhandled process.exit calls during testing
-// Added comprehensive error handling tests for main function and catch blocks
-// All tests now passing: 359 passed, 6 skipped, 0 failures
-import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 import { Command } from "commander";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 // Mock dependencies before imports
 vi.mock("commander");
@@ -37,7 +32,7 @@ describe("CLI Entry Point", () => {
     beforeEach(async () => {
         // Save original argv
         originalArgv = process.argv;
-        
+
         // Mock console methods
         consoleLogSpy = vi.spyOn(console, "log").mockImplementation(vi.fn());
         consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(vi.fn());
@@ -170,13 +165,13 @@ describe("CLI Entry Point", () => {
             // Get the mocked ConfigManager instance from beforeEach setup
             const { ConfigManager } = await import("./utils/config.js");
             const mockConfigManager = vi.mocked(ConfigManager);
-            
+
             // Create a new instance to trigger the mock
             const configInstance = new ConfigManager();
 
             // Simulate the preAction hook behavior directly
             const opts = { debug: true };
-            
+
             // This is what the preAction hook does when debug is true
             configInstance.setDebug(true);
 
@@ -187,13 +182,13 @@ describe("CLI Entry Point", () => {
             // Get the mocked ConfigManager instance from beforeEach setup
             const { ConfigManager } = await import("./utils/config.js");
             const mockConfigManager = vi.mocked(ConfigManager);
-            
+
             // Create a new instance to trigger the mock
             const configInstance = new ConfigManager();
 
             // Simulate the preAction hook behavior directly
             const opts = { profile: "staging" };
-            
+
             // This is what the preAction hook does when profile is set
             configInstance.setActiveProfile("staging");
 
@@ -204,13 +199,13 @@ describe("CLI Entry Point", () => {
             // Get the mocked ConfigManager instance from beforeEach setup
             const { ConfigManager } = await import("./utils/config.js");
             const mockConfigManager = vi.mocked(ConfigManager);
-            
+
             // Create a new instance to trigger the mock
             const configInstance = new ConfigManager();
 
             // Simulate the preAction hook behavior directly
             const opts = { json: true };
-            
+
             // This is what the preAction hook does when json is true
             configInstance.setJsonOutput(true);
 
@@ -254,17 +249,17 @@ describe("CLI Entry Point", () => {
             // Test the list action behavior directly
             const { ConfigManager } = await import("./utils/config.js");
             const mockConfigManager = vi.mocked(ConfigManager);
-            
+
             // Create a new instance to trigger the mock
             const configInstance = new ConfigManager();
-            
+
             // Simulate the list action
             const profiles = configInstance.listProfiles();
             const active = configInstance.getActiveProfileName();
-            
+
             // Simulate non-JSON output
             configInstance.isJsonOutput.mockReturnValue(false);
-            
+
             // Execute the list action logic
             console.log("[bold]\\nProfiles:[/bold]");
             profiles.forEach((profile: string) => {
@@ -293,7 +288,7 @@ describe("CLI Entry Point", () => {
             });
 
             process.argv = ["node", "index.js", "profile", "use", "staging"];
-            
+
             const modulePromise = import("./index.ts");
             await new Promise(resolve => setTimeout(resolve, 10));
             await modulePromise;
@@ -325,7 +320,7 @@ describe("CLI Entry Point", () => {
             });
 
             process.argv = ["node", "index.js", "profile", "create", "production"];
-            
+
             const modulePromise = import("./index.ts");
             await new Promise(resolve => setTimeout(resolve, 10));
             await modulePromise;
@@ -352,7 +347,7 @@ describe("CLI Entry Point", () => {
                         const program = new Command();
                         const { ConfigManager } = await import("./utils/config.js");
                         const { ApiClient } = await import("./utils/client.js");
-                        
+
                         const config = new ConfigManager();
                         const client = new ApiClient(config);
 
@@ -394,9 +389,9 @@ describe("CLI Entry Point", () => {
         it("should show stack trace in debug mode", async () => {
             const error = new Error("Debug error");
             error.stack = "Error: Debug error\n    at someFunction";
-            
+
             process.env.DEBUG = "true";
-            
+
             try {
                 // Simulate error handling path
                 const logger = {
@@ -416,13 +411,13 @@ describe("CLI Entry Point", () => {
             }
 
             expect(consoleErrorSpy).toHaveBeenCalledWith(error.stack);
-            
+
             delete process.env.DEBUG;
         });
 
         it("should handle non-Error objects in catch", async () => {
             const nonError = "String error";
-            
+
             // Simulate error handling path
             const logger = {
                 error: (message: string, err?: unknown) => {
@@ -432,7 +427,7 @@ describe("CLI Entry Point", () => {
             logger.error("CLI error", nonError);
             const errorMessage = nonError instanceof Error ? nonError.message : String(nonError);
             console.error(`\n✗ Error: ${errorMessage}`);
-            
+
             expect(consoleErrorSpy).toHaveBeenCalledWith(
                 "Logger: CLI error", "String error",
             );
@@ -443,7 +438,7 @@ describe("CLI Entry Point", () => {
 
         it("should handle fatal errors in catch block", async () => {
             const fatalError = new Error("Fatal error");
-            
+
             try {
                 console.error("Fatal error:", fatalError);
                 process.exit(1);
@@ -479,7 +474,7 @@ describe("CLI Entry Point", () => {
             });
 
             process.argv = ["node", "index.js", "profile", "list", "--json"];
-            
+
             const modulePromise = import("./index.ts");
             await new Promise(resolve => setTimeout(resolve, 10));
             await modulePromise;

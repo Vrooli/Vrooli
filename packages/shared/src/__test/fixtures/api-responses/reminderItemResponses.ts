@@ -10,13 +10,11 @@ import type {
     ReminderItem,
     ReminderItemCreateInput,
     ReminderItemUpdateInput,
-    Reminder,
     ReminderList,
-    User,
 } from "../../../api/types.js";
+import { generatePK } from "../../../id/index.js";
 import { BaseAPIResponseFactory } from "./base.js";
 import type { MockDataOptions } from "./types.js";
-import { generatePK } from "../../../id/index.js";
 import { userResponseFactory } from "./userResponses.js";
 
 // Constants
@@ -59,8 +57,8 @@ export class ReminderItemResponseFactory extends BaseAPIResponseFactory<
         const baseReminderItem: ReminderItem = {
             __typename: "ReminderItem",
             id: itemId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             name: "Complete project task",
             description: null,
             dueDate: null,
@@ -74,20 +72,20 @@ export class ReminderItemResponseFactory extends BaseAPIResponseFactory<
         };
 
         if (scenario === "complete" || scenario === "edge-case") {
-            const dueDate = scenario === "edge-case" 
-                ? new Date(Date.now() - (DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString() // Overdue
-                : new Date(Date.now() + (DAYS_IN_3 * MILLISECONDS_PER_DAY)).toISOString(); // Due in 3 days
+            const dueDate = scenario === "edge-case"
+                ? new Date(Date.now().toISOString() - (DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString() // Overdue
+                : new Date(Date.now().toISOString() + (DAYS_IN_3 * MILLISECONDS_PER_DAY)).toISOString(); // Due in 3 days
 
             return {
                 ...baseReminderItem,
-                name: scenario === "edge-case" 
+                name: scenario === "edge-case"
                     ? "A".repeat(MAX_NAME_LENGTH) // Maximum length name
                     : "Review quarterly business metrics and prepare presentation for board meeting",
-                description: scenario === "complete" 
+                description: scenario === "complete"
                     ? "This task involves analyzing Q3 financial data, identifying key trends, and creating a comprehensive presentation highlighting our achievements and areas for improvement."
                     : scenario === "edge-case"
-                    ? "B".repeat(MAX_DESCRIPTION_LENGTH) // Maximum length description
-                    : null,
+                        ? "B".repeat(MAX_DESCRIPTION_LENGTH) // Maximum length description
+                        : null,
                 dueDate,
                 index: scenario === "edge-case" ? 999 : 5,
                 isComplete: scenario === "edge-case",
@@ -116,14 +114,14 @@ export class ReminderItemResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "ReminderItem",
             id: itemId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             name: input.name,
             description: input.description || null,
             dueDate: input.dueDate || null,
             index: input.index || 0,
             isComplete: input.isComplete || false,
-            reminderList: this.createMockReminderList({ 
+            reminderList: this.createMockReminderList({
                 overrides: { id: input.reminderListConnect },
             }),
             you: {
@@ -138,7 +136,7 @@ export class ReminderItemResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: ReminderItem, input: ReminderItemUpdateInput): ReminderItem {
         const updates: Partial<ReminderItem> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
         if (input.name !== undefined) updates.name = input.name;
@@ -180,7 +178,7 @@ export class ReminderItemResponseFactory extends BaseAPIResponseFactory<
             errors.index = "Index cannot be negative";
         }
 
-        if (input.dueDate && new Date(input.dueDate).getTime() < Date.now() - (DAYS_IN_1 * MILLISECONDS_PER_DAY)) {
+        if (input.dueDate && new Date(input.dueDate).toISOString().getTime() < Date.now() - (DAYS_IN_1 * MILLISECONDS_PER_DAY)) {
             errors.dueDate = "Due date cannot be more than 1 day in the past";
         }
 
@@ -226,12 +224,12 @@ export class ReminderItemResponseFactory extends BaseAPIResponseFactory<
      */
     createReminderItemsForList(listId: string, count = 8): ReminderItem[] {
         const reminderList = this.createMockReminderList({ overrides: { id: listId } });
-        
+
         return Array.from({ length: count }, (_, index) => {
             const isCompleted = index % 3 === 0; // Every 3rd item is completed
             const hasDescription = index % 2 === 0; // Every 2nd item has description
             const hasDueDate = index % 4 === 0; // Every 4th item has due date
-            
+
             return this.createMockData({
                 overrides: {
                     id: `item_${listId}_${index}`,
@@ -241,7 +239,7 @@ export class ReminderItemResponseFactory extends BaseAPIResponseFactory<
                     dueDate: hasDueDate ? this.getDueDate(index) : null,
                     index,
                     isComplete: isCompleted,
-                    created_at: new Date(Date.now() - (index * HOURS_IN_2 * MILLISECONDS_PER_HOUR)).toISOString(),
+                    createdAt: new Date(Date.now().toISOString() - (index * HOURS_IN_2 * MILLISECONDS_PER_HOUR)).toISOString(),
                 },
             });
         });
@@ -252,7 +250,7 @@ export class ReminderItemResponseFactory extends BaseAPIResponseFactory<
      */
     createReminderItemsWithVariedStates(): ReminderItem[] {
         const baseTime = Date.now();
-        
+
         return [
             // Overdue high priority task
             this.createMockData({
@@ -260,7 +258,7 @@ export class ReminderItemResponseFactory extends BaseAPIResponseFactory<
                     id: "overdue_urgent_task",
                     name: "Submit quarterly financial report",
                     description: "Critical: Board meeting is tomorrow and we need the Q3 financial analysis completed",
-                    dueDate: new Date(baseTime - (DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString(), // 1 day overdue
+                    dueDate: new Date(baseTime - (DAYS_IN_1 * MILLISECONDS_PER_DAY).toISOString()).toISOString(), // 1 day overdue
                     isComplete: false,
                     index: 0,
                 },
@@ -272,7 +270,7 @@ export class ReminderItemResponseFactory extends BaseAPIResponseFactory<
                     id: "due_today_task",
                     name: "Review and approve marketing campaign",
                     description: "Final review of the holiday marketing materials before launch",
-                    dueDate: new Date(baseTime + (HOURS_IN_6 * MILLISECONDS_PER_HOUR)).toISOString(), // Due in 6 hours
+                    dueDate: new Date(baseTime + (HOURS_IN_6 * MILLISECONDS_PER_HOUR).toISOString()).toISOString(), // Due in 6 hours
                     isComplete: false,
                     index: 1,
                 },
@@ -284,10 +282,10 @@ export class ReminderItemResponseFactory extends BaseAPIResponseFactory<
                     id: "completed_task",
                     name: "Update employee handbook",
                     description: "Updated remote work policies and benefits information",
-                    dueDate: new Date(baseTime - (HOURS_IN_12 * MILLISECONDS_PER_HOUR)).toISOString(), // Was due 12 hours ago
+                    dueDate: new Date(baseTime - (HOURS_IN_12 * MILLISECONDS_PER_HOUR).toISOString()).toISOString(), // Was due 12 hours ago
                     isComplete: true,
                     index: 2,
-                    updated_at: new Date(baseTime - (HOURS_IN_2 * MILLISECONDS_PER_HOUR)).toISOString(), // Completed 2 hours ago
+                    updatedAt: new Date(baseTime - (HOURS_IN_2 * MILLISECONDS_PER_HOUR).toISOString()).toISOString(), // Completed 2 hours ago
                 },
             }),
 
@@ -309,7 +307,7 @@ export class ReminderItemResponseFactory extends BaseAPIResponseFactory<
                     id: "quick_task",
                     name: "Call IT support about printer issue",
                     description: null,
-                    dueDate: new Date(baseTime + (HOURS_IN_2 * MILLISECONDS_PER_HOUR)).toISOString(), // Due in 2 hours
+                    dueDate: new Date(baseTime + (HOURS_IN_2 * MILLISECONDS_PER_HOUR).toISOString()).toISOString(), // Due in 2 hours
                     isComplete: false,
                     index: 4,
                 },
@@ -321,7 +319,7 @@ export class ReminderItemResponseFactory extends BaseAPIResponseFactory<
                     id: "longterm_task",
                     name: "Research new CRM system options",
                     description: "Evaluate different CRM platforms including Salesforce, HubSpot, and Pipedrive. Compare features, pricing, and integration capabilities with our existing tools.",
-                    dueDate: new Date(baseTime + (DAYS_IN_7 * MILLISECONDS_PER_DAY)).toISOString(), // Due in 1 week
+                    dueDate: new Date(baseTime + (DAYS_IN_7 * MILLISECONDS_PER_DAY).toISOString()).toISOString(), // Due in 1 week
                     isComplete: false,
                     index: 5,
                 },
@@ -340,9 +338,9 @@ export class ReminderItemResponseFactory extends BaseAPIResponseFactory<
                     name: `${completed ? "Completed" : "Pending"} Task ${index + 1}`,
                     isComplete: completed,
                     index,
-                    updated_at: completed 
-                        ? new Date(Date.now() - (index * HOURS_IN_6 * MILLISECONDS_PER_HOUR)).toISOString()
-                        : new Date(Date.now() - (index * HOURS_IN_2 * MILLISECONDS_PER_HOUR)).toISOString(),
+                    updatedAt: completed
+                        ? new Date(Date.now().toISOString() - (index * HOURS_IN_6 * MILLISECONDS_PER_HOUR)).toISOString()
+                        : new Date(Date.now().toISOString() - (index * HOURS_IN_2 * MILLISECONDS_PER_HOUR)).toISOString(),
                 },
             }),
         );
@@ -383,8 +381,8 @@ export class ReminderItemResponseFactory extends BaseAPIResponseFactory<
         const baseList: ReminderList = {
             __typename: "ReminderList",
             id: listId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             name: "My Tasks",
             description: null,
             reminderItems: [],
@@ -456,7 +454,7 @@ export class ReminderItemResponseFactory extends BaseAPIResponseFactory<
             DAYS_IN_3 * MILLISECONDS_PER_DAY, // 3 days from now
             DAYS_IN_7 * MILLISECONDS_PER_DAY, // 1 week from now
         ];
-        return new Date(Date.now() + baseTimes[index % baseTimes.length]).toISOString();
+        return new Date(Date.now().toISOString() + baseTimes[index % baseTimes.length]).toISOString();
     }
 }
 
@@ -511,7 +509,7 @@ export const reminderItemResponseScenarios = {
                 overrides: {
                     id: itemId,
                     isComplete: true,
-                    updated_at: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                 },
             }),
         );
@@ -524,7 +522,7 @@ export const reminderItemResponseScenarios = {
                 overrides: {
                     id: itemId,
                     isComplete: false,
-                    updated_at: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                 },
             }),
         );
@@ -580,7 +578,7 @@ export const reminderItemResponseScenarios = {
             factory.createMockData({
                 overrides: {
                     name: "Overdue Task",
-                    dueDate: new Date(Date.now() - (DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString(),
+                    dueDate: new Date(Date.now().toISOString() - (DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString(),
                     isComplete: false,
                 },
             }),
@@ -593,7 +591,7 @@ export const reminderItemResponseScenarios = {
             factory.createMockData({
                 overrides: {
                     name: "Due Today Task",
-                    dueDate: new Date(Date.now() + (HOURS_IN_6 * MILLISECONDS_PER_HOUR)).toISOString(),
+                    dueDate: new Date(Date.now().toISOString() + (HOURS_IN_6 * MILLISECONDS_PER_HOUR)).toISOString(),
                     isComplete: false,
                 },
             }),

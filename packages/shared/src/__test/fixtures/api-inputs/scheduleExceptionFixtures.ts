@@ -17,22 +17,22 @@ export const scheduleExceptionFixtures: ModelTestFixtures<ScheduleExceptionCreat
     minimal: {
         create: {
             id: validIds.id1,
-            originalStartTime: new Date("2025-07-04T09:00:00Z"), // Required by API type
-            newStartTime: new Date("2025-07-05T10:00:00Z"), // Need startTime for endTime validation
-            newEndTime: new Date("2025-07-05T17:00:00Z"), // Required field
+            originalStartTime: new Date("2025-07-04T09:00:00Z").toISOString(), // Required by API type
+            newStartTime: new Date("2025-07-05T10:00:00Z").toISOString(), // Need startTime for endTime validation
+            newEndTime: new Date("2025-07-05T17:00:00Z").toISOString(), // Required field
             scheduleConnect: validIds.id2,
         },
         update: {
             id: validIds.id1,
-            newStartTime: new Date("2025-07-05T10:00:00Z"), // Need startTime for endTime validation
+            newStartTime: new Date("2025-07-05T10:00:00Z").toISOString(), // Need startTime for endTime validation
         },
     },
     complete: {
         create: {
             id: validIds.id1,
-            originalStartTime: new Date("2025-07-04T09:00:00Z"), // Original scheduled time
-            newStartTime: new Date("2025-07-05T10:00:00Z"), // Moved to next day
-            newEndTime: new Date("2025-07-05T16:00:00Z"), // Shorter duration
+            originalStartTime: new Date("2025-07-04T09:00:00Z").toISOString(), // Original scheduled time
+            newStartTime: new Date("2025-07-05T10:00:00Z").toISOString(), // Moved to next day
+            newEndTime: new Date("2025-07-05T16:00:00Z").toISOString(), // Shorter duration
             scheduleConnect: validIds.id2,
             // Add some extra fields that will be stripped
             unknownField1: "should be stripped",
@@ -41,9 +41,9 @@ export const scheduleExceptionFixtures: ModelTestFixtures<ScheduleExceptionCreat
         } as ScheduleExceptionCreateInput,
         update: {
             id: validIds.id1,
-            originalStartTime: new Date("2025-12-25T09:00:00Z"),
-            newStartTime: new Date("2025-12-26T11:00:00Z"), // Changed time
-            newEndTime: new Date("2025-12-26T15:00:00Z"), // Changed duration
+            originalStartTime: new Date("2025-12-25T09:00:00Z").toISOString(),
+            newStartTime: new Date("2025-12-26T11:00:00Z").toISOString(), // Changed time
+            newEndTime: new Date("2025-12-26T15:00:00Z").toISOString(), // Changed duration
             // Add some extra fields that will be stripped
             unknownField1: "should be stripped",
             unknownField2: 456,
@@ -54,41 +54,34 @@ export const scheduleExceptionFixtures: ModelTestFixtures<ScheduleExceptionCreat
             create: {
                 id: validIds.id1,
                 // Missing required originalStartTime, newEndTime and scheduleConnect
-                newStartTime: new Date("2025-07-05T10:00:00Z"),
+                newStartTime: new Date("2025-07-05T10:00:00Z").toISOString(),
             } as ScheduleExceptionCreateInput,
             update: {
                 // Missing required id
-                newStartTime: new Date("2025-07-05T10:00:00Z"),
-                newEndTime: new Date("2025-07-05T17:00:00Z"),
+                newStartTime: new Date("2025-07-05T10:00:00Z").toISOString(),
+                newEndTime: new Date("2025-07-05T17:00:00Z").toISOString(),
             } as ScheduleExceptionUpdateInput,
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid types
                 id: 123, // Should be string
-                // @ts-expect-error - Testing invalid types
                 originalStartTime: "not-a-date", // Should be Date
-                // @ts-expect-error - Testing invalid types
                 newStartTime: "invalid-date", // Should be Date
-                // @ts-expect-error - Testing invalid types
                 newEndTime: 12345, // Should be Date
                 scheduleConnect: validIds.id2,
             } as unknown as ScheduleExceptionCreateInput,
             update: {
                 id: validIds.id1,
-                // @ts-expect-error - Testing invalid types
                 originalStartTime: "2025-07-04", // Should be Date object
-                // @ts-expect-error - Testing invalid types
                 newStartTime: 123, // Should be Date
-                // @ts-expect-error - Testing invalid types
                 newEndTime: true, // Should be Date
             } as unknown as ScheduleExceptionUpdateInput,
         },
         invalidId: {
             create: {
                 id: "not-a-valid-snowflake",
-                newStartTime: new Date("2025-07-05T10:00:00Z"),
-                newEndTime: new Date("2025-07-05T17:00:00Z"),
+                newStartTime: new Date("2025-07-05T10:00:00Z").toISOString(),
+                newEndTime: new Date("2025-07-05T17:00:00Z").toISOString(),
                 scheduleConnect: validIds.id2,
             } as ScheduleExceptionCreateInput,
             update: {
@@ -98,21 +91,21 @@ export const scheduleExceptionFixtures: ModelTestFixtures<ScheduleExceptionCreat
         invalidTimeOrder: {
             create: {
                 id: validIds.id1,
-                newStartTime: new Date("2025-07-05T17:00:00Z"),
-                newEndTime: new Date("2025-07-05T10:00:00Z"), // Before start time
+                newStartTime: new Date("2025-07-05T17:00:00Z").toISOString(),
+                newEndTime: new Date("2025-07-05T10:00:00Z").toISOString(), // Before start time
                 scheduleConnect: validIds.id2,
             } as ScheduleExceptionCreateInput,
             update: {
                 id: validIds.id1,
-                newStartTime: new Date("2025-07-05T12:00:00Z"),
-                newEndTime: new Date("2025-07-05T12:00:00Z"), // Same as start time
+                newStartTime: new Date("2025-07-05T12:00:00Z").toISOString(),
+                newEndTime: new Date("2025-07-05T12:00:00Z").toISOString(), // Same as start time
             } as ScheduleExceptionUpdateInput,
         },
         missingScheduleConnect: {
             create: {
                 id: validIds.id1,
-                newStartTime: new Date("2025-07-05T10:00:00Z"),
-                newEndTime: new Date("2025-07-05T17:00:00Z"),
+                newStartTime: new Date("2025-07-05T10:00:00Z").toISOString(),
+                newEndTime: new Date("2025-07-05T17:00:00Z").toISOString(),
                 // Missing required scheduleConnect
             } as ScheduleExceptionCreateInput,
         },
@@ -120,7 +113,7 @@ export const scheduleExceptionFixtures: ModelTestFixtures<ScheduleExceptionCreat
             create: {
                 id: validIds.id1,
                 // No newStartTime
-                newEndTime: new Date("2025-07-05T17:00:00Z"),
+                newEndTime: new Date("2025-07-05T17:00:00Z").toISOString(),
                 scheduleConnect: validIds.id2,
             } as ScheduleExceptionCreateInput,
         },
@@ -129,138 +122,138 @@ export const scheduleExceptionFixtures: ModelTestFixtures<ScheduleExceptionCreat
         cancelledMeeting: {
             create: {
                 id: validIds.id1,
-                originalStartTime: new Date("2025-07-04T09:00:00Z"),
+                originalStartTime: new Date("2025-07-04T09:00:00Z").toISOString(),
                 // For cancelled meetings, we still need valid times due to validation constraints
-                newStartTime: new Date("2025-07-04T09:00:00Z"), // Same as original
-                newEndTime: new Date("2025-07-04T09:01:00Z"), // Just 1 second meeting
+                newStartTime: new Date("2025-07-04T09:00:00Z").toISOString(), // Same as original
+                newEndTime: new Date("2025-07-04T09:01:00Z").toISOString(), // Just 1 second meeting
                 scheduleConnect: validIds.id2,
             },
             update: {
                 id: validIds.id1,
                 // Updating a cancellation
-                newStartTime: new Date("2025-07-04T09:00:00Z"),
-                newEndTime: new Date("2025-07-04T09:01:00Z"),
+                newStartTime: new Date("2025-07-04T09:00:00Z").toISOString(),
+                newEndTime: new Date("2025-07-04T09:01:00Z").toISOString(),
             },
         },
         movedEarlier: {
             create: {
                 id: validIds.id1,
-                originalStartTime: new Date("2025-07-04T14:00:00Z"),
-                newStartTime: new Date("2025-07-04T09:00:00Z"), // Moved earlier same day
-                newEndTime: new Date("2025-07-04T16:00:00Z"),
+                originalStartTime: new Date("2025-07-04T14:00:00Z").toISOString(),
+                newStartTime: new Date("2025-07-04T09:00:00Z").toISOString(), // Moved earlier same day
+                newEndTime: new Date("2025-07-04T16:00:00Z").toISOString(),
                 scheduleConnect: validIds.id2,
             },
         },
         movedLater: {
             create: {
                 id: validIds.id1,
-                originalStartTime: new Date("2025-07-04T09:00:00Z"),
-                newStartTime: new Date("2025-07-04T14:00:00Z"), // Moved later same day
-                newEndTime: new Date("2025-07-04T21:00:00Z"),
+                originalStartTime: new Date("2025-07-04T09:00:00Z").toISOString(),
+                newStartTime: new Date("2025-07-04T14:00:00Z").toISOString(), // Moved later same day
+                newEndTime: new Date("2025-07-04T21:00:00Z").toISOString(),
                 scheduleConnect: validIds.id2,
             },
         },
         extendedDuration: {
             create: {
                 id: validIds.id1,
-                originalStartTime: new Date("2025-07-04T09:00:00Z"),
-                newStartTime: new Date("2025-07-04T09:00:00Z"), // Same start
-                newEndTime: new Date("2025-07-04T18:00:00Z"), // Extended end time
+                originalStartTime: new Date("2025-07-04T09:00:00Z").toISOString(),
+                newStartTime: new Date("2025-07-04T09:00:00Z").toISOString(), // Same start
+                newEndTime: new Date("2025-07-04T18:00:00Z").toISOString(), // Extended end time
                 scheduleConnect: validIds.id2,
             },
         },
         shortenedDuration: {
             create: {
                 id: validIds.id1,
-                originalStartTime: new Date("2025-07-04T09:00:00Z"),
-                newStartTime: new Date("2025-07-04T09:00:00Z"), // Same start
-                newEndTime: new Date("2025-07-04T12:00:00Z"), // Shortened end time
+                originalStartTime: new Date("2025-07-04T09:00:00Z").toISOString(),
+                newStartTime: new Date("2025-07-04T09:00:00Z").toISOString(), // Same start
+                newEndTime: new Date("2025-07-04T12:00:00Z").toISOString(), // Shortened end time
                 scheduleConnect: validIds.id2,
             },
         },
         differentDay: {
             create: {
                 id: validIds.id1,
-                originalStartTime: new Date("2025-07-04T09:00:00Z"),
-                newStartTime: new Date("2025-07-10T14:00:00Z"), // Different day entirely
-                newEndTime: new Date("2025-07-10T16:00:00Z"),
+                originalStartTime: new Date("2025-07-04T09:00:00Z").toISOString(),
+                newStartTime: new Date("2025-07-10T14:00:00Z").toISOString(), // Different day entirely
+                newEndTime: new Date("2025-07-10T16:00:00Z").toISOString(),
                 scheduleConnect: validIds.id2,
             },
         },
         differentMonth: {
             create: {
                 id: validIds.id1,
-                originalStartTime: new Date("2025-07-04T09:00:00Z"),
-                newStartTime: new Date("2025-08-15T10:00:00Z"), // Different month
-                newEndTime: new Date("2025-08-15T17:00:00Z"),
+                originalStartTime: new Date("2025-07-04T09:00:00Z").toISOString(),
+                newStartTime: new Date("2025-08-15T10:00:00Z").toISOString(), // Different month
+                newEndTime: new Date("2025-08-15T17:00:00Z").toISOString(),
                 scheduleConnect: validIds.id2,
             },
         },
         differentYear: {
             create: {
                 id: validIds.id1,
-                originalStartTime: new Date("2025-07-04T09:00:00Z"),
-                newStartTime: new Date("2026-07-04T09:00:00Z"), // Next year
-                newEndTime: new Date("2026-07-04T17:00:00Z"),
+                originalStartTime: new Date("2025-07-04T09:00:00Z").toISOString(),
+                newStartTime: new Date("2026-07-04T09:00:00Z").toISOString(), // Next year
+                newEndTime: new Date("2026-07-04T17:00:00Z").toISOString(),
                 scheduleConnect: validIds.id2,
             },
         },
         minimalTimeRange: {
             create: {
                 id: validIds.id1,
-                originalStartTime: new Date("2025-07-04T08:00:00Z"),
-                newStartTime: new Date("2025-07-04T09:00:00Z"),
-                newEndTime: new Date("2025-07-04T09:00:01Z"), // Just 1 second duration
+                originalStartTime: new Date("2025-07-04T08:00:00Z").toISOString(),
+                newStartTime: new Date("2025-07-04T09:00:00Z").toISOString(),
+                newEndTime: new Date("2025-07-04T09:00:01Z").toISOString(), // Just 1 second duration
                 scheduleConnect: validIds.id2,
             },
         },
         largeTimeRange: {
             create: {
                 id: validIds.id1,
-                originalStartTime: new Date("2025-07-03T09:00:00Z"),
-                newStartTime: new Date("2025-07-04T00:00:00Z"),
-                newEndTime: new Date("2025-07-04T23:59:59Z"), // All day
+                originalStartTime: new Date("2025-07-03T09:00:00Z").toISOString(),
+                newStartTime: new Date("2025-07-04T00:00:00Z").toISOString(),
+                newEndTime: new Date("2025-07-04T23:59:59Z").toISOString(), // All day
                 scheduleConnect: validIds.id2,
             },
         },
         multiDayEvent: {
             create: {
                 id: validIds.id1,
-                originalStartTime: new Date("2025-07-04T09:00:00Z"),
-                newStartTime: new Date("2025-07-04T09:00:00Z"),
-                newEndTime: new Date("2025-07-06T17:00:00Z"), // Multi-day event
+                originalStartTime: new Date("2025-07-04T09:00:00Z").toISOString(),
+                newStartTime: new Date("2025-07-04T09:00:00Z").toISOString(),
+                newEndTime: new Date("2025-07-06T17:00:00Z").toISOString(), // Multi-day event
                 scheduleConnect: validIds.id2,
             },
         },
         differentScheduleId: {
             create: {
                 id: validIds.id1,
-                originalStartTime: new Date("2025-07-04T08:00:00Z"),
-                newStartTime: new Date("2025-07-04T09:00:00Z"),
-                newEndTime: new Date("2025-07-04T17:00:00Z"),
+                originalStartTime: new Date("2025-07-04T08:00:00Z").toISOString(),
+                newStartTime: new Date("2025-07-04T09:00:00Z").toISOString(),
+                newEndTime: new Date("2025-07-04T17:00:00Z").toISOString(),
                 scheduleConnect: validIds.id6, // Different schedule
             },
         },
         onlyRequiredInUpdate: {
             update: {
                 id: validIds.id1,
-                newStartTime: new Date("2025-07-05T10:00:00Z"), // Need startTime for endTime validation
+                newStartTime: new Date("2025-07-05T10:00:00Z").toISOString(), // Need startTime for endTime validation
                 // Only id is required in update, but we need startTime for validation
             },
         },
         updateOnlyOriginalTime: {
             update: {
                 id: validIds.id1,
-                originalStartTime: new Date("2025-09-01T10:00:00Z"),
-                newStartTime: new Date("2025-07-05T10:00:00Z"), // Need startTime for endTime validation
+                originalStartTime: new Date("2025-09-01T10:00:00Z").toISOString(),
+                newStartTime: new Date("2025-07-05T10:00:00Z").toISOString(), // Need startTime for endTime validation
                 // Not updating new times
             },
         },
         updateOnlyNewTimes: {
             update: {
                 id: validIds.id1,
-                newStartTime: new Date("2025-09-01T11:00:00Z"),
-                newEndTime: new Date("2025-09-01T16:00:00Z"),
+                newStartTime: new Date("2025-09-01T11:00:00Z").toISOString(),
+                newEndTime: new Date("2025-09-01T16:00:00Z").toISOString(),
                 // Not updating original time
             },
         },
@@ -272,10 +265,10 @@ const customizers = {
     create: (base: ScheduleExceptionCreateInput): ScheduleExceptionCreateInput => ({
         ...base,
         id: base.id || validIds.id1,
-        newStartTime: base.newStartTime || new Date("2025-01-01T10:00:00Z"),
-        newEndTime: base.newEndTime || new Date("2025-01-01T17:00:00Z"),
+        newStartTime: base.newStartTime || new Date("2025-01-01T10:00:00Z").toISOString(),
+        newEndTime: base.newEndTime || new Date("2025-01-01T17:00:00Z").toISOString(),
         scheduleConnect: base.scheduleConnect || validIds.id2,
-        originalStartTime: base.originalStartTime || new Date("2025-01-01T09:00:00Z"),
+        originalStartTime: base.originalStartTime || new Date("2025-01-01T09:00:00Z").toISOString(),
     }),
     update: (base: ScheduleExceptionUpdateInput): ScheduleExceptionUpdateInput => ({
         ...base,

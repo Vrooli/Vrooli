@@ -98,7 +98,7 @@ export class HistoryManager {
         return this.storage.get(id);
     }
     
-    async search(query: HistorySearchQuery): Promise<HistoryEntry[]> {
+    async search(query: HistorySearchQuery = {}): Promise<HistoryEntry[]> {
         return this.storage.search(query);
     }
     
@@ -119,8 +119,8 @@ export class HistoryManager {
     }
     
     private isHistoryDisabled(options: Record<string, unknown>): boolean {
-        // Check for --no-history flag
-        if (options.noHistory || options["no-history"]) {
+        // Check for history disable flags
+        if (options.noHistory || options["no-history"] || options.disableHistory || options["disable-history"]) {
             return true;
         }
         
@@ -137,6 +137,9 @@ export class HistoryManager {
         for (const key of Object.keys(sanitized)) {
             if (this.isSensitiveKey(key)) {
                 sanitized[key] = "***";
+            } else if (typeof sanitized[key] === "object" && sanitized[key] !== null && !Array.isArray(sanitized[key])) {
+                // Recursively sanitize nested objects
+                sanitized[key] = this.sanitizeOptions(sanitized[key] as Record<string, unknown>);
             }
         }
         

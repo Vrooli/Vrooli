@@ -35,7 +35,7 @@ export const reminderFixtures: ModelTestFixtures<ReminderCreateInput, ReminderUp
             id: validIds.id1,
             name: "Complete project milestone",
             description: "Finish implementing the authentication module and write tests",
-            dueDate: new Date("2024-12-31T17:00:00Z"),
+            dueDate: new Date("2024-12-31T17:00:00Z").toISOString(),
             index: 0,
             reminderListConnect: validIds.id2,
             reminderItemsCreate: [
@@ -60,7 +60,7 @@ export const reminderFixtures: ModelTestFixtures<ReminderCreateInput, ReminderUp
             id: validIds.id1,
             name: "Updated project milestone",
             description: "Updated description with new requirements",
-            dueDate: new Date("2025-01-15T17:00:00Z"),
+            dueDate: new Date("2025-01-15T17:00:00Z").toISOString(),
             index: 1,
             reminderItemsCreate: [{
                 id: validIds.id5,
@@ -222,7 +222,7 @@ export const reminderFixtures: ModelTestFixtures<ReminderCreateInput, ReminderUp
             create: {
                 id: validIds.id1,
                 name: "Overdue reminder",
-                dueDate: new Date("2020-01-01T00:00:00Z"),
+                dueDate: new Date("2020-01-01T00:00:00Z").toISOString(),
                 index: 0,
             },
         },
@@ -230,7 +230,7 @@ export const reminderFixtures: ModelTestFixtures<ReminderCreateInput, ReminderUp
             create: {
                 id: validIds.id1,
                 name: "Future reminder",
-                dueDate: new Date("2030-12-31T23:59:59Z"),
+                dueDate: new Date("2030-12-31T23:59:59Z").toISOString(),
                 index: 0,
             },
         },

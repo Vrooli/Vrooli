@@ -38,7 +38,7 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ResourceVersionR
     minimal: {
         create: {
             id: validIds.id1,
-            fromVersionConnect: validIds.id2,
+            labels: [],
             toVersionConnect: validIds.id3,
         },
         update: {
@@ -48,7 +48,6 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ResourceVersionR
     complete: {
         create: {
             id: validIds.id1,
-            fromVersionConnect: validIds.id2,
             labels: ["dependency", "upgrade", "replaces"],
             toVersionConnect: validIds.id3,
             // Add some extra fields that will be stripped
@@ -67,7 +66,7 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ResourceVersionR
     invalid: {
         missingRequired: {
             create: {
-                // Missing required id, fromVersionConnect, and toVersionConnect
+                // Missing required id and toVersionConnect
                 labels: ["test"],
             } as unknown as ResourceVersionRelationCreateInput,
             update: {
@@ -79,7 +78,6 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ResourceVersionR
             create: {
                 id: 123, // Should be string
                 labels: "not-an-array", // Should be array
-                fromVersionConnect: 456, // Should be string
                 toVersionConnect: 789, // Should be string
             } as unknown as ResourceVersionRelationCreateInput,
             update: {
@@ -91,42 +89,30 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ResourceVersionR
             create: {
                 id: "not-a-valid-snowflake",
                 labels: [],
-                fromVersionConnect: validIds.id2,
-                toVersionConnect: validIds.id3,
+                    toVersionConnect: validIds.id3,
             },
             update: {
                 id: "invalid-id",
             },
         },
-        missingFromVersion: {
-            create: {
-                id: validIds.id1,
-                labels: [],
-                toVersionConnect: validIds.id3,
-                // Missing required fromVersionConnect
-            } as unknown as ResourceVersionRelationCreateInput,
-        },
         missingToVersion: {
             create: {
                 id: validIds.id1,
                 labels: [],
-                fromVersionConnect: validIds.id2,
-                // Missing required toVersionConnect
+                    // Missing required toVersionConnect
             } as unknown as ResourceVersionRelationCreateInput,
         },
         longLabel: {
             create: {
                 id: validIds.id1,
-                fromVersionConnect: validIds.id2,
-                labels: ["x".repeat(LABEL_TOO_LONG_LENGTH)], // Too long (exceeds 128)
+                    labels: ["x".repeat(LABEL_TOO_LONG_LENGTH)], // Too long (exceeds 128)
                 toVersionConnect: validIds.id3,
             },
         },
         emptyLabel: {
             create: {
                 id: validIds.id1,
-                fromVersionConnect: validIds.id2,
-                labels: [""], // Empty string should be removed
+                    labels: [""], // Empty string should be removed
                 toVersionConnect: validIds.id3,
             },
         },
@@ -135,48 +121,42 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ResourceVersionR
         singleLabel: {
             create: {
                 id: validIds.id1,
-                fromVersionConnect: validIds.id2,
-                labels: ["dependency"],
+                    labels: ["dependency"],
                 toVersionConnect: validIds.id3,
             },
         },
         multipleLabels: {
             create: {
                 id: validIds.id1,
-                fromVersionConnect: validIds.id2,
-                labels: ["dependency", "upgrade", "replaces", "successor", "predecessor"],
+                    labels: ["dependency", "upgrade", "replaces", "successor", "predecessor"],
                 toVersionConnect: validIds.id3,
             },
         },
         dependencyRelation: {
             create: {
                 id: validIds.id1,
-                fromVersionConnect: validIds.id2,
-                labels: ["dependency"],
+                    labels: ["dependency"],
                 toVersionConnect: validIds.id3,
             },
         },
         upgradeRelation: {
             create: {
                 id: validIds.id1,
-                fromVersionConnect: validIds.id2,
-                labels: ["upgrade", "successor"],
+                    labels: ["upgrade", "successor"],
                 toVersionConnect: validIds.id3,
             },
         },
         replacementRelation: {
             create: {
                 id: validIds.id1,
-                fromVersionConnect: validIds.id2,
-                labels: ["replaces", "deprecated"],
+                    labels: ["replaces", "deprecated"],
                 toVersionConnect: validIds.id3,
             },
         },
         withoutLabels: {
             create: {
                 id: validIds.id1,
-                fromVersionConnect: validIds.id2,
-                toVersionConnect: validIds.id3,
+                    toVersionConnect: validIds.id3,
                 labels: [],
                 // No labels array
             },
@@ -184,40 +164,35 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ResourceVersionR
         emptyLabels: {
             create: {
                 id: validIds.id1,
-                fromVersionConnect: validIds.id2,
-                labels: [], // Empty array
+                    labels: [], // Empty array
                 toVersionConnect: validIds.id3,
             },
         },
         maxLengthLabels: {
             create: {
                 id: validIds.id1,
-                fromVersionConnect: validIds.id2,
-                labels: ["a".repeat(LABEL_MAX_LENGTH), "b".repeat(LABEL_MAX_LENGTH)], // Maximum length labels
+                    labels: ["a".repeat(LABEL_MAX_LENGTH), "b".repeat(LABEL_MAX_LENGTH)], // Maximum length labels
                 toVersionConnect: validIds.id3,
             },
         },
         commonRelationTypes: {
             create: {
                 id: validIds.id1,
-                fromVersionConnect: validIds.id2,
-                labels: ["dependency", "requirement", "uses", "includes"],
+                    labels: ["dependency", "requirement", "uses", "includes"],
                 toVersionConnect: validIds.id3,
             },
         },
         versionEvolution: {
             create: {
                 id: validIds.id1,
-                fromVersionConnect: validIds.id2,
-                labels: ["upgrade", "next-version", "improvement"],
+                    labels: ["upgrade", "next-version", "improvement"],
                 toVersionConnect: validIds.id3,
             },
         },
         compatibilityRelation: {
             create: {
                 id: validIds.id1,
-                fromVersionConnect: validIds.id2,
-                labels: ["compatible", "tested-with"],
+                    labels: ["compatible", "tested-with"],
                 toVersionConnect: validIds.id3,
             },
         },
@@ -248,24 +223,21 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ResourceVersionR
         labelsWithSpaces: {
             create: {
                 id: validIds.id1,
-                fromVersionConnect: validIds.id2,
-                labels: ["version upgrade", "bug fix", "security patch"],
+                    labels: ["version upgrade", "bug fix", "security patch"],
                 toVersionConnect: validIds.id3,
             },
         },
         labelsWithSpecialChars: {
             create: {
                 id: validIds.id1,
-                fromVersionConnect: validIds.id2,
-                labels: ["v1.0->v2.0", "api-change", "breaking_change"],
+                    labels: ["v1.0->v2.0", "api-change", "breaking_change"],
                 toVersionConnect: validIds.id3,
             },
         },
         relationToSameVersion: {
             create: {
                 id: validIds.id1,
-                fromVersionConnect: validIds.id2,
-                labels: ["self-reference"],
+                    labels: ["self-reference"],
                 toVersionConnect: validIds.id2, // Same version
             },
         },
@@ -276,7 +248,6 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ResourceVersionR
 const customizers = {
     create: (base: ResourceVersionRelationCreateInput | ExtendedResourceVersionRelationCreateInput): ResourceVersionRelationCreateInput => ({
         id: base.id || validIds.id1,
-        fromVersionConnect: base.fromVersionConnect || validIds.id2,
         toVersionConnect: base.toVersionConnect || validIds.id3,
         labels: base.labels || [],
     }),

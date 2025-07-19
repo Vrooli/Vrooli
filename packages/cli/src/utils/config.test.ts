@@ -1,4 +1,5 @@
 // AI_CHECK: TEST_COVERAGE=2 | LAST: 2025-01-12
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-07-16
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fsSync from "fs";
 import * as os from "os";

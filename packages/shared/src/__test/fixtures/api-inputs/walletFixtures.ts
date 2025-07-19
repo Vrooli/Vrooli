@@ -43,7 +43,6 @@ export const walletFixtures: ModelTestFixtures<WalletCreateInput, WalletUpdateIn
                 // Not applicable - no create operation
             } as WalletCreateInput,
             update: {
-                // @ts-expect-error - Missing required id field
                 name: "Wallet Name",
             } as unknown as WalletUpdateInput,
         },
@@ -52,9 +51,7 @@ export const walletFixtures: ModelTestFixtures<WalletCreateInput, WalletUpdateIn
                 // Not applicable
             } as WalletCreateInput,
             update: {
-                // @ts-expect-error - id should be string, not number
                 id: 123,
-                // @ts-expect-error - name should be string, not boolean
                 name: true,
             } as unknown as WalletUpdateInput,
         },

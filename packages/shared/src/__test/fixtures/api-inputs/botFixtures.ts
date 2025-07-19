@@ -1,6 +1,15 @@
 import type { BotCreateInput, BotUpdateInput, UserTranslationCreateInput, UserTranslationUpdateInput } from "../../../api/types.js";
-import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
 import { botTranslationValidation, botValidation } from "../../../validation/models/bot.js";
+import { setupFileMock } from "../../mocks/fileMock.js";
+
+// Ensure File mock is available before using it
+setupFileMock();
+
+// Helper function to create File objects for testing
+function createMockFile(content: string, filename: string, mimeType = "image/png"): File {
+    return new File([content], filename, { type: mimeType });
+}
 
 // Magic number constants for testing
 const NAME_TOO_LONG_LENGTH = 257;
@@ -38,29 +47,22 @@ export const botFixtures: ModelTestFixtures<BotCreateInput, BotUpdateInput> = {
     complete: {
         create: {
             id: validIds.id2,
-            bannerImage: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+            bannerImage: createMockFile("fake-banner-image-data", "banner.png", "image/png"),
             botSettings: {
                 __version: "1.0",
                 model: "gpt-4",
                 maxTokens: 2048,
-                persona: {
-                    systemPrompt: "You are a helpful assistant.",
-                    assistantId: "asst_123456789",
-                    customConfig: {
-                        feature1: true,
-                        feature2: "enabled",
-                        nestedSettings: {
-                            option1: 42,
-                            option2: ["a", "b", "c"],
-                        },
-                    },
+                agentSpec: {
+                    goal: "Provide helpful assistance to users",
+                    role: "assistant",
+                    subscriptions: ["user.message", "system.event"],
                 },
             },
             handle: "completebot",
             isBotDepictingPerson: true,
             isPrivate: false,
             name: "Complete Bot",
-            profileImage: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAAAAA...",
+            profileImage: createMockFile("fake-profile-image-data", "profile.jpg", "image/jpeg"),
             translationsCreate: [
                 {
                     id: "200000000000000001",
@@ -117,23 +119,15 @@ export const botFixtures: ModelTestFixtures<BotCreateInput, BotUpdateInput> = {
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error Testing invalid type - id should be string
                 id: 123,
-                // @ts-expect-error Testing invalid type - botSettings should be object
                 botSettings: "not-an-object",
-                // @ts-expect-error Testing invalid type - isBotDepictingPerson should be boolean
                 isBotDepictingPerson: "yes",
-                // @ts-expect-error Testing invalid type - name should be string
                 name: true,
             } as unknown as BotCreateInput,
             update: {
-                // @ts-expect-error Testing invalid type - id should be string
                 id: true,
-                // @ts-expect-error Testing invalid type - botSettings should be object
                 botSettings: [],
-                // @ts-expect-error Testing invalid type - isBotDepictingPerson should be boolean
                 isBotDepictingPerson: 1,
-                // @ts-expect-error Testing invalid type - isPrivate should be boolean
                 isPrivate: "false",
             } as unknown as BotUpdateInput,
         },
@@ -246,8 +240,11 @@ export const botFixtures: ModelTestFixtures<BotCreateInput, BotUpdateInput> = {
             create: {
                 id: validIds.id1,
                 botSettings: {
-                    personality: "friendly",
-                    background: "I am a virtual representation of a real person",
+                    __version: "1.0",
+                    agentSpec: {
+                        goal: "Represent a real person in virtual interactions",
+                        role: "representative",
+                    },
                 },
                 isBotDepictingPerson: true,
                 name: "Virtual Assistant",
@@ -357,17 +354,12 @@ export const botTranslationFixtures: ModelTestFixtures<UserTranslationCreateInpu
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error Testing invalid type - id should be string
                 id: 123,
-                // @ts-expect-error Testing invalid type - language should be string
                 language: true,
-                // @ts-expect-error Testing invalid type - bio should be string
                 bio: [],
             } as unknown as UserTranslationCreateInput,
             update: {
-                // @ts-expect-error Testing invalid type - id should be string
                 id: false,
-                // @ts-expect-error Testing invalid type - bio should be string
                 bio: 456,
             } as unknown as UserTranslationUpdateInput,
         },

@@ -6,20 +6,20 @@
  * success responses, error scenarios, and MSW handlers for testing versioning workflows.
  */
 
-import type { 
-    ResourceVersion, 
-    ResourceVersionCreateInput, 
-    ResourceVersionUpdateInput,
-    ResourceUsedFor,
-    ResourceVersionTranslation,
+import type {
     Resource,
     ResourceList,
+    ResourceUsedFor,
+    ResourceVersion,
+    ResourceVersionCreateInput,
+    ResourceVersionTranslation,
+    ResourceVersionUpdateInput,
 } from "../../../api/types.js";
-import { 
-    ResourceUsedFor as ResourceUsedForEnum, 
+import {
+    ResourceUsedFor as ResourceUsedForEnum,
 } from "../../../run/enums.js";
-import type { MockDataOptions } from "./types.js";
 import { BaseAPIResponseFactory } from "./base.js";
+import type { MockDataOptions } from "./types.js";
 
 // Constants for realistic data generation
 const VERSION_LABELS = ["1.0.0", "1.1.0", "2.0.0", "2.1.0", "3.0.0-alpha", "3.0.0-beta", "3.0.0"] as const;
@@ -70,7 +70,7 @@ export class ResourceVersionAPIResponseFactory extends BaseAPIResponseFactory<
     private createMockResource(id?: string): Resource {
         const resourceId = id || this.generateId();
         const now = new Date().toISOString();
-        
+
         return {
             __typename: "Resource",
             id: resourceId,
@@ -100,7 +100,7 @@ export class ResourceVersionAPIResponseFactory extends BaseAPIResponseFactory<
     private createMockResourceList(id?: string): ResourceList {
         const listId = id || this.generateId();
         const now = new Date().toISOString();
-        
+
         return {
             __typename: "ResourceList",
             id: listId,
@@ -128,11 +128,11 @@ export class ResourceVersionAPIResponseFactory extends BaseAPIResponseFactory<
         const versionLabel = options?.overrides?.versionLabel as string || this.generateVersionLabel();
         const isLatest = options?.overrides?.isLatest as boolean ?? true;
         const isPrivate = options?.overrides?.isPrivate as boolean ?? false;
-        
+
         // Create default translation
         const title = options?.overrides?.title as string || `${DEFAULT_TITLE} ${versionLabel}`;
         const description = options?.overrides?.description as string || `${DEFAULT_DESCRIPTION} (${usedFor})`;
-        
+
         const defaultTranslation: ResourceVersionTranslation = {
             __typename: "ResourceVersionTranslation",
             id: `trans_${id}`,
@@ -177,7 +177,7 @@ export class ResourceVersionAPIResponseFactory extends BaseAPIResponseFactory<
             if (options?.includeOptional || options?.scenario === "complete") {
                 baseResourceVersion.root = this.createMockResource();
             }
-            
+
             // Add resource list for API resources
             if (usedFor === ResourceUsedForEnum.Api && options?.scenario !== "minimal") {
                 baseResourceVersion.resourceList = this.createMockResourceList();
@@ -222,12 +222,12 @@ export class ResourceVersionAPIResponseFactory extends BaseAPIResponseFactory<
      */
     createFromInput(input: ResourceVersionCreateInput): ResourceVersion {
         const resourceVersion = this.createMockData();
-        
+
         // Update based on input
         if (input.id) resourceVersion.id = input.id;
         if (input.versionLabel) resourceVersion.versionLabel = input.versionLabel;
         if (input.isPrivate !== undefined) resourceVersion.isPrivate = input.isPrivate;
-        
+
         // Handle translations
         if (input.translationsCreate && input.translationsCreate.length > 0) {
             resourceVersion.translations = input.translationsCreate.map(trans => ({
@@ -239,7 +239,7 @@ export class ResourceVersionAPIResponseFactory extends BaseAPIResponseFactory<
             }));
             resourceVersion.translationsCount = input.translationsCreate.length;
         }
-        
+
         return resourceVersion;
     }
 
@@ -249,11 +249,11 @@ export class ResourceVersionAPIResponseFactory extends BaseAPIResponseFactory<
     updateFromInput(existing: ResourceVersion, input: ResourceVersionUpdateInput): ResourceVersion {
         const updated = { ...existing };
         updated.updatedAt = new Date().toISOString();
-        
+
         if (input.versionLabel !== undefined) updated.versionLabel = input.versionLabel;
         if (input.isPrivate !== undefined) updated.isPrivate = input.isPrivate;
         if (input.isLatest !== undefined) updated.isLatest = input.isLatest;
-        
+
         // Handle translation updates
         if (input.translationsUpdate) {
             updated.translations = input.translationsUpdate.map(trans => ({
@@ -265,7 +265,7 @@ export class ResourceVersionAPIResponseFactory extends BaseAPIResponseFactory<
             }));
             updated.translationsCount = updated.translations.length;
         }
-        
+
         return updated;
     }
 
@@ -277,17 +277,17 @@ export class ResourceVersionAPIResponseFactory extends BaseAPIResponseFactory<
         errors?: Record<string, string>;
     }> {
         const errors: Record<string, string> = {};
-        
+
         if (!input.versionLabel?.trim()) {
             errors.versionLabel = "Version label is required";
         } else if (!/^\d+\.\d+\.\d+(\-[a-zA-Z0-9]+)?$/.test(input.versionLabel)) {
             errors.versionLabel = "Version label must follow semantic versioning (e.g., 1.0.0)";
         }
-        
+
         if (!input.rootConnect) {
             errors.rootConnect = "Root resource connection is required";
         }
-        
+
         if (!input.translationsCreate || input.translationsCreate.length === 0) {
             errors.translations = "At least one translation is required";
         } else {
@@ -296,7 +296,7 @@ export class ResourceVersionAPIResponseFactory extends BaseAPIResponseFactory<
                 errors.translations = "English translation with title is required";
             }
         }
-        
+
         return {
             valid: Object.keys(errors).length === 0,
             errors: Object.keys(errors).length > 0 ? errors : undefined,
@@ -311,15 +311,15 @@ export class ResourceVersionAPIResponseFactory extends BaseAPIResponseFactory<
         errors?: Record<string, string>;
     }> {
         const errors: Record<string, string> = {};
-        
+
         if (!input.id) {
             errors.id = "Resource version ID is required for updates";
         }
-        
+
         if (input.versionLabel && !/^\d+\.\d+\.\d+(\-[a-zA-Z0-9]+)?$/.test(input.versionLabel)) {
             errors.versionLabel = "Version label must follow semantic versioning (e.g., 1.0.0)";
         }
-        
+
         return {
             valid: Object.keys(errors).length === 0,
             errors: Object.keys(errors).length > 0 ? errors : undefined,
@@ -330,7 +330,7 @@ export class ResourceVersionAPIResponseFactory extends BaseAPIResponseFactory<
      * Create resource versions for all usage types
      */
     createAllUsageTypeVersions(): ResourceVersion[] {
-        return Object.values(ResourceUsedForEnum).map(usedFor => 
+        return Object.values(ResourceUsedForEnum).map(usedFor =>
             this.createMockData({
                 overrides: {
                     usedFor,
@@ -347,12 +347,12 @@ export class ResourceVersionAPIResponseFactory extends BaseAPIResponseFactory<
      */
     createVersionHistory(resourceId: string, versionCount = 5): ResourceVersion[] {
         const versions: ResourceVersion[] = [];
-        
+
         for (let i = 0; i < versionCount; i++) {
             const isLatest = i === versionCount - 1;
             const versionIndex = i + 1;
             const versionLabel = `1.${i}.0`;
-            
+
             versions.push(this.createMockData({
                 overrides: {
                     versionIndex,
@@ -364,7 +364,7 @@ export class ResourceVersionAPIResponseFactory extends BaseAPIResponseFactory<
                 scenario: isLatest ? "complete" : "minimal",
             }));
         }
-        
+
         return versions;
     }
 
@@ -398,7 +398,7 @@ export class ResourceVersionAPIResponseFactory extends BaseAPIResponseFactory<
     private getValidNextVersions(currentVersion: string): string[] {
         const [major, minor, patch] = currentVersion.split(".").map(Number);
         if (isNaN(major) || isNaN(minor) || isNaN(patch)) return [];
-        
+
         return [
             `${major}.${minor}.${patch + 1}`, // Patch increment
             `${major}.${minor + 1}.0`,        // Minor increment
@@ -414,7 +414,7 @@ export class ResourceVersionAPIResponseFactory extends BaseAPIResponseFactory<
             reason: "Version is deprecated and no longer accessible",
             deprecatedVersion: version,
             replacementVersion: replacementVersion || "latest",
-            deprecationDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
+            deprecationDate: new Date(Date.now().toISOString() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
         });
     }
 }
@@ -454,7 +454,7 @@ export const resourceVersionResponseScenarios = {
         const factory = new ResourceVersionAPIResponseFactory();
         return factory.createSuccessResponse(
             factory.createMockData({
-                overrides: { 
+                overrides: {
                     isLatest: true,
                     versionLabel: "2.1.0",
                 },
@@ -528,7 +528,7 @@ export const resourceVersionResponseScenarios = {
 
     rateLimitError: () => {
         const factory = new ResourceVersionAPIResponseFactory();
-        const resetTime = new Date(Date.now() + 5 * MINUTES_IN_MS); // 5 minutes from now
+        const resetTime = new Date(Date.now().toISOString() + 5 * MINUTES_IN_MS); // 5 minutes from now
         return factory.createRateLimitErrorResponse(50, 0, resetTime);
     },
 };

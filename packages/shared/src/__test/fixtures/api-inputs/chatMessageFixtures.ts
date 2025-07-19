@@ -1,5 +1,5 @@
 import type { ChatMessageCreateInput, ChatMessageUpdateInput } from "../../../api/types.js";
-import { type MessageConfigObject, type ToolFunctionCall } from "../../../shape/configs/message.js";
+import { type MessageConfigObject } from "../../../shape/configs/message.js";
 import { type ModelTestFixtures, type TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { chatMessageValidation } from "../../../validation/models/chatMessage.js";
 import { messageConfigFixtures, createSuccessfulToolCall, createFailedToolCall } from "../config/messageConfigFixtures.js";
@@ -31,6 +31,8 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
             chatConnect: validIds.chatId1,
             userConnect: validIds.userId1,
             versionIndex: 0,
+            language: "en",
+            text: "Hello world",
         },
         update: {
             id: validIds.id1,
@@ -43,49 +45,13 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
             config: messageConfigFixtures.complete,
             chatConnect: validIds.chatId2,
             userConnect: validIds.userId1,
-            translationsCreate: [{
-                id: validIds.id3,
-                language: "en",
-                text: "Hello, how are you?",
-            }],
+            language: "en",
+            text: "Hello, how are you?",
         },
         update: {
             id: validIds.id2,
             config: messageConfigFixtures.variants.assistantWithTools,
-            translationsUpdate: [{
-                id: validIds.id3,
-                language: "en",
-                text: "Updated message text",
-            }],
-        },
-    },
-    invalidConfigs: {
-        missingVersion: {
-            create: {
-                id: validIds.id1,
-                config: messageConfigFixtures.invalid.missingVersion as MessageConfigObject,
-                chatConnect: validIds.chatId1,
-                userConnect: validIds.userId1,
-                versionIndex: 0,
-            },
-        },
-        invalidVersion: {
-            create: {
-                id: validIds.id2,
-                config: messageConfigFixtures.invalid.invalidVersion as MessageConfigObject,
-                chatConnect: validIds.chatId1,
-                userConnect: validIds.userId1,
-                versionIndex: 0,
-            },
-        },
-        malformedStructure: {
-            create: {
-                id: validIds.id3,
-                config: messageConfigFixtures.invalid.malformedStructure as MessageConfigObject,
-                chatConnect: validIds.chatId1,
-                userConnect: validIds.userId1,
-                versionIndex: 0,
-            },
+            text: "Updated message text",
         },
     },
     invalid: {
@@ -166,13 +132,8 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                 chatConnect: validIds.chatId1,
                 userConnect: validIds.userId1,
                 versionIndex: 0,
-                translationsCreate: [
-                    {
-                        id: validIds.id3,
-                        language: "en",
-                        text: "", // Empty text should fail
-                    },
-                ],
+                language: "en",
+                text: "", // Empty text should fail
             } as ChatMessageCreateInput,
         },
         textTooLong: {
@@ -182,14 +143,42 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                 chatConnect: validIds.chatId1,
                 userConnect: validIds.userId1,
                 versionIndex: 0,
-                translationsCreate: [
-                    {
-                        id: validIds.id3,
-                        language: "en",
-                        text: "x".repeat(TEXT_TOO_LONG_LENGTH), // Over max length - should fail validation
-                    },
-                ],
+                language: "en",
+                text: "x".repeat(TEXT_TOO_LONG_LENGTH), // Over max length - should fail validation
             } as ChatMessageCreateInput,
+        },
+        missingConfigVersion: {
+            create: {
+                id: validIds.id1,
+                config: messageConfigFixtures.invalid.missingVersion as MessageConfigObject,
+                chatConnect: validIds.chatId1,
+                userConnect: validIds.userId1,
+                versionIndex: 0,
+                language: "en",
+                text: "Test message with missing version config",
+            },
+        },
+        invalidConfigVersion: {
+            create: {
+                id: validIds.id2,
+                config: messageConfigFixtures.invalid.invalidVersion as MessageConfigObject,
+                chatConnect: validIds.chatId1,
+                userConnect: validIds.userId1,
+                versionIndex: 0,
+                language: "en",
+                text: "Test message with invalid version config",
+            },
+        },
+        malformedConfigStructure: {
+            create: {
+                id: validIds.id3,
+                config: messageConfigFixtures.invalid.malformedStructure as MessageConfigObject,
+                chatConnect: validIds.chatId1,
+                userConnect: validIds.userId1,
+                versionIndex: 0,
+                language: "en",
+                text: "Test message with malformed config",
+            },
         },
     },
     edgeCases: {
@@ -199,6 +188,9 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                 versionIndex: 999999,
                 config: messageConfigFixtures.minimal,
                 chatConnect: validIds.chatId1,
+                userConnect: validIds.userId1,
+                language: "en",
+                text: "Test message with max version index",
             },
         },
         zeroVersionIndex: {
@@ -208,6 +200,8 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                 config: messageConfigFixtures.minimal,
                 chatConnect: validIds.chatId1,
                 userConnect: validIds.userId1,
+                language: "en",
+                text: "Test message with zero version index",
             },
         },
         allRoles: [
@@ -215,21 +209,33 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                 id: validIds.id1,
                 config: messageConfigFixtures.variants.userMessage,
                 chatConnect: validIds.chatId1,
+                userConnect: validIds.userId1,
+                language: "en",
+                text: "User message test",
             },
             {
                 id: validIds.id2,
                 config: messageConfigFixtures.variants.assistantWithTools,
                 chatConnect: validIds.chatId1,
+                userConnect: validIds.userId1,
+                language: "en",
+                text: "Assistant message test",
             },
             {
                 id: validIds.id3,
                 config: messageConfigFixtures.variants.systemMessage,
                 chatConnect: validIds.chatId1,
+                userConnect: validIds.userId1,
+                language: "en",
+                text: "System message test",
             },
             {
                 id: validIds.id1,
                 config: messageConfigFixtures.variants.toolErrorMessage,
                 chatConnect: validIds.chatId1,
+                userConnect: validIds.userId1,
+                language: "en",
+                text: "Tool error message test",
             },
         ],
         toolCallWithSuccessResult: {
@@ -242,6 +248,9 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                     ],
                 },
                 chatConnect: validIds.chatId1,
+                userConnect: validIds.userId1,
+                language: "en",
+                text: "Message with successful tool call",
             },
         },
         toolCallWithErrorResult: {
@@ -254,6 +263,9 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                     ],
                 },
                 chatConnect: validIds.chatId1,
+                userConnect: validIds.userId1,
+                language: "en",
+                text: "Message with failed tool call",
             },
         },
         toolCallWithoutResult: {
@@ -273,6 +285,9 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                     ],
                 },
                 chatConnect: validIds.chatId1,
+                userConnect: validIds.userId1,
+                language: "en",
+                text: "Message with tool call without result",
             },
         },
         maxLengthText: {
@@ -280,6 +295,9 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                 id: validIds.id1,
                 config: messageConfigFixtures.minimal,
                 chatConnect: validIds.chatId1,
+                userConnect: validIds.userId1,
+                language: "en",
+                text: "x".repeat(TEXT_MAX_LENGTH), // Exactly at max length
                 translationsCreate: [
                     {
                         id: validIds.id3,
@@ -295,6 +313,8 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                 config: messageConfigFixtures.complete,
                 chatConnect: validIds.chatId1,
                 userConnect: validIds.userId1,
+                language: "en",
+                text: "Message with complex config",
             },
         },
         messageWithMultipleRuns: {
@@ -304,6 +324,8 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                 chatConnect: validIds.chatId1,
                 userConnect: validIds.userId1,
                 versionIndex: 0,
+                language: "en",
+                text: "Message with multiple runs",
             },
         },
         broadcastMessage: {
@@ -313,6 +335,8 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                 chatConnect: validIds.chatId1,
                 userConnect: validIds.userId1,
                 versionIndex: 0,
+                language: "en",
+                text: "Broadcast message",
             },
         },
         eventDrivenMessage: {
@@ -322,6 +346,8 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                 chatConnect: validIds.chatId1,
                 userConnect: validIds.userId1,
                 versionIndex: 0,
+                language: "en",
+                text: "Event driven message",
             },
         },
     },

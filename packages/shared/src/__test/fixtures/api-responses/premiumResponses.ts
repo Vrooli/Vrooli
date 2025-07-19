@@ -10,12 +10,10 @@ import type {
     Premium,
     PremiumCreateInput,
     PremiumUpdateInput,
-    User,
 } from "../../../api/types.js";
+import { generatePK } from "../../../id/index.js";
 import { BaseAPIResponseFactory } from "./base.js";
 import type { MockDataOptions } from "./types.js";
-import { generatePK } from "../../../id/index.js";
-import { userResponseFactory } from "./userResponses.js";
 
 // Constants
 const DEFAULT_COUNT = 10;
@@ -77,7 +75,7 @@ const PREMIUM_TIERS = {
 // Premium statuses
 const PREMIUM_STATUSES = [
     "active",
-    "expired", 
+    "expired",
     "cancelled",
     "pending",
     "trialing",
@@ -104,8 +102,8 @@ export class PremiumResponseFactory extends BaseAPIResponseFactory<
         const premiumId = options?.overrides?.id || generatePK().toString();
 
         // Calculate expiration dates based on scenario
-        const enabledAt = new Date(Date.now() - (DAYS_IN_7 * MILLISECONDS_PER_DAY)).toISOString();
-        const expiresAt = new Date(Date.now() + (DAYS_IN_30 * MILLISECONDS_PER_DAY)).toISOString();
+        const enabledAt = new Date(Date.now().toISOString() - (DAYS_IN_7 * MILLISECONDS_PER_DAY)).toISOString();
+        const expiresAt = new Date(Date.now().toISOString() + (DAYS_IN_30 * MILLISECONDS_PER_DAY)).toISOString();
 
         const basePremium: Premium = {
             __typename: "Premium",
@@ -119,17 +117,17 @@ export class PremiumResponseFactory extends BaseAPIResponseFactory<
         if (scenario === "complete" || scenario === "edge-case") {
             const isEdgeCase = scenario === "edge-case";
             const tierConfig = isEdgeCase ? PREMIUM_TIERS.enterprise : PREMIUM_TIERS.yearly;
-            
+
             return {
                 ...basePremium,
                 credits: tierConfig.credits,
                 customPlan: isEdgeCase ? "Custom Enterprise Plan with unlimited everything" : null,
-                enabledAt: isEdgeCase 
-                    ? new Date(Date.now() - (DAYS_IN_365 * MILLISECONDS_PER_DAY)).toISOString() // 1 year ago
-                    : new Date(Date.now() - (DAYS_IN_30 * MILLISECONDS_PER_DAY)).toISOString(), // 30 days ago
-                expiresAt: isEdgeCase 
-                    ? new Date(Date.now() - (DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString() // Expired 1 day ago
-                    : new Date(Date.now() + (DAYS_IN_365 * MILLISECONDS_PER_DAY)).toISOString(), // 1 year from now
+                enabledAt: isEdgeCase
+                    ? new Date(Date.now().toISOString() - (DAYS_IN_365 * MILLISECONDS_PER_DAY)).toISOString() // 1 year ago
+                    : new Date(Date.now().toISOString() - (DAYS_IN_30 * MILLISECONDS_PER_DAY)).toISOString(), // 30 days ago
+                expiresAt: isEdgeCase
+                    ? new Date(Date.now().toISOString() - (DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString() // Expired 1 day ago
+                    : new Date(Date.now().toISOString() + (DAYS_IN_365 * MILLISECONDS_PER_DAY)).toISOString(), // 1 year from now
                 ...options?.overrides,
             };
         }
@@ -153,7 +151,7 @@ export class PremiumResponseFactory extends BaseAPIResponseFactory<
             credits: input.credits || PREMIUM_TIERS.monthly.credits,
             customPlan: input.customPlan || null,
             enabledAt: now,
-            expiresAt: input.expiresAt || new Date(Date.now() + (DAYS_IN_30 * MILLISECONDS_PER_DAY)).toISOString(),
+            expiresAt: input.expiresAt || new Date(Date.now().toISOString() + (DAYS_IN_30 * MILLISECONDS_PER_DAY)).toISOString(),
         };
     }
 
@@ -191,8 +189,8 @@ export class PremiumResponseFactory extends BaseAPIResponseFactory<
         }
 
         if (input.expiresAt) {
-            const expiryDate = new Date(input.expiresAt);
-            const now = new Date();
+            const expiryDate = new Date(input.expiresAt).toISOString();
+            const now = new Date().toISOString();
             if (expiryDate <= now) {
                 errors.expiresAt = "Expiration date must be in the future";
             }
@@ -222,8 +220,8 @@ export class PremiumResponseFactory extends BaseAPIResponseFactory<
         }
 
         if (input.expiresAt) {
-            const expiryDate = new Date(input.expiresAt);
-            const now = new Date();
+            const expiryDate = new Date(input.expiresAt).toISOString();
+            const now = new Date().toISOString();
             if (expiryDate <= now) {
                 errors.expiresAt = "Expiration date must be in the future";
             }
@@ -242,17 +240,17 @@ export class PremiumResponseFactory extends BaseAPIResponseFactory<
         return Object.entries(PREMIUM_TIERS).map(([tierKey, tierConfig], index) => {
             const daysOffset = index * DAYS_IN_7;
             const isActive = tierKey !== "free";
-            
+
             return this.createMockData({
                 overrides: {
                     id: `premium_${tierKey}_${index}`,
                     credits: tierConfig.credits,
                     customPlan: tierKey === "enterprise" ? `${tierConfig.name} - Unlimited Access` : null,
-                    enabledAt: isActive 
-                        ? new Date(Date.now() - (daysOffset * MILLISECONDS_PER_DAY)).toISOString()
+                    enabledAt: isActive
+                        ? new Date(Date.now().toISOString() - (daysOffset * MILLISECONDS_PER_DAY)).toISOString()
                         : null,
-                    expiresAt: isActive 
-                        ? new Date(Date.now() + ((DAYS_IN_30 + daysOffset) * MILLISECONDS_PER_DAY)).toISOString()
+                    expiresAt: isActive
+                        ? new Date(Date.now().toISOString() + ((DAYS_IN_30 + daysOffset) * MILLISECONDS_PER_DAY)).toISOString()
                         : null,
                 },
             });
@@ -266,42 +264,42 @@ export class PremiumResponseFactory extends BaseAPIResponseFactory<
         return PREMIUM_STATUSES.map((status, index) => {
             const baseTime = Date.now();
             const daysOffset = index * DAYS_IN_7;
-            
+
             let enabledAt: string | null = null;
             let expiresAt: string | null = null;
             let credits = PREMIUM_TIERS.monthly.credits;
 
             switch (status) {
                 case "active":
-                    enabledAt = new Date(baseTime - (DAYS_IN_7 * MILLISECONDS_PER_DAY)).toISOString();
-                    expiresAt = new Date(baseTime + (DAYS_IN_30 * MILLISECONDS_PER_DAY)).toISOString();
+                    enabledAt = new Date(baseTime - (DAYS_IN_7 * MILLISECONDS_PER_DAY).toISOString()).toISOString();
+                    expiresAt = new Date(baseTime + (DAYS_IN_30 * MILLISECONDS_PER_DAY).toISOString()).toISOString();
                     credits = PREMIUM_TIERS.yearly.credits;
                     break;
                 case "expired":
-                    enabledAt = new Date(baseTime - (DAYS_IN_60 * MILLISECONDS_PER_DAY)).toISOString();
-                    expiresAt = new Date(baseTime - (DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString();
+                    enabledAt = new Date(baseTime - (DAYS_IN_60 * MILLISECONDS_PER_DAY).toISOString()).toISOString();
+                    expiresAt = new Date(baseTime - (DAYS_IN_1 * MILLISECONDS_PER_DAY).toISOString()).toISOString();
                     credits = 0;
                     break;
                 case "cancelled":
-                    enabledAt = new Date(baseTime - (DAYS_IN_30 * MILLISECONDS_PER_DAY)).toISOString();
-                    expiresAt = new Date(baseTime + (DAYS_IN_7 * MILLISECONDS_PER_DAY)).toISOString(); // Grace period
+                    enabledAt = new Date(baseTime - (DAYS_IN_30 * MILLISECONDS_PER_DAY).toISOString()).toISOString();
+                    expiresAt = new Date(baseTime + (DAYS_IN_7 * MILLISECONDS_PER_DAY).toISOString()).toISOString(); // Grace period
                     break;
                 case "trialing":
-                    enabledAt = new Date(baseTime - (DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString();
-                    expiresAt = new Date(baseTime + (DAYS_IN_7 * MILLISECONDS_PER_DAY)).toISOString(); // 7-day trial
+                    enabledAt = new Date(baseTime - (DAYS_IN_1 * MILLISECONDS_PER_DAY).toISOString()).toISOString();
+                    expiresAt = new Date(baseTime + (DAYS_IN_7 * MILLISECONDS_PER_DAY).toISOString()).toISOString(); // 7-day trial
                     credits = PREMIUM_TIERS.monthly.credits;
                     break;
                 case "pending":
                     credits = PREMIUM_TIERS.free.credits;
                     break;
                 case "past_due":
-                    enabledAt = new Date(baseTime - (DAYS_IN_30 * MILLISECONDS_PER_DAY)).toISOString();
-                    expiresAt = new Date(baseTime - (DAYS_IN_3 * MILLISECONDS_PER_DAY)).toISOString();
+                    enabledAt = new Date(baseTime - (DAYS_IN_30 * MILLISECONDS_PER_DAY).toISOString()).toISOString();
+                    expiresAt = new Date(baseTime - (DAYS_IN_3 * MILLISECONDS_PER_DAY).toISOString()).toISOString();
                     credits = PREMIUM_TIERS.monthly.credits;
                     break;
                 case "unpaid":
-                    enabledAt = new Date(baseTime - (DAYS_IN_30 * MILLISECONDS_PER_DAY)).toISOString();
-                    expiresAt = new Date(baseTime - (DAYS_IN_7 * MILLISECONDS_PER_DAY)).toISOString();
+                    enabledAt = new Date(baseTime - (DAYS_IN_30 * MILLISECONDS_PER_DAY).toISOString()).toISOString();
+                    expiresAt = new Date(baseTime - (DAYS_IN_7 * MILLISECONDS_PER_DAY).toISOString()).toISOString();
                     credits = 0;
                     break;
             }
@@ -323,15 +321,15 @@ export class PremiumResponseFactory extends BaseAPIResponseFactory<
      */
     createPremiumExpirationScenarios(): Premium[] {
         const baseTime = Date.now();
-        
+
         return [
             // Expires in 30 days
             this.createMockData({
                 overrides: {
                     id: "premium_expires_30_days",
                     credits: PREMIUM_TIERS.monthly.credits,
-                    enabledAt: new Date(baseTime - (DAYS_IN_30 * MILLISECONDS_PER_DAY)).toISOString(),
-                    expiresAt: new Date(baseTime + (DAYS_IN_30 * MILLISECONDS_PER_DAY)).toISOString(),
+                    enabledAt: new Date(baseTime - (DAYS_IN_30 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
+                    expiresAt: new Date(baseTime + (DAYS_IN_30 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
                 },
             }),
 
@@ -340,8 +338,8 @@ export class PremiumResponseFactory extends BaseAPIResponseFactory<
                 overrides: {
                     id: "premium_expires_7_days",
                     credits: PREMIUM_TIERS.yearly.credits,
-                    enabledAt: new Date(baseTime - (DAYS_IN_365 * MILLISECONDS_PER_DAY)).toISOString(),
-                    expiresAt: new Date(baseTime + (DAYS_IN_7 * MILLISECONDS_PER_DAY)).toISOString(),
+                    enabledAt: new Date(baseTime - (DAYS_IN_365 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
+                    expiresAt: new Date(baseTime + (DAYS_IN_7 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
                 },
             }),
 
@@ -350,8 +348,8 @@ export class PremiumResponseFactory extends BaseAPIResponseFactory<
                 overrides: {
                     id: "premium_expires_tomorrow",
                     credits: PREMIUM_TIERS.monthly.credits,
-                    enabledAt: new Date(baseTime - (DAYS_IN_30 * MILLISECONDS_PER_DAY)).toISOString(),
-                    expiresAt: new Date(baseTime + (DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString(),
+                    enabledAt: new Date(baseTime - (DAYS_IN_30 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
+                    expiresAt: new Date(baseTime + (DAYS_IN_1 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
                 },
             }),
 
@@ -360,8 +358,8 @@ export class PremiumResponseFactory extends BaseAPIResponseFactory<
                 overrides: {
                     id: "premium_expired_yesterday",
                     credits: 0,
-                    enabledAt: new Date(baseTime - (DAYS_IN_30 * MILLISECONDS_PER_DAY)).toISOString(),
-                    expiresAt: new Date(baseTime - (DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString(),
+                    enabledAt: new Date(baseTime - (DAYS_IN_30 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
+                    expiresAt: new Date(baseTime - (DAYS_IN_1 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
                 },
             }),
 
@@ -371,8 +369,8 @@ export class PremiumResponseFactory extends BaseAPIResponseFactory<
                     id: "premium_longterm_enterprise",
                     credits: PREMIUM_TIERS.enterprise.credits,
                     customPlan: "Enterprise Annual Contract with unlimited access",
-                    enabledAt: new Date(baseTime - (DAYS_IN_365 * MILLISECONDS_PER_DAY)).toISOString(),
-                    expiresAt: new Date(baseTime + (DAYS_IN_365 * MILLISECONDS_PER_DAY)).toISOString(),
+                    enabledAt: new Date(baseTime - (DAYS_IN_365 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
+                    expiresAt: new Date(baseTime + (DAYS_IN_365 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
                 },
             }),
         ];
@@ -383,15 +381,15 @@ export class PremiumResponseFactory extends BaseAPIResponseFactory<
      */
     createPremiumUsageScenarios(): Premium[] {
         const baseTime = Date.now();
-        
+
         return [
             // High usage - low credits remaining
             this.createMockData({
                 overrides: {
                     id: "premium_high_usage",
                     credits: 500, // Low remaining from 10000
-                    enabledAt: new Date(baseTime - (DAYS_IN_15 * MILLISECONDS_PER_DAY)).toISOString(),
-                    expiresAt: new Date(baseTime + (DAYS_IN_15 * MILLISECONDS_PER_DAY)).toISOString(),
+                    enabledAt: new Date(baseTime - (DAYS_IN_15 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
+                    expiresAt: new Date(baseTime + (DAYS_IN_15 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
                 },
             }),
 
@@ -400,8 +398,8 @@ export class PremiumResponseFactory extends BaseAPIResponseFactory<
                 overrides: {
                     id: "premium_medium_usage",
                     credits: 5000, // Half remaining from 10000
-                    enabledAt: new Date(baseTime - (DAYS_IN_10 * MILLISECONDS_PER_DAY)).toISOString(),
-                    expiresAt: new Date(baseTime + (DAYS_IN_20 * MILLISECONDS_PER_DAY)).toISOString(),
+                    enabledAt: new Date(baseTime - (DAYS_IN_10 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
+                    expiresAt: new Date(baseTime + (DAYS_IN_20 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
                 },
             }),
 
@@ -410,8 +408,8 @@ export class PremiumResponseFactory extends BaseAPIResponseFactory<
                 overrides: {
                     id: "premium_low_usage",
                     credits: 9500, // Most remaining from 10000
-                    enabledAt: new Date(baseTime - (DAYS_IN_3 * MILLISECONDS_PER_DAY)).toISOString(),
-                    expiresAt: new Date(baseTime + (DAYS_IN_27 * MILLISECONDS_PER_DAY)).toISOString(),
+                    enabledAt: new Date(baseTime - (DAYS_IN_3 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
+                    expiresAt: new Date(baseTime + (DAYS_IN_27 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
                 },
             }),
 
@@ -420,8 +418,8 @@ export class PremiumResponseFactory extends BaseAPIResponseFactory<
                 overrides: {
                     id: "premium_no_credits",
                     credits: 0,
-                    enabledAt: new Date(baseTime - (DAYS_IN_20 * MILLISECONDS_PER_DAY)).toISOString(),
-                    expiresAt: new Date(baseTime + (DAYS_IN_10 * MILLISECONDS_PER_DAY)).toISOString(),
+                    enabledAt: new Date(baseTime - (DAYS_IN_20 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
+                    expiresAt: new Date(baseTime + (DAYS_IN_10 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
                 },
             }),
         ];
@@ -493,7 +491,7 @@ export const premiumResponseScenarios = {
         const defaultInput: PremiumCreateInput = {
             credits: PREMIUM_TIERS.monthly.credits,
             customPlan: null,
-            expiresAt: new Date(Date.now() + (DAYS_IN_30 * MILLISECONDS_PER_DAY)).toISOString(),
+            expiresAt: new Date(Date.now().toISOString() + (DAYS_IN_30 * MILLISECONDS_PER_DAY)).toISOString(),
             ...input,
         };
         return factory.createSuccessResponse(
@@ -577,8 +575,8 @@ export const premiumResponseScenarios = {
             factory.createMockData({
                 overrides: {
                     credits: PREMIUM_TIERS.yearly.credits,
-                    enabledAt: new Date(Date.now() - (DAYS_IN_30 * MILLISECONDS_PER_DAY)).toISOString(),
-                    expiresAt: new Date(Date.now() + (DAYS_IN_365 * MILLISECONDS_PER_DAY)).toISOString(),
+                    enabledAt: new Date(Date.now().toISOString() - (DAYS_IN_30 * MILLISECONDS_PER_DAY)).toISOString(),
+                    expiresAt: new Date(Date.now().toISOString() + (DAYS_IN_365 * MILLISECONDS_PER_DAY)).toISOString(),
                 },
             }),
         );
@@ -590,8 +588,8 @@ export const premiumResponseScenarios = {
             factory.createMockData({
                 overrides: {
                     credits: 0,
-                    enabledAt: new Date(Date.now() - (DAYS_IN_60 * MILLISECONDS_PER_DAY)).toISOString(),
-                    expiresAt: new Date(Date.now() - (DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString(),
+                    enabledAt: new Date(Date.now().toISOString() - (DAYS_IN_60 * MILLISECONDS_PER_DAY)).toISOString(),
+                    expiresAt: new Date(Date.now().toISOString() - (DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString(),
                 },
             }),
         );

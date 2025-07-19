@@ -7,16 +7,16 @@
  */
 
 import type {
+    RoutineVersion,
     Run,
     RunCreateInput,
-    RunUpdateInput,
     RunStatus,
     RunStep,
-    RoutineVersion,
+    RunUpdateInput,
 } from "../../../api/types.js";
+import { generatePK } from "../../../id/index.js";
 import { BaseAPIResponseFactory } from "./base.js";
 import type { MockDataOptions } from "./types.js";
-import { generatePK } from "../../../id/index.js";
 
 // Constants
 const DEFAULT_COUNT = 10;
@@ -48,8 +48,8 @@ export class RunResponseFactory extends BaseAPIResponseFactory<
         const baseRun: Run = {
             __typename: "Run",
             id: runId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             isPrivate: false,
             completedComplexity: 0,
             contextSwitches: 0,
@@ -74,7 +74,7 @@ export class RunResponseFactory extends BaseAPIResponseFactory<
         };
 
         if (scenario === "complete" || scenario === "edge-case") {
-            const startedAt = new Date(Date.now() - EXECUTION_TIME_MS).toISOString();
+            const startedAt = new Date(Date.now().toISOString() - EXECUTION_TIME_MS).toISOString();
             return {
                 ...baseRun,
                 status: "Completed",
@@ -126,8 +126,8 @@ export class RunResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "Run",
             id: runId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             isPrivate: input.isPrivate || false,
             completedComplexity: 0,
             contextSwitches: 0,
@@ -166,7 +166,7 @@ export class RunResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: Run, input: RunUpdateInput): Run {
         const updates: Partial<Run> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
         if (input.name !== undefined) {
@@ -176,7 +176,7 @@ export class RunResponseFactory extends BaseAPIResponseFactory<
         if (input.isPrivate !== undefined) updates.isPrivate = input.isPrivate;
         if (input.status !== undefined) {
             updates.status = input.status;
-            
+
             // Update timestamps based on status
             if (input.status === "InProgress" && !existing.startedAt) {
                 updates.startedAt = new Date().toISOString();
@@ -184,8 +184,8 @@ export class RunResponseFactory extends BaseAPIResponseFactory<
             if (["Completed", "Failed", "Cancelled"].includes(input.status) && !existing.completedAt) {
                 updates.completedAt = new Date().toISOString();
                 if (existing.startedAt) {
-                    const startTime = new Date(existing.startedAt).getTime();
-                    const endTime = new Date(updates.completedAt).getTime();
+                    const startTime = new Date(existing.startedAt).toISOString().getTime();
+                    const endTime = new Date(updates.completedAt).toISOString().getTime();
                     updates.timeElapsed = Math.floor((endTime - startTime) / 1000);
                 }
             }
@@ -264,8 +264,8 @@ export class RunResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "RoutineVersion",
             id: versionId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             versionLabel: "1.0.0",
             versionNotes: null,
             complexity: DEFAULT_COMPLEXITY,
@@ -285,8 +285,8 @@ export class RunResponseFactory extends BaseAPIResponseFactory<
             root: {
                 __typename: "Routine",
                 id: generatePK().toString(),
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
                 isInternal: false,
                 isPrivate: false,
                 completedAt: null,
@@ -334,8 +334,8 @@ export class RunResponseFactory extends BaseAPIResponseFactory<
                 order: i,
                 status: i < count - 1 ? "Completed" : "InProgress",
                 timeElapsed: i < count - 1 ? 600 + (i * 100) : null,
-                startedAt: new Date(Date.now() - (count - i) * 600000).toISOString(),
-                completedAt: i < count - 1 ? new Date(Date.now() - (count - i - 1) * 600000).toISOString() : null,
+                startedAt: new Date(Date.now().toISOString() - (count - i) * 600000).toISOString(),
+                completedAt: i < count - 1 ? new Date(Date.now().toISOString() - (count - i - 1) * 600000).toISOString() : null,
                 name: `Step ${i + 1}`,
                 contextSwitches: Math.floor(Math.random() * 3),
             });
@@ -352,7 +352,7 @@ export class RunResponseFactory extends BaseAPIResponseFactory<
         return statuses.map((status, index) => {
             const isStarted = ["InProgress", "Completed", "Failed", "Cancelled"].includes(status);
             const isCompleted = ["Completed", "Failed", "Cancelled"].includes(status);
-            const startedAt = isStarted ? new Date(Date.now() - EXECUTION_TIME_MS).toISOString() : null;
+            const startedAt = isStarted ? new Date(Date.now().toISOString() - EXECUTION_TIME_MS).toISOString() : null;
             const completedAt = isCompleted ? new Date().toISOString() : null;
 
             return this.createMockData({
@@ -380,7 +380,7 @@ export class RunResponseFactory extends BaseAPIResponseFactory<
      */
     createLongRunningRun(): Run {
         const LONG_EXECUTION_TIME = 7200000; // 2 hours
-        const startedAt = new Date(Date.now() - LONG_EXECUTION_TIME).toISOString();
+        const startedAt = new Date(Date.now().toISOString() - LONG_EXECUTION_TIME).toISOString();
 
         return this.createMockData({
             scenario: "complete",
@@ -402,7 +402,7 @@ export class RunResponseFactory extends BaseAPIResponseFactory<
      * Create failed run with error details
      */
     createFailedRun(): Run {
-        const startedAt = new Date(Date.now() - 1800000).toISOString(); // 30 minutes ago
+        const startedAt = new Date(Date.now().toISOString() - 1800000).toISOString(); // 30 minutes ago
         const completedAt = new Date().toISOString();
 
         return this.createMockData({
@@ -530,7 +530,7 @@ export const runResponseScenarios = {
 
     completeSuccess: (runId?: string) => {
         const factory = new RunResponseFactory();
-        const startedAt = new Date(Date.now() - EXECUTION_TIME_MS).toISOString();
+        const startedAt = new Date(Date.now().toISOString() - EXECUTION_TIME_MS).toISOString();
         const completedAt = new Date().toISOString();
         return factory.createSuccessResponse(
             factory.createMockData({

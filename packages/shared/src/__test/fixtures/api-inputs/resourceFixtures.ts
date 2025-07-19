@@ -150,28 +150,18 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error Testing invalid types
                 id: 123, // Should be string
-                // @ts-expect-error Testing invalid types
                 publicId: 456, // Should be string
-                // @ts-expect-error Testing invalid types
                 isInternal: "true", // Should be boolean
-                // @ts-expect-error Testing invalid types
                 isPrivate: "false", // Should be boolean
-                // @ts-expect-error Testing invalid types
                 permissions: ["read", "write"], // Should be JSON string
-                // @ts-expect-error Testing invalid enum value
                 resourceType: "InvalidType", // Invalid enum value
-                // @ts-expect-error Testing invalid types
                 ownedByUserConnect: 789, // Should be string
             } as unknown as ResourceCreateInput,
             update: {
                 id: validIds.id1,
-                // @ts-expect-error Testing invalid types
                 isInternal: "yes", // Should be boolean
-                // @ts-expect-error Testing invalid types
                 isPrivate: "no", // Should be boolean
-                // @ts-expect-error Testing invalid types
                 permissions: { read: true }, // Should be JSON string
             } as unknown as ResourceUpdateInput,
         },
@@ -203,7 +193,6 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
         invalidResourceType: {
             create: {
                 id: validIds.id1,
-                // @ts-expect-error Testing invalid enum value
                 resourceType: "UnknownType", // Not a valid enum value
                 ownedByUserConnect: validIds.id2,
                 versionsCreate: [
@@ -690,9 +679,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
         booleanConversions: {
             create: {
                 id: validIds.id1,
-                // @ts-expect-error Testing string to boolean conversion
                 isInternal: "true",
-                // @ts-expect-error Testing string to boolean conversion
                 isPrivate: "false",
                 resourceType: ResourceType.Note,
                 ownedByUserConnect: validIds.id2,
@@ -788,21 +775,13 @@ export const resourceVersionTranslationFixtures: ModelTestFixtures<ResourceVersi
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error Testing invalid types
                 id: 123, // Should be string
-                // @ts-expect-error Testing invalid types
                 language: true, // Should be string
-                // @ts-expect-error Testing invalid types
                 name: [], // Should be string
-                // @ts-expect-error Testing invalid types
-                description: 456, // Should be string
             } as unknown as ResourceVersionTranslationCreateInput,
             update: {
-                // @ts-expect-error Testing invalid types
                 id: true, // Should be string
-                // @ts-expect-error Testing invalid types
                 language: 789, // Should be string
-                // @ts-expect-error Testing invalid types
                 name: {}, // Should be string
             } as unknown as ResourceVersionTranslationUpdateInput,
         },

@@ -1,12 +1,11 @@
-// AI_CHECK: TEST_COVERAGE=2 | LAST: 2025-01-12
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import axios, { type AxiosError, type AxiosRequestConfig } from "axios";
+import FormData from "form-data";
 import { io, type Socket } from "socket.io-client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClient } from "./client.js";
 import { type ConfigManager } from "./config.js";
-import { logger } from "./logger.js";
-import FormData from "form-data";
 import { HTTP_STATUS } from "./constants.js";
+import { logger } from "./logger.js";
 
 // Mock dependencies
 vi.mock("axios");
@@ -155,7 +154,7 @@ describe("ApiClient", () => {
 
         it("should handle successful responses", async () => {
             const response = { status: 200, data: { success: true }, config: { url: "/test" } };
-            
+
             const result = await responseSuccessHandler(response);
 
             expect(result).toBe(response);
@@ -164,7 +163,7 @@ describe("ApiClient", () => {
         it("should log response in debug mode", async () => {
             vi.mocked(config.isDebug).mockReturnValue(true);
             const response = { status: 200, data: { success: true }, config: { url: "/test" } };
-            
+
             await responseSuccessHandler(response);
 
             expect(logger.debug).toHaveBeenCalledWith(
@@ -319,7 +318,7 @@ describe("ApiClient", () => {
             const mockFile = Buffer.from("test file content");
             const mockResponse = { data: { fileId: "123" } };
             const onProgress = vi.fn();
-            
+
             let progressHandler: any;
             mockAxiosInstance.post.mockImplementation((path, data, config) => {
                 progressHandler = config?.onUploadProgress;
@@ -327,11 +326,11 @@ describe("ApiClient", () => {
             });
 
             const resultPromise = client.uploadFile("/upload", mockFile, "test.txt", onProgress);
-            
+
             // Simulate progress events
             progressHandler({ loaded: 50, total: 100 });
             progressHandler({ loaded: 100, total: 100 });
-            
+
             await resultPromise;
 
             expect(onProgress).toHaveBeenCalledWith(50);
@@ -354,7 +353,7 @@ describe("ApiClient", () => {
 
         it("should include auth token in socket connection", () => {
             vi.mocked(config.getAuthToken).mockReturnValue("socket-token");
-            
+
             client.connectWebSocket();
 
             expect(io).toHaveBeenCalledWith(

@@ -9,15 +9,14 @@
 import type {
     View,
     ViewCreateInput,
-    ViewUpdateInput,
     ViewFor,
-    User,
+    ViewUpdateInput,
 } from "../../../api/types.js";
-import { BaseAPIResponseFactory } from "./base.js";
-import type { MockDataOptions } from "./types.js";
 import { generatePK } from "../../../id/index.js";
-import { userResponseFactory } from "./userResponses.js";
+import { BaseAPIResponseFactory } from "./base.js";
 import { resourceResponseFactory } from "./resourceResponses.js";
+import type { MockDataOptions } from "./types.js";
+import { userResponseFactory } from "./userResponses.js";
 
 // Constants
 const DEFAULT_COUNT = 10;
@@ -51,8 +50,8 @@ export class ViewResponseFactory extends BaseAPIResponseFactory<
         const baseView: View = {
             __typename: "View",
             id: viewId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             lastViewedAt: now,
             by: userResponseFactory.createMockData(),
             to: resourceResponseFactory.createMockData(),
@@ -61,12 +60,12 @@ export class ViewResponseFactory extends BaseAPIResponseFactory<
         if (scenario === "complete" || scenario === "edge-case") {
             const user = userResponseFactory.createMockData({ scenario: "complete" });
             const resource = resourceResponseFactory.createMockData({ scenario: "complete" });
-            
+
             return {
                 ...baseView,
-                lastViewedAt: new Date(Date.now() - (2 * 60 * 60 * 1000)).toISOString(), // 2 hours ago
+                lastViewedAt: new Date(Date.now().toISOString() - (2 * 60 * 60 * 1000)).toISOString(), // 2 hours ago
                 by: user,
-                to: scenario === "edge-case" 
+                to: scenario === "edge-case"
                     ? { ...resource, __typename: "Team" } // Switch to different viewable type
                     : resource,
                 ...options?.overrides,
@@ -100,8 +99,8 @@ export class ViewResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "View",
             id: viewId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             lastViewedAt: now,
             by: userResponseFactory.createMockData(), // Current user viewing
             to: target,
@@ -113,7 +112,7 @@ export class ViewResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: View, input: ViewUpdateInput): View {
         const updates: Partial<View> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
             lastViewedAt: new Date().toISOString(), // Update last viewed time
         };
 
@@ -174,7 +173,7 @@ export class ViewResponseFactory extends BaseAPIResponseFactory<
     createViewsForAllTypes(): View[] {
         return VIEW_FOR_TYPES.map((viewFor, index) => {
             let target: any;
-            
+
             if (viewFor === "User") {
                 target = userResponseFactory.createMockData();
             } else if (viewFor === "Team") {
@@ -188,7 +187,7 @@ export class ViewResponseFactory extends BaseAPIResponseFactory<
                 overrides: {
                     id: `view_${viewFor.toLowerCase()}_${index}`,
                     to: target,
-                    lastViewedAt: new Date(Date.now() - (index * 60 * 60 * 1000)).toISOString(),
+                    lastViewedAt: new Date(Date.now().toISOString() - (index * 60 * 60 * 1000)).toISOString(),
                 },
             });
         });
@@ -218,7 +217,7 @@ export class ViewResponseFactory extends BaseAPIResponseFactory<
                 overrides: {
                     id: `trending_view_${index}`,
                     to: target,
-                    lastViewedAt: new Date(Date.now() - (index * 30 * 60 * 1000)).toISOString(), // Recent views
+                    lastViewedAt: new Date(Date.now().toISOString() - (index * 30 * 60 * 1000)).toISOString(), // Recent views
                 },
             });
         });
@@ -229,11 +228,11 @@ export class ViewResponseFactory extends BaseAPIResponseFactory<
      */
     createRecentViewsForUser(userId: string, count = 10): View[] {
         const baseTime = Date.now();
-        
+
         return Array.from({ length: count }, (_, index) => {
             const viewFor = VIEW_FOR_TYPES[index % VIEW_FOR_TYPES.length];
             let target: any;
-            
+
             if (viewFor === "User") {
                 target = userResponseFactory.createMockData();
             } else if (viewFor === "Team") {
@@ -248,7 +247,7 @@ export class ViewResponseFactory extends BaseAPIResponseFactory<
                     id: `user_view_${userId}_${index}`,
                     by: userResponseFactory.createMockData({ overrides: { id: userId } }),
                     to: target,
-                    lastViewedAt: new Date(baseTime - (index * 60 * 60 * 1000)).toISOString(), // 1 hour intervals
+                    lastViewedAt: new Date(baseTime - (index * 60 * 60 * 1000).toISOString()).toISOString(), // 1 hour intervals
                 },
             });
         });
@@ -264,14 +263,14 @@ export class ViewResponseFactory extends BaseAPIResponseFactory<
             week: DAYS_7,
             month: DAYS_30,
         };
-        
+
         const timespan = periods[period];
         const count = period === "today" ? 20 : period === "week" ? 100 : 300;
 
         return Array.from({ length: count }, (_, index) => {
             const viewFor = VIEW_FOR_TYPES[index % VIEW_FOR_TYPES.length];
             let target: any;
-            
+
             if (viewFor === "User") {
                 target = userResponseFactory.createMockData();
             } else if (viewFor === "Team") {
@@ -285,7 +284,7 @@ export class ViewResponseFactory extends BaseAPIResponseFactory<
                 overrides: {
                     id: `period_view_${period}_${index}`,
                     to: target,
-                    lastViewedAt: new Date(now - (Math.random() * timespan)).toISOString(),
+                    lastViewedAt: new Date(now - (Math.random().toISOString() * timespan)).toISOString(),
                     by: userResponseFactory.createMockData(),
                 },
             });
@@ -298,7 +297,7 @@ export class ViewResponseFactory extends BaseAPIResponseFactory<
     createViewsByObjectType(objectType: ViewFor, count = 15): View[] {
         return Array.from({ length: count }, (_, index) => {
             let target: any;
-            
+
             if (objectType === "User") {
                 target = userResponseFactory.createMockData();
             } else if (objectType === "Team") {
@@ -312,7 +311,7 @@ export class ViewResponseFactory extends BaseAPIResponseFactory<
                 overrides: {
                     id: `type_view_${objectType}_${index}`,
                     to: target,
-                    lastViewedAt: new Date(Date.now() - (index * 30 * 60 * 1000)).toISOString(),
+                    lastViewedAt: new Date(Date.now().toISOString() - (index * 30 * 60 * 1000)).toISOString(),
                     by: userResponseFactory.createMockData(),
                 },
             });
@@ -328,15 +327,15 @@ export class ViewResponseFactory extends BaseAPIResponseFactory<
         topViewedContent: View[];
     } {
         const now = Date.now();
-        
+
         // Hourly views for the last 24 hours
         const hourlyViews = Array.from({ length: 24 }, (_, hour) => {
             const viewCount = Math.floor(Math.random() * 50) + 10; // 10-60 views per hour
-            return Array.from({ length: viewCount }, (_, viewIndex) => 
+            return Array.from({ length: viewCount }, (_, viewIndex) =>
                 this.createMockData({
                     overrides: {
                         id: `hourly_${hour}_${viewIndex}`,
-                        lastViewedAt: new Date(now - (hour * 60 * 60 * 1000) - (viewIndex * 60 * 1000)).toISOString(),
+                        lastViewedAt: new Date(now - (hour * 60 * 60 * 1000).toISOString() - (viewIndex * 60 * 1000)).toISOString(),
                         by: userResponseFactory.createMockData(),
                         to: resourceResponseFactory.createMockData(),
                     },
@@ -347,11 +346,11 @@ export class ViewResponseFactory extends BaseAPIResponseFactory<
         // Daily views for the last 30 days
         const dailyViews = Array.from({ length: 30 }, (_, day) => {
             const viewCount = Math.floor(Math.random() * 200) + 50; // 50-250 views per day
-            return Array.from({ length: viewCount }, (_, viewIndex) => 
+            return Array.from({ length: viewCount }, (_, viewIndex) =>
                 this.createMockData({
                     overrides: {
                         id: `daily_${day}_${viewIndex}`,
-                        lastViewedAt: new Date(now - (day * HOURS_24) - (viewIndex * 60 * 1000)).toISOString(),
+                        lastViewedAt: new Date(now - (day * HOURS_24).toISOString() - (viewIndex * 60 * 1000)).toISOString(),
                         by: userResponseFactory.createMockData(),
                         to: resourceResponseFactory.createMockData(),
                     },
@@ -420,7 +419,7 @@ export class ViewResponseFactory extends BaseAPIResponseFactory<
                     { source: "other", count: Math.round(stats.views * 0.1) },
                 ],
                 timeRange: {
-                    start: new Date(Date.now() - (period === "day" ? HOURS_24 : period === "week" ? DAYS_7 : DAYS_30)).toISOString(),
+                    start: new Date(Date.now().toISOString() - (period === "day" ? HOURS_24 : period === "week" ? DAYS_7 : DAYS_30)).toISOString(),
                     end: new Date().toISOString(),
                 },
             },

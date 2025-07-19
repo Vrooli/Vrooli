@@ -9,15 +9,13 @@
 import type {
     MemberInvite,
     MemberInviteCreateInput,
-    MemberInviteUpdateInput,
     MemberInviteStatus,
-    Team,
-    User,
+    MemberInviteUpdateInput,
 } from "../../../api/types.js";
-import { BaseAPIResponseFactory } from "./base.js";
-import type { MockDataOptions } from "./types.js";
 import { generatePK } from "../../../id/index.js";
+import { BaseAPIResponseFactory } from "./base.js";
 import { teamResponseFactory } from "./teamResponses.js";
+import type { MockDataOptions } from "./types.js";
 import { userResponseFactory } from "./userResponses.js";
 
 // Constants
@@ -61,8 +59,8 @@ export class MemberInviteResponseFactory extends BaseAPIResponseFactory<
         const baseMemberInvite: MemberInvite = {
             __typename: "MemberInvite",
             id: inviteId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             message: "You've been invited to join our team!",
             status: "Pending",
             team: teamResponseFactory.createMockData(),
@@ -76,15 +74,15 @@ export class MemberInviteResponseFactory extends BaseAPIResponseFactory<
         if (scenario === "complete" || scenario === "edge-case") {
             return {
                 ...baseMemberInvite,
-                message: scenario === "edge-case" 
-                    ? null 
+                message: scenario === "edge-case"
+                    ? null
                     : "We'd love to have you join our development team! You'll be working on exciting projects with a great group of people.",
                 status: scenario === "edge-case" ? "Declined" : "Accepted",
                 team: teamResponseFactory.createMockData({ scenario: "complete" }),
                 user: userResponseFactory.createMockData({ scenario: "complete" }),
-                updated_at: scenario === "edge-case" 
-                    ? new Date(Date.now() - (DAYS_IN_3 * MILLISECONDS_PER_DAY)).toISOString() // Updated 3 days ago
-                    : new Date(Date.now() - (HOURS_IN_2 * MILLISECONDS_PER_HOUR)).toISOString(), // Updated 2 hours ago
+                updatedAt: scenario === "edge-case"
+                    ? new Date(Date.now().toISOString() - (DAYS_IN_3 * MILLISECONDS_PER_DAY)).toISOString() // Updated 3 days ago
+                    : new Date(Date.now().toISOString() - (HOURS_IN_2 * MILLISECONDS_PER_HOUR)).toISOString(), // Updated 2 hours ago
                 you: {
                     canDelete: scenario !== "edge-case",
                     canUpdate: scenario !== "edge-case",
@@ -109,8 +107,8 @@ export class MemberInviteResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "MemberInvite",
             id: inviteId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             message: input.message || null,
             status: "Pending",
             team: teamResponseFactory.createMockData({ overrides: { id: input.teamConnect } }),
@@ -127,7 +125,7 @@ export class MemberInviteResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: MemberInvite, input: MemberInviteUpdateInput): MemberInvite {
         const updates: Partial<MemberInvite> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
         if (input.message !== undefined) updates.message = input.message;
@@ -198,10 +196,10 @@ export class MemberInviteResponseFactory extends BaseAPIResponseFactory<
                 overrides: {
                     id: `invite_${status.toLowerCase()}_${index}`,
                     status: status as MemberInviteStatus,
-                    created_at: new Date(Date.now() - (index * DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString(),
-                    updated_at: status !== "Pending" 
-                        ? new Date(Date.now() - (index * HOURS_IN_6 * MILLISECONDS_PER_HOUR)).toISOString()
-                        : new Date(Date.now() - (index * DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString(),
+                    createdAt: new Date(Date.now().toISOString() - (index * DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString(),
+                    updatedAt: status !== "Pending"
+                        ? new Date(Date.now().toISOString() - (index * HOURS_IN_6 * MILLISECONDS_PER_HOUR)).toISOString()
+                        : new Date(Date.now().toISOString() - (index * DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString(),
                 },
             }),
         );
@@ -212,14 +210,14 @@ export class MemberInviteResponseFactory extends BaseAPIResponseFactory<
      */
     createMemberInvitesForTeam(teamId: string, count = 5): MemberInvite[] {
         const team = teamResponseFactory.createMockData({ overrides: { id: teamId } });
-        
+
         return Array.from({ length: count }, (_, index) =>
             this.createMockData({
                 overrides: {
                     id: `invite_${teamId}_${index}`,
                     team,
-                    user: userResponseFactory.createMockData({ 
-                        overrides: { 
+                    user: userResponseFactory.createMockData({
+                        overrides: {
                             id: `user_invite_${index}`,
                             name: `Invited User ${index + 1}`,
                             handle: `invited_user_${index + 1}`,
@@ -227,7 +225,7 @@ export class MemberInviteResponseFactory extends BaseAPIResponseFactory<
                     }),
                     status: index === 0 ? "Pending" : (index % 2 === 0 ? "Accepted" : "Declined"),
                     message: index === 0 ? "Join our amazing team!" : null,
-                    created_at: new Date(Date.now() - (index * HOURS_IN_6 * MILLISECONDS_PER_HOUR)).toISOString(),
+                    createdAt: new Date(Date.now().toISOString() - (index * HOURS_IN_6 * MILLISECONDS_PER_HOUR)).toISOString(),
                 },
             }),
         );
@@ -238,14 +236,14 @@ export class MemberInviteResponseFactory extends BaseAPIResponseFactory<
      */
     createMemberInvitesForUser(userId: string, count = 3): MemberInvite[] {
         const user = userResponseFactory.createMockData({ overrides: { id: userId } });
-        
+
         return Array.from({ length: count }, (_, index) =>
             this.createMockData({
                 overrides: {
                     id: `invite_user_${userId}_${index}`,
                     user,
-                    team: teamResponseFactory.createMockData({ 
-                        overrides: { 
+                    team: teamResponseFactory.createMockData({
+                        overrides: {
                             id: `team_for_user_${index}`,
                             name: `Team ${index + 1}`,
                             handle: `team_${index + 1}`,
@@ -253,7 +251,7 @@ export class MemberInviteResponseFactory extends BaseAPIResponseFactory<
                     }),
                     status: index === 0 ? "Pending" : (index === 1 ? "Accepted" : "Declined"),
                     message: index === 0 ? "We'd love to have you on our team!" : null,
-                    created_at: new Date(Date.now() - (index * DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString(),
+                    createdAt: new Date(Date.now().toISOString() - (index * DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString(),
                 },
             }),
         );
@@ -264,7 +262,7 @@ export class MemberInviteResponseFactory extends BaseAPIResponseFactory<
      */
     createMemberInviteScenarios(): MemberInvite[] {
         const baseTime = Date.now();
-        
+
         return [
             // Fresh pending invite
             this.createMockData({
@@ -272,7 +270,7 @@ export class MemberInviteResponseFactory extends BaseAPIResponseFactory<
                     id: "fresh_pending_invite",
                     status: "Pending",
                     message: "Join our development team and help build amazing products!",
-                    created_at: new Date(baseTime - (HOURS_IN_2 * MILLISECONDS_PER_HOUR)).toISOString(), // 2 hours ago
+                    createdAt: new Date(baseTime - (HOURS_IN_2 * MILLISECONDS_PER_HOUR).toISOString()).toISOString(), // 2 hours ago
                     team: teamResponseFactory.createMockData({
                         overrides: {
                             name: "Development Team",
@@ -288,8 +286,8 @@ export class MemberInviteResponseFactory extends BaseAPIResponseFactory<
                     id: "recent_accepted_invite",
                     status: "Accepted",
                     message: "Welcome to our marketing team!",
-                    created_at: new Date(baseTime - (DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString(), // 1 day ago
-                    updated_at: new Date(baseTime - (HOURS_IN_6 * MILLISECONDS_PER_HOUR)).toISOString(), // 6 hours ago
+                    createdAt: new Date(baseTime - (DAYS_IN_1 * MILLISECONDS_PER_DAY).toISOString()).toISOString(), // 1 day ago
+                    updatedAt: new Date(baseTime - (HOURS_IN_6 * MILLISECONDS_PER_HOUR).toISOString()).toISOString(), // 6 hours ago
                     team: teamResponseFactory.createMockData({
                         overrides: {
                             name: "Marketing Team",
@@ -305,8 +303,8 @@ export class MemberInviteResponseFactory extends BaseAPIResponseFactory<
                     id: "declined_invite",
                     status: "Declined",
                     message: "Join our research team for cutting-edge projects",
-                    created_at: new Date(baseTime - (DAYS_IN_3 * MILLISECONDS_PER_DAY)).toISOString(), // 3 days ago
-                    updated_at: new Date(baseTime - (DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString(), // 1 day ago
+                    createdAt: new Date(baseTime - (DAYS_IN_3 * MILLISECONDS_PER_DAY).toISOString()).toISOString(), // 3 days ago
+                    updatedAt: new Date(baseTime - (DAYS_IN_1 * MILLISECONDS_PER_DAY).toISOString()).toISOString(), // 1 day ago
                     team: teamResponseFactory.createMockData({
                         overrides: {
                             name: "Research Team",
@@ -322,7 +320,7 @@ export class MemberInviteResponseFactory extends BaseAPIResponseFactory<
                     id: "no_message_invite",
                     status: "Pending",
                     message: null,
-                    created_at: new Date(baseTime - (HOURS_IN_6 * MILLISECONDS_PER_HOUR)).toISOString(), // 6 hours ago
+                    createdAt: new Date(baseTime - (HOURS_IN_6 * MILLISECONDS_PER_HOUR).toISOString()).toISOString(), // 6 hours ago
                     team: teamResponseFactory.createMockData({
                         overrides: {
                             name: "Design Team",
@@ -338,7 +336,7 @@ export class MemberInviteResponseFactory extends BaseAPIResponseFactory<
                     id: "old_pending_invite",
                     status: "Pending",
                     message: "Join our operations team",
-                    created_at: new Date(baseTime - (DAYS_IN_7 * MILLISECONDS_PER_DAY)).toISOString(), // 7 days ago (at expiry)
+                    createdAt: new Date(baseTime - (DAYS_IN_7 * MILLISECONDS_PER_DAY).toISOString()).toISOString(), // 7 days ago (at expiry)
                     team: teamResponseFactory.createMockData({
                         overrides: {
                             name: "Operations Team",
@@ -354,7 +352,7 @@ export class MemberInviteResponseFactory extends BaseAPIResponseFactory<
                     id: "admin_role_invite",
                     status: "Pending",
                     message: "We'd like you to join as an admin to help manage the team",
-                    created_at: new Date(baseTime - (HOURS_IN_2 * MILLISECONDS_PER_HOUR)).toISOString(),
+                    createdAt: new Date(baseTime - (HOURS_IN_2 * MILLISECONDS_PER_HOUR).toISOString()).toISOString(),
                     team: teamResponseFactory.createMockData({
                         overrides: {
                             name: "Leadership Team",
@@ -487,7 +485,7 @@ export const memberInviteResponseScenarios = {
                 overrides: {
                     id: inviteId,
                     status: "Accepted",
-                    updated_at: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                 },
             }),
         );
@@ -500,7 +498,7 @@ export const memberInviteResponseScenarios = {
                 overrides: {
                     id: inviteId,
                     status: "Declined",
-                    updated_at: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                 },
             }),
         );
@@ -609,7 +607,7 @@ export const memberInviteResponseScenarios = {
         const factory = new MemberInviteResponseFactory();
         return factory.createInviteExpiredErrorResponse(
             inviteId || generatePK().toString(),
-            new Date(Date.now() - (INVITE_EXPIRY_DAYS * MILLISECONDS_PER_DAY)).toISOString(),
+            new Date(Date.now().toISOString() - (INVITE_EXPIRY_DAYS * MILLISECONDS_PER_DAY)).toISOString(),
         );
     },
 

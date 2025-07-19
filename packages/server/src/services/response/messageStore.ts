@@ -1,7 +1,6 @@
-import { DAYS_1_S, type MessageConfigObject, WEEKS_1_DAYS } from "@vrooli/shared";
+import { DAYS_1_S, type MessageConfigObject, type MessageState, WEEKS_1_DAYS } from "@vrooli/shared";
 import { type Redis as IoRedis, type Cluster as IoRedisCluster } from "ioredis";
 import { CacheService } from "../../redisConn.js";
-import { type MessageState } from "../conversation/types.js";
 import { AIServiceRegistry } from "./registry.js";
 import { type AIService } from "./services.js";
 

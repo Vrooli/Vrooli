@@ -9,13 +9,11 @@
 import type {
     ChatParticipant,
     ChatParticipantUpdateInput,
-    Chat,
-    User,
 } from "../../../api/types.js";
-import { BaseAPIResponseFactory } from "./base.js";
-import type { MockDataOptions } from "./types.js";
 import { generatePK } from "../../../id/index.js";
+import { BaseAPIResponseFactory } from "./base.js";
 import { chatResponseFactory } from "./chatResponses.js";
+import type { MockDataOptions } from "./types.js";
 import { userResponseFactory } from "./userResponses.js";
 
 // Constants
@@ -54,8 +52,8 @@ export class ChatParticipantResponseFactory extends BaseAPIResponseFactory<
         const baseParticipant: ChatParticipant = {
             __typename: "ChatParticipant",
             id: participantId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             chat: chatResponseFactory.createMockData(),
             user: userResponseFactory.createMockData(),
             you: {
@@ -68,18 +66,18 @@ export class ChatParticipantResponseFactory extends BaseAPIResponseFactory<
             return {
                 ...baseParticipant,
                 chat: chatResponseFactory.createMockData({ scenario: "complete" }),
-                user: scenario === "edge-case" 
-                    ? userResponseFactory.createMockData({ 
-                        overrides: { 
-                            isBot: true, 
+                user: scenario === "edge-case"
+                    ? userResponseFactory.createMockData({
+                        overrides: {
+                            isBot: true,
                             name: "System Bot",
                             handle: "system_bot",
                         },
                     })
                     : userResponseFactory.createMockData({ scenario: "complete" }),
-                created_at: scenario === "edge-case"
-                    ? new Date(Date.now() - (DAYS_IN_WEEK * MILLISECONDS_PER_DAY)).toISOString() // 1 week ago
-                    : new Date(Date.now() - (HOURS_IN_2 * MILLISECONDS_PER_HOUR)).toISOString(), // 2 hours ago
+                createdAt: scenario === "edge-case"
+                    ? new Date(Date.now().toISOString() - (DAYS_IN_WEEK * MILLISECONDS_PER_DAY)).toISOString() // 1 week ago
+                    : new Date(Date.now().toISOString() - (HOURS_IN_2 * MILLISECONDS_PER_HOUR)).toISOString(), // 2 hours ago
                 you: {
                     canDelete: scenario === "complete", // Admin can remove participants
                     canUpdate: scenario === "complete", // Admin can update participant settings
@@ -99,7 +97,7 @@ export class ChatParticipantResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: ChatParticipant, input: ChatParticipantUpdateInput): ChatParticipant {
         const updates: Partial<ChatParticipant> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
         // ChatParticipant updates are typically limited to metadata
@@ -135,23 +133,23 @@ export class ChatParticipantResponseFactory extends BaseAPIResponseFactory<
      */
     createParticipantsForChat(chatId: string, count = 5): ChatParticipant[] {
         const chat = chatResponseFactory.createMockData({ overrides: { id: chatId } });
-        
+
         return Array.from({ length: count }, (_, index) => {
-            const joinTime = new Date(Date.now() - (index * HOURS_IN_6 * MILLISECONDS_PER_HOUR));
-            
+            const joinTime = new Date(Date.now().toISOString() - (index * HOURS_IN_6 * MILLISECONDS_PER_HOUR));
+
             return this.createMockData({
                 overrides: {
                     id: `participant_${chatId}_${index}`,
                     chat,
-                    user: userResponseFactory.createMockData({ 
-                        overrides: { 
+                    user: userResponseFactory.createMockData({
+                        overrides: {
                             id: `user_${index}`,
                             name: `Participant ${index + 1}`,
                             handle: `participant_${index + 1}`,
                         },
                     }),
-                    created_at: joinTime.toISOString(),
-                    updated_at: joinTime.toISOString(),
+                    createdAt: joinTime.toISOString(),
+                    updatedAt: joinTime.toISOString(),
                     you: {
                         canDelete: index === 0, // First participant (creator) can remove others
                         canUpdate: index === 0, // First participant (creator) can update settings
@@ -166,21 +164,21 @@ export class ChatParticipantResponseFactory extends BaseAPIResponseFactory<
      */
     createParticipantsForUser(userId: string, count = 3): ChatParticipant[] {
         const user = userResponseFactory.createMockData({ overrides: { id: userId } });
-        
+
         return Array.from({ length: count }, (_, index) => {
-            const joinTime = new Date(Date.now() - (index * DAYS_IN_3 * MILLISECONDS_PER_DAY));
-            
+            const joinTime = new Date(Date.now().toISOString() - (index * DAYS_IN_3 * MILLISECONDS_PER_DAY));
+
             return this.createMockData({
                 overrides: {
                     id: `participant_user_${userId}_${index}`,
                     user,
-                    chat: chatResponseFactory.createMockData({ 
-                        overrides: { 
+                    chat: chatResponseFactory.createMockData({
+                        overrides: {
                             id: `chat_${index}`,
                         },
                     }),
-                    created_at: joinTime.toISOString(),
-                    updated_at: joinTime.toISOString(),
+                    createdAt: joinTime.toISOString(),
+                    updatedAt: joinTime.toISOString(),
                     you: {
                         canDelete: false, // Can't delete own participation
                         canUpdate: false, // Can't update own participation
@@ -195,25 +193,25 @@ export class ChatParticipantResponseFactory extends BaseAPIResponseFactory<
      */
     createParticipantScenarios(): ChatParticipant[] {
         const baseTime = Date.now();
-        const sharedChat = chatResponseFactory.createMockData({ 
-            overrides: { 
+        const sharedChat = chatResponseFactory.createMockData({
+            overrides: {
                 id: "shared_chat_123",
             },
         });
-        
+
         return [
             // Chat creator/admin
             this.createMockData({
                 overrides: {
                     id: "creator_participant",
                     chat: sharedChat,
-                    user: userResponseFactory.createMockData({ 
-                        overrides: { 
+                    user: userResponseFactory.createMockData({
+                        overrides: {
                             name: "Chat Creator",
                             handle: "chat_creator",
                         },
                     }),
-                    created_at: new Date(baseTime - (DAYS_IN_WEEK * MILLISECONDS_PER_DAY)).toISOString(), // Created chat 1 week ago
+                    createdAt: new Date(baseTime - (DAYS_IN_WEEK * MILLISECONDS_PER_DAY).toISOString()).toISOString(), // Created chat 1 week ago
                     you: {
                         canDelete: true, // Can remove other participants
                         canUpdate: true, // Can update participant settings
@@ -226,13 +224,13 @@ export class ChatParticipantResponseFactory extends BaseAPIResponseFactory<
                 overrides: {
                     id: "active_participant",
                     chat: sharedChat,
-                    user: userResponseFactory.createMockData({ 
-                        overrides: { 
+                    user: userResponseFactory.createMockData({
+                        overrides: {
                             name: "Active Member",
                             handle: "active_member",
                         },
                     }),
-                    created_at: new Date(baseTime - (DAYS_IN_3 * MILLISECONDS_PER_DAY)).toISOString(), // Joined 3 days ago
+                    createdAt: new Date(baseTime - (DAYS_IN_3 * MILLISECONDS_PER_DAY).toISOString()).toISOString(), // Joined 3 days ago
                     you: {
                         canDelete: false,
                         canUpdate: false,
@@ -245,13 +243,13 @@ export class ChatParticipantResponseFactory extends BaseAPIResponseFactory<
                 overrides: {
                     id: "new_participant",
                     chat: sharedChat,
-                    user: userResponseFactory.createMockData({ 
-                        overrides: { 
+                    user: userResponseFactory.createMockData({
+                        overrides: {
                             name: "New Member",
                             handle: "new_member",
                         },
                     }),
-                    created_at: new Date(baseTime - (HOURS_IN_2 * MILLISECONDS_PER_HOUR)).toISOString(), // Joined 2 hours ago
+                    createdAt: new Date(baseTime - (HOURS_IN_2 * MILLISECONDS_PER_HOUR).toISOString()).toISOString(), // Joined 2 hours ago
                     you: {
                         canDelete: false,
                         canUpdate: false,
@@ -264,14 +262,14 @@ export class ChatParticipantResponseFactory extends BaseAPIResponseFactory<
                 overrides: {
                     id: "bot_participant",
                     chat: sharedChat,
-                    user: userResponseFactory.createMockData({ 
-                        overrides: { 
+                    user: userResponseFactory.createMockData({
+                        overrides: {
                             isBot: true,
                             name: "AI Assistant",
                             handle: "ai_assistant",
                         },
                     }),
-                    created_at: new Date(baseTime - (DAYS_IN_WEEK * MILLISECONDS_PER_DAY)).toISOString(), // Added when chat was created
+                    createdAt: new Date(baseTime - (DAYS_IN_WEEK * MILLISECONDS_PER_DAY).toISOString()).toISOString(), // Added when chat was created
                     you: {
                         canDelete: true, // Bots can be removed
                         canUpdate: true, // Bot settings can be updated
@@ -283,18 +281,18 @@ export class ChatParticipantResponseFactory extends BaseAPIResponseFactory<
             this.createMockData({
                 overrides: {
                     id: "other_chat_participant",
-                    chat: chatResponseFactory.createMockData({ 
-                        overrides: { 
+                    chat: chatResponseFactory.createMockData({
+                        overrides: {
                             id: "other_chat_456",
                         },
                     }),
-                    user: userResponseFactory.createMockData({ 
-                        overrides: { 
+                    user: userResponseFactory.createMockData({
+                        overrides: {
                             name: "Current User",
                             handle: "current_user",
                         },
                     }),
-                    created_at: new Date(baseTime - (DAYS_IN_3 * MILLISECONDS_PER_DAY)).toISOString(),
+                    createdAt: new Date(baseTime - (DAYS_IN_3 * MILLISECONDS_PER_DAY).toISOString()).toISOString(),
                     you: {
                         canDelete: false, // Can't delete own participation
                         canUpdate: false, // Can't update own participation
@@ -434,8 +432,8 @@ export const chatParticipantResponseScenarios = {
         return factory.createSuccessResponse(
             factory.createMockData({
                 overrides: {
-                    user: userResponseFactory.createMockData({ 
-                        overrides: { 
+                    user: userResponseFactory.createMockData({
+                        overrides: {
                             name: "Chat Creator",
                             handle: "chat_creator",
                         },
@@ -454,8 +452,8 @@ export const chatParticipantResponseScenarios = {
         return factory.createSuccessResponse(
             factory.createMockData({
                 overrides: {
-                    user: userResponseFactory.createMockData({ 
-                        overrides: { 
+                    user: userResponseFactory.createMockData({
+                        overrides: {
                             isBot: true,
                             name: "AI Assistant",
                             handle: "ai_assistant",

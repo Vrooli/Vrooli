@@ -123,7 +123,7 @@ export class FallbackRouter extends LlmRouter {
         let attempts = 0;
         while (attempts++ < FallbackRouter.RETRY_LIMIT) {
             const registry = AIServiceRegistry.get();
-            const serviceId = registry.getBestService(opts.model);
+            const serviceId = await registry.getBestService(opts.model);
             if (!serviceId) throw new CustomError("0252", "ServiceUnavailable", {});
 
             const service = registry.getService(serviceId);
@@ -176,7 +176,7 @@ export class FallbackRouter extends LlmRouter {
                 return;
             } catch (err: unknown) {
                 const errType = service.getErrorType(err);
-                registry.updateServiceState(serviceId, errType);
+                registry.updateServiceState(serviceId.toString(), errType);
                 if (attempts >= FallbackRouter.RETRY_LIMIT) throw err;
             }
         }

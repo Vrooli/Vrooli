@@ -56,7 +56,7 @@ type RequestData = {
     visibility: VisibilityType;
 };
 
-type SearchFunction = (inputField: unknown, requestData: RequestData) => object;
+type SearchFunction = (inputField: unknown, requestData: RequestData) => Record<string, unknown>;
 
 type SearchMapType<T> = {
     [P in keyof T]: SearchFunction;

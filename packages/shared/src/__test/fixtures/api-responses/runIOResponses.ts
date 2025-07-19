@@ -6,19 +6,19 @@
  * execution workflows, data flow validation, and runtime scenarios.
  */
 
-import type { 
-    RunRoutineInput,
-    RunRoutineOutput,
-    RunRoutineInputCreateInput,
-    RunRoutineOutputCreateInput,
-    RunRoutineInputUpdateInput,
-    RunRoutineOutputUpdateInput,
+import type {
     RoutineVersionInput,
     RoutineVersionOutput,
     RunRoutine,
+    RunRoutineInput,
+    RunRoutineInputCreateInput,
+    RunRoutineInputUpdateInput,
+    RunRoutineOutput,
+    RunRoutineOutputCreateInput,
+    RunRoutineOutputUpdateInput,
 } from "../../../api/types.js";
-import type { MockDataOptions } from "./types.js";
 import { BaseAPIResponseFactory } from "./base.js";
+import type { MockDataOptions } from "./types.js";
 
 // Constants for realistic data generation
 const INPUT_TYPES = ["string", "number", "boolean", "object", "array"] as const;
@@ -53,7 +53,7 @@ export class RunIOAPIResponseFactory extends BaseAPIResponseFactory<
     private generateInputData(type = "string", isRequired = true): string {
         const dataType = INPUT_TYPES.includes(type as any) ? type as keyof typeof DATA_SAMPLES : "string";
         const value = isRequired ? DATA_SAMPLES[dataType] : null;
-        
+
         return JSON.stringify({
             value,
             type: dataType,
@@ -70,7 +70,7 @@ export class RunIOAPIResponseFactory extends BaseAPIResponseFactory<
     private generateOutputData(type = "string", hasResult = true): string {
         const dataType = OUTPUT_TYPES.includes(type as any) ? type as keyof typeof DATA_SAMPLES : "string";
         const result = hasResult ? DATA_SAMPLES[dataType] : null;
-        
+
         return JSON.stringify({
             result,
             type: dataType,
@@ -88,7 +88,7 @@ export class RunIOAPIResponseFactory extends BaseAPIResponseFactory<
     private createMockRoutineVersionInput(index = 0, name?: string, isRequired = true): RoutineVersionInput {
         const id = this.generateId();
         const inputName = name || `input${index + 1}`;
-        
+
         return {
             __typename: "RoutineVersionInput",
             id: `input_def_${id}`,
@@ -111,7 +111,7 @@ export class RunIOAPIResponseFactory extends BaseAPIResponseFactory<
     private createMockRoutineVersionOutput(index = 0, name?: string): RoutineVersionOutput {
         const id = this.generateId();
         const outputName = name || `output${index + 1}`;
-        
+
         return {
             __typename: "RoutineVersionOutput",
             id: `output_def_${id}`,
@@ -133,9 +133,9 @@ export class RunIOAPIResponseFactory extends BaseAPIResponseFactory<
     private createMockRunRoutine(isCompleted = false): RunRoutine {
         const id = this.generateId();
         const now = new Date().toISOString();
-        const startTime = new Date(Date.now() - HOUR_IN_MS).toISOString(); // 1 hour ago
+        const startTime = new Date(Date.now().toISOString() - HOUR_IN_MS).toISOString(); // 1 hour ago
         const timeElapsed = isCompleted ? HOUR_IN_MS / 1000 : Math.floor(Math.random() * HALF_HOUR_IN_MS); // Random up to 30 min or 1 hour if completed
-        
+
         return {
             __typename: "RunRoutine",
             id: `run_${id}`,
@@ -160,10 +160,10 @@ export class RunIOAPIResponseFactory extends BaseAPIResponseFactory<
         const inputName = options?.overrides?.name as string || `input${index + 1}`;
         const isRequired = options?.overrides?.isRequired as boolean ?? true;
         const dataType = options?.overrides?.type as string || "string";
-        
+
         const routineInput = this.createMockRoutineVersionInput(index, inputName, isRequired);
         const runRoutine = options?.withRelations !== false ? this.createMockRunRoutine() : null;
-        
+
         const baseInput: RunRoutineInput = {
             __typename: "RunRoutineInput",
             id,
@@ -206,10 +206,10 @@ export class RunIOAPIResponseFactory extends BaseAPIResponseFactory<
         const outputName = options?.overrides?.name as string || `output${index + 1}`;
         const dataType = options?.overrides?.type as string || "string";
         const hasResult = options?.overrides?.hasResult as boolean ?? true;
-        
+
         const routineOutput = this.createMockRoutineVersionOutput(index, outputName);
         const runRoutine = options?.withRelations !== false ? this.createMockRunRoutine(true) : null;
-        
+
         const baseOutput: RunRoutineOutput = {
             __typename: "RunRoutineOutput",
             id,
@@ -257,22 +257,22 @@ export class RunIOAPIResponseFactory extends BaseAPIResponseFactory<
         if ("inputConnect" in input) {
             // This is a RunRoutineInputCreateInput
             const runInput = this.createMockRunInput() as RunRoutineInput;
-            
+
             if (input.id) runInput.id = input.id;
             if (input.data) runInput.data = input.data;
             if (input.inputConnect) runInput.input.id = input.inputConnect;
             if (input.runRoutineConnect) runInput.runRoutine!.id = input.runRoutineConnect;
-            
+
             return runInput;
         } else {
             // This is a RunRoutineOutputCreateInput
             const runOutput = this.createMockRunOutput() as RunRoutineOutput;
-            
+
             if (input.id) runOutput.id = input.id;
             if (input.data) runOutput.data = input.data;
             if (input.outputConnect) runOutput.output.id = input.outputConnect;
             if (input.runRoutineConnect) runOutput.runRoutine!.id = input.runRoutineConnect;
-            
+
             return runOutput;
         }
     }
@@ -281,15 +281,15 @@ export class RunIOAPIResponseFactory extends BaseAPIResponseFactory<
      * Update entity from update input
      */
     updateFromInput(
-        existing: RunRoutineInput | RunRoutineOutput, 
+        existing: RunRoutineInput | RunRoutineOutput,
         input: RunRoutineInputUpdateInput | RunRoutineOutputUpdateInput,
     ): RunRoutineInput | RunRoutineOutput {
         const updated = { ...existing };
-        
+
         if (input.data !== undefined) {
             updated.data = input.data;
         }
-        
+
         return updated;
     }
 
@@ -301,7 +301,7 @@ export class RunIOAPIResponseFactory extends BaseAPIResponseFactory<
         errors?: Record<string, string>;
     }> {
         const errors: Record<string, string> = {};
-        
+
         if (!input.data?.trim()) {
             errors.data = "Input data is required";
         } else {
@@ -311,15 +311,15 @@ export class RunIOAPIResponseFactory extends BaseAPIResponseFactory<
                 errors.data = "Input data must be valid JSON";
             }
         }
-        
+
         if (!input.inputConnect) {
             errors.inputConnect = "Input definition reference is required";
         }
-        
+
         if (!input.runRoutineConnect) {
             errors.runRoutineConnect = "Run routine reference is required";
         }
-        
+
         return {
             valid: Object.keys(errors).length === 0,
             errors: Object.keys(errors).length > 0 ? errors : undefined,
@@ -334,7 +334,7 @@ export class RunIOAPIResponseFactory extends BaseAPIResponseFactory<
         errors?: Record<string, string>;
     }> {
         const errors: Record<string, string> = {};
-        
+
         if (!input.data?.trim()) {
             errors.data = "Output data is required";
         } else {
@@ -344,15 +344,15 @@ export class RunIOAPIResponseFactory extends BaseAPIResponseFactory<
                 errors.data = "Output data must be valid JSON";
             }
         }
-        
+
         if (!input.outputConnect) {
             errors.outputConnect = "Output definition reference is required";
         }
-        
+
         if (!input.runRoutineConnect) {
             errors.runRoutineConnect = "Run routine reference is required";
         }
-        
+
         return {
             valid: Object.keys(errors).length === 0,
             errors: Object.keys(errors).length > 0 ? errors : undefined,
@@ -381,11 +381,11 @@ export class RunIOAPIResponseFactory extends BaseAPIResponseFactory<
         errors?: Record<string, string>;
     }> {
         const errors: Record<string, string> = {};
-        
+
         if (!input.id) {
             errors.id = "ID is required for updates";
         }
-        
+
         if (input.data) {
             try {
                 JSON.parse(input.data);
@@ -393,7 +393,7 @@ export class RunIOAPIResponseFactory extends BaseAPIResponseFactory<
                 errors.data = "Data must be valid JSON";
             }
         }
-        
+
         return {
             valid: Object.keys(errors).length === 0,
             errors: Object.keys(errors).length > 0 ? errors : undefined,
@@ -404,7 +404,7 @@ export class RunIOAPIResponseFactory extends BaseAPIResponseFactory<
      * Create multiple run inputs
      */
     createMultipleRunInputs(count = DEFAULT_LIST_SIZE, runId?: string): RunRoutineInput[] {
-        return Array.from({ length: count }, (_, index) => 
+        return Array.from({ length: count }, (_, index) =>
             this.createMockRunInput({
                 overrides: {
                     index,
@@ -420,7 +420,7 @@ export class RunIOAPIResponseFactory extends BaseAPIResponseFactory<
      * Create multiple run outputs
      */
     createMultipleRunOutputs(count = DEFAULT_LIST_SIZE, runId?: string): RunRoutineOutput[] {
-        return Array.from({ length: count }, (_, index) => 
+        return Array.from({ length: count }, (_, index) =>
             this.createMockRunOutput({
                 overrides: {
                     index,
@@ -596,7 +596,7 @@ export const runIOResponseScenarios = {
 
     rateLimitError: () => {
         const factory = new RunIOAPIResponseFactory();
-        const resetTime = new Date(Date.now() + MINUTES_IN_MS); // 1 minute from now
+        const resetTime = new Date(Date.now().toISOString() + MINUTES_IN_MS); // 1 minute from now
         return factory.createRateLimitErrorResponse(1000, 0, resetTime);
     },
 };

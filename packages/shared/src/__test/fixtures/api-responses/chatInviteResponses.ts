@@ -9,23 +9,35 @@
 import type {
     ChatInvite,
     ChatInviteCreateInput,
-    ChatInviteUpdateInput,
     ChatInviteStatus,
-    Chat,
-    User,
+    ChatInviteUpdateInput,
 } from "../../../api/types.js";
-import { BaseAPIResponseFactory } from "./base.js";
-import type { MockDataOptions } from "./types.js";
 import { generatePK } from "../../../id/index.js";
+import { BaseAPIResponseFactory } from "./base.js";
 import { chatResponseFactory } from "./chatResponses.js";
+import type { MockDataOptions } from "./types.js";
 import { userResponseFactory } from "./userResponses.js";
+import {
+    DAYS_TO_MS,
+    DEFAULT_CHAT_INVITES_COUNT,
+    DEFAULT_COUNT,
+    DEFAULT_DELAY_MS,
+    DEFAULT_ERROR_RATE,
+    FIVE_HUNDRED,
+    FOUR_HOURS_TO_MS,
+    HOURS_TO_MS,
+    SEVEN,
+    SIX_HOURS_TO_MS,
+    THREE_DAYS_TO_MS,
+    TWELVE,
+    TWO_DAYS_TO_MS,
+    TWO_HOURS_TO_MS,
+} from "../constants.js";
 
-// Constants
-const DEFAULT_COUNT = 10;
-const DEFAULT_ERROR_RATE = 0.1;
-const DEFAULT_DELAY_MS = 500;
-const MAX_MESSAGE_LENGTH = 500;
-const INVITE_EXPIRY_DAYS = 7;
+// Chat invite specific constants
+const MAX_MESSAGE_LENGTH = FIVE_HUNDRED;
+const INVITE_EXPIRY_DAYS = SEVEN;
+const HALF_DAY_HOURS = TWELVE;
 
 // Chat invite statuses
 const CHAT_INVITE_STATUSES = ["Pending", "Accepted", "Declined"] as const;
@@ -51,8 +63,8 @@ export class ChatInviteResponseFactory extends BaseAPIResponseFactory<
         const baseChatInvite: ChatInvite = {
             __typename: "ChatInvite",
             id: inviteId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             message: "You've been invited to join this chat!",
             status: "Pending",
             chat: chatResponseFactory.createMockData(),
@@ -66,15 +78,15 @@ export class ChatInviteResponseFactory extends BaseAPIResponseFactory<
         if (scenario === "complete" || scenario === "edge-case") {
             return {
                 ...baseChatInvite,
-                message: scenario === "edge-case" 
-                    ? null 
+                message: scenario === "edge-case"
+                    ? null
                     : "Hey! I'd love to discuss the project with you. Can you join our team chat?",
                 status: scenario === "edge-case" ? "Declined" : "Accepted",
                 chat: chatResponseFactory.createMockData({ scenario: "complete" }),
                 user: userResponseFactory.createMockData({ scenario: "complete" }),
-                updated_at: scenario === "edge-case" 
-                    ? new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString() // Updated 1 day ago
-                    : new Date(Date.now() - (60 * 60 * 1000)).toISOString(), // Updated 1 hour ago
+                updatedAt: scenario === "edge-case"
+                    ? new Date(Date.now().toISOString() - DAYS_TO_MS).toISOString() // Updated 1 day ago
+                    : new Date(Date.now().toISOString() - HOURS_TO_MS).toISOString(), // Updated 1 hour ago
                 you: {
                     canDelete: scenario !== "edge-case",
                     canUpdate: scenario !== "edge-case",
@@ -99,8 +111,8 @@ export class ChatInviteResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "ChatInvite",
             id: inviteId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             message: input.message || null,
             status: "Pending",
             chat: chatResponseFactory.createMockData({ overrides: { id: input.chatConnect } }),
@@ -117,7 +129,7 @@ export class ChatInviteResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: ChatInvite, input: ChatInviteUpdateInput): ChatInvite {
         const updates: Partial<ChatInvite> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
         if (input.message !== undefined) updates.message = input.message;
@@ -188,10 +200,10 @@ export class ChatInviteResponseFactory extends BaseAPIResponseFactory<
                 overrides: {
                     id: `invite_${status.toLowerCase()}_${index}`,
                     status: status as ChatInviteStatus,
-                    created_at: new Date(Date.now() - (index * 24 * 60 * 60 * 1000)).toISOString(),
-                    updated_at: status !== "Pending" 
-                        ? new Date(Date.now() - (index * 12 * 60 * 60 * 1000)).toISOString()
-                        : new Date(Date.now() - (index * 24 * 60 * 60 * 1000)).toISOString(),
+                    createdAt: new Date(Date.now().toISOString() - (index * DAYS_TO_MS)).toISOString(),
+                    updatedAt: status !== "Pending"
+                        ? new Date(Date.now().toISOString() - (index * HALF_DAY_HOURS * HOURS_TO_MS)).toISOString()
+                        : new Date(Date.now().toISOString() - (index * DAYS_TO_MS)).toISOString(),
                 },
             }),
         );
@@ -200,23 +212,23 @@ export class ChatInviteResponseFactory extends BaseAPIResponseFactory<
     /**
      * Create chat invites for a specific chat
      */
-    createChatInvitesForChat(chatId: string, count = 5): ChatInvite[] {
+    createChatInvitesForChat(chatId: string, count = DEFAULT_CHAT_INVITES_COUNT): ChatInvite[] {
         const chat = chatResponseFactory.createMockData({ overrides: { id: chatId } });
-        
+
         return Array.from({ length: count }, (_, index) =>
             this.createMockData({
                 overrides: {
                     id: `invite_${chatId}_${index}`,
                     chat,
-                    user: userResponseFactory.createMockData({ 
-                        overrides: { 
+                    user: userResponseFactory.createMockData({
+                        overrides: {
                             id: `user_invite_${index}`,
                             name: `Invited User ${index + 1}`,
                             handle: `invited_user_${index + 1}`,
                         },
                     }),
                     status: index === 0 ? "Pending" : (index % 2 === 0 ? "Accepted" : "Declined"),
-                    created_at: new Date(Date.now() - (index * 2 * 60 * 60 * 1000)).toISOString(),
+                    createdAt: new Date(Date.now().toISOString() - (index * 2 * HOURS_TO_MS)).toISOString(),
                 },
             }),
         );
@@ -227,20 +239,20 @@ export class ChatInviteResponseFactory extends BaseAPIResponseFactory<
      */
     createChatInvitesForUser(userId: string, count = 3): ChatInvite[] {
         const user = userResponseFactory.createMockData({ overrides: { id: userId } });
-        
+
         return Array.from({ length: count }, (_, index) =>
             this.createMockData({
                 overrides: {
                     id: `invite_user_${userId}_${index}`,
                     user,
-                    chat: chatResponseFactory.createMockData({ 
-                        overrides: { 
+                    chat: chatResponseFactory.createMockData({
+                        overrides: {
                             id: `chat_for_user_${index}`,
                         },
                     }),
                     status: index === 0 ? "Pending" : (index === 1 ? "Accepted" : "Declined"),
                     message: index === 0 ? "You've been invited to join our project discussion!" : null,
-                    created_at: new Date(Date.now() - (index * 4 * 60 * 60 * 1000)).toISOString(),
+                    createdAt: new Date(Date.now().toISOString() - (index * FOUR_HOURS_TO_MS)).toISOString(),
                 },
             }),
         );
@@ -251,7 +263,7 @@ export class ChatInviteResponseFactory extends BaseAPIResponseFactory<
      */
     createChatInviteScenarios(): ChatInvite[] {
         const baseTime = Date.now();
-        
+
         return [
             // Fresh pending invite
             this.createMockData({
@@ -259,7 +271,7 @@ export class ChatInviteResponseFactory extends BaseAPIResponseFactory<
                     id: "fresh_pending_invite",
                     status: "Pending",
                     message: "Join our team discussion about the new features!",
-                    created_at: new Date(baseTime - (2 * 60 * 60 * 1000)).toISOString(), // 2 hours ago
+                    createdAt: new Date(baseTime - TWO_HOURS_TO_MS).toISOString(), // 2 hours ago
                 },
             }),
 
@@ -269,8 +281,8 @@ export class ChatInviteResponseFactory extends BaseAPIResponseFactory<
                     id: "recent_accepted_invite",
                     status: "Accepted",
                     message: "Welcome to our development chat!",
-                    created_at: new Date(baseTime - (24 * 60 * 60 * 1000)).toISOString(), // 1 day ago
-                    updated_at: new Date(baseTime - (2 * 60 * 60 * 1000)).toISOString(), // 2 hours ago
+                    createdAt: new Date(baseTime - DAYS_TO_MS).toISOString(), // 1 day ago
+                    updatedAt: new Date(baseTime - TWO_HOURS_TO_MS).toISOString(), // 2 hours ago
                 },
             }),
 
@@ -280,8 +292,8 @@ export class ChatInviteResponseFactory extends BaseAPIResponseFactory<
                     id: "declined_invite",
                     status: "Declined",
                     message: "Chat about project roadmap and planning",
-                    created_at: new Date(baseTime - (3 * 24 * 60 * 60 * 1000)).toISOString(), // 3 days ago
-                    updated_at: new Date(baseTime - (2 * 24 * 60 * 60 * 1000)).toISOString(), // 2 days ago
+                    createdAt: new Date(baseTime - THREE_DAYS_TO_MS).toISOString(), // 3 days ago
+                    updatedAt: new Date(baseTime - TWO_DAYS_TO_MS).toISOString(), // 2 days ago
                 },
             }),
 
@@ -291,7 +303,7 @@ export class ChatInviteResponseFactory extends BaseAPIResponseFactory<
                     id: "no_message_invite",
                     status: "Pending",
                     message: null,
-                    created_at: new Date(baseTime - (6 * 60 * 60 * 1000)).toISOString(), // 6 hours ago
+                    createdAt: new Date(baseTime - SIX_HOURS_TO_MS).toISOString(), // 6 hours ago
                 },
             }),
 
@@ -301,7 +313,7 @@ export class ChatInviteResponseFactory extends BaseAPIResponseFactory<
                     id: "old_pending_invite",
                     status: "Pending",
                     message: "Join our weekly sync chat",
-                    created_at: new Date(baseTime - (INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000)).toISOString(),
+                    createdAt: new Date(baseTime - (INVITE_EXPIRY_DAYS * DAYS_TO_MS)).toISOString(),
                 },
             }),
         ];
@@ -405,7 +417,7 @@ export const chatInviteResponseScenarios = {
                 overrides: {
                     id: inviteId,
                     status: "Accepted",
-                    updated_at: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                 },
             }),
         );
@@ -418,7 +430,7 @@ export const chatInviteResponseScenarios = {
                 overrides: {
                     id: inviteId,
                     status: "Declined",
-                    updated_at: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                 },
             }),
         );
@@ -510,7 +522,7 @@ export const chatInviteResponseScenarios = {
         const factory = new ChatInviteResponseFactory();
         return factory.createInviteExpiredErrorResponse(
             inviteId || generatePK().toString(),
-            new Date(Date.now() - (INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000)).toISOString(),
+            new Date(Date.now().toISOString() - (INVITE_EXPIRY_DAYS * DAYS_TO_MS)).toISOString(),
         );
     },
 

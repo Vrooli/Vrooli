@@ -34,13 +34,9 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures<ScheduleRecurrenceCre
             dayOfWeek: 3, // Wednesday (1-7, where 1 is Monday)
             dayOfMonth: null,
             duration: 60, // 60 minutes
-            endDate: new Date("2025-12-31T23:59:59Z"),
+            endDate: new Date("2025-12-31T23:59:59Z").toISOString(),
             scheduleConnect: validIds.id2,
-            // Add some extra fields that will be stripped
-            unknownField1: "should be stripped",
-            unknownField2: 123,
-            unknownField3: true,
-        },
+        } as ScheduleRecurrenceCreateInput,
         update: {
             id: validIds.id1,
             recurrenceType: ScheduleRecurrenceType.Monthly,
@@ -48,11 +44,8 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures<ScheduleRecurrenceCre
             dayOfWeek: null,
             dayOfMonth: 15, // 15th of each month
             duration: 90, // 90 minutes
-            endDate: new Date("2026-06-30T23:59:59Z"),
-            // Add some extra fields that will be stripped
-            unknownField1: "should be stripped",
-            unknownField2: 456,
-        },
+            endDate: new Date("2026-06-30T23:59:59Z").toISOString(),
+        } as ScheduleRecurrenceUpdateInput,
     },
     invalid: {
         missingRequired: {
@@ -60,7 +53,7 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures<ScheduleRecurrenceCre
                 id: validIds.id1,
                 // Missing required recurrenceType, interval, duration, and scheduleConnect
                 dayOfWeek: 3,
-                endDate: new Date("2025-12-31T23:59:59Z"),
+                endDate: new Date("2025-12-31T23:59:59Z").toISOString(),
             } as ScheduleRecurrenceCreateInput,
             update: {
                 // Missing required id
@@ -71,28 +64,21 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures<ScheduleRecurrenceCre
         invalidTypes: {
             create: {
                 id: 123, // Should be string
-                // @ts-expect-error - Invalid enum value for testing
                 recurrenceType: "InvalidType", // Invalid enum value
-                // @ts-expect-error - Should be number for testing
                 interval: "one", // Should be number
-                // @ts-expect-error - Should be number for testing
                 dayOfWeek: "Monday", // Should be number
-                // @ts-expect-error - Should be number for testing
                 dayOfMonth: "first", // Should be number
                 duration: -5, // Should be positive
-                // @ts-expect-error - Should be Date for testing
                 endDate: "not-a-date", // Should be Date
                 scheduleConnect: validIds.id2,
             } as unknown as ScheduleRecurrenceCreateInput,
             update: {
                 id: validIds.id1,
-                // @ts-expect-error - Should be string enum for testing
                 recurrenceType: 123, // Should be string enum
                 interval: 0, // Should be >= 1
                 dayOfWeek: 8, // Should be 1-7
                 dayOfMonth: 32, // Should be 1-31
                 duration: -1, // Should be positive
-                // @ts-expect-error - Should be Date object for testing
                 endDate: "2025-12-31", // Should be Date object
             } as unknown as ScheduleRecurrenceUpdateInput,
         },
@@ -110,7 +96,6 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures<ScheduleRecurrenceCre
         invalidRecurrenceType: {
             create: {
                 id: validIds.id1,
-                // @ts-expect-error - Not a valid enum value for testing
                 recurrenceType: "Hourly", // Not a valid enum value
                 interval: 1,
                 scheduleConnect: validIds.id2,
@@ -287,7 +272,7 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures<ScheduleRecurrenceCre
                 recurrenceType: ScheduleRecurrenceType.Daily,
                 interval: 1,
                 duration: 60,
-                endDate: new Date("2025-12-31T23:59:59Z"),
+                endDate: new Date("2025-12-31T23:59:59Z").toISOString(),
                 scheduleConnect: validIds.id2,
             },
         },
@@ -346,7 +331,7 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures<ScheduleRecurrenceCre
                 interval: 3, // Every 3 weeks
                 dayOfWeek: 6, // Saturday
                 duration: 120, // 2 hours
-                endDate: new Date("2026-12-31T23:59:59Z"),
+                endDate: new Date("2026-12-31T23:59:59Z").toISOString(),
                 scheduleConnect: validIds.id2,
             },
         },
@@ -372,7 +357,7 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures<ScheduleRecurrenceCre
         updateEndDate: {
             update: {
                 id: validIds.id1,
-                endDate: new Date("2027-01-01T00:00:00Z"),
+                endDate: new Date("2027-01-01T00:00:00Z").toISOString(),
             },
         },
     },

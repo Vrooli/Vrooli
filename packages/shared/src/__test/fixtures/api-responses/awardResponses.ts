@@ -11,20 +11,21 @@
 
 import type {
     Award,
+    AwardCategory,
     AwardSearchInput,
     AwardSearchResult,
-    AwardCategory,
     AwardSortBy,
 } from "../../../api/types.js";
+import { generatePK } from "../../../id/index.js";
 import { BaseAPIResponseFactory } from "./base.js";
 import type { MockDataOptions } from "./types.js";
-import { generatePK } from "../../../id/index.js";
 
 // Constants
 const DEFAULT_COUNT = 10;
 const DEFAULT_ERROR_RATE = 0.1;
 const DEFAULT_DELAY_MS = 500;
 const MAX_PROGRESS_VALUE = 10000;
+const DEFAULT_RECENT_ACHIEVEMENTS_COUNT = 5;
 const MINUTES_PER_HOUR = 60;
 const SECONDS_PER_MINUTE = 60;
 const MILLISECONDS_PER_SECOND = 1000;
@@ -96,8 +97,8 @@ export class AwardResponseFactory extends BaseAPIResponseFactory<
         const baseAward: Award = {
             __typename: "Award",
             id: awardId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             category: category as AwardCategory,
             progress,
             title: this.getAwardTitle(category as AwardCategory, progress),
@@ -113,16 +114,16 @@ export class AwardResponseFactory extends BaseAPIResponseFactory<
                 ...baseAward,
                 category: scenario === "edge-case" ? "AccountNew" as AwardCategory : "Reputation" as AwardCategory,
                 progress: scenario === "edge-case" ? 1 : MAX_PROGRESS_VALUE,
-                title: scenario === "edge-case" 
-                    ? "Welcome to the Community!" 
+                title: scenario === "edge-case"
+                    ? "Welcome to the Community!"
                     : "Reputation Master - Ultimate Achievement",
                 description: scenario === "complete"
                     ? "Outstanding achievement! You've reached the highest tier of community reputation through consistent high-quality contributions."
                     : scenario === "edge-case"
-                    ? "Welcome! You've successfully created your account and joined our community."
-                    : null,
+                        ? "Welcome! You've successfully created your account and joined our community."
+                        : null,
                 tierCompletedAt: scenario === "edge-case" ? oldDate : recentDate,
-                created_at: scenario === "edge-case" ? oldDate : 
+                createdAt: scenario === "edge-case" ? oldDate :
                     new Date(Date.now() - (DAYS_IN_1 * MILLISECONDS_PER_DAY)).toISOString(),
                 ...options?.overrides,
             };
@@ -175,14 +176,14 @@ export class AwardResponseFactory extends BaseAPIResponseFactory<
             return Array.from({ length: tierCount }, (_, index) => {
                 const progress = tiers[index]!;
                 const daysAgo = (tierCount - index) * DAYS_IN_7;
-                
+
                 return this.createMockData({
                     overrides: {
                         id: `award_${category}_${progress}`,
                         category: category as AwardCategory,
                         progress,
                         tierCompletedAt: new Date(Date.now() - (daysAgo * MILLISECONDS_PER_DAY)).toISOString(),
-                        created_at: new Date(Date.now() - ((daysAgo + 1) * MILLISECONDS_PER_DAY)).toISOString(),
+                        createdAt: new Date(Date.now() - ((daysAgo + 1) * MILLISECONDS_PER_DAY)).toISOString(),
                     },
                 });
             });
@@ -199,14 +200,14 @@ export class AwardResponseFactory extends BaseAPIResponseFactory<
 
         return completedTiers.map((progress, index) => {
             const daysAgo = (completedTiers.length - index) * DAYS_IN_7;
-            
+
             return this.createMockData({
                 overrides: {
                     id: `journey_${category}_${progress}`,
                     category,
                     progress,
                     tierCompletedAt: new Date(Date.now() - (daysAgo * MILLISECONDS_PER_DAY)).toISOString(),
-                    created_at: new Date(Date.now() - ((daysAgo + 1) * MILLISECONDS_PER_DAY)).toISOString(),
+                    createdAt: new Date(Date.now() - ((daysAgo + 1) * MILLISECONDS_PER_DAY)).toISOString(),
                 },
             });
         });
@@ -215,24 +216,24 @@ export class AwardResponseFactory extends BaseAPIResponseFactory<
     /**
      * Create recent achievements (last 30 days)
      */
-    createRecentAchievements(count = 5): Award[] {
+    createRecentAchievements(count = DEFAULT_RECENT_ACHIEVEMENTS_COUNT): Award[] {
         const now = Date.now();
         const thirtyDaysAgo = now - (DAYS_IN_30 * MILLISECONDS_PER_DAY);
 
         return Array.from({ length: count }, (_, index) => {
             const achievedAt = new Date(thirtyDaysAgo + Math.random() * (now - thirtyDaysAgo));
-            
+
             return this.createMockData({
                 overrides: {
                     id: `recent_award_${index}`,
                     tierCompletedAt: achievedAt.toISOString(),
-                    created_at: new Date(achievedAt.getTime() - (HOURS_IN_2 * MILLISECONDS_PER_HOUR)).toISOString(),
-                    updated_at: achievedAt.toISOString(),
+                    createdAt: new Date(achievedAt.getTime() - (HOURS_IN_2 * MILLISECONDS_PER_HOUR)).toISOString(),
+                    updatedAt: achievedAt.toISOString(),
                 },
             });
-        }).sort((a, b) => 
-            new Date(b.tierCompletedAt || b.created_at).getTime() - 
-            new Date(a.tierCompletedAt || a.created_at).getTime(),
+        }).sort((a, b) =>
+            new Date(b.tierCompletedAt || b.createdAt).getTime() -
+            new Date(a.tierCompletedAt || a.createdAt).getTime(),
         );
     }
 
@@ -251,14 +252,14 @@ export class AwardResponseFactory extends BaseAPIResponseFactory<
 
         return milestones.map(({ category, progress }, index) => {
             const daysAgo = Math.random() * DAYS_IN_30 * 3; // Random date in last 90 days
-            
+
             return this.createMockData({
                 overrides: {
                     id: `milestone_${category}_${progress}`,
                     category,
                     progress,
                     tierCompletedAt: new Date(Date.now() - (daysAgo * MILLISECONDS_PER_DAY)).toISOString(),
-                    created_at: new Date(Date.now() - ((daysAgo + 1) * MILLISECONDS_PER_DAY)).toISOString(),
+                    createdAt: new Date(Date.now() - ((daysAgo + 1) * MILLISECONDS_PER_DAY)).toISOString(),
                 },
             });
         });
@@ -275,7 +276,7 @@ export class AwardResponseFactory extends BaseAPIResponseFactory<
         return Array.from({ length: tierCount }, (_, index) => {
             const progress = tiers[index]!;
             const daysAgo = (tierCount - index) * DAYS_IN_7;
-            
+
             return this.createMockData({
                 overrides: {
                     id: `category_${category}_${progress}`,
@@ -301,16 +302,16 @@ export class AwardResponseFactory extends BaseAPIResponseFactory<
         return progressCategories.map(({ category, current, tier }, index) => {
             const daysAgo = (index + 1) * DAYS_IN_7;
             const isCompleted = current >= tier;
-            
+
             return this.createMockData({
                 overrides: {
                     id: `progress_${category}_${current}`,
                     category,
                     progress: isCompleted ? tier : current,
-                    tierCompletedAt: isCompleted ? 
-                        new Date(Date.now() - (daysAgo * MILLISECONDS_PER_DAY)).toISOString() : 
+                    tierCompletedAt: isCompleted ?
+                        new Date(Date.now() - (daysAgo * MILLISECONDS_PER_DAY)).toISOString() :
                         null,
-                    created_at: new Date(Date.now() - ((daysAgo + 1) * MILLISECONDS_PER_DAY)).toISOString(),
+                    createdAt: new Date(Date.now() - ((daysAgo + 1) * MILLISECONDS_PER_DAY)).toISOString(),
                 },
             });
         });
@@ -343,9 +344,9 @@ export class AwardResponseFactory extends BaseAPIResponseFactory<
             filteredAwards.sort((a, b) => {
                 switch (searchInput.sortBy) {
                     case "DateUpdatedAsc" as AwardSortBy:
-                        return new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
+                        return new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
                     case "DateUpdatedDesc" as AwardSortBy:
-                        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+                        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
                     case "ProgressAsc" as AwardSortBy:
                         return a.progress - b.progress;
                     case "ProgressDesc" as AwardSortBy:
@@ -373,7 +374,7 @@ export class AwardResponseFactory extends BaseAPIResponseFactory<
                 hasNextPage: false, // Simplified for fixtures
                 hasPreviousPage: false,
                 startCursor: filteredAwards.length > 0 ? btoa(`award:${filteredAwards[0]!.id}`) : null,
-                endCursor: filteredAwards.length > 0 ? 
+                endCursor: filteredAwards.length > 0 ?
                     btoa(`award:${filteredAwards[filteredAwards.length - 1]!.id}`) : null,
             },
         };

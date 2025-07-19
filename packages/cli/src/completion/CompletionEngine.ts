@@ -105,7 +105,7 @@ export class CompletionEngine {
         const subcommand = previousArgs[1];
         
         // Check if this position expects a file
-        if (this.isFileArgument(command, subcommand, previousArgs.length - 1)) {
+        if (this.isFileArgument(command, subcommand, previousArgs.length - 2)) {
             return {
                 type: "file",
                 command,
@@ -117,7 +117,7 @@ export class CompletionEngine {
         }
         
         // Check if this position expects a resource ID
-        if (this.isResourceArgument(command, subcommand, previousArgs.length - 1)) {
+        if (this.isResourceArgument(command, subcommand, previousArgs.length - 2)) {
             return {
                 type: "resource",
                 command,

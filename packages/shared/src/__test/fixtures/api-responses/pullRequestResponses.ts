@@ -6,21 +6,21 @@
  * success responses, error scenarios, and MSW handlers for testing.
  */
 
-import type { 
-    PullRequest, 
-    PullRequestCreateInput, 
-    PullRequestUpdateInput,
+import type {
+    PullRequest,
+    PullRequestCreateInput,
     PullRequestStatus,
     PullRequestTranslation,
-    User,
-    ResourceVersion,
+    PullRequestUpdateInput,
     Resource,
+    ResourceVersion,
+    User,
 } from "../../../api/types.js";
-import { 
+import {
     PullRequestStatus as PullRequestStatusEnum,
 } from "../../../run/enums.js";
-import type { MockDataOptions } from "./types.js";
 import { BaseAPIResponseFactory } from "./base.js";
+import type { MockDataOptions } from "./types.js";
 
 // Constants for realistic data generation
 const PR_PREFIXES = ["PR", "MR", "FEAT", "FIX", "DOCS"] as const;
@@ -552,7 +552,7 @@ export const pullRequestResponseScenarios = {
 
     rateLimitError: () => {
         const factory = new PullRequestAPIResponseFactory();
-        const resetTime = new Date(Date.now() + 5 * MINUTES_IN_MS); // 5 minutes from now
+        const resetTime = new Date(Date.now().toISOString() + 5 * MINUTES_IN_MS); // 5 minutes from now
         return factory.createRateLimitErrorResponse(100, 0, resetTime);
     },
 };

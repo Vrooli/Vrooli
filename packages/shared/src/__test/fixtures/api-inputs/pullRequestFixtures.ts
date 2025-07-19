@@ -50,11 +50,7 @@ export const pullRequestFixtures: ModelTestFixtures<PullRequestCreateInput, Pull
                     text: "Esta solicitud de extracción añade una nueva característica para mejorar la experiencia del usuario.",
                 },
             ],
-            // Add some extra fields that will be stripped
-            unknownField1: "should be stripped",
-            unknownField2: 123,
-            unknownField3: true,
-        },
+        } as PullRequestCreateInput,
         update: {
             id: validIds.id1,
             status: PullRequestStatus.Open,
@@ -73,10 +69,7 @@ export const pullRequestFixtures: ModelTestFixtures<PullRequestCreateInput, Pull
                 },
             ],
             translationsDelete: [validIds.id5],
-            // Add some extra fields that will be stripped
-            unknownField1: "should be stripped",
-            unknownField2: 456,
-        },
+        } as PullRequestUpdateInput,
     },
     invalid: {
         missingRequired: {
@@ -97,14 +90,10 @@ export const pullRequestFixtures: ModelTestFixtures<PullRequestCreateInput, Pull
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid types
                 id: 123, // Should be string
-                // @ts-expect-error - Testing invalid enum value
                 toObjectType: "InvalidType", // Invalid enum value
-                // @ts-expect-error - Testing invalid types
                 toConnect: 456, // Should be string
                 fromObjectType: PullRequestFromObjectType.ResourceVersion,
-                // @ts-expect-error - Testing invalid types
                 fromConnect: 789, // Should be string
                 translationsCreate: [
                     {
@@ -116,7 +105,6 @@ export const pullRequestFixtures: ModelTestFixtures<PullRequestCreateInput, Pull
             } as unknown as PullRequestCreateInput,
             update: {
                 id: validIds.id1,
-                // @ts-expect-error - Testing invalid enum value
                 status: "InvalidStatus", // Invalid enum value
             } as unknown as PullRequestUpdateInput,
         },
@@ -135,7 +123,6 @@ export const pullRequestFixtures: ModelTestFixtures<PullRequestCreateInput, Pull
         invalidToObjectType: {
             create: {
                 id: validIds.id1,
-                // @ts-expect-error - Testing invalid enum value
                 toObjectType: "UnknownType", // Not a valid enum value
                 toConnect: validIds.id2,
                 fromObjectType: PullRequestFromObjectType.ResourceVersion,
@@ -435,16 +422,12 @@ export const pullRequestTranslationFixtures: ModelTestFixtures<PullRequestTransl
         invalidTypes: {
             create: {
                 id: "400000000000000003",
-                // @ts-expect-error - Testing invalid type
                 language: 123, // Should be string
-                // @ts-expect-error - Testing invalid type
                 text: true, // Should be string
             } as unknown as PullRequestTranslationCreateInput,
             update: {
-                // @ts-expect-error - Testing invalid type
                 id: 456, // Should be string
                 language: "en",
-                // @ts-expect-error - Testing invalid type
                 text: [], // Should be string
             } as unknown as PullRequestTranslationUpdateInput,
         },

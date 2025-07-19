@@ -7,16 +7,16 @@
  */
 
 import type {
+    Meeting,
     MeetingInvite,
     MeetingInviteCreateInput,
-    MeetingInviteUpdateInput,
     MeetingInviteStatus,
-    Meeting,
+    MeetingInviteUpdateInput,
     User,
 } from "../../../api/types.js";
+import { generatePK } from "../../../id/index.js";
 import { BaseAPIResponseFactory } from "./base.js";
 import type { MockDataOptions } from "./types.js";
-import { generatePK } from "../../../id/index.js";
 import { userResponseFactory } from "./userResponses.js";
 
 // Constants
@@ -46,8 +46,8 @@ export class MeetingInviteResponseFactory extends BaseAPIResponseFactory<
         const baseMeetingInvite: MeetingInvite = {
             __typename: "MeetingInvite",
             id: inviteId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             meeting: this.createMockMeeting(),
             message: "You're invited to join our meeting. Please RSVP at your earliest convenience.",
             status: "Pending",
@@ -99,8 +99,8 @@ export class MeetingInviteResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "MeetingInvite",
             id: inviteId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             meeting: {
                 __typename: "Meeting",
                 id: input.meetingConnect,
@@ -123,7 +123,7 @@ export class MeetingInviteResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: MeetingInvite, input: MeetingInviteUpdateInput): MeetingInvite {
         const updates: Partial<MeetingInvite> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
         if (input.message !== undefined) updates.message = input.message;
@@ -198,8 +198,8 @@ export class MeetingInviteResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "Meeting",
             id: meetingId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             attendees: [],
             attendeesCount: 0,
             invites: [],
@@ -209,10 +209,10 @@ export class MeetingInviteResponseFactory extends BaseAPIResponseFactory<
             schedule: {
                 __typename: "Schedule",
                 id: generatePK().toString(),
-                created_at: now,
-                updated_at: now,
-                startTime: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
-                endTime: new Date(Date.now() + 90000000).toISOString(), // Tomorrow + 1 hour
+                createdAt: now,
+                updatedAt: now,
+                startTime: new Date(Date.now().toISOString() + 86400000).toISOString(), // Tomorrow
+                endTime: new Date(Date.now().toISOString() + 90000000).toISOString(), // Tomorrow + 1 hour
                 timezone: "UTC",
                 you: {
                     canDelete: false,
@@ -222,8 +222,8 @@ export class MeetingInviteResponseFactory extends BaseAPIResponseFactory<
             team: {
                 __typename: "Team",
                 id: generatePK().toString(),
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
                 handle: "example-team",
                 name: "Example Team",
                 isOpenToNewMembers: true,
@@ -262,7 +262,7 @@ export class MeetingInviteResponseFactory extends BaseAPIResponseFactory<
      */
     createInvitesForAllStatuses(): MeetingInvite[] {
         const statuses: MeetingInviteStatus[] = ["Pending", "Accepted", "Declined"];
-        return statuses.map((status, index) => 
+        return statuses.map((status, index) =>
             this.createMockData({
                 overrides: {
                     id: `invite_${status.toLowerCase()}_${index}`,
@@ -297,10 +297,10 @@ export class MeetingInviteResponseFactory extends BaseAPIResponseFactory<
                     schedule: {
                         __typename: "Schedule",
                         id: generatePK().toString(),
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString(),
-                        startTime: new Date(Date.now() + 3600000).toISOString(), // In 1 hour
-                        endTime: new Date(Date.now() + 5400000).toISOString(), // In 1.5 hours
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        startTime: new Date(Date.now().toISOString() + 3600000).toISOString(), // In 1 hour
+                        endTime: new Date(Date.now().toISOString() + 5400000).toISOString(), // In 1.5 hours
                         timezone: "UTC",
                         you: {
                             canDelete: false,

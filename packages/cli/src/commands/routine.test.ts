@@ -1,17 +1,14 @@
-// AI_CHECK: TEST_COVERAGE=46 | LAST: 2025-07-13
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type {
+    Resource,
+    ResourceSearchResult,
+    ResourceVersion
+} from "@vrooli/shared";
 import { Command } from "commander";
-import { RoutineCommands } from "./routine.js";
+import { promises as fs } from "fs";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type ApiClient } from "../utils/client.js";
 import { type ConfigManager } from "../utils/config.js";
-import chalk from "chalk";
-import { promises as fs } from "fs";
-import type { 
-    ResourceSearchResult,
-    ResourceVersionSearchResult,
-    Resource,
-    ResourceVersion,
-} from "@vrooli/shared";
+import { RoutineCommands } from "./routine.js";
 
 // Mock dependencies
 vi.mock("fs", () => ({
@@ -78,7 +75,7 @@ vi.mock("chalk", () => {
         gray: createChalkMock,
         blue: createChalkMock,
     });
-    
+
     return {
         default: chalkMock,
     };
@@ -344,7 +341,7 @@ describe("RoutineCommands", () => {
                 versions: [{
                     id: "v1",
                     resourceSubType: "Graph",
-                    config: { 
+                    config: {
                         __version: "1.0",
                         callDataCode: {
                             __version: "1.0",
@@ -360,9 +357,9 @@ describe("RoutineCommands", () => {
                 publicId: "pub2",
                 resourceType: "Routine",
                 versions: [{
-                    id: "v2", 
+                    id: "v2",
                     resourceSubType: "Graph",
-                    config: { 
+                    config: {
                         __version: "1.0",
                         callDataCode: {
                             __version: "1.0",
@@ -409,21 +406,21 @@ describe("RoutineCommands", () => {
             ]);
 
             (fs.readFile as any)
-                .mockResolvedValueOnce(JSON.stringify({ 
+                .mockResolvedValueOnce(JSON.stringify({
                     id: "routine1",
-                    publicId: "pub1", 
+                    publicId: "pub1",
                     resourceType: "Routine",
-                    versions: [{ 
-                        id: "v1", 
-                        resourceSubType: "Graph", 
-                        config: { 
+                    versions: [{
+                        id: "v1",
+                        resourceSubType: "Graph",
+                        config: {
                             __version: "1.0",
                             callDataGenerate: {
                                 model: "gpt-4",
                                 prompt: "Test prompt",
                             },
-                        }, 
-                        translations: [{ language: "en", name: "Test Routine" }], 
+                        },
+                        translations: [{ language: "en", name: "Test Routine" }],
                     }],
                 }))
                 .mockResolvedValueOnce("invalid json");
@@ -521,7 +518,7 @@ describe("RoutineCommands", () => {
                 versions: [{
                     id: "v1",
                     resourceSubType: "Action",
-                    config: { 
+                    config: {
                         __version: "1.0",
                         graph: {
                             __version: "1.0",
@@ -713,7 +710,7 @@ describe("RoutineCommands", () => {
 
             await program.parseAsync(["node", "test", "routine", "discover", "--format", "json"]);
 
-            const jsonCallArgs = consoleLogSpy.mock.calls.find((call: any[]) => 
+            const jsonCallArgs = consoleLogSpy.mock.calls.find((call: any[]) =>
                 call[0] && call[0].includes("\"publicId\""),
             );
             expect(jsonCallArgs).toBeDefined();
@@ -905,7 +902,7 @@ describe("RoutineCommands", () => {
                 "--format", "json",
             ]);
 
-            const jsonCallArgs = consoleLogSpy.mock.calls.find((call: any[]) => 
+            const jsonCallArgs = consoleLogSpy.mock.calls.find((call: any[]) =>
                 call[0] && call[0].includes("\"publicId\""),
             );
             expect(jsonCallArgs).toBeDefined();
@@ -961,10 +958,10 @@ describe("RoutineCommands", () => {
             // Create a separate program for this test to avoid command conflicts
             const testProgram = new Command();
             const routineCommands = new RoutineCommands(testProgram, mockClient, mockConfig);
-            
+
             // Access the private method for testing
             const validateFormSchema = (routineCommands as any).validateFormSchema;
-            
+
             const validSchema = {
                 __version: "1.0.0",
                 schema: {
@@ -996,12 +993,12 @@ describe("RoutineCommands", () => {
             // Create a separate program for this test to avoid command conflicts
             const testProgram = new Command();
             const routineCommands = new RoutineCommands(testProgram, mockClient, mockConfig);
-            
+
             // Access the private method for testing
             const validateSingleStepConfig = (routineCommands as any).validateSingleStepConfig;
-            
+
             const errors: string[] = [];
-            
+
             const configWithCallData = {
                 callDataAction: {
                     __version: "1.0.0",
@@ -1013,7 +1010,7 @@ describe("RoutineCommands", () => {
             };
 
             validateSingleStepConfig(configWithCallData, errors);
-            
+
             expect(errors).toContain("callDataInvalid missing __version or schema");
         });
 
@@ -1021,12 +1018,12 @@ describe("RoutineCommands", () => {
             // Create a separate program for this test to avoid command conflicts
             const testProgram = new Command();
             const routineCommands = new RoutineCommands(testProgram, mockClient, mockConfig);
-            
+
             // Access the private method for testing
             const validateGraphConfig = (routineCommands as any).validateGraphConfig;
-            
+
             const errors: string[] = [];
-            
+
             const graphWithTodo = {
                 __type: "BPMN-2.0",
                 schema: {
@@ -1041,7 +1038,7 @@ describe("RoutineCommands", () => {
             };
 
             await validateGraphConfig(graphWithTodo, errors, true);
-            
+
             expect(errors).toContain("Activity 'activity1': Contains TODO placeholder - subroutine ID needs to be replaced");
         });
 
@@ -1049,12 +1046,12 @@ describe("RoutineCommands", () => {
             // Create a separate program for this test to avoid command conflicts
             const testProgram = new Command();
             const routineCommands = new RoutineCommands(testProgram, mockClient, mockConfig);
-            
+
             // Access the private method for testing
             const validateGraphConfig = (routineCommands as any).validateGraphConfig;
-            
+
             const errors: string[] = [];
-            
+
             const graphWithUnknownType = {
                 __type: "UnknownGraphType",
                 schema: {
@@ -1063,7 +1060,7 @@ describe("RoutineCommands", () => {
             };
 
             await validateGraphConfig(graphWithUnknownType, errors);
-            
+
             expect(errors).toContain("Unknown graph type: UnknownGraphType");
         });
 
@@ -1071,18 +1068,18 @@ describe("RoutineCommands", () => {
             // Create a separate program for this test to avoid command conflicts
             const testProgram = new Command();
             const routineCommands = new RoutineCommands(testProgram, mockClient, mockConfig);
-            
+
             // Access the private method for testing
             const validateSingleStepConfig = (routineCommands as any).validateSingleStepConfig;
-            
+
             const errors: string[] = [];
-            
+
             const configWithoutCallData = {
                 someOtherProperty: "value",
             };
 
             validateSingleStepConfig(configWithoutCallData, errors);
-            
+
             expect(errors).toContain("Single-step routine missing callData configuration");
         });
 
@@ -1090,15 +1087,15 @@ describe("RoutineCommands", () => {
             // Create a separate program for this test to avoid command conflicts
             const testProgram = new Command();
             const routineCommands = new RoutineCommands(testProgram, mockClient, mockConfig);
-            
+
             // Access the private method for testing and bind it to the instance
             const validateGraphConfig = (routineCommands as any).validateGraphConfig.bind(routineCommands);
-            
+
             const errors: string[] = [];
-            
+
             // Mock client to simulate subroutine not found
             (mockClient.get as any).mockRejectedValue(new Error("Not found"));
-            
+
             const graphWithSubroutine = {
                 __type: "BPMN-2.0",
                 schema: {
@@ -1113,7 +1110,7 @@ describe("RoutineCommands", () => {
             };
 
             await validateGraphConfig(graphWithSubroutine, errors, true);
-            
+
             expect(errors).toContain("Activity 'activity1': Subroutine 'valid-subroutine-id' not found in database");
             expect(mockClient.get).toHaveBeenCalledWith("/api/routine/valid-subroutine-id");
         });
@@ -1122,15 +1119,15 @@ describe("RoutineCommands", () => {
             // Create a separate program for this test to avoid command conflicts
             const testProgram = new Command();
             const routineCommands = new RoutineCommands(testProgram, mockClient, mockConfig);
-            
+
             // Access the private method for testing and bind it to the instance
             const validateGraphConfig = (routineCommands as any).validateGraphConfig.bind(routineCommands);
-            
+
             const errors: string[] = [];
-            
+
             // Mock client to simulate successful subroutine lookup
             (mockClient.get as any).mockResolvedValue({ id: "valid-subroutine-id", name: "Test Subroutine" });
-            
+
             const graphWithSubroutine = {
                 __type: "BPMN-2.0",
                 schema: {
@@ -1145,7 +1142,7 @@ describe("RoutineCommands", () => {
             };
 
             await validateGraphConfig(graphWithSubroutine, errors, true);
-            
+
             // No errors should be added for valid subroutine
             expect(errors).not.toContain(expect.stringMatching(/Activity 'activity1'.*not found/));
             expect(mockClient.get).toHaveBeenCalledWith("/api/routine/valid-subroutine-id");
@@ -1155,12 +1152,12 @@ describe("RoutineCommands", () => {
             // Create a separate program for this test to avoid command conflicts
             const testProgram = new Command();
             const routineCommands = new RoutineCommands(testProgram, mockClient, mockConfig);
-            
+
             // Access the private method for testing
             const validateGraphConfig = (routineCommands as any).validateGraphConfig;
-            
+
             const errors: string[] = [];
-            
+
             const bpmnWithoutData = {
                 __type: "BPMN-2.0",
                 schema: {
@@ -1169,7 +1166,7 @@ describe("RoutineCommands", () => {
             };
 
             await validateGraphConfig(bpmnWithoutData, errors);
-            
+
             expect(errors).toContain("BPMN graph missing XML 'data' field");
         });
 
@@ -1177,12 +1174,12 @@ describe("RoutineCommands", () => {
             // Create a separate program for this test to avoid command conflicts
             const testProgram = new Command();
             const routineCommands = new RoutineCommands(testProgram, mockClient, mockConfig);
-            
+
             // Access the private method for testing
             const validateGraphConfig = (routineCommands as any).validateGraphConfig;
-            
+
             const errors: string[] = [];
-            
+
             const bpmnWithInvalidData = {
                 __type: "BPMN-2.0",
                 schema: {
@@ -1192,7 +1189,7 @@ describe("RoutineCommands", () => {
             };
 
             await validateGraphConfig(bpmnWithInvalidData, errors);
-            
+
             expect(errors).toContain("BPMN graph missing XML 'data' field");
         });
 
@@ -1200,12 +1197,12 @@ describe("RoutineCommands", () => {
             // Create a separate program for this test to avoid command conflicts
             const testProgram = new Command();
             const routineCommands = new RoutineCommands(testProgram, mockClient, mockConfig);
-            
+
             // Access the private method for testing
             const validateGraphConfig = (routineCommands as any).validateGraphConfig;
-            
+
             const errors: string[] = [];
-            
+
             const bpmnWithoutActivityMap = {
                 __type: "BPMN-2.0",
                 schema: {
@@ -1214,7 +1211,7 @@ describe("RoutineCommands", () => {
             };
 
             await validateGraphConfig(bpmnWithoutActivityMap, errors);
-            
+
             expect(errors).toContain("BPMN graph missing 'activityMap'");
         });
 
@@ -1222,12 +1219,12 @@ describe("RoutineCommands", () => {
             // Create a separate program for this test to avoid command conflicts
             const testProgram = new Command();
             const routineCommands = new RoutineCommands(testProgram, mockClient, mockConfig);
-            
+
             // Access the private method for testing
             const validateGraphConfig = (routineCommands as any).validateGraphConfig;
-            
+
             const errors: string[] = [];
-            
+
             const bpmnWithInvalidActivityMap = {
                 __type: "BPMN-2.0",
                 schema: {
@@ -1237,7 +1234,7 @@ describe("RoutineCommands", () => {
             };
 
             await validateGraphConfig(bpmnWithInvalidActivityMap, errors);
-            
+
             expect(errors).toContain("BPMN graph missing 'activityMap'");
         });
     });
@@ -1246,7 +1243,7 @@ describe("RoutineCommands", () => {
         it("should import routine in dry run mode", async () => {
             const testProgram = new Command();
             const routineCommands = new RoutineCommands(testProgram, mockClient, mockConfig);
-            
+
             const validRoutineData = {
                 id: "test-id",
                 publicId: "pub-id",
@@ -1282,10 +1279,10 @@ describe("RoutineCommands", () => {
         it("should import routine and call API when not dry run", async () => {
             const testProgram = new Command();
             const routineCommands = new RoutineCommands(testProgram, mockClient, mockConfig);
-            
+
             const validRoutineData = {
                 id: "test-id",
-                publicId: "pub-id", 
+                publicId: "pub-id",
                 resourceType: "Routine",
                 versions: [{
                     id: "version-1",
@@ -1307,7 +1304,7 @@ describe("RoutineCommands", () => {
             };
 
             const mockApiResponse = { id: "created-routine" };
-            
+
             (fs.readFile as any).mockResolvedValue(JSON.stringify(validRoutineData));
             (mockClient.post as any).mockResolvedValue(mockApiResponse);
 
@@ -1322,7 +1319,7 @@ describe("RoutineCommands", () => {
         it("should throw validation error for invalid routine data", async () => {
             const testProgram = new Command();
             const routineCommands = new RoutineCommands(testProgram, mockClient, mockConfig);
-            
+
             const invalidRoutineData = {
                 id: "test-id",
                 // Missing required fields like publicId, resourceType, versions
@@ -1331,7 +1328,7 @@ describe("RoutineCommands", () => {
             (fs.readFile as any).mockResolvedValue(JSON.stringify(invalidRoutineData));
 
             const importSilent = (routineCommands as any).importRoutineSilent.bind(routineCommands);
-            
+
             await expect(importSilent("test.json", false)).rejects.toThrow("Validation failed:");
         });
     });

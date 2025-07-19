@@ -10,11 +10,10 @@ import type {
     Tag,
     TagCreateInput,
     TagUpdateInput,
-    TagTranslation,
 } from "../../../api/types.js";
+import { generatePK } from "../../../id/index.js";
 import { BaseAPIResponseFactory } from "./base.js";
 import type { MockDataOptions } from "./types.js";
-import { generatePK } from "../../../id/index.js";
 
 // Constants
 const DEFAULT_COUNT = 10;
@@ -44,8 +43,8 @@ export class TagResponseFactory extends BaseAPIResponseFactory<
         const baseTag: Tag = {
             __typename: "Tag",
             id: tagId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             tag: "example-tag",
             bookmarks: 0,
             translations: [{
@@ -109,8 +108,8 @@ export class TagResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "Tag",
             id: tagId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             tag: input.tag,
             bookmarks: 0,
             translations: input.translationsCreate?.map(t => ({
@@ -136,7 +135,7 @@ export class TagResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: Tag, input: TagUpdateInput): Tag {
         const updates: Partial<Tag> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
         if (input.tag !== undefined) updates.tag = input.tag;
@@ -246,7 +245,7 @@ export class TagResponseFactory extends BaseAPIResponseFactory<
             { name: "ai", bookmarks: 760, desc: "Artificial Intelligence" },
         ];
 
-        return programmingTags.map(tag => 
+        return programmingTags.map(tag =>
             this.createMockData({
                 overrides: {
                     tag: tag.name,
@@ -277,7 +276,7 @@ export class TagResponseFactory extends BaseAPIResponseFactory<
             { name: "deployment", bookmarks: 340, desc: "Deployment and DevOps content" },
         ];
 
-        return categories.map(category => 
+        return categories.map(category =>
             this.createMockData({
                 overrides: {
                     tag: category.name,
@@ -326,7 +325,7 @@ export class TagResponseFactory extends BaseAPIResponseFactory<
             },
         ];
 
-        return multilingualTags.map(tag => 
+        return multilingualTags.map(tag =>
             this.createMockData({
                 overrides: {
                     tag: tag.name,
@@ -472,7 +471,7 @@ export const tagResponseScenarios = {
             ...factory.createProgrammingTags(),
             ...factory.createCategoryTags(),
         ];
-        const filteredTags = allTags.filter(tag => 
+        const filteredTags = allTags.filter(tag =>
             tag.tag.includes(searchTerm.toLowerCase()) ||
             tag.translations.some(t => t.description?.toLowerCase().includes(searchTerm.toLowerCase())),
         );

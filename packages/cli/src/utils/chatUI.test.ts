@@ -1,7 +1,6 @@
-// AI_CHECK: TEST_COVERAGE=10 | LAST: 2025-01-13
-import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
-import { InteractiveChatUI, type ChatDisplayOptions, type BotStatus } from "./chatUI.js";
 import { type ChatMessage, type User } from "@vrooli/shared";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import { InteractiveChatUI, type BotStatus, type ChatDisplayOptions } from "./chatUI.js";
 
 // Mock chalk module
 vi.mock("chalk", () => {
@@ -49,7 +48,7 @@ describe("InteractiveChatUI", () => {
         consoleLogSpy = vi.spyOn(console, "log").mockImplementation(vi.fn());
         consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(vi.fn());
         consoleClearSpy = vi.spyOn(console, "clear").mockImplementation(vi.fn());
-        
+
         // Mock process.stdout methods
         processStdoutWriteSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
         // Mock clearLine and cursorTo if they don't exist
@@ -117,10 +116,10 @@ describe("InteractiveChatUI", () => {
             const message: ChatMessage = {
                 id: "msg-1",
                 text: "Hello bot",
-                user: { 
-                    id: "user-123", 
+                user: {
+                    id: "user-123",
                     name: "TestUser",
-                    isBot: false, 
+                    isBot: false,
                 } as User,
                 createdAt: new Date().toISOString(),
             } as ChatMessage;
@@ -138,10 +137,10 @@ describe("InteractiveChatUI", () => {
             const message: ChatMessage = {
                 id: "msg-2",
                 text: "Hello user",
-                user: { 
-                    id: "bot-123", 
+                user: {
+                    id: "bot-123",
                     name: "TestBot",
-                    isBot: true, 
+                    isBot: true,
                 } as User,
                 createdAt: new Date().toISOString(),
             } as ChatMessage;
@@ -174,13 +173,13 @@ describe("InteractiveChatUI", () => {
 
         it("should append to streaming response", () => {
             ui.appendToStreamingResponse("Hello ");
-            
+
             expect(processStdoutClearLineSpy).toHaveBeenCalledWith(0);
             expect(processStdoutCursorToSpy).toHaveBeenCalledWith(0);
             expect(processStdoutWriteSpy).toHaveBeenCalled();
-            
+
             ui.appendToStreamingResponse("world!");
-            
+
             expect(processStdoutWriteSpy).toHaveBeenLastCalledWith(expect.stringContaining("Hello world!"));
         });
 

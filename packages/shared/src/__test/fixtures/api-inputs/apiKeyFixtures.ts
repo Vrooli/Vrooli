@@ -22,7 +22,6 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
             limitHard: "1000000",
             name: "Test API Key",
             stopAtLimit: true,
-            absoluteMax: 100000,
             permissions: "{}",
         },
         update: {
@@ -37,7 +36,6 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
             limitSoft: "4000000",
             name: "Production API Key",
             stopAtLimit: false,
-            absoluteMax: 500000,
             permissions: JSON.stringify({ read: true, write: true, delete: false }),
         },
         update: {
@@ -47,14 +45,13 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
             limitSoft: "5000000",
             name: "Updated API Key",
             stopAtLimit: true,
-            absoluteMax: 600000,
             permissions: JSON.stringify({ read: true, write: true, delete: true }),
         },
     },
     invalid: {
         missingRequired: {
             create: {
-                // Missing all required fields: id, limitHard, name, stopAtLimit, absoluteMax
+                // Missing all required fields: id, limitHard, name, stopAtLimit, permissions
                 disabled: false,
             } as ApiKeyCreateInput,
             update: {
@@ -64,31 +61,19 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid types
                 id: 123, // Should be string
-                // @ts-expect-error - Testing invalid types
                 limitHard: 1000, // Should be string
-                // @ts-expect-error - Testing invalid types
                 name: 123, // Should be string
-                // @ts-expect-error - Testing invalid types
                 stopAtLimit: "yes", // Should be boolean
-                // @ts-expect-error - Testing invalid types
                 permissions: 123, // Should be string
             } as unknown as ApiKeyCreateInput,
             update: {
-                // @ts-expect-error - Testing invalid types
                 id: true, // Should be string
-                // @ts-expect-error - Testing invalid types
                 disabled: "no", // Should be boolean
-                // @ts-expect-error - Testing invalid types
                 limitHard: true, // Should be string
-                // @ts-expect-error - Testing invalid types
                 limitSoft: false, // Should be string
-                // @ts-expect-error - Testing invalid types
                 name: [], // Should be string
-                // @ts-expect-error - Testing invalid types
                 stopAtLimit: 1, // Should be boolean (but will be converted)
-                // @ts-expect-error - Testing invalid types
                 permissions: { read: true }, // Should be string
             } as unknown as ApiKeyUpdateInput,
         },
@@ -98,7 +83,6 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
                 limitHard: "1000000",
                 name: "ab", // Less than 3 characters
                 stopAtLimit: true,
-                absoluteMax: 100000,
                 permissions: "{}",
             },
         },
@@ -108,7 +92,6 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
                 limitHard: "1000000",
                 name: "a".repeat(NAME_MAX_LENGTH + TEST_FIELD_TOO_LONG_MULTIPLIER), // Exceeds max char limit
                 stopAtLimit: true,
-                absoluteMax: 100000,
                 permissions: "{}",
             },
         },
@@ -118,7 +101,6 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
                 limitHard: "-1000", // Should be positive
                 name: "Test API Key",
                 stopAtLimit: true,
-                absoluteMax: 100000,
                 permissions: "{}",
             },
         },
@@ -128,7 +110,6 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
                 limitHard: "abc", // Not a valid integer
                 name: "Test API Key",
                 stopAtLimit: true,
-                absoluteMax: 100000,
                 permissions: "{}",
             },
         },
@@ -138,37 +119,15 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
                 limitHard: "1000000",
                 name: "Test API Key",
                 stopAtLimit: true,
-                absoluteMax: 100000,
                 permissions: "a".repeat(PERMISSIONS_TOO_LONG_LENGTH), // Exceeds 4096 char limit
             },
         },
-        negativeAbsoluteMax: {
+        floatLimitHard: {
             create: {
                 id: validIds.id1,
-                limitHard: "1000000",
+                limitHard: "123.45", // Float value - should be rejected
                 name: "Test API Key",
                 stopAtLimit: true,
-                absoluteMax: -1, // Negative value
-                permissions: "{}",
-            },
-        },
-        absoluteMaxTooLarge: {
-            create: {
-                id: validIds.id1,
-                limitHard: "1000000",
-                name: "Test API Key",
-                stopAtLimit: true,
-                absoluteMax: 1000001, // Over 1,000,000 limit
-                permissions: "{}",
-            },
-        },
-        floatAbsoluteMax: {
-            create: {
-                id: validIds.id1,
-                limitHard: "1000000",
-                name: "Test API Key",
-                stopAtLimit: true,
-                absoluteMax: 123.45, // Float value - should be rejected
                 permissions: "{}",
             },
         },
@@ -180,7 +139,6 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
                 limitHard: "1000000",
                 name: "abc", // Exactly 3 characters
                 stopAtLimit: true,
-                absoluteMax: 100000,
                 permissions: "{}",
             },
         },
@@ -190,7 +148,6 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
                 limitHard: "1000000",
                 name: "a".repeat(MAX_LENGTH_NAME), // Exactly 50 characters
                 stopAtLimit: true,
-                absoluteMax: 100000,
                 permissions: "{}",
             },
         },
@@ -200,7 +157,6 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
                 limitHard: "0", // Edge case: zero limit
                 name: "Test API Key",
                 stopAtLimit: true,
-                absoluteMax: 100000,
                 permissions: "{}",
             },
         },
@@ -210,7 +166,6 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
                 limitHard: "1000000",
                 name: "Test API Key",
                 stopAtLimit: true,
-                absoluteMax: 100000,
                 permissions: "", // Edge case: empty string
             },
         },
@@ -220,7 +175,6 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
                 limitHard: "1000000",
                 name: "Test API Key",
                 stopAtLimit: true,
-                absoluteMax: 100000,
                 permissions: "a".repeat(API_KEY_PERMISSIONS_MAX_LENGTH), // Exactly at max length
             },
         },
@@ -231,7 +185,6 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
                 limitSoft: "9223372036854775806",
                 name: "Test API Key",
                 stopAtLimit: true,
-                absoluteMax: 100000,
                 permissions: "{}",
             },
         },
@@ -240,31 +193,9 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
                 id: validIds.id1,
                 limitHard: "1000000",
                 name: "Test API Key",
-                // @ts-expect-error - Testing string boolean conversion
                 stopAtLimit: "true", // String boolean, should be converted
-                absoluteMax: 100000,
                 permissions: "{}",
             } as unknown as ApiKeyCreateInput,
-        },
-        zeroAbsoluteMax: {
-            create: {
-                id: validIds.id1,
-                limitHard: "1000000",
-                name: "Test API Key",
-                stopAtLimit: true,
-                absoluteMax: 0, // Edge case: zero absolute max
-                permissions: "{}",
-            },
-        },
-        maxAbsoluteMax: {
-            create: {
-                id: validIds.id1,
-                limitHard: "1000000",
-                name: "Test API Key",
-                stopAtLimit: true,
-                absoluteMax: 1000000, // Edge case: maximum absolute max
-                permissions: "{}",
-            },
         },
         updateOnlyName: {
             update: {
@@ -291,7 +222,6 @@ const customizers: {
         limitHard: "1000000",
         name: "Generated API Key",
         stopAtLimit: true,
-        absoluteMax: 100000,
         permissions: "{}",
         ...base,
     }),

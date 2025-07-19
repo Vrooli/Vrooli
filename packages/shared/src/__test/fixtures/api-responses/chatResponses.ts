@@ -9,15 +9,15 @@
 import type {
     Chat,
     ChatCreateInput,
-    ChatUpdateInput,
-    ChatParticipant,
     ChatMessage,
-    User,
+    ChatParticipant,
+    ChatUpdateInput,
     Team,
+    User,
 } from "../../../api/types.js";
+import { generatePK } from "../../../id/index.js";
 import { BaseAPIResponseFactory } from "./base.js";
 import type { MockDataOptions } from "./types.js";
-import { generatePK } from "../../../id/index.js";
 import { userResponseFactory } from "./userResponses.js";
 
 /**
@@ -44,8 +44,8 @@ export class ChatResponseFactory extends BaseAPIResponseFactory<
         const baseChat: Chat = {
             __typename: "Chat",
             id: chatId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             openToAnyoneWithInvite: false,
             creator: { __typename: "User", id: creator.id } as User,
             invites: [],
@@ -110,8 +110,8 @@ export class ChatResponseFactory extends BaseAPIResponseFactory<
         const chat: Chat = {
             __typename: "Chat",
             id: chatId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             openToAnyoneWithInvite: input.openToAnyoneWithInvite || false,
             creator: { __typename: "User", id: creator.id } as User,
             invites: [],
@@ -119,8 +119,8 @@ export class ChatResponseFactory extends BaseAPIResponseFactory<
             participants: [{
                 __typename: "ChatParticipant",
                 id: generatePK().toString(),
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
                 chat: { id: chatId } as Chat,
                 user: creator,
             }],
@@ -151,8 +151,8 @@ export class ChatResponseFactory extends BaseAPIResponseFactory<
                     chat.participants.push({
                         __typename: "ChatParticipant",
                         id: generatePK().toString(),
-                        created_at: now,
-                        updated_at: now,
+                        createdAt: now,
+                        updatedAt: now,
                         chat: { id: chatId } as Chat,
                         user: { __typename: "User", id: p.userConnect } as User,
                     });
@@ -169,7 +169,7 @@ export class ChatResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: Chat, input: ChatUpdateInput): Chat {
         const updates: Partial<Chat> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
         if (input.openToAnyoneWithInvite !== undefined) {
@@ -246,8 +246,8 @@ export class ChatResponseFactory extends BaseAPIResponseFactory<
         participants.push({
             __typename: "ChatParticipant",
             id: generatePK().toString(),
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             chat: { id: chatId } as Chat,
             user: creator,
         });
@@ -258,8 +258,8 @@ export class ChatResponseFactory extends BaseAPIResponseFactory<
             participants.push({
                 __typename: "ChatParticipant",
                 id: generatePK().toString(),
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
                 chat: { id: chatId } as Chat,
                 user,
             });
@@ -282,8 +282,8 @@ export class ChatResponseFactory extends BaseAPIResponseFactory<
             messages.push({
                 __typename: "ChatMessage",
                 id: generatePK().toString(),
-                created_at: messageTime,
-                updated_at: messageTime,
+                createdAt: messageTime,
+                updatedAt: messageTime,
                 chat: { id: chatId } as Chat,
                 user: participant.user,
                 versionIndex: 0,
@@ -318,8 +318,8 @@ export class ChatResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "Chat",
             id: chatId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             openToAnyoneWithInvite: false,
             creator: { __typename: "User", id: participant1.id } as User,
             invites: [],
@@ -328,16 +328,16 @@ export class ChatResponseFactory extends BaseAPIResponseFactory<
                 {
                     __typename: "ChatParticipant",
                     id: generatePK().toString(),
-                    created_at: now,
-                    updated_at: now,
+                    createdAt: now,
+                    updatedAt: now,
                     chat: { id: chatId } as Chat,
                     user: participant1,
                 },
                 {
                     __typename: "ChatParticipant",
                     id: generatePK().toString(),
-                    created_at: now,
-                    updated_at: now,
+                    createdAt: now,
+                    updatedAt: now,
                     chat: { id: chatId } as Chat,
                     user: participant2,
                 },
@@ -368,8 +368,8 @@ export class ChatResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "Chat",
             id: chatId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             openToAnyoneWithInvite: false,
             creator: { __typename: "User", id: participants[0].user.id } as User,
             invites: [],

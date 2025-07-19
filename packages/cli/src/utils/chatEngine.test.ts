@@ -1,4 +1,5 @@
 // AI_CHECK: TEST_COVERAGE=44 | LAST: 2025-07-13 | STATUS: 83.17% coverage achieved (+8.66%), comprehensive test suite with 58 tests covering all major methods and error scenarios
+// AI_CHECK: TEST_QUALITY=5 | LAST: 2025-07-16 | DESCRIPTION: Good coverage but excessive mocking. Tests many behaviors but relies heavily on mocking chatUI, slashCommands, toolApproval, contextManager, and readline. Many tests verify mock calls rather than actual behavior. Would benefit from integration tests with real dependencies.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { InteractiveChatEngine } from "./chatEngine.js";
 

@@ -39,9 +39,7 @@ export const phoneFixtures: ModelTestFixtures<PhoneCreateInput, PhoneUpdateInput
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid types
                 id: 123, // Should be string
-                // @ts-expect-error - Testing invalid types
                 phoneNumber: 1234567890, // Should be string
             } as unknown as PhoneCreateInput,
             update: {} as PhoneUpdateInput,

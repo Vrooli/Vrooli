@@ -493,21 +493,20 @@ export class StaticProvider implements CompletionProvider {
     
     private getOptions(command: string, subcommand: string | undefined, partial: string): CompletionResult[] {
         const cmd = this.commandTree[command];
-        if (!cmd) return [];
         
         let options: Record<string, string> = {};
         
-        // Get subcommand-specific options
-        if (subcommand && cmd.subcommands[subcommand]) {
+        // Get subcommand-specific options (only if command is known)
+        if (cmd && subcommand && cmd.subcommands[subcommand]) {
             options = { ...cmd.subcommands[subcommand].options };
         }
         
-        // Add global command options if they exist
-        if (cmd.globalOptions) {
+        // Add global command options if they exist (only if command is known)
+        if (cmd && cmd.globalOptions) {
             options = { ...options, ...cmd.globalOptions };
         }
         
-        // Add global CLI options
+        // Always add global CLI options (even for unknown commands)
         const globalOptions: Record<string, string> = {
             "-p": "Use a specific profile",
             "--profile": "Use a specific profile",

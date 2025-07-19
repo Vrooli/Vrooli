@@ -62,13 +62,17 @@ export async function calculateComplexity(
     });
 
     // Create a map of all resource versions (including related versions) by ID, so we can reference them later.
-    const resourceVersionsById = new Map<string, { complexity: number | null; resourceSubType?: string | null }>(
+    const resourceVersionsById = new Map<string, { id: bigint; complexity: number | null; resourceSubType: string | null }>(
         fetchedData.map(rv => [rv.id.toString(), rv]),
     );
     for (const rv of fetchedData) {
         if (rv.relatedVersions) {
             for (const rel of rv.relatedVersions) {
-                resourceVersionsById.set(rel.toVersion.id.toString(), { complexity: rel.toVersion.complexity, resourceSubType: rel.toVersion.resourceSubType ?? undefined });
+                resourceVersionsById.set(rel.toVersion.id.toString(), { 
+                    id: rel.toVersion.id, 
+                    complexity: rel.toVersion.complexity, 
+                    resourceSubType: rel.toVersion.resourceSubType ?? null, 
+                });
             }
         }
     }
@@ -97,21 +101,22 @@ export async function calculateComplexity(
         if (!existingData) {
             // Find all related version in the resourceVersionsById map. Then filter out any that are not routines.
             const relatedRoutineVersionsSum = input.relatedVersionsCreate?.map((rv: { toVersionConnect: string }) => resourceVersionsById.get(rv.toVersionConnect))
-                .filter((rv: { id: bigint; complexity: number | null; resourceSubType: string | null } | undefined) => rv?.complexity !== null)
-                .map((rv: { id: bigint; complexity: number | null; resourceSubType: string | null }) => rv!.complexity)
-                .reduce((a: number | null, b: number | null) => a! + b!, 0);
+                .filter((rv) => rv && rv.complexity !== null)
+                .map((rv) => rv!.complexity!)
+                .reduce((a, b) => a + b, 0);
             complexityById[input.id] = relatedRoutineVersionsSum ?? 0;
         }
         // If it does exist, do (existingComplexity + sum of new related routines - sum of deleted related routines)
         else {
             const relatedRoutineVersionsSum = input.relatedVersionsCreate?.map((rv: { toVersionConnect: string }) => resourceVersionsById.get(rv.toVersionConnect))
-                .filter((rv: { id: bigint; complexity: number | null; resourceSubType: string | null } | undefined) => rv?.complexity !== null)
-                .map((rv: { id: bigint; complexity: number | null; resourceSubType: string | null }) => rv!.complexity)
-                .reduce((a: number | null, b: number | null) => a! + b!, 0);
-            complexityById[input.id] = (existingData.complexity ?? 0) + (relatedRoutineVersionsSum ?? 0) - (input.relatedVersionsDisconnect?.map((rv: string) => resourceVersionsById.get(rv))
-                .filter((rv: { id: bigint; complexity: number | null; resourceSubType: string | null } | undefined) => rv?.complexity !== null)
-                .map((rv: { id: bigint; complexity: number | null; resourceSubType: string | null }) => rv!.complexity)
-                .reduce((a: number | null, b: number | null) => a! + b!, 0) ?? 0);
+                .filter((rv) => rv && rv.complexity !== null)
+                .map((rv) => rv!.complexity!)
+                .reduce((a, b) => a + b, 0);
+            const disconnectedVersionsSum = input.relatedVersionsDisconnect?.map((rv: string) => resourceVersionsById.get(rv))
+                .filter((rv): rv is { id: bigint; complexity: number | null; resourceSubType: string | null } => rv !== undefined && rv.complexity !== null)
+                .map((rv) => rv.complexity!)
+                .reduce((a, b) => a + b, 0) ?? 0;
+            complexityById[input.id] = (existingData.complexity ?? 0) + (relatedRoutineVersionsSum ?? 0) - disconnectedVersionsSum;
         }
     }
 

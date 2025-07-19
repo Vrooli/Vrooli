@@ -1,9 +1,8 @@
-// AI_CHECK: TEST_COVERAGE=50 | LAST: 2025-07-13 | STATUS: 70.25% coverage achieved (+1.67%), 20 tests added for validation & display methods, 70 tests total passing
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Command } from "commander";
-import { TeamCommands } from "./team.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClient } from "../utils/client.js";
 import { ConfigManager } from "../utils/config.js";
+import { TeamCommands } from "./team.js";
 
 // Mock dependencies
 vi.mock("../utils/client.js", () => ({
@@ -80,7 +79,7 @@ describe("TeamCommands", () => {
         // Create fresh instances
         program = new Command();
         program.exitOverride(); // Prevent actual process exit during tests
-        
+
         client = new ApiClient({} as ConfigManager);
         config = new ConfigManager();
 
@@ -139,7 +138,7 @@ describe("TeamCommands", () => {
         it("should be registered", () => {
             const teamCmd = program.commands.find(cmd => cmd.name() === "team");
             const createCmd = teamCmd?.commands.find(cmd => cmd.name() === "create");
-            
+
             expect(createCmd).toBeDefined();
             expect(createCmd?.description()).toBeTruthy();
         });
@@ -149,7 +148,7 @@ describe("TeamCommands", () => {
         it("should be registered", () => {
             const teamCmd = program.commands.find(cmd => cmd.name() === "team");
             const listCmd = teamCmd?.commands.find(cmd => cmd.name() === "list");
-            
+
             expect(listCmd).toBeDefined();
             expect(listCmd?.description()).toBeTruthy();
         });
@@ -159,7 +158,7 @@ describe("TeamCommands", () => {
         it("should be registered", () => {
             const teamCmd = program.commands.find(cmd => cmd.name() === "team");
             const getCmd = teamCmd?.commands.find(cmd => cmd.name() === "get");
-            
+
             expect(getCmd).toBeDefined();
             expect(getCmd?.description()).toBeTruthy();
         });
@@ -169,7 +168,7 @@ describe("TeamCommands", () => {
         it("should be registered", () => {
             const teamCmd = program.commands.find(cmd => cmd.name() === "team");
             const monitorCmd = teamCmd?.commands.find(cmd => cmd.name() === "monitor");
-            
+
             expect(monitorCmd).toBeDefined();
             expect(monitorCmd?.description()).toBeTruthy();
         });
@@ -179,7 +178,7 @@ describe("TeamCommands", () => {
         it("should be registered", () => {
             const teamCmd = program.commands.find(cmd => cmd.name() === "team");
             const spawnCmd = teamCmd?.commands.find(cmd => cmd.name() === "spawn");
-            
+
             expect(spawnCmd).toBeDefined();
             expect(spawnCmd?.description()).toBeTruthy();
         });
@@ -189,7 +188,7 @@ describe("TeamCommands", () => {
         it("should be registered", () => {
             const teamCmd = program.commands.find(cmd => cmd.name() === "team");
             const updateCmd = teamCmd?.commands.find(cmd => cmd.name() === "update");
-            
+
             expect(updateCmd).toBeDefined();
             expect(updateCmd?.description()).toBeTruthy();
         });
@@ -199,7 +198,7 @@ describe("TeamCommands", () => {
         it("should be registered", () => {
             const teamCmd = program.commands.find(cmd => cmd.name() === "team");
             const importCmd = teamCmd?.commands.find(cmd => cmd.name() === "import");
-            
+
             expect(importCmd).toBeDefined();
             expect(importCmd?.description()).toBeTruthy();
         });
@@ -209,7 +208,7 @@ describe("TeamCommands", () => {
         it("should be registered", () => {
             const teamCmd = program.commands.find(cmd => cmd.name() === "team");
             const exportCmd = teamCmd?.commands.find(cmd => cmd.name() === "export");
-            
+
             expect(exportCmd).toBeDefined();
             expect(exportCmd?.description()).toBeTruthy();
         });
@@ -219,7 +218,7 @@ describe("TeamCommands", () => {
         it("should be registered", () => {
             const teamCmd = program.commands.find(cmd => cmd.name() === "team");
             const insightsCmd = teamCmd?.commands.find(cmd => cmd.name() === "insights");
-            
+
             expect(insightsCmd).toBeDefined();
             expect(insightsCmd?.description()).toBeTruthy();
         });
@@ -235,7 +234,7 @@ describe("TeamCommands", () => {
                         goal: "Test goal",
                     },
                 };
-                
+
                 (client.post as any).mockResolvedValue(mockResponse);
 
                 // Test using direct method call
@@ -265,7 +264,7 @@ describe("TeamCommands", () => {
                 };
 
                 const createTeamMethod = (teamCommands as any).createTeam.bind(teamCommands);
-                
+
                 // Expect process.exit to be called with error
                 await expect(createTeamMethod(options)).rejects.toThrow();
             });
@@ -315,7 +314,7 @@ describe("TeamCommands", () => {
                     ],
                     pageInfo: { hasNextPage: false },
                 };
-                
+
                 (client.post as any).mockResolvedValue(mockResponse);
 
                 const options = {
@@ -326,7 +325,7 @@ describe("TeamCommands", () => {
                 };
 
                 const listTeamsMethod = (teamCommands as any).listTeams.bind(teamCommands);
-                
+
                 try {
                     await listTeamsMethod(options);
                     expect(client.post).toHaveBeenCalledWith("/teams", expect.objectContaining({
@@ -387,7 +386,7 @@ describe("TeamCommands", () => {
                 };
 
                 const listTeamsMethod = (teamCommands as any).listTeams.bind(teamCommands);
-                
+
                 try {
                     await listTeamsMethod(options);
                     fail("Expected method to throw");
@@ -411,12 +410,12 @@ describe("TeamCommands", () => {
                         maxStorage: "10GB",
                     },
                 };
-                
+
                 (client.post as any).mockResolvedValue({ team: mockTeam });
 
                 const teamCmd = program.commands.find(cmd => cmd.name() === "team");
                 const getCmd = teamCmd?.commands.find(cmd => cmd.name() === "get");
-                
+
                 expect(getCmd).toBeDefined();
                 expect(getCmd?.action).toBeDefined();
             });
@@ -426,7 +425,7 @@ describe("TeamCommands", () => {
 
                 const teamCmd = program.commands.find(cmd => cmd.name() === "team");
                 const getCmd = teamCmd?.commands.find(cmd => cmd.name() === "get");
-                
+
                 expect(getCmd).toBeDefined();
                 expect(getCmd?.action).toBeDefined();
             });
@@ -441,12 +440,12 @@ describe("TeamCommands", () => {
                         goal: "Updated goal",
                     },
                 };
-                
+
                 (client.post as any).mockResolvedValue(mockResponse);
 
                 const teamCmd = program.commands.find(cmd => cmd.name() === "team");
                 const updateCmd = teamCmd?.commands.find(cmd => cmd.name() === "update");
-                
+
                 expect(updateCmd).toBeDefined();
                 expect(updateCmd?.action).toBeDefined();
             });
@@ -456,7 +455,7 @@ describe("TeamCommands", () => {
 
                 const teamCmd = program.commands.find(cmd => cmd.name() === "team");
                 const updateCmd = teamCmd?.commands.find(cmd => cmd.name() === "update");
-                
+
                 expect(updateCmd).toBeDefined();
                 expect(updateCmd?.action).toBeDefined();
             });
@@ -485,7 +484,7 @@ describe("TeamCommands", () => {
 
                 const teamCmd = program.commands.find(cmd => cmd.name() === "team");
                 const importCmd = teamCmd?.commands.find(cmd => cmd.name() === "import");
-                
+
                 expect(importCmd).toBeDefined();
                 expect(importCmd?.action).toBeDefined();
             });
@@ -496,7 +495,7 @@ describe("TeamCommands", () => {
 
                 const teamCmd = program.commands.find(cmd => cmd.name() === "team");
                 const importCmd = teamCmd?.commands.find(cmd => cmd.name() === "import");
-                
+
                 expect(importCmd).toBeDefined();
                 expect(importCmd?.action).toBeDefined();
             });
@@ -507,7 +506,7 @@ describe("TeamCommands", () => {
 
                 const teamCmd = program.commands.find(cmd => cmd.name() === "team");
                 const importCmd = teamCmd?.commands.find(cmd => cmd.name() === "import");
-                
+
                 expect(importCmd).toBeDefined();
                 expect(importCmd?.action).toBeDefined();
             });
@@ -522,12 +521,12 @@ describe("TeamCommands", () => {
                     __version: "1.0",
                     deploymentType: "development",
                 };
-                
+
                 (client.post as any).mockResolvedValue({ team: mockTeam });
 
                 const teamCmd = program.commands.find(cmd => cmd.name() === "team");
                 const exportCmd = teamCmd?.commands.find(cmd => cmd.name() === "export");
-                
+
                 expect(exportCmd).toBeDefined();
                 expect(exportCmd?.action).toBeDefined();
             });
@@ -537,7 +536,7 @@ describe("TeamCommands", () => {
 
                 const teamCmd = program.commands.find(cmd => cmd.name() === "team");
                 const exportCmd = teamCmd?.commands.find(cmd => cmd.name() === "export");
-                
+
                 expect(exportCmd).toBeDefined();
                 expect(exportCmd?.action).toBeDefined();
             });
@@ -551,12 +550,12 @@ describe("TeamCommands", () => {
                     disconnect: vi.fn(),
                     connect: vi.fn(),
                 };
-                
+
                 (client.getSocket as any).mockReturnValue(mockSocket as any);
 
                 const teamCmd = program.commands.find(cmd => cmd.name() === "team");
                 const monitorCmd = teamCmd?.commands.find(cmd => cmd.name() === "monitor");
-                
+
                 expect(monitorCmd).toBeDefined();
                 expect(monitorCmd?.action).toBeDefined();
             });
@@ -566,7 +565,7 @@ describe("TeamCommands", () => {
 
                 const teamCmd = program.commands.find(cmd => cmd.name() === "team");
                 const monitorCmd = teamCmd?.commands.find(cmd => cmd.name() === "monitor");
-                
+
                 expect(monitorCmd).toBeDefined();
                 expect(monitorCmd?.action).toBeDefined();
             });
@@ -578,12 +577,12 @@ describe("TeamCommands", () => {
                     success: true,
                     spawnId: "spawn123",
                 };
-                
+
                 (client.post as any).mockResolvedValue(mockResponse);
 
                 const teamCmd = program.commands.find(cmd => cmd.name() === "team");
                 const spawnCmd = teamCmd?.commands.find(cmd => cmd.name() === "spawn");
-                
+
                 expect(spawnCmd).toBeDefined();
                 expect(spawnCmd?.action).toBeDefined();
             });
@@ -593,7 +592,7 @@ describe("TeamCommands", () => {
 
                 const teamCmd = program.commands.find(cmd => cmd.name() === "team");
                 const spawnCmd = teamCmd?.commands.find(cmd => cmd.name() === "spawn");
-                
+
                 expect(spawnCmd).toBeDefined();
                 expect(spawnCmd?.action).toBeDefined();
             });
@@ -617,12 +616,12 @@ describe("TeamCommands", () => {
                         "Optimize memory usage in data processing tasks",
                     ],
                 };
-                
+
                 (client.post as any).mockResolvedValue({ insights: mockInsights });
 
                 const teamCmd = program.commands.find(cmd => cmd.name() === "team");
                 const insightsCmd = teamCmd?.commands.find(cmd => cmd.name() === "insights");
-                
+
                 expect(insightsCmd).toBeDefined();
                 expect(insightsCmd?.action).toBeDefined();
             });
@@ -632,7 +631,7 @@ describe("TeamCommands", () => {
 
                 const teamCmd = program.commands.find(cmd => cmd.name() === "team");
                 const insightsCmd = teamCmd?.commands.find(cmd => cmd.name() === "insights");
-                
+
                 expect(insightsCmd).toBeDefined();
                 expect(insightsCmd?.action).toBeDefined();
             });
@@ -685,7 +684,7 @@ describe("TeamCommands", () => {
 
             it("should create progress bar correctly", () => {
                 const createProgressBar = (teamCommands as any).createProgressBar.bind(teamCommands);
-                
+
                 const bar1 = createProgressBar(50, 100);
                 expect(bar1).toContain("█");
                 expect(bar1).toContain("░");
@@ -722,7 +721,7 @@ describe("TeamCommands", () => {
                         lastUpdated: Date.now(),
                     },
                 });
-                
+
                 (fs.promises.readFile as any).mockResolvedValue(validTeamJSON);
                 (fs.promises.stat as any).mockResolvedValue({ size: 1000 });
                 (client.post as any).mockResolvedValue({ id: "team1" });
@@ -757,7 +756,7 @@ describe("TeamCommands", () => {
                         lastUpdated: Date.now(),
                     },
                 });
-                
+
                 (fs.promises.readFile as any).mockResolvedValue(validTeamJSON);
                 (fs.promises.stat as any).mockResolvedValue({ size: 1000 });
 
@@ -775,7 +774,7 @@ describe("TeamCommands", () => {
                     translations: [{ name: "Test Team", description: "A test team" }],
                     config: {
                         goal: "Test goal",
-                        businessPrompt: "Test business prompt for the team", 
+                        businessPrompt: "Test business prompt for the team",
                         stats: {
                             totalProfit: "5000000000",
                             totalCosts: "1000000000",
@@ -792,11 +791,11 @@ describe("TeamCommands", () => {
                         ],
                     },
                 };
-                
+
                 (client.get as any).mockResolvedValue(mockTeam);
 
                 const getTeamMethod = (teamCommands as any).getTeam.bind(teamCommands);
-                
+
                 try {
                     await getTeamMethod("team1", { showBlackboard: true, showStats: true });
                     // If it succeeds, check for output
@@ -813,7 +812,7 @@ describe("TeamCommands", () => {
                     name: "Test Team",
                     config: { goal: "Test goal" },
                 };
-                
+
                 (client.get as any).mockResolvedValue(mockTeam);
                 (config.isJsonOutput as any).mockReturnValue(true);
 
@@ -827,7 +826,7 @@ describe("TeamCommands", () => {
                 (client.get as any).mockRejectedValue(new Error("Team not found"));
 
                 const getTeamMethod = (teamCommands as any).getTeam.bind(teamCommands);
-                
+
                 try {
                     await getTeamMethod("nonexistent", {});
                     fail("Expected method to throw");
@@ -847,7 +846,7 @@ describe("TeamCommands", () => {
                         targetProfitPerMonth: "1000000000",
                     },
                 };
-                
+
                 const mockUpdatedTeam = {
                     team: {
                         id: "team1",
@@ -863,7 +862,7 @@ describe("TeamCommands", () => {
                 (client.put as any).mockResolvedValue(mockUpdatedTeam);
 
                 const updateTeamMethod = (teamCommands as any).updateTeam.bind(teamCommands);
-                
+
                 try {
                     await updateTeamMethod("team1", {
                         goal: "New goal",
@@ -887,7 +886,7 @@ describe("TeamCommands", () => {
                 (client.get as any).mockRejectedValue(new Error("Team not found"));
 
                 const updateTeamMethod = (teamCommands as any).updateTeam.bind(teamCommands);
-                
+
                 try {
                     await updateTeamMethod("nonexistent", { goal: "New goal" });
                     fail("Expected method to throw");
@@ -906,7 +905,7 @@ describe("TeamCommands", () => {
                         deploymentType: "development",
                     },
                 };
-                
+
                 // Mock fs.writeFile
                 const fs = await import("fs");
                 (fs.promises.writeFile as any) = vi.fn().mockResolvedValue(undefined);
@@ -925,7 +924,7 @@ describe("TeamCommands", () => {
                     id: "team1",
                     config: { goal: "Test goal" },
                 };
-                
+
                 const fs = await import("fs");
                 (fs.promises.writeFile as any) = vi.fn().mockResolvedValue(undefined);
 
@@ -956,7 +955,7 @@ describe("TeamCommands", () => {
                 (client.post as any).mockResolvedValue(mockChatResponse);
 
                 const spawnChatMethod = (teamCommands as any).spawnChat.bind(teamCommands);
-                
+
                 try {
                     await spawnChatMethod("team1", {
                         name: "Test Chat",
@@ -977,7 +976,7 @@ describe("TeamCommands", () => {
                 (client.get as any).mockRejectedValue(new Error("Team not found"));
 
                 const spawnChatMethod = (teamCommands as any).spawnChat.bind(teamCommands);
-                
+
                 try {
                     await spawnChatMethod("nonexistent", { name: "Test Chat" });
                     fail("Expected method to throw");
@@ -1000,7 +999,7 @@ describe("TeamCommands", () => {
                                 timestamp: Date.now(),
                             },
                             {
-                                id: "insight2", 
+                                id: "insight2",
                                 type: "cost",
                                 content: "Memory usage could be reduced",
                                 confidence: 0.75,
@@ -1013,7 +1012,7 @@ describe("TeamCommands", () => {
                 (client.get as any).mockResolvedValue(mockTeam);
 
                 const viewInsightsMethod = (teamCommands as any).viewInsights.bind(teamCommands);
-                
+
                 try {
                     await viewInsightsMethod("team1", {
                         type: "performance",
@@ -1056,7 +1055,7 @@ describe("TeamCommands", () => {
                             },
                             {
                                 id: "insight2",
-                                type: "cost", 
+                                type: "cost",
                                 content: "Memory reduction",
                                 confidence: 0.65,
                             },
@@ -1067,7 +1066,7 @@ describe("TeamCommands", () => {
                 (client.get as any).mockResolvedValue(mockTeam);
 
                 const viewInsightsMethod = (teamCommands as any).viewInsights.bind(teamCommands);
-                
+
                 try {
                     await viewInsightsMethod("team1", {
                         type: "performance",
@@ -1117,10 +1116,10 @@ describe("TeamCommands", () => {
                 // Mock setInterval and clearInterval
                 const originalSetInterval = global.setInterval;
                 const originalClearInterval = global.clearInterval;
-                
+
                 let intervalId: any;
                 let intervalCallback: any;
-                
+
                 global.setInterval = vi.fn((callback: any, delay: number) => {
                     intervalCallback = callback;
                     intervalId = 123;
@@ -1132,7 +1131,7 @@ describe("TeamCommands", () => {
                     }, 0);
                     return intervalId;
                 }) as any;
-                
+
                 global.clearInterval = vi.fn();
 
                 // Mock process.on and process.exit
@@ -1142,11 +1141,11 @@ describe("TeamCommands", () => {
                 });
 
                 const monitorMethod = (teamCommands as any).monitorTeam.bind(teamCommands);
-                
+
                 try {
                     // Start monitoring with a very short duration that will trigger exit
-                    await monitorMethod("team1", { 
-                        interval: 10, 
+                    await monitorMethod("team1", {
+                        interval: 10,
                         duration: 0.001, // Very short duration to trigger immediate exit
                         showStats: true,
                         showBlackboard: true,
@@ -1194,7 +1193,7 @@ describe("TeamCommands", () => {
                 };
 
                 const result = (teamCommands as any).validateTeamConfig(validConfig);
-                
+
                 expect(result.valid).toBe(true);
                 expect(result.errors).toEqual([]);
             });
@@ -1210,7 +1209,7 @@ describe("TeamCommands", () => {
                 };
 
                 const result = (teamCommands as any).validateTeamConfig(invalidConfig);
-                
+
                 expect(result.valid).toBe(false);
                 expect(result.errors).toContain("Missing __version field");
             });
@@ -1227,7 +1226,7 @@ describe("TeamCommands", () => {
                 };
 
                 const result = (teamCommands as any).validateTeamConfig(invalidConfig);
-                
+
                 expect(result.valid).toBe(false);
                 expect(result.errors).toContain("Invalid deploymentType. Must be: development, saas, or appliance");
             });
@@ -1243,7 +1242,7 @@ describe("TeamCommands", () => {
                 };
 
                 const result = (teamCommands as any).validateTeamConfig(invalidConfig);
-                
+
                 expect(result.valid).toBe(false);
                 expect(result.errors).toContain("Missing or invalid goal");
             });
@@ -1259,7 +1258,7 @@ describe("TeamCommands", () => {
                 };
 
                 const result = (teamCommands as any).validateTeamConfig(invalidConfig);
-                
+
                 expect(result.valid).toBe(false);
                 expect(result.errors).toContain("Missing or invalid businessPrompt");
             });
@@ -1275,7 +1274,7 @@ describe("TeamCommands", () => {
                 };
 
                 const result = (teamCommands as any).validateTeamConfig(invalidConfig);
-                
+
                 expect(result.valid).toBe(false);
                 expect(result.errors).toContain("Missing or invalid resourceQuota");
             });
@@ -1286,7 +1285,7 @@ describe("TeamCommands", () => {
                     deploymentType: "development" as const,
                     goal: "Test goal",
                     businessPrompt: "Test prompt",
-                    resourceQuota: { 
+                    resourceQuota: {
                         gpuPercentage: 150, // Invalid: over 100
                         ramGB: 4,
                     },
@@ -1295,7 +1294,7 @@ describe("TeamCommands", () => {
                 };
 
                 const result = (teamCommands as any).validateTeamConfig(invalidConfig);
-                
+
                 expect(result.valid).toBe(false);
                 expect(result.errors).toContain("Invalid gpuPercentage. Must be 0-100");
             });
@@ -1306,7 +1305,7 @@ describe("TeamCommands", () => {
                     deploymentType: "development" as const,
                     goal: "Test goal",
                     businessPrompt: "Test prompt",
-                    resourceQuota: { 
+                    resourceQuota: {
                         gpuPercentage: 50,
                         ramGB: -1, // Invalid: negative
                     },
@@ -1315,7 +1314,7 @@ describe("TeamCommands", () => {
                 };
 
                 const result = (teamCommands as any).validateTeamConfig(invalidConfig);
-                
+
                 expect(result.valid).toBe(false);
                 expect(result.errors).toContain("Invalid ramGB. Must be positive");
             });
@@ -1331,7 +1330,7 @@ describe("TeamCommands", () => {
                 };
 
                 const result = (teamCommands as any).validateTeamConfig(invalidConfig);
-                
+
                 expect(result.valid).toBe(false);
                 expect(result.errors).toContain("Missing or invalid targetProfitPerMonth");
             });
@@ -1348,7 +1347,7 @@ describe("TeamCommands", () => {
                 };
 
                 const result = (teamCommands as any).validateTeamConfig(invalidConfig);
-                
+
                 expect(result.valid).toBe(false);
                 expect(result.errors).toContain("targetProfitPerMonth must be a valid bigint string");
             });
@@ -1364,7 +1363,7 @@ describe("TeamCommands", () => {
                 };
 
                 const result = (teamCommands as any).validateTeamConfig(invalidConfig);
-                
+
                 expect(result.valid).toBe(false);
                 expect(result.errors).toContain("Missing or invalid stats object");
             });
@@ -1373,7 +1372,7 @@ describe("TeamCommands", () => {
         describe("displayTeamsTable", () => {
             it("should display 'No teams found' for empty array", () => {
                 (teamCommands as any).displayTeamsTable([]);
-                
+
                 expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("No teams found"));
             });
 
@@ -1402,7 +1401,7 @@ describe("TeamCommands", () => {
                 ];
 
                 (teamCommands as any).displayTeamsTable(teams);
-                
+
                 expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Teams:"));
                 expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Test Team 1"));
                 expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Test Team 2"));
@@ -1424,7 +1423,7 @@ describe("TeamCommands", () => {
                 ];
 
                 (teamCommands as any).displayTeamsTable(teams);
-                
+
                 expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Unnamed Team"));
             });
         });
@@ -1432,7 +1431,7 @@ describe("TeamCommands", () => {
         describe("createProgressBar", () => {
             it("should create progress bar for normal values", () => {
                 const progressBar = (teamCommands as any).createProgressBar(50, 100, 20);
-                
+
                 expect(progressBar).toContain("[");
                 expect(progressBar).toContain("]");
                 expect(progressBar).toContain("█"); // Filled character
@@ -1441,7 +1440,7 @@ describe("TeamCommands", () => {
 
             it("should handle zero value", () => {
                 const progressBar = (teamCommands as any).createProgressBar(0, 100, 10);
-                
+
                 expect(progressBar).toContain("[");
                 expect(progressBar).toContain("]");
                 // Should be all empty characters
@@ -1450,7 +1449,7 @@ describe("TeamCommands", () => {
 
             it("should handle maximum value", () => {
                 const progressBar = (teamCommands as any).createProgressBar(100, 100, 10);
-                
+
                 expect(progressBar).toContain("[");
                 expect(progressBar).toContain("]");
                 // Should be all filled characters
@@ -1459,7 +1458,7 @@ describe("TeamCommands", () => {
 
             it("should handle values over maximum", () => {
                 const progressBar = (teamCommands as any).createProgressBar(150, 100, 10);
-                
+
                 expect(progressBar).toContain("[");
                 expect(progressBar).toContain("]");
                 // Should be capped at 100% (all filled)
@@ -1468,7 +1467,7 @@ describe("TeamCommands", () => {
 
             it("should handle negative values", () => {
                 const progressBar = (teamCommands as any).createProgressBar(-10, 100, 10);
-                
+
                 expect(progressBar).toContain("[");
                 expect(progressBar).toContain("]");
                 // Should be capped at 0% (all empty)
@@ -1477,7 +1476,7 @@ describe("TeamCommands", () => {
 
             it("should use default width when not specified", () => {
                 const progressBar = (teamCommands as any).createProgressBar(50, 100);
-                
+
                 expect(progressBar).toContain("[");
                 expect(progressBar).toContain("]");
                 // Should use default width of 20

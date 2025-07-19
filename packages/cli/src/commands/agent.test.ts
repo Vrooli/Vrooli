@@ -1,9 +1,8 @@
-// AI_CHECK: TEST_COVERAGE=89 | LAST: 2025-07-13 | STATUS: 79.03% overall coverage achieved (+0.68%), agent.ts improved from 67.48% to 73.91% (+6.43%), 525 tests passing, validate & import tests added
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Command } from "commander";
-import { AgentCommands } from "./agent.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClient } from "../utils/client.js";
 import { ConfigManager } from "../utils/config.js";
+import { AgentCommands } from "./agent.js";
 
 // Mock dependencies
 vi.mock("../utils/client.js", () => ({
@@ -82,7 +81,7 @@ describe("AgentCommands", () => {
         // Create fresh instances
         program = new Command();
         program.exitOverride(); // Prevent actual process exit during tests
-        
+
         client = new ApiClient({} as ConfigManager);
         config = new ConfigManager();
 
@@ -133,10 +132,10 @@ describe("AgentCommands", () => {
         it("should have correct options", () => {
             const agentCmd = program.commands.find(cmd => cmd.name() === "agent");
             const importCmd = agentCmd?.commands.find(cmd => cmd.name() === "import");
-            
+
             expect(importCmd).toBeDefined();
             expect(importCmd?.description()).toBe("Import an agent from a JSON file");
-            
+
             const options = importCmd?.options;
             expect(options?.some(opt => opt.short === undefined && opt.long === "--dry-run")).toBe(true);
             expect(options?.some(opt => opt.short === undefined && opt.long === "--validate")).toBe(true);
@@ -147,10 +146,10 @@ describe("AgentCommands", () => {
         it("should have correct options", () => {
             const agentCmd = program.commands.find(cmd => cmd.name() === "agent");
             const importDirCmd = agentCmd?.commands.find(cmd => cmd.name() === "import-dir");
-            
+
             expect(importDirCmd).toBeDefined();
             expect(importDirCmd?.description()).toBe("Import all agents from a directory");
-            
+
             const options = importDirCmd?.options;
             expect(options?.some(opt => opt.short === undefined && opt.long === "--dry-run")).toBe(true);
             expect(options?.some(opt => opt.short === undefined && opt.long === "--fail-fast")).toBe(true);
@@ -162,7 +161,7 @@ describe("AgentCommands", () => {
         it("should be registered", () => {
             const agentCmd = program.commands.find(cmd => cmd.name() === "agent");
             const listCmd = agentCmd?.commands.find(cmd => cmd.name() === "list");
-            
+
             expect(listCmd).toBeDefined();
             expect(listCmd?.description()).toBeTruthy();
         });
@@ -172,7 +171,7 @@ describe("AgentCommands", () => {
         it("should be registered", () => {
             const agentCmd = program.commands.find(cmd => cmd.name() === "agent");
             const exportCmd = agentCmd?.commands.find(cmd => cmd.name() === "export");
-            
+
             expect(exportCmd).toBeDefined();
             expect(exportCmd?.description()).toBeTruthy();
         });
@@ -182,7 +181,7 @@ describe("AgentCommands", () => {
         it("should be registered", () => {
             const agentCmd = program.commands.find(cmd => cmd.name() === "agent");
             const validateCmd = agentCmd?.commands.find(cmd => cmd.name() === "validate");
-            
+
             expect(validateCmd).toBeDefined();
             expect(validateCmd?.description()).toBeTruthy();
         });
@@ -207,7 +206,7 @@ describe("AgentCommands", () => {
                 expect(consoleErrorSpy).toHaveBeenCalledWith(
                     expect.stringContaining("ENOENT"),
                 );
-                
+
                 mockExit.mockRestore();
             });
 
@@ -228,7 +227,7 @@ describe("AgentCommands", () => {
                 expect(consoleErrorSpy).toHaveBeenCalledWith(
                     expect.stringContaining("JSON parse error"),
                 );
-                
+
                 mockExit.mockRestore();
             });
 
@@ -241,9 +240,9 @@ describe("AgentCommands", () => {
                     subscriptions: ["topic1"],
                     behaviors: [],
                 };
-                
+
                 (fs.promises.readFile as any).mockResolvedValue(JSON.stringify(validAgentData));
-                
+
                 // Mock validation to pass
                 const validateSpy = vi.spyOn(agentCommands as any, "validateAgentData")
                     .mockResolvedValue({ valid: true, errors: [] });
@@ -254,7 +253,7 @@ describe("AgentCommands", () => {
                 expect(consoleLogSpy).toHaveBeenCalledWith(
                     expect.stringContaining("Agent is valid"),
                 );
-                
+
                 validateSpy.mockRestore();
             });
 
@@ -264,14 +263,14 @@ describe("AgentCommands", () => {
                     identity: { name: "Test Agent" },
                     // Missing required fields
                 };
-                
+
                 (fs.promises.readFile as any).mockResolvedValue(JSON.stringify(invalidAgentData));
-                
+
                 // Mock validation to fail
                 const validateSpy = vi.spyOn(agentCommands as any, "validateAgentData")
-                    .mockResolvedValue({ 
-                        valid: false, 
-                        errors: ["Missing required field: goal", "Missing required field: role"], 
+                    .mockResolvedValue({
+                        valid: false,
+                        errors: ["Missing required field: goal", "Missing required field: role"],
                     });
 
                 const mockExit = vi.spyOn(process, "exit").mockImplementation(() => {
@@ -286,7 +285,7 @@ describe("AgentCommands", () => {
                 expect(consoleErrorSpy).toHaveBeenCalledWith(
                     expect.stringContaining("Validation errors"),
                 );
-                
+
                 validateSpy.mockRestore();
                 mockExit.mockRestore();
             });
@@ -300,12 +299,12 @@ describe("AgentCommands", () => {
                     subscriptions: ["topic1"],
                     behaviors: [],
                 };
-                
+
                 (fs.promises.readFile as any).mockResolvedValue(JSON.stringify(validAgentData));
-                
+
                 const validateSpy = vi.spyOn(agentCommands as any, "validateAgentData")
                     .mockResolvedValue({ valid: true, errors: [] });
-                
+
                 const convertSpy = vi.spyOn(agentCommands as any, "convertAgentToResource")
                     .mockReturnValue({ name: "Test Agent", resourceType: "Agent" });
 
@@ -320,7 +319,7 @@ describe("AgentCommands", () => {
                 expect(consoleLogSpy).toHaveBeenCalledWith(
                     expect.stringContaining("Import successful"),
                 );
-                
+
                 validateSpy.mockRestore();
                 convertSpy.mockRestore();
             });
@@ -337,12 +336,12 @@ describe("AgentCommands", () => {
                     behaviors: [],
                 };
                 (fs.promises.readFile as any).mockResolvedValue(JSON.stringify(validAgentData));
-                
+
                 const validateSpy = vi.spyOn(agentCommands as any, "validateAgentData")
                     .mockResolvedValue({ valid: true, errors: [] });
                 const convertSpy = vi.spyOn(agentCommands as any, "convertAgentToResource")
                     .mockReturnValue({ name: "Test Agent", resourceType: "Agent" });
-                
+
                 (client.post as any).mockResolvedValue({ id: "agent123", success: true });
 
                 await (agentCommands as any).importAgentSilent("test.json", false);
@@ -350,7 +349,7 @@ describe("AgentCommands", () => {
                 expect(validateSpy).toHaveBeenCalledWith(validAgentData, false);
                 expect(convertSpy).toHaveBeenCalledWith(validAgentData);
                 expect(client.post).toHaveBeenCalledWith("/api/resource", expect.any(Object));
-                
+
                 validateSpy.mockRestore();
                 convertSpy.mockRestore();
             });
@@ -362,11 +361,11 @@ describe("AgentCommands", () => {
                     // Missing required fields
                 };
                 (fs.promises.readFile as any).mockResolvedValue(JSON.stringify(invalidAgentData));
-                
+
                 const validateSpy = vi.spyOn(agentCommands as any, "validateAgentData")
-                    .mockResolvedValue({ 
-                        valid: false, 
-                        errors: ["Missing required field: goal"], 
+                    .mockResolvedValue({
+                        valid: false,
+                        errors: ["Missing required field: goal"],
                     });
 
                 await expect(async () => {
@@ -374,7 +373,7 @@ describe("AgentCommands", () => {
                 }).rejects.toThrow("Missing required field: goal");
 
                 expect(validateSpy).toHaveBeenCalledWith(invalidAgentData, false);
-                
+
                 validateSpy.mockRestore();
             });
 
@@ -392,7 +391,7 @@ describe("AgentCommands", () => {
 
                 const agentCmd = program.commands.find(cmd => cmd.name() === "agent");
                 const importCmd = agentCmd?.commands.find(cmd => cmd.name() === "import");
-                
+
                 expect(importCmd).toBeDefined();
             });
         });
@@ -401,12 +400,12 @@ describe("AgentCommands", () => {
             it("should handle directory with multiple files", async () => {
                 const glob = await import("glob");
                 const fs = await import("fs");
-                
+
                 (glob.glob as any).mockResolvedValue([
                     "/test/agent1.json",
                     "/test/agent2.json",
                 ]);
-                
+
                 const validAgentJSON = JSON.stringify({
                     identity: { name: "Test Agent" },
                     goal: "Test goal",
@@ -419,7 +418,7 @@ describe("AgentCommands", () => {
 
                 const agentCmd = program.commands.find(cmd => cmd.name() === "agent");
                 const importDirCmd = agentCmd?.commands.find(cmd => cmd.name() === "import-dir");
-                
+
                 expect(importDirCmd).toBeDefined();
             });
 
@@ -429,19 +428,19 @@ describe("AgentCommands", () => {
 
                 const agentCmd = program.commands.find(cmd => cmd.name() === "agent");
                 const importDirCmd = agentCmd?.commands.find(cmd => cmd.name() === "import-dir");
-                
+
                 expect(importDirCmd).toBeDefined();
             });
 
             it("should handle fail-fast option", async () => {
                 const glob = await import("glob");
                 const fs = await import("fs");
-                
+
                 (glob.glob as any).mockResolvedValue([
                     "/test/agent1.json",
                     "/test/agent2.json",
                 ]);
-                
+
                 // First file succeeds, second fails
                 (fs.promises.readFile as any)
                     .mockResolvedValueOnce(JSON.stringify({
@@ -455,7 +454,7 @@ describe("AgentCommands", () => {
 
                 const agentCmd = program.commands.find(cmd => cmd.name() === "agent");
                 const importDirCmd = agentCmd?.commands.find(cmd => cmd.name() === "import-dir");
-                
+
                 expect(importDirCmd).toBeDefined();
             });
         });
@@ -480,17 +479,17 @@ describe("AgentCommands", () => {
                     ],
                     pageInfo: { hasNextPage: false },
                 };
-                
+
                 (client.get as any).mockResolvedValue(mockResponse);
-                
+
                 // Mock process.exit in case of errors
                 const mockExit = vi.spyOn(process, "exit").mockImplementation(() => {
                     throw new Error("process.exit called");
                 });
 
                 try {
-                    await (agentCommands as any).listAgents({ 
-                        limit: "10", 
+                    await (agentCommands as any).listAgents({
+                        limit: "10",
                         format: "json", // Use JSON format to avoid display logic errors
                     });
 
@@ -521,12 +520,12 @@ describe("AgentCommands", () => {
                     edges: [],
                     pageInfo: { hasNextPage: false },
                 };
-                
+
                 (client.post as any).mockResolvedValue(mockResponse);
 
                 const agentCmd = program.commands.find(cmd => cmd.name() === "agent");
                 const listCmd = agentCmd?.commands.find(cmd => cmd.name() === "list");
-                
+
                 expect(listCmd).toBeDefined();
             });
 
@@ -535,7 +534,7 @@ describe("AgentCommands", () => {
 
                 const agentCmd = program.commands.find(cmd => cmd.name() === "agent");
                 const listCmd = agentCmd?.commands.find(cmd => cmd.name() === "list");
-                
+
                 expect(listCmd).toBeDefined();
             });
         });
@@ -555,12 +554,12 @@ describe("AgentCommands", () => {
                         ],
                     },
                 };
-                
+
                 (client.get as any).mockResolvedValue(mockAgent);
 
                 const agentCmd = program.commands.find(cmd => cmd.name() === "agent");
                 const getCmd = agentCmd?.commands.find(cmd => cmd.name() === "get");
-                
+
                 expect(getCmd).toBeDefined();
             });
 
@@ -569,7 +568,7 @@ describe("AgentCommands", () => {
 
                 const agentCmd = program.commands.find(cmd => cmd.name() === "agent");
                 const getCmd = agentCmd?.commands.find(cmd => cmd.name() === "get");
-                
+
                 expect(getCmd).toBeDefined();
             });
         });
@@ -593,7 +592,7 @@ describe("AgentCommands", () => {
 
                 const agentCmd = program.commands.find(cmd => cmd.name() === "agent");
                 const validateCmd = agentCmd?.commands.find(cmd => cmd.name() === "validate");
-                
+
                 expect(validateCmd).toBeDefined();
             });
 
@@ -603,7 +602,7 @@ describe("AgentCommands", () => {
 
                 const agentCmd = program.commands.find(cmd => cmd.name() === "agent");
                 const validateCmd = agentCmd?.commands.find(cmd => cmd.name() === "validate");
-                
+
                 expect(validateCmd).toBeDefined();
             });
 
@@ -617,7 +616,7 @@ describe("AgentCommands", () => {
 
                 const agentCmd = program.commands.find(cmd => cmd.name() === "agent");
                 const validateCmd = agentCmd?.commands.find(cmd => cmd.name() === "validate");
-                
+
                 expect(validateCmd).toBeDefined();
             });
         });
@@ -635,12 +634,12 @@ describe("AgentCommands", () => {
                         ],
                     },
                 };
-                
+
                 (client.get as any).mockResolvedValue(mockAgent);
 
                 const agentCmd = program.commands.find(cmd => cmd.name() === "agent");
                 const exportCmd = agentCmd?.commands.find(cmd => cmd.name() === "export");
-                
+
                 expect(exportCmd).toBeDefined();
             });
 
@@ -656,12 +655,12 @@ describe("AgentCommands", () => {
                         ],
                     },
                 };
-                
+
                 (client.get as any).mockResolvedValue(mockAgent);
 
                 const agentCmd = program.commands.find(cmd => cmd.name() === "agent");
                 const exportCmd = agentCmd?.commands.find(cmd => cmd.name() === "export");
-                
+
                 expect(exportCmd).toBeDefined();
             });
         });
@@ -676,7 +675,7 @@ describe("AgentCommands", () => {
                     subscriptions: ["topic1"],
                     behaviors: [],
                 };
-                
+
                 (fs.promises.readFile as any).mockResolvedValue(JSON.stringify(validAgentData));
                 (client.post as any).mockResolvedValue({ id: "agent-123", name: "Test Agent" });
                 (client.isAuthenticated as any).mockResolvedValue(true);
@@ -692,7 +691,7 @@ describe("AgentCommands", () => {
 
                 expect(fs.promises.readFile).toHaveBeenCalledWith("test.json", "utf-8");
                 expect(client.post).toHaveBeenCalledWith("/api/resource", expect.any(Object));
-                
+
                 validateSpy.mockRestore();
                 convertSpy.mockRestore();
             });
@@ -706,10 +705,10 @@ describe("AgentCommands", () => {
                     subscriptions: ["topic1"],
                     behaviors: [],
                 };
-                
+
                 (fs.promises.readFile as any).mockResolvedValue(JSON.stringify(validAgentData));
                 (client.isAuthenticated as any).mockResolvedValue(true);
-                
+
                 // Mock validation
                 const validateSpy = vi.spyOn(agentCommands as any, "validateAgentData")
                     .mockResolvedValue({ valid: true, errors: [] });
@@ -720,7 +719,7 @@ describe("AgentCommands", () => {
                 expect(fs.promises.readFile).toHaveBeenCalledWith("test.json", "utf-8");
                 // Should not call API in dry-run mode
                 expect(client.post).not.toHaveBeenCalled();
-                
+
                 validateSpy.mockRestore();
             });
 
@@ -743,7 +742,7 @@ describe("AgentCommands", () => {
                     ],
                     pageInfo: { hasNextPage: false },
                 };
-                
+
                 (client.get as any).mockResolvedValue(mockResponse);
                 (client.isAuthenticated as any).mockResolvedValue(true);
 
@@ -772,7 +771,7 @@ describe("AgentCommands", () => {
                         },
                     }],
                 };
-                
+
                 (client.get as any).mockResolvedValue(mockAgent);
                 (fs.promises.writeFile as any).mockResolvedValue(undefined);
                 (client.isAuthenticated as any).mockResolvedValue(true);
@@ -798,7 +797,7 @@ describe("AgentCommands", () => {
                         },
                     ],
                 };
-                
+
                 (fs.promises.readFile as any).mockResolvedValue(JSON.stringify(validAgentData));
 
                 // Execute validate command
@@ -811,12 +810,12 @@ describe("AgentCommands", () => {
             it("should execute import-dir command", async () => {
                 const glob = await import("glob");
                 const fs = await import("fs");
-                
+
                 (glob.glob as any).mockResolvedValue([
                     "/test/agent1.json",
                     "/test/agent2.json",
                 ]);
-                
+
                 const validAgentJSON = JSON.stringify({
                     identity: { name: "Test Agent" },
                     goal: "Test goal",
@@ -854,9 +853,9 @@ describe("AgentCommands", () => {
                             action: { type: "routine", label: "test-routine" },
                         }],
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(validData);
-                    
+
                     expect(result.valid).toBe(true);
                     expect(result.errors).toHaveLength(0);
                 });
@@ -869,9 +868,9 @@ describe("AgentCommands", () => {
                         subscriptions: ["swarm/topic1"],
                         behaviors: [],
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Missing or invalid 'identity' object");
                 });
@@ -884,9 +883,9 @@ describe("AgentCommands", () => {
                         subscriptions: ["swarm/topic1"],
                         behaviors: [],
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Missing or invalid 'identity.name'");
                 });
@@ -899,9 +898,9 @@ describe("AgentCommands", () => {
                         subscriptions: ["swarm/topic1"],
                         behaviors: [],
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Missing or invalid 'goal'");
                 });
@@ -914,9 +913,9 @@ describe("AgentCommands", () => {
                         subscriptions: ["swarm/topic1"],
                         behaviors: [],
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Missing or invalid 'role'");
                 });
@@ -929,16 +928,16 @@ describe("AgentCommands", () => {
                         subscriptions: ["swarm/topic1"],
                         behaviors: [],
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Invalid role 'invalid-role'. Must be: coordinator, specialist, monitor, or bridge");
                 });
 
                 it("should validate all valid roles", async () => {
                     const roles = ["coordinator", "specialist", "monitor", "bridge"];
-                    
+
                     for (const role of roles) {
                         const data = {
                             identity: { name: "Test Agent" },
@@ -950,7 +949,7 @@ describe("AgentCommands", () => {
                                 action: { type: "routine", label: "test" },
                             }],
                         };
-                        
+
                         const result = await (agentCommands as any).validateAgentData(data);
                         expect(result.valid).toBe(true);
                     }
@@ -964,9 +963,9 @@ describe("AgentCommands", () => {
                         // Missing subscriptions
                         behaviors: [],
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Missing or invalid 'subscriptions' array");
                 });
@@ -979,16 +978,16 @@ describe("AgentCommands", () => {
                         subscriptions: [], // Empty
                         behaviors: [],
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Agent must have at least one subscription");
                 });
 
                 it("should validate subscription prefixes", async () => {
                     const validPrefixes = ["swarm/", "run/", "step/", "safety/"];
-                    
+
                     for (const prefix of validPrefixes) {
                         const data = {
                             identity: { name: "Test Agent" },
@@ -1000,7 +999,7 @@ describe("AgentCommands", () => {
                                 action: { type: "routine", label: "test" },
                             }],
                         };
-                        
+
                         const result = await (agentCommands as any).validateAgentData(data);
                         expect(result.valid).toBe(true);
                     }
@@ -1014,9 +1013,9 @@ describe("AgentCommands", () => {
                         subscriptions: ["invalid/topic"],
                         behaviors: [],
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Subscription 'invalid/topic' must start with: swarm/, run/, step/, or safety/");
                 });
@@ -1029,9 +1028,9 @@ describe("AgentCommands", () => {
                         subscriptions: [123], // Invalid type
                         behaviors: [],
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Subscription 1 is not a string");
                 });
@@ -1044,9 +1043,9 @@ describe("AgentCommands", () => {
                         subscriptions: ["swarm/topic1"],
                         // Missing behaviors
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Missing or invalid 'behaviors' array");
                 });
@@ -1059,9 +1058,9 @@ describe("AgentCommands", () => {
                         subscriptions: ["swarm/topic1"],
                         behaviors: [], // Empty
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Agent must have at least one behavior");
                 });
@@ -1077,9 +1076,9 @@ describe("AgentCommands", () => {
                             action: { type: "routine", label: "test" },
                         }],
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Behavior 1: Missing trigger.topic");
                 });
@@ -1095,9 +1094,9 @@ describe("AgentCommands", () => {
                             action: { type: "routine", label: "test" },
                         }],
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Behavior 1: Topic 'swarm/topic2' not in subscriptions");
                 });
@@ -1113,9 +1112,9 @@ describe("AgentCommands", () => {
                             // Missing action
                         }],
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Behavior 1: Missing action");
                 });
@@ -1131,9 +1130,9 @@ describe("AgentCommands", () => {
                             action: { type: "invalid" },
                         }],
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Behavior 1: Invalid action type. Must be 'routine' or 'invoke'");
                 });
@@ -1149,9 +1148,9 @@ describe("AgentCommands", () => {
                             action: { type: "routine" }, // Missing label
                         }],
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Behavior 1: Routine action missing 'label'");
                 });
@@ -1167,16 +1166,16 @@ describe("AgentCommands", () => {
                             action: { type: "invoke" }, // Missing purpose
                         }],
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Behavior 1: Invoke action missing 'purpose'");
                 });
 
                 it("should validate QoS levels", async () => {
                     const validQoS = [0, 1, 2];
-                    
+
                     for (const qos of validQoS) {
                         const data = {
                             identity: { name: "Test Agent" },
@@ -1189,7 +1188,7 @@ describe("AgentCommands", () => {
                                 qos,
                             }],
                         };
-                        
+
                         const result = await (agentCommands as any).validateAgentData(data);
                         expect(result.valid).toBe(true);
                     }
@@ -1207,16 +1206,16 @@ describe("AgentCommands", () => {
                             qos: 5, // Invalid
                         }],
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Behavior 1: Invalid QoS level 5. Must be 0, 1, or 2");
                 });
 
                 it("should validate prompt modes", async () => {
                     const validModes = ["supplement", "replace"];
-                    
+
                     for (const mode of validModes) {
                         const data = {
                             identity: { name: "Test Agent" },
@@ -1233,7 +1232,7 @@ describe("AgentCommands", () => {
                                 content: "Test prompt",
                             },
                         };
-                        
+
                         const result = await (agentCommands as any).validateAgentData(data);
                         expect(result.valid).toBe(true);
                     }
@@ -1255,9 +1254,9 @@ describe("AgentCommands", () => {
                             content: "Test prompt",
                         },
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Invalid prompt.mode. Must be 'supplement' or 'replace'");
                 });
@@ -1278,9 +1277,9 @@ describe("AgentCommands", () => {
                             content: "Test prompt",
                         },
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Invalid prompt.source. Must be 'direct' or 'resource'");
                 });
@@ -1301,9 +1300,9 @@ describe("AgentCommands", () => {
                             // Missing content
                         },
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Direct prompt missing 'content'");
                 });
@@ -1324,9 +1323,9 @@ describe("AgentCommands", () => {
                             // Missing resourceId
                         },
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(invalidData);
-                    
+
                     expect(result.valid).toBe(false);
                     expect(result.errors).toContain("Resource prompt missing 'resourceId'");
                 });
@@ -1342,9 +1341,9 @@ describe("AgentCommands", () => {
                             action: { type: "routine", label: "test-routine" },
                         }],
                     };
-                    
+
                     const result = await (agentCommands as any).validateAgentData(data, true);
-                    
+
                     expect(result.valid).toBe(true);
                     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Checking routine 'test-routine'"));
                 });
@@ -1441,19 +1440,19 @@ describe("AgentCommands", () => {
                     };
 
                     (fs.promises.readFile as any).mockResolvedValue(JSON.stringify(agentData));
-                    
+
                     const validateSpy = vi.spyOn(agentCommands as any, "validateAgentData")
                         .mockResolvedValue({ valid: true, errors: [] });
                     const convertSpy = vi.spyOn(agentCommands as any, "convertAgentToResource")
                         .mockReturnValue({ resourceType: "Agent" });
-                    
+
                     (client.post as any).mockResolvedValue({ id: "new-agent" });
 
                     await (agentCommands as any).importAgentSilent("agent.json");
 
                     expect(client.post).toHaveBeenCalled();
                     expect(consoleLogSpy).not.toHaveBeenCalled(); // Silent mode
-                    
+
                     validateSpy.mockRestore();
                     convertSpy.mockRestore();
                 });
@@ -1524,12 +1523,12 @@ describe("AgentCommands", () => {
                 };
 
                 (fs.promises.readFile as any).mockResolvedValue(JSON.stringify(agentData));
-                
+
                 const validateSpy = vi.spyOn(agentCommands as any, "validateAgentData")
                     .mockResolvedValue({ valid: true, errors: [] });
                 const convertSpy = vi.spyOn(agentCommands as any, "convertAgentToResource")
                     .mockReturnValue({ resourceType: "Agent" });
-                
+
                 (client.post as any).mockResolvedValue({ id: "agent123" });
 
                 await (agentCommands as any).importAgent("test.json", { validate: true });
@@ -1537,7 +1536,7 @@ describe("AgentCommands", () => {
                 expect(validateSpy).toHaveBeenCalledWith(agentData, true);
                 expect(convertSpy).toHaveBeenCalled();
                 expect(client.post).toHaveBeenCalled();
-                
+
                 validateSpy.mockRestore();
                 convertSpy.mockRestore();
             });
@@ -1723,7 +1722,7 @@ describe("AgentCommands", () => {
                         },
                     ],
                 };
-                
+
                 (fs.promises.readFile as any).mockResolvedValue(JSON.stringify(validAgentData));
 
                 await program.parseAsync(["node", "test", "agent", "validate", "test.json"]);
@@ -1874,7 +1873,7 @@ describe("AgentCommands", () => {
             });
 
             it("should parse limit option correctly", async () => {
-                const mockResponse = { 
+                const mockResponse = {
                     edges: [
                         {
                             node: {
@@ -1884,7 +1883,7 @@ describe("AgentCommands", () => {
                             },
                             searchScore: 0.5,
                         },
-                    ], 
+                    ],
                 };
                 (client.request as any).mockResolvedValue(mockResponse);
                 (client.isAuthenticated as any).mockResolvedValue(true);
@@ -1970,9 +1969,9 @@ describe("AgentCommands", () => {
                 (fs.promises.readFile as any).mockResolvedValue(JSON.stringify(invalidAgentData));
 
                 const validateSpy = vi.spyOn(agentCommands as any, "validateAgentData")
-                    .mockResolvedValue({ 
-                        valid: false, 
-                        errors: ["Missing required field: goal"], 
+                    .mockResolvedValue({
+                        valid: false,
+                        errors: ["Missing required field: goal"],
                     });
 
                 await expect(async () => {
@@ -1994,9 +1993,9 @@ describe("AgentCommands", () => {
                     subscriptions: ["topic1"],
                     behaviors: [],
                 };
-                
+
                 (fs.promises.readFile as any).mockResolvedValue(JSON.stringify(validAgentData));
-                
+
                 const validateSpy = vi.spyOn(agentCommands as any, "validateAgentData")
                     .mockResolvedValue({ valid: true, errors: [] });
 
@@ -2007,7 +2006,7 @@ describe("AgentCommands", () => {
                 expect(consoleLogSpy).toHaveBeenCalledWith(
                     expect.stringContaining("Agent is valid!"),
                 );
-                
+
                 validateSpy.mockRestore();
             });
 
@@ -2027,7 +2026,7 @@ describe("AgentCommands", () => {
                     expect.stringContaining("Validation error"),
                 );
                 expect(mockExit).toHaveBeenCalledWith(1);
-                
+
                 mockExit.mockRestore();
             });
 
@@ -2037,13 +2036,13 @@ describe("AgentCommands", () => {
                     identity: { name: "Test Agent" },
                     // Missing required fields
                 };
-                
+
                 (fs.promises.readFile as any).mockResolvedValue(JSON.stringify(invalidAgentData));
-                
+
                 const validateSpy = vi.spyOn(agentCommands as any, "validateAgentData")
-                    .mockResolvedValue({ 
-                        valid: false, 
-                        errors: ["Missing required field: goal", "Missing required field: role"], 
+                    .mockResolvedValue({
+                        valid: false,
+                        errors: ["Missing required field: goal", "Missing required field: role"],
                     });
 
                 const mockExit = vi.spyOn(process, "exit").mockImplementation(() => {
@@ -2061,7 +2060,7 @@ describe("AgentCommands", () => {
                     expect.stringContaining("Missing required field: goal"),
                 );
                 expect(mockExit).toHaveBeenCalledWith(1);
-                
+
                 validateSpy.mockRestore();
                 mockExit.mockRestore();
             });
@@ -2081,7 +2080,7 @@ describe("AgentCommands", () => {
                 expect(consoleErrorSpy).toHaveBeenCalledWith(
                     expect.stringContaining("Validation error"),
                 );
-                
+
                 mockExit.mockRestore();
             });
         });

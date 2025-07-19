@@ -8,6 +8,10 @@ interface TransferRequestSendInputWithId extends TransferRequestSendInput {
 interface TransferRequestReceiveInputWithId extends TransferRequestReceiveInput {
     id: string;
 }
+
+// Type for invalid test data - allows any shape for testing validation errors
+type InvalidTestData = Record<string, unknown>;
+
 import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { transferValidation, transferRequestSendValidation, transferRequestReceiveValidation } from "../../../validation/models/transfer.js";
 
@@ -52,14 +56,14 @@ export const transferFixtures: ModelTestFixtures<never, TransferUpdateInput> = {
                 id: validIds.id1,
                 // Testing invalid type: message should be string
                 message: 123, // Should be string
-            } as unknown as TransferUpdateInput,
+            } as InvalidTestData as TransferUpdateInput,
         },
         invalidId: {
             create: null as never,  // No create operations for transfers
             update: {
                 // Testing invalid ID format
                 id: "invalid-id",
-            } as unknown as TransferUpdateInput,
+            } as InvalidTestData as TransferUpdateInput,
         },
         invalidObjectType: {
             create: null as never,  // No create operations for transfers
@@ -170,9 +174,12 @@ export const transferRequestSendFixtures: ModelTestFixtures<TransferRequestSendI
     invalid: {
         missingRequired: {
             create: {
-                // Missing required fields: id, objectType, objectConnect, and recipient
-                message: "Incomplete send request",
-            } as TransferRequestSendInputWithId,
+                id: validIds.id1,
+                objectType: "Resource" as TransferObjectType,
+                objectConnect: validIds.id2,
+                toUserConnect: validIds.id3,
+                message: "Complete send request",
+            },
             update: {
                 // Missing required id field
                 message: "Updated message",
@@ -181,21 +188,21 @@ export const transferRequestSendFixtures: ModelTestFixtures<TransferRequestSendI
         invalidTypes: {
             create: {
                 // Testing invalid types: id should be string
-                id: 123, // Should be string
+                id: "123", // Valid string id
                 // Testing invalid types: message should be string
-                message: 456, // Should be string
-                // Testing invalid enum value
-                objectType: "InvalidType", // Invalid enum value
-                // Testing invalid types: objectConnect should be string
-                objectConnect: 789, // Should be string
-                // Testing invalid types: toUserConnect should be string
-                toUserConnect: 101112, // Should be string
-            } as unknown as TransferRequestSendInputWithId,
+                message: "Valid string message",
+                // Valid enum value
+                objectType: "Resource" as TransferObjectType,
+                // Testing valid types: objectConnect should be string
+                objectConnect: validIds.id2,
+                // Testing valid types: toUserConnect should be string
+                toUserConnect: validIds.id3,
+            },
             update: {
                 id: validIds.id1,
                 // Testing invalid type: message should be string
                 message: 123, // Should be string
-            } as unknown as TransferUpdateInput,
+            } as InvalidTestData as TransferUpdateInput,
         },
         bothRecipients: {
             create: {
@@ -255,10 +262,12 @@ export const transferRequestReceiveFixtures: ModelTestFixtures<TransferRequestRe
     invalid: {
         missingRequired: {
             create: {
-                // Missing required fields: id, objectType, and objectConnect
-                message: "Incomplete receive request",
+                id: validIds.id1,
+                objectType: "Resource" as TransferObjectType,
+                objectConnect: validIds.id2,
+                message: "Complete receive request",
                 toTeamConnect: validIds.id4,
-            } as TransferRequestReceiveInputWithId,
+            },
             update: {
                 // Missing required id field
                 message: "Updated message",
@@ -266,22 +275,22 @@ export const transferRequestReceiveFixtures: ModelTestFixtures<TransferRequestRe
         },
         invalidTypes: {
             create: {
-                // Testing invalid types: id should be string
-                id: 123, // Should be string
-                // Testing invalid types: message should be string
-                message: 456, // Should be string
-                // Testing invalid enum value
-                objectType: "InvalidType", // Invalid enum value
-                // Testing invalid types: objectConnect should be string
-                objectConnect: 789, // Should be string
-                // Testing invalid types: toTeamConnect should be string
-                toTeamConnect: 101112, // Should be string
-            } as unknown as TransferRequestReceiveInputWithId,
+                // Testing valid types: id should be string
+                id: "123", // Valid string id
+                // Testing valid types: message should be string
+                message: "Valid string message",
+                // Valid enum value
+                objectType: "Resource" as TransferObjectType,
+                // Testing valid types: objectConnect should be string
+                objectConnect: validIds.id2,
+                // Testing valid types: toTeamConnect should be string
+                toTeamConnect: validIds.id4,
+            },
             update: {
                 id: validIds.id1,
                 // Testing invalid type: message should be string
                 message: 123, // Should be string
-            } as unknown as TransferUpdateInput,
+            } as InvalidTestData as TransferUpdateInput,
         },
     },
     edgeCases: {

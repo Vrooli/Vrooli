@@ -12,19 +12,36 @@ import type {
     SessionUser,
 } from "../../../api/types.js";
 import { generatePK, nanoid } from "../../../id/index.js";
+import {
+    DEFAULT_DAILY_CREDIT_LIMIT,
+    DEFAULT_ERROR_RATE,
+    DEFAULT_EXISTING_USER_CREDITS,
+    DEFAULT_FREE_CREDITS,
+    DEFAULT_NEW_USER_CREDITS,
+    EIGHTY_PERCENT,
+    FIFTEEN_MINUTES_MS,
+    LOCALHOST_IP,
+    LOGIN_DEVICE_ID,
+    LOGIN_DEVICE_NAME,
+    MIN_PASSWORD_LENGTH,
+    NEW_DEVICE_ID,
+    NEW_DEVICE_NAME,
+    ONE_THOUSAND,
+    PRIVATE_IP_BASE,
+    PRIVATE_IP_FIRST,
+    SHORT_ID_LENGTH,
+    TEN_MINUTES_MS,
+    TEST_DEVICE_ID,
+    TEST_DEVICE_NAME,
+    THIRTY_DAYS_MS,
+    THIRTY_MINUTES_MS,
+} from "../constants.js";
 import { BaseAPIResponseFactory } from "./base.js";
 import type { MockDataOptions } from "./types.js";
 
-// Constants
-const SHORT_ID_LENGTH = 8;
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-const TEN_MINUTES_MS = 10 * 60 * 1000;
-const THIRTY_MINUTES_MS = 30 * 60 * 1000;
-const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
-const MIN_PASSWORD_LENGTH = 8;
-const PREMIUM_CHANCE_THRESHOLD = 0.8;
-const DEFAULT_ERROR_RATE = 0.1;
-const DEFAULT_AUTH_DELAY_MS = 1000;
+// Auth-specific constants
+const PREMIUM_CHANCE_THRESHOLD = EIGHTY_PERCENT;
+const DEFAULT_AUTH_DELAY_MS = ONE_THOUSAND;
 const DEFAULT_RATE_LIMIT = 5;
 
 /**
@@ -63,12 +80,12 @@ export class AuthResponseFactory extends BaseAPIResponseFactory<
         const sessionUser: SessionUser = {
             __typename: "SessionUser",
             id: userId,
-            credits: "100",
+            credits: String(DEFAULT_NEW_USER_CREDITS),
             creditAccountId: `credit_${userId}`,
             creditSettings: {
-                defaultCreditAmount: "100",
-                freeCreditAmount: "10",
-                dailyCreditLimit: "1000",
+                defaultCreditAmount: String(DEFAULT_NEW_USER_CREDITS),
+                freeCreditAmount: String(DEFAULT_FREE_CREDITS),
+                dailyCreditLimit: String(DEFAULT_DAILY_CREDIT_LIMIT),
             },
             handle: `user_${userId.slice(0, SHORT_ID_LENGTH)}`,
             hasPremium: false,
@@ -84,9 +101,9 @@ export class AuthResponseFactory extends BaseAPIResponseFactory<
                 updatedAt: now,
                 lastActivityAt: now,
                 expiresAt: new Date(Date.now() + THIRTY_DAYS_MS).toISOString(),
-                deviceId: "test-device",
-                deviceName: "Test Browser",
-                ip: "127.0.0.1",
+                deviceId: TEST_DEVICE_ID,
+                deviceName: TEST_DEVICE_NAME,
+                ip: LOCALHOST_IP,
                 isActual: true,
             }],
         };
@@ -114,12 +131,12 @@ export class AuthResponseFactory extends BaseAPIResponseFactory<
             users: [{
                 __typename: "SessionUser",
                 id: userId,
-                credits: "100", // New user credits
+                credits: String(DEFAULT_NEW_USER_CREDITS), // New user credits
                 creditAccountId: `credit_${userId}`,
                 creditSettings: {
-                    defaultCreditAmount: "100",
-                    freeCreditAmount: "10",
-                    dailyCreditLimit: "1000",
+                    defaultCreditAmount: String(DEFAULT_NEW_USER_CREDITS),
+                    freeCreditAmount: String(DEFAULT_FREE_CREDITS),
+                    dailyCreditLimit: String(DEFAULT_DAILY_CREDIT_LIMIT),
                 },
                 handle: input.handle || `user_${userId.slice(0, SHORT_ID_LENGTH)}`,
                 hasPremium: false,
@@ -135,9 +152,9 @@ export class AuthResponseFactory extends BaseAPIResponseFactory<
                     updatedAt: now,
                     lastActivityAt: now,
                     expiresAt: new Date(Date.now() + THIRTY_DAYS_MS).toISOString(),
-                    deviceId: "new-device",
-                    deviceName: "Signup Device",
-                    ip: "127.0.0.1",
+                    deviceId: NEW_DEVICE_ID,
+                    deviceName: NEW_DEVICE_NAME,
+                    ip: LOCALHOST_IP,
                     isActual: true,
                 }],
             }],
@@ -169,7 +186,7 @@ export class AuthResponseFactory extends BaseAPIResponseFactory<
         if (!input.password) {
             errors.password = "Password is required";
         } else if (input.password.length < MIN_PASSWORD_LENGTH) {
-            errors.password = "Password must be at least 8 characters";
+            errors.password = `Password must be at least ${MIN_PASSWORD_LENGTH} characters`;
         }
 
         if (!input.name) {
@@ -206,12 +223,12 @@ export class AuthResponseFactory extends BaseAPIResponseFactory<
             users: [{
                 __typename: "SessionUser",
                 id: existingUserId,
-                credits: "500", // Existing user might have more credits
+                credits: String(DEFAULT_EXISTING_USER_CREDITS), // Existing user might have more credits
                 creditAccountId: `credit_${existingUserId}`,
                 creditSettings: {
-                    defaultCreditAmount: "100",
-                    freeCreditAmount: "10",
-                    dailyCreditLimit: "1000",
+                    defaultCreditAmount: String(DEFAULT_NEW_USER_CREDITS),
+                    freeCreditAmount: String(DEFAULT_FREE_CREDITS),
+                    dailyCreditLimit: String(DEFAULT_DAILY_CREDIT_LIMIT),
                 },
                 handle: email.split("@")[0],
                 hasPremium: Math.random() > PREMIUM_CHANCE_THRESHOLD, // 20% chance of premium
@@ -227,9 +244,9 @@ export class AuthResponseFactory extends BaseAPIResponseFactory<
                     updatedAt: now,
                     lastActivityAt: now,
                     expiresAt: new Date(Date.now() + THIRTY_DAYS_MS).toISOString(),
-                    deviceId: "login-device",
-                    deviceName: "Login Device",
-                    ip: "192.168.1.1",
+                    deviceId: LOGIN_DEVICE_ID,
+                    deviceName: LOGIN_DEVICE_NAME,
+                    ip: PRIVATE_IP_FIRST,
                     isActual: true,
                 }],
             }],
@@ -260,12 +277,12 @@ export class AuthResponseFactory extends BaseAPIResponseFactory<
             users.push({
                 __typename: "SessionUser",
                 id: userId,
-                credits: String(100 * (i + 1)),
+                credits: String(DEFAULT_NEW_USER_CREDITS * (i + 1)),
                 creditAccountId: `credit_${userId}`,
                 creditSettings: {
-                    defaultCreditAmount: "100",
-                    freeCreditAmount: "10",
-                    dailyCreditLimit: "1000",
+                    defaultCreditAmount: String(DEFAULT_NEW_USER_CREDITS),
+                    freeCreditAmount: String(DEFAULT_FREE_CREDITS),
+                    dailyCreditLimit: String(DEFAULT_DAILY_CREDIT_LIMIT),
                 },
                 handle: `user${i + 1}`,
                 hasPremium: i === 0, // First account has premium
@@ -283,7 +300,7 @@ export class AuthResponseFactory extends BaseAPIResponseFactory<
                     expiresAt: new Date(Date.now() + THIRTY_DAYS_MS).toISOString(),
                     deviceId: `device-${i}`,
                     deviceName: `Device ${i + 1}`,
-                    ip: `192.168.1.${i + 1}`,
+                    ip: `${PRIVATE_IP_BASE}${i + 1}`,
                     isActual: i === 0, // First is current session
                 }],
             });

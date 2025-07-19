@@ -78,23 +78,18 @@ export const commentFixtures: ModelTestFixtures<CommentCreateInput, CommentUpdat
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid type for id (should be string)
                 id: 123,
-                // @ts-expect-error - Testing invalid type for createdFor (should be valid CommentFor enum)
                 createdFor: "InvalidType",
-                // @ts-expect-error - Testing invalid type for forConnect (should be string)
                 forConnect: 456,
             } as unknown as CommentCreateInput,
             update: {
                 id: validIds.id3,
-                // @ts-expect-error - Testing invalid type for translationsCreate (should be array)
                 translationsCreate: "not-an-array",
             } as unknown as CommentUpdateInput,
         },
         invalidCreatedFor: {
             create: {
                 id: validIds.id1,
-                // @ts-expect-error - Testing invalid enum value for createdFor
                 createdFor: "NotAValidEnum",
                 forConnect: validIds.forId1,
             } as unknown as CommentCreateInput,

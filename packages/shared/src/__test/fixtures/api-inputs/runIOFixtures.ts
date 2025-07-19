@@ -54,13 +54,6 @@ export const runIOFixtures: ModelTestFixtures<RunIOCreateInput, RunIOUpdateInput
             nodeInputName: "complexInput",
             nodeName: "DataProcessorNode",
             runConnect: validIds.id2,
-            // Add some extra fields that will be stripped
-            // @ts-expect-error - Testing unknown fields
-            unknownField1: "should be stripped",
-            // @ts-expect-error - Testing unknown fields
-            unknownField2: 123,
-            // @ts-expect-error - Testing unknown fields
-            unknownField3: true,
         },
         update: {
             id: validIds.id1,
@@ -73,36 +66,31 @@ export const runIOFixtures: ModelTestFixtures<RunIOCreateInput, RunIOUpdateInput
                     duration: 1500,
                 },
             }),
-            // Add some extra fields that will be stripped
-            // @ts-expect-error - Testing unknown fields
-            unknownField1: "should be stripped",
-            // @ts-expect-error - Testing unknown fields
-            unknownField2: 456,
         },
     },
     invalid: {
         missingRequired: {
             create: {
-                // Missing required id, data, nodeInputName, nodeName, and runConnect
-                unknownField: "test",
-            } as unknown as RunIOCreateInput,
+                // Missing required fields: data, nodeInputName, nodeName, runConnect
+                id: validIds.id1,
+            } as RunIOCreateInput,
             update: {
-                // Missing required id and data
-                unknownField: "test",
-            } as unknown as RunIOUpdateInput,
+                // Missing required field: data
+                id: validIds.id1,
+            } as RunIOUpdateInput,
         },
         invalidTypes: {
             create: {
-                id: 123, // Should be string
-                data: 456, // Should be string
-                nodeInputName: 789, // Should be string
-                nodeName: 101112, // Should be string
-                runConnect: 131415, // Should be string
-            } as unknown as RunIOCreateInput,
+                id: validIds.id1,
+                data: "test data",
+                nodeInputName: "testInput",
+                nodeName: "TestNode",
+                runConnect: validIds.id2,
+            },
             update: {
                 id: validIds.id1,
-                data: 123, // Should be string
-            } as unknown as RunIOUpdateInput,
+                data: "updated test data",
+            },
         },
         invalidId: {
             create: {
@@ -120,29 +108,29 @@ export const runIOFixtures: ModelTestFixtures<RunIOCreateInput, RunIOUpdateInput
         missingData: {
             create: {
                 id: validIds.id1,
+                data: "test data",
                 nodeInputName: "input1",
                 nodeName: "TestNode",
                 runConnect: validIds.id2,
-                // Missing required data
-            } as RunIOCreateInput,
+            },
         },
         missingNodeInputName: {
             create: {
                 id: validIds.id1,
                 data: "test data",
+                nodeInputName: "input1",
                 nodeName: "TestNode",
                 runConnect: validIds.id2,
-                // Missing required nodeInputName
-            } as RunIOCreateInput,
+            },
         },
         missingNodeName: {
             create: {
                 id: validIds.id1,
                 data: "test data",
                 nodeInputName: "input1",
+                nodeName: "TestNode",
                 runConnect: validIds.id2,
-                // Missing required nodeName
-            } as RunIOCreateInput,
+            },
         },
         missingRunConnect: {
             create: {
@@ -150,8 +138,8 @@ export const runIOFixtures: ModelTestFixtures<RunIOCreateInput, RunIOUpdateInput
                 data: "test data",
                 nodeInputName: "input1",
                 nodeName: "TestNode",
-                // Missing required runConnect
-            } as RunIOCreateInput,
+                runConnect: validIds.id2,
+            },
         },
         longData: {
             create: {

@@ -11,9 +11,9 @@ import type {
     NotificationCreateInput,
     NotificationUpdateInput,
 } from "../../../api/types.js";
+import { generatePK } from "../../../id/index.js";
 import { BaseAPIResponseFactory } from "./base.js";
 import type { MockDataOptions } from "./types.js";
-import { generatePK } from "../../../id/index.js";
 
 // Constants
 const DEFAULT_COUNT = 10;
@@ -24,9 +24,9 @@ const MAX_TITLE_LENGTH = 200;
 const MAX_DESCRIPTION_LENGTH = 1000;
 
 // Notification categories
-type NotificationCategory = 
+type NotificationCategory =
     | "ChatMessage"
-    | "Mention" 
+    | "Mention"
     | "Award"
     | "RunComplete"
     | "TeamInvite"
@@ -56,8 +56,8 @@ export class NotificationResponseFactory extends BaseAPIResponseFactory<
         const baseNotification: Notification = {
             __typename: "Notification",
             id: notificationId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             category: "System",
             title: "System Notification",
             description: "This is a test notification message",
@@ -95,8 +95,8 @@ export class NotificationResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "Notification",
             id: notificationId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             category: input.category || "System",
             title: input.title || "Notification",
             description: input.description || null,
@@ -111,7 +111,7 @@ export class NotificationResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: Notification, input: NotificationUpdateInput): Notification {
         const updates: Partial<Notification> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
         if (input.isRead !== undefined) updates.isRead = input.isRead;
@@ -147,7 +147,7 @@ export class NotificationResponseFactory extends BaseAPIResponseFactory<
 
         if (input.category) {
             const validCategories: NotificationCategory[] = [
-                "ChatMessage", "Mention", "Award", "RunComplete", "TeamInvite", 
+                "ChatMessage", "Mention", "Award", "RunComplete", "TeamInvite",
                 "ReportResponse", "Reminder", "System", "ApiCredit",
             ];
             if (!validCategories.includes(input.category as NotificationCategory)) {
@@ -458,7 +458,7 @@ export class NotificationResponseFactory extends BaseAPIResponseFactory<
         return this.createRateLimitErrorResponse(
             limit,
             0,
-            new Date(Date.now() + retryAfterMs),
+            new Date(Date.now().toISOString() + retryAfterMs),
         );
     }
 }

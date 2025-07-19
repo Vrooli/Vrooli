@@ -65,24 +65,16 @@ export const reportResponseFixtures: ModelTestFixtures<ReportResponseCreateInput
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid types
                 id: 123, // Should be string
-                // @ts-expect-error - Testing invalid enum value
                 actionSuggested: "InvalidAction", // Invalid enum value
-                // @ts-expect-error - Testing invalid type
                 details: 456, // Should be string
-                // @ts-expect-error - Testing invalid type
                 language: 789, // Should be string
-                // @ts-expect-error - Testing invalid type
                 reportConnect: 101112, // Should be string
             } as unknown as ReportResponseCreateInput,
             update: {
                 id: validIds.id1,
-                // @ts-expect-error - Testing invalid enum value
                 actionSuggested: "InvalidAction", // Invalid enum value
-                // @ts-expect-error - Testing invalid type
                 details: 123, // Should be string
-                // @ts-expect-error - Testing invalid type
                 language: 456, // Should be string
             } as unknown as ReportResponseUpdateInput,
         },
@@ -99,7 +91,6 @@ export const reportResponseFixtures: ModelTestFixtures<ReportResponseCreateInput
         invalidActionSuggested: {
             create: {
                 id: validIds.id1,
-                // @ts-expect-error - Testing invalid enum value
                 actionSuggested: "UnknownAction", // Not a valid enum value
                 reportConnect: validIds.id2,
             } as unknown as ReportResponseCreateInput,

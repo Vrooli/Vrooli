@@ -35,7 +35,7 @@ export const reminderItemFixtures: ModelTestFixtures<ReminderItemCreateInput, Re
             id: validIds.id1,
             name: "Review pull request",
             description: "Review and approve the latest pull request for the authentication module",
-            dueDate: new Date("2024-12-31T15:00:00Z"),
+            dueDate: new Date("2024-12-31T15:00:00Z").toISOString(),
             index: 0,
             isComplete: false,
             reminderConnect: validIds.id2,
@@ -44,7 +44,7 @@ export const reminderItemFixtures: ModelTestFixtures<ReminderItemCreateInput, Re
             id: validIds.id1,
             name: "Updated task name",
             description: "Updated description with more details",
-            dueDate: new Date("2025-01-15T10:00:00Z"),
+            dueDate: new Date("2025-01-15T10:00:00Z").toISOString(),
             index: 1,
             isComplete: true,
         },
@@ -63,25 +63,17 @@ export const reminderItemFixtures: ModelTestFixtures<ReminderItemCreateInput, Re
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid types
                 id: 123, // Should be string
-                // @ts-expect-error - Testing invalid types
                 name: true, // Should be string
-                // @ts-expect-error - Testing invalid types
                 description: 123, // Should be string
-                // @ts-expect-error - Testing invalid types
                 dueDate: "not-a-date", // Should be Date
-                // @ts-expect-error - Testing invalid types
                 index: "zero", // Should be number
-                // @ts-expect-error - Testing invalid types
                 isComplete: "yes", // Should be boolean
                 reminderConnect: validIds.id2,
             } as unknown as ReminderItemCreateInput,
             update: {
                 id: validIds.id1,
-                // @ts-expect-error - Testing invalid types
                 name: 123, // Should be string
-                // @ts-expect-error - Testing invalid types
                 isComplete: 1, // Should be boolean
                 index: -1, // Should be non-negative
             } as unknown as ReminderItemUpdateInput,
@@ -206,7 +198,7 @@ export const reminderItemFixtures: ModelTestFixtures<ReminderItemCreateInput, Re
             create: {
                 id: validIds.id1,
                 name: "Overdue task",
-                dueDate: new Date("2020-01-01T00:00:00Z"),
+                dueDate: new Date("2020-01-01T00:00:00Z").toISOString(),
                 index: 0,
                 reminderConnect: validIds.id2,
             },
@@ -215,7 +207,7 @@ export const reminderItemFixtures: ModelTestFixtures<ReminderItemCreateInput, Re
             create: {
                 id: validIds.id1,
                 name: "Future task",
-                dueDate: new Date("2030-12-31T23:59:59Z"),
+                dueDate: new Date("2030-12-31T23:59:59Z").toISOString(),
                 index: 0,
                 reminderConnect: validIds.id2,
             },
@@ -251,13 +243,11 @@ export const reminderItemFixtures: ModelTestFixtures<ReminderItemCreateInput, Re
                 id: validIds.id1,
                 name: "Task with boolean string",
                 index: 0,
-                // @ts-expect-error - Testing string to boolean conversion
                 isComplete: "true", // String to boolean
                 reminderConnect: validIds.id2,
             } as unknown as ReminderItemCreateInput,
             update: {
                 id: validIds.id1,
-                // @ts-expect-error - Testing string to boolean conversion
                 isComplete: "false", // String to boolean
             } as unknown as ReminderItemUpdateInput,
         },

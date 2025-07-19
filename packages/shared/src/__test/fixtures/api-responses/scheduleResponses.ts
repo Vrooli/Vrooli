@@ -10,12 +10,10 @@ import type {
     Schedule,
     ScheduleCreateInput,
     ScheduleUpdateInput,
-    ScheduleRecurrence,
-    ScheduleException,
 } from "../../../api/types.js";
+import { generatePK } from "../../../id/index.js";
 import { BaseAPIResponseFactory } from "./base.js";
 import type { MockDataOptions } from "./types.js";
-import { generatePK } from "../../../id/index.js";
 
 // Constants
 const DEFAULT_COUNT = 10;
@@ -45,13 +43,13 @@ export class ScheduleResponseFactory extends BaseAPIResponseFactory<
         const scenario = options?.scenario || "minimal";
         const now = new Date().toISOString();
         const scheduleId = options?.overrides?.id || generatePK().toString();
-        const nextWeek = new Date(Date.now() + DAYS_7).toISOString();
+        const nextWeek = new Date(Date.now().toISOString() + DAYS_7).toISOString();
 
         const baseSchedule: Schedule = {
             __typename: "Schedule",
             id: scheduleId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             startTime: nextWeek,
             endTime: null,
             timezone: "UTC",
@@ -78,8 +76,8 @@ export class ScheduleResponseFactory extends BaseAPIResponseFactory<
         };
 
         if (scenario === "complete" || scenario === "edge-case") {
-            const startTime = new Date(Date.now() + HOURS_24).toISOString();
-            const endTime = new Date(Date.now() + HOURS_24 + (2 * 60 * 60 * 1000)).toISOString(); // 2 hours later
+            const startTime = new Date(Date.now().toISOString() + HOURS_24).toISOString();
+            const endTime = new Date(Date.now().toISOString() + HOURS_24 + (2 * 60 * 60 * 1000)).toISOString(); // 2 hours later
 
             return {
                 ...baseSchedule,
@@ -89,31 +87,31 @@ export class ScheduleResponseFactory extends BaseAPIResponseFactory<
                 recurrences: [{
                     __typename: "ScheduleRecurrence",
                     id: generatePK().toString(),
-                    created_at: now,
-                    updated_at: now,
+                    createdAt: now,
+                    updatedAt: now,
                     recurrenceType: "Weekly",
                     interval: 1,
                     dayOfWeek: 1, // Monday
                     dayOfMonth: null,
                     month: null,
-                    endDate: new Date(Date.now() + (365 * HOURS_24)).toISOString(), // 1 year
+                    endDate: new Date(Date.now().toISOString() + (365 * HOURS_24)).toISOString(), // 1 year
                 }],
                 recurrencesCount: 1,
                 exceptions: [{
                     __typename: "ScheduleException",
                     id: generatePK().toString(),
-                    created_at: now,
-                    updated_at: now,
+                    createdAt: now,
+                    updatedAt: now,
                     originalStartTime: startTime,
-                    newStartTime: new Date(new Date(startTime).getTime() + HOURS_24).toISOString(),
-                    newEndTime: new Date(new Date(endTime).getTime() + HOURS_24).toISOString(),
+                    newStartTime: new Date(new Date(startTime).toISOString().getTime() + HOURS_24).toISOString(),
+                    newEndTime: new Date(new Date(endTime).toISOString().getTime() + HOURS_24).toISOString(),
                 }],
                 exceptionsCount: 1,
                 labels: [{
                     __typename: "Label",
                     id: generatePK().toString(),
-                    created_at: now,
-                    updated_at: now,
+                    createdAt: now,
+                    updatedAt: now,
                     label: "Important",
                     color: "#ff4444",
                 }],
@@ -121,8 +119,8 @@ export class ScheduleResponseFactory extends BaseAPIResponseFactory<
                 reminders: [{
                     __typename: "Reminder",
                     id: generatePK().toString(),
-                    created_at: now,
-                    updated_at: now,
+                    createdAt: now,
+                    updatedAt: now,
                     durationMinutes: 15,
                 }],
                 remindersCount: 1,
@@ -150,16 +148,16 @@ export class ScheduleResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "Schedule",
             id: scheduleId,
-            created_at: now,
-            updated_at: now,
-            startTime: input.startTime || new Date(Date.now() + HOURS_24).toISOString(),
+            createdAt: now,
+            updatedAt: now,
+            startTime: input.startTime || new Date(Date.now().toISOString() + HOURS_24).toISOString(),
             endTime: input.endTime || null,
             timezone: input.timezone || "UTC",
             recurrences: input.recurrencesCreate?.map(r => ({
                 __typename: "ScheduleRecurrence" as const,
                 id: generatePK().toString(),
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
                 recurrenceType: r.recurrenceType as RecurrenceType,
                 interval: r.interval || 1,
                 dayOfWeek: r.dayOfWeek || null,
@@ -171,8 +169,8 @@ export class ScheduleResponseFactory extends BaseAPIResponseFactory<
             exceptions: input.exceptionsCreate?.map(e => ({
                 __typename: "ScheduleException" as const,
                 id: generatePK().toString(),
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
                 originalStartTime: e.originalStartTime,
                 newStartTime: e.newStartTime || null,
                 newEndTime: e.newEndTime || null,
@@ -191,8 +189,8 @@ export class ScheduleResponseFactory extends BaseAPIResponseFactory<
             reminders: input.remindersCreate?.map(r => ({
                 __typename: "Reminder" as const,
                 id: generatePK().toString(),
-                created_at: now,
-                updated_at: now,
+                createdAt: now,
+                updatedAt: now,
                 durationMinutes: r.durationMinutes || 15,
             })) || [],
             remindersCount: input.remindersCreate?.length || 0,
@@ -208,7 +206,7 @@ export class ScheduleResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: Schedule, input: ScheduleUpdateInput): Schedule {
         const updates: Partial<Schedule> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
         if (input.startTime !== undefined) updates.startTime = input.startTime;
@@ -241,7 +239,7 @@ export class ScheduleResponseFactory extends BaseAPIResponseFactory<
         if (!input.startTime) {
             errors.startTime = "Start time is required";
         } else {
-            const startTime = new Date(input.startTime);
+            const startTime = new Date(input.startTime).toISOString();
             if (isNaN(startTime.getTime())) {
                 errors.startTime = "Invalid start time format";
             } else if (startTime.getTime() < Date.now()) {
@@ -250,10 +248,10 @@ export class ScheduleResponseFactory extends BaseAPIResponseFactory<
         }
 
         if (input.endTime) {
-            const endTime = new Date(input.endTime);
+            const endTime = new Date(input.endTime).toISOString();
             if (isNaN(endTime.getTime())) {
                 errors.endTime = "Invalid end time format";
-            } else if (input.startTime && endTime.getTime() <= new Date(input.startTime).getTime()) {
+            } else if (input.startTime && endTime.getTime() <= new Date(input.startTime).toISOString().getTime()) {
                 errors.endTime = "End time must be after start time";
             }
         }
@@ -290,14 +288,14 @@ export class ScheduleResponseFactory extends BaseAPIResponseFactory<
         const errors: Record<string, string> = {};
 
         if (input.startTime !== undefined) {
-            const startTime = new Date(input.startTime);
+            const startTime = new Date(input.startTime).toISOString();
             if (isNaN(startTime.getTime())) {
                 errors.startTime = "Invalid start time format";
             }
         }
 
         if (input.endTime !== undefined && input.endTime !== null) {
-            const endTime = new Date(input.endTime);
+            const endTime = new Date(input.endTime).toISOString();
             if (isNaN(endTime.getTime())) {
                 errors.endTime = "Invalid end time format";
             }
@@ -313,23 +311,23 @@ export class ScheduleResponseFactory extends BaseAPIResponseFactory<
      * Create daily recurring schedule
      */
     createDailySchedule(): Schedule {
-        const tomorrow = new Date(Date.now() + HOURS_24);
+        const tomorrow = new Date(Date.now().toISOString() + HOURS_24);
         return this.createMockData({
             scenario: "complete",
             overrides: {
                 startTime: tomorrow.toISOString(),
-                endTime: new Date(tomorrow.getTime() + (60 * 60 * 1000)).toISOString(), // 1 hour later
+                endTime: new Date(tomorrow.getTime().toISOString() + (60 * 60 * 1000)).toISOString(), // 1 hour later
                 recurrences: [{
                     __typename: "ScheduleRecurrence",
                     id: generatePK().toString(),
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                     recurrenceType: "Daily",
                     interval: 1,
                     dayOfWeek: null,
                     dayOfMonth: null,
                     month: null,
-                    endDate: new Date(Date.now() + (30 * HOURS_24)).toISOString(), // 30 days
+                    endDate: new Date(Date.now().toISOString() + (30 * HOURS_24)).toISOString(), // 30 days
                 }],
                 recurrencesCount: 1,
             },
@@ -340,25 +338,25 @@ export class ScheduleResponseFactory extends BaseAPIResponseFactory<
      * Create weekly recurring schedule
      */
     createWeeklySchedule(): Schedule {
-        const nextMonday = new Date();
+        const nextMonday = new Date().toISOString();
         nextMonday.setDate(nextMonday.getDate() + ((1 + 7 - nextMonday.getDay()) % 7));
-        
+
         return this.createMockData({
             scenario: "complete",
             overrides: {
                 startTime: nextMonday.toISOString(),
-                endTime: new Date(nextMonday.getTime() + (2 * 60 * 60 * 1000)).toISOString(), // 2 hours later
+                endTime: new Date(nextMonday.getTime().toISOString() + (2 * 60 * 60 * 1000)).toISOString(), // 2 hours later
                 recurrences: [{
                     __typename: "ScheduleRecurrence",
                     id: generatePK().toString(),
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                     recurrenceType: "Weekly",
                     interval: 1,
                     dayOfWeek: 1, // Monday
                     dayOfMonth: null,
                     month: null,
-                    endDate: new Date(Date.now() + (365 * HOURS_24)).toISOString(), // 1 year
+                    endDate: new Date(Date.now().toISOString() + (365 * HOURS_24)).toISOString(), // 1 year
                 }],
                 recurrencesCount: 1,
             },
@@ -369,26 +367,26 @@ export class ScheduleResponseFactory extends BaseAPIResponseFactory<
      * Create monthly recurring schedule
      */
     createMonthlySchedule(): Schedule {
-        const nextMonth = new Date();
+        const nextMonth = new Date().toISOString();
         nextMonth.setMonth(nextMonth.getMonth() + 1);
         nextMonth.setDate(1); // First day of next month
-        
+
         return this.createMockData({
             scenario: "complete",
             overrides: {
                 startTime: nextMonth.toISOString(),
-                endTime: new Date(nextMonth.getTime() + (3 * 60 * 60 * 1000)).toISOString(), // 3 hours later
+                endTime: new Date(nextMonth.getTime().toISOString() + (3 * 60 * 60 * 1000)).toISOString(), // 3 hours later
                 recurrences: [{
                     __typename: "ScheduleRecurrence",
                     id: generatePK().toString(),
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                     recurrenceType: "Monthly",
                     interval: 1,
                     dayOfWeek: null,
                     dayOfMonth: 1,
                     month: null,
-                    endDate: new Date(Date.now() + (365 * HOURS_24)).toISOString(), // 1 year
+                    endDate: new Date(Date.now().toISOString() + (365 * HOURS_24)).toISOString(), // 1 year
                 }],
                 recurrencesCount: 1,
             },
@@ -400,19 +398,19 @@ export class ScheduleResponseFactory extends BaseAPIResponseFactory<
      */
     createScheduleWithExceptions(): Schedule {
         const baseSchedule = this.createWeeklySchedule();
-        const originalStart = new Date(baseSchedule.startTime);
-        const nextWeek = new Date(originalStart.getTime() + DAYS_7);
-        
+        const originalStart = new Date(baseSchedule.startTime).toISOString();
+        const nextWeek = new Date(originalStart.getTime().toISOString() + DAYS_7);
+
         return {
             ...baseSchedule,
             exceptions: [{
                 __typename: "ScheduleException",
                 id: generatePK().toString(),
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
                 originalStartTime: nextWeek.toISOString(),
-                newStartTime: new Date(nextWeek.getTime() + (2 * 60 * 60 * 1000)).toISOString(), // 2 hours later
-                newEndTime: new Date(nextWeek.getTime() + (4 * 60 * 60 * 1000)).toISOString(), // 4 hours later
+                newStartTime: new Date(nextWeek.getTime().toISOString() + (2 * 60 * 60 * 1000)).toISOString(), // 2 hours later
+                newEndTime: new Date(nextWeek.getTime().toISOString() + (4 * 60 * 60 * 1000)).toISOString(), // 4 hours later
             }],
             exceptionsCount: 1,
         };
@@ -424,17 +422,17 @@ export class ScheduleResponseFactory extends BaseAPIResponseFactory<
     createMultiTimezoneSchedules(): Schedule[] {
         const timezones = [
             "America/New_York",
-            "Europe/London", 
+            "Europe/London",
             "Asia/Tokyo",
             "Australia/Sydney",
             "America/Los_Angeles",
         ];
 
-        return timezones.map(timezone => 
+        return timezones.map(timezone =>
             this.createMockData({
                 overrides: {
                     timezone,
-                    startTime: new Date(Date.now() + HOURS_24).toISOString(),
+                    startTime: new Date(Date.now().toISOString() + HOURS_24).toISOString(),
                 },
             }),
         );
@@ -482,7 +480,7 @@ export const scheduleResponseScenarios = {
     createSuccess: (input?: Partial<ScheduleCreateInput>) => {
         const factory = new ScheduleResponseFactory();
         const defaultInput: ScheduleCreateInput = {
-            startTime: new Date(Date.now() + HOURS_24).toISOString(),
+            startTime: new Date(Date.now().toISOString() + HOURS_24).toISOString(),
             timezone: "UTC",
             ...input,
         };
@@ -605,7 +603,7 @@ export const scheduleResponseScenarios = {
         const factory = new ScheduleResponseFactory();
         return factory.createScheduleConflictErrorResponse(
             conflictingScheduleId || generatePK().toString(),
-            new Date(Date.now() + HOURS_24).toISOString(),
+            new Date(Date.now().toISOString() + HOURS_24).toISOString(),
         );
     },
 

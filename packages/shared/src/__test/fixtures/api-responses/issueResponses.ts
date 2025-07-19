@@ -9,20 +9,18 @@
 import type {
     Issue,
     IssueCreateInput,
-    IssueUpdateInput,
-    IssueStatus,
     IssueFor,
-    IssueTranslation,
-    User,
-    Team,
+    IssueStatus,
+    IssueUpdateInput,
     Resource,
+    Team,
 } from "../../../api/types.js";
-import { BaseAPIResponseFactory } from "./base.js";
-import type { MockDataOptions } from "./types.js";
 import { generatePK } from "../../../id/index.js";
-import { userResponseFactory } from "./userResponses.js";
-import { teamResponseFactory } from "./teamResponses.js";
+import { BaseAPIResponseFactory } from "./base.js";
 import { resourceResponseFactory } from "./resourceResponses.js";
+import { teamResponseFactory } from "./teamResponses.js";
+import type { MockDataOptions } from "./types.js";
+import { userResponseFactory } from "./userResponses.js";
 
 // Constants
 const DEFAULT_COUNT = 10;
@@ -55,8 +53,8 @@ export class IssueResponseFactory extends BaseAPIResponseFactory<
         const baseIssue: Issue = {
             __typename: "Issue",
             id: issueId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             status: "Open",
             score: 0,
             bookmarks: 0,
@@ -102,10 +100,10 @@ export class IssueResponseFactory extends BaseAPIResponseFactory<
                 views: 156,
                 commentsCount: 8,
                 reportsCount: 1,
-                closedAt: new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString(), // 1 day ago
+                closedAt: new Date(Date.now().toISOString() - (24 * 60 * 60 * 1000)).toISOString(), // 1 day ago
                 closedBy,
                 createdBy: userResponseFactory.createMockData({ scenario: "complete" }),
-                to: scenario === "edge-case" 
+                to: scenario === "edge-case"
                     ? teamResponseFactory.createMockData({ scenario: "complete" })
                     : resourceResponseFactory.createMockData({ scenario: "complete" }),
                 translations: [{
@@ -154,8 +152,8 @@ export class IssueResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "Issue",
             id: issueId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             status: "Draft", // New issues start as draft
             score: 0,
             bookmarks: 0,
@@ -203,12 +201,12 @@ export class IssueResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: Issue, input: IssueUpdateInput): Issue {
         const updates: Partial<Issue> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
         if (input.status !== undefined) {
             updates.status = input.status;
-            
+
             // Handle status transitions
             if (input.status === "ClosedResolved" || input.status === "ClosedUnresolved") {
                 updates.closedAt = new Date().toISOString();
@@ -327,7 +325,7 @@ export class IssueResponseFactory extends BaseAPIResponseFactory<
 
             // Set closed fields for closed statuses
             if (status === "ClosedResolved" || status === "ClosedUnresolved") {
-                issue.closedAt = new Date(Date.now() - (index * 24 * 60 * 60 * 1000)).toISOString();
+                issue.closedAt = new Date(Date.now().toISOString() - (index * 24 * 60 * 60 * 1000)).toISOString();
                 issue.closedBy = userResponseFactory.createMockData();
             }
 
@@ -344,10 +342,10 @@ export class IssueResponseFactory extends BaseAPIResponseFactory<
      */
     createIssuesForAllTypes(): Issue[] {
         const types: IssueFor[] = ["Team", "Resource"];
-        
+
         return types.map((issueFor, index) => {
             let target: Resource | Team;
-            
+
             if (issueFor === "Team") {
                 target = teamResponseFactory.createMockData({ scenario: "complete" });
             } else {
@@ -382,7 +380,7 @@ export class IssueResponseFactory extends BaseAPIResponseFactory<
             { name: "Enhancement", score: 10, description: "Enhancement request" },
         ];
 
-        return severityLevels.map((severity, index) => 
+        return severityLevels.map((severity, index) =>
             this.createMockData({
                 overrides: {
                     id: `issue_${severity.name.toLowerCase()}_${index}`,
@@ -530,7 +528,7 @@ export const issueResponseScenarios = {
 
     listByTypeSuccess: (issueFor: IssueFor) => {
         const factory = new IssueResponseFactory();
-        const issues = factory.createIssuesForAllTypes().filter(i => 
+        const issues = factory.createIssuesForAllTypes().filter(i =>
             i.to.__typename === issueFor,
         );
         return factory.createPaginatedResponse(

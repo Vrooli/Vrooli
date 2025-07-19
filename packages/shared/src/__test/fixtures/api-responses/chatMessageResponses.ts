@@ -10,16 +10,11 @@ import type {
     ChatMessage,
     ChatMessageCreateInput,
     ChatMessageUpdateInput,
-    ChatMessageSearchResult,
-    ChatMessageSearchTreeResult,
-    ChatMessageParent,
-    Chat,
-    User,
 } from "../../../api/types.js";
-import { BaseAPIResponseFactory } from "./base.js";
-import type { MockDataOptions } from "./types.js";
 import { generatePK } from "../../../id/index.js";
+import { BaseAPIResponseFactory } from "./base.js";
 import { chatResponseFactory } from "./chatResponses.js";
+import type { MockDataOptions } from "./types.js";
 import { userResponseFactory } from "./userResponses.js";
 
 // Constants
@@ -54,8 +49,8 @@ export class ChatMessageResponseFactory extends BaseAPIResponseFactory<
         const baseChatMessage: ChatMessage = {
             __typename: "ChatMessage",
             id: messageId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             config: {
                 __version: "1.0.0",
                 role: "user",
@@ -87,7 +82,7 @@ export class ChatMessageResponseFactory extends BaseAPIResponseFactory<
         if (scenario === "complete" || scenario === "edge-case") {
             return {
                 ...baseChatMessage,
-                text: scenario === "edge-case" 
+                text: scenario === "edge-case"
                     ? "A".repeat(MAX_MESSAGE_LENGTH) // Maximum length message
                     : "This is a comprehensive chat message with all possible features including tool calls and resource references.",
                 config: {
@@ -117,18 +112,18 @@ export class ChatMessageResponseFactory extends BaseAPIResponseFactory<
                 versionIndex: scenario === "edge-case" ? 3 : 1,
                 score: scenario === "complete" ? 15 : 0,
                 chat: chatResponseFactory.createMockData({ scenario: "complete" }),
-                user: scenario === "complete" 
+                user: scenario === "complete"
                     ? userResponseFactory.createMockData({ scenario: "complete" })
-                    : userResponseFactory.createMockData({ 
-                        overrides: { 
-                            isBot: true, 
-                            name: "System", 
+                    : userResponseFactory.createMockData({
+                        overrides: {
+                            isBot: true,
+                            name: "System",
                             handle: "system",
                         },
                     }),
                 parent: scenario === "edge-case" ? {
                     id: generatePK().toString(),
-                    created_at: new Date(Date.now() - (60 * 60 * 1000)).toISOString(),
+                    createdAt: new Date(Date.now().toISOString() - (60 * 60 * 1000)).toISOString(),
                 } : null,
                 reactionSummaries: scenario === "complete" ? [
                     {
@@ -168,8 +163,8 @@ export class ChatMessageResponseFactory extends BaseAPIResponseFactory<
         return {
             __typename: "ChatMessage",
             id: messageId,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
             config: input.config || {
                 __version: "1.0.0",
                 role: "user",
@@ -185,7 +180,7 @@ export class ChatMessageResponseFactory extends BaseAPIResponseFactory<
             user: userResponseFactory.createMockData({ overrides: { id: input.userConnect } }),
             parent: input.parentConnect ? {
                 id: input.parentConnect,
-                created_at: new Date(Date.now() - (60 * 60 * 1000)).toISOString(),
+                createdAt: new Date(Date.now().toISOString() - (60 * 60 * 1000)).toISOString(),
             } : null,
             reactionSummaries: [],
             reports: [],
@@ -207,7 +202,7 @@ export class ChatMessageResponseFactory extends BaseAPIResponseFactory<
      */
     updateFromInput(existing: ChatMessage, input: ChatMessageUpdateInput): ChatMessage {
         const updates: Partial<ChatMessage> = {
-            updated_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
         if (input.text !== undefined) updates.text = input.text;
@@ -301,16 +296,16 @@ export class ChatMessageResponseFactory extends BaseAPIResponseFactory<
                         role,
                         resources: [],
                     },
-                    text: role === "user" 
+                    text: role === "user"
                         ? "Hello, can you help me with a question?"
                         : role === "assistant"
-                        ? "Of course! I'd be happy to help you with your question."
-                        : "Chat session has been initialized successfully.",
+                            ? "Of course! I'd be happy to help you with your question."
+                            : "Chat session has been initialized successfully.",
                     sequence: index + 1,
-                    user: role === "system" || role === "assistant" 
-                        ? userResponseFactory.createMockData({ 
-                            overrides: { 
-                                isBot: true, 
+                    user: role === "system" || role === "assistant"
+                        ? userResponseFactory.createMockData({
+                            overrides: {
+                                isBot: true,
                                 name: role === "system" ? "System" : "AI Assistant",
                                 handle: role,
                             },
@@ -328,13 +323,13 @@ export class ChatMessageResponseFactory extends BaseAPIResponseFactory<
         const chatId = generatePK().toString();
         const userId = generatePK().toString();
         const assistantId = generatePK().toString();
-        
+
         const chat = chatResponseFactory.createMockData({ overrides: { id: chatId } });
         const user = userResponseFactory.createMockData({ overrides: { id: userId } });
-        const assistant = userResponseFactory.createMockData({ 
-            overrides: { 
+        const assistant = userResponseFactory.createMockData({
+            overrides: {
                 id: assistantId,
-                isBot: true, 
+                isBot: true,
                 name: "AI Assistant",
                 handle: "assistant",
             },
@@ -342,14 +337,14 @@ export class ChatMessageResponseFactory extends BaseAPIResponseFactory<
 
         return Array.from({ length: count }, (_, index) => {
             const isUserMessage = index % 2 === 0;
-            const messageTime = new Date(Date.now() - ((count - index) * 5 * 60 * 1000)); // 5 minutes apart
-            
+            const messageTime = new Date(Date.now().toISOString() - ((count - index) * 5 * 60 * 1000)); // 5 minutes apart
+
             return this.createMockData({
                 overrides: {
                     id: `thread_message_${index}`,
                     chat,
                     user: isUserMessage ? user : assistant,
-                    text: isUserMessage 
+                    text: isUserMessage
                         ? `User message ${Math.floor(index / 2) + 1}: This is what I'm thinking about...`
                         : `Assistant response ${Math.floor(index / 2) + 1}: Here's my response to your question.`,
                     config: {
@@ -371,8 +366,8 @@ export class ChatMessageResponseFactory extends BaseAPIResponseFactory<
                         }),
                     },
                     sequence: index + 1,
-                    created_at: messageTime.toISOString(),
-                    updated_at: messageTime.toISOString(),
+                    createdAt: messageTime.toISOString(),
+                    updatedAt: messageTime.toISOString(),
                 },
             });
         });
@@ -398,9 +393,9 @@ export class ChatMessageResponseFactory extends BaseAPIResponseFactory<
                     sequence: index + 2,
                     parent: {
                         id: parentMessage.id,
-                        created_at: parentMessage.created_at,
+                        createdAt: parentMessage.created_at,
                     },
-                    created_at: new Date(Date.now() + ((index + 1) * 30 * 60 * 1000)).toISOString(), // 30 minutes apart
+                    createdAt: new Date(Date.now().toISOString() + ((index + 1) * 30 * 60 * 1000)).toISOString(), // 30 minutes apart
                 },
             }),
         );
@@ -439,7 +434,7 @@ export class ChatMessageResponseFactory extends BaseAPIResponseFactory<
                             id: "search_tool",
                             function: {
                                 name: "web_search",
-                                arguments: JSON.stringify({ 
+                                arguments: JSON.stringify({
                                     query: "machine learning algorithms",
                                     max_results: 5,
                                 }),
@@ -450,9 +445,9 @@ export class ChatMessageResponseFactory extends BaseAPIResponseFactory<
                             },
                         }],
                     },
-                    user: userResponseFactory.createMockData({ 
-                        overrides: { 
-                            isBot: true, 
+                    user: userResponseFactory.createMockData({
+                        overrides: {
+                            isBot: true,
                             name: "AI Assistant",
                             handle: "assistant",
                         },
@@ -481,9 +476,9 @@ export class ChatMessageResponseFactory extends BaseAPIResponseFactory<
                             },
                         ],
                     },
-                    user: userResponseFactory.createMockData({ 
-                        overrides: { 
-                            isBot: true, 
+                    user: userResponseFactory.createMockData({
+                        overrides: {
+                            isBot: true,
                             name: "AI Assistant",
                             handle: "assistant",
                         },
@@ -727,9 +722,9 @@ export const chatMessageResponseScenarios = {
                         role: "assistant",
                         resources: [],
                     },
-                    user: userResponseFactory.createMockData({ 
-                        overrides: { 
-                            isBot: true, 
+                    user: userResponseFactory.createMockData({
+                        overrides: {
+                            isBot: true,
                             name: "AI Assistant",
                             handle: "assistant",
                         },
@@ -761,9 +756,9 @@ export const chatMessageResponseScenarios = {
                             },
                         }],
                     },
-                    user: userResponseFactory.createMockData({ 
-                        overrides: { 
-                            isBot: true, 
+                    user: userResponseFactory.createMockData({
+                        overrides: {
+                            isBot: true,
                             name: "AI Assistant",
                             handle: "assistant",
                         },

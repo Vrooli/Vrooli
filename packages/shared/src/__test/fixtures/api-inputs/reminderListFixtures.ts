@@ -40,7 +40,7 @@ export const reminderListFixtures: ModelTestFixtures<ReminderListCreateInput, Re
                 {
                     id: validIds.id3,
                     name: "Second reminder",
-                    dueDate: new Date("2025-12-31T17:00:00Z"),
+                    dueDate: new Date("2025-12-31T17:00:00Z").toISOString(),
                     index: 1,
                 },
                 {
@@ -107,16 +107,12 @@ export const reminderListFixtures: ModelTestFixtures<ReminderListCreateInput, Re
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error - Testing invalid type for id (number instead of string)
                 id: 123, // Should be string
-                // @ts-expect-error - Testing invalid type for remindersCreate (string instead of array)
                 remindersCreate: "not-an-array", // Should be array
             } as unknown as ReminderListCreateInput,
             update: {
                 id: validIds.id1,
-                // @ts-expect-error - Testing invalid type for remindersUpdate (string instead of array)
                 remindersUpdate: "not-an-array", // Should be array
-                // @ts-expect-error - Testing invalid type for remindersDelete (number instead of array)
                 remindersDelete: 123, // Should be array of strings
             } as unknown as ReminderListUpdateInput,
         },
@@ -150,7 +146,6 @@ export const reminderListFixtures: ModelTestFixtures<ReminderListCreateInput, Re
         invalidReminderDelete: {
             update: {
                 id: validIds.id1,
-                // @ts-expect-error - Testing invalid type in array (number instead of string)
                 remindersDelete: ["not-a-valid-id", INVALID_ID_FOR_TESTING], // Should be valid IDs
             } as unknown as ReminderListUpdateInput,
         },
@@ -249,14 +244,14 @@ export const reminderListFixtures: ModelTestFixtures<ReminderListCreateInput, Re
                     id: validIds.id2,
                     name: "Complete reminder",
                     description: "A reminder with all possible fields",
-                    dueDate: new Date("2025-06-15T14:30:00Z"),
+                    dueDate: new Date("2025-06-15T14:30:00Z").toISOString(),
                     index: 0,
                     reminderListConnect: validIds.id1,
                     reminderItemsCreate: [{
                         id: validIds.id3,
                         name: "Complete subtask",
                         description: "Subtask with all fields",
-                        dueDate: new Date("2025-06-14T14:30:00Z"),
+                        dueDate: new Date("2025-06-14T14:30:00Z").toISOString(),
                         index: 0,
                         isComplete: false,
                         reminderConnect: validIds.id2,
@@ -279,7 +274,7 @@ export const reminderListFixtures: ModelTestFixtures<ReminderListCreateInput, Re
                     },
                     {
                         id: validIds.id4,
-                        dueDate: new Date("2025-07-01T00:00:00Z"),
+                        dueDate: new Date("2025-07-01T00:00:00Z").toISOString(),
                     },
                 ],
             } as ReminderListUpdateInput,
