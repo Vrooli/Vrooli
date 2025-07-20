@@ -4,6 +4,7 @@ import React from "react";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { SessionContext } from "../contexts/session.js";
 import { useStandardBatchUpsertForm, type StandardBatchUpsertFormConfig, type UseStandardBatchUpsertFormProps } from "./useStandardBatchUpsertForm.js";
+import { PubSub } from "../utils/pubsub.js";
 
 // Mock dependencies
 vi.mock("../api/fetchWrapper.js", () => ({
@@ -153,12 +154,18 @@ const renderHookWithProviders = <T extends TestInviteShapeArray, R extends TestI
     props: UseStandardBatchUpsertFormProps<T, R>,
     sessionOverride?: any,
 ) => {
-    const session = sessionOverride || createMockSession();
+    const session = sessionOverride !== undefined ? sessionOverride : createMockSession();
     
     const wrapper = ({ children }: { children: React.ReactNode }) => 
         React.createElement(SessionContext.Provider, { value: session }, children);
 
-    return renderHook(() => useStandardBatchUpsertForm(config, props), { wrapper });
+    return renderHook(
+        ({ config: hookConfig, props: hookProps }) => useStandardBatchUpsertForm(hookConfig, hookProps), 
+        { 
+            wrapper,
+            initialProps: { config, props }
+        }
+    );
 };
 
 // Import mocked functions
@@ -174,12 +181,12 @@ describe("useStandardBatchUpsertForm", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         
-        // Setup default mock returns
-        mockUseUpsertActions.mockReturnValue({
-            handleCancel: vi.fn(),
-            handleCompleted: vi.fn(),
-            handleDeleted: vi.fn(),
-        });
+        // Setup default mock returns that maintain the function chain
+        mockUseUpsertActions.mockImplementation(({ onCompleted, onCancel, onDeleted }) => ({
+            handleCancel: vi.fn(() => onCancel?.()),
+            handleCompleted: vi.fn((data) => onCompleted?.(data)),
+            handleDeleted: vi.fn((data) => onDeleted?.(data)),
+        }));
 
         mockUseUpsertFetch.mockReturnValue({
             fetch: vi.fn(),
@@ -305,8 +312,13 @@ describe("useStandardBatchUpsertForm", () => {
         it("should call transform function with array data", async () => {
             const config = createMockConfig();
             const mockSetSubmitting = vi.fn();
+            const mockSubmitHelper = vi.fn();
+            
+            // Mock useSubmitHelper to return a function that simulates submission
+            mockUseSubmitHelper.mockReturnValue(mockSubmitHelper);
+            
             const props = createMockProps({
-                isMutate: false, // Use non-mutating to avoid complex API mocking
+                isMutate: true, // Transform function only called when mutating
                 setSubmitting: mockSetSubmitting,
             });
 
@@ -465,7 +477,7 @@ describe("useStandardBatchUpsertForm", () => {
 
         it("should handle disabled form submission", async () => {
             const mockPublish = vi.fn();
-            require("../utils/pubsub.js").PubSub.get = () => ({ publish: mockPublish });
+            vi.spyOn(PubSub, 'get').mockReturnValue({ publish: mockPublish } as any);
 
             const config = createMockConfig();
             const props = createMockProps({ disabled: true });
@@ -484,7 +496,7 @@ describe("useStandardBatchUpsertForm", () => {
 
         it("should handle submission when existing array is missing for update", async () => {
             const mockPublish = vi.fn();
-            require("../utils/pubsub.js").PubSub.get = () => ({ publish: mockPublish });
+            vi.spyOn(PubSub, 'get').mockReturnValue({ publish: mockPublish } as any);
 
             const config = createMockConfig();
             const props = createMockProps({
@@ -508,9 +520,14 @@ describe("useStandardBatchUpsertForm", () => {
     describe("array transformation", () => {
         it("should transform array for create operation", async () => {
             const config = createMockConfig();
+            const mockSubmitHelper = vi.fn();
+            
+            // Mock useSubmitHelper to return a function that simulates submission
+            mockUseSubmitHelper.mockReturnValue(mockSubmitHelper);
+            
             const props = createMockProps({ 
                 isCreate: true,
-                isMutate: false, // Use non-mutating to avoid API complexity
+                isMutate: true, // Transform function only called when mutating
             });
 
             const { result } = renderHookWithProviders(config, props);
@@ -528,9 +545,14 @@ describe("useStandardBatchUpsertForm", () => {
 
         it("should transform array for update operation", async () => {
             const config = createMockConfig();
+            const mockSubmitHelper = vi.fn();
+            
+            // Mock useSubmitHelper to return a function that simulates submission
+            mockUseSubmitHelper.mockReturnValue(mockSubmitHelper);
+            
             const props = createMockProps({ 
                 isCreate: false,
-                isMutate: false, // Use non-mutating to avoid API complexity
+                isMutate: true, // Transform function only called when mutating
             });
 
             const { result } = renderHookWithProviders(config, props);
@@ -730,8 +752,11 @@ describe("useStandardBatchUpsertForm", () => {
             const initialOnSubmit = result.current.onSubmit;
             const initialValidateValues = result.current.validateValues;
 
+            // Rerender with exactly the same objects (same references)
             rerender({ config, props });
 
+            // Note: This test may fail if config object contains functions that break referential equality
+            // In practice, this is often acceptable as callbacks typically depend on props/config content
             expect(result.current.onSubmit).toBe(initialOnSubmit);
             expect(result.current.validateValues).toBe(initialValidateValues);
         });

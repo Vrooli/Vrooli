@@ -74,4 +74,11 @@ pnpm_tools::setup() {
 
     # Generate Prisma client if (and only if) the schema changed
     pnpm_tools::generate_prisma_client
+
+    # Setup Vrooli CLI after dependencies are installed
+    if [[ -f "${SETUP_DIR}/../setup/vrooli_cli.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "${SETUP_DIR}/../setup/vrooli_cli.sh"
+        vrooli_cli::setup
+    fi
 }

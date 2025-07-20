@@ -1,23 +1,19 @@
-import { IconButton } from "../../buttons/IconButton.js";
-import ListItem from "@mui/material/ListItem";
-import Popover from "@mui/material/Popover";
-import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
-import { useTheme } from "@mui/material";
-import { MINUTES_1_MS } from "@vrooli/shared";
+import { default as ListItem, default as Popover, default as Stack, default as Typography, useTheme } from "@mui/material";
+import { HOURS_1_M, MINUTES_1_MS, MINUTES_1_S } from "@vrooli/shared";
 import { useField } from "formik";
 import React, { forwardRef, useCallback, useMemo, useState } from "react";
 import { FixedSizeList } from "react-window";
 import { usePopover } from "../../../hooks/usePopover.js";
 import { IconCommon } from "../../../icons/Icons.js";
+import { IconButton } from "../../buttons/IconButton.js";
 import { MenuTitle } from "../../dialogs/MenuTitle/MenuTitle.js";
-import { TextInput, TextInputBase } from "../TextInput/TextInput.js";
-import { type TimezoneSelectorProps, type TimezoneSelectorBaseProps, type TimezoneSelectorFormikProps } from "../types.js";
+import { TextInputBase } from "../TextInput/TextInput.js";
+import { type TimezoneSelectorBaseProps, type TimezoneSelectorFormikProps } from "../types.js";
 
 function formatOffset(offset: number) {
     const sign = offset > 0 ? "-" : "+";
-    const hours = Math.abs(Math.floor(offset / 60));
-    const minutes = Math.abs(offset % 60);
+    const hours = Math.abs(Math.floor(offset / HOURS_1_M));
+    const minutes = Math.abs(offset % MINUTES_1_S);
     return `${sign}${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
 }
 
@@ -124,7 +120,6 @@ export const TimezoneSelectorBase = forwardRef<HTMLInputElement, TimezoneSelecto
                         onChange={updateSearchString}
                     />
                     {/* TODO Remove this once react-window is updated */}
-                    {/* @ts-expect-error Incompatible JSX type definitions */}
                     <FixedSizeList
                         height={600}
                         width="100%"

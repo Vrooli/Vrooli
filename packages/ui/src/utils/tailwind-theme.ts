@@ -4,7 +4,7 @@ import type { Theme } from "@mui/material";
  * Creates theme-aware Tailwind CSS classes that sync with MUI theme.
  * All classes use the 'tw-' prefix to avoid conflicts during migration.
  */
-export function createTailwindThemeClasses(theme: Theme) {
+export function createTailwindThemeClasses(_theme: Theme) {
     return {
         // Background colors
         bgDefault: "tw-bg-background-default",
@@ -50,7 +50,20 @@ export function createTailwindThemeClasses(theme: Theme) {
 
 /**
  * Helper function to combine multiple class names, filtering out undefined values
+ * and flattening nested arrays
  */
-export function cn(...classes: (string | undefined | false)[]) {
-    return classes.filter(Boolean).join(" ");
-}
+export const cn = (...classes: (string | undefined | false | (string | undefined | false)[])[]): string => {
+    const flatten = (items: (string | undefined | false | (string | undefined | false)[])[]): (string | undefined | false)[] => {
+        const result: (string | undefined | false)[] = [];
+        for (const item of items) {
+            if (Array.isArray(item)) {
+                result.push(...flatten(item));
+            } else {
+                result.push(item);
+            }
+        }
+        return result;
+    };
+    
+    return flatten(classes).filter(Boolean).join(" ");
+};

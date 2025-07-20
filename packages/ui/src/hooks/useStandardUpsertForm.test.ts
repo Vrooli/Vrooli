@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { SessionContext } from "../contexts/session.js";
 import { renderWithProviders } from "../__test/testUtils.js";
 import { useStandardUpsertForm, type StandardUpsertFormConfig, type UseStandardUpsertFormProps } from "./useStandardUpsertForm.js";
+import { PubSub } from "../utils/pubsub.js";
 
 // Mock dependencies
 vi.mock("../api/fetchWrapper.js", () => ({
@@ -391,7 +392,7 @@ describe("useStandardUpsertForm", () => {
 
         it("should handle disabled form submission", async () => {
             const mockPublish = vi.fn();
-            require("../utils/pubsub.js").PubSub.get = () => ({ publish: mockPublish });
+            vi.spyOn(PubSub, 'get').mockReturnValue({ publish: mockPublish } as any);
 
             const config = createMockConfig();
             const props = createMockProps({ disabled: true });
@@ -410,7 +411,7 @@ describe("useStandardUpsertForm", () => {
 
         it("should handle submission when existing object is missing for update", async () => {
             const mockPublish = vi.fn();
-            require("../utils/pubsub.js").PubSub.get = () => ({ publish: mockPublish });
+            vi.spyOn(PubSub, 'get').mockReturnValue({ publish: mockPublish } as any);
 
             const config = createMockConfig();
             const props = createMockProps({
