@@ -29,110 +29,110 @@ class TestRecordTrackerClass {
      */
     private readonly dependencyLevels: Record<string, number> = {
         // Level 20: Deepest children
-        'award': 20,
-        'user_translation': 20,
-        'team_translation': 20,
-        'chat_translation': 20,
-        'comment_translation': 20,
-        'issue_translation': 20,
-        'meeting_translation': 20,
-        'pull_request_translation': 20,
-        'resource_translation': 20,
+        "award": 20,
+        "user_translation": 20,
+        "team_translation": 20,
+        "chat_translation": 20,
+        "comment_translation": 20,
+        "issue_translation": 20,
+        "meeting_translation": 20,
+        "pull_request_translation": 20,
+        "resource_translation": 20,
         
         // Level 19: Execution children
-        'run_step': 19,
-        'run_io': 19,
+        "run_step": 19,
+        "run_io": 19,
         
         // Level 18: Chat children
-        'chat_message': 18,
-        'chat_participants': 18,
-        'chat_invite': 18,
+        "chat_message": 18,
+        "chat_participants": 18,
+        "chat_invite": 18,
         
         // Level 17: Meeting/team children
-        'meeting_attendees': 17,
-        'meeting_invite': 17,
-        'member': 17,
-        'member_invite': 17,
+        "meeting_attendees": 17,
+        "meeting_invite": 17,
+        "member": 17,
+        "member_invite": 17,
         
         // Level 16: Auth children
-        'session': 16,
-        'user_auth': 16,
+        "session": 16,
+        "user_auth": 16,
         
         // Level 15: Contact/notification children
-        'email': 15,
-        'phone': 15,
-        'push_device': 15,
-        'notification': 15,
-        'notification_subscription': 15,
+        "email": 15,
+        "phone": 15,
+        "push_device": 15,
+        "notification": 15,
+        "notification_subscription": 15,
         
         // Level 14: Financial children
-        'credit_ledger_entry': 14,
-        'payment': 14,
+        "credit_ledger_entry": 14,
+        "payment": 14,
         
         // Level 13: Content children
-        'comment': 13,
-        'bookmark': 13,
-        'bookmark_list': 13,
-        'reaction': 13,
-        'reaction_summary': 13,
-        'view': 13,
-        'report_response': 13,
-        'report': 13,
+        "comment": 13,
+        "bookmark": 13,
+        "bookmark_list": 13,
+        "reaction": 13,
+        "reaction_summary": 13,
+        "view": 13,
+        "report_response": 13,
+        "report": 13,
         
         // Level 12: Resource relationships
-        'resource_version_relation': 12,
-        'resource_version': 12,
-        'pull_request': 12,
+        "resource_version_relation": 12,
+        "resource_version": 12,
+        "pull_request": 12,
         
         // Level 11: API and external
-        'api_key': 11,
-        'api_key_external': 11,
+        "api_key": 11,
+        "api_key_external": 11,
         
         // Level 10: Schedule/reminder children
-        'schedule_exception': 10,
-        'schedule_recurrence': 10,
-        'reminder_item': 10,
+        "schedule_exception": 10,
+        "schedule_recurrence": 10,
+        "reminder_item": 10,
         
         // Level 9: Issues and runs
-        'issue': 9,
-        'run': 9,
+        "issue": 9,
+        "run": 9,
         
         // Level 8: Tags and schedules
-        'resource_tag': 8,
-        'team_tag': 8,
-        'schedule': 8,
-        'reminder_list': 8,
-        'reminder': 8,
+        "resource_tag": 8,
+        "team_tag": 8,
+        "schedule": 8,
+        "reminder_list": 8,
+        "reminder": 8,
         
         // Level 7: Financial parents
-        'credit_account': 7,
-        'plan': 7,
-        'wallet': 7,
-        'transfer': 7,
+        "credit_account": 7,
+        "plan": 7,
+        "wallet": 7,
+        "transfer": 7,
         
         // Level 6: Stats
-        'stats_site': 6,
-        'stats_team': 6,
-        'stats_user': 6,
-        'stats_resource': 6,
+        "stats_site": 6,
+        "stats_team": 6,
+        "stats_user": 6,
+        "stats_resource": 6,
         
         // Level 5: Meetings
-        'meeting': 5,
+        "meeting": 5,
         
         // Level 4: Tags
-        'tag': 4,
+        "tag": 4,
         
         // Level 3: Chats
-        'chat': 3,
+        "chat": 3,
         
         // Level 2: Resources
-        'resource': 2,
+        "resource": 2,
         
         // Level 1: Teams (must be deleted before users due to some relationships)
-        'team': 1,
+        "team": 1,
         
         // Level 0: Users (root entities)
-        'user': 0,
+        "user": 0,
     };
     
     /**
@@ -299,7 +299,7 @@ export function withTracking<T extends { id: bigint }[]>(
 ): Promise<T>;
 export async function withTracking<T extends { id: bigint } | { id: bigint }[]>(
     table: string,
-    operation: () => Promise<T>
+    operation: () => Promise<T>,
 ): Promise<T> {
     const result = await operation();
     

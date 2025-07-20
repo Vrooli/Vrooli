@@ -34,26 +34,26 @@ export interface CleanupValidationOptions {
  * These should typically be empty between tests
  */
 export const CRITICAL_TABLES = [
-    'user',
-    'user_auth', 
-    'session',
-    'team',
-    'member',
-    'chat',
-    'chat_message',
-    'chat_participants',
-    'resource',
-    'resource_version',
-    'routine',
-    'routine_version',
-    'run',
-    'run_step',
-    'run_io',
-    'comment',
-    'notification',
-    'email',
-    'credit_account',
-    'api_key',
+    "user",
+    "user_auth", 
+    "session",
+    "team",
+    "member",
+    "chat",
+    "chat_message",
+    "chat_participants",
+    "resource",
+    "resource_version",
+    "routine",
+    "routine_version",
+    "run",
+    "run_step",
+    "run_io",
+    "comment",
+    "notification",
+    "email",
+    "credit_account",
+    "api_key",
 ] as const;
 
 /**
@@ -61,9 +61,9 @@ export const CRITICAL_TABLES = [
  * These are checked but warnings are less critical
  */
 export const PERSISTENT_TABLES = [
-    'tag',
-    'stats_site',
-    'award', // May have system awards
+    "tag",
+    "stats_site",
+    "award", // May have system awards
 ] as const;
 
 /**
@@ -75,10 +75,10 @@ export const PERSISTENT_TABLES = [
  */
 export async function validateCleanup(
     prisma: PrismaClient, 
-    options: CleanupValidationOptions = {}
+    options: CleanupValidationOptions = {},
 ): Promise<OrphanedRecords[]> {
     // Only run validation in test environment
-    if (process.env.NODE_ENV !== 'test') {
+    if (process.env.NODE_ENV !== "test") {
         return [];
     }
     
@@ -86,7 +86,7 @@ export async function validateCleanup(
         tables = CRITICAL_TABLES,
         throwOnOrphans = false,
         logOrphans = true,
-        errorPrefix = 'Test cleanup validation failed'
+        errorPrefix = "Test cleanup validation failed",
     } = options;
     
     // Check each table for remaining records
@@ -102,22 +102,22 @@ export async function validateCleanup(
                 }
                 return { table, count: 0 };
             }
-        })
+        }),
     );
     
     // Extract successful results and orphaned records
     const results = orphanChecks
-        .filter((result): result is PromiseFulfilledResult<OrphanedRecords> => result.status === 'fulfilled')
+        .filter((result): result is PromiseFulfilledResult<OrphanedRecords> => result.status === "fulfilled")
         .map(result => result.value);
         
     const orphans = results.filter(({ count }) => count > 0);
     
     // Log orphaned records if requested
     if (orphans.length > 0 && logOrphans) {
-        console.warn(`${errorPrefix}:`, orphans.map(({ table, count }) => `${table}(${count})`).join(', '));
+        console.warn(`${errorPrefix}:`, orphans.map(({ table, count }) => `${table}(${count})`).join(", "));
         
         // In debug mode, show more details
-        if (process.env.TEST_LOG_LEVEL === 'DEBUG') {
+        if (process.env.TEST_LOG_LEVEL === "DEBUG") {
             for (const { table, count } of orphans) {
                 console.debug(`Table '${table}' has ${count} orphaned records`);
             }
@@ -127,7 +127,7 @@ export async function validateCleanup(
     // Throw error if requested
     if (orphans.length > 0 && throwOnOrphans) {
         const message = `${errorPrefix}: Found orphaned records in ${orphans.length} tables: ${
-            orphans.map(({ table, count }) => `${table}(${count})`).join(', ')
+            orphans.map(({ table, count }) => `${table}(${count})`).join(", ")
         }`;
         throw new Error(message);
     }
@@ -155,7 +155,7 @@ export async function validateStrictCleanup(prisma: PrismaClient): Promise<void>
     await validateCleanup(prisma, {
         tables: [...CRITICAL_TABLES],
         throwOnOrphans: true,
-        errorPrefix: 'Strict cleanup validation failed',
+        errorPrefix: "Strict cleanup validation failed",
     });
 }
 
@@ -165,7 +165,7 @@ export async function validateStrictCleanup(prisma: PrismaClient): Promise<void>
  */
 export async function isCleanupComplete(prisma: PrismaClient): Promise<boolean> {
     const orphans = await validateCleanup(prisma, {
-        tables: ['user', 'session', 'chat', 'team', 'run'],
+        tables: ["user", "session", "chat", "team", "run"],
         logOrphans: false,
         throwOnOrphans: false,
     });
@@ -189,7 +189,7 @@ export async function getDatabaseSummary(prisma: PrismaClient): Promise<Record<s
             } catch (error) {
                 summary[table] = -1; // Indicates error
             }
-        })
+        }),
     );
     
     return summary;
@@ -214,7 +214,7 @@ export async function assertTablesEmpty(prisma: PrismaClient, tables: string[]):
     }
     
     if (nonEmptyTables.length > 0) {
-        const details = nonEmptyTables.map(({ table, count }) => `${table}: ${count} records`).join(', ');
+        const details = nonEmptyTables.map(({ table, count }) => `${table}: ${count} records`).join(", ");
         throw new Error(`Expected tables to be empty but found data in: ${details}`);
     }
 }
@@ -229,10 +229,10 @@ export async function waitForCleanup(
         tables?: string[];
         timeoutMs?: number;
         pollIntervalMs?: number;
-    } = {}
+    } = {},
 ): Promise<boolean> {
     const {
-        tables = ['user', 'session'],
+        tables = ["user", "session"],
         timeoutMs = 5000,
         pollIntervalMs = 100,
     } = options;

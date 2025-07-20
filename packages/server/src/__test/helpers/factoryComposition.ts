@@ -7,7 +7,7 @@
 
 import { type PrismaClient } from "@prisma/client";
 import { type EnhancedDatabaseFactory } from "../fixtures/db/EnhancedDatabaseFactory.js";
-import { DatabaseFactoryRegistry, getFactoryRegistry } from "../fixtures/db/DatabaseFactoryRegistry.js";
+import { type DatabaseFactoryRegistry, getFactoryRegistry } from "../fixtures/db/DatabaseFactoryRegistry.js";
 import { TestRecordTracker } from "./testRecordTracker.js";
 import { cleanupGroups, type CleanupGroup } from "./testCleanupHelpers.js";
 
@@ -36,11 +36,11 @@ export class FactoryComposition {
 
     constructor(
         private prisma: PrismaClient,
-        config: FactoryScenarioConfig = {}
+        config: FactoryScenarioConfig = {},
     ) {
         this.registry = getFactoryRegistry(prisma);
         this.config = {
-            cleanupScope: 'full',
+            cleanupScope: "full",
             useGlobalTracking: true,
             useTransaction: false,
             ...config,
@@ -52,7 +52,7 @@ export class FactoryComposition {
      */
     start(): void {
         if (this.isActive) {
-            throw new Error('FactoryComposition is already active');
+            throw new Error("FactoryComposition is already active");
         }
         
         this.isActive = true;
@@ -68,10 +68,10 @@ export class FactoryComposition {
      */
     useFactory<T extends EnhancedDatabaseFactory<any, any>>(
         modelName: string,
-        factoryClass: new (modelName: string, prisma: PrismaClient) => T
+        factoryClass: new (modelName: string, prisma: PrismaClient) => T,
     ): T {
         if (!this.isActive) {
-            throw new Error('FactoryComposition must be started before using factories');
+            throw new Error("FactoryComposition must be started before using factories");
         }
         
         return this.registry.register(modelName, factoryClass);
@@ -82,24 +82,24 @@ export class FactoryComposition {
      */
     async create<T>(
         modelName: string,
-        type: 'minimal' | 'complete' | 'withRelations' = 'minimal',
-        data?: any
+        type: "minimal" | "complete" | "withRelations" = "minimal",
+        data?: any,
     ): Promise<T> {
         if (!this.isActive) {
-            throw new Error('FactoryComposition must be started before creating records');
+            throw new Error("FactoryComposition must be started before creating records");
         }
         
         const factory = this.registry.get(modelName);
         let result: T;
         
         switch (type) {
-            case 'minimal':
+            case "minimal":
                 result = await factory.createMinimal(data);
                 break;
-            case 'complete':
+            case "complete":
                 result = await factory.createComplete(data);
                 break;
-            case 'withRelations':
+            case "withRelations":
                 result = await factory.createWithRelations(data);
                 break;
         }
@@ -119,8 +119,8 @@ export class FactoryComposition {
     async createMany<T>(
         modelName: string,
         count: number,
-        type: 'minimal' | 'complete' = 'minimal',
-        template?: any
+        type: "minimal" | "complete" = "minimal",
+        template?: any,
     ): Promise<T[]> {
         const results: T[] = [];
         
@@ -136,10 +136,10 @@ export class FactoryComposition {
      * Create a coordinated set of related records
      */
     async createRelatedSet(config: {
-        user?: { type?: 'minimal' | 'complete'; data?: any };
-        team?: { type?: 'minimal' | 'complete'; data?: any; users?: string[] };
-        chat?: { type?: 'minimal' | 'complete'; data?: any; participants?: string[] };
-        resources?: { count?: number; type?: 'minimal' | 'complete'; data?: any };
+        user?: { type?: "minimal" | "complete"; data?: any };
+        team?: { type?: "minimal" | "complete"; data?: any; users?: string[] };
+        chat?: { type?: "minimal" | "complete"; data?: any; participants?: string[] };
+        resources?: { count?: number; type?: "minimal" | "complete"; data?: any };
     }): Promise<{
         user?: any;
         team?: any;
@@ -150,12 +150,12 @@ export class FactoryComposition {
         
         // Create user first (most other entities depend on users)
         if (config.user) {
-            result.user = await this.create('User', config.user.type || 'minimal', config.user.data);
+            result.user = await this.create("User", config.user.type || "minimal", config.user.data);
         }
         
         // Create team and add user as member
         if (config.team) {
-            result.team = await this.create('Team', config.team.type || 'minimal', {
+            result.team = await this.create("Team", config.team.type || "minimal", {
                 ...config.team.data,
                 createdById: result.user?.id,
             });
@@ -164,9 +164,9 @@ export class FactoryComposition {
             if (config.team.users && result.team?.id) {
                 // This would require a Member factory to be registered
                 for (const userId of config.team.users) {
-                    await this.create('Member', 'minimal', {
+                    await this.create("Member", "minimal", {
                         teamId: result.team.id,
-                        userId: userId === 'self' ? result.user?.id : userId,
+                        userId: userId === "self" ? result.user?.id : userId,
                     });
                 }
             }
@@ -174,7 +174,7 @@ export class FactoryComposition {
         
         // Create chat and add participants
         if (config.chat) {
-            result.chat = await this.create('Chat', config.chat.type || 'minimal', {
+            result.chat = await this.create("Chat", config.chat.type || "minimal", {
                 ...config.chat.data,
                 creatorId: result.user?.id,
                 teamId: result.team?.id,
@@ -183,9 +183,9 @@ export class FactoryComposition {
             // Add participants if specified
             if (config.chat.participants && result.chat?.id) {
                 for (const participantId of config.chat.participants) {
-                    await this.create('ChatParticipant', 'minimal', {
+                    await this.create("ChatParticipant", "minimal", {
                         chatId: result.chat.id,
-                        userId: participantId === 'self' ? result.user?.id : participantId,
+                        userId: participantId === "self" ? result.user?.id : participantId,
                     });
                 }
             }
@@ -194,15 +194,15 @@ export class FactoryComposition {
         // Create resources
         if (config.resources) {
             result.resources = await this.createMany(
-                'Resource',
+                "Resource",
                 config.resources.count || 1,
-                config.resources.type || 'minimal',
+                config.resources.type || "minimal",
                 {
                     ...config.resources.data,
                     createdById: result.user?.id,
                     ownedByUserId: result.user?.id,
                     ownedByTeamId: result.team?.id,
-                }
+                },
             );
         }
         
@@ -232,7 +232,7 @@ export class FactoryComposition {
         }
         
         try {
-            if (this.config.cleanupScope && this.config.cleanupScope !== 'full') {
+            if (this.config.cleanupScope && this.config.cleanupScope !== "full") {
                 // Use focused cleanup for better performance
                 await this.registry.smartCleanup(this.config.cleanupScope);
             } else {
@@ -251,7 +251,7 @@ export class FactoryComposition {
     static async withComposition<T>(
         prisma: PrismaClient,
         config: FactoryScenarioConfig,
-        fn: (composition: FactoryComposition) => Promise<T>
+        fn: (composition: FactoryComposition) => Promise<T>,
     ): Promise<T> {
         const composition = new FactoryComposition(prisma, config);
         
@@ -268,8 +268,8 @@ export class FactoryComposition {
      */
     static async withTransactionComposition<T>(
         prisma: PrismaClient,
-        config: Omit<FactoryScenarioConfig, 'useTransaction'>,
-        fn: (composition: FactoryComposition, tx: PrismaClient) => Promise<T>
+        config: Omit<FactoryScenarioConfig, "useTransaction">,
+        fn: (composition: FactoryComposition, tx: PrismaClient) => Promise<T>,
     ): Promise<T> {
         return await prisma.$transaction(async (tx) => {
             const composition = new FactoryComposition(tx, {
@@ -297,12 +297,12 @@ export const factoryScenarios = {
      */
     async userWithAuth(prisma: PrismaClient): Promise<{ user: any; cleanup: () => Promise<void> }> {
         const composition = new FactoryComposition(prisma, {
-            cleanupScope: 'userAuth',
+            cleanupScope: "userAuth",
             useGlobalTracking: true,
         });
         
         composition.start();
-        const user = await composition.create('User', 'withRelations', {
+        const user = await composition.create("User", "withRelations", {
             withAuth: true,
         });
         
@@ -317,27 +317,27 @@ export const factoryScenarios = {
      */
     async teamWithMembers(
         prisma: PrismaClient,
-        memberCount: number = 2
+        memberCount = 2,
     ): Promise<{ team: any; members: any[]; users: any[]; cleanup: () => Promise<void> }> {
         const composition = new FactoryComposition(prisma, {
-            cleanupScope: 'team',
+            cleanupScope: "team",
             useGlobalTracking: true,
         });
         
         composition.start();
         
         // Create users first
-        const users = await composition.createMany('User', memberCount + 1, 'minimal');
+        const users = await composition.createMany("User", memberCount + 1, "minimal");
         
         // Create team with first user as creator
-        const team = await composition.create('Team', 'minimal', {
+        const team = await composition.create("Team", "minimal", {
             createdById: users[0].id,
         });
         
         // Create memberships
         const members = [];
         for (const user of users) {
-            const member = await composition.create('Member', 'minimal', {
+            const member = await composition.create("Member", "minimal", {
                 teamId: team.id,
                 userId: user.id,
                 isAdmin: user.id === users[0].id, // First user is admin
@@ -358,27 +358,27 @@ export const factoryScenarios = {
      */
     async chatWithParticipants(
         prisma: PrismaClient,
-        participantCount: number = 3
+        participantCount = 3,
     ): Promise<{ chat: any; participants: any[]; users: any[]; cleanup: () => Promise<void> }> {
         const composition = new FactoryComposition(prisma, {
-            cleanupScope: 'chat',
+            cleanupScope: "chat",
             useGlobalTracking: true,
         });
         
         composition.start();
         
         // Create users
-        const users = await composition.createMany('User', participantCount, 'minimal');
+        const users = await composition.createMany("User", participantCount, "minimal");
         
         // Create chat
-        const chat = await composition.create('Chat', 'minimal', {
+        const chat = await composition.create("Chat", "minimal", {
             creatorId: users[0].id,
         });
         
         // Add participants
         const participants = [];
         for (const user of users) {
-            const participant = await composition.create('ChatParticipant', 'minimal', {
+            const participant = await composition.create("ChatParticipant", "minimal", {
                 chatId: chat.id,
                 userId: user.id,
             });
