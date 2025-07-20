@@ -523,6 +523,8 @@ spotahomeRedis:
     customConfig:
       - "maxmemory 512mb"
       - "maxmemory-policy allkeys-lru"
+      - "maxclients 50000"
+      - "timeout 0"
       # - "requirepass YOUR_PASSWORD" # If using auth, operator handles this via spec.auth.secretPath
     # Redis exporter for Prometheus metrics.
     exporter:

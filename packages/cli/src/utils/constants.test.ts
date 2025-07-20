@@ -1,17 +1,17 @@
 // AI_CHECK: TEST_COVERAGE=1 | LAST: 2025-07-13
-import { describe, it, expect } from "vitest";
-import { 
-    UI, 
-    CHAT_CONFIG, 
-    HTTP_STATUS, 
-    TIMEOUTS, 
-    LIMITS,
-    TERMINAL_DIMENSIONS,
-    DISPLAY_CONFIG,
+import { describe, expect, it } from "vitest";
+import {
+    CHAT_CONFIG,
     CONTEXT_CONFIG,
+    DISPLAY_CONFIG,
     EXPORT_CONFIG,
+    HTTP_STATUS,
+    LIMITS,
     SLASH_COMMANDS_CONFIG,
+    TERMINAL_DIMENSIONS,
+    TIMEOUTS,
     TOOL_APPROVAL,
+    UI,
 } from "./constants.js";
 
 describe("constants", () => {

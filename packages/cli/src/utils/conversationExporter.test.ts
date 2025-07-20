@@ -1,8 +1,8 @@
 // AI_CHECK: TEST_COVERAGE=2 | LAST: 2025-07-13 | STATUS: 98.32% coverage achieved (+2.09%), comprehensive test suite with 43 tests covering all export formats, escaping functions, error handling, and edge cases
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { ConversationExporter } from "./conversationExporter.js";
-import { writeFile } from "fs/promises";
 import type { ChatMessage, User } from "@vrooli/shared";
+import { writeFile } from "fs/promises";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ConversationExporter } from "./conversationExporter.js";
 
 // Mock fs/promises
 vi.mock("fs/promises", () => ({
@@ -118,7 +118,7 @@ describe("ConversationExporter", () => {
 
             const content = (writeFile as any).mock.calls[0][1];
             const lines = content.split("\n");
-            
+
             expect(lines[0]).toBe("Timestamp,User,IsBot,Message");
             expect(lines[1]).toContain("2025-01-12T10:00:00.000Z,Alice,false,\"Hello, how are you?\"");
             expect(lines[2]).toContain("2025-01-12T10:01:00.000Z,Assistant,true,\"I'm doing well, thank you!\"");
@@ -219,7 +219,7 @@ describe("ConversationExporter", () => {
 
         it("should use txt format as fallback for unsupported extensions", async () => {
             await exporter.exportToFile(mockData, "chat.xyz");
-            
+
             expect(writeFile).toHaveBeenCalled();
             const content = (writeFile as any).mock.calls[0][1];
             // Should default to text format
@@ -267,18 +267,18 @@ describe("ConversationExporter", () => {
             await exporter.exportToFile(mockData, "chat.html");
 
             const content = (writeFile as any).mock.calls[0][1];
-            
+
             // Check for proper HTML structure
             expect(content).toMatch(/<html.*>/);
             expect(content).toMatch(/<\/html>/);
             expect(content).toMatch(/<head>[\s\S]*<\/head>/);
             expect(content).toMatch(/<body>[\s\S]*<\/body>/);
-            
+
             // Check for CSS styles
             expect(content).toContain("<style>");
             expect(content).toContain(".user");
             expect(content).toContain(".bot");
-            
+
             // Check message structure
             expect(content).toMatch(/<div class="message">/);
             expect(content).toContain("👤 Alice");
@@ -308,7 +308,7 @@ describe("ConversationExporter", () => {
             const content = (writeFile as any).mock.calls[0][1];
             const firstIndex = content.indexOf("First");
             const secondIndex = content.indexOf("Second");
-            
+
             // Messages are processed in the order provided, not sorted by timestamp
             expect(secondIndex).toBeLessThan(firstIndex);
         });
@@ -333,7 +333,7 @@ describe("ConversationExporter", () => {
                 await exporter.exportToFile(mockData, filename);
 
                 const content = (writeFile as any).mock.calls[0][1];
-                
+
                 // Verify format-specific content
                 if (expectedFormat === "json") {
                     expect(() => JSON.parse(content)).not.toThrow();
@@ -362,7 +362,7 @@ describe("ConversationExporter", () => {
             expect(ConversationExporter.isValidFormat("txt")).toBe(true);
             expect(ConversationExporter.isValidFormat("html")).toBe(true);
             expect(ConversationExporter.isValidFormat("csv")).toBe(true);
-            
+
             expect(ConversationExporter.isValidFormat("invalid")).toBe(false);
             expect(ConversationExporter.isValidFormat("xml")).toBe(false);
             expect(ConversationExporter.isValidFormat("")).toBe(false);
@@ -475,7 +475,7 @@ describe("ConversationExporter", () => {
             await exporter.exportToFile(dataWithCsvChars, "chat.csv");
 
             const content = (writeFile as any).mock.calls[0][1];
-            
+
             expect(content).toContain("Simple text"); // No quotes needed
             expect(content).toContain("\"Text with \"\"double quotes\"\"\""); // Escaped quotes
             expect(content).toContain("\"Text with, commas, everywhere\""); // Quoted due to commas
@@ -524,7 +524,7 @@ describe("ConversationExporter", () => {
             expect(parsed.messages).toHaveLength(3);
             expect(parsed.meta.totalMessages).toBe(10); // Original count preserved
             expect(parsed.meta.exportedMessages).toBe(3);
-            
+
             // Should have the last 3 messages (8, 9, 10)
             expect(parsed.messages[0].text).toBe("Message 8");
             expect(parsed.messages[1].text).toBe("Message 9");

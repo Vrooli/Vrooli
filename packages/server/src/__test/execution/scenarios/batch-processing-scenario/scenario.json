@@ -1,0 +1,692 @@
+{
+  "identity": {
+    "name": "batch-processing-scenario",
+    "description": "Autonomous batch processing workflow simulating human-in-the-loop pattern for file cleanup",
+    "category": "multi-agent",
+    "complexity": "advanced"
+  },
+
+  "agents": [
+    {
+      "name": "batch-coordinator",
+      "role": "coordinator",
+      "botConfig": {
+        "__version": "1.0",
+        "model": "claude-3-5-sonnet-20241022",
+        "maxTokens": 2000,
+        "agentSpec": {
+          "goal": "Orchestrate iterative batch processing workflow for legacy file cleanup",
+          "subscriptions": [
+            "swarm/started",
+            "batch/processing_complete",
+            "batch/workflow_complete"
+          ],
+          "behaviors": [
+            {
+              "trigger": {
+                "topic": "swarm/started"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "batch/discovery_requested",
+                "dataMapping": {
+                  "criteria": "blackboard.discovery_criteria",
+                  "iteration": "1",
+                  "timestamp": "new Date().toISOString()"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"emitOutput": "eventId", "blackboardId": "current_discovery_request"}
+                  ]
+                }
+              },
+              "qos": 1
+            },
+            {
+              "trigger": {
+                "topic": "batch/processing_complete",
+                "when": "event.data.continue_processing == true && blackboard.iterations_completed < blackboard.max_iterations"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "batch/discovery_requested",
+                "dataMapping": {
+                  "criteria": "blackboard.discovery_criteria",
+                  "iteration": "blackboard.iterations_completed + 1",
+                  "previousBatch": "event.data.processed_count"
+                },
+                "outputOperations": {
+                  "increment": [
+                    {"constantValue": 1, "blackboardId": "iterations_completed"}
+                  ]
+                }
+              },
+              "qos": 1
+            },
+            {
+              "trigger": {
+                "topic": "batch/processing_complete",
+                "when": "event.data.continue_processing == false || blackboard.iterations_completed >= blackboard.max_iterations"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "batch/workflow_complete",
+                "dataMapping": {
+                  "total_processed": "blackboard.total_processed",
+                  "iterations": "blackboard.iterations_completed",
+                  "reason": "event.data.continue_processing == false ? 'all_candidates_processed' : 'max_iterations_reached'"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"constantValue": true, "blackboardId": "processing_complete"}
+                  ]
+                }
+              },
+              "qos": 1
+            }
+          ],
+          "prompt": {
+            "mode": "supplement",
+            "source": "direct",
+            "content": "You coordinate batch processing workflows. Track iterations, monitor progress, and determine when processing is complete based on remaining candidates and iteration limits."
+          }
+        }
+      }
+    },
+    {
+      "name": "discovery-specialist",
+      "role": "specialist",
+      "botConfig": {
+        "__version": "1.0",
+        "model": "claude-3-5-sonnet-20241022",
+        "maxTokens": 4000,
+        "agentSpec": {
+          "goal": "Use read-only Claude Code integration to discover file cleanup candidates",
+          "subscriptions": [
+            "batch/discovery_requested"
+          ],
+          "behaviors": [
+            {
+              "trigger": {
+                "topic": "batch/discovery_requested"
+              },
+              "action": {
+                "type": "routine",
+                "label": "file-discovery-routine",
+                "inputMap": {
+                  "criteria": "event.data.criteria",
+                  "iteration": "event.data.iteration",
+                  "excludeProcessed": "blackboard.processed_files"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"routineOutput": "discovered_files", "blackboardId": "candidates_found"},
+                    {"routineOutput": "discovery_metadata", "blackboardId": "last_discovery_info"}
+                  ],
+                  "append": [
+                    {"routineOutput": "discovery_log", "blackboardId": "discovery_history"}
+                  ]
+                }
+              },
+              "qos": 1
+            },
+            {
+              "trigger": {
+                "topic": "batch/discovery_requested"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "batch/candidates_found",
+                "dataMapping": {
+                  "count": "blackboard.candidates_found.length",
+                  "iteration": "event.data.iteration",
+                  "timestamp": "new Date().toISOString()"
+                }
+              },
+              "qos": 1
+            }
+          ],
+          "prompt": {
+            "mode": "supplement",
+            "source": "direct",
+            "content": "You are a file discovery specialist using Claude Code in read-only mode. You can ONLY use search, grep, find, and read operations. You CANNOT modify, delete, or create any files. Focus on finding temporary files, backups, and obsolete generated files that match the given criteria."
+          },
+          "resources": [
+            {
+              "type": "tool",
+              "name": "claude-code-readonly",
+              "config": {
+                "restrictions": "read-only",
+                "allowedOperations": ["read", "grep", "find", "ls", "stat"],
+                "blockedOperations": ["write", "delete", "create", "modify", "execute"]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "selection-evaluator",
+      "role": "specialist",
+      "botConfig": {
+        "__version": "1.0",
+        "model": "gpt-4",
+        "maxTokens": 2000,
+        "agentSpec": {
+          "goal": "Intelligently select safe candidates for batch processing from discovered files",
+          "subscriptions": [
+            "batch/candidates_found"
+          ],
+          "behaviors": [
+            {
+              "trigger": {
+                "topic": "batch/candidates_found"
+              },
+              "action": {
+                "type": "routine",
+                "label": "batch-selection-routine",
+                "inputMap": {
+                  "candidates": "blackboard.candidates_found",
+                  "selectionCriteria": "blackboard.selection_rules",
+                  "batchSize": "blackboard.batch_size",
+                  "safetyRules": "blackboard.safety_constraints"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"routineOutput": "selected_batch", "blackboardId": "current_batch"},
+                    {"routineOutput": "selection_rationale", "blackboardId": "last_selection_reasoning"}
+                  ],
+                  "append": [
+                    {"routineOutput": "selection_decisions", "blackboardId": "selection_history"}
+                  ]
+                }
+              },
+              "qos": 1
+            },
+            {
+              "trigger": {
+                "topic": "batch/candidates_found"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "batch/selection_complete",
+                "dataMapping": {
+                  "selected_count": "blackboard.current_batch.length",
+                  "total_candidates": "blackboard.candidates_found.length",
+                  "safety_score": "blackboard.last_selection_reasoning.safety_score"
+                }
+              },
+              "qos": 1
+            }
+          ],
+          "prompt": {
+            "mode": "supplement",
+            "source": "direct",
+            "content": "You evaluate file candidates and select appropriate batches for processing. Apply safety rules: skip files modified in last 7 days, avoid files referenced in code, prefer obvious temporary files (.tmp, .backup, .old). Select conservative batch sizes to minimize risk."
+          }
+        }
+      }
+    },
+    {
+      "name": "cleanup-executor",
+      "role": "specialist",
+      "botConfig": {
+        "__version": "1.0",
+        "model": "gpt-3.5-turbo",
+        "maxTokens": 2000,
+        "agentSpec": {
+          "goal": "Safely execute cleanup operations on selected file batches",
+          "subscriptions": [
+            "batch/selection_complete"
+          ],
+          "behaviors": [
+            {
+              "trigger": {
+                "topic": "batch/selection_complete"
+              },
+              "action": {
+                "type": "routine",
+                "label": "cleanup-execution-routine",
+                "inputMap": {
+                  "fileBatch": "blackboard.current_batch",
+                  "safetyMode": "blackboard.cleanup_safety_mode",
+                  "backupFirst": "blackboard.create_backups"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"routineOutput": "cleanup_result", "blackboardId": "last_cleanup_result"}
+                  ],
+                  "increment": [
+                    {"routineOutput": "processed_count", "blackboardId": "total_processed"}
+                  ],
+                  "append": [
+                    {"routineOutput": "processed_files", "blackboardId": "processed_files"},
+                    {"routineOutput": "cleanup_log", "blackboardId": "cleanup_history"}
+                  ]
+                }
+              },
+              "qos": 2
+            },
+            {
+              "trigger": {
+                "topic": "batch/selection_complete"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "batch/processing_complete",
+                "dataMapping": {
+                  "processed_count": "blackboard.last_cleanup_result.processed_count",
+                  "success_rate": "blackboard.last_cleanup_result.success_rate",
+                  "continue_processing": "blackboard.candidates_found.length > blackboard.current_batch.length"
+                }
+              },
+              "qos": 1
+            }
+          ],
+          "prompt": {
+            "mode": "supplement",
+            "source": "direct",
+            "content": "You safely execute file cleanup operations. Create backups if requested, verify files before deletion, log all operations, and handle errors gracefully. Never delete files that could break the system."
+          }
+        }
+      }
+    },
+    {
+      "name": "progress-monitor",
+      "role": "monitor",
+      "botConfig": {
+        "__version": "1.0",
+        "model": "gpt-3.5-turbo",
+        "maxTokens": 1000,
+        "agentSpec": {
+          "goal": "Monitor batch processing progress and report completion metrics",
+          "subscriptions": [
+            "batch/iteration_complete",
+            "batch/workflow_complete"
+          ],
+          "behaviors": [
+            {
+              "trigger": {
+                "topic": "batch/iteration_complete"
+              },
+              "action": {
+                "type": "routine",
+                "label": "progress-evaluation-routine",
+                "inputMap": {
+                  "totalProcessed": "blackboard.total_processed",
+                  "iterations": "blackboard.iterations_completed",
+                  "remainingCandidates": "blackboard.candidates_found.length - blackboard.total_processed"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"routineOutput": "progress_report", "blackboardId": "current_progress"}
+                  ],
+                  "merge": [
+                    {"routineOutput": "metrics", "blackboardId": "processing_metrics"}
+                  ]
+                }
+              },
+              "qos": 1
+            }
+          ],
+          "prompt": {
+            "mode": "supplement",
+            "source": "direct",
+            "content": "You monitor batch processing progress. Track completion rates, efficiency metrics, and provide insights on the cleanup operation's effectiveness."
+          }
+        }
+      }
+    }
+  ],
+
+  "routines": [
+    {
+      "name": "file-discovery-routine",
+      "type": "generate",
+      "config": {
+        "resourceSubType": "RoutineGenerate",
+        "instructions": [
+          {
+            "type": "text",
+            "text": "Use Claude Code in READ-ONLY mode to discover file cleanup candidates. You can ONLY use: find, grep, ls, stat, read operations. Search for temporary files, backups, and obsolete generated files based on the given criteria. Return a comprehensive list with metadata (size, last modified, path)."
+          }
+        ],
+        "callDataGenerate": {
+          "provider": "claude-code-readonly",
+          "schema": {
+            "inputTemplate": {
+              "criteria": "{{input.criteria}}",
+              "excludeFiles": "{{input.excludeProcessed}}"
+            },
+            "outputMapping": {
+              "discovered_files": "discovery.files",
+              "discovery_metadata": "discovery.summary",
+              "discovery_log": "discovery.log"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "batch-selection-routine",
+      "type": "generate",
+      "config": {
+        "resourceSubType": "RoutineGenerate",
+        "instructions": [
+          {
+            "type": "text",
+            "text": "Evaluate the list of file candidates and select a safe batch for processing. Apply safety rules: skip recently modified files, avoid files referenced in code, prefer obvious temporary files. Provide rationale for each selection."
+          }
+        ],
+        "callDataGenerate": {
+          "schema": {
+            "inputTemplate": {
+              "candidates": "{{input.candidates}}",
+              "batchSize": "{{input.batchSize}}",
+              "safety": "{{input.safetyRules}}"
+            },
+            "outputMapping": {
+              "selected_batch": "selection.files",
+              "selection_rationale": "selection.reasoning",
+              "selection_decisions": "selection.decisions"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "cleanup-execution-routine",
+      "type": "code",
+      "config": {
+        "resourceSubType": "RoutineCode",
+        "instructions": [
+          {
+            "type": "text",
+            "text": "Safely remove the selected files. Create backups if requested, verify file existence, handle errors gracefully, and log all operations."
+          }
+        ],
+        "callDataCode": {
+          "operations": [
+            "backup_if_requested",
+            "verify_file_exists",
+            "remove_file_safely",
+            "log_operation"
+          ]
+        }
+      }
+    },
+    {
+      "name": "progress-evaluation-routine",
+      "type": "generate",
+      "config": {
+        "resourceSubType": "RoutineGenerate",
+        "instructions": [
+          {
+            "type": "text",
+            "text": "Evaluate the current progress of the batch processing operation. Calculate efficiency metrics, estimate remaining work, and provide insights."
+          }
+        ],
+        "callDataGenerate": {
+          "schema": {
+            "inputTemplate": {
+              "processed": "{{input.totalProcessed}}",
+              "iterations": "{{input.iterations}}",
+              "remaining": "{{input.remainingCandidates}}"
+            },
+            "outputMapping": {
+              "progress_report": "evaluation.report",
+              "metrics": "evaluation.metrics"
+            }
+          }
+        }
+      }
+    }
+  ],
+
+  "expectedFlow": [
+    {
+      "step": 1,
+      "agent": "batch-coordinator",
+      "trigger": "swarm/started",
+      "action": "emit",
+      "emittedEvents": ["batch/discovery_requested"]
+    },
+    {
+      "step": 2,
+      "agent": "discovery-specialist",
+      "trigger": "batch/discovery_requested",
+      "action": "file-discovery-routine",
+      "blackboardUpdates": {
+        "candidates_found": ["file1.tmp", "file2.backup", "..."]
+      }
+    },
+    {
+      "step": 3,
+      "agent": "discovery-specialist",
+      "trigger": "batch/discovery_requested",
+      "action": "emit",
+      "emittedEvents": ["batch/candidates_found"]
+    },
+    {
+      "step": 4,
+      "agent": "selection-evaluator",
+      "trigger": "batch/candidates_found",
+      "action": "batch-selection-routine",
+      "blackboardUpdates": {
+        "current_batch": ["safe_file1.tmp", "safe_file2.backup"]
+      }
+    },
+    {
+      "step": 5,
+      "agent": "selection-evaluator",
+      "trigger": "batch/candidates_found",
+      "action": "emit",
+      "emittedEvents": ["batch/selection_complete"]
+    },
+    {
+      "step": 6,
+      "agent": "cleanup-executor",
+      "trigger": "batch/selection_complete",
+      "action": "cleanup-execution-routine",
+      "blackboardUpdates": {
+        "total_processed": 10,
+        "processed_files": ["safe_file1.tmp", "safe_file2.backup"]
+      }
+    },
+    {
+      "step": 7,
+      "agent": "cleanup-executor",
+      "trigger": "batch/selection_complete",
+      "action": "emit",
+      "emittedEvents": ["batch/processing_complete"]
+    },
+    {
+      "step": 8,
+      "agent": "batch-coordinator",
+      "trigger": "batch/processing_complete",
+      "action": "emit",
+      "description": "Either starts next iteration or completes workflow",
+      "emittedEvents": ["batch/discovery_requested OR batch/workflow_complete"]
+    }
+  ],
+
+  "resources": {
+    "maxCredits": "1000000000",
+    "maxDurationMs": 600000,
+    "quotas": {
+      "gpuPercentage": 10,
+      "ramGB": 8,
+      "cpuCores": 2,
+      "storageGB": 50
+    }
+  },
+
+  "success": {
+    "requiredEvents": [
+      "batch/discovery_requested",
+      "batch/candidates_found",
+      "batch/selection_complete",
+      "batch/processing_complete",
+      "batch/workflow_complete"
+    ],
+    "blackboardState": {
+      "total_processed": ">0",
+      "iterations_completed": ">=1",
+      "processing_complete": "true",
+      "candidates_found": "exists",
+      "selection_history": "length>0"
+    },
+    "routineCallsMin": 8,
+    "agentCoordination": true
+  },
+
+  "initialConditions": {
+    "triggerEvent": {
+      "topic": "swarm/started",
+      "data": {
+        "taskId": "cleanup-legacy-files",
+        "timestamp": "2024-01-17T10:00:00Z"
+      }
+    },
+    "blackboardState": {
+      "discovery_criteria": {
+        "patterns": [".tmp", ".backup", ".old", "~"],
+        "olderThan": "30 days",
+        "excludePaths": ["/node_modules", "/.git", "/dist"]
+      },
+      "batch_size": 10,
+      "max_iterations": 5,
+      "iterations_completed": 0,
+      "total_processed": 0,
+      "processed_files": [],
+      "safety_constraints": {
+        "skipRecentlyModified": "7 days",
+        "skipReferencedFiles": true,
+        "requireConfidence": 0.8
+      },
+      "cleanup_safety_mode": "conservative",
+      "create_backups": true
+    }
+  },
+
+  "mocks": {
+    "routineResponses": [
+      {
+        "routineName": "file-discovery-routine",
+        "iteration": 1,
+        "response": {
+          "discovery": {
+            "files": [
+              {"path": "/src/components/old/Header.backup", "size": 5234, "lastModified": "2023-11-15", "confidence": 0.95},
+              {"path": "/tests/integration/test1.tmp", "size": 1024, "lastModified": "2023-10-20", "confidence": 0.90},
+              {"path": "/build/cache/bundle.old", "size": 15000, "lastModified": "2023-09-01", "confidence": 0.98},
+              {"path": "/docs/draft/notes~", "size": 234, "lastModified": "2023-08-15", "confidence": 0.85},
+              {"path": "/src/utils/helper.backup.2023", "size": 3456, "lastModified": "2023-07-10", "confidence": 0.92},
+              {"path": "/temp/upload_12345.tmp", "size": 0, "lastModified": "2023-06-01", "confidence": 0.99},
+              {"path": "/logs/debug.log.old", "size": 234567, "lastModified": "2023-05-20", "confidence": 0.88},
+              {"path": "/data/export_backup.csv", "size": 45678, "lastModified": "2023-12-01", "confidence": 0.75},
+              {"path": "/scripts/deploy.sh.backup", "size": 2345, "lastModified": "2023-04-15", "confidence": 0.93},
+              {"path": "/config/settings.json~", "size": 567, "lastModified": "2023-03-10", "confidence": 0.91}
+            ],
+            "summary": {
+              "totalFound": 10,
+              "totalSize": 313559,
+              "oldestFile": "2023-03-10",
+              "patterns": {".tmp": 2, ".backup": 3, ".old": 2, "~": 2, "other": 1}
+            },
+            "log": "Searched 2456 files in 145 directories, found 10 cleanup candidates"
+          }
+        }
+      },
+      {
+        "routineName": "batch-selection-routine",
+        "iteration": 1,
+        "response": {
+          "selection": {
+            "files": [
+              "/temp/upload_12345.tmp",
+              "/build/cache/bundle.old",
+              "/src/components/old/Header.backup",
+              "/scripts/deploy.sh.backup"
+            ],
+            "reasoning": {
+              "safety_score": 0.94,
+              "rationale": "Selected 4 files with highest confidence scores and lowest risk. Excluded recently modified files and those that might be referenced.",
+              "skipped": [
+                {"file": "/data/export_backup.csv", "reason": "Modified too recently (2023-12-01)"},
+                {"file": "/logs/debug.log.old", "reason": "Large log file, might be needed for debugging"}
+              ]
+            },
+            "decisions": [
+              {"file": "/temp/upload_12345.tmp", "decision": "select", "reason": "Empty temp file, safe to remove"},
+              {"file": "/build/cache/bundle.old", "decision": "select", "reason": "Old build cache, safe to clean"}
+            ]
+          }
+        }
+      },
+      {
+        "routineName": "cleanup-execution-routine",
+        "response": {
+          "processed_count": 4,
+          "processed_files": [
+            "/temp/upload_12345.tmp",
+            "/build/cache/bundle.old",
+            "/src/components/old/Header.backup",
+            "/scripts/deploy.sh.backup"
+          ],
+          "cleanup_result": {
+            "processed_count": 4,
+            "success_rate": 1.0,
+            "backed_up": 4,
+            "errors": []
+          },
+          "cleanup_log": {
+            "operations": [
+              {"file": "/temp/upload_12345.tmp", "action": "deleted", "backup": "/backup/2024-01-17/upload_12345.tmp"},
+              {"file": "/build/cache/bundle.old", "action": "deleted", "backup": "/backup/2024-01-17/bundle.old"}
+            ]
+          }
+        }
+      },
+      {
+        "routineName": "file-discovery-routine",
+        "iteration": 2,
+        "response": {
+          "discovery": {
+            "files": [
+              {"path": "/tests/integration/test1.tmp", "size": 1024, "lastModified": "2023-10-20", "confidence": 0.90},
+              {"path": "/docs/draft/notes~", "size": 234, "lastModified": "2023-08-15", "confidence": 0.85},
+              {"path": "/src/utils/helper.backup.2023", "size": 3456, "lastModified": "2023-07-10", "confidence": 0.92},
+              {"path": "/logs/debug.log.old", "size": 234567, "lastModified": "2023-05-20", "confidence": 0.88},
+              {"path": "/data/export_backup.csv", "size": 45678, "lastModified": "2023-12-01", "confidence": 0.75},
+              {"path": "/config/settings.json~", "size": 567, "lastModified": "2023-03-10", "confidence": 0.91}
+            ],
+            "summary": {
+              "totalFound": 6,
+              "remainingFromPrevious": 6,
+              "newlyDiscovered": 0
+            },
+            "log": "Re-scanned, 4 files processed in previous iteration"
+          }
+        }
+      },
+      {
+        "routineName": "progress-evaluation-routine",
+        "response": {
+          "evaluation": {
+            "report": {
+              "progress": "40% complete",
+              "efficiency": "4 files per iteration",
+              "estimatedIterationsRemaining": 2
+            },
+            "metrics": {
+              "averageBatchSize": 4,
+              "processingRate": "4 files/minute",
+              "spaceReclaimed": "315KB"
+            }
+          }
+        }
+      }
+    ]
+  }
+}

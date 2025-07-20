@@ -1,8 +1,8 @@
 // AI_CHECK: TEST_COVERAGE=1 | LAST: 2025-01-12
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { ContextManager } from "./contextManager.js";
 import { readFile, stat } from "fs/promises";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LIMITS } from "./constants.js";
+import { ContextManager } from "./contextManager.js";
 
 // Mock fs/promises
 vi.mock("fs/promises", () => ({
@@ -301,7 +301,7 @@ describe("ContextManager", () => {
             };
             (stat as any).mockResolvedValue(mockStats);
             (readFile as any).mockResolvedValue("content");
-            
+
             await contextManager.addFile("/test1.txt");
             await contextManager.addFile("/test2.txt");
             contextManager.addRoutine("routine1", "Routine 1");
@@ -322,7 +322,7 @@ describe("ContextManager", () => {
             };
             (stat as any).mockResolvedValue(mockStats);
             (readFile as any).mockResolvedValue("file content");
-            
+
             await contextManager.addFile("/test.txt", "myfile");
 
             const taskContexts = contextManager.getTaskContexts();
@@ -351,7 +351,7 @@ describe("ContextManager", () => {
                 text: async () => "Web content",
             };
             (global.fetch as any).mockResolvedValue(mockResponse);
-            
+
             await contextManager.addUrl("https://example.com", "webpage");
 
             const taskContexts = contextManager.getTaskContexts();
@@ -404,7 +404,7 @@ describe("ContextManager", () => {
             };
             (stat as any).mockResolvedValue(mockStats);
             (readFile as any).mockResolvedValue("content");
-            
+
             await contextManager.addFile("/test.txt");
 
             contextManager.displayContextSummary();
@@ -425,7 +425,7 @@ describe("ContextManager", () => {
                 text: async () => "<title>Test Page</title>Content",
             };
             (global.fetch as any).mockResolvedValue(mockResponse);
-            
+
             await contextManager.addUrl("https://example.com");
 
             contextManager.displayContextSummary();
@@ -455,7 +455,7 @@ describe("ContextManager", () => {
             };
             (stat as any).mockResolvedValue(mockStats);
             (readFile as any).mockResolvedValue("content");
-            
+
             const mockResponse = {
                 ok: true,
                 headers: {

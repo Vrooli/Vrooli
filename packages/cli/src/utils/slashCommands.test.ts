@@ -1,11 +1,9 @@
-// AI_CHECK: TEST_COVERAGE=42 | LAST: 2025-07-13
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { SlashCommandParser } from "./slashCommands.js";
+import type { ChatMessage, User } from "@vrooli/shared";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type ConfigManager } from "./config.js";
 import { type ContextManager } from "./contextManager.js";
 import { ConversationExporter } from "./conversationExporter.js";
-import chalk from "chalk";
-import type { ChatMessage, User } from "@vrooli/shared";
+import { SlashCommandParser } from "./slashCommands.js";
 
 // Mock dependencies
 const mockExportToFile = vi.fn().mockResolvedValue(undefined);
@@ -76,7 +74,7 @@ describe("SlashCommandParser", () => {
                 user: { id: "user1", name: "User", isBot: false } as User,
             } as ChatMessage,
             {
-                id: "msg2", 
+                id: "msg2",
                 text: "Hi there!",
                 createdAt: new Date().toISOString(),
                 user: { id: "bot1", name: "Bot", isBot: true } as User,
@@ -394,7 +392,7 @@ describe("SlashCommandParser", () => {
                 // Check if there's an error first
                 expect(result.error).toBeUndefined();
                 expect(result.message).toBeDefined();
-                
+
                 expect(ConversationExporter).toHaveBeenCalled();
                 expect(mockExportToFile).toHaveBeenCalledWith(
                     expect.any(Object),
@@ -459,7 +457,7 @@ describe("SlashCommandParser", () => {
     describe("edge cases", () => {
         it("should handle parser without context manager", async () => {
             const parserNoContext = new SlashCommandParser(mockConfig, "chat123");
-            
+
             const command = { name: "context", args: ["list"], rawInput: "/context list" };
             const result = await parserNoContext.executeCommand(command);
 
@@ -492,7 +490,7 @@ describe("SlashCommandParser", () => {
             );
 
             const commands = parser.getAvailableCommands();
-            
+
             expect(Array.isArray(commands)).toBe(true);
             expect(commands).toContain("help");
             expect(commands).toContain("exit");
