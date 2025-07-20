@@ -10,22 +10,22 @@
 
 import type {
     Comment,
-    CommentShape,
     CommentCreateInput,
+    CommentShape,
     CommentUpdateInput,
+    FindByIdInput,
     Session,
 } from "@vrooli/shared";
-import { shapeComment } from "@vrooli/shared";
 import type {
-    StandardIntegrationConfig,
-    EndpointCaller,
     DatabaseVerifier,
+    EndpointCaller,
+    StandardIntegrationConfig,
 } from "./types.js";
 // Import the unified form configuration from shared package
 import { commentFormConfig } from "@vrooli/shared";
 // Import test fixtures from shared package test build  
-import { commentFormFixtures } from "@vrooli/shared/test-fixtures";
 import { DbProvider } from "@vrooli/server";
+import { commentFormFixtures } from "@vrooli/shared/test-fixtures";
 
 /**
  * Note: API Input Transformer logic has been moved to commentFormTestConfig.
@@ -44,22 +44,40 @@ import { DbProvider } from "@vrooli/server";
  * 
  * Calls actual comment endpoints - this is where the real API testing happens.
  */
+// Helper to create mock Express Request/Response
+const createMockContext = (session?: Session) => {
+    const req = {
+        session: session || {},
+        cookies: {},
+        headers: {},
+    } as any;
+
+    const res = {} as Response;
+
+    return { req, res };
+};
+
 const commentEndpointCaller: EndpointCaller<CommentCreateInput, CommentUpdateInput, Comment> = {
     create: async (input: CommentCreateInput, session?: Session) => {
         const startTime = Date.now();
 
         try {
-            // Import and call actual endpoint logic
-            const { comment: commentLogic } = await import("@vrooli/server");
+            // Import comment endpoint from correct path
+            const { comment } = await import("@vrooli/server");
 
-            const result = await commentLogic.Create.performLogic({
-                input,
-                userData: session || null,
-            });
+            // Create mock context
+            const context = createMockContext(session);
+
+            // Call the endpoint with correct signature
+            const result = await comment.createOne(
+                { input },
+                context,
+                {} // info parameter
+            );
 
             return {
                 success: true,
-                data: result,
+                data: result as Comment,
                 timing: Date.now() - startTime,
             };
         } catch (error) {
@@ -79,16 +97,21 @@ const commentEndpointCaller: EndpointCaller<CommentCreateInput, CommentUpdateInp
         const startTime = Date.now();
 
         try {
-            const { comment: commentLogic } = await import("@vrooli/server/endpoints");
+            const { comment } = await import("@vrooli/server");
 
-            const result = await commentLogic.Update.performLogic({
-                input: { ...input, id },
-                userData: session || null,
-            });
+            // Create mock context
+            const context = createMockContext(session);
+
+            // Call the endpoint with correct signature
+            const result = await comment.updateOne(
+                { input: { ...input, id } },
+                context,
+                {} // info parameter
+            );
 
             return {
                 success: true,
-                data: result,
+                data: result as Comment,
                 timing: Date.now() - startTime,
             };
         } catch (error) {
@@ -108,16 +131,21 @@ const commentEndpointCaller: EndpointCaller<CommentCreateInput, CommentUpdateInp
         const startTime = Date.now();
 
         try {
-            const { comment: commentLogic } = await import("@vrooli/server/endpoints");
+            const { comment } = await import("@vrooli/server");
 
-            const result = await commentLogic.Read.performLogic({
-                input: { id },
-                userData: session || null,
-            });
+            // Create mock context
+            const context = createMockContext(session);
+
+            // Call the endpoint with correct signature
+            const result = await comment.findOne(
+                { input: { id } as FindByIdInput },
+                context,
+                {} // info parameter
+            );
 
             return {
                 success: true,
-                data: result,
+                data: result as Comment,
                 timing: Date.now() - startTime,
             };
         } catch (error) {
@@ -134,31 +162,17 @@ const commentEndpointCaller: EndpointCaller<CommentCreateInput, CommentUpdateInp
     },
 
     delete: async (id: string, session?: Session) => {
-        const startTime = Date.now();
-
-        try {
-            const { comment: commentLogic } = await import("@vrooli/server/endpoints");
-
-            await commentLogic.Delete.performLogic({
-                input: { id },
-                userData: session || null,
-            });
-
-            return {
-                success: true,
-                timing: Date.now() - startTime,
-            };
-        } catch (error) {
-            return {
-                success: false,
-                error: {
-                    code: "DELETE_FAILED",
-                    message: error instanceof Error ? error.message : "Unknown error",
-                    statusCode: 500,
-                },
-                timing: Date.now() - startTime,
-            };
-        }
+        // Comments don't support direct deletion via API
+        // They use soft delete through updates or are handled at a higher level
+        return {
+            success: false,
+            error: {
+                code: "NOT_SUPPORTED",
+                message: "Comment deletion not supported via API",
+                statusCode: 501,
+            },
+            timing: 0,
+        };
     },
 };
 
@@ -253,9 +267,9 @@ export const commentFormIntegrationFactory = createIntegrationEngine(commentInte
 
 // Export for individual use
 export {
-    commentEndpointCaller,
-    commentDatabaseVerifier,
+    commentDatabaseVerifier, commentEndpointCaller
 };
 
 // Re-export createTestCommentTarget for convenience
 export { createTestCommentTarget } from "../utils/simple-helpers.js";
+

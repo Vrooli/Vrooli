@@ -49,7 +49,7 @@ describe("EndpointsMemberInvite", () => {
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.minimal(DbProvider.get());
-    }););
+    });
             }
         } catch (error) {
             // If database is not initialized, skip cleanup

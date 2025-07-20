@@ -64,7 +64,7 @@ function getPrismaModel(dbTable: string, objectType: string): PrismaDelegate | n
     
     // Type assertion with runtime validation
     if (dbTable in db) {
-        const model = (db as Record<string, unknown>)[dbTable];
+        const model = (db as any)[dbTable];
         if (isPrismaDelegate(model)) {
             return model;
         }
@@ -73,7 +73,7 @@ function getPrismaModel(dbTable: string, objectType: string): PrismaDelegate | n
     logger.error("Invalid database table name", {
         dbTable,
         objectType,
-        availableTables: Object.keys(db).filter(key => isPrismaDelegate((db as Record<string, unknown>)[key])),
+        availableTables: Object.keys(db).filter(key => isPrismaDelegate((db as any)[key])),
     });
     return null;
 }
@@ -428,7 +428,15 @@ async function moderateReport(report: ReportPayload): Promise<void> {
                         objectType,
                         dbTable,
                         reportId: report.id,
-                        availableMethods: Object.getOwnPropertyNames(dbModelForDelete).filter(prop => typeof dbModelForDelete[prop] === "function"),
+                        availableMethods: Object.getOwnPropertyNames(dbModelForDelete).filter(prop => typeof (dbModelForDelete as any)[prop] === "function"),
+                    });
+                    return;
+                }
+                
+                if (!hasIdProperty(objectData)) {
+                    logger.error("Object data missing id property", {
+                        objectType,
+                        reportId: report.id,
                     });
                     return;
                 }
@@ -459,6 +467,14 @@ async function moderateReport(report: ReportPayload): Promise<void> {
                     logger.error("Failed to get database model for hide operation", {
                         objectType,
                         dbTable,
+                        reportId: report.id,
+                    });
+                    return;
+                }
+                
+                if (!hasIdProperty(objectData)) {
+                    logger.error("Object data missing id property for hide operation", {
+                        objectType,
                         reportId: report.id,
                     });
                     return;

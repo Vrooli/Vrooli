@@ -141,6 +141,27 @@ type CodeVersionTestCaseResult = {
 }
 
 /**
+ * Execution environment types for code execution.
+ */
+export type ExecutionEnvironment = "sandbox" | "local";
+
+/**
+ * Environment-specific configuration options.
+ */
+export interface EnvironmentConfig {
+    /** Working directory for local execution (relative to project root) */
+    workingDirectory?: string;
+    /** Allowed file paths for local execution security */
+    allowedPaths?: string[];
+    /** Override default timeout in milliseconds */
+    timeoutMs?: number;
+    /** Override default memory limit in MB */
+    memoryLimitMb?: number;
+    /** Additional environment variables for local execution */
+    environmentVariables?: Record<string, string>;
+}
+
+/**
  * Represents all data that can be stored in a code's stringified config.
  * 
  * This is basically any data that doesn't need to be queried while searching 
@@ -164,6 +185,10 @@ export interface CodeVersionConfigObject extends BaseConfigObject {
     content: string;
     /** Optional blockchain contract details */
     contractDetails?: ContractDetails;
+    /** Execution environment - where the code should run */
+    executionEnvironment?: ExecutionEnvironment;
+    /** Environment-specific configuration */
+    environmentConfig?: EnvironmentConfig;
 }
 
 /**
@@ -175,6 +200,8 @@ export class CodeVersionConfig extends BaseConfig<CodeVersionConfigObject> {
     testCases?: CodeVersionConfigObject["testCases"];
     content: CodeVersionConfigObject["content"];
     contractDetails?: CodeVersionConfigObject["contractDetails"];
+    executionEnvironment?: CodeVersionConfigObject["executionEnvironment"];
+    environmentConfig?: CodeVersionConfigObject["environmentConfig"];
 
     codeLanguage: ResourceVersion["codeLanguage"];
 
@@ -186,6 +213,8 @@ export class CodeVersionConfig extends BaseConfig<CodeVersionConfigObject> {
         this.testCases = config.testCases ?? CodeVersionConfig.defaultTestCases();
         this.content = config.content;
         this.contractDetails = config.contractDetails;
+        this.executionEnvironment = config.executionEnvironment ?? CodeVersionConfig.defaultExecutionEnvironment();
+        this.environmentConfig = config.environmentConfig ?? CodeVersionConfig.defaultEnvironmentConfig();
         this.codeLanguage = codeLanguage;
     }
 
@@ -229,6 +258,12 @@ export class CodeVersionConfig extends BaseConfig<CodeVersionConfigObject> {
                     testCases: (opts?.useFallbacks ?? true)
                         ? (config.testCases ?? CodeVersionConfig.defaultTestCases())
                         : config.testCases,
+                    executionEnvironment: (opts?.useFallbacks ?? true)
+                        ? (config.executionEnvironment ?? CodeVersionConfig.defaultExecutionEnvironment())
+                        : config.executionEnvironment,
+                    environmentConfig: (opts?.useFallbacks ?? true)
+                        ? (config.environmentConfig ?? CodeVersionConfig.defaultEnvironmentConfig())
+                        : config.environmentConfig,
                 };
 
                 if (typeof finalConfig.content !== "string") {
@@ -251,6 +286,8 @@ export class CodeVersionConfig extends BaseConfig<CodeVersionConfigObject> {
                 testCases: CodeVersionConfig.defaultTestCases(),
                 content: initialContent,
                 contractDetails: undefined,
+                executionEnvironment: CodeVersionConfig.defaultExecutionEnvironment(),
+                environmentConfig: CodeVersionConfig.defaultEnvironmentConfig(),
             },
             codeLanguage,
         });
@@ -264,6 +301,8 @@ export class CodeVersionConfig extends BaseConfig<CodeVersionConfigObject> {
             testCases: this.testCases,
             content: this.content,
             contractDetails: this.contractDetails,
+            executionEnvironment: this.executionEnvironment,
+            environmentConfig: this.environmentConfig,
         };
     }
 
@@ -280,6 +319,14 @@ export class CodeVersionConfig extends BaseConfig<CodeVersionConfigObject> {
 
     static defaultTestCases(): CodeVersionConfigObject["testCases"] {
         return [];
+    }
+
+    static defaultExecutionEnvironment(): CodeVersionConfigObject["executionEnvironment"] {
+        return "sandbox";
+    }
+
+    static defaultEnvironmentConfig(): CodeVersionConfigObject["environmentConfig"] {
+        return {};
     }
 
     /**

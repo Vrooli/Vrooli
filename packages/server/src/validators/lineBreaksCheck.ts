@@ -3,31 +3,23 @@ import { type TranslationKeyError } from "@vrooli/shared";
 import { CustomError } from "../events/error.js";
 
 /**
- * Interface for translation objects that may contain string fields
- */
-interface TranslationData {
-    [key: string]: unknown;
-}
-
-/**
- * Interface for objects that may have translation arrays
- */
-interface TranslatableInput {
-    translationsCreate?: TranslationData[];
-    translationsUpdate?: TranslationData[];
-    [key: string]: unknown;
-}
-
-/**
  * Makes sure there are no more than k line breaks in the specified fields
  * @param input The input to check
  * @param fields The field names to check
  * @param error - The error to throw if failed
  * @param k - The maximum number of line breaks allowed
  */
-export function lineBreaksCheck(input: TranslatableInput, fields: string[], error: TranslationKeyError, k = 2): void {
+export function lineBreaksCheck<T extends Record<string, unknown>>(
+    input: T & { 
+        translationsCreate?: Array<Record<string, unknown>> | null | undefined;
+        translationsUpdate?: Array<Record<string, unknown>> | null | undefined;
+    }, 
+    fields: string[], 
+    error: TranslationKeyError, 
+    k = 2,
+): void {
     // Helper function to check translations
-    function checkTranslations(translations: TranslationData[], fields: string[]): void {
+    function checkTranslations(translations: Array<Record<string, unknown>>, fields: string[]): void {
         translations.forEach((translation) => {
             fields.forEach(field => {
                 const value = translation[field];
@@ -38,11 +30,11 @@ export function lineBreaksCheck(input: TranslatableInput, fields: string[], erro
         });
     }
     
-    // Check translation arrays if they exist
-    if (input.translationsCreate) {
+    // Check translation arrays if they exist (filter out null values)
+    if (input.translationsCreate && input.translationsCreate !== null) {
         checkTranslations(input.translationsCreate, fields);
     }
-    if (input.translationsUpdate) {
+    if (input.translationsUpdate && input.translationsUpdate !== null) {
         checkTranslations(input.translationsUpdate, fields);
     }
     

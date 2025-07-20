@@ -12,12 +12,15 @@
  * - Compile-time type safety
  */
 
-import type { ChatMessage, SessionUser } from "../api/types.js";
+import type { SessionUser } from "../api/types.js";
 import type { BotConfigObject } from "../shape/configs/bot.js";
+import type { ChatConfigObject } from "../shape/configs/chat.js";
 import type { TeamConfigObject } from "../shape/configs/team.js";
-import type { Tool } from "./conversation.js";
+import type { MessageState, Tool } from "./conversation.js";
 import type { ExecutionStrategy } from "./core.js";
 import type { BotId, SwarmId } from "./ids.js";
+import type { RunState } from "./routine.js";
+import type { Permission } from "./security.js";
 
 /**
  * Base execution context shared across all tiers
@@ -40,13 +43,10 @@ export interface BaseExecutionContext {
  */
 export interface ResponseContext extends BaseExecutionContext {
     /** The specific bot that should generate a response */
-    readonly botId: BotId;
-
-    /** Configuration for the responding bot */
-    readonly botConfig: BotConfigObject;
+    readonly bot: BotParticipant;
 
     /** Full conversation history for context */
-    readonly conversationHistory: ChatMessage[];
+    readonly conversationHistory: MessageState[];
 
     /** Tools available to this bot during response generation */
     readonly availableTools: Tool[];
@@ -68,6 +68,15 @@ export interface ResponseContext extends BaseExecutionContext {
         /** Maximum cost allowed for this response */
         maxCredits?: string;
     };
+
+    /** Full swarm state for comprehensive context access */
+    readonly swarmState?: SwarmState;
+
+    /** Chat configuration for model preferences and settings */
+    readonly chatConfig?: ChatConfigObject;
+
+    /** Team configuration for team-level defaults */
+    readonly teamConfig?: TeamConfigObject;
 }
 
 /**
@@ -79,7 +88,7 @@ export interface ConversationContext extends BaseExecutionContext {
     readonly participants: BotParticipant[];
 
     /** Full conversation history for context */
-    readonly conversationHistory: ChatMessage[];
+    readonly conversationHistory: MessageState[];
 
     /** Tools available during this conversation */
     readonly availableTools: Tool[];
@@ -100,6 +109,9 @@ export interface ConversationContext extends BaseExecutionContext {
 export interface BotParticipant {
     /** Unique identifier for this bot */
     readonly id: BotId;
+
+    /** Name of the bot */
+    readonly name: string;
 
     /** Bot configuration */
     readonly config: BotConfigObject;
@@ -174,4 +186,157 @@ export interface ContextScope {
 
     /** When this scope should be cleaned up (optional) */
     readonly expiresAt?: Date;
+}
+
+/**
+ * Runtime execution state (not persisted)
+ */
+export interface RuntimeExecution {
+    /** Current execution state */
+    status: RunState;
+
+    /** Alias for compatibility */
+    state?: RunState;
+
+    /** Active agents in the swarm with their configs */
+    agents: BotParticipant[];
+
+    /** Currently running routines/tasks */
+    activeRuns: ActiveRunInfo[];
+
+    /** When this swarm execution started */
+    startedAt: Date;
+
+    /** Last activity timestamp */
+    lastActivityAt: Date;
+}
+
+/**
+ * Runtime resource tracking (computed, not persisted)
+ */
+export interface RuntimeResources {
+    /** Resources currently allocated to agents/tasks */
+    allocated: ResourceAllocation[];
+
+    /** Resources consumed so far */
+    consumed: { credits: number; tokens: number; time: number };
+
+    /** Resources remaining in the pool */
+    remaining: { credits: number; tokens: number; time: number };
+}
+
+/**
+ * System metadata (not persisted)
+ */
+export interface SystemMetadata {
+    /** When this state was created in memory */
+    createdAt: Date;
+
+    /** Last time this state was updated */
+    lastUpdated: Date;
+
+    /** Who last updated this state */
+    updatedBy: string;
+
+    /** Active subscribers to this swarm state */
+    subscribers: Set<string>;
+}
+
+/**
+ * Information about an active run
+ */
+export interface ActiveRunInfo {
+    runId: string;
+    routineId: string;
+    agentId: string;
+    status: "pending" | "running" | "completed" | "failed";
+    startedAt: Date;
+    context?: Record<string, unknown>;
+}
+
+/**
+ * Resource allocation entry
+ * Clean, purpose-built interface for tracking resource allocations
+ */
+export interface ResourceAllocation {
+    id: string;                            // Always generated
+    consumerId: string;                    // The entity consuming resources
+    consumerType: "agent" | "run" | "step";
+
+    limits: {                              // What they can use
+        maxCredits: string;                // BigInt as string
+        maxDurationMs: number;
+        maxMemoryMB: number;
+        maxConcurrentSteps: number;
+    };
+
+    allocated: {                           // What we gave them
+        credits: number;                   // Actual amount allocated
+        timestamp: Date;
+    };
+
+    purpose?: string;                      // Optional context
+    priority?: "low" | "normal" | "high";
+}
+
+/**
+ * Resource usage tracking
+ */
+export interface ResourceUsage {
+    credits: number;
+    apiCalls: number;
+    computeTime: number;
+    memoryMB: number;
+    storageKB: number;
+    [key: string]: number; // Allow extension
+}
+
+/**
+ * Minimal swarm state that references configs directly
+ * without transformation or duplication
+ */
+export interface SwarmState {
+    /** Swarm identifier */
+    swarmId: SwarmId;
+
+    /** Version number for optimistic concurrency control */
+    version: number;
+
+    /** 
+     * Persisted configuration (untransformed)
+     * Access blackboard via: state.chatConfig.blackboard
+     * Access resources via: state.chatConfig.resources
+     * Access policy via: state.chatConfig.policy
+     * etc.
+     */
+    chatConfig: ChatConfigObject;
+
+    /** Runtime-only execution state (not persisted) */
+    execution: RuntimeExecution;
+
+    /** Runtime resource tracking (computed, not persisted) */
+    resources: RuntimeResources;
+
+    /** System metadata (not persisted) */
+    metadata: SystemMetadata;
+}
+
+/**
+ * Simplified execution context for security and access control
+ */
+export interface ExecutionContext {
+    /** Agent making the request */
+    agentId: string;
+
+    /** Swarm being accessed */
+    swarmId: string;
+
+    /** User context if available */
+    userId?: string;
+
+    /** Direct reference to swarm state (no transformation) */
+    swarmState: SwarmState;
+
+    /** Computed permissions (not stored) */
+    permissions?: Permission[];
 }

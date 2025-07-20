@@ -1,5 +1,5 @@
 import { type Job } from "bullmq";
-import webpush from "web-push";
+import * as webpush from "web-push";
 import { logger } from "../../events/logger.js";
 import { type PushNotificationTask } from "../taskTypes.js";
 

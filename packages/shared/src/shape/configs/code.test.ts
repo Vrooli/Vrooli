@@ -300,6 +300,8 @@ describe("CodeVersionConfig", () => {
                 content: "function spreadTest() { return 'ok'; }",
                 resources: [],
                 contractDetails: undefined,
+                environmentConfig: {},
+                executionEnvironment: "sandbox",
             };
             const configString = JSON.stringify(configObject);
             const versionInput: VersionInputForParse = {
@@ -320,6 +322,8 @@ describe("CodeVersionConfig", () => {
                 content: "function directTest() { return 'ok'; }",
                 resources: [],
                 contractDetails: undefined,
+                environmentConfig: {},
+                executionEnvironment: "sandbox",
             };
             const configString = JSON.stringify(configObject);
             const versionInput: VersionInputForParse = {

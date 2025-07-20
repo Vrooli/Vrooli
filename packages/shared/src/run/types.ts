@@ -1,13 +1,11 @@
 /* c8 ignore start */
-import { type ResourceType, type ResourceVersion, type RunStatus, type RunStepStatus, type SessionUser } from "../api/types.js";
-import { type PassableLogger } from "../consts/commonTypes.js";
+import { type ResourceType, type RunStatus, type RunStepStatus } from "../api/types.js";
 import { type LlmModel } from "../shape/configs/bot.js";
 import { type ScheduleShape } from "../shape/models/models.js";
-import { BotStyle, type BranchStatus, type InputGenerationStrategy, type PathSelectionStrategy, type SubroutineExecutionStrategy } from "./enums.js";
+import { type BranchStatus, type InputGenerationStrategy, type PathSelectionStrategy, type SubroutineExecutionStrategy } from "./enums.js";
 
 // Re-export enums for backward compatibility
 export { BotStyle, BranchStatus, InputGenerationStrategy, PathSelectionStrategy, SubroutineExecutionStrategy } from "./enums.js";
-import { type RunLimitsManager } from "./limits.js";
 
 /** The minimum information required to identify a run. */
 export type RunIdentifier = Pick<RunProgress, "runId">;
@@ -151,6 +149,8 @@ export type RunBotConfig = {
 
 /**
  * Configuration object for setting up a run with the state machine.
+ * 
+ * @deprecated We also define RunConfig in @vrooli/server. This one has some extra data that may be useful, so we'll keep it here for now.
  */
 export type RunConfig = {
     /** Bot configuration for the run */

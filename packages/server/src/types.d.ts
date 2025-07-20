@@ -2,7 +2,7 @@ import { type ApiKeyPermission, type ModelType, type SessionUser } from "@vrooli
 import { type PartialApiInfo } from "./builders/types.js";
 import { type Context } from "./middleware/context.js";
 
-declare module "@local/server";
+declare module "@vrooli/server";
 
 /**
  * Information required in any JWT token

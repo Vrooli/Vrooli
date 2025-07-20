@@ -33,9 +33,9 @@ describe("EndpointsBookmark", () => {
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
-    }););
+    });
 
     afterAll(async () => {
         // Restore all mocks
@@ -49,10 +49,11 @@ describe("EndpointsBookmark", () => {
         // Seed test users using database fixtures
         const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
         
-        // Create tags to be bookmarked
+        // Create tags to be bookmarked with unique names
+        const uniqueSuffix = Date.now().toString();
         const tags = await Promise.all([
-            DbProvider.get().tag.create({ data: { id: generatePK(), tag: "tag-1" } }),
-            DbProvider.get().tag.create({ data: { id: generatePK(), tag: "tag-2" } }),
+            DbProvider.get().tag.create({ data: { id: generatePK(), tag: `tag-1_${uniqueSuffix}` } }),
+            DbProvider.get().tag.create({ data: { id: generatePK(), tag: `tag-2_${uniqueSuffix}` } }),
         ]);
 
         // Seed bookmarks with lists using database fixtures

@@ -52,7 +52,7 @@ export class DirectResponderGraph extends AgentGraph {
             return { responders: agents, strategy };
         }
 
-        const matchingAgents = agents.filter((p) => respondingBotIds.includes(p.id));
+        const matchingAgents = agents.filter((p) => respondingBotIds!.includes(p.id));
         const uniqueAgents = Array.from(new Map(matchingAgents.map(bot => [bot.id, bot])).values());
         return { responders: uniqueAgents, strategy };
     }

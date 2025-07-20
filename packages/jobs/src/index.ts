@@ -1,6 +1,6 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-04
 /* eslint-disable no-magic-numbers */
-import { CacheService, getBcryptService, initSingletons, logger } from "@vrooli/server";
+import { CacheService, DbProvider, getBcryptService, initSingletons, logger } from "@vrooli/server";
 import { MINUTES_30_MS } from "@vrooli/shared";
 import cron from "node-cron";
 import { cleanupRevokedSessions } from "./schedules/cleanupRevokedSessions.js";
@@ -358,11 +358,12 @@ async function startHealthServer(): Promise<void> {
             for (const jobName of recentJobs.slice(0, 5)) { // Check first 5 jobs
                 const lastSuccess = await redis.get(`cron:lastSuccess:${jobName}`);
                 const lastFailure = await redis.get(`cron:lastFailure:${jobName}`);
-                jobHealth.push({
+                const job: { name: string; lastSuccess?: string; lastFailure?: string } = {
                     name: jobName,
-                    lastSuccess: lastSuccess || undefined,
-                    lastFailure: lastFailure || undefined,
-                });
+                };
+                if (lastSuccess) job.lastSuccess = lastSuccess;
+                if (lastFailure) job.lastFailure = lastFailure;
+                jobHealth.push(job);
             }
 
             // Check bcrypt availability
@@ -375,7 +376,7 @@ async function startHealthServer(): Promise<void> {
                 redis: "connected",
                 bcrypt: {
                     available: bcryptService.isAvailable,
-                    error: bcryptService.error || undefined,
+                    implementation: bcryptService.implementation,
                 },
                 cronJobs: jobHealth,
             });
@@ -395,8 +396,19 @@ async function startHealthServer(): Promise<void> {
     });
 }
 
-if (process.env.npm_package_name === "@vrooli/jobs") {
+if (process.env.NODE_ENV !== "test" && 
+    (process.env.npm_package_name === "@vrooli/jobs" || !process.env.npm_package_name)) {
     await initSingletons();
+    
+    // Initialize database for jobs service (skip seeding - only server should seed)
+    try {
+        await DbProvider.init({ skipSeeding: true });
+        logger.info("Database initialized successfully for jobs service");
+    } catch (error: unknown) {
+        logger.error("Failed to initialize database for jobs service", { error, trace: "0404" });
+        // Continue anyway as some jobs might not need database
+    }
+    
     initializeAllCronJobs();
     await startHealthServer();
 }

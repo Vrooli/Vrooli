@@ -1,6 +1,6 @@
 import { type Team } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
-import { BaseConfig, type BaseConfigObject } from "./base.js";
+import { BaseConfig, type BaseConfigObject, type ModelConfig } from "./base.js";
 import { type BlackboardItem } from "./chat.js";
 
 /**
@@ -83,10 +83,17 @@ export interface IsolationConfig {
     securityPolicies?: string[];
 }
 
-
-
-
-
+/**
+ * Team organizational structure definition
+ */
+export interface TeamStructure {
+    /** Type of organizational structure (e.g., "MOISE+", "FIPA ACL") */
+    type: string;
+    /** Version of the structure specification */
+    version: string;
+    /** The actual structure definition content */
+    content: string;
+}
 
 /**
  * Represents all data that can be stored in a team's stringified config.
@@ -99,7 +106,13 @@ export interface IsolationConfig {
  * - Emergent decision-making through AI rather than predefined rules
  */
 export type TeamConfigObject = BaseConfigObject & {
-    /** Deployment context for the team */
+    /**
+     * Deployment context for the team
+     * 
+     * - development: Local development environment
+     * - saas: SaaS deployment
+     * - appliance: Appliance deployment
+     */
     deploymentType: "development" | "saas" | "appliance";
     /** Primary objective of this team template */
     goal: string;
@@ -117,8 +130,8 @@ export type TeamConfigObject = BaseConfigObject & {
     marketSegment?: "enterprise" | "smb" | "consumer";
     /** Security and resource isolation configuration */
     isolation?: IsolationConfig;
-    /** Preferred AI model for this swarm type */
-    preferredModel?: string;
+    /** Model configuration for AI selection */
+    modelConfig?: ModelConfig;
     /** Default limits for chat instances spawned from this team */
     defaultLimits?: {
         maxToolCallsPerBotResponse: number;
@@ -146,6 +159,8 @@ export type TeamConfigObject = BaseConfigObject & {
     stats: TeamEconomicTracking;
     /** Team-specific blackboard for economic coordination and learning */
     blackboard?: BlackboardItem[];
+    /** Organizational structure definition (MOISE+, FIPA ACL, etc.) */
+    structure?: TeamStructure;
 }
 
 /**
@@ -209,12 +224,13 @@ export class TeamConfig extends BaseConfig<TeamConfigObject> {
     verticalPackage?: VerticalPackageConfig;
     marketSegment?: TeamConfigObject["marketSegment"];
     isolation?: IsolationConfig;
-    preferredModel?: string;
+    modelConfig?: ModelConfig;
     defaultLimits?: TeamConfigObject["defaultLimits"];
     defaultScheduling?: TeamConfigObject["defaultScheduling"];
     defaultPolicy?: TeamConfigObject["defaultPolicy"];
     stats: TeamEconomicTracking;
     blackboard?: BlackboardItem[];
+    structure?: TeamStructure;
 
     constructor({ config }: { config: TeamConfigObject }) {
         super({ config });
@@ -227,12 +243,13 @@ export class TeamConfig extends BaseConfig<TeamConfigObject> {
         this.verticalPackage = config.verticalPackage;
         this.marketSegment = config.marketSegment;
         this.isolation = config.isolation;
-        this.preferredModel = config.preferredModel;
+        this.modelConfig = config.modelConfig;
         this.defaultLimits = config.defaultLimits;
         this.defaultScheduling = config.defaultScheduling;
         this.defaultPolicy = config.defaultPolicy;
-        this.stats = config.stats ?? defaultEconomicTracking();
-        this.blackboard = config.blackboard ?? [];
+        this.stats = config.stats!; // Will be set by parse method when needed
+        this.blackboard = config.blackboard;
+        this.structure = config.structure;
     }
 
     static parse(
@@ -249,6 +266,11 @@ export class TeamConfig extends BaseConfig<TeamConfigObject> {
                     config.defaultLimits ??= defaultSwarmLimits();
                     config.defaultScheduling ??= defaultSwarmScheduling();
                     config.blackboard ??= [];
+                    config.structure ??= {
+                        type: "MOISE+",
+                        version: "1.0",
+                        content: "",
+                    };
                 }
                 return new TeamConfig({ config });
             },
@@ -259,24 +281,35 @@ export class TeamConfig extends BaseConfig<TeamConfigObject> {
      * Exports the config to a plain object
      */
     override export(): TeamConfigObject {
-        return {
-            ...super.export(),
-            deploymentType: this.deploymentType,
-            goal: this.goal,
-            businessPrompt: this.businessPrompt,
-            resourceQuota: this.resourceQuota,
-            targetProfitPerMonth: this.targetProfitPerMonth,
-            costLimit: this.costLimit,
-            verticalPackage: this.verticalPackage,
-            marketSegment: this.marketSegment,
-            isolation: this.isolation,
-            preferredModel: this.preferredModel,
-            defaultLimits: this.defaultLimits,
-            defaultScheduling: this.defaultScheduling,
-            defaultPolicy: this.defaultPolicy,
-            stats: this.stats,
-            blackboard: this.blackboard,
-        };
+        const base = super.export();
+        const result: TeamConfigObject = { ...base } as TeamConfigObject;
+        
+        // Only include defined fields
+        if (this.deploymentType !== undefined) result.deploymentType = this.deploymentType;
+        if (this.goal !== undefined) result.goal = this.goal;
+        if (this.businessPrompt !== undefined) result.businessPrompt = this.businessPrompt;
+        if (this.resourceQuota !== undefined) result.resourceQuota = this.resourceQuota;
+        if (this.targetProfitPerMonth !== undefined) result.targetProfitPerMonth = this.targetProfitPerMonth;
+        if (this.costLimit !== undefined) result.costLimit = this.costLimit;
+        if (this.verticalPackage !== undefined) result.verticalPackage = this.verticalPackage;
+        if (this.marketSegment !== undefined) result.marketSegment = this.marketSegment;
+        if (this.isolation !== undefined) result.isolation = this.isolation;
+        if (this.modelConfig !== undefined) result.modelConfig = this.modelConfig;
+        if (this.defaultLimits !== undefined) result.defaultLimits = this.defaultLimits;
+        if (this.defaultScheduling !== undefined) result.defaultScheduling = this.defaultScheduling;
+        if (this.defaultPolicy !== undefined) result.defaultPolicy = this.defaultPolicy;
+        if (this.stats !== undefined) result.stats = this.stats;
+        if (this.blackboard !== undefined) result.blackboard = this.blackboard;
+        if (this.structure !== undefined) result.structure = this.structure;
+        
+        return result;
+    }
+
+    /**
+     * Sets the organizational structure for the team
+     */
+    setStructure(structure: TeamStructure | undefined): void {
+        this.structure = structure;
     }
 
     /**
@@ -290,22 +323,22 @@ export class TeamConfig extends BaseConfig<TeamConfigObject> {
         isInstanceClosed?: boolean;
     }): void {
         const stats = this.stats;
-        
+
         if (instanceData.isNewInstance) {
             stats.totalInstances += 1;
             stats.activeInstances += 1;
         }
-        
+
         if (instanceData.isInstanceClosed) {
             stats.activeInstances = Math.max(0, stats.activeInstances - 1);
         }
-        
+
         // Update profit and costs (bigint arithmetic)
         const currentProfit = BigInt(stats.totalProfit);
         const currentCosts = BigInt(stats.totalCosts);
         stats.totalProfit = (currentProfit + BigInt(instanceData.profit)).toString();
         stats.totalCosts = (currentCosts + BigInt(instanceData.costs)).toString();
-        
+
         // Update average KPIs
         const totalInstances = stats.totalInstances;
         if (totalInstances > 0) {
@@ -314,7 +347,7 @@ export class TeamConfig extends BaseConfig<TeamConfigObject> {
                 stats.averageKPIs[kpi] = ((currentAvg * (totalInstances - 1)) + value) / totalInstances;
             }
         }
-        
+
         stats.lastUpdated = Date.now();
     }
 
@@ -328,7 +361,7 @@ export class TeamConfig extends BaseConfig<TeamConfigObject> {
             value: { type, data, confidence },
             created_at: new Date().toISOString(),
         });
-        
+
         // Keep blackboard manageable size (last 100 items)
         if (this.blackboard.length > 100) {
             this.blackboard = this.blackboard.slice(-100);
@@ -340,16 +373,16 @@ export class TeamConfig extends BaseConfig<TeamConfigObject> {
      */
     getInsights(type?: string): BlackboardItem[] {
         if (!this.blackboard) return [];
-        
+
         if (type) {
-            return this.blackboard.filter(item => 
-                typeof item.value === 'object' && 
+            return this.blackboard.filter(item =>
+                typeof item.value === "object" &&
                 item.value !== null &&
-                'type' in item.value && 
-                item.value.type === type
+                "type" in item.value &&
+                item.value.type === type,
             );
         }
-        
+
         return this.blackboard;
     }
 
@@ -371,7 +404,7 @@ export class TeamConfig extends BaseConfig<TeamConfigObject> {
         const instances = this.stats.totalInstances;
         const targetProfitUSD = Number(BigInt(this.targetProfitPerMonth)) / 1000000;
         const costLimitUSD = this.costLimit ? Number(BigInt(this.costLimit)) / 1000000 : null;
-        
+
         return {
             totalProfitUSD: totalProfit,
             totalCostsUSD: totalCosts,

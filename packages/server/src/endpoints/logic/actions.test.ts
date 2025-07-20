@@ -1,7 +1,8 @@
 import { type CopyInput, type DeleteAccountInput, type DeleteAllInput, type DeleteManyInput, type DeleteOneInput, DeleteType, generatePK, type Count } from "@vrooli/shared";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockAuthenticatedSession, mockLoggedOutSession, mockApiSession, mockWritePrivatePermissions, mockWriteAuthPermissions } from "../../__test/session.js";
-import { assertEndpointRequiresAuth, assertEndpointRequiresApiKeyWritePermissions } from "../../__test/endpoints.js";
+import { assertRequiresAuth, assertRequiresApiKeyWritePermissions } from "../../__test/authTestUtils.js";
+import { expectCustomErrorAsync } from "../../__test/errorTestUtils.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
@@ -9,16 +10,17 @@ import { CacheService } from "../../redisConn.js";
 import { actions_copy } from "../generated/actions_copy.js";
 import { actions_deleteAccount } from "../generated/actions_deleteAccount.js";
 import { actions_deleteAll } from "../generated/actions_deleteAll.js";
-import { actions_deleteMany } from "../generated/actions_deleteMany.js";
 import { actions_deleteOne } from "../generated/actions_deleteOne.js";
 import { actions } from "./actions.js";
 // Import database fixtures
 import { seedTestUsers, UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
 import { TeamDbFactory } from "../../__test/fixtures/db/teamFixtures.js";
-import { createResourceDbFactory } from "../../__test/fixtures/db/ResourceDbFactory.js";
+import { createResourceDbFactory } from "../../__test/fixtures/db/index.js";
 import { createRunDbFactory } from "../../__test/fixtures/db/RunDbFactory.js";
 import { PasswordAuthService } from "../../auth/email.js";
 import { AUTH_PROVIDERS } from "@vrooli/shared";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsActions", () => {
     beforeAll(async () => {
@@ -28,20 +30,21 @@ describe("EndpointsActions", () => {
         vi.spyOn(logger, "warning").mockImplementation(() => logger);
     });
 
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["user","user_auth","email","phone","push_device","session"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn("Test cleanup incomplete:", orphans);
+        }
+    });
+
     beforeEach(async () => {
-        // Clean up tables used in tests
-        const prisma = DbProvider.get();
-        // Delete in dependency order
-        await prisma.run_step.deleteMany();
-        await prisma.run_io.deleteMany();
-        await prisma.run.deleteMany();
-        await prisma.resource_version.deleteMany();
-        await prisma.resource.deleteMany();
-        await prisma.member.deleteMany();
-        await prisma.team.deleteMany();
-        await prisma.user_auth.deleteMany();
-        await prisma.user.deleteMany();
-        // Clear Redis cache
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.userAuth(DbProvider.get());
+        // Clear Redis cache to reset rate limiting
         await CacheService.get().flushAll();
     });
 
@@ -53,7 +56,7 @@ describe("EndpointsActions", () => {
     describe("copy", () => {
         describe("authentication", () => {
             it("not logged in", async () => {
-                await assertEndpointRequiresAuth(
+                await assertRequiresAuth(
                     actions.copy,
                     { objectType: DeleteType.Note, id: generatePK() },
                     actions_copy,
@@ -61,11 +64,10 @@ describe("EndpointsActions", () => {
             });
 
             it("API key - no write permissions", async () => {
-                await assertEndpointRequiresApiKeyWritePermissions(
+                await assertRequiresApiKeyWritePermissions(
                     actions.copy,
                     { objectType: DeleteType.Note, id: generatePK() },
                     actions_copy,
-                    ["Note"],
                 );
             });
         });
@@ -201,8 +203,11 @@ describe("EndpointsActions", () => {
                     id: privateNote.id.toString(),
                 };
 
-                await expect(actions.copy({ input }, { req, res }, actions_copy))
-                    .rejects.toThrow(CustomError);
+                await expectCustomErrorAsync(
+                    actions.copy({ input }, { req, res }, actions_copy),
+                    "Unauthorized",
+                    "0323",
+                );
             });
 
             it("cannot copy non-existent object", async () => {
@@ -216,8 +221,11 @@ describe("EndpointsActions", () => {
                     id: generatePK(),
                 };
 
-                await expect(actions.copy({ input }, { req, res }, actions_copy))
-                    .rejects.toThrow(CustomError);
+                await expectCustomErrorAsync(
+                    actions.copy({ input }, { req, res }, actions_copy),
+                    "Unauthorized",
+                    "0323",
+                );
             });
         });
     });
@@ -225,7 +233,7 @@ describe("EndpointsActions", () => {
     describe("deleteOne", () => {
         describe("authentication", () => {
             it("not logged in", async () => {
-                await assertEndpointRequiresAuth(
+                await assertRequiresAuth(
                     actions.deleteOne,
                     { objectType: DeleteType.Note, id: generatePK() },
                     actions_deleteOne,
@@ -233,11 +241,10 @@ describe("EndpointsActions", () => {
             });
 
             it("API key - no write permissions", async () => {
-                await assertEndpointRequiresApiKeyWritePermissions(
+                await assertRequiresApiKeyWritePermissions(
                     actions.deleteOne,
                     { objectType: DeleteType.Note, id: generatePK() },
                     actions_deleteOne,
-                    ["Note"],
                 );
             });
         });
@@ -328,8 +335,11 @@ describe("EndpointsActions", () => {
                     id: note.id.toString(),
                 };
 
-                await expect(actions.deleteOne({ input }, { req, res }, actions_deleteOne))
-                    .rejects.toThrow(CustomError);
+                await expectCustomErrorAsync(
+                    actions.deleteOne({ input }, { req, res }, actions_deleteOne),
+                    "Unauthorized",
+                    "0323",
+                );
             });
 
             it("cannot delete team object without permission", async () => {
@@ -369,8 +379,11 @@ describe("EndpointsActions", () => {
                     id: project.id.toString(),
                 };
 
-                await expect(actions.deleteOne({ input }, { req, res }, actions_deleteOne))
-                    .rejects.toThrow(CustomError);
+                await expectCustomErrorAsync(
+                    actions.deleteOne({ input }, { req, res }, actions_deleteOne),
+                    "Unauthorized",
+                    "0323",
+                );
             });
         });
     });
@@ -378,7 +391,7 @@ describe("EndpointsActions", () => {
     describe("deleteMany", () => {
         describe("authentication", () => {
             it("not logged in", async () => {
-                await assertEndpointRequiresAuth(
+                await assertRequiresAuth(
                     actions.deleteMany,
                     { objectType: DeleteType.Note, ids: [generatePK()] },
                     actions_deleteMany,
@@ -386,11 +399,10 @@ describe("EndpointsActions", () => {
             });
 
             it("API key - no write permissions", async () => {
-                await assertEndpointRequiresApiKeyWritePermissions(
+                await assertRequiresApiKeyWritePermissions(
                     actions.deleteMany,
                     { objectType: DeleteType.Note, ids: [generatePK()] },
                     actions_deleteMany,
-                    ["Note"],
                 );
             });
         });
@@ -510,7 +522,7 @@ describe("EndpointsActions", () => {
     describe("deleteAll", () => {
         describe("authentication", () => {
             it("not logged in", async () => {
-                await assertEndpointRequiresAuth(
+                await assertRequiresAuth(
                     actions.deleteAll,
                     { objectTypes: [DeleteType.Run] },
                     actions_deleteAll,
@@ -529,8 +541,11 @@ describe("EndpointsActions", () => {
                     objectTypes: [DeleteType.RunProject],
                 };
 
-                await expect(actions.deleteAll({ input }, { req, res }, actions_deleteAll))
-                    .rejects.toThrow(CustomError);
+                await expectCustomErrorAsync(
+                    actions.deleteAll({ input }, { req, res }, actions_deleteAll),
+                    "Unauthorized",
+                    "0323",
+                );
             });
         });
 
@@ -652,7 +667,7 @@ describe("EndpointsActions", () => {
     describe("deleteAccount", () => {
         describe("authentication", () => {
             it("not logged in", async () => {
-                await assertEndpointRequiresAuth(
+                await assertRequiresAuth(
                     actions.deleteAccount,
                     { password: "password123", deletePublicData: true },
                     actions_deleteAccount,
@@ -672,8 +687,11 @@ describe("EndpointsActions", () => {
                     deletePublicData: true,
                 };
 
-                await expect(actions.deleteAccount({ input }, { req, res }, actions_deleteAccount))
-                    .rejects.toThrow(CustomError);
+                await expectCustomErrorAsync(
+                    actions.deleteAccount({ input }, { req, res }, actions_deleteAccount),
+                    "Unauthorized",
+                    "0323",
+                );
             });
         });
 
@@ -749,8 +767,11 @@ describe("EndpointsActions", () => {
                     deletePublicData: true,
                 };
 
-                await expect(actions.deleteAccount({ input }, { req, res }, actions_deleteAccount))
-                    .rejects.toThrow(CustomError);
+                await expectCustomErrorAsync(
+                    actions.deleteAccount({ input }, { req, res }, actions_deleteAccount),
+                    "Unauthorized",
+                    "0323",
+                );
 
                 // Verify user still exists
                 const user = await DbProvider.get().user.findUnique({
@@ -776,8 +797,11 @@ describe("EndpointsActions", () => {
                     deletePublicData: true,
                 };
 
-                await expect(actions.deleteAccount({ input }, { req, res }, actions_deleteAccount))
-                    .rejects.toThrow(CustomError);
+                await expectCustomErrorAsync(
+                    actions.deleteAccount({ input }, { req, res }, actions_deleteAccount),
+                    "Unauthorized",
+                    "0323",
+                );
             });
         });
     });

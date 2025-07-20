@@ -10,7 +10,7 @@ import { nanoid } from "../../id/publicId.js";
 import { BotStyle } from "../../run/enums.js";
 import { type SubroutineIOMapping } from "../../run/io-types.js";
 import { getDotNotationValue } from "../../utils/objects.js";
-import { BaseConfig, type BaseConfigObject } from "./base.js";
+import { BaseConfig, type BaseConfigObject, type ModelConfig } from "./base.js";
 import { type LlmModel } from "./bot.js";
 import { type CodeVersionConfigObject, type JsonSchema } from "./code.js";
 
@@ -168,9 +168,9 @@ export type ConfigCallDataGenerate = {
      */
     maxTokens?: number | null;
     /**
-     * The model to use for the LLM.
+     * The model configuration to use for the LLM.
      */
-    model?: LlmModel | null;
+    modelConfig?: ModelConfig | null;
     /**
      * The prompt to use for the LLM.
      */
@@ -508,7 +508,7 @@ function defaultConfigCallDataGenerate(): CallDataGenerateConfigObject {
         schema: {
             botStyle: BotStyle.Default,
             maxTokens: null,
-            model: null,
+            modelConfig: null,
             prompt: null,
             respondingBot: null,
         },

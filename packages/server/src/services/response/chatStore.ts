@@ -1,9 +1,25 @@
 import { type Prisma, type user } from "@prisma/client";
-import { BotConfig, ChatConfig, LRUCache, MINUTES_1_S, type BotParticipant, type ChatConfigObject, type TeamConfigObject, type User } from "@vrooli/shared";
+import { BotConfig, ChatConfig, LRUCache, MINUTES_1_S, generatePublicId, type BotParticipant, type ChatConfigObject, type TeamConfigObject, type User } from "@vrooli/shared";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { CacheService } from "../../redisConn.js";
 import { type ConversationState } from "../conversation/types.js";
+
+/**
+ * Safely converts a string ID to BigInt, throwing an error if invalid
+ */
+function safeBigIntConversion(id: string): bigint {
+    // Check if the ID is a valid number string
+    if (!/^\d+$/.test(id)) {
+        throw new Error(`Invalid ID format: ${id} - must be a numeric string`);
+    }
+    
+    try {
+        return BigInt(id);
+    } catch (error) {
+        throw new Error(`Cannot convert ${id} to BigInt: ${error instanceof Error ? error.message : String(error)}`);
+    }
+}
 
 /* ------------------------------------------------------------------
  * Config & helper types                                              
@@ -227,7 +243,7 @@ export class PrismaChatStore extends ChatStore {
             participants: [],
             availableTools: [],
             initialLeaderSystemMessage: "",
-            teamConfig: undefined,
+            team: undefined,
         };
     }
 
@@ -238,9 +254,9 @@ export class PrismaChatStore extends ChatStore {
         // For config, we use diffPatch to efficiently update only changed parts
         const configPatch = diffPatch(last.config, state.config);
 
-        await DbProvider.get().chat.update({
-            where: { id: BigInt(id) },
-            data: {
+        await DbProvider.get().chat.upsert({
+            where: { id: safeBigIntConversion(id) },
+            update: {
                 // Update config if changed
                 ...(configPatch && {
                     config: {
@@ -248,6 +264,13 @@ export class PrismaChatStore extends ChatStore {
                         value: configPatch as Prisma.InputJsonValue,
                     },
                 }),
+            },
+            create: {
+                id: safeBigIntConversion(id),
+                publicId: generatePublicId(),
+                config: state.config as unknown as Prisma.InputJsonValue,
+                isPrivate: false,
+                openToAnyoneWithInvite: true,
             },
         });
     }
@@ -258,7 +281,7 @@ export class PrismaChatStore extends ChatStore {
     */
     async getConversation(id: string): Promise<ConversationState | null> {
         const chat = await DbProvider.get().chat.findUnique({
-            where: { id: BigInt(id) },
+            where: { id: safeBigIntConversion(id) },
             select: {
                 id: true,
                 participants: { select: chatParticipantSelect },
@@ -277,7 +300,7 @@ export class PrismaChatStore extends ChatStore {
             participants,
             availableTools: [],
             initialLeaderSystemMessage: "",
-            teamConfig: undefined,
+            team: undefined,
         };
     }
 }
@@ -298,10 +321,10 @@ export interface ConversationStateStore {
     updateConfig(conversationId: string, config: ChatConfigObject): void;
 
     /**
-     * Update the team config in the cached conversation state (runtime-only).
-     * This does not persist to database - the team config is stored with the team object.
+     * Update the team data in the cached conversation state (runtime-only).
+     * This does not persist to database - the team data is stored with the team object.
      */
-    updateTeamConfig(conversationId: string, teamConfig: TeamConfigObject): Promise<void>;
+    updateTeam(conversationId: string, team: { id: string; name: string; config: TeamConfigObject }): Promise<void>;
 
     /**
      * Remove the state from the in-memory cache (LRU eviction or manual).
@@ -402,7 +425,7 @@ export class CachedConversationStateStore implements ConversationStateStore {
             config,
             availableTools: existingState?.availableTools ?? [],
             initialLeaderSystemMessage: existingState?.initialLeaderSystemMessage ?? "",
-            teamConfig: existingState?.teamConfig,
+            team: existingState?.team,
         };
         this.cache.set(conversationId, result);
 
@@ -418,7 +441,7 @@ export class CachedConversationStateStore implements ConversationStateStore {
             participants: [],
             availableTools: [],
             initialLeaderSystemMessage: "",
-            teamConfig: undefined,
+            team: undefined,
         };
     }
 
@@ -446,19 +469,19 @@ export class CachedConversationStateStore implements ConversationStateStore {
         }
     }
 
-    public async updateTeamConfig(conversationId: string, teamConfig: TeamConfigObject): Promise<void> {
+    public async updateTeam(conversationId: string, team: { id: string; name: string; config: TeamConfigObject }): Promise<void> {
         // Get the current state to preserve all other fields
         const existingState = await this.get(conversationId);
 
         if (!existingState) {
-            logger.warn(`Cannot update team config for conversation ${conversationId}: conversation state not found`);
+            logger.warn(`Cannot update team for conversation ${conversationId}: conversation state not found`);
             return;
         }
 
-        // Update the state with the new team config
+        // Update the state with the new team data
         const updatedState: ConversationState = {
             ...existingState,
-            teamConfig,
+            team,
         };
 
         // Update L1 cache

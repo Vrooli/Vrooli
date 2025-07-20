@@ -1,4 +1,6 @@
 import type { TutorialSection } from "./types.js";
+import { PubSub } from "../../../utils/pubsub.js";
+import { ELEMENT_IDS } from "../../../utils/consts.js";
 
 // Constants to avoid import issues
 const FormStructureType = {
@@ -495,8 +497,6 @@ export const tutorialSections: TutorialSection[] = [
             {
                 action: () => { 
                     // Ensure UserMenu is closed first
-                    const { PubSub } = require("../../utils/pubsub.js");
-                    const { ELEMENT_IDS } = require("../../utils/consts.js");
                     PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: false }); 
                 },
                 content: [
@@ -525,8 +525,6 @@ export const tutorialSections: TutorialSection[] = [
             {
                 action: () => { 
                     // Open UserMenu
-                    const { PubSub } = require("../../utils/pubsub.js");
-                    const { ELEMENT_IDS } = require("../../utils/consts.js");
                     PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: true }); 
                 },
                 content: [

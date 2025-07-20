@@ -21,6 +21,6 @@ export const iconNames = [
   "Header",
   "CaseSensitive",
   "Bold",
-] as const;
+] as const
 
 export type IconName = typeof iconNames[number]

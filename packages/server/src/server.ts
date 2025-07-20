@@ -2,7 +2,7 @@ import http from "http";
 import { app } from "./app.js";
 
 // Server URL
-export const SERVER_PORT = 5329;
+export const SERVER_PORT = parseInt(process.env.PORT_API || process.env.PORT_SERVER || "5329");
 const SERVER_URL_LOCAL = `http://localhost:${SERVER_PORT}`;
 const SERVER_URL_REMOTE = process.env.SERVER_URL ?? `http://${process.env.SITE_IP}:${SERVER_PORT}`;
 export const SERVER_URL = process.env.VITE_SERVER_LOCATION === "local" ? SERVER_URL_LOCAL : SERVER_URL_REMOTE;

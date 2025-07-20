@@ -125,7 +125,7 @@ export function profanityCheck(inputData: CudInputData[], inputsById: InputsById
         // NOTE: This means that a user could create a private object with profanity in it, and then change it to public. 
         // We'll have to rely on the reporting and reputation system to handle this.
         const { idField, validate } = ModelMap.getLogic(["idField", "validate"], item.objectType);
-        const existingData = authDataById[item.input[idField]];
+        const existingData = authDataById[(item.input as any)[idField]];
         const input = item.input as object;
         const combinedData = authDataWithInput(input, existingData ?? {}, inputsById, authDataById);
         const isPublic = validate().isPublic(combinedData, (...rest) => getParentInfo(...rest, inputsById));

@@ -1,5 +1,5 @@
 // AI_CHECK: TEST_COVERAGE=1 | LAST: 2025-07-13
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { ApiClient, ConfigManager } from "./index.js";
 
 describe("Utils Index Exports", () => {

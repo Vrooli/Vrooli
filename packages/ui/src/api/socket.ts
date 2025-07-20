@@ -1,4 +1,4 @@
-import { type ReservedSocketEvents, type RoomSocketEvents, type SocketEvent, type SocketEventCallbackPayloads, type SocketEventPayloads } from "@vrooli/shared";
+import { extractEventData, isUnifiedEvent, type ReservedSocketEvents, type RoomSocketEvents, type SocketEvent, type SocketEventCallbackPayloads, type SocketEventPayloads, type UnifiedEvent } from "@vrooli/shared";
 import i18next from "i18next";
 import { io } from "socket.io-client";
 import { webSocketUrlBase } from "../utils/consts.js";
@@ -84,20 +84,35 @@ export class SocketService {
     }
 
     /**
-     * Registers a socket event listener.
+     * Registers a socket event listener that automatically unwraps UnifiedEvent payloads.
      * 
-     * @param socket - The socket object.
      * @param event - The socket event to listen for.
-     * @param handler - The event handler function.
+     * @param handler - The event handler function that receives the unwrapped payload.
      */
     onEvent<T extends OnSocketEvent>(
         event: T,
         handler: (payload: SocketEventPayloads[T]) => unknown,
     ) {
-        socket.on(event, handler as never);
+        // Create wrapper function that unwraps UnifiedEvent
+        const wrappedHandler = (payload: SocketEventPayloads[T] | UnifiedEvent<SocketEventPayloads[T]>) => {
+            const data = extractEventData(payload);
+            
+            // If it's a UnifiedEvent, we might want to log metadata for debugging
+            if (isUnifiedEvent(payload)) {
+                console.debug(`Socket event received: ${event}`, {
+                    eventId: payload.id,
+                    eventType: payload.type,
+                    timestamp: payload.timestamp,
+                });
+            }
+            
+            handler(data);
+        };
+        
+        socket.on(event, wrappedHandler as never);
 
         return () => {
-            socket.off(event, handler as never);
+            socket.off(event, wrappedHandler as never);
         };
     }
 
@@ -114,4 +129,33 @@ export class SocketService {
         this.disconnect();
         this.connect();
     }
+}
+
+/**
+ * Convenience function to register a socket event listener with automatic UnifiedEvent unwrapping.
+ * This can be used directly with the socket object when not using SocketService.
+ * 
+ * @param socket - The socket object.
+ * @param event - The socket event to listen for.
+ * @param handler - The event handler function that receives the unwrapped payload.
+ */
+export function onSocketEvent<T extends string>(
+    socket: any,
+    event: T,
+    handler: (data: any) => void,
+): void {
+    socket.on(event, (payload: any) => {
+        const data = extractEventData(payload);
+        
+        // If it's a UnifiedEvent, log metadata for debugging
+        if (isUnifiedEvent(payload)) {
+            console.debug(`Socket event received: ${event}`, {
+                eventId: payload.id,
+                eventType: payload.type,
+                timestamp: payload.timestamp,
+            });
+        }
+        
+        handler(data);
+    });
 }

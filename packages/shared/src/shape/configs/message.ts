@@ -1,8 +1,6 @@
 import { type PassableLogger } from "../../consts/commonTypes.js";
 import { BaseConfig, type BaseConfigObject } from "./base.js";
-
-/** Increment when the schema of MessageConfigObject changes. */
-const LATEST_MESSAGE_CONFIG_VERSION = "1.0";
+import { LATEST_CONFIG_VERSION } from "./utils.js";
 
 /**
  * The result of a tool function call, which can be either a success or an error.
@@ -138,7 +136,7 @@ export class MessageConfig extends BaseConfig<MessageConfigObject> {
      */
     static default(): MessageConfig {
         const config: MessageConfigObject = {
-            __version: LATEST_MESSAGE_CONFIG_VERSION,
+            __version: LATEST_CONFIG_VERSION,
             resources: [],
             contextHints: [],
             respondingBots: [],

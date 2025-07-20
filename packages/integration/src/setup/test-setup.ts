@@ -1,3 +1,59 @@
+// Mock browser APIs that don't exist in Node environment
+// This must be done before any imports that might use these APIs
+(global as any).File = class File {
+    public bits: any[];
+    public name: string;
+    public type: string;
+    public lastModified: number;
+    public size: number;
+
+    constructor(bits: any[], name: string, options: { type?: string; lastModified?: number } = {}) {
+        this.bits = bits;
+        this.name = name;
+        this.type = options.type || "";
+        this.lastModified = options.lastModified || Date.now();
+        // Calculate size from bits
+        this.size = bits.reduce((acc, bit) => {
+            if (typeof bit === "string") return acc + bit.length;
+            if (bit instanceof ArrayBuffer) return acc + bit.byteLength;
+            if (bit instanceof Uint8Array) return acc + bit.length;
+            return acc;
+        }, 0);
+    }
+
+    // Mock some File methods
+    async text() {
+        return this.bits.map(bit => {
+            if (typeof bit === "string") return bit;
+            return new TextDecoder().decode(bit);
+        }).join("");
+    }
+
+    slice(start?: number, end?: number, contentType?: string) {
+        // Simple slice implementation
+        const text = this.bits.join("");
+        const sliced = text.slice(start, end);
+        return new File([sliced], this.name, { type: contentType || this.type });
+    }
+};
+
+// Mock Blob as well since File extends Blob
+(global as any).Blob = class Blob {
+    public bits: any[];
+    public type: string;
+    public size: number;
+
+    constructor(bits: any[] = [], options: { type?: string } = {}) {
+        this.bits = bits;
+        this.type = options.type || "";
+        this.size = bits.reduce((acc, bit) => {
+            if (typeof bit === "string") return acc + bit.length;
+            if (bit instanceof ArrayBuffer) return acc + bit.byteLength;
+            return acc;
+        }, 0);
+    }
+};
+
 import { exec } from "child_process";
 import { promisify } from "util";
 import { afterAll, afterEach, beforeAll, beforeEach, expect } from "vitest";

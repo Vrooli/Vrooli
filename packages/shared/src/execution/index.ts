@@ -10,7 +10,5 @@ export * from "./resources.js";
 export * from "./results.js";
 export * from "./routine.js";
 export * from "./security.js";
-export * from "./strategies.js";
 export * from "./toolApproval.js";
-export * from "./typeGuards.js";
 

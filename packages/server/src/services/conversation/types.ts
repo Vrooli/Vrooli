@@ -1,20 +1,6 @@
-import { type BotParticipant, type ChatConfigObject, type ChatMessage, type ChatToolCallRecord, type PendingToolCallEntry, type SessionUser, type SwarmResource, type SwarmSubTask, type TeamConfigObject } from "@vrooli/shared";
+import { type BotParticipant, type ChatConfigObject, type ChatMessage, type PendingToolCallEntry, type SessionUser, type SwarmResource, type SwarmSubTask, type TeamConfigObject, type MessageState } from "@vrooli/shared";
 import { type ConversationEvent } from "../bus.js";
 import type { Tool } from "../mcp/types.js";
-
-/** 
- * A single chat message. 
- * 
- * If this is a new message that hasn't been persisted yet, the `id` and `createdAt` fields will be dummy values.
- */
-export type MessageState = Pick<ChatMessage, "id" | "createdAt" | "config" | "language" | "text"> & {
-    parent?: {
-        id: string;
-    } | null;
-    user?: {
-        id: string;
-    } | null;
-}
 
 /** Generic success/error wrapper returned by many collaborators. */
 export type OkErr<T = unknown> =
@@ -88,13 +74,17 @@ export type ConversationState = {
      */
     initialLeaderSystemMessage: string;
     /**
-     * The team configuration fetched from the database if teamId is present in the chat config.
-     * Contains organizational structure (MOISE+ hierarchy, etc.) for swarm coordination.
+     * The team data fetched from the database if teamId is present in the chat config.
+     * Contains team entity data (id, name) and organizational structure (MOISE+ hierarchy, etc.) for swarm coordination.
      * 
      * This is runtime-only data, not persisted with the conversation state.
      * Rather, it stored with the team object in the database, so that it can be reused by other conversations.
      */
-    teamConfig?: TeamConfigObject;
+    team?: {
+        id: string;
+        name: string;
+        config: TeamConfigObject;
+    };
 }
 
 // Individual Swarm Event Interfaces
@@ -159,7 +149,14 @@ export interface SwarmToolCallFinishedEvent {
     type: "ToolCallFinished";
     conversationId: string;
     sessionUser: SessionUser;
-    record: ChatToolCallRecord;
+    record: {
+        id: string;
+        toolName: string;
+        result?: any;
+        error?: string;
+        duration?: number;
+        creditsUsed?: string;
+    };
 }
 
 /** Event triggered when a previously deferred tool call has been approved and needs execution. */

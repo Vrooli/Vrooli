@@ -212,12 +212,17 @@ describe("SocketService", () => {
             
             const unsubscribe = socketService.onEvent(event, handler);
             
-            expect(mockSocket.on).toHaveBeenCalledWith(event, handler);
+            // Verify that socket.on was called with the event and a wrapped handler function
+            expect(mockSocket.on).toHaveBeenCalledWith(event, expect.any(Function));
+            
+            // Get the wrapped handler that was actually passed to socket.on
+            const wrappedHandler = mockSocket.on.mock.calls[mockSocket.on.mock.calls.length - 1][1];
             
             // Call unsubscribe to remove the listener
             unsubscribe();
             
-            expect(mockSocket.off).toHaveBeenCalledWith(event, handler);
+            // Verify that socket.off was called with the same wrapped handler
+            expect(mockSocket.off).toHaveBeenCalledWith(event, wrappedHandler);
         });
 
         it("returns unsubscribe function that removes the listener", () => {

@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { BookmarkListDbFactory } from "../../__test/fixtures/db/bookmarkFixtures.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
-import { expectCustomError } from "../../__test/errorTestUtils.js";
+import { expectCustomError, expectCustomErrorAsync } from "../../__test/errorTestUtils.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
@@ -147,12 +147,11 @@ describe("EndpointsBookmarkList", () => {
             const input: BookmarkListSearchInput = { take: 10 };
 
             // Should throw CustomError with trace starting with 0782
-            try {
-                await bookmarkList.findMany({ input }, { req, res }, bookmarkList_findMany);
-                expect.fail("Should have thrown CustomError");
-            } catch (error) {
-                expectCustomError(error, "InternalError", "0782");
-            }
+            await expectCustomErrorAsync(
+                bookmarkList.findMany({ input }, { req, res }, bookmarkList_findMany),
+                "InternalError",
+                "0782"
+            );
         });
 
         it("logged out user returns no lists (as they are private)", async () => {
@@ -160,12 +159,11 @@ describe("EndpointsBookmarkList", () => {
             const input: BookmarkListSearchInput = { take: 10 };
 
             // Should throw CustomError with trace starting with 0782
-            try {
-                await bookmarkList.findMany({ input }, { req, res }, bookmarkList_findMany);
-                expect.fail("Should have thrown CustomError");
-            } catch (error) {
-                expectCustomError(error, "InternalError", "0782");
-            }
+            await expectCustomErrorAsync(
+                bookmarkList.findMany({ input }, { req, res }, bookmarkList_findMany),
+                "InternalError",
+                "0782"
+            );
         });
     });
 

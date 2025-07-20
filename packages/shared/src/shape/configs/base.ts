@@ -22,6 +22,34 @@ export enum ResourceUsedFor {
 }
 
 /**
+ * Model selection strategies for AI providers
+ */
+export enum ModelStrategy {
+    /** Always use preferredModel, fail if unavailable */
+    FIXED = "fixed",
+    /** Use preferredModel, then fallback chain */
+    FALLBACK = "fallback",
+    /** Cheapest available model */
+    COST_OPTIMIZED = "cost",
+    /** Best available model */
+    QUALITY_FIRST = "quality",
+    /** Prefer local models, fallback to cloud */
+    LOCAL_FIRST = "local"
+}
+
+/**
+ * Configuration for AI model selection
+ */
+export interface ModelConfig {
+    /** How to select models */
+    strategy: ModelStrategy;
+    /** Default model to use */
+    preferredModel?: string;
+    /** Force local models only */
+    offlineOnly: boolean;
+}
+
+/**
  * Resource definition for storing links and external data
  */
 export interface ConfigResource {

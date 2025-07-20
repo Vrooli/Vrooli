@@ -1,5 +1,5 @@
 /* c8 ignore start */
-import React from "react";
+import type React from "react";
 import type { TypographyProps } from "@mui/material";
 import { type CommentFor, type TranslationKeyCommon } from "@vrooli/shared";
 import { type ReactNode } from "react";

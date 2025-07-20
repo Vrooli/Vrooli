@@ -251,12 +251,22 @@ export const recoveryScenarioBuilder = {
             description: string;
         }>,
     ): RecoveryScenario<T> {
-        const steps: RecoveryStep[] = stages.map(stage => ({
-            action: stage.action,
-            delay: stage.delay,
-            description: stage.description,
-            ...(stage.fallback && { transform: (e) => ({ ...e, fallback: stage.fallback }) }),
-        }));
+        const steps: RecoveryStep[] = stages.map(stage => {
+            const step: RecoveryStep = {
+                action: stage.action,
+                delay: stage.delay,
+                description: stage.description,
+            };
+
+            if (stage.fallback) {
+                step.transform = (e) => {
+                    const base = typeof e === 'object' && e !== null ? e : {};
+                    return { ...base, fallback: stage.fallback };
+                };
+            }
+
+            return step;
+        });
 
         return {
             error,

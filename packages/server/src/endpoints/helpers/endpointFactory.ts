@@ -77,7 +77,7 @@ type ExtractEndpointsType<T extends StandardCrudConfig> = {
     : K extends "updateOne" ? ApiEndpoint<any, any>
     : never
     : never;
-} & (T["customEndpoints"] extends Record<string, ApiEndpoint<any, any>> ? T["customEndpoints"] : {});
+} & (T["customEndpoints"] extends Record<string, ApiEndpoint<any, any>> ? T["customEndpoints"] : Record<string, never>);
 
 /**
  * Creates standard CRUD endpoints with consistent patterns

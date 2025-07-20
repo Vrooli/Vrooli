@@ -281,6 +281,11 @@ const dataStructureFormTestConfig: UIFormTestConfig<ResourceVersionShape, Resour
 export const dataStructureFormTestFactory = createUIFormTestFactory(dataStructureFormTestConfig);
 
 /**
+ * Generated test cases for data-driven testing
+ */
+export const dataStructureTestCases = dataStructureFormTestFactory.generateUITestCases();
+
+/**
  * Type exports for use in other test files
  */
 export { dataStructureFormTestConfig };

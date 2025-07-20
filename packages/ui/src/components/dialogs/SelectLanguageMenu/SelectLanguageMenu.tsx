@@ -276,7 +276,6 @@ export function SelectLanguageMenu({
                         sx={textInputSx}
                     />
                     {/* TODO Remove this once react-window is updated */}
-                    {/* @ts-expect-error Incompatible JSX type definitions */}
                     <FixedSizeList
                         height={600}
                         width={400}

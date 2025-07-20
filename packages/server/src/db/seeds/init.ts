@@ -4,7 +4,7 @@
  * 
  * AI_CHECK: TYPE_SAFETY=server-type-safety-maintenance-phase2 | LAST: 2025-07-04 - Added Promise<void> return type annotation to init function
  */
-import { API_CREDITS_PREMIUM, AUTH_PROVIDERS, DEFAULT_LANGUAGE, generatePK, generatePublicId, SEEDED_PUBLIC_IDS, SEEDED_TAGS, TeamConfig } from "@vrooli/shared";
+import { API_CREDITS_PREMIUM, AUTH_PROVIDERS, DEFAULT_LANGUAGE, generatePK, generatePublicId, SEEDED_PUBLIC_IDS, SEEDED_TAGS, STANDARD_RESOURCE_QUOTAS, TeamConfig } from "@vrooli/shared";
 import type { Prisma } from "@prisma/client";
 import pkg, { CreditEntryType, CreditSourceSystem } from "@prisma/client";
 import { readManyHelper } from "../../actions/reads.js";
@@ -227,6 +227,19 @@ async function initTeams(client: InstanceType<typeof PrismaClient>) {
                 config: (new TeamConfig({
                     config: {
                         __version: "1.0",
+                        deploymentType: "saas",
+                        goal: "Official Vrooli platform team - manage platform development, provide support, and foster community growth",
+                        businessPrompt: "You are the official Vrooli team. Focus on platform stability, user support, community building, and sustainable growth. Prioritize open-source development and user empowerment.",
+                        resourceQuota: STANDARD_RESOURCE_QUOTAS.standard,
+                        targetProfitPerMonth: "0", // Non-profit platform team
+                        stats: {
+                            totalInstances: 0,
+                            totalProfit: "0",
+                            totalCosts: "0",
+                            averageKPIs: {},
+                            activeInstances: 0,
+                            lastUpdated: Date.now(),
+                        },
                         resources: [
                             {
                                 link: "https://vrooli.com",

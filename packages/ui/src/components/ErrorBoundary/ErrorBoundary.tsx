@@ -303,8 +303,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                                         sx={{ 
                                             color: "rgba(255, 255, 255, 0.8)", 
                                             "&:hover": { 
-                                                backgroundColor: "rgba(255, 255, 255, 0.05)" 
-                                            } 
+                                                backgroundColor: "rgba(255, 255, 255, 0.05)", 
+                                            }, 
                                         }}
                                     >
                                         {showDetails ? "Show Less" : "Show More"}

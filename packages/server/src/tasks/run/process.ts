@@ -3,7 +3,9 @@ import { type Job } from "bullmq";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { SwarmContextManager } from "../../services/execution/shared/SwarmContextManager.js";
-import { RoutineStateMachine } from "../../services/execution/tier2/routineStateMachine.js";
+import { RoutineExecutor } from "../../services/execution/tier2/routineExecutor.js";
+import { type RoutineStateMachine } from "../../services/execution/tier2/routineStateMachine.js";
+import { StepExecutor } from "../../services/execution/tier3/stepExecutor.js";
 import { BaseActiveTaskRegistry, type BaseActiveTaskRecord } from "../activeTaskRegistry.js";
 import { QueueTaskType, type RunTask } from "../taskTypes.js";
 
@@ -122,21 +124,35 @@ async function processRoutineExecution(payload: RunTask) {
         // Extract run ID or generate new one if not provided
         const runId = payload.input.runId || generatePK().toString();
 
-        const contextManager = new SwarmContextManager();
+        // Check if run is already active (resumption check)
+        if (!payload.input.isNewRun) {
+            const existingStateMachine = activeRunRegistry.get(runId);
+            if (existingStateMachine) {
+                logger.info("[processRoutineExecution] Resuming existing execution", { runId });
+                await existingStateMachine.resume(); // Uses existing resume() infrastructure!
+                return { runId };
+            }
+        }
 
-        // Create state machine directly with RunTask
-        const stateMachine = new RoutineStateMachine(
-            runId,
+        const contextManager = new SwarmContextManager(payload);
+
+        // Create execution components for proper architecture
+        const stepExecutor = new StepExecutor();
+        const routineExecutor = new RoutineExecutor(
             contextManager,
+            stepExecutor,
+            runId, // contextId
             undefined, // runContextManager
             payload.context.userData.id,
+            payload.context.parentSwarmId,
         );
 
-        // Create tier execution request from RunTask
+        // Create tier execution request from RunTask with new interface
         const tierRequest: TierExecutionRequest<RoutineExecutionInput> = {
             context: payload.context,
             input: {
-                routineId: payload.input.resourceVersionId,
+                resourceVersionId: payload.input.resourceVersionId,
+                runId: payload.input.isNewRun ? undefined : runId, // Support resumption
                 parameters: payload.input.formValues || {},
                 workflow: {
                     steps: [], // TODO: Load from database
@@ -145,13 +161,13 @@ async function processRoutineExecution(payload: RunTask) {
             },
             allocation: payload.allocation,
             options: {
-                strategy: "sequential",
                 timeout: 300000, // 5 minutes
+                priority: "medium",
             },
         };
 
-        // Start routine execution using the state machine
-        const result = await stateMachine.executeInForeground(tierRequest);
+        // Start routine execution using the RoutineExecutor
+        const result = await routineExecutor.execute(tierRequest);
         if (!result.success) {
             throw new Error(result.error?.message || "Failed to start routine");
         }
@@ -164,8 +180,8 @@ async function processRoutineExecution(payload: RunTask) {
             startTime: Date.now(),
         };
 
-        // Add state machine to registry
-        activeRunRegistry.add(record, stateMachine);
+        // Add state machine to registry (get it from the RoutineExecutor)
+        activeRunRegistry.add(record, routineExecutor.getStateMachine());
 
         logger.info("[processRoutineExecution] Successfully started routine", {
             runId,

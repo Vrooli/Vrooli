@@ -3,6 +3,7 @@ import { type Job } from "bullmq";
 import { exportProcess } from "./process.js";
 import { type ExportUserDataTask, QueueTaskType } from "../taskTypes.js";
 import { logger } from "../../events/logger.js";
+import { createMockJob } from "../taskFactory.js";
 
 describe("exportProcess", () => {
     beforeEach(() => {
@@ -10,21 +11,24 @@ describe("exportProcess", () => {
     });
 
     const createMockExportJob = (data: Partial<ExportUserDataTask> = {}): Job<ExportUserDataTask> => {
-        const defaultData: ExportUserDataTask = {
-            taskType: QueueTaskType.ExportUserData,
-            userId: "user-123",
-            format: "json",
-            includeTypes: ["routines", "projects", "teams"],
-            ...data,
-        };
-
-        return {
-            id: "export-job-id",
-            data: defaultData,
-            name: "export",
-            attemptsMade: 0,
-            opts: {},
-        } as Job<ExportUserDataTask>;
+        return createMockJob<ExportUserDataTask>(
+            QueueTaskType.EXPORT_USER_DATA,
+            {
+                config: data.config || {
+                    __type: "User",
+                    userId: "user-123",
+                    afterExport: "NoAction" as any,
+                    downloadable: true,
+                    flags: {
+                        all: false,
+                        routines: true,
+                        projects: true,
+                        teams: true,
+                    },
+                },
+                ...data,
+            },
+        );
     };
 
     describe("successful data export", () => {

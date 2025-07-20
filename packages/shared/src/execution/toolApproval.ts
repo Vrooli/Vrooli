@@ -11,10 +11,10 @@ import type { SocketEventPayloads } from "../consts/socketEvents.js";
 /**
  * Extract socket event payload types for tool approvals
  */
-export type ToolApprovalGrantedPayload = SocketEventPayloads[typeof EventTypes.CHAT.TOOL_APPROVAL_GRANTED];
-export type ToolApprovalRejectedPayload = SocketEventPayloads[typeof EventTypes.CHAT.TOOL_APPROVAL_REJECTED];
-export type ToolApprovalRequiredPayload = SocketEventPayloads[typeof EventTypes.CHAT.TOOL_APPROVAL_REQUIRED];
-export type ToolApprovalTimeoutPayload = SocketEventPayloads[typeof EventTypes.CHAT.TOOL_APPROVAL_TIMEOUT];
+export type ToolApprovalGrantedPayload = SocketEventPayloads[typeof EventTypes.TOOL.APPROVAL_GRANTED];
+export type ToolApprovalRejectedPayload = SocketEventPayloads[typeof EventTypes.TOOL.APPROVAL_REJECTED];
+export type ToolApprovalRequiredPayload = SocketEventPayloads[typeof EventTypes.TOOL.APPROVAL_REQUIRED];
+export type ToolApprovalTimeoutPayload = SocketEventPayloads[typeof EventTypes.TOOL.APPROVAL_TIMEOUT];
 
 /**
  * API input type for responding to tool approval requests

@@ -2,6 +2,7 @@ import { type ApiKeyCreateInput, type ApiKeyUpdateInput, type ApiKeyValidateInpu
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi, test } from "vitest";
 import { loggedInUserNoPremiumData, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
 import { assertRequiresAuth, AUTH_SCENARIOS } from "../../__test/authTestUtils.js";
+import { expectCustomErrorAsync } from "../../__test/errorTestUtils.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -37,11 +38,11 @@ describe("EndpointsApiKey", () => {
     afterEach(async () => {
         // Validate cleanup to catch any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ['user', 'user_auth', 'session', 'api_key', 'email'],
+            tables: ["user", "user_auth", "session", "api_key", "email"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn(`API Key test cleanup incomplete:`, orphans);
+            console.warn("API Key test cleanup incomplete:", orphans);
         }
     });
 
@@ -129,9 +130,9 @@ describe("EndpointsApiKey", () => {
                     // name is missing
                 } as ApiKeyCreateInput;
                 
-                await expect(async () => {
-                    await apiKey.createOne({ input: invalidInput }, { req, res }, apiKey_createOne);
-                }).rejects.toThrow();
+                // Validation errors throw standard errors
+                await expect(apiKey.createOne({ input: invalidInput }, { req, res }, apiKey_createOne))
+                    .rejects.toThrow(Error);
             });
         });
     });
@@ -163,9 +164,11 @@ describe("EndpointsApiKey", () => {
                     secret: "invalid-secret",
                 };
                 
-                await expect(async () => {
-                    await apiKey.validate({ input }, { req, res }, apiKey_validate);
-                }).rejects.toThrow();
+                await expectCustomErrorAsync(
+                    apiKey.validate({ input }, { req, res }, apiKey_validate),
+                    "InvalidCredentials",
+                    "0904",
+                );
             });
 
             it("rejects invalid input format", async () => {
@@ -179,13 +182,15 @@ describe("EndpointsApiKey", () => {
                 ];
 
                 for (const invalidInput of invalidInputs) {
-                    await expect(async () => {
-                        await apiKey.validate(
+                    await expectCustomErrorAsync(
+                        apiKey.validate(
                             { input: invalidInput as any },
                             { req, res },
                             apiKey_validate,
-                        );
-                    }).rejects.toThrow();
+                        ),
+                        "InvalidArgs",
+                        "0900",
+                    );
                 }
             });
         });
@@ -239,9 +244,11 @@ describe("EndpointsApiKey", () => {
                     name: "Updated API Key Name",
                 };
                 
-                await expect(async () => {
-                    await apiKey.updateOne({ input }, { req, res }, apiKey_updateOne);
-                }).rejects.toThrow();
+                await expectCustomErrorAsync(
+                    apiKey.updateOne({ input }, { req, res }, apiKey_updateOne),
+                    "Unauthorized",
+                    "0323",
+                );
             });
         });
     });

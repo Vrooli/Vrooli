@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CustomError } from "../events/error.js";
 
 // Test the profanity check logic patterns without complex dependencies
 describe("profanityCheck logic patterns", () => {
@@ -149,7 +150,7 @@ describe("profanityCheck logic patterns", () => {
             for (const field in fieldsToCheck) {
                 for (const text of fieldsToCheck[field]) {
                     if (hasProfanityFn(text)) {
-                        throw new Error("BannedWord");
+                        throw new CustomError("0115", "BannedWord");
                     }
                 }
             }
@@ -181,7 +182,7 @@ describe("profanityCheck logic patterns", () => {
             profaneData,
             (text) => text === "badword", // has profanity
             () => true,                     // is public
-        )).toThrow("BannedWord");
+        )).toThrow(CustomError);
         
         // Test case 3: Private object (should skip)
         expect(() => simulateProfanityCheck(

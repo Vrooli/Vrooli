@@ -18,7 +18,7 @@
  * - Strategy-agnostic conversation handling
  */
 
-import type { BotId, BotParticipant, ChatMessage, ConversationContext, ConversationEngineConfig, ConversationParams, ConversationResult, ConversationTrigger, ExecutionResourceUsage, ExecutionStrategy, ResponseContext, ResponseResult, SwarmId, TurnExecutionParams, TurnExecutionResult, TurnId } from "@vrooli/shared";
+import type { BotId, BotParticipant, ChatMessage, ConversationContext, ConversationEngineConfig, ConversationParams, ConversationResult, ConversationTrigger, ExecutionResourceUsage, ExecutionStrategy, MessageState, ResponseContext, ResponseResult, SwarmId, TurnExecutionParams, TurnExecutionResult, TurnId } from "@vrooli/shared";
 import { toTurnId } from "@vrooli/shared";
 import { logger } from "../../events/logger.js";
 import type { ISwarmContextManager } from "../execution/shared/SwarmContextManager.js";
@@ -226,7 +226,7 @@ export class ConversationEngine {
      */
     private async executeTurn(params: TurnExecutionParams): Promise<TurnExecutionResult> {
         const startTime = Date.now();
-        const messages: ChatMessage[] = [];
+        const messages: MessageState[] = [];
         const participantResults = new Map<BotId, ResponseResult>();
         const totalResourcesUsed: ExecutionResourceUsage = {
             creditsUsed: "0",
@@ -273,7 +273,7 @@ export class ConversationEngine {
      */
     private async executeParallelTurn(
         params: TurnExecutionParams,
-        messages: ChatMessage[],
+        messages: MessageState[],
         participantResults: Map<BotId, ResponseResult>,
         totalResourcesUsed: ExecutionResourceUsage,
     ): Promise<void> {
@@ -312,7 +312,7 @@ export class ConversationEngine {
      */
     private async executeSequentialTurn(
         params: TurnExecutionParams,
-        messages: ChatMessage[],
+        messages: MessageState[],
         participantResults: Map<BotId, ResponseResult>,
         totalResourcesUsed: ExecutionResourceUsage,
     ): Promise<void> {
@@ -345,7 +345,7 @@ export class ConversationEngine {
     private async createResponseContext(
         participant: BotParticipant,
         params: TurnExecutionParams,
-        additionalMessages: ChatMessage[] = [],
+        additionalMessages: MessageState[] = [],
     ): Promise<ResponseContext> {
         // Build complete conversation history including new messages from this turn
         const fullConversationHistory = [
@@ -355,6 +355,12 @@ export class ConversationEngine {
 
         // Get comprehensive SwarmState from contextManager
         const swarmState = await this.contextManager.getContext(params.context.swarmId) || undefined;
+
+        // Extract chat config from swarmState if available
+        const chatConfig = swarmState?.chatConfig;
+
+        // Get team config from params context (already provided in ConversationContext)
+        const teamConfig = params.context.teamConfig;
 
         return {
             swarmId: params.context.swarmId,
@@ -371,6 +377,8 @@ export class ConversationEngine {
                 maxCredits: "2000", // Default credit limit per bot response
             },
             swarmState,
+            chatConfig,
+            teamConfig,
         };
     }
 

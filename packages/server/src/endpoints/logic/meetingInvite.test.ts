@@ -52,11 +52,7 @@ describe("EndpointsMeetingInvite", () => {
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.minimal(DbProvider.get());
-    }););
-            }
-        } catch (error) {
-            // If database is not initialized, skip cleanup
-        }
+    });
 
         // Create teams for meetings
         team1 = await DbProvider.get().team.create({

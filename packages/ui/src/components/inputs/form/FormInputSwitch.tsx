@@ -26,7 +26,7 @@ export function FormInputSwitch({
     const props = useMemo(() => {
         const rawProps = fieldData.props || {};
         // Ensure label is a string or undefined, not an object
-        if (rawProps.label && typeof rawProps.label === 'object' && !React.isValidElement(rawProps.label)) {
+        if (rawProps.label && typeof rawProps.label === "object" && !React.isValidElement(rawProps.label)) {
             return { ...rawProps, label: fieldData.label || "" };
         }
         return rawProps;

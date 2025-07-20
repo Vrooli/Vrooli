@@ -57,7 +57,6 @@ export const HEX_COLOR_MAX_LENGTH = 7;
 export const IMAGE_FILE_MAX_LENGTH = 256;
 export const PUSH_NOTIFICATION_KEY_MAX_LENGTH = 256;
 export const URL_MAX_LENGTH = 1024;
-export const TIMEZONE_FIELD_MAX_LENGTH = 64;
 
 // Test-specific Constants
 export const TEST_FIELD_TOO_SHORT_LENGTH = 2; // For testing minimum field length violations

@@ -1,10 +1,9 @@
 // AI_CHECK: TEST_COVERAGE=23 | LAST: 2025-07-13
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { ToolApprovalHandler } from "./toolApproval.js";
+import inquirer from "inquirer";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type ApiClient } from "./client.js";
 import { type ConfigManager } from "./config.js";
-import inquirer from "inquirer";
-import chalk from "chalk";
+import { ToolApprovalHandler } from "./toolApproval.js";
 
 // Mock dependencies
 vi.mock("inquirer", () => ({
@@ -32,7 +31,7 @@ vi.mock("chalk", () => {
         dim: createChalkMock,
         blue: createChalkMock,
     });
-    
+
     return {
         default: chalkMock,
     };
@@ -168,7 +167,7 @@ describe("ToolApprovalHandler", () => {
         it("should handle missing optional fields", async () => {
             const minimalData = {
                 pendingId: "pending123",
-                toolCallId: "tool123", 
+                toolCallId: "tool123",
                 toolName: "search",
                 callerBotId: "bot123",
             };
@@ -184,7 +183,7 @@ describe("ToolApprovalHandler", () => {
 
         it("should queue multiple approval requests", async () => {
             vi.useFakeTimers();
-            
+
             // First approval - block on prompt
             let resolveFirst: any;
             const firstPromise = new Promise(resolve => { resolveFirst = resolve; });
@@ -209,12 +208,12 @@ describe("ToolApprovalHandler", () => {
 
             // Advance timers to process queued approval
             await vi.advanceTimersByTimeAsync(100);
-            
+
             // Second should complete after timer fires
             await secondApproval;
 
             expect(mockClient.post).toHaveBeenCalledTimes(2);
-            
+
             vi.useRealTimers();
         });
     });
@@ -331,7 +330,7 @@ describe("ToolApprovalHandler", () => {
             });
 
             handler.handleExecutionStart({
-                toolCallId: "tool2", 
+                toolCallId: "tool2",
                 toolName: "calculate",
                 callerBotId: "bot123",
             });
@@ -447,16 +446,16 @@ describe("ToolApprovalHandler", () => {
             // Add a pending approval directly to simulate a request that hasn't been processed yet
             const pendingRequest = {
                 pendingId: "pending1",
-                toolCallId: "tool1", 
+                toolCallId: "tool1",
                 toolName: "search",
                 toolArguments: { query: "test" },
                 callerBotId: "bot123",
                 conversationId: "test-conversation",
             };
-            
+
             // Access private field to add directly without triggering the approval flow
             (handler as any).pendingApprovals.set(pendingRequest.pendingId, pendingRequest);
-            
+
             // Add an executing tool
             handler.handleExecutionStart({
                 toolCallId: "tool2",
@@ -491,9 +490,9 @@ describe("ToolApprovalHandler", () => {
                 callerBotId: "bot123",
                 conversationId: "test-conversation",
             };
-            
+
             (handler as any).pendingApprovals.set(pendingRequest.pendingId, pendingRequest);
-            
+
             handler.handleExecutionStart({
                 toolCallId: "tool2",
                 toolName: "calculate",

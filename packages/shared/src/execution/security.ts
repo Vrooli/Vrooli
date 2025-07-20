@@ -393,7 +393,7 @@ export enum ThreatLevel {
  * Permission definition
  */
 export interface Permission {
-    action: string;
+    action: "read" | "write" | "execute" | "admin";
     resource: string;
     conditions?: PermissionCondition[];
     scope?: PermissionScope;

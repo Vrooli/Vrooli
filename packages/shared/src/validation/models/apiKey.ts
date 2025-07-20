@@ -7,9 +7,8 @@ import { yupObj } from "../utils/builders/yupObj.js";
 import { bigIntString, bool, id, name } from "../utils/commonFields.js";
 import { maxStrErr } from "../utils/errors.js";
 import { type YupModel } from "../utils/types.js";
-import { API_KEY_ABSOLUTE_MAX_LIMIT, API_KEY_PERMISSIONS_MAX_LENGTH } from "../utils/validationConstants.js";
+import { API_KEY_PERMISSIONS_MAX_LENGTH } from "../utils/validationConstants.js";
 
-const absoluteMax = yup.number().integer().min(0).max(API_KEY_ABSOLUTE_MAX_LIMIT);
 const permissions = yup.string().trim().max(API_KEY_PERMISSIONS_MAX_LENGTH, maxStrErr);
 
 export const apiKeyValidation: YupModel<["create", "update"]> = {
@@ -20,7 +19,6 @@ export const apiKeyValidation: YupModel<["create", "update"]> = {
         limitSoft: opt(bigIntString),
         name: req(name),
         stopAtLimit: req(bool),
-        absoluteMax: req(absoluteMax),
         permissions: opt(permissions),
     }, [], [], d),
     update: (d) => yupObj({
@@ -30,7 +28,6 @@ export const apiKeyValidation: YupModel<["create", "update"]> = {
         limitSoft: opt(bigIntString),
         name: opt(name),
         stopAtLimit: opt(bool),
-        absoluteMax: opt(absoluteMax),
         permissions: opt(permissions),
     }, [], [], d),
 };
