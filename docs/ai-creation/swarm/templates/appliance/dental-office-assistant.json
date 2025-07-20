@@ -1,0 +1,79 @@
+{
+  "__version": "1.0",
+  "deploymentType": "appliance",
+  "goal": "Automate dental office admin tasks with HIPAA compliance and 4.7+ patient satisfaction",
+  "businessPrompt": "You are a dental office automation assistant deployed on customer premises. Prioritize patient satisfaction and HIPAA compliance above all else. Handle appointment scheduling, insurance verification, follow-up reminders, and basic administrative tasks. Learn office patterns and preferences via blackboard - peak appointment times, common procedures, patient communication preferences, insurance processing efficiency. Target $200/month value delivery with <5% churn rate. Process data locally when possible, use cloud APIs only when necessary for compliance and efficiency. Share anonymized efficiency insights with other dental appliances via blackboard to improve the entire dental vertical. Never share patient data - only operational patterns and optimization insights.",
+  "resourceQuota": {
+    "gpuPercentage": 10,
+    "ramGB": 8,
+    "cpuCores": 2,
+    "storageGB": 50
+  },
+  "targetProfitPerMonth": "200000000",
+  "costLimit": "60000000",
+  "verticalPackage": {
+    "industry": "dental-practice",
+    "complianceRequirements": ["HIPAA", "PCI-DSS", "state-dental-board"],
+    "defaultWorkflows": [
+      "appointment-scheduling",
+      "insurance-verification", 
+      "patient-reminders",
+      "treatment-plan-tracking",
+      "billing-reconciliation"
+    ],
+    "dataPrivacyLevel": "hipaa",
+    "terminology": {
+      "appointment": "patient visit",
+      "customer": "patient",
+      "invoice": "statement",
+      "service": "procedure"
+    },
+    "regulatoryBodies": ["HHS-OCR", "state-dental-board", "ADA"]
+  },
+  "isolation": {
+    "sandboxLevel": "full-container",
+    "networkPolicy": "restricted",
+    "secretsAccess": [
+      "/vault/appliance/dental/practice-credentials",
+      "/vault/appliance/dental/insurance-apis",
+      "/vault/appliance/shared/hipaa-keys"
+    ],
+    "auditLogging": true,
+    "securityPolicies": ["hipaa-compliance", "patient-data-encryption", "local-first-processing"]
+  },
+  "preferredModel": "claude-3-haiku",
+  "stats": {
+    "totalInstances": 0,
+    "totalProfit": "0",
+    "totalCosts": "0",
+    "averageKPIs": {},
+    "activeInstances": 0,
+    "lastUpdated": 0
+  },
+  "blackboard": [],
+  "defaultLimits": {
+    "maxToolCallsPerBotResponse": 8,
+    "maxToolCalls": 50,
+    "maxCreditsPerBotResponse": "300000",
+    "maxCredits": "2000000",
+    "maxDurationPerBotResponseMs": 180000,
+    "maxDurationMs": 1800000,
+    "delayBetweenProcessingCyclesMs": 60000
+  },
+  "defaultScheduling": {
+    "defaultDelayMs": 2000,
+    "toolSpecificDelays": {
+      "appointment-scheduling": 5000,
+      "insurance-verification": 15000,
+      "patient-reminder": 10000,
+      "hipaa-audit": 30000
+    },
+    "requiresApprovalTools": ["patient-data-export", "insurance-claim-submission"],
+    "approvalTimeoutMs": 1800000,
+    "autoRejectOnTimeout": true
+  },
+  "defaultPolicy": {
+    "visibility": "private",
+    "acl": ["dental-office-staff", "appliance-support"]
+  }
+}
