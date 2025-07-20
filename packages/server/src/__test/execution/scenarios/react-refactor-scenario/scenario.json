@@ -1,0 +1,1018 @@
+{
+  "identity": {
+    "name": "react-refactor-scenario",
+    "description": "Complex React component modernization from class components to hooks with leader delegation",
+    "category": "multi-agent",
+    "complexity": "advanced"
+  },
+
+  "agents": [
+    {
+      "name": "refactor-coordinator",
+      "role": "coordinator",
+      "botConfig": {
+        "__version": "1.0",
+        "model": "claude-3-5-sonnet-20241022",
+        "maxTokens": 2000,
+        "agentSpec": {
+          "goal": "Orchestrate modernization of React class components to functional components with hooks",
+          "subscriptions": [
+            "swarm/started",
+            "refactor/subtask_started",
+            "refactor/subtask_completed",
+            "refactor/all_complete"
+          ],
+          "behaviors": [
+            {
+              "trigger": {
+                "topic": "swarm/started"
+              },
+              "action": {
+                "type": "routine",
+                "label": "component-analysis-routine",
+                "inputMap": {
+                  "componentList": "blackboard.target_components",
+                  "dependencies": "blackboard.component_dependencies"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"routineOutput": "refactor_plan", "blackboardId": "refactor_strategy"},
+                    {"routineOutput": "complexity_map", "blackboardId": "component_complexity"},
+                    {"routineOutput": "active_leader", "blackboardId": "current_leader"}
+                  ],
+                  "append": [
+                    {"routineOutput": "analysis_log", "blackboardId": "refactor_history"}
+                  ]
+                }
+              },
+              "qos": 1
+            },
+            {
+              "trigger": {
+                "topic": "swarm/started"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "refactor/delegation_requested",
+                "dataMapping": {
+                  "delegationType": "'state_management'",
+                  "components": "blackboard.refactor_strategy.state_components",
+                  "leader": "'state-management-specialist'"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"constantValue": "state-management-specialist", "blackboardId": "active_subtask_leader"},
+                    {"emitOutput": "eventId", "blackboardId": "delegation_event_id"}
+                  ]
+                }
+              },
+              "qos": 1
+            },
+            {
+              "trigger": {
+                "topic": "refactor/subtask_completed",
+                "when": "event.data.subtask_type == 'state_management'"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "refactor/delegation_requested",
+                "dataMapping": {
+                  "delegationType": "'testing'",
+                  "components": "blackboard.refactor_strategy.test_components",
+                  "leader": "'testing-specialist'"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"constantValue": "testing-specialist", "blackboardId": "active_subtask_leader"},
+                    {"constantValue": "refactor-coordinator", "blackboardId": "current_leader"}
+                  ]
+                }
+              },
+              "qos": 1
+            },
+            {
+              "trigger": {
+                "topic": "refactor/subtask_completed",
+                "when": "event.data.subtask_type == 'testing'"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "refactor/delegation_requested",
+                "dataMapping": {
+                  "delegationType": "'performance'",
+                  "components": "blackboard.refactor_strategy.performance_components",
+                  "leader": "'performance-specialist'"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"constantValue": "performance-specialist", "blackboardId": "active_subtask_leader"}
+                  ]
+                }
+              },
+              "qos": 1
+            },
+            {
+              "trigger": {
+                "topic": "refactor/subtask_completed",
+                "when": "event.data.subtask_type == 'performance'"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "refactor/delegation_requested",
+                "dataMapping": {
+                  "delegationType": "'styling'",
+                  "components": "blackboard.refactor_strategy.styling_components",
+                  "leader": "'styling-specialist'"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"constantValue": "styling-specialist", "blackboardId": "active_subtask_leader"}
+                  ]
+                }
+              },
+              "qos": 1
+            },
+            {
+              "trigger": {
+                "topic": "refactor/subtask_completed",
+                "when": "event.data.subtask_type == 'styling'"
+              },
+              "action": {
+                "type": "routine",
+                "label": "integration-verification-routine",
+                "inputMap": {
+                  "completedSubtasks": "blackboard.completed_subtasks",
+                  "componentState": "blackboard.refactored_components"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"routineOutput": "integration_result", "blackboardId": "final_verification"},
+                    {"constantValue": "refactor-coordinator", "blackboardId": "current_leader"}
+                  ]
+                }
+              },
+              "qos": 1
+            },
+            {
+              "trigger": {
+                "topic": "refactor/subtask_completed",
+                "when": "blackboard.completed_subtasks.length >= 4"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "refactor/all_complete",
+                "dataMapping": {
+                  "totalComponents": "blackboard.target_components.length",
+                  "subtasksCompleted": "blackboard.completed_subtasks.length",
+                  "success": "blackboard.final_verification.success"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"constantValue": true, "blackboardId": "refactor_complete"}
+                  ]
+                }
+              },
+              "qos": 1
+            }
+          ],
+          "prompt": {
+            "mode": "supplement",
+            "source": "direct",
+            "content": "You coordinate React component refactoring. Analyze components, delegate to specialists based on refactoring needs, and ensure all components are properly modernized while maintaining functionality."
+          }
+        }
+      }
+    },
+    {
+      "name": "state-management-specialist",
+      "role": "specialist",
+      "botConfig": {
+        "__version": "1.0",
+        "model": "gpt-4",
+        "maxTokens": 4000,
+        "agentSpec": {
+          "goal": "Convert Redux patterns and class state to Context API and custom hooks",
+          "subscriptions": [
+            "refactor/delegation_requested"
+          ],
+          "behaviors": [
+            {
+              "trigger": {
+                "topic": "refactor/delegation_requested",
+                "when": "event.data.delegationType == 'state_management' && event.data.leader == 'state-management-specialist'"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "refactor/subtask_started",
+                "dataMapping": {
+                  "subtask_type": "'state_management'",
+                  "specialist": "'state-management-specialist'",
+                  "components": "event.data.components"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"constantValue": "state-management-specialist", "blackboardId": "current_leader"}
+                  ]
+                }
+              },
+              "qos": 1
+            },
+            {
+              "trigger": {
+                "topic": "refactor/delegation_requested",
+                "when": "event.data.delegationType == 'state_management' && event.data.leader == 'state-management-specialist'"
+              },
+              "action": {
+                "type": "routine",
+                "label": "state-refactor-routine",
+                "inputMap": {
+                  "components": "event.data.components",
+                  "currentState": "blackboard.component_state_patterns"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"routineOutput": "refactored_state", "blackboardId": "state_refactor_result"},
+                    {"routineOutput": "custom_hooks", "blackboardId": "created_hooks"}
+                  ],
+                  "append": [
+                    {"routineOutput": "refactored_components", "blackboardId": "refactored_components"},
+                    {"routineOutput": "refactor_log", "blackboardId": "state_refactor_history"}
+                  ]
+                }
+              },
+              "qos": 1
+            },
+            {
+              "trigger": {
+                "topic": "refactor/delegation_requested",
+                "when": "event.data.delegationType == 'state_management' && event.data.leader == 'state-management-specialist'"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "refactor/subtask_completed",
+                "dataMapping": {
+                  "subtask_type": "'state_management'",
+                  "success": "blackboard.state_refactor_result.success",
+                  "components_updated": "blackboard.state_refactor_result.updated_count",
+                  "hooks_created": "blackboard.created_hooks.length"
+                },
+                "outputOperations": {
+                  "append": [
+                    {"constantValue": "state_management", "blackboardId": "completed_subtasks"}
+                  ]
+                }
+              },
+              "qos": 1
+            }
+          ],
+          "prompt": {
+            "mode": "supplement",
+            "source": "direct",
+            "content": "You specialize in React state management refactoring. Convert class component state and Redux patterns to Context API and custom hooks. Preserve all state logic while modernizing the implementation."
+          }
+        }
+      }
+    },
+    {
+      "name": "testing-specialist",
+      "role": "specialist",
+      "botConfig": {
+        "__version": "1.0",
+        "model": "gpt-4",
+        "maxTokens": 3000,
+        "agentSpec": {
+          "goal": "Update test suites from Enzyme to React Testing Library and ensure coverage",
+          "subscriptions": [
+            "refactor/delegation_requested"
+          ],
+          "behaviors": [
+            {
+              "trigger": {
+                "topic": "refactor/delegation_requested",
+                "when": "event.data.delegationType == 'testing' && event.data.leader == 'testing-specialist'"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "refactor/subtask_started",
+                "dataMapping": {
+                  "subtask_type": "'testing'",
+                  "specialist": "'testing-specialist'"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"constantValue": "testing-specialist", "blackboardId": "current_leader"}
+                  ]
+                }
+              },
+              "qos": 1
+            },
+            {
+              "trigger": {
+                "topic": "refactor/delegation_requested",
+                "when": "event.data.delegationType == 'testing' && event.data.leader == 'testing-specialist'"
+              },
+              "action": {
+                "type": "routine",
+                "label": "test-migration-routine",
+                "inputMap": {
+                  "components": "event.data.components",
+                  "existingTests": "blackboard.component_test_suites"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"routineOutput": "migration_result", "blackboardId": "test_migration_result"},
+                    {"routineOutput": "coverage_report", "blackboardId": "test_coverage"}
+                  ],
+                  "append": [
+                    {"routineOutput": "migrated_tests", "blackboardId": "refactored_tests"},
+                    {"routineOutput": "migration_log", "blackboardId": "test_migration_history"}
+                  ]
+                }
+              },
+              "qos": 1
+            },
+            {
+              "trigger": {
+                "topic": "refactor/delegation_requested",
+                "when": "event.data.delegationType == 'testing' && event.data.leader == 'testing-specialist'"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "refactor/subtask_completed",
+                "dataMapping": {
+                  "subtask_type": "'testing'",
+                  "success": "blackboard.test_migration_result.success",
+                  "tests_migrated": "blackboard.test_migration_result.migrated_count",
+                  "coverage": "blackboard.test_coverage.percentage"
+                },
+                "outputOperations": {
+                  "append": [
+                    {"constantValue": "testing", "blackboardId": "completed_subtasks"}
+                  ]
+                }
+              },
+              "qos": 1
+            }
+          ],
+          "prompt": {
+            "mode": "supplement",
+            "source": "direct",
+            "content": "You specialize in React testing migration. Update test suites from Enzyme to React Testing Library, ensuring all tests pass and maintain coverage. Focus on testing behavior, not implementation details."
+          }
+        }
+      }
+    },
+    {
+      "name": "performance-specialist",
+      "role": "specialist",
+      "botConfig": {
+        "__version": "1.0",
+        "model": "gpt-3.5-turbo",
+        "maxTokens": 2000,
+        "agentSpec": {
+          "goal": "Implement React.memo, useMemo, and useCallback optimizations",
+          "subscriptions": [
+            "refactor/delegation_requested"
+          ],
+          "behaviors": [
+            {
+              "trigger": {
+                "topic": "refactor/delegation_requested",
+                "when": "event.data.delegationType == 'performance' && event.data.leader == 'performance-specialist'"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "refactor/subtask_started",
+                "dataMapping": {
+                  "subtask_type": "'performance'",
+                  "specialist": "'performance-specialist'"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"constantValue": "performance-specialist", "blackboardId": "current_leader"}
+                  ]
+                }
+              },
+              "qos": 1
+            },
+            {
+              "trigger": {
+                "topic": "refactor/delegation_requested",
+                "when": "event.data.delegationType == 'performance' && event.data.leader == 'performance-specialist'"
+              },
+              "action": {
+                "type": "routine",
+                "label": "performance-optimization-routine",
+                "inputMap": {
+                  "components": "event.data.components",
+                  "renderPatterns": "blackboard.component_render_analysis"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"routineOutput": "optimization_result", "blackboardId": "performance_result"},
+                    {"routineOutput": "performance_metrics", "blackboardId": "render_improvements"}
+                  ],
+                  "append": [
+                    {"routineOutput": "optimized_components", "blackboardId": "performance_optimized"},
+                    {"routineOutput": "optimization_log", "blackboardId": "performance_history"}
+                  ]
+                }
+              },
+              "qos": 1
+            },
+            {
+              "trigger": {
+                "topic": "refactor/delegation_requested",
+                "when": "event.data.delegationType == 'performance' && event.data.leader == 'performance-specialist'"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "refactor/subtask_completed",
+                "dataMapping": {
+                  "subtask_type": "'performance'",
+                  "success": "blackboard.performance_result.success",
+                  "optimizations_applied": "blackboard.performance_result.optimization_count",
+                  "render_improvement": "blackboard.render_improvements.percentage"
+                },
+                "outputOperations": {
+                  "append": [
+                    {"constantValue": "performance", "blackboardId": "completed_subtasks"}
+                  ]
+                }
+              },
+              "qos": 1
+            }
+          ],
+          "prompt": {
+            "mode": "supplement",
+            "source": "direct",
+            "content": "You optimize React component performance. Implement React.memo for components, useMemo for expensive computations, and useCallback for function references. Measure and document performance improvements."
+          }
+        }
+      }
+    },
+    {
+      "name": "styling-specialist",
+      "role": "specialist",
+      "botConfig": {
+        "__version": "1.0",
+        "model": "gpt-3.5-turbo",
+        "maxTokens": 2000,
+        "agentSpec": {
+          "goal": "Migrate from CSS modules to styled-components or CSS-in-JS solution",
+          "subscriptions": [
+            "refactor/delegation_requested"
+          ],
+          "behaviors": [
+            {
+              "trigger": {
+                "topic": "refactor/delegation_requested",
+                "when": "event.data.delegationType == 'styling' && event.data.leader == 'styling-specialist'"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "refactor/subtask_started",
+                "dataMapping": {
+                  "subtask_type": "'styling'",
+                  "specialist": "'styling-specialist'"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"constantValue": "styling-specialist", "blackboardId": "current_leader"}
+                  ]
+                }
+              },
+              "qos": 1
+            },
+            {
+              "trigger": {
+                "topic": "refactor/delegation_requested",
+                "when": "event.data.delegationType == 'styling' && event.data.leader == 'styling-specialist'"
+              },
+              "action": {
+                "type": "routine",
+                "label": "styling-migration-routine",
+                "inputMap": {
+                  "components": "event.data.components",
+                  "currentStyles": "blackboard.component_styles"
+                },
+                "outputOperations": {
+                  "set": [
+                    {"routineOutput": "migration_result", "blackboardId": "styling_result"},
+                    {"routineOutput": "theme_system", "blackboardId": "design_tokens"}
+                  ],
+                  "append": [
+                    {"routineOutput": "styled_components", "blackboardId": "migrated_styles"},
+                    {"routineOutput": "migration_log", "blackboardId": "styling_history"}
+                  ]
+                }
+              },
+              "qos": 1
+            },
+            {
+              "trigger": {
+                "topic": "refactor/delegation_requested",
+                "when": "event.data.delegationType == 'styling' && event.data.leader == 'styling-specialist'"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "refactor/subtask_completed",
+                "dataMapping": {
+                  "subtask_type": "'styling'",
+                  "success": "blackboard.styling_result.success",
+                  "components_styled": "blackboard.styling_result.styled_count",
+                  "theme_created": "blackboard.design_tokens != null"
+                },
+                "outputOperations": {
+                  "append": [
+                    {"constantValue": "styling", "blackboardId": "completed_subtasks"}
+                  ]
+                }
+              },
+              "qos": 1
+            }
+          ],
+          "prompt": {
+            "mode": "supplement",
+            "source": "direct",
+            "content": "You migrate React component styling from CSS modules to styled-components. Preserve all visual styling while implementing theme support and component-scoped styles."
+          }
+        }
+      }
+    }
+  ],
+
+  "routines": [
+    {
+      "name": "component-analysis-routine",
+      "type": "generate",
+      "config": {
+        "resourceSubType": "RoutineGenerate",
+        "instructions": [
+          {
+            "type": "text",
+            "text": "Analyze React class components and create a refactoring strategy. Identify state management patterns, test coverage, performance bottlenecks, and styling approaches. Determine optimal delegation order."
+          }
+        ],
+        "callDataGenerate": {
+          "schema": {
+            "inputTemplate": {
+              "components": "{{input.componentList}}",
+              "dependencies": "{{input.dependencies}}"
+            },
+            "outputMapping": {
+              "refactor_plan": "analysis.strategy",
+              "complexity_map": "analysis.complexity",
+              "active_leader": "analysis.initial_leader",
+              "analysis_log": "analysis.log"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "state-refactor-routine",
+      "type": "generate",
+      "config": {
+        "resourceSubType": "RoutineGenerate",
+        "instructions": [
+          {
+            "type": "text",
+            "text": "Convert class component state and lifecycle methods to hooks. Transform Redux connect() to useSelector/useDispatch. Create custom hooks for complex state logic. Maintain all existing functionality."
+          }
+        ],
+        "callDataGenerate": {
+          "schema": {
+            "inputTemplate": {
+              "components": "{{input.components}}",
+              "patterns": "{{input.currentState}}"
+            },
+            "outputMapping": {
+              "refactored_state": "refactor.result",
+              "custom_hooks": "refactor.hooks",
+              "refactored_components": "refactor.components",
+              "refactor_log": "refactor.log"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "test-migration-routine",
+      "type": "generate",
+      "config": {
+        "resourceSubType": "RoutineGenerate",
+        "instructions": [
+          {
+            "type": "text",
+            "text": "Migrate tests from Enzyme to React Testing Library. Update shallow rendering to full rendering, replace component API queries with user-centric queries, ensure all tests pass."
+          }
+        ],
+        "callDataGenerate": {
+          "schema": {
+            "inputTemplate": {
+              "components": "{{input.components}}",
+              "tests": "{{input.existingTests}}"
+            },
+            "outputMapping": {
+              "migration_result": "migration.result",
+              "coverage_report": "migration.coverage",
+              "migrated_tests": "migration.tests",
+              "migration_log": "migration.log"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "performance-optimization-routine",
+      "type": "generate",
+      "config": {
+        "resourceSubType": "RoutineGenerate",
+        "instructions": [
+          {
+            "type": "text",
+            "text": "Analyze render patterns and implement performance optimizations. Add React.memo to pure components, useMemo for expensive calculations, useCallback for stable function references."
+          }
+        ],
+        "callDataGenerate": {
+          "schema": {
+            "inputTemplate": {
+              "components": "{{input.components}}",
+              "patterns": "{{input.renderPatterns}}"
+            },
+            "outputMapping": {
+              "optimization_result": "optimization.result",
+              "performance_metrics": "optimization.metrics",
+              "optimized_components": "optimization.components",
+              "optimization_log": "optimization.log"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "styling-migration-routine",
+      "type": "generate",
+      "config": {
+        "resourceSubType": "RoutineGenerate",
+        "instructions": [
+          {
+            "type": "text",
+            "text": "Convert CSS modules to styled-components. Create theme system with design tokens, implement component-scoped styles, ensure visual consistency is maintained."
+          }
+        ],
+        "callDataGenerate": {
+          "schema": {
+            "inputTemplate": {
+              "components": "{{input.components}}",
+              "styles": "{{input.currentStyles}}"
+            },
+            "outputMapping": {
+              "migration_result": "styling.result",
+              "theme_system": "styling.theme",
+              "styled_components": "styling.components",
+              "migration_log": "styling.log"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "integration-verification-routine",
+      "type": "generate",
+      "config": {
+        "resourceSubType": "RoutineGenerate",
+        "instructions": [
+          {
+            "type": "text",
+            "text": "Verify all refactored components work together correctly. Check state management integration, test suite passes, performance improvements are maintained, and styling is consistent."
+          }
+        ],
+        "callDataGenerate": {
+          "schema": {
+            "inputTemplate": {
+              "subtasks": "{{input.completedSubtasks}}",
+              "components": "{{input.componentState}}"
+            },
+            "outputMapping": {
+              "integration_result": "verification.result"
+            }
+          }
+        }
+      }
+    }
+  ],
+
+  "expectedFlow": [
+    {
+      "step": 1,
+      "agent": "refactor-coordinator",
+      "trigger": "swarm/started",
+      "action": "component-analysis-routine",
+      "blackboardUpdates": {
+        "refactor_strategy": "Phased refactoring plan",
+        "current_leader": "refactor-coordinator"
+      }
+    },
+    {
+      "step": 2,
+      "agent": "refactor-coordinator",
+      "trigger": "swarm/started",
+      "action": "emit",
+      "emittedEvents": ["refactor/delegation_requested"],
+      "blackboardUpdates": {
+        "active_subtask_leader": "state-management-specialist"
+      }
+    },
+    {
+      "step": 3,
+      "agent": "state-management-specialist",
+      "trigger": "refactor/delegation_requested",
+      "action": "emit",
+      "emittedEvents": ["refactor/subtask_started"],
+      "blackboardUpdates": {
+        "current_leader": "state-management-specialist"
+      }
+    },
+    {
+      "step": 4,
+      "agent": "state-management-specialist",
+      "trigger": "refactor/delegation_requested",
+      "action": "state-refactor-routine",
+      "blackboardUpdates": {
+        "state_refactor_result": {"success": true, "updated_count": 15},
+        "created_hooks": ["useAuth", "useCart", "useProductData"]
+      }
+    },
+    {
+      "step": 5,
+      "agent": "state-management-specialist",
+      "trigger": "refactor/delegation_requested",
+      "action": "emit",
+      "emittedEvents": ["refactor/subtask_completed"],
+      "blackboardUpdates": {
+        "completed_subtasks": ["state_management"]
+      }
+    },
+    {
+      "step": 6,
+      "agent": "refactor-coordinator",
+      "trigger": "refactor/subtask_completed",
+      "action": "emit",
+      "emittedEvents": ["refactor/delegation_requested"],
+      "blackboardUpdates": {
+        "active_subtask_leader": "testing-specialist",
+        "current_leader": "refactor-coordinator"
+      }
+    },
+    {
+      "step": 7,
+      "description": "Testing specialist receives leadership and updates tests"
+    },
+    {
+      "step": 8,
+      "description": "Performance specialist receives leadership and optimizes"
+    },
+    {
+      "step": 9,
+      "description": "Styling specialist receives leadership and migrates styles"
+    },
+    {
+      "step": 10,
+      "agent": "refactor-coordinator",
+      "trigger": "refactor/subtask_completed",
+      "action": "integration-verification-routine",
+      "blackboardUpdates": {
+        "final_verification": {"success": true},
+        "current_leader": "refactor-coordinator"
+      }
+    },
+    {
+      "step": 11,
+      "agent": "refactor-coordinator",
+      "trigger": "refactor/subtask_completed",
+      "action": "emit",
+      "emittedEvents": ["refactor/all_complete"],
+      "blackboardUpdates": {
+        "refactor_complete": true
+      }
+    }
+  ],
+
+  "resources": {
+    "maxCredits": "1500000000",
+    "maxDurationMs": 600000,
+    "quotas": {
+      "gpuPercentage": 30,
+      "ramGB": 16,
+      "cpuCores": 4,
+      "storageGB": 100
+    }
+  },
+
+  "success": {
+    "requiredEvents": [
+      "refactor/delegation_requested",
+      "refactor/subtask_started",
+      "refactor/subtask_completed",
+      "refactor/all_complete"
+    ],
+    "blackboardState": {
+      "refactor_complete": "true",
+      "completed_subtasks": "length>=4",
+      "current_leader": "refactor-coordinator",
+      "created_hooks": "length>0",
+      "test_coverage": "exists"
+    },
+    "leadershipTransitions": {
+      "minimumHandoffs": 4,
+      "correctSequence": true,
+      "contextIsolation": true
+    },
+    "routineCallsMin": 6,
+    "agentCoordination": true
+  },
+
+  "initialConditions": {
+    "triggerEvent": {
+      "topic": "swarm/started",
+      "data": {
+        "task": "refactor-react-components",
+        "timestamp": "2024-01-17T09:00:00Z"
+      }
+    },
+    "blackboardState": {
+      "target_components": [
+        "UserProfile",
+        "ProductList",
+        "ShoppingCart",
+        "CheckoutForm",
+        "OrderHistory",
+        "SearchBar",
+        "NavigationMenu",
+        "ProductCard",
+        "ReviewForm",
+        "Dashboard",
+        "Settings",
+        "NotificationCenter",
+        "Analytics",
+        "ReportGenerator",
+        "DataTable"
+      ],
+      "component_dependencies": {
+        "UserProfile": ["AuthContext", "UserService"],
+        "ProductList": ["ProductService", "CartContext"],
+        "ShoppingCart": ["CartContext", "CheckoutService"]
+      },
+      "component_state_patterns": {
+        "redux_connected": 8,
+        "local_state_only": 4,
+        "context_consumers": 3
+      },
+      "component_test_suites": {
+        "enzyme_tests": 45,
+        "coverage_percentage": 78
+      },
+      "component_render_analysis": {
+        "unnecessary_renders": 12,
+        "expensive_computations": 7
+      },
+      "component_styles": {
+        "css_modules": 15,
+        "inline_styles": 3
+      }
+    }
+  },
+
+  "mocks": {
+    "routineResponses": [
+      {
+        "routineName": "component-analysis-routine",
+        "response": {
+          "analysis": {
+            "strategy": {
+              "phases": ["state_management", "testing", "performance", "styling"],
+              "state_components": ["UserProfile", "ProductList", "ShoppingCart", "CheckoutForm", "Dashboard"],
+              "test_components": ["All components"],
+              "performance_components": ["ProductList", "DataTable", "Analytics", "Dashboard"],
+              "styling_components": ["All components"]
+            },
+            "complexity": {
+              "high": ["Dashboard", "Analytics", "CheckoutForm"],
+              "medium": ["ProductList", "ShoppingCart", "UserProfile"],
+              "low": ["SearchBar", "NavigationMenu", "ProductCard"]
+            },
+            "initial_leader": "refactor-coordinator",
+            "log": "Analyzed 15 components. Found 8 Redux-connected, 45 Enzyme tests, 12 performance issues."
+          }
+        }
+      },
+      {
+        "routineName": "state-refactor-routine",
+        "response": {
+          "refactor": {
+            "result": {
+              "success": true,
+              "updated_count": 15,
+              "conversion_details": {
+                "lifecycle_to_hooks": 23,
+                "redux_to_context": 8,
+                "custom_hooks_created": 3
+              }
+            },
+            "hooks": ["useAuth", "useCart", "useProductData"],
+            "components": [
+              {"name": "UserProfile", "hooks_used": ["useState", "useEffect", "useAuth"]},
+              {"name": "ProductList", "hooks_used": ["useState", "useProductData", "useCart"]},
+              {"name": "ShoppingCart", "hooks_used": ["useCart", "useCallback", "useMemo"]}
+            ],
+            "log": "Successfully converted 15 class components to functional components with hooks"
+          }
+        }
+      },
+      {
+        "routineName": "test-migration-routine",
+        "response": {
+          "migration": {
+            "result": {
+              "success": true,
+              "migrated_count": 45,
+              "failures_fixed": 7
+            },
+            "coverage": {
+              "percentage": 82,
+              "improvement": "+4%"
+            },
+            "tests": [
+              {"component": "UserProfile", "tests": 5, "status": "migrated"},
+              {"component": "ProductList", "tests": 8, "status": "migrated"},
+              {"component": "ShoppingCart", "tests": 6, "status": "migrated"}
+            ],
+            "log": "Migrated all 45 tests from Enzyme to React Testing Library. Coverage improved to 82%."
+          }
+        }
+      },
+      {
+        "routineName": "performance-optimization-routine",
+        "response": {
+          "optimization": {
+            "result": {
+              "success": true,
+              "optimization_count": 19,
+              "render_reduction": "47%"
+            },
+            "metrics": {
+              "percentage": 47,
+              "before_renders": 156,
+              "after_renders": 83
+            },
+            "components": [
+              {"name": "ProductList", "optimizations": ["React.memo", "useMemo for filtering"]},
+              {"name": "DataTable", "optimizations": ["React.memo", "useCallback for handlers"]},
+              {"name": "Dashboard", "optimizations": ["useMemo for calculations", "React.memo"]}
+            ],
+            "log": "Applied 19 optimizations. Reduced unnecessary renders by 47%."
+          }
+        }
+      },
+      {
+        "routineName": "styling-migration-routine",
+        "response": {
+          "styling": {
+            "result": {
+              "success": true,
+              "styled_count": 15,
+              "theme_created": true
+            },
+            "theme": {
+              "colors": {"primary": "#007bff", "secondary": "#6c757d"},
+              "spacing": {"unit": 8, "sizes": ["xs", "sm", "md", "lg", "xl"]},
+              "breakpoints": {"mobile": 576, "tablet": 768, "desktop": 1024}
+            },
+            "components": [
+              {"name": "UserProfile", "styled_components": 4},
+              {"name": "ProductList", "styled_components": 6},
+              {"name": "ShoppingCart", "styled_components": 5}
+            ],
+            "log": "Migrated all 15 components to styled-components with unified theme system"
+          }
+        }
+      },
+      {
+        "routineName": "integration-verification-routine",
+        "response": {
+          "verification": {
+            "result": {
+              "success": true,
+              "all_tests_pass": true,
+              "no_regressions": true,
+              "performance_maintained": true,
+              "styling_consistent": true
+            }
+          }
+        }
+      }
+    ]
+  }
+}

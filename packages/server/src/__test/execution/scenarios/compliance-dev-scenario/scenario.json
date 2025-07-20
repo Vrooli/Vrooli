@@ -1,0 +1,710 @@
+{
+  "swarmConfig": {
+    "name": "compliance-dev-scenario",
+    "description": "Development under regulatory constraints where agents must ensure compliance with GDPR, HIPAA, and SOX while delivering functional software",
+    "maxCredits": 1800000000,
+    "maxDuration": 900000,
+    "resourceQuota": {
+      "maxCPU": 6,
+      "maxRAM": 16,
+      "maxGPU": 30
+    },
+    "bots": [
+      {
+        "id": "compliance-coordinator",
+        "name": "Compliance Coordinator",
+        "agentSpec": {
+          "goal": "Orchestrate development activities while ensuring all regulatory requirements are met and documented",
+          "subscriptions": [
+            "swarm/started",
+            "compliance/requirement_analysis_complete",
+            "compliance/development_approved",
+            "compliance/violation_detected",
+            "compliance/audit_required"
+          ],
+          "behaviors": [
+            {
+              "trigger": {
+                "topic": "swarm/started"
+              },
+              "action": {
+                "type": "routine",
+                "label": "compliance-analysis-routine",
+                "inputMap": {
+                  "regulations": "blackboard.applicable_regulations",
+                  "developmentScope": "blackboard.development_scope"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "compliance/requirement_analysis_complete"
+              },
+              "action": {
+                "type": "routine",
+                "label": "development-planning-routine",
+                "inputMap": {
+                  "complianceRequirements": "blackboard.compliance_requirements",
+                  "developmentGoals": "blackboard.development_goals"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "compliance/violation_detected"
+              },
+              "action": {
+                "type": "routine",
+                "label": "violation-remediation-routine",
+                "inputMap": {
+                  "violation": "event.data.violation",
+                  "severity": "event.data.severity",
+                  "complianceFramework": "blackboard.compliance_framework"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "compliance/audit_required"
+              },
+              "action": {
+                "type": "routine",
+                "label": "audit-preparation-routine",
+                "inputMap": {
+                  "auditScope": "event.data.scope",
+                  "developmentHistory": "blackboard.development_history"
+                }
+              }
+            }
+          ],
+          "outputOperations": {
+            "set": [
+              {
+                "routineOutput": "result.compliance_framework",
+                "blackboardId": "compliance_framework"
+              },
+              {
+                "routineOutput": "result.development_plan",
+                "blackboardId": "development_plan"
+              },
+              {
+                "routineOutput": "result.compliance_status",
+                "blackboardId": "compliance_status"
+              }
+            ],
+            "append": [
+              {
+                "routineOutput": "result.compliance_checks",
+                "blackboardId": "compliance_checks"
+              },
+              {
+                "routineOutput": "result.remediation_actions",
+                "blackboardId": "remediation_actions"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "security-specialist",
+        "name": "Security Specialist",
+        "agentSpec": {
+          "goal": "Ensure all development activities meet security requirements for GDPR, HIPAA, and SOX compliance",
+          "subscriptions": [
+            "compliance/development_approved",
+            "security/review_requested",
+            "security/vulnerability_detected",
+            "security/encryption_required"
+          ],
+          "behaviors": [
+            {
+              "trigger": {
+                "topic": "compliance/development_approved"
+              },
+              "action": {
+                "type": "routine",
+                "label": "security-requirements-routine",
+                "inputMap": {
+                  "developmentPlan": "blackboard.development_plan",
+                  "securityStandards": "blackboard.security_standards"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "security/review_requested"
+              },
+              "action": {
+                "type": "routine",
+                "label": "security-review-routine",
+                "inputMap": {
+                  "codeChanges": "event.data.changes",
+                  "securityRequirements": "blackboard.security_requirements"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "security/vulnerability_detected"
+              },
+              "action": {
+                "type": "routine",
+                "label": "vulnerability-assessment-routine",
+                "inputMap": {
+                  "vulnerability": "event.data.vulnerability",
+                  "impactAssessment": "event.data.impact"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "security/encryption_required"
+              },
+              "action": {
+                "type": "routine",
+                "label": "encryption-implementation-routine",
+                "inputMap": {
+                  "dataType": "event.data.data_type",
+                  "encryptionStandards": "blackboard.encryption_standards"
+                }
+              }
+            }
+          ],
+          "outputOperations": {
+            "set": [
+              {
+                "routineOutput": "result.security_requirements",
+                "blackboardId": "security_requirements"
+              },
+              {
+                "routineOutput": "result.security_clearance",
+                "blackboardId": "security_clearance"
+              }
+            ],
+            "append": [
+              {
+                "routineOutput": "result.security_issues",
+                "blackboardId": "security_issues"
+              },
+              {
+                "routineOutput": "result.security_implementations",
+                "blackboardId": "security_implementations"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "privacy-officer",
+        "name": "Privacy Officer",
+        "agentSpec": {
+          "goal": "Ensure GDPR compliance and privacy protection throughout development lifecycle",
+          "subscriptions": [
+            "compliance/development_approved",
+            "privacy/assessment_requested",
+            "privacy/data_processing_detected",
+            "privacy/consent_required"
+          ],
+          "behaviors": [
+            {
+              "trigger": {
+                "topic": "compliance/development_approved"
+              },
+              "action": {
+                "type": "routine",
+                "label": "privacy-impact-assessment-routine",
+                "inputMap": {
+                  "developmentPlan": "blackboard.development_plan",
+                  "dataProcessing": "blackboard.data_processing_activities"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "privacy/assessment_requested"
+              },
+              "action": {
+                "type": "routine",
+                "label": "gdpr-compliance-routine",
+                "inputMap": {
+                  "dataTypes": "event.data.data_types",
+                  "processingPurpose": "event.data.purpose"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "privacy/data_processing_detected"
+              },
+              "action": {
+                "type": "routine",
+                "label": "data-protection-routine",
+                "inputMap": {
+                  "personalData": "event.data.personal_data",
+                  "processingBasis": "event.data.legal_basis"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "privacy/consent_required"
+              },
+              "action": {
+                "type": "routine",
+                "label": "consent-management-routine",
+                "inputMap": {
+                  "consentType": "event.data.consent_type",
+                  "dataSubject": "event.data.subject"
+                }
+              }
+            }
+          ],
+          "outputOperations": {
+            "set": [
+              {
+                "routineOutput": "result.privacy_requirements",
+                "blackboardId": "privacy_requirements"
+              },
+              {
+                "routineOutput": "result.gdpr_compliance_status",
+                "blackboardId": "gdpr_compliance_status"
+              }
+            ],
+            "append": [
+              {
+                "routineOutput": "result.privacy_assessments",
+                "blackboardId": "privacy_assessments"
+              },
+              {
+                "routineOutput": "result.consent_implementations",
+                "blackboardId": "consent_implementations"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "audit-specialist",
+        "name": "Audit Specialist",
+        "agentSpec": {
+          "goal": "Ensure SOX compliance and maintain audit trails for all development activities",
+          "subscriptions": [
+            "compliance/development_approved",
+            "audit/trail_required",
+            "audit/review_requested",
+            "audit/documentation_required"
+          ],
+          "behaviors": [
+            {
+              "trigger": {
+                "topic": "compliance/development_approved"
+              },
+              "action": {
+                "type": "routine",
+                "label": "audit-requirements-routine",
+                "inputMap": {
+                  "developmentPlan": "blackboard.development_plan",
+                  "soxRequirements": "blackboard.sox_requirements"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "audit/trail_required"
+              },
+              "action": {
+                "type": "routine",
+                "label": "audit-trail-routine",
+                "inputMap": {
+                  "activity": "event.data.activity",
+                  "changeDetails": "event.data.changes"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "audit/review_requested"
+              },
+              "action": {
+                "type": "routine",
+                "label": "audit-review-routine",
+                "inputMap": {
+                  "reviewScope": "event.data.scope",
+                  "auditCriteria": "blackboard.audit_criteria"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "audit/documentation_required"
+              },
+              "action": {
+                "type": "routine",
+                "label": "documentation-routine",
+                "inputMap": {
+                  "documentationType": "event.data.doc_type",
+                  "complianceStandards": "blackboard.compliance_standards"
+                }
+              }
+            }
+          ],
+          "outputOperations": {
+            "set": [
+              {
+                "routineOutput": "result.audit_requirements",
+                "blackboardId": "audit_requirements"
+              },
+              {
+                "routineOutput": "result.sox_compliance_status",
+                "blackboardId": "sox_compliance_status"
+              }
+            ],
+            "append": [
+              {
+                "routineOutput": "result.audit_trails",
+                "blackboardId": "audit_trails"
+              },
+              {
+                "routineOutput": "result.compliance_documentation",
+                "blackboardId": "compliance_documentation"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "development-executor",
+        "name": "Development Executor",
+        "agentSpec": {
+          "goal": "Execute development tasks while adhering to all compliance requirements and restrictions",
+          "subscriptions": [
+            "development/task_assigned",
+            "development/compliance_cleared",
+            "development/review_required",
+            "development/deployment_approved"
+          ],
+          "behaviors": [
+            {
+              "trigger": {
+                "topic": "development/task_assigned"
+              },
+              "action": {
+                "type": "routine",
+                "label": "compliant-development-routine",
+                "inputMap": {
+                  "task": "event.data.task",
+                  "complianceConstraints": "blackboard.compliance_constraints"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "development/compliance_cleared"
+              },
+              "action": {
+                "type": "routine",
+                "label": "implementation-routine",
+                "inputMap": {
+                  "approvedPlan": "blackboard.approved_development_plan",
+                  "securityRequirements": "blackboard.security_requirements"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "development/review_required"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "security/review_requested",
+                "dataMapping": {
+                  "changes": "blackboard.development_changes",
+                  "review_type": "'compliance-review'"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "development/deployment_approved"
+              },
+              "action": {
+                "type": "routine",
+                "label": "compliant-deployment-routine",
+                "inputMap": {
+                  "deploymentPlan": "blackboard.deployment_plan",
+                  "complianceChecklist": "blackboard.compliance_checklist"
+                }
+              }
+            }
+          ],
+          "outputOperations": {
+            "set": [
+              {
+                "routineOutput": "result.development_complete",
+                "blackboardId": "development_complete"
+              },
+              {
+                "routineOutput": "result.deployment_status",
+                "blackboardId": "deployment_status"
+              }
+            ],
+            "append": [
+              {
+                "routineOutput": "result.development_changes",
+                "blackboardId": "development_changes"
+              },
+              {
+                "routineOutput": "result.compliance_validations",
+                "blackboardId": "compliance_validations"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "initialBlackboard": {
+    "applicable_regulations": [
+      "GDPR",
+      "HIPAA",
+      "SOX"
+    ],
+    "development_scope": "patient_data_management_system",
+    "development_goals": [
+      "implement_patient_portal",
+      "add_data_encryption",
+      "create_audit_logging",
+      "ensure_gdpr_compliance"
+    ],
+    "security_standards": [
+      "AES-256_encryption",
+      "TLS_1.3_transport",
+      "RBAC_authorization",
+      "MFA_authentication"
+    ],
+    "sox_requirements": [
+      "change_management_controls",
+      "access_controls",
+      "audit_trails",
+      "segregation_of_duties"
+    ],
+    "data_processing_activities": [
+      "patient_data_collection",
+      "medical_record_storage",
+      "appointment_scheduling",
+      "billing_information_processing"
+    ],
+    "compliance_constraints": [
+      "no_personal_data_logging",
+      "encryption_at_rest_required",
+      "access_logging_mandatory",
+      "data_retention_limits",
+      "breach_notification_automation"
+    ]
+  },
+  "mockRoutineResponses": {
+    "compliance-analysis-routine": {
+      "result": {
+        "compliance_framework": {
+          "gdpr": {
+            "requirements": ["data_minimization", "consent_management", "right_to_erasure"],
+            "risk_level": "high",
+            "applicable": true
+          },
+          "hipaa": {
+            "requirements": ["administrative_safeguards", "physical_safeguards", "technical_safeguards"],
+            "risk_level": "critical",
+            "applicable": true
+          },
+          "sox": {
+            "requirements": ["internal_controls", "financial_reporting", "change_management"],
+            "risk_level": "medium",
+            "applicable": true
+          }
+        },
+        "compliance_requirements": [
+          "implement_data_encryption",
+          "establish_access_controls",
+          "create_audit_logging",
+          "implement_consent_management",
+          "ensure_data_retention_compliance"
+        ]
+      }
+    },
+    "development-planning-routine": {
+      "result": {
+        "development_plan": {
+          "phase_1": {
+            "name": "security_foundation",
+            "tasks": ["implement_encryption", "setup_access_controls", "create_audit_framework"],
+            "compliance_checks": ["security_review", "privacy_assessment", "audit_validation"]
+          },
+          "phase_2": {
+            "name": "patient_portal_development",
+            "tasks": ["create_patient_interface", "implement_authentication", "add_consent_management"],
+            "compliance_checks": ["gdpr_compliance", "hipaa_validation", "security_testing"]
+          },
+          "phase_3": {
+            "name": "compliance_validation",
+            "tasks": ["final_audit", "compliance_documentation", "deployment_preparation"],
+            "compliance_checks": ["comprehensive_audit", "regulatory_sign_off", "deployment_approval"]
+          }
+        },
+        "compliance_status": "planning_complete"
+      }
+    },
+    "security-requirements-routine": {
+      "result": {
+        "security_requirements": {
+          "encryption": {
+            "at_rest": "AES-256",
+            "in_transit": "TLS 1.3",
+            "key_management": "HSM-based"
+          },
+          "authentication": {
+            "multi_factor": "required",
+            "session_management": "JWT with refresh tokens",
+            "password_policy": "NIST guidelines"
+          },
+          "authorization": {
+            "rbac": "role-based access control",
+            "principle_of_least_privilege": "enforced",
+            "access_reviews": "quarterly"
+          },
+          "audit_logging": {
+            "all_access_events": "logged",
+            "data_modification": "tracked",
+            "retention_period": "7 years"
+          }
+        },
+        "security_clearance": "requirements_defined"
+      }
+    },
+    "privacy-impact-assessment-routine": {
+      "result": {
+        "privacy_requirements": {
+          "data_minimization": "collect only necessary data",
+          "purpose_limitation": "use data only for stated purposes",
+          "consent_management": "explicit consent required",
+          "data_subject_rights": "implement right to access, rectify, erase",
+          "cross_border_transfers": "adequate protection required"
+        },
+        "gdpr_compliance_status": "requirements_identified",
+        "privacy_assessments": [
+          {
+            "assessment_type": "DPIA",
+            "risk_level": "high",
+            "mitigation_required": true,
+            "controls": ["encryption", "access_controls", "audit_logging"]
+          }
+        ]
+      }
+    },
+    "audit-requirements-routine": {
+      "result": {
+        "audit_requirements": {
+          "change_management": "all changes documented and approved",
+          "access_controls": "segregation of duties enforced",
+          "audit_trails": "comprehensive logging implemented",
+          "documentation": "policies and procedures documented",
+          "testing": "controls tested regularly"
+        },
+        "sox_compliance_status": "requirements_established"
+      }
+    },
+    "compliant-development-routine": {
+      "result": {
+        "development_changes": [
+          {
+            "component": "patient_authentication",
+            "change_type": "implementation",
+            "compliance_validation": "MFA implementation with HIPAA compliance",
+            "security_review": "passed"
+          },
+          {
+            "component": "data_encryption",
+            "change_type": "implementation",
+            "compliance_validation": "AES-256 encryption for all PII",
+            "security_review": "passed"
+          },
+          {
+            "component": "audit_logging",
+            "change_type": "implementation",
+            "compliance_validation": "Comprehensive audit trail for SOX compliance",
+            "security_review": "passed"
+          },
+          {
+            "component": "consent_management",
+            "change_type": "implementation",
+            "compliance_validation": "GDPR-compliant consent workflow",
+            "security_review": "passed"
+          }
+        ],
+        "compliance_validations": [
+          {
+            "regulation": "GDPR",
+            "validation_result": "compliant",
+            "requirements_met": ["data_minimization", "consent_management", "audit_trails"]
+          },
+          {
+            "regulation": "HIPAA",
+            "validation_result": "compliant",
+            "requirements_met": ["technical_safeguards", "audit_controls", "access_controls"]
+          },
+          {
+            "regulation": "SOX",
+            "validation_result": "compliant",
+            "requirements_met": ["change_management", "access_controls", "audit_trails"]
+          }
+        ]
+      }
+    },
+    "compliant-deployment-routine": {
+      "result": {
+        "deployment_status": "compliant_deployment_successful",
+        "compliance_checklist": {
+          "security_controls": "implemented",
+          "privacy_protections": "active",
+          "audit_logging": "operational",
+          "compliance_documentation": "complete",
+          "regulatory_approval": "obtained"
+        }
+      }
+    }
+  },
+  "eventSequence": [
+    {
+      "event": "swarm/started",
+      "expectedResponses": [
+        "compliance-analysis-routine execution"
+      ]
+    },
+    {
+      "event": "compliance/requirement_analysis_complete",
+      "expectedResponses": [
+        "development-planning-routine execution",
+        "security-requirements-routine execution",
+        "privacy-impact-assessment-routine execution",
+        "audit-requirements-routine execution"
+      ]
+    },
+    {
+      "event": "development/task_assigned",
+      "expectedResponses": [
+        "compliant-development-routine execution"
+      ]
+    },
+    {
+      "event": "development/compliance_cleared",
+      "expectedResponses": [
+        "implementation-routine execution"
+      ]
+    },
+    {
+      "event": "development/deployment_approved",
+      "expectedResponses": [
+        "compliant-deployment-routine execution"
+      ]
+    }
+  ]
+}

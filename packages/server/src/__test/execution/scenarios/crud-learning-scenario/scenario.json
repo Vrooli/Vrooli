@@ -1,0 +1,528 @@
+{
+  "swarmConfig": {
+    "name": "crud-learning-scenario",
+    "description": "Agent learning CRUD API patterns by examining existing endpoints and creating new ones based on discovered patterns",
+    "maxCredits": 1200000000,
+    "maxDuration": 600000,
+    "resourceQuota": {
+      "maxCPU": 4,
+      "maxRAM": 12,
+      "maxGPU": 25
+    },
+    "bots": [
+      {
+        "id": "pattern-learner",
+        "name": "Pattern Learner",
+        "agentSpec": {
+          "goal": "Analyze existing CRUD endpoints to learn common patterns, then apply those patterns to create new endpoints for a specified resource",
+          "subscriptions": [
+            "swarm/started",
+            "learning/analysis_complete",
+            "learning/pattern_discovered",
+            "learning/implementation_complete",
+            "learning/validation_complete"
+          ],
+          "behaviors": [
+            {
+              "trigger": {
+                "topic": "swarm/started"
+              },
+              "action": {
+                "type": "routine",
+                "label": "api-analysis-routine",
+                "inputMap": {
+                  "targetEndpoints": "blackboard.target_endpoints",
+                  "learningGoal": "blackboard.learning_goal"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "learning/analysis_complete"
+              },
+              "action": {
+                "type": "routine",
+                "label": "pattern-discovery-routine",
+                "inputMap": {
+                  "endpointAnalysis": "blackboard.endpoint_analysis",
+                  "crudOperations": "blackboard.crud_operations"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "learning/pattern_discovered"
+              },
+              "action": {
+                "type": "routine",
+                "label": "implementation-routine",
+                "inputMap": {
+                  "discoveredPatterns": "blackboard.discovered_patterns",
+                  "targetResource": "blackboard.target_resource"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "learning/implementation_complete"
+              },
+              "action": {
+                "type": "routine",
+                "label": "validation-routine",
+                "inputMap": {
+                  "implementedEndpoints": "blackboard.implemented_endpoints",
+                  "originalPatterns": "blackboard.discovered_patterns"
+                }
+              }
+            }
+          ],
+          "outputOperations": {
+            "append": [
+              {
+                "routineOutput": "result.analyzed_endpoints",
+                "blackboardId": "endpoint_analysis"
+              },
+              {
+                "routineOutput": "result.discovered_patterns",
+                "blackboardId": "discovered_patterns"
+              },
+              {
+                "routineOutput": "result.implemented_endpoints",
+                "blackboardId": "implemented_endpoints"
+              }
+            ],
+            "set": [
+              {
+                "routineOutput": "result.learning_complete",
+                "blackboardId": "learning_complete"
+              },
+              {
+                "routineOutput": "result.pattern_confidence",
+                "blackboardId": "pattern_confidence"
+              },
+              {
+                "routineOutput": "result.implementation_quality",
+                "blackboardId": "implementation_quality"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "code-inspector",
+        "name": "Code Inspector",
+        "agentSpec": {
+          "goal": "Examine existing codebase to identify CRUD patterns in models, validators, and endpoint implementations",
+          "subscriptions": [
+            "swarm/started",
+            "learning/inspection_requested",
+            "learning/pattern_analysis_requested"
+          ],
+          "behaviors": [
+            {
+              "trigger": {
+                "topic": "swarm/started"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "learning/inspection_requested",
+                "dataMapping": {
+                  "task": "'codebase-inspection'",
+                  "focus": "'crud-patterns'"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "learning/inspection_requested"
+              },
+              "action": {
+                "type": "routine",
+                "label": "codebase-inspection-routine",
+                "inputMap": {
+                  "inspectionFocus": "event.data.focus",
+                  "endpointPaths": "blackboard.endpoint_paths"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "learning/pattern_analysis_requested"
+              },
+              "action": {
+                "type": "routine",
+                "label": "pattern-analysis-routine",
+                "inputMap": {
+                  "inspectionResults": "blackboard.inspection_results",
+                  "targetPatterns": "event.data.patterns"
+                }
+              }
+            }
+          ],
+          "outputOperations": {
+            "append": [
+              {
+                "routineOutput": "result.inspection_results",
+                "blackboardId": "inspection_results"
+              },
+              {
+                "routineOutput": "result.identified_patterns",
+                "blackboardId": "identified_patterns"
+              }
+            ],
+            "set": [
+              {
+                "routineOutput": "result.inspection_complete",
+                "blackboardId": "inspection_complete"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "implementation-validator",
+        "name": "Implementation Validator",
+        "agentSpec": {
+          "goal": "Validate that newly implemented CRUD endpoints follow discovered patterns and maintain consistency with existing codebase",
+          "subscriptions": [
+            "learning/implementation_complete",
+            "learning/validation_requested",
+            "learning/pattern_compliance_check"
+          ],
+          "behaviors": [
+            {
+              "trigger": {
+                "topic": "learning/implementation_complete"
+              },
+              "action": {
+                "type": "emit",
+                "eventType": "learning/validation_requested",
+                "dataMapping": {
+                  "implementedCode": "blackboard.implemented_endpoints",
+                  "validationCriteria": "blackboard.discovered_patterns"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "learning/validation_requested"
+              },
+              "action": {
+                "type": "routine",
+                "label": "implementation-validation-routine",
+                "inputMap": {
+                  "newImplementation": "event.data.implementedCode",
+                  "referencePatterns": "event.data.validationCriteria"
+                }
+              }
+            },
+            {
+              "trigger": {
+                "topic": "learning/pattern_compliance_check"
+              },
+              "action": {
+                "type": "routine",
+                "label": "compliance-check-routine",
+                "inputMap": {
+                  "implementation": "event.data.implementation",
+                  "patterns": "blackboard.discovered_patterns"
+                }
+              }
+            }
+          ],
+          "outputOperations": {
+            "append": [
+              {
+                "routineOutput": "result.validation_results",
+                "blackboardId": "validation_results"
+              },
+              {
+                "routineOutput": "result.compliance_issues",
+                "blackboardId": "compliance_issues"
+              }
+            ],
+            "set": [
+              {
+                "routineOutput": "result.validation_complete",
+                "blackboardId": "validation_complete"
+              },
+              {
+                "routineOutput": "result.overall_compliance",
+                "blackboardId": "overall_compliance"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "initialBlackboard": {
+    "target_endpoints": [
+      "user",
+      "team",
+      "project",
+      "routine",
+      "comment",
+      "bookmark"
+    ],
+    "target_resource": "notification",
+    "learning_goal": "discover_crud_patterns_and_implement_notification_endpoints",
+    "endpoint_paths": [
+      "packages/server/src/endpoints/logic/user.ts",
+      "packages/server/src/endpoints/logic/team.ts",
+      "packages/server/src/endpoints/logic/project.ts",
+      "packages/server/src/endpoints/logic/routine.ts",
+      "packages/server/src/endpoints/logic/comment.ts",
+      "packages/server/src/endpoints/logic/bookmark.ts"
+    ],
+    "expected_patterns": [
+      "authentication_middleware",
+      "input_validation",
+      "database_transactions",
+      "error_handling",
+      "response_formatting",
+      "permission_checks"
+    ],
+    "crud_operations": [
+      "create",
+      "read",
+      "update",
+      "delete",
+      "list",
+      "search"
+    ]
+  },
+  "mockRoutineResponses": {
+    "api-analysis-routine": {
+      "result": {
+        "analyzed_endpoints": [
+          {
+            "resource": "user",
+            "operations": ["create", "read", "update", "delete", "list", "search"],
+            "patterns": ["auth_required", "input_validation", "permission_checks"],
+            "structure": "standard_crud_with_search"
+          },
+          {
+            "resource": "team",
+            "operations": ["create", "read", "update", "delete", "list", "search"],
+            "patterns": ["auth_required", "owner_validation", "member_management"],
+            "structure": "hierarchical_crud"
+          },
+          {
+            "resource": "project",
+            "operations": ["create", "read", "update", "delete", "list", "search"],
+            "patterns": ["auth_required", "visibility_checks", "version_management"],
+            "structure": "versioned_crud"
+          },
+          {
+            "resource": "routine",
+            "operations": ["create", "read", "update", "delete", "list", "search"],
+            "patterns": ["auth_required", "complexity_validation", "execution_tracking"],
+            "structure": "complex_crud_with_execution"
+          },
+          {
+            "resource": "comment",
+            "operations": ["create", "read", "update", "delete", "list"],
+            "patterns": ["auth_required", "parent_validation", "moderation_checks"],
+            "structure": "nested_crud"
+          },
+          {
+            "resource": "bookmark",
+            "operations": ["create", "read", "delete", "list"],
+            "patterns": ["auth_required", "uniqueness_validation", "target_validation"],
+            "structure": "simple_crud_no_update"
+          }
+        ]
+      }
+    },
+    "pattern-discovery-routine": {
+      "result": {
+        "discovered_patterns": {
+          "authentication": {
+            "pattern": "All endpoints require authentication middleware",
+            "implementation": "authMiddleware in endpoint logic",
+            "confidence": 0.95
+          },
+          "input_validation": {
+            "pattern": "Zod schemas for input validation",
+            "implementation": "validate input against schema before processing",
+            "confidence": 0.92
+          },
+          "permission_checks": {
+            "pattern": "Resource-specific permission validation",
+            "implementation": "check user permissions before CRUD operations",
+            "confidence": 0.88
+          },
+          "error_handling": {
+            "pattern": "Consistent error response format",
+            "implementation": "standardized error objects with codes and messages",
+            "confidence": 0.90
+          },
+          "response_formatting": {
+            "pattern": "Standardized response structure",
+            "implementation": "consistent data wrapping and metadata",
+            "confidence": 0.85
+          },
+          "database_transactions": {
+            "pattern": "Atomic operations with rollback",
+            "implementation": "Prisma transactions for multi-step operations",
+            "confidence": 0.80
+          }
+        }
+      }
+    },
+    "implementation-routine": {
+      "result": {
+        "implemented_endpoints": {
+          "notification": {
+            "create": {
+              "method": "POST",
+              "path": "/notification",
+              "auth": "required",
+              "validation": "NotificationCreateInput schema",
+              "permissions": "user can create notifications for themselves",
+              "implementation": "follows standard CRUD pattern with notification-specific logic"
+            },
+            "read": {
+              "method": "GET",
+              "path": "/notification/:id",
+              "auth": "required",
+              "validation": "ID parameter validation",
+              "permissions": "user can read their own notifications",
+              "implementation": "follows standard read pattern with ownership checks"
+            },
+            "update": {
+              "method": "PUT",
+              "path": "/notification/:id",
+              "auth": "required",
+              "validation": "NotificationUpdateInput schema",
+              "permissions": "user can update their own notifications",
+              "implementation": "follows standard update pattern with status changes"
+            },
+            "delete": {
+              "method": "DELETE",
+              "path": "/notification/:id",
+              "auth": "required",
+              "validation": "ID parameter validation",
+              "permissions": "user can delete their own notifications",
+              "implementation": "follows standard delete pattern with cleanup"
+            },
+            "list": {
+              "method": "GET",
+              "path": "/notifications",
+              "auth": "required",
+              "validation": "pagination and filter parameters",
+              "permissions": "user can list their own notifications",
+              "implementation": "follows standard list pattern with filtering"
+            },
+            "search": {
+              "method": "GET",
+              "path": "/notifications/search",
+              "auth": "required",
+              "validation": "search query parameters",
+              "permissions": "user can search their own notifications",
+              "implementation": "follows standard search pattern with full-text search"
+            }
+          }
+        }
+      }
+    },
+    "validation-routine": {
+      "result": {
+        "validation_complete": true,
+        "implementation_quality": 0.89,
+        "pattern_adherence": {
+          "authentication": 1.0,
+          "input_validation": 0.95,
+          "permission_checks": 0.92,
+          "error_handling": 0.85,
+          "response_formatting": 0.88,
+          "database_transactions": 0.80
+        },
+        "compliance_score": 0.90
+      }
+    },
+    "codebase-inspection-routine": {
+      "result": {
+        "inspection_results": {
+          "common_patterns": [
+            "Authentication middleware usage",
+            "Zod input validation",
+            "Permission-based access control",
+            "Prisma database operations",
+            "Error handling with custom error types",
+            "Response formatting with consistent structure"
+          ],
+          "endpoint_structures": {
+            "standard_crud": "create, read, update, delete, list",
+            "search_enabled": "additional search endpoint with query parameters",
+            "versioned": "version management for complex resources",
+            "nested": "parent-child relationships with validation"
+          },
+          "code_quality_metrics": {
+            "typescript_usage": 0.98,
+            "error_handling_coverage": 0.85,
+            "test_coverage": 0.72,
+            "documentation_completeness": 0.60
+          }
+        }
+      }
+    },
+    "implementation-validation-routine": {
+      "result": {
+        "validation_results": {
+          "pattern_compliance": 0.90,
+          "code_quality": 0.89,
+          "consistency_score": 0.92,
+          "test_coverage": 0.78
+        },
+        "compliance_issues": [
+          {
+            "issue": "Missing JSDoc comments",
+            "severity": "low",
+            "recommendation": "Add comprehensive documentation"
+          },
+          {
+            "issue": "Transaction usage could be improved",
+            "severity": "medium",
+            "recommendation": "Use transactions for multi-step operations"
+          }
+        ]
+      }
+    }
+  },
+  "eventSequence": [
+    {
+      "event": "swarm/started",
+      "expectedResponses": [
+        "learning/inspection_requested",
+        "api-analysis-routine execution"
+      ]
+    },
+    {
+      "event": "learning/analysis_complete",
+      "expectedResponses": [
+        "pattern-discovery-routine execution"
+      ]
+    },
+    {
+      "event": "learning/pattern_discovered",
+      "expectedResponses": [
+        "implementation-routine execution"
+      ]
+    },
+    {
+      "event": "learning/implementation_complete",
+      "expectedResponses": [
+        "learning/validation_requested",
+        "validation-routine execution"
+      ]
+    },
+    {
+      "event": "learning/validation_complete",
+      "expectedResponses": [
+        "learning process completion"
+      ]
+    }
+  ]
+}
