@@ -1,11 +1,11 @@
 // AI_CHECK: TYPE_SAFETY=basemodel-constraints | LAST: 2025-07-06 - Fixed BaseModelLogic constraint to allow specific model types, resolving ~119 type errors
-import { ModelType, lowercaseFirstLetter } from "@vrooli/shared";
+import { ModelType, SECONDS_10_MS, lowercaseFirstLetter } from "@vrooli/shared";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
-import type { Danger, Displayer, Duplicator, Formatter, ModelLogic, ModelLogicType, Mutater, Searcher, Validator } from "../types.js";
+import type { Danger, Displayer, Duplicator, Formatter, ModelLogic, Mutater, Searcher, Validator } from "../types.js";
 
 // Base type for model logic with minimal constraints
 export type BaseModelLogic = ModelLogic<any, any, any>;
@@ -85,12 +85,12 @@ export class ModelMap {
             const importPath = fs.existsSync(`${filePathWithoutExtension}.js`)
                 ? `./${fileName}.js`
                 : `./${fileName}.ts`;
-            
+
             // Create a timeout promise to prevent hanging
             const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error(`Import timeout for ${modelName}Model`)), 5000);
+                setTimeout(() => reject(new Error(`Import timeout for ${modelName}Model`)), SECONDS_10_MS);
             });
-            
+
             try {
                 // Race between import and timeout
                 const module = await Promise.race([
@@ -121,7 +121,7 @@ export class ModelMap {
 
         // Wait for all promises to settle (not fail on first error/timeout)
         await Promise.allSettled(importPromises);
-        
+
         // Mark as initialized only after successful completion
         ModelMap.isMapInitialized = true;
     }

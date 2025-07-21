@@ -1,5 +1,5 @@
 import { type INavigator } from "../types.js";
-import { BpmnNavigator } from "./BpmnNavigator.js";
+import { BpmnNavigator } from "./bpmn/BpmnNavigator.js";
 import { SequentialNavigator } from "./SequentialNavigator.js";
 
 /**

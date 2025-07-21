@@ -1,7 +1,7 @@
 import { type WalletUpdateInput, generatePK } from "@vrooli/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockAuthenticatedSession, mockLoggedOutSession, mockApiSession, mockWriteAuthPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
-import { assertEndpointRequiresAuth } from "../../__test/endpoints.js";
+import { assertRequiresAuth } from "../../__test/authTestUtils.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
@@ -29,14 +29,14 @@ describe("EndpointsWallet", () => {
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
     });
 
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.minimal(DbProvider.get());
-    }););
+    });
 
     afterAll(async () => {
         // Restore all mocks
@@ -46,7 +46,7 @@ describe("EndpointsWallet", () => {
     describe("updateOne", () => {
         describe("authentication", () => {
             it("not logged in", async () => {
-                await assertEndpointRequiresAuth(
+                await assertRequiresAuth(
                     wallet.updateOne,
                     { id: generatePK() },
                     wallet_updateOne,

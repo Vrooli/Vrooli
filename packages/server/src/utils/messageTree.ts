@@ -418,7 +418,9 @@ export class MessageTree {
 
         // record explicit client updates
         for (const u of update) {
-            summary.Update.push({ id: u.id, parentId: (u as ChatMessageUpdateWithParent).parent?.connect?.id ?? null });
+            const parentWithConnect = (u as ChatMessageUpdateWithParent).parent;
+            const parentId = parentWithConnect && "connect" in parentWithConnect ? parentWithConnect.connect.id : null;
+            summary.Update.push({ id: u.id, parentId });
         }
 
         // eslint-disable-next-line func-style

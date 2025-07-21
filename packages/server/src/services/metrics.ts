@@ -204,9 +204,9 @@ export class MetricsService {
 
         // Queue metrics
         const queueService = QueueService.get();
-        queueService.initializeAllQueues();
         const queues: ApplicationMetrics["queues"] = {};
 
+        // Only check queues that are already initialized
         for (const [name, queue] of Object.entries(queueService.queues)) {
             try {
                 const health = await queue.checkHealth();

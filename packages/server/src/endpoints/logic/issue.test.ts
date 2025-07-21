@@ -1,5 +1,5 @@
 import { type FindByIdInput, type IssueCloseInput, type IssueCreateInput, IssueFor, type IssueSearchInput, IssueStatus } from "@vrooli/shared";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
@@ -27,31 +27,30 @@ describe("EndpointsIssue", () => {
     let team: any;
     let issues: any[];
 
-    beforeAll(() => {
+    beforeAll(async () => {
         // Use Vitest spies to suppress logger output during tests
         vi.spyOn(logger, "error").mockImplementation(() => logger);
         vi.spyOn(logger, "info").mockImplementation(() => logger);
+
+        // Seed test users
+        const seedResult = await seedTestUsers(DbProvider.get(), 2);
+        testUsers = seedResult.records;
     });
 
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","session"],
+            tables: ["user", "user_auth", "email", "session"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
     });
 
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.minimal(DbProvider.get());
-    }););
-            }
-        } catch (error) {
-            // If database is not initialized, skip cleanup
-        }
 
         // Create a team for issue ownership
         team = await DbProvider.get().team.create({
@@ -71,7 +70,7 @@ describe("EndpointsIssue", () => {
         });
 
         // Seed issues using database fixtures
-        issues = await seedIssues(DbProvider.get(), {
+        const issuesUser1 = await seedIssues(DbProvider.get(), {
             createdById: testUsers[0].id,
             count: 2,
             forObject: { id: team.id, type: "Team" },
@@ -79,13 +78,14 @@ describe("EndpointsIssue", () => {
         });
 
         // Add one more issue created by second user
-        const additionalIssue = await seedIssues(DbProvider.get(), {
+        const issuesUser2 = await seedIssues(DbProvider.get(), {
             createdById: testUsers[1].id,
             count: 1,
             forObject: { id: team.id, type: "Team" },
             withTranslations: true,
         });
-        issues.push(...additionalIssue);
+
+        issues = [...issuesUser1.records, ...issuesUser2.records];
     });
 
     afterAll(async () => {

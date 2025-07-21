@@ -1,15 +1,15 @@
-import { StatPeriodType, type StatsTeamSearchInput, generatePK, generatePublicId } from "@vrooli/shared";
 import { PeriodType } from "@prisma/client";
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { StatPeriodType, type StatsTeamSearchInput, generatePK, generatePublicId } from "@vrooli/shared";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { statsTeam_findMany } from "../generated/statsTeam_findMany.js";
 import { statsTeam } from "./statsTeam.js";
-import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
-import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsStatsTeam", () => {
     let loggerErrorStub: any;
@@ -26,15 +26,18 @@ describe("EndpointsStatsTeam", () => {
     });
 
     afterEach(async () => {
+        // Clean up test data after each test
+        await cleanupGroups.team(DbProvider.get());
+
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["team","member","member_invite","meeting","user"],
+            tables: ["team", "member", "member_invite", "meeting", "user"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
-    }););
+    });
 
     afterAll(async () => {
         loggerErrorStub.mockRestore();
@@ -769,7 +772,7 @@ describe("EndpointsStatsTeam", () => {
                         handle: "test-user-1",
                     }),
                 });
-                
+
                 const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
@@ -794,7 +797,7 @@ describe("EndpointsStatsTeam", () => {
                         handle: "test-user-1",
                     }),
                 });
-                
+
                 const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
@@ -848,7 +851,7 @@ describe("EndpointsStatsTeam", () => {
                         runContextSwitchesAverage: 0.0,
                     },
                 });
-                
+
                 const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 

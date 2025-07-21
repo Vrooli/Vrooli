@@ -1,10 +1,9 @@
 import { StatPeriodType, type StatsResourceSearchInput, generatePK } from "@vrooli/shared";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { CacheService } from "../../redisConn.js";
 import { statsResource_findMany } from "../generated/statsResource_findMany.js";
 import { statsResource } from "./statsResource.js";
 // Import database fixtures for seeding
@@ -25,18 +24,18 @@ describe("EndpointsStatsResource", () => {
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["run","run_step","run_io","resource","resource_version","user"],
+            tables: ["run", "run_step", "run_io", "resource", "resource_version", "user"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
     });
 
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.execution(DbProvider.get());
-    }););
+    });
 
     afterAll(async () => {
         // Restore all mocks
@@ -44,10 +43,10 @@ describe("EndpointsStatsResource", () => {
     });
 
     // Helper function to create test data
-    const createTestData = async () => {
+    async function createTestData() {
         // Create test users
         const testUsers = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
-        
+
         // Create test resources with different privacy settings
         const publicResources = await seedTestResources(DbProvider.get(), {
             createdById: testUsers[0].id,
@@ -56,7 +55,7 @@ describe("EndpointsStatsResource", () => {
             isInternal: false,
             withVersions: true,
         });
-        
+
         const privateResources = await Promise.all([
             // Private resource owned by user 1
             DbProvider.get().resource.create({
@@ -79,7 +78,7 @@ describe("EndpointsStatsResource", () => {
                 include: { versions: true },
             }),
         ]);
-        
+
         // Create internal resource (should be filtered out)
         const internalResource = await DbProvider.get().resource.create({
             data: ResourceDbFactory.createWithVersion({
@@ -90,10 +89,10 @@ describe("EndpointsStatsResource", () => {
             }),
             include: { versions: true },
         });
-        
+
         // Create stats for all resources
         const statsData = [];
-        
+
         // Public resource stats
         for (const resource of publicResources) {
             const stats = await seedTestStatsResource(DbProvider.get(), {
@@ -104,7 +103,7 @@ describe("EndpointsStatsResource", () => {
             });
             statsData.push(...stats);
         }
-        
+
         // Private resource stats
         for (const resource of privateResources) {
             const stats = await seedTestStatsResource(DbProvider.get(), {
@@ -115,7 +114,7 @@ describe("EndpointsStatsResource", () => {
             });
             statsData.push(...stats);
         }
-        
+
         // Internal resource stats (should be filtered out)
         const internalStats = await seedTestStatsResource(DbProvider.get(), {
             resourceId: internalResource.id,
@@ -123,16 +122,16 @@ describe("EndpointsStatsResource", () => {
             periodEnd: new Date("2023-01-31"),
             count: 1,
         });
-        
-        return { 
-            testUsers, 
-            publicResources, 
-            privateResources, 
+
+        return {
+            testUsers,
+            publicResources,
+            privateResources,
             internalResource,
             statsData,
             internalStats,
         };
-    };
+    }
 
     describe("findMany", () => {
         describe("valid", () => {
@@ -152,8 +151,8 @@ describe("EndpointsStatsResource", () => {
                 expect(result).not.toBeNull();
                 expect(result).toHaveProperty("edges");
                 expect(result.edges).toBeInstanceOf(Array);
-                
-                const resultResourceIds = result.edges!.map(edge => 
+
+                const resultResourceIds = result.edges!.map(edge =>
                     edge?.node?.resource?.id,
                 ).filter(Boolean);
 
@@ -172,15 +171,15 @@ describe("EndpointsStatsResource", () => {
                     id: testUsers[0].id,
                 });
 
-                const input: StatsResourceSearchInput = { 
-                    periodType: StatPeriodType.Monthly, 
+                const input: StatsResourceSearchInput = {
+                    periodType: StatPeriodType.Monthly,
                 };
                 const result = await statsResource.findMany({ input }, { req, res }, statsResource_findMany);
 
                 expect(result).not.toBeNull();
                 expect(result).toHaveProperty("edges");
                 expect(result.edges).toBeInstanceOf(Array);
-                
+
                 // All returned stats should be monthly
                 result.edges!.forEach(edge => {
                     expect(edge?.node?.periodType).toBe("Monthly");
@@ -206,7 +205,7 @@ describe("EndpointsStatsResource", () => {
                 expect(result).not.toBeNull();
                 expect(result).toHaveProperty("edges");
                 expect(result.edges).toBeInstanceOf(Array);
-                
+
                 // All returned stats should be within the specified time range
                 result.edges!.forEach(edge => {
                     const periodStart = new Date(edge?.node?.periodStart);
@@ -233,8 +232,8 @@ describe("EndpointsStatsResource", () => {
                 expect(result).not.toBeNull();
                 expect(result).toHaveProperty("edges");
                 expect(result.edges).toBeInstanceOf(Array);
-                
-                const resultResourceIds = result.edges!.map(edge => 
+
+                const resultResourceIds = result.edges!.map(edge =>
                     edge?.node?.resource?.id,
                 ).filter(Boolean);
 
@@ -261,8 +260,8 @@ describe("EndpointsStatsResource", () => {
                 expect(result).not.toBeNull();
                 expect(result).toHaveProperty("edges");
                 expect(result.edges).toBeInstanceOf(Array);
-                
-                const resultResourceIds = result.edges!.map(edge => 
+
+                const resultResourceIds = result.edges!.map(edge =>
                     edge?.node?.resource?.id,
                 ).filter(Boolean);
 
@@ -286,8 +285,8 @@ describe("EndpointsStatsResource", () => {
                 expect(result).not.toBeNull();
                 expect(result).toHaveProperty("edges");
                 expect(result.edges).toBeInstanceOf(Array);
-                
-                const resultResourceIds = result.edges!.map(edge => 
+
+                const resultResourceIds = result.edges!.map(edge =>
                     edge?.node?.resource?.id,
                 ).filter(Boolean);
 
@@ -332,8 +331,8 @@ describe("EndpointsStatsResource", () => {
                 };
 
                 await expect(async () => {
-                    await statsResource.findMany({ 
-                        input: input as StatsResourceSearchInput, 
+                    await statsResource.findMany({
+                        input: input as StatsResourceSearchInput,
                     }, { req, res }, statsResource_findMany);
                 }).rejects.toThrow();
             });

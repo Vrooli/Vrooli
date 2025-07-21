@@ -54,7 +54,7 @@ export class DbProvider {
     /**
      * Asynchronously initializes the chosen database service.
      */
-    public static async init() {
+    public static async init(options?: { skipSeeding?: boolean }) {
         // If already initializing, wait for the existing promise
         if (DbProvider.initPromise) {
             return DbProvider.initPromise;
@@ -94,10 +94,14 @@ export class DbProvider {
                 try {
                     await DbProvider.dbService.connect();
                     DbProvider.connected = true;
-                    logger.info("Database connected successfully");
 
-                    // Try to seed the database
-                    await DbProvider.attemptSeeding();
+                    // Try to seed the database (unless explicitly skipped)
+                    if (!options?.skipSeeding) {
+                        await DbProvider.attemptSeeding();
+                    } else {
+                        // Seeding skipped by configuration
+                        DbProvider.seedingSuccessful = true;
+                    }
                 } catch (connectionError) {
                     logger.error("Database connection failed", { trace: "0014", error: connectionError });
                 }
@@ -129,7 +133,7 @@ export class DbProvider {
         // Increment attempt counter
         DbProvider.seedAttemptCount++;
 
-        logger.info(`Attempting database seeding (attempt ${DbProvider.seedAttemptCount})`);
+        // Attempt seeding
 
         try {
             DbProvider.seedingSuccessful = await DbProvider.dbService.seed();
@@ -141,7 +145,7 @@ export class DbProvider {
                     DbProvider.seedRetryTimeout = null;
                 }
                 DbProvider.seedRetryCount = 0;
-                logger.info(`Database seeding completed successfully after ${DbProvider.seedAttemptCount} attempt(s)`);
+                // Seeding completed successfully
             } else {
                 logger.warning(`Seeding attempt ${DbProvider.seedAttemptCount} returned false`);
                 DbProvider.scheduleRetry("Seeding returned false");

@@ -21,6 +21,7 @@ import {
     type StepExecutionInput,
     type SubroutineIOMapping,
     type TierExecutionRequest,
+    type ModelConfig,
 } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
 import { runUserCode } from "../../../tasks/sandbox/process.js";
@@ -49,7 +50,7 @@ export interface StepDefinition {
     strategy?: "conversational" | "reasoning" | "deterministic";
     inputs: Record<string, any>;
     config?: {
-        model?: string;
+        modelConfig?: ModelConfig;
         temperature?: number;
         tools?: string[];
         maxTokens?: number;
@@ -114,6 +115,7 @@ export class StepExecutor {
                 config: request.options,
                 // Pass through additional configuration from input
                 routineConfig: request.input.routineConfig,
+                ioMapping: (request.input as StepExecutionInput).ioMapping,
                 userLanguages: request.context.userData?.languages,
             };
 
@@ -232,7 +234,7 @@ export class StepExecutor {
             logger.info("[StepExecutor] Executing LLM call", {
                 stepId: step.id,
                 strategy: step.strategy || "reasoning",
-                model: step.config?.model || "gpt-4",
+                model: step.config?.modelConfig?.preferredModel || "gpt-4",
                 messageCount: messages.length,
             });
 
@@ -262,12 +264,12 @@ export class StepExecutor {
                     message: mockResponse,
                     finishReason: "stop",
                     strategy,
-                    model: step.config?.model || "gpt-4",
+                    model: step.config?.modelConfig?.preferredModel || "gpt-4",
                 },
                 metadata: {
                     tokensUsed: MOCK_TOKEN_COUNT,
                     executionTime: MOCK_EXECUTION_TIME,
-                    model: step.config?.model || "gpt-4",
+                    model: step.config?.modelConfig?.preferredModel || "gpt-4",
                 },
             };
         } catch (error) {
@@ -282,7 +284,7 @@ export class StepExecutor {
                 error: error instanceof Error ? error.message : "Unknown LLM execution error",
                 metadata: {
                     executionTime: 0,
-                    model: step.config?.model || "gpt-4",
+                    model: step.config?.modelConfig?.preferredModel || "gpt-4",
                 },
             };
         }

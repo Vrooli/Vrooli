@@ -67,11 +67,7 @@ describe("EndpointsSchedule", () => {
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.userAuth(DbProvider.get());
-    }););
-            }
-        } catch (error) {
-            // If database is not initialized, skip cleanup
-        }
+    });
         
         // Create teams and meetings for schedule testing
         teamUser1 = await DbProvider.get().team.create({

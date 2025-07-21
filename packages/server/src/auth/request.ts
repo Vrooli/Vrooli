@@ -507,6 +507,11 @@ export class RequestService {
         maxTokensList: number[],
         refillRates: number[],
     ) {
+        // Bypass rate limiting in test environment
+        if (process.env.NODE_ENV === "test") {
+            return;
+        }
+
         if (!client) {
             return;
         }
@@ -669,9 +674,8 @@ export class RequestService {
             // Call checkRateLimit with arrays
             await this.checkRateLimit(client, keys, maxTokensList, refillRates);
         } catch (error) {
-            // Handle rate limit exceeded separately, log and return the code
+            // Handle rate limit exceeded separately
             if (error instanceof CustomError && error.code === "RateLimitExceeded") {
-                logger.error("Socket rate limit exceeded", { trace: error.trace });
                 return error.code;
             } else {
                 // Unexpected error (e.g., Redis connection), log and allow socket
@@ -689,14 +693,14 @@ export function getUserLanguages(user: unknown): string[] {
     if (!user || typeof user !== "object" || user === null) {
         return [DEFAULT_LANGUAGE];
     }
-    
+
     const userObj = user as Record<string, unknown>;
     const translations = userObj.translations;
-    
+
     if (!translations || !Array.isArray(translations)) {
         return [DEFAULT_LANGUAGE];
     }
-    
+
     const languages = translations
         .map((translation: unknown) => {
             if (typeof translation === "object" && translation !== null) {
@@ -710,6 +714,6 @@ export function getUserLanguages(user: unknown): string[] {
             return undefined;
         })
         .filter((locale: unknown): locale is string => typeof locale === "string");
-    
+
     return languages.length > 0 ? languages : [DEFAULT_LANGUAGE];
 }

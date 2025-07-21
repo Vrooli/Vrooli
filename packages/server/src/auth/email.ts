@@ -1,17 +1,21 @@
+import type { Prisma, PrismaPromise, credit_account, email, phone, plan, session, user, user_auth } from "@prisma/client";
+import pkg from "@prisma/client";
 import { AUTH_PROVIDERS, DAYS_2_MS, LINKS, MINUTES_15_MS, type Session, type TranslationKeyError, generatePK } from "@vrooli/shared";
-import { AccountStatus, type Prisma, type PrismaPromise, type credit_account, type email, type phone, type plan, type session, type user, type user_auth } from "@prisma/client";
-import { getBcryptService } from "./bcryptWrapper.js";
 import { type Request } from "express";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
+import { logger } from "../events/logger.js";
 import { Notify } from "../notify/notify.js";
 import { UI_URL } from "../server.js";
 import { AUTH_EMAIL_TEMPLATES } from "../tasks/index.js";
 import { QueueService } from "../tasks/queues.js";
+import { getBcryptService } from "./bcryptWrapper.js";
 import { randomString, validateCode } from "./codes.js";
 import { REFRESH_TOKEN_EXPIRATION_MS } from "./jwt.js";
 import { RequestService } from "./request.js";
 import { SessionService } from "./session.js";
+
+const { AccountStatus } = pkg;
 
 export const EMAIL_VERIFICATION_TIMEOUT = DAYS_2_MS;
 const HASHING_ROUNDS = 8;
@@ -114,7 +118,7 @@ export class PasswordAuthService {
         return getBcryptService().hashSync(password, HASHING_ROUNDS);
     }
 
-    static statusToError(status: AccountStatus): TranslationKeyError | null {
+    static statusToError(status: typeof AccountStatus[keyof typeof AccountStatus]): TranslationKeyError | null {
         if (status === "HardLocked") return "HardLockout";
         if (status === "SoftLocked") return "SoftLockout";
         if (status === "Deleted") return "AccountDeleted";
@@ -285,7 +289,7 @@ export class PasswordAuthService {
         }
         // Otherwise, increment log in fail counter and update account status
         else {
-            let new_status: AccountStatus = AccountStatus.Unlocked;
+            let new_status: typeof AccountStatus[keyof typeof AccountStatus] = AccountStatus.Unlocked;
             const log_in_attempts = user.logInAttempts + 1;
             if (log_in_attempts > LOGIN_ATTEMPTS_TO_HARD_LOCKOUT) {
                 new_status = AccountStatus.HardLocked;
@@ -446,7 +450,9 @@ export class PasswordAuthService {
             await Notify(languages).pushNewEmailVerification().toUser(userId);
         } catch (notificationError) {
             // Log but don't fail the entire operation if notifications fail
-            console.warn("Failed to send email verification notification:", notificationError instanceof Error ? notificationError.message : String(notificationError));
+            logger.warn("Failed to send email verification notification", {
+                error: notificationError instanceof Error ? notificationError.message : String(notificationError),
+            });
         }
         return success?.success ?? false;
     }

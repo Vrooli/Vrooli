@@ -39,10 +39,10 @@ function isValidPassword(value: unknown): value is string {
     return typeof value === "string" && value.length > 0;
 }
 
-function getSessionUserId(session: { users?: Array<{ id?: unknown }> }): string {
+function getSessionUserId(session: { users?: Array<{ id?: unknown }> | null }): string {
     const userId = session.users?.[0]?.id;
     if (!isValidStringId(userId)) {
-        throw new CustomError("0323", "InvalidSessionUser");
+        throw new CustomError("0323", "Unauthorized");
     }
     return userId;
 }
@@ -411,7 +411,8 @@ export const auth: EndpointsAuth = {
         }
 
         // A session can store multiple users. Check if we're logging out all users or just one
-        const remainingUsers = req.session.users?.filter(u => u.id !== userId) ?? [];
+        const sessionUsers = req.session.users ?? [];
+        const remainingUsers = sessionUsers.filter(u => u.id !== userId);
         const isStayingLoggedIn = remainingUsers.length > 0;
 
         // If we're logging out all users, clear the session and return a guest session
@@ -420,7 +421,7 @@ export const auth: EndpointsAuth = {
         }
 
         // Revoke the sessions for every user that is being logged out
-        const usersNotRemaining = req.session.users?.filter(u => u.id === userId) ?? [];
+        const usersNotRemaining = sessionUsers.filter(u => u.id === userId);
         const sessionIdsToRevoke = usersNotRemaining.map(u => u.session?.id).filter(Boolean);
         await DbProvider.get().session.updateMany({
             where: {
@@ -513,11 +514,12 @@ export const auth: EndpointsAuth = {
         switchCurrentAccountSchema.validateSync(input, { abortEarly: false });
 
         // Find user we're switching to in the session
-        const targetUser = req.session.users?.find(u => u.id === input.id);
+        const sessionUsers = req.session.users ?? [];
+        const targetUser = sessionUsers.find(u => u.id === input.id);
         if (!targetUser) {
             throw new CustomError("0272", "NoUser");
         }
-        const otherUsers = req.session.users?.filter(u => u.id !== input.id) ?? [];
+        const otherUsers = sessionUsers.filter(u => u.id !== input.id);
 
         // Create new session with the user we're switching to as the first user
         const session = {
@@ -718,7 +720,7 @@ export const auth: EndpointsAuth = {
                 ...wallet,
                 id: wallet.id.toString(),
                 __typename: "Wallet" as const,
-                verifiedAt: typeof wallet.verifiedAt === 'string' ? wallet.verifiedAt : wallet.verifiedAt?.toISOString() ?? new Date().toISOString(),
+                verifiedAt: typeof wallet.verifiedAt === "string" ? wallet.verifiedAt : wallet.verifiedAt?.toISOString() ?? new Date().toISOString(),
                 user: undefined,
                 team: undefined,
             } : undefined,

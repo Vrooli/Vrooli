@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, expect } from "vitest";
+import { describe, it, expect } from "vitest";
 import { parseJsonOrDefault, sortObjectKeys, sortify } from "./objectTools.js";
 
 describe("sortObjectKeys", () => {

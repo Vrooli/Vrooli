@@ -4,6 +4,7 @@ import { assertRequiresAuth, AUTH_SCENARIOS, assertApiKeyRequired } from "../../
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
+import { CacheService } from "../../redisConn.js";
 import { logger } from "../../events/logger.js";
 import { user_findMany } from "../generated/user_findMany.js";
 import { user_findOne } from "../generated/user_findOne.js";
@@ -30,17 +31,6 @@ async function createTestAdminUser() {
             theme: "light",
         }),
     });
-
-    afterEach(async () => {
-        // Validate cleanup to detect any missed records
-        const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","session"],
-            logOrphans: true,
-        });
-        if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
-        }
-    });
 }
 
 describe("EndpointsUser", () => {
@@ -54,7 +44,20 @@ describe("EndpointsUser", () => {
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.minimal(DbProvider.get());
-    }););
+        // Clear Redis cache to reset rate limiting
+        await CacheService.get().flushAll();
+    });
+
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["user","user_auth","email","session"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn("Test cleanup incomplete:", orphans);
+        }
+    });
 
     afterAll(async () => {
         // Restore all mocks

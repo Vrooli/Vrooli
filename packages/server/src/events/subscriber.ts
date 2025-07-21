@@ -1,5 +1,5 @@
 import { type Prisma } from "@prisma/client";
-import { type SessionUser, type SubscribableObject } from "@vrooli/shared";
+import { generatePK, type SessionUser, type SubscribableObject } from "@vrooli/shared";
 import { permissionsSelectHelper } from "../builders/permissionsSelectHelper.js";
 import { type PrismaDelegate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
@@ -54,6 +54,7 @@ export function Subscriber() {
             // Create subscription
             await DbProvider.get().notification_subscription.create({
                 data: {
+                    id: generatePK(),
                     subscriber: { connect: { id: BigInt(userData.id) } },
                     [subscribableMapper[object.__typename]]: { connect: { id: object.id } },
                     silent,

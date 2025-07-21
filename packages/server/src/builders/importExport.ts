@@ -485,14 +485,14 @@ export async function importData(data: ImportData, config: ImportConfig): Promis
                 } else {
                     // Check that the user has permission to overwrite (i.e. delete) the object
                     try {
-                        // Permissions use ID instead of publicId
-                        const id = obj["id"];
-                        if (!id) {
+                        // Permissions use ID instead of publicId, and we need the ID from the existing database object
+                        const existingId = existing["id"];
+                        if (!existingId) {
                             canImport = false;
                         } else {
                             await permissionsCheck(
-                                { [id]: { __typename: objectType as `${ModelType}`, ...existing } },
-                                { ["Delete"]: [id] },
+                                { [existingId]: { __typename: objectType as `${ModelType}`, id: existingId, ...existing } },
+                                { ["Delete"]: [existingId] },
                                 {},
                                 config.userData,
                             );

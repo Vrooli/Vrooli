@@ -176,6 +176,8 @@ export * from "./user_findOne.js";
 export * from "./user_profile.js";
 export * from "./user_profileEmailUpdate.js";
 export * from "./user_profileUpdate.js";
+export * from "./user_importCalendar.js";
+export * from "./user_exportCalendar.js";
 export * from "./view_findMany.js";
 export * from "./wallet_updateOne.js";
 

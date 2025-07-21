@@ -1,14 +1,33 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { HttpStatus, type SessionUser, nanoid } from "@vrooli/shared";
-import http from "http"; // Import http for internal service call
+import * as http from "http"; // Import http for internal service call
 import { type UploadConfig } from "../endpoints/rest.js";
 import { CustomError } from "../events/error.js";
 import { logger } from "../events/logger.js";
 import { type RequestFile } from "../types.js";
-// Import FormData for multipart request
-import FormData from "form-data";
+
+// Import FormData for multipart request (using dynamic import for better ESM compatibility)
+interface FormDataConstructor {
+    new(): {
+        append(name: string, value: Buffer | string, options?: string): void;
+        getHeaders(): Record<string, string>;
+        pipe(destination: NodeJS.WritableStream): void;
+    };
+}
+
+let FormData: FormDataConstructor | null = null;
+async function getFormData(): Promise<FormDataConstructor> {
+    if (!FormData) {
+        const formDataModule = await import("form-data");
+        FormData = (formDataModule as { default: FormDataConstructor }).default;
+    }
+    if (!FormData) {
+        throw new Error("Failed to load form-data module");
+    }
+    return FormData;
+}
 // Import Sharp wrapper for graceful degradation
-import { safeResizeImage, isSharpAvailable, getImageProcessingStatus } from "./sharpWrapper.js";
+import { getImageProcessingStatus, isSharpAvailable, safeResizeImage } from "./sharpWrapper.js";
 
 // Global S3 client variable
 let s3: S3Client | undefined;
@@ -37,10 +56,12 @@ export async function checkNSFW(buffer: Buffer, originalFileName: string): Promi
     const NSFW_DETECTOR_TIMEOUT_MS = 10_000; // 10 seconds
     const SECONDS_PER_MS = 1_000;
 
+    const FormDataClass = await getFormData();
+
     return new Promise((resolve, reject) => {
         let requestHandled = false; // Flag to prevent multiple resolves/rejects
 
-        const formData = new FormData();
+        const formData = new FormDataClass();
         formData.append("file", buffer, originalFileName);
 
         const options: http.RequestOptions = {
@@ -100,7 +121,7 @@ export async function checkNSFW(buffer: Buffer, originalFileName: string): Promi
 
 // heic-convert has to defer initialization because (presumably) the wasm file messes up the compiler error logs
 type HeicConvertFunction = (options: {
-    buffer: Buffer;
+    buffer: ArrayBufferLike;
     format: "JPEG" | "PNG";
     quality: number;
 }) => Promise<ArrayBuffer>;
@@ -108,7 +129,11 @@ type HeicConvertFunction = (options: {
 let heicConvert: HeicConvertFunction | undefined;
 async function getHeicConvert(): Promise<HeicConvertFunction> {
     if (!heicConvert) {
-        heicConvert = (await import("heic-convert")).default;
+        const heicModule = await import("heic-convert");
+        heicConvert = (heicModule as { default: HeicConvertFunction }).default;
+    }
+    if (!heicConvert) {
+        throw new Error("Failed to load heic-convert module");
     }
     return heicConvert;
 }
@@ -161,7 +186,7 @@ interface SafeContentAIResponse {
 async function resizeImage(buffer: Buffer, width: number, height: number, format: "jpeg" | "png" | "webp" = "jpeg"): Promise<Buffer> {
     // Use the safe wrapper that handles Sharp failures gracefully
     const result = await safeResizeImage(buffer, width, height, format);
-    
+
     if (!result.resized) {
         logger.warn("[FileStorage] Image resize skipped - Sharp not available", {
             error: result.error,
@@ -170,15 +195,17 @@ async function resizeImage(buffer: Buffer, width: number, height: number, format
             format,
         });
     }
-    
+
     return result.buffer;
 }
 
 async function convertHeicToJpeg(buffer: Buffer): Promise<Buffer | null> {
     try {
         const convert = await getHeicConvert();
+        // Convert Buffer to ArrayBufferLike
+        const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
         const outputBuffer = await convert({
-            buffer,  // the HEIC file buffer
+            buffer: arrayBuffer,  // the HEIC file buffer as ArrayBufferLike
             format: "JPEG", // output format
             quality: 1, // the jpeg compression quality, between 0 and 1
         });
@@ -256,7 +283,7 @@ async function uploadFile(
 export async function checkImageProcessingCapabilities(): Promise<void> {
     const isAvailable = await isSharpAvailable();
     const status = getImageProcessingStatus();
-    
+
     if (!isAvailable) {
         logger.warn("[FileStorage] Image processing capabilities limited", {
             status,
@@ -335,9 +362,9 @@ export async function processAndStoreFiles<TInput>(
                 // HEIC conversion failed - check if Sharp is available for fallback
                 const sharpStatus = getImageProcessingStatus();
                 if (!sharpStatus.available) {
-                    throw new CustomError("0527", "ActionFailed", { 
-                        reason: "Image processing unavailable - HEIC/HEIF files cannot be converted", 
-                        file: file.originalname, 
+                    throw new CustomError("0527", "ActionFailed", {
+                        reason: "Image processing unavailable - HEIC/HEIF files cannot be converted",
+                        file: file.originalname,
                     });
                 }
                 // If we get here, HEIC conversion failed for another reason
@@ -352,7 +379,7 @@ export async function processAndStoreFiles<TInput>(
             if (isNsfw) {
                 throw new CustomError("0526", "ActionFailed", { reason: "NSFW content detected", file: file.originalname });
             }
-            
+
             // Check if image processing is available
             const sharpStatus = getImageProcessingStatus();
             if (!sharpStatus.available) {
@@ -361,7 +388,7 @@ export async function processAndStoreFiles<TInput>(
                     file: file.originalname,
                     requestedSizes: fileConfig.imageSizes.length,
                 });
-                
+
                 // Upload original image with a size suffix for consistency
                 const originalKey = `${filenameBase}_original.${extension}`;
                 try {

@@ -1,5 +1,5 @@
 import { type FindByIdInput, type TagCreateInput, type TagSearchInput, type TagUpdateInput } from "@vrooli/shared";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions, seedMockAdminUser } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
@@ -24,36 +24,21 @@ describe("EndpointsTag", () => {
     let adminUser: any;
     let tags: any[];
 
-    beforeAll(() => {
+    beforeAll(async () => {
         // Use Vitest spies to suppress logger output during tests
         vi.spyOn(logger, "error").mockImplementation(() => logger);
         vi.spyOn(logger, "info").mockImplementation(() => logger);
-    });
 
-    afterEach(async () => {
-        // Validate cleanup to detect any missed records
-        const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","session"],
-            logOrphans: true,
-        });
-        if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
-        }
-    });
+        // Seed test users
+        testUsers = await seedTestUsers(DbProvider.get(), [
+            { username: "testuser1", email: "test1@example.com" },
+            { username: "testuser2", email: "test2@example.com" },
+        ]);
 
-    beforeEach(async () => {
-        // Clean up using dependency-ordered cleanup helpers
-        await cleanupGroups.minimal(DbProvider.get());
-    }););
-            }
-        } catch (error) {
-            // If database is not initialized, skip cleanup
-        }
-        
         adminUser = await seedMockAdminUser();
 
         // Seed tags using database fixtures
-        tags = await seedTags(DbProvider.get(), [
+        const tagSeedResult = await seedTags(DbProvider.get(), [
             "programming",
             "javascript",
             "testing",
@@ -62,6 +47,7 @@ describe("EndpointsTag", () => {
             withTranslations: true,
             popular: true,
         });
+        tags = tagSeedResult.seeds;
 
         // Assign ownership to some tags
         await DbProvider.get().tag.update({
@@ -72,6 +58,22 @@ describe("EndpointsTag", () => {
             where: { id: tags[1].id },
             data: { createdBy: { connect: { id: testUsers[1].id } } },
         });
+    });
+
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["user", "user_auth", "email", "session"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn("Test cleanup incomplete:", orphans);
+        }
+    });
+
+    beforeEach(async () => {
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.minimal(DbProvider.get());
     });
 
     afterAll(async () => {
@@ -147,8 +149,8 @@ describe("EndpointsTag", () => {
                 const result = await tag.findMany({ input }, { req, res }, tag_findMany);
                 expect(result).not.toBeNull();
                 expect(result.edges).toBeInstanceOf(Array);
-                expect(result.edges.length).toBeGreaterThan(0);
-                expect(result.edges.some((edge: any) => edge.node.tag === "javascript")).toBe(true);
+                expect(result.edges?.length).toBeGreaterThan(0);
+                expect(result.edges?.some((edge: any) => edge.node.tag === "javascript")).toBe(true);
             });
 
             it("returns tags without filters for not authenticated user", async () => {
@@ -186,6 +188,7 @@ describe("EndpointsTag", () => {
                 const input: TagCreateInput = tagTestDataFactory.createMinimal({
                     tag: "newtag",
                     translationsCreate: [{
+                        id: "test-translation-id",
                         language: "en",
                         description: "A new tag for testing",
                     }],
@@ -195,7 +198,7 @@ describe("EndpointsTag", () => {
                 expect(result).not.toBeNull();
                 expect(result.tag).toBe("newtag");
                 expect(result.translations).toHaveLength(1);
-                expect(result.translations[0].description).toBe("A new tag for testing");
+                expect(result.translations?.[0]?.description).toBe("A new tag for testing");
             });
 
             it("API key with write permissions can create tag", async () => {
@@ -260,13 +263,14 @@ describe("EndpointsTag", () => {
                     id: tags[0].id,
                     translationsUpdate: [{
                         id: tags[0].translations[0].id,
+                        language: tags[0].translations[0].language,
                         description: "Updated description for programming",
                     }],
                 };
 
                 const result = await tag.updateOne({ input }, { req, res }, tag_updateOne);
                 expect(result).not.toBeNull();
-                expect(result.translations[0].description).toBe("Updated description for programming");
+                expect(result.translations?.[0]?.description).toBe("Updated description for programming");
             });
 
             it("admin can update any tag", async () => {
@@ -278,6 +282,7 @@ describe("EndpointsTag", () => {
                 const input: TagUpdateInput = {
                     id: tags[2].id,
                     translationsCreate: [{
+                        id: "test-french-translation",
                         language: "fr",
                         description: "Tests en français",
                     }],
@@ -285,7 +290,7 @@ describe("EndpointsTag", () => {
 
                 const result = await tag.updateOne({ input }, { req, res }, tag_updateOne);
                 expect(result).not.toBeNull();
-                expect(result.translations.length).toBeGreaterThan(1);
+                expect(result.translations?.length).toBeGreaterThan(1);
             });
         });
 
@@ -300,6 +305,7 @@ describe("EndpointsTag", () => {
                     id: tags[0].id, // Owned by testUsers[0]
                     translationsUpdate: [{
                         id: tags[0].translations[0].id,
+                        language: tags[0].translations[0].language,
                         description: "Should not update",
                     }],
                 };
@@ -316,6 +322,7 @@ describe("EndpointsTag", () => {
                     id: tags[0].id,
                     translationsUpdate: [{
                         id: tags[0].translations[0].id,
+                        language: tags[0].translations[0].language,
                         description: "Should not update",
                     }],
                 };

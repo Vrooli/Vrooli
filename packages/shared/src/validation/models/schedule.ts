@@ -12,8 +12,8 @@ import { scheduleRecurrenceValidation } from "./scheduleRecurrence.js";
 export const scheduleValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
-        startTime: opt(startTime),
-        endTime: opt(endTime),
+        startTime: req(startTime),
+        endTime: req(endTime),
         timezone: req(timezone),
     }, [
         ["exceptions", ["Create"], "many", "opt", scheduleExceptionValidation, ["schedule"]],

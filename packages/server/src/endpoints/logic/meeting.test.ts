@@ -1,5 +1,5 @@
-import { type FindByIdInput, type MeetingCreateInput, type MeetingSearchInput, type MeetingUpdateInput, generatePK } from "@vrooli/shared";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { type FindByPublicIdInput, type MeetingCreateInput, type MeetingSearchInput, type MeetingUpdateInput, generatePK } from "@vrooli/shared";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions, seedMockAdminUser } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
@@ -14,10 +14,31 @@ import { meeting } from "./meeting.js";
 // Import database fixtures for seeding
 import { seedMeetings } from "../../__test/fixtures/db/meetingFixtures.js";
 import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
-// Import validation fixtures for API input testing
-import { meetingTestDataFactory } from "@vrooli/shared";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
+
+// TODO: Import from @vrooli/shared when factory is properly exported
+const meetingTestDataFactory = {
+    createMinimal: (overrides?: any) => ({
+        id: generatePK(),
+        teamConnect: generatePK(),
+        openToAnyoneWithInvite: false,
+        showOnTeamProfile: true,
+        ...overrides,
+    }),
+    createComplete: (overrides?: any) => ({
+        id: generatePK(),
+        teamConnect: generatePK(),
+        openToAnyoneWithInvite: true,
+        showOnTeamProfile: true,
+        translationsCreate: [{
+            language: "en",
+            name: "Complete Meeting",
+            description: "A complete meeting with all fields",
+        }],
+        ...overrides,
+    }),
+};
 
 describe("EndpointsMeeting", () => {
     let testUsers: any[];
@@ -25,33 +46,31 @@ describe("EndpointsMeeting", () => {
     let teams: any[];
     let meetings: any[];
 
-    beforeAll(() => {
+    beforeAll(async () => {
         // Use Vitest spies to suppress logger output during tests
         vi.spyOn(logger, "error").mockImplementation(() => logger);
         vi.spyOn(logger, "info").mockImplementation(() => logger);
+
+        // Seed test users and admin user
+        const seedResult = await seedTestUsers(DbProvider.get(), 2);
+        testUsers = seedResult.records;
+        adminUser = await seedMockAdminUser();
     });
 
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","session"],
+            tables: ["user", "user_auth", "email", "session"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
     });
 
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.minimal(DbProvider.get());
-    }););
-            }
-        } catch (error) {
-            // If database is not initialized, skip cleanup
-        }
-        
-        adminUser = await seedMockAdminUser();
 
         // Create two teams for meeting ownership
         teams = await Promise.all([
@@ -60,7 +79,7 @@ describe("EndpointsMeeting", () => {
                     id: generatePK(),
                     publicId: UserDbFactory.createMinimal().publicId,
                     permissions: "{}",
-                    owner: { connect: { id: testUsers[0].id } },
+                    createdBy: { connect: { id: testUsers[0].id } },
                     translations: {
                         create: {
                             id: generatePK(),
@@ -75,7 +94,7 @@ describe("EndpointsMeeting", () => {
                     id: generatePK(),
                     publicId: UserDbFactory.createMinimal().publicId,
                     permissions: "{}",
-                    owner: { connect: { id: testUsers[1].id } },
+                    createdBy: { connect: { id: testUsers[1].id } },
                     translations: {
                         create: {
                             id: generatePK(),
@@ -88,18 +107,22 @@ describe("EndpointsMeeting", () => {
         ]);
 
         // Seed meetings using database fixtures
+        const meetings1Result = await seedMeetings(DbProvider.get(), {
+            teamId: teams[0].id,
+            createdById: testUsers[0].id,
+            count: 1,
+            withInvites: [{ userId: testUsers[1].id }],
+        });
+
+        const meetings2Result = await seedMeetings(DbProvider.get(), {
+            teamId: teams[1].id,
+            createdById: testUsers[1].id,
+            count: 1,
+        });
+
         meetings = [
-            ...(await seedMeetings(DbProvider.get(), {
-                teamId: teams[0].id,
-                createdById: testUsers[0].id,
-                count: 1,
-                withInvites: [{ userId: testUsers[1].id }],
-            })),
-            ...(await seedMeetings(DbProvider.get(), {
-                teamId: teams[1].id,
-                createdById: testUsers[1].id,
-                count: 1,
-            })),
+            ...meetings1Result.records,
+            ...meetings2Result.records,
         ];
     });
 
@@ -113,33 +136,33 @@ describe("EndpointsMeeting", () => {
 
     describe("findOne", () => {
         describe("valid", () => {
-            it("returns meeting by id for any authenticated user", async () => {
+            it("returns meeting by publicId for any authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
                     id: testUsers[0].id,
                 });
-                const input: FindByIdInput = { id: meetings[0].id };
+                const input: FindByPublicIdInput = { publicId: meetings[0].publicId };
                 const result = await meeting.findOne({ input }, { req, res }, meeting_findOne);
                 expect(result).not.toBeNull();
                 expect(result.id).toEqual(meetings[0].id);
             });
 
-            it("returns meeting by id when not authenticated", async () => {
+            it("returns meeting by publicId when not authenticated", async () => {
                 const { req, res } = await mockLoggedOutSession();
-                const input: FindByIdInput = { id: meetings[1].id };
+                const input: FindByPublicIdInput = { publicId: meetings[1].publicId };
                 const result = await meeting.findOne({ input }, { req, res }, meeting_findOne);
                 expect(result).not.toBeNull();
                 expect(result.id).toEqual(meetings[1].id);
             });
 
-            it("returns meeting by id with API key public read", async () => {
+            it("returns meeting by publicId with API key public read", async () => {
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, {
                     ...loggedInUserNoPremiumData(),
                     id: testUsers[0].id,
                 });
-                const input: FindByIdInput = { id: meetings[0].id };
+                const input: FindByPublicIdInput = { publicId: meetings[0].publicId };
                 const result = await meeting.findOne({ input }, { req, res }, meeting_findOne);
                 expect(result).not.toBeNull();
                 expect(result.id).toEqual(meetings[0].id);
@@ -276,13 +299,14 @@ describe("EndpointsMeeting", () => {
                     id: meetings[1].id,
                     translationsUpdate: [{
                         id: meetings[1].translations[0].id,
+                        language: "en",
                         name: "Admin Updated Meeting",
                     }],
                 };
 
                 const result = await meeting.updateOne({ input }, { req, res }, meeting_updateOne);
                 expect(result).not.toBeNull();
-                expect(result.translations[0].name).toBe("Admin Updated Meeting");
+                expect(result.translations?.[0]?.name).toBe("Admin Updated Meeting");
             });
         });
 

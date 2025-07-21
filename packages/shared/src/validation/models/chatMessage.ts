@@ -6,7 +6,7 @@ import * as yup from "yup";
 import { opt, req } from "../utils/builders/optionality.js";
 import { transRel } from "../utils/builders/rel.js";
 import { yupObj } from "../utils/builders/yupObj.js";
-import { id as commonIdSchema, id, intPositiveOrZero } from "../utils/commonFields.js";
+import { id as commonIdSchema, id, intPositiveOrZero, language } from "../utils/commonFields.js";
 import { maxStrErr, minStrErr } from "../utils/errors.js";
 import { type YupModel } from "../utils/types.js";
 import { chatValidation } from "./chat.js";
@@ -69,7 +69,17 @@ export const messageConfigObjectValidationSchema = yup.object({
 });
 
 const MAX_CHAT_MESSAGE_TEXT_LENGTH = 32768;
-const text = yup.string().trim().removeEmptyString().min(1, minStrErr).max(MAX_CHAT_MESSAGE_TEXT_LENGTH, maxStrErr);
+const text = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .min(1, minStrErr)
+    .max(MAX_CHAT_MESSAGE_TEXT_LENGTH, maxStrErr);
 
 export const chatMessageTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
@@ -85,6 +95,8 @@ export const chatMessageValidation: YupModel<["create", "update"]> = {
         id: req(id),
         versionIndex: opt(intPositiveOrZero),
         config: req(messageConfigObjectValidationSchema),
+        language: req(language),
+        text: req(text),
     }, [
         ["chat", ["Connect"], "one", "req", chatValidation, ["messages"]],
         ["user", ["Connect"], "one", "opt"],

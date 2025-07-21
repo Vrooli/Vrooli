@@ -1,16 +1,16 @@
-import { StatPeriodType, type StatsUserSearchInput, type StatsUserSearchResult, generatePK } from "@vrooli/shared";
 import { PeriodType } from "@prisma/client";
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
+import { StatPeriodType, type StatsUserSearchInput, type StatsUserSearchResult, generatePK } from "@vrooli/shared";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { type RecursivePartial } from "../../types.js";
 import { statsUser_findMany } from "../generated/statsUser_findMany.js";
 import { statsUser } from "./statsUser.js";
-import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
-import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 // Helper to extract stats info from results
 async function extractStattedObjectInfoFromStats(result: RecursivePartial<StatsUserSearchResult>) {
@@ -40,13 +40,13 @@ describe("EndpointsStatsUser", () => {
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","session"],
+            tables: ["user", "user_auth", "email", "session"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
-    }););
+    });
 
     afterAll(async () => {
         loggerErrorStub.mockRestore();
@@ -61,7 +61,7 @@ describe("EndpointsStatsUser", () => {
                     data: UserDbFactory.createWithAuth({
                         id: generatePK(),
                         name: "Test User 1 - Public",
-                        handle: "test-user-1", 
+                        handle: "test-user-1",
                         isPrivate: false,
                     }),
                 });
@@ -213,7 +213,7 @@ describe("EndpointsStatsUser", () => {
                     data: UserDbFactory.createWithAuth({
                         id: generatePK(),
                         name: "Test User 1",
-                        handle: "test-user-1", 
+                        handle: "test-user-1",
                         isPrivate: false,
                     }),
                 });
@@ -259,7 +259,7 @@ describe("EndpointsStatsUser", () => {
                     data: UserDbFactory.createWithAuth({
                         id: generatePK(),
                         name: "Test User 1 - Public",
-                        handle: "test-user-1", 
+                        handle: "test-user-1",
                         isPrivate: false,
                     }),
                 });
@@ -359,7 +359,7 @@ describe("EndpointsStatsUser", () => {
                     data: UserDbFactory.createWithAuth({
                         id: generatePK(),
                         name: "Test User 1 - Public",
-                        handle: "test-user-1", 
+                        handle: "test-user-1",
                         isPrivate: false,
                     }),
                 });
@@ -460,11 +460,11 @@ describe("EndpointsStatsUser", () => {
                     data: UserDbFactory.createWithAuth({
                         id: generatePK(),
                         name: "Test User 1",
-                        handle: "test-user-1", 
+                        handle: "test-user-1",
                         isPrivate: false,
                     }),
                 });
-                
+
                 const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
@@ -473,12 +473,9 @@ describe("EndpointsStatsUser", () => {
                     periodTimeFrame: { after: new Date("invalid"), before: new Date("invalid") },
                 };
 
-                try {
+                await expect(async () => {
                     await statsUser.findMany({ input }, { req, res }, statsUser_findMany);
-                    expect.fail("Expected an error");
-                } catch (error) {
-                    expect(error).toBeInstanceOf(Error);
-                }
+                }).rejects.toThrow();
             });
 
             it("invalid periodType should throw error", async () => {
@@ -486,22 +483,19 @@ describe("EndpointsStatsUser", () => {
                     data: UserDbFactory.createWithAuth({
                         id: generatePK(),
                         name: "Test User 1",
-                        handle: "test-user-1", 
+                        handle: "test-user-1",
                         isPrivate: false,
                     }),
                 });
-                
+
                 const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = { periodType: "InvalidPeriod" as any };
 
-                try {
+                await expect(async () => {
                     await statsUser.findMany({ input: input as StatsUserSearchInput }, { req, res }, statsUser_findMany);
-                    expect.fail("Expected an error");
-                } catch (error) {
-                    expect(error).toBeInstanceOf(Error);
-                }
+                }).rejects.toThrow();
             });
         });
     });

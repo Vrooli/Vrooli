@@ -318,7 +318,7 @@ export class AuthService {
                 return cachedData;
             }
         } catch (e) {
-            logger.warn("Redis unavailable for API key cache", { error: e });
+            // Redis unavailable - continue without cache
         }
 
         // Fetch from DB
@@ -333,7 +333,6 @@ export class AuthService {
 
         // Ensure permissions is a string before parsing
         if (typeof record.permissions !== "string") {
-            logger.error("Permissions field is not a string", { apiKey, trace: "0901" });
             throw new CustomError("0901", "Unauthorized");
         }
         let permissions: Record<ApiKeyPermission, boolean>;
@@ -350,7 +349,7 @@ export class AuthService {
         try {
             await cacheService.set(cacheKey, result, API_KEY_CACHE_TTL);
         } catch (e) {
-            logger.warn("Failed to cache API key permissions", { error: e });
+            // Cache write failed - continue without caching
         }
         return result;
     }
@@ -427,7 +426,7 @@ export class AuthService {
                 next();
                 return;
             } catch (error) {
-                logger.error("Error verifying API key", { error });
+                // Invalid API key - don't log to prevent log flooding
                 ResponseService.sendError(res, { trace: "0801", code: "Unauthorized" }, HttpStatus.Unauthorized);
                 return;
             }

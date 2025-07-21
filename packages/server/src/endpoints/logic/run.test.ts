@@ -1,20 +1,19 @@
-import { type FindByIdInput, type RunCreateInput, type RunSearchInput, type RunUpdateInput, runTestDataFactory, generatePK, RunStatus } from "@vrooli/shared";
+import { type FindByIdInput, type RunCreateInput, type RunSearchInput, type RunUpdateInput, generatePK, RunStatus, runTestDataFactory } from "@vrooli/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { mockAuthenticatedSession, mockLoggedOutSession, mockApiSession, mockReadPrivatePermissions, mockWritePrivatePermissions } from "../../__test/session.js";
-import { assertEndpointRequiresAuth, assertEndpointRequiresApiKeyReadPermissions, assertEndpointRequiresApiKeyWritePermissions } from "../../__test/endpoints.js";
+import { assertRequiresApiKeyReadPermissions, assertRequiresApiKeyWritePermissions, assertRequiresAuth } from "../../__test/authTestUtils.js";
+import { mockApiSession, mockAuthenticatedSession, mockReadPrivatePermissions } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
-import { CacheService } from "../../redisConn.js";
 import { run_createOne } from "../generated/run_createOne.js";
 import { run_findMany } from "../generated/run_findMany.js";
 import { run_findOne } from "../generated/run_findOne.js";
 import { run_updateOne } from "../generated/run_updateOne.js";
 import { run } from "./run.js";
 // Import database fixtures
-import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
-import { RunDbFactory } from "../../__test/fixtures/db/runFixtures.js";
 import { createResourceDbFactory } from "../../__test/fixtures/db/ResourceDbFactory.js";
+import { RunDbFactory } from "../../__test/fixtures/db/runFixtures.js";
+import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
@@ -27,20 +26,23 @@ describe("EndpointsRun", () => {
     });
 
     afterEach(async () => {
+        // Clean up after each test to prevent data leakage
+        await cleanupGroups.execution(DbProvider.get());
+
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["run","run_step","run_io","resource","resource_version","user"],
+            tables: ["run", "run_step", "run_io", "resource", "resource_version", "user"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
     });
 
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.execution(DbProvider.get());
-    }););
+    });
 
     afterAll(async () => {
         // Restore all mocks
@@ -48,13 +50,13 @@ describe("EndpointsRun", () => {
     });
 
     // Helper function to create test data
-    const createTestData = async () => {
+    async function createTestData() {
         // Create test users
         const testUsers = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
-        
+
         // Create factory instance
         const resourceFactory = createResourceDbFactory(DbProvider.get());
-        
+
         // Create test projects and routines (all stored as resources)
         const project1 = await DbProvider.get().resource.create({
             data: resourceFactory.createWithVersion({
@@ -124,12 +126,12 @@ describe("EndpointsRun", () => {
         ]);
 
         return { testUsers, project1, project2, routine1, runs };
-    };
+    }
 
     describe("findOne", () => {
         describe("authentication", () => {
             it("not logged in", async () => {
-                await assertEndpointRequiresAuth(
+                await assertRequiresAuth(
                     run.findOne,
                     { id: generatePK() },
                     run_findOne,
@@ -137,7 +139,7 @@ describe("EndpointsRun", () => {
             });
 
             it("API key - no read permissions", async () => {
-                await assertEndpointRequiresApiKeyReadPermissions(
+                await assertRequiresApiKeyReadPermissions(
                     run.findOne,
                     { id: generatePK() },
                     run_findOne,
@@ -239,7 +241,7 @@ describe("EndpointsRun", () => {
     describe("findMany", () => {
         describe("authentication", () => {
             it("not logged in", async () => {
-                await assertEndpointRequiresAuth(
+                await assertRequiresAuth(
                     run.findMany,
                     {},
                     run_findMany,
@@ -247,7 +249,7 @@ describe("EndpointsRun", () => {
             });
 
             it("API key - no read permissions", async () => {
-                await assertEndpointRequiresApiKeyReadPermissions(
+                await assertRequiresApiKeyReadPermissions(
                     run.findMany,
                     {},
                     run_findMany,
@@ -268,7 +270,7 @@ describe("EndpointsRun", () => {
 
                 expect(result.results).toHaveLength(3); // User 1 has 3 runs
                 expect(result.totalCount).toBe(3);
-                
+
                 // Verify all returned runs belong to user 1
                 expect(result.results.every(r => r.user?.id === testUsers[0].id.toString())).toBe(true);
             });
@@ -418,7 +420,7 @@ describe("EndpointsRun", () => {
     describe("createOne", () => {
         describe("authentication", () => {
             it("not logged in", async () => {
-                await assertEndpointRequiresAuth(
+                await assertRequiresAuth(
                     run.createOne,
                     runTestDataFactory.createMinimal(),
                     run_createOne,
@@ -426,7 +428,7 @@ describe("EndpointsRun", () => {
             });
 
             it("API key - no write permissions", async () => {
-                await assertEndpointRequiresApiKeyWritePermissions(
+                await assertRequiresApiKeyWritePermissions(
                     run.createOne,
                     runTestDataFactory.createMinimal(),
                     run_createOne,
@@ -438,7 +440,7 @@ describe("EndpointsRun", () => {
         describe("valid", () => {
             it("creates minimal project run", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create project for the run
                 const project = await DbProvider.get().project.create({
                     data: ProjectDbFactory.createWithVersion({
@@ -480,7 +482,7 @@ describe("EndpointsRun", () => {
 
             it("creates routine run", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create routine for the run
                 const routine = await DbProvider.get().routine.create({
                     data: RoutineDbFactory.createWithVersion({
@@ -511,7 +513,7 @@ describe("EndpointsRun", () => {
 
             it("creates run with steps and IO", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 const project = await DbProvider.get().project.create({
                     data: ProjectDbFactory.createWithVersion({
                         createdById: testUser[0].id,
@@ -571,7 +573,7 @@ describe("EndpointsRun", () => {
                 expect(result.steps).toHaveLength(2);
                 expect(result.inputs).toHaveLength(1);
                 expect(result.outputs).toHaveLength(1);
-                
+
                 const parsedData = JSON.parse(result.data || "{}");
                 expect(parsedData.config.setting).toBe(true);
                 expect(parsedData.progress).toBe(50);
@@ -598,7 +600,7 @@ describe("EndpointsRun", () => {
 
             it("rejects run for inaccessible private resource", async () => {
                 const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
-                
+
                 // Create private project by user 1
                 const privateProject = await DbProvider.get().project.create({
                     data: ProjectDbFactory.createWithVersion({
@@ -626,7 +628,7 @@ describe("EndpointsRun", () => {
 
             it("rejects invalid data format", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 const project = await DbProvider.get().project.create({
                     data: ProjectDbFactory.createWithVersion({
                         createdById: testUser[0].id,
@@ -656,7 +658,7 @@ describe("EndpointsRun", () => {
     describe("updateOne", () => {
         describe("authentication", () => {
             it("not logged in", async () => {
-                await assertEndpointRequiresAuth(
+                await assertRequiresAuth(
                     run.updateOne,
                     { id: generatePK() },
                     run_updateOne,
@@ -664,7 +666,7 @@ describe("EndpointsRun", () => {
             });
 
             it("API key - no write permissions", async () => {
-                await assertEndpointRequiresApiKeyWritePermissions(
+                await assertRequiresApiKeyWritePermissions(
                     run.updateOne,
                     { id: generatePK() },
                     run_updateOne,
@@ -693,7 +695,7 @@ describe("EndpointsRun", () => {
                 expect(result.status).toBe("Completed");
                 expect(result.completedComplexity).toBe(10);
                 expect(result.timeElapsed).toBe(7200);
-                
+
                 const parsedData = JSON.parse(result.data || "{}");
                 expect(parsedData.result).toBe("success");
                 expect(parsedData.score).toBe(95);
@@ -748,7 +750,7 @@ describe("EndpointsRun", () => {
                 const outputs = result.outputs || [];
                 const newOutput = outputs.find(o => o.name === "final_result");
                 expect(newOutput).toBeDefined();
-                
+
                 const outputData = JSON.parse(newOutput?.data || "{}");
                 expect(outputData.value).toBe("completed successfully");
             });
@@ -762,7 +764,7 @@ describe("EndpointsRun", () => {
                 const input: RunUpdateInput = {
                     id: runs[0].id.toString(),
                     status: RunStatus.Failed,
-                    data: JSON.stringify({ 
+                    data: JSON.stringify({
                         error: "Execution failed",
                         errorCode: "TIMEOUT",
                         timestamp: new Date().toISOString(),
@@ -772,7 +774,7 @@ describe("EndpointsRun", () => {
                 const result = await run.updateOne({ input }, { req, res }, run_updateOne);
 
                 expect(result.status).toBe("Failed");
-                
+
                 const parsedData = JSON.parse(result.data || "{}");
                 expect(parsedData.error).toBe("Execution failed");
                 expect(parsedData.errorCode).toBe("TIMEOUT");
@@ -812,7 +814,7 @@ describe("EndpointsRun", () => {
 
             it("rejects invalid status transition", async () => {
                 const { testUsers, runs } = await createTestData();
-                
+
                 // Update run to completed status first
                 await DbProvider.get().runProject.update({
                     where: { id: runs[1].id },

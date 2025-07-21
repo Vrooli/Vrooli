@@ -34,7 +34,7 @@ import {
     REFERENCING_MAX_LENGTH,
     TAG_MAX_LENGTH,
     TAG_MIN_LENGTH,
-    TIMEZONE_FIELD_MAX_LENGTH,
+    TIMEZONE_MAX_LENGTH,
     URL_MAX_LENGTH,
     VERSION_LABEL_MAX_LENGTH,
     VERSION_NOTES_MAX_LENGTH,
@@ -74,23 +74,103 @@ export const id = yup
     );
 
 // Add publicId validation
-export const publicId = yup.string().trim().removeEmptyString().test(
+export const publicId = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .test(
     "publicId-validation",
     "Must be a valid public ID (10-12 character alphanumeric string)",
     (value) => value === null || value === undefined || (typeof value === "string" && validatePublicId(value)),
 );
 
 // protocol fields
-export const email = yup.string().trim().removeEmptyString().email("Please enter a valid email address").max(EMAIL_MAX_LENGTH, maxStrErr);
-export const handle = yup.string().trim().removeEmptyString().min(HANDLE_MIN_LENGTH, minStrErr).max(HANDLE_MAX_LENGTH, maxStrErr).matches(handleRegex, "Must be 3-16 characters, and can only contain letters, numbers, and underscores");
-export const hexColor = yup.string().trim().removeEmptyString().min(HEX_COLOR_MIN_LENGTH, minStrErr).max(HEX_COLOR_MAX_LENGTH, maxStrErr).matches(hexColorRegex, "Must be a valid hex color");
-export const imageFile = yup.string().trim().removeEmptyString().max(IMAGE_FILE_MAX_LENGTH, maxStrErr);
+export const email = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .email("Please enter a valid email address")
+    .max(EMAIL_MAX_LENGTH, maxStrErr);
+export const handle = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .min(HANDLE_MIN_LENGTH, minStrErr)
+    .max(HANDLE_MAX_LENGTH, maxStrErr)
+    .matches(handleRegex, "Must be 3-16 characters, and can only contain letters, numbers, and underscores");
+export const hexColor = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .min(HEX_COLOR_MIN_LENGTH, minStrErr)
+    .max(HEX_COLOR_MAX_LENGTH, maxStrErr)
+    .matches(hexColorRegex, "Must be a valid hex color");
+export const imageFile = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .max(IMAGE_FILE_MAX_LENGTH, maxStrErr);
 export const pushNotificationKeys = yup.object({
-    p256dh: yup.string().trim().removeEmptyString().max(PUSH_NOTIFICATION_KEY_MAX_LENGTH, maxStrErr).required(reqErr),
-    auth: yup.string().trim().removeEmptyString().max(PUSH_NOTIFICATION_KEY_MAX_LENGTH, maxStrErr).required(reqErr),
+    p256dh: yup.string()
+        .transform((value, originalValue) => {
+            if (originalValue != null && typeof originalValue !== "string") {
+                return String(originalValue);
+            }
+            return value;
+        })
+        .removeEmptyString()
+        .trim()
+        .max(PUSH_NOTIFICATION_KEY_MAX_LENGTH, maxStrErr)
+        .required(reqErr),
+    auth: yup.string()
+        .transform((value, originalValue) => {
+            if (originalValue != null && typeof originalValue !== "string") {
+                return String(originalValue);
+            }
+            return value;
+        })
+        .removeEmptyString()
+        .trim()
+        .max(PUSH_NOTIFICATION_KEY_MAX_LENGTH, maxStrErr)
+        .required(reqErr),
 }).default(undefined).nullable();
 export function url({ env = "production" }: { env?: YupMutateParams["env"] }) {
-    return yup.string().trim().removeEmptyString().max(URL_MAX_LENGTH, maxStrErr).test(
+    return yup.string()
+        .transform((value, originalValue) => {
+            if (originalValue != null && typeof originalValue !== "string") {
+                return String(originalValue);
+            }
+            return value;
+        })
+        .removeEmptyString()
+        .trim()
+        .max(URL_MAX_LENGTH, maxStrErr)
+        .test(
         "link",
         "Must be a URL",
         (value: string | undefined) => {
@@ -145,7 +225,16 @@ export const int = yup.number().min(MIN_INT, minNumErr).max(MAX_INT, maxNumErr).
 export const index = intPositiveOrZero;
 
 // dates
-export const timezone = yup.string().trim().removeEmptyString().max(TIMEZONE_FIELD_MAX_LENGTH, maxStrErr);
+export const timezone = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .max(TIMEZONE_MAX_LENGTH, maxStrErr);
 export const startTime = yup.date();
 export const endTime = yup.date()
     .test(
@@ -206,32 +295,226 @@ export const newEndTime = yup.date()
 export const endDate = yup.date();
 
 // strings
-export const bio = yup.string().trim().removeEmptyString().max(BIO_MAX_LENGTH, maxStrErr);
-export const description = yup.string().trim().removeEmptyString().max(DESCRIPTION_MAX_LENGTH, maxStrErr);
-export const helpText = yup.string().trim().removeEmptyString().max(HELP_TEXT_MAX_LENGTH, maxStrErr);
-export const referencing = yup.string().trim().removeEmptyString().max(REFERENCING_MAX_LENGTH, maxStrErr);
-export const language = yup.string().trim().removeEmptyString().min(LANGUAGE_CODE_MIN_LENGTH, minStrErr).max(LANGUAGE_CODE_MAX_LENGTH, maxStrErr); // Language code
-export const name = yup.string().trim().removeEmptyString().min(NAME_MIN_LENGTH, minStrErr).max(NAME_MAX_LENGTH, maxStrErr);
-export const tag = yup.string().trim().removeEmptyString().min(TAG_MIN_LENGTH, minStrErr).max(TAG_MAX_LENGTH, maxStrErr);
+export const bio = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .max(BIO_MAX_LENGTH, maxStrErr);
+export const description = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .max(DESCRIPTION_MAX_LENGTH, maxStrErr);
+export const helpText = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .max(HELP_TEXT_MAX_LENGTH, maxStrErr);
+export const referencing = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .max(REFERENCING_MAX_LENGTH, maxStrErr);
+export const language = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .min(LANGUAGE_CODE_MIN_LENGTH, minStrErr)
+    .max(LANGUAGE_CODE_MAX_LENGTH, maxStrErr); // Language code
+export const name = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .min(NAME_MIN_LENGTH, minStrErr)
+    .max(NAME_MAX_LENGTH, maxStrErr);
+export const tag = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .min(TAG_MIN_LENGTH, minStrErr)
+    .max(TAG_MAX_LENGTH, maxStrErr);
 export function versionLabel({ minVersion = "0.0.1" }: { minVersion?: string }) {
-    return yup.string().trim().removeEmptyString().max(VERSION_LABEL_MAX_LENGTH, maxStrErr).test(...minVersionTest(minVersion));
+    return yup.string()
+        .transform((value, originalValue) => {
+            if (originalValue != null && typeof originalValue !== "string") {
+                return String(originalValue);
+            }
+            return value;
+        })
+        .removeEmptyString()
+        .trim()
+        .max(VERSION_LABEL_MAX_LENGTH, maxStrErr)
+        .test(...minVersionTest(minVersion));
 }
-export const versionNotes = yup.string().trim().removeEmptyString().max(VERSION_NOTES_MAX_LENGTH, maxStrErr);
+export const versionNotes = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .max(VERSION_NOTES_MAX_LENGTH, maxStrErr);
 export const idArray = yup.array().of(id.required(reqErr));
 export const tagArray = yup.array().of(tag.required(reqErr));
-export const nodeCondition = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
-export const nodeOperation = yup.string().trim().removeEmptyString().max(512, maxStrErr);
-export const permissions = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
-export const response = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
-export const message = yup.string().trim().removeEmptyString().max(4096, maxStrErr);
-export const theme = yup.string().trim().removeEmptyString().max(128, maxStrErr);
+export const nodeCondition = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .max(8192, maxStrErr);
+export const nodeOperation = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .max(512, maxStrErr);
+export const permissions = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .max(8192, maxStrErr);
+export const response = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .max(8192, maxStrErr);
+export const message = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .max(4096, maxStrErr);
+export const theme = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .max(128, maxStrErr);
 export const password = yup.string().trim().min(8).max(256);
-export const details = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
-export const summary = yup.string().trim().removeEmptyString().max(1024, maxStrErr);
-export const reportReason = yup.string().trim().removeEmptyString().min(1, minStrErr).max(128, maxStrErr);
-export const instructions = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
-export const jsonVariable = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
-export const phoneNumber = yup.string().trim().removeEmptyString().max(16, maxStrErr);
+export const details = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .max(8192, maxStrErr);
+export const summary = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .max(1024, maxStrErr);
+export const reportReason = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .min(1, minStrErr)
+    .max(128, maxStrErr);
+export const instructions = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .max(8192, maxStrErr);
+export const jsonVariable = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .max(8192, maxStrErr);
+export const phoneNumber = yup.string()
+    .transform((value, originalValue) => {
+        if (originalValue != null && typeof originalValue !== "string") {
+            return String(originalValue);
+        }
+        return value;
+    })
+    .removeEmptyString()
+    .trim()
+    .max(16, maxStrErr);
 export const config = yup.object();
 
 // enums

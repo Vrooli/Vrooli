@@ -36,7 +36,7 @@ export const chatConfigFixtures: ChatConfigTestFixtures = {
             id: "task-1",
             description: "Initialize the conversation",
             status: "done",
-            created_at: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
             priority: "medium",
         }],
         swarmLeader: "bot-leader-1",
@@ -47,13 +47,13 @@ export const chatConfigFixtures: ChatConfigTestFixtures = {
         blackboard: [{
             id: "note-1",
             value: "Initial conversation setup complete",
-            created_at: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
         }],
         resources: [{
             id: "resource-1",
             kind: "Note",
             creator_bot_id: "bot-leader-1",
-            created_at: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
         }],
         records: [{
             id: "call-1",
@@ -62,7 +62,7 @@ export const chatConfigFixtures: ChatConfigTestFixtures = {
             params: { query: "test" },
             output_resource_ids: ["resource-1"],
             caller_bot_id: "bot-leader-1",
-            created_at: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
         }],
         policy: {
             visibility: "private",

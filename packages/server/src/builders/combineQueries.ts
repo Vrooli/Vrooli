@@ -63,8 +63,8 @@ function mergeTwoConditions(
 
         if (["AND", "OR", "NOT"].includes(key)) {
             // Handle logical operators
-            const currValue = Array.isArray(val1) ? val1 : typeof val1 === "object" ? [val1] : [];
-            const newValue = Array.isArray(val2) ? val2 : typeof val2 === "object" ? [val2] : [];
+            const currValue: unknown[] = Array.isArray(val1) ? val1 : typeof val1 === "object" ? [val1] : [];
+            const newValue: unknown[] = Array.isArray(val2) ? val2 : typeof val2 === "object" ? [val2] : [];
 
             // ORs get put in an AND with "strict" mode enabled
             if (key === "OR" && options.mergeMode === "strict") {
@@ -82,11 +82,12 @@ function mergeTwoConditions(
                     if (!result["AND"]) {
                         result["AND"] = [];
                     }
+                    const andArray = result["AND"] as unknown[];
                     if (currValue.length > 0) {
-                        result["AND"].push({ OR: currValue });
+                        andArray.push({ OR: currValue });
                     }
                     if (newValue.length > 0) {
-                        result["AND"].push({ OR: newValue });
+                        andArray.push({ OR: newValue });
                     }
                 }
             }
@@ -95,11 +96,12 @@ function mergeTwoConditions(
                 if (!result[key]) {
                     result[key] = [];
                 }
+                const resultArray = result[key] as unknown[];
                 if (currValue.length > 0) {
-                    result[key].push(...currValue);
+                    resultArray.push(...currValue);
                 }
                 if (newValue.length > 0) {
-                    result[key].push(...newValue);
+                    resultArray.push(...newValue);
                 }
             }
         } else if (val1 === undefined) {

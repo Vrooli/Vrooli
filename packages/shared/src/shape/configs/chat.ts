@@ -3,7 +3,9 @@ import { API_CREDITS_MULTIPLIER } from "../../consts/api.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
 import { DAYS_1_MS, MINUTES_10_MS, MINUTES_1_MS, SECONDS_1_MS } from "../../consts/numbers.js";
 import { EventTypes } from "../../consts/socketEvents.js";
+import { RunState } from "../../execution/routine.js";
 import { type ResourceSpec } from "./bot.js";
+import { type ModelConfig } from "./base.js";
 
 // Keep track of config version for future compatibility
 const LATEST_CONFIG_VERSION = "1.0";
@@ -164,6 +166,116 @@ export interface SwarmResourceContext {
 type ServiceEvent = any; // Placeholder - actual type comes from server events
 
 /**
+ * Configuration for parent-child swarm relationships
+ */
+export interface SwarmHierarchy {
+    /** ID of parent swarm (set automatically when spawned as child) */
+    parentSwarmId?: string;
+    
+    /** Current depth in hierarchy (0 = root, 1 = child, 2 = grandchild) */
+    currentDepth: number;
+    
+    /** Maximum allowed depth (0 = no children, 1 = children but no grandchildren) */
+    maxDepth: number;
+    
+    /** Child spawn policy */
+    childPolicy: {
+        /** Mode for child spawning */
+        mode: "unrestricted" | "exclusive";
+        
+        /** Maximum number of concurrent children (-1 = unlimited) */
+        maxConcurrentChildren: number;
+    };
+    
+    /** Templates for child swarms */
+    childTemplates?: ChildSwarmTemplate[];
+}
+
+/**
+ * Template for spawning child swarms
+ */
+export interface ChildSwarmTemplate {
+    /** Unique identifier for this template */
+    id: string;
+    
+    /** Human-readable name */
+    name: string;
+    
+    /** Description of what this child swarm does */
+    description: string;
+    
+    /** Spawn requirement */
+    requirement: "required" | "recommended" | "optional";
+    
+    /** Configuration template for the child */
+    config: ChildSwarmConfig;
+}
+
+/**
+ * Configuration for a child swarm
+ */
+export interface ChildSwarmConfig {
+    /** Goal for the child swarm (can use {{variables}} from parent context) */
+    goal: string;
+    
+    /** Model configuration (null = inherit from parent) */
+    modelConfig?: ModelConfig | null;
+    
+    /** Team configuration */
+    team?: {
+        /** Use parent's team */
+        inheritFromParent?: boolean;
+        /** Or specify team ID */
+        teamId?: string;
+        /** Or create ad-hoc team */
+        bots?: string[]; // bot IDs
+    };
+    
+    /** Communication settings */
+    communication?: {
+        /** How child reports to parent */
+        reportingMode: "events-only" | "on-completion";
+        /** Event types child should forward to parent */
+        forwardedEvents?: string[];
+    };
+}
+
+/**
+ * Runtime tracking of an active child swarm
+ */
+export interface ActiveChildSwarm {
+    /** Child swarm's conversation ID */
+    childSwarmId: string;
+    
+    /** Template ID if spawned from template */
+    templateId?: string;
+    
+    /** When the child was spawned */
+    spawnedAt: string;
+    
+    /** Current state of child */
+    state: RunState;
+    
+    /** Stop reason if stopped/failed */
+    stopReason?: string;
+    
+    /** Resources allocated to child (auto-calculated from parent's remaining resources) */
+    allocatedResources: {
+        maxCredits: string;
+        maxToolCalls: number;
+    };
+    
+    /** Summary statistics from child */
+    summary?: {
+        lastUpdated: string;
+        subtasksCompleted: number;
+        creditsUsed: string;
+        toolCallsUsed: number;
+        currentGoal?: string;
+    };
+}
+
+/**
  * Represents all data that can be stored in a chat's stringified config.
  * Corresponds to Conversation.meta in the server-side types.
  */
@@ -172,8 +284,8 @@ export interface ChatConfigObject {
     __version: string;
     /** The primary objective of the swarm. Can only be set if there is no current goal, or if the goal is the default "Follow the user's instructions." */
     goal?: string;
-    /** The preferred LLM model for this conversation. Persisted when user selects a model. */
-    preferredModel?: string;
+    /** The model configuration for this conversation. Persisted when user selects a model. */
+    modelConfig?: ModelConfig;
     /** Optional initial list of sub-tasks for the swarm. Defaults to an empty list if not provided. */
     subtasks?: SwarmSubTask[];
     /** ID of the swarm leader. Read-only.. */
@@ -251,6 +363,10 @@ export interface ChatConfigObject {
     pendingToolCalls?: PendingToolCallEntry[];
     /** Configuration for sensitive data patterns and access controls */
     secrets?: Record<string, DataSensitivityConfig>;
+    /** Parent-child swarm configuration */
+    hierarchy?: SwarmHierarchy;
+    /** Runtime tracking of spawned children */
+    activeChildren?: ActiveChildSwarm[];
 }
 
 /**
@@ -259,7 +375,7 @@ export interface ChatConfigObject {
 export class ChatConfig {
     __version: string;
     goal?: ChatConfigObject["goal"];
-    preferredModel?: ChatConfigObject["preferredModel"];
+    modelConfig?: ChatConfigObject["modelConfig"];
     subtasks?: ChatConfigObject["subtasks"];
     swarmLeader?: ChatConfigObject["swarmLeader"];
     subtaskLeaders?: ChatConfigObject["subtaskLeaders"];
@@ -274,11 +390,13 @@ export class ChatConfig {
     scheduling?: ChatConfigObject["scheduling"];
     pendingToolCalls?: ChatConfigObject["pendingToolCalls"];
     secrets?: ChatConfigObject["secrets"];
+    hierarchy?: ChatConfigObject["hierarchy"];
+    activeChildren?: ChatConfigObject["activeChildren"];
 
     constructor({ config }: { config: ChatConfigObject }) {
         this.__version = config.__version ?? LATEST_CONFIG_VERSION;
         this.goal = config.goal;
-        this.preferredModel = config.preferredModel;
+        this.modelConfig = config.modelConfig;
         this.subtasks = config.subtasks ?? [];
         this.swarmLeader = config.swarmLeader;
         this.subtaskLeaders = config.subtaskLeaders;
@@ -293,6 +411,8 @@ export class ChatConfig {
         this.scheduling = config.scheduling;
         this.pendingToolCalls = config.pendingToolCalls ?? [];
         this.secrets = config.secrets;
+        this.hierarchy = config.hierarchy;
+        this.activeChildren = config.activeChildren;
     }
 
     /**
@@ -348,7 +468,7 @@ export class ChatConfig {
         return {
             __version: this.__version,
             goal: this.goal,
-            preferredModel: this.preferredModel,
+            modelConfig: this.modelConfig,
             subtasks: this.subtasks,
             swarmLeader: this.swarmLeader,
             subtaskLeaders: this.subtaskLeaders,
@@ -363,6 +483,8 @@ export class ChatConfig {
             scheduling: this.scheduling,
             pendingToolCalls: this.pendingToolCalls,
             secrets: this.secrets,
+            hierarchy: this.hierarchy,
+            activeChildren: this.activeChildren,
         };
     }
 

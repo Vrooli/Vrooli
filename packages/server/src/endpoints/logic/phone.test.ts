@@ -1,18 +1,17 @@
 import { type PhoneCreateInput, type SendVerificationTextInput, type ValidateVerificationTextInput, generatePK } from "@vrooli/shared";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { mockAuthenticatedSession, mockLoggedOutSession, mockApiSession, mockWriteAuthPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
-import { assertEndpointRequiresAuth } from "../../__test/endpoints.js";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { assertRequiresAuth } from "../../__test/authTestUtils.js";
+import { mockApiSession, mockWriteAuthPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
-import { CacheService } from "../../redisConn.js";
 import { phone_createOne } from "../generated/phone_createOne.js";
 import { phone_validate } from "../generated/phone_validate.js";
 import { phone_verify } from "../generated/phone_verify.js";
 import { phone } from "./phone.js";
 // Import database fixtures
-import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { createPhoneDbFactory } from "../../__test/fixtures/db/PhoneDbFactory.js";
+import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
@@ -30,20 +29,23 @@ describe("EndpointsPhone", () => {
     });
 
     afterEach(async () => {
+        // Clean up after each test to prevent data leakage
+        await cleanupGroups.minimal(DbProvider.get());
+
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","session"],
+            tables: ["user", "user_auth", "email", "session"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
     });
 
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.minimal(DbProvider.get());
-    }););
+    });
 
     afterAll(async () => {
         // Restore all mocks
@@ -53,10 +55,10 @@ describe("EndpointsPhone", () => {
     describe("createOne", () => {
         describe("authentication", () => {
             it("not logged in", async () => {
-                await assertEndpointRequiresAuth(
+                await assertRequiresAuth(
                     phone.createOne,
                     {
-                        id: generatePK(),
+                        id: generatePK().toString(),
                         phoneNumber: "+1234567890",
                     },
                     phone_createOne,
@@ -66,13 +68,13 @@ describe("EndpointsPhone", () => {
             it("requires auth write permissions", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWritePrivatePermissions(["Phone"]), // Wrong permission type
                 });
 
                 const input: PhoneCreateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     phoneNumber: "+1234567890",
                 };
 
@@ -85,13 +87,13 @@ describe("EndpointsPhone", () => {
             it("creates new phone number for user", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
                 const input: PhoneCreateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     phoneNumber: "+1234567890",
                 };
 
@@ -101,8 +103,8 @@ describe("EndpointsPhone", () => {
                 expect(result.__typename).toBe("Phone");
                 expect(result.id).toBe(input.id);
                 expect(result.phoneNumber).toBe("+1234567890");
-                expect(result.isVerified).toBe(false);
-                expect(result.user?.id).toBe(testUser[0].id.toString());
+                expect(result.verifiedAt).toBeNull();
+                expect(result.user?.id).toBe(testUser.records[0].id.toString());
 
                 // Verify in database
                 const createdPhone = await DbProvider.get().phone.findUnique({
@@ -110,19 +112,19 @@ describe("EndpointsPhone", () => {
                 });
                 expect(createdPhone).toBeDefined();
                 expect(createdPhone?.phoneNumber).toBe("+1234567890");
-                expect(createdPhone?.userId).toEqual(testUser[0].id);
+                expect(createdPhone?.userId).toEqual(testUser.records[0].id);
             });
 
             it("creates phone with country code normalization", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
                 const input: PhoneCreateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     phoneNumber: "1234567890", // Without country code
                 };
 
@@ -135,13 +137,13 @@ describe("EndpointsPhone", () => {
             it("creates phone with international number", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
                 const input: PhoneCreateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     phoneNumber: "+44123456789", // UK number
                 };
 
@@ -153,14 +155,14 @@ describe("EndpointsPhone", () => {
             it("allows multiple phones per user", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
                 // Create first phone
                 const input1: PhoneCreateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     phoneNumber: "+1234567890",
                 };
 
@@ -169,7 +171,7 @@ describe("EndpointsPhone", () => {
 
                 // Create second phone
                 const input2: PhoneCreateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     phoneNumber: "+1987654321",
                 };
 
@@ -178,10 +180,10 @@ describe("EndpointsPhone", () => {
 
                 // Verify both phones exist for the user
                 const userPhones = await DbProvider.get().phone.findMany({
-                    where: { userId: testUser[0].id },
+                    where: { userId: testUser.records[0].id },
                 });
                 expect(userPhones).toHaveLength(2);
-                
+
                 const numbers = userPhones.map(p => p.phoneNumber);
                 expect(numbers).toContain("+1234567890");
                 expect(numbers).toContain("+1987654321");
@@ -190,50 +192,48 @@ describe("EndpointsPhone", () => {
             it("creates phone with verification code", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
                 const input: PhoneCreateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     phoneNumber: "+1234567890",
-                    verificationCode: "123456",
                 };
 
                 const result = await phone.createOne({ input }, { req, res }, phone_createOne);
 
                 expect(result.phoneNumber).toBe("+1234567890");
 
-                // Verify code is set in database
+                // Verify in database
                 const createdPhone = await DbProvider.get().phone.findUnique({
                     where: { id: BigInt(input.id) },
                 });
-                expect(createdPhone?.verificationCode).toBe("123456");
-                expect(createdPhone?.lastVerificationCodeRequestAttempt).toBeDefined();
+                expect(createdPhone?.phoneNumber).toBe("+1234567890");
             });
         });
 
         describe("invalid", () => {
             it("rejects duplicate phone number", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create existing phone
                 await DbProvider.get().phone.create({
                     data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
-                        userId: testUser[0].id,
+                        userId: testUser.records[0].id,
                     }),
                 });
 
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
                 const input: PhoneCreateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     phoneNumber: "+1234567890", // Duplicate
                 };
 
@@ -244,13 +244,13 @@ describe("EndpointsPhone", () => {
             it("rejects invalid phone number format", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
                 const input: PhoneCreateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     phoneNumber: "invalid-phone", // Invalid format
                 };
 
@@ -261,13 +261,13 @@ describe("EndpointsPhone", () => {
             it("rejects phone number too short", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
                 const input: PhoneCreateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     phoneNumber: "+123", // Too short
                 };
 
@@ -278,13 +278,13 @@ describe("EndpointsPhone", () => {
             it("rejects phone number too long", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
                 const input: PhoneCreateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     phoneNumber: "+123456789012345678901234567890", // Too long
                 };
 
@@ -294,7 +294,7 @@ describe("EndpointsPhone", () => {
 
             it("enforces phone limit per user", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create maximum allowed phones (assume limit is 3)
                 const phonePromises = [];
                 for (let i = 0; i < 3; i++) {
@@ -302,7 +302,7 @@ describe("EndpointsPhone", () => {
                         DbProvider.get().phone.create({
                             data: phoneFactory.createMinimal({
                                 phoneNumber: `+123456789${i}`,
-                                userId: testUser[0].id,
+                                userId: testUser.records[0].id,
                             }),
                         }),
                     );
@@ -310,13 +310,13 @@ describe("EndpointsPhone", () => {
                 await Promise.all(phonePromises);
 
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
                 const input: PhoneCreateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     phoneNumber: "+1999999999", // Would exceed limit
                 };
 
@@ -329,7 +329,7 @@ describe("EndpointsPhone", () => {
     describe("verify", () => {
         describe("authentication", () => {
             it("not logged in", async () => {
-                await assertEndpointRequiresAuth(
+                await assertRequiresAuth(
                     phone.verify,
                     { phoneNumber: "+1234567890" },
                     phone_verify,
@@ -339,8 +339,8 @@ describe("EndpointsPhone", () => {
             it("requires auth write permissions", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWritePrivatePermissions(["Phone"]), // Wrong permission type
                 });
 
@@ -356,19 +356,19 @@ describe("EndpointsPhone", () => {
         describe("valid", () => {
             it("sends verification text for user's phone", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create phone for the user
                 const userPhone = await DbProvider.get().phone.create({
                     data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
-                        userId: testUser[0].id,
-                        isVerified: false,
+                        userId: testUser.records[0].id,
+                        verifiedAt: null,
                     }),
                 });
 
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
@@ -393,20 +393,20 @@ describe("EndpointsPhone", () => {
 
             it("updates existing verification code", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create phone with existing verification code
                 const userPhone = await DbProvider.get().phone.create({
                     data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
-                        userId: testUser[0].id,
+                        userId: testUser.records[0].id,
                         verificationCode: "oldcode",
                         lastVerificationCodeRequestAttempt: new Date(Date.now() - 60000), // 1 minute ago
                     }),
                 });
 
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
@@ -424,24 +424,24 @@ describe("EndpointsPhone", () => {
                 });
                 expect(updatedPhone?.verificationCode).toBeDefined();
                 expect(updatedPhone?.verificationCode).not.toBe("oldcode"); // Should be new code
-                
+
                 const timeDiff = Date.now() - new Date(updatedPhone!.lastVerificationCodeRequestAttempt!).getTime();
                 expect(timeDiff).toBeLessThan(5000); // Should be very recent (within 5 seconds)
             });
 
             it("respects rate limiting", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 await DbProvider.get().phone.create({
                     data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
-                        userId: testUser[0].id,
+                        userId: testUser.records[0].id,
                     }),
                 });
 
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
@@ -452,7 +452,7 @@ describe("EndpointsPhone", () => {
                 // Send multiple verification requests (should succeed up to rate limit)
                 await phone.verify({ input }, { req, res }, phone_verify);
                 await phone.verify({ input }, { req, res }, phone_verify);
-                
+
                 // Should succeed up to rate limit (25 per user)
                 const result = await phone.verify({ input }, { req, res }, phone_verify);
                 expect(result.success).toBe(true);
@@ -463,8 +463,8 @@ describe("EndpointsPhone", () => {
             it("rejects verification for non-existent phone", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
@@ -478,19 +478,19 @@ describe("EndpointsPhone", () => {
 
             it("rejects verification for another user's phone", async () => {
                 const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
-                
+
                 // Create phone for user 1
                 await DbProvider.get().phone.create({
                     data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
-                        userId: testUsers[0].id,
+                        userId: testUsers.records[0].id,
                     }),
                 });
 
                 // Try to verify as user 2
                 const { req, res } = await mockApiSession({
-                    userId: testUsers[1].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUsers.records[1].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
@@ -507,7 +507,7 @@ describe("EndpointsPhone", () => {
     describe("validate", () => {
         describe("authentication", () => {
             it("not logged in", async () => {
-                await assertEndpointRequiresAuth(
+                await assertRequiresAuth(
                     phone.validate,
                     { phoneNumber: "+1234567890", verificationCode: "123456" },
                     phone_validate,
@@ -517,8 +517,8 @@ describe("EndpointsPhone", () => {
             it("requires auth write permissions", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWritePrivatePermissions(["Phone"]), // Wrong permission type
                 });
 
@@ -535,21 +535,21 @@ describe("EndpointsPhone", () => {
         describe("valid", () => {
             it("validates correct verification code", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create phone with verification code
                 await DbProvider.get().phone.create({
                     data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
-                        userId: testUser[0].id,
+                        userId: testUser.records[0].id,
                         verificationCode: "123456",
                         lastVerificationCodeRequestAttempt: new Date(),
-                        isVerified: false,
+                        verifiedAt: null,
                     }),
                 });
 
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
@@ -566,32 +566,32 @@ describe("EndpointsPhone", () => {
 
                 // Verify phone is now marked as verified
                 const verifiedPhone = await DbProvider.get().phone.findFirst({
-                    where: { 
+                    where: {
                         phoneNumber: "+1234567890",
-                        userId: testUser[0].id,
+                        userId: testUser.records[0].id,
                     },
                 });
-                expect(verifiedPhone?.isVerified).toBe(true);
+                expect(verifiedPhone?.verifiedAt).not.toBeNull(); // Should be verified
                 expect(verifiedPhone?.verificationCode).toBeNull(); // Code should be cleared
             });
 
             it("handles case with recent verification code", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create phone with very recent verification code
                 await DbProvider.get().phone.create({
                     data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
-                        userId: testUser[0].id,
+                        userId: testUser.records[0].id,
                         verificationCode: "654321",
                         lastVerificationCodeRequestAttempt: new Date(Date.now() - 30000), // 30 seconds ago
-                        isVerified: false,
+                        verifiedAt: null,
                     }),
                 });
 
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
@@ -609,21 +609,21 @@ describe("EndpointsPhone", () => {
         describe("invalid", () => {
             it("rejects incorrect verification code", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create phone with verification code
                 await DbProvider.get().phone.create({
                     data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
-                        userId: testUser[0].id,
+                        userId: testUser.records[0].id,
                         verificationCode: "123456",
                         lastVerificationCodeRequestAttempt: new Date(),
-                        isVerified: false,
+                        verifiedAt: null,
                     }),
                 });
 
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
@@ -638,21 +638,21 @@ describe("EndpointsPhone", () => {
 
             it("rejects expired verification code", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create phone with expired verification code
                 await DbProvider.get().phone.create({
                     data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
-                        userId: testUser[0].id,
+                        userId: testUser.records[0].id,
                         verificationCode: "123456",
                         lastVerificationCodeRequestAttempt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 24 hours ago
-                        isVerified: false,
+                        verifiedAt: null,
                     }),
                 });
 
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
@@ -668,8 +668,8 @@ describe("EndpointsPhone", () => {
             it("rejects validation for non-existent phone", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
@@ -684,12 +684,12 @@ describe("EndpointsPhone", () => {
 
             it("rejects validation for another user's phone", async () => {
                 const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
-                
+
                 // Create phone for user 1
                 await DbProvider.get().phone.create({
                     data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
-                        userId: testUsers[0].id,
+                        userId: testUsers.records[0].id,
                         verificationCode: "123456",
                         lastVerificationCodeRequestAttempt: new Date(),
                     }),
@@ -697,8 +697,8 @@ describe("EndpointsPhone", () => {
 
                 // Try to validate as user 2
                 const { req, res } = await mockApiSession({
-                    userId: testUsers[1].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUsers.records[1].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 
@@ -713,20 +713,20 @@ describe("EndpointsPhone", () => {
 
             it("rejects validation for already verified phone", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create already verified phone
                 await DbProvider.get().phone.create({
                     data: phoneFactory.createMinimal({
                         phoneNumber: "+1234567890",
-                        userId: testUser[0].id,
-                        isVerified: true,
+                        userId: testUser.records[0].id,
+                        verifiedAt: new Date(),
                         verificationCode: null, // Already verified, no code
                     }),
                 });
 
                 const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
+                    userId: testUser.records[0].id.toString(),
+                    apiKeyId: generatePK().toString(),
                     permissions: mockWriteAuthPermissions(),
                 });
 

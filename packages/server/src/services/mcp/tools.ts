@@ -997,7 +997,7 @@ export class BuiltInTools {
 
                 case "cancel": {
                     try {
-                        await stateMachine.stop("Cancelled by user via MCP tool");
+                        await stateMachine.stop({ reason: "Cancelled by user via MCP tool" });
                         return {
                             isError: false,
                             content: [{
@@ -1660,6 +1660,50 @@ export class SwarmTools {
     }
 
     /**
+     * Deep merge two objects recursively
+     * @param target The target object to merge into
+     * @param source The source object to merge from
+     * @returns The merged object
+     */
+    private deepMergeObjects(target: any, source: any): any {
+        // Handle null/undefined cases
+        if (source === null || source === undefined) {
+            return target;
+        }
+        if (target === null || target === undefined) {
+            return source;
+        }
+
+        // If source is not an object, return source (overwrites target)
+        if (typeof source !== "object" || Array.isArray(source)) {
+            return source;
+        }
+
+        // If target is not an object, return source
+        if (typeof target !== "object" || Array.isArray(target)) {
+            return source;
+        }
+
+        // Create a new object with all keys from both objects
+        const result: any = { ...target };
+
+        // Recursively merge properties
+        for (const key in source) {
+            if (Object.prototype.hasOwnProperty.call(source, key)) {
+                if (key in target) {
+                    // Both have the property, merge recursively
+                    result[key] = this.deepMergeObjects(target[key], source[key]);
+                } else {
+                    // Only source has the property, add it
+                    result[key] = source[key];
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /**
      * Updates the shared state (sub-tasks and/or scratchpad) for a swarm.
      *
      * @param conversationId The ID of the swarm's conversation.
@@ -1732,11 +1776,11 @@ export class SwarmTools {
 
                 // Fetch current team config to merge with updates
                 const currentTeam = await readOneHelper({
-                    info: { id: true, config: true } as any,
+                    info: { id: true, translatedName: true, config: true } as any,
                     input: { id: convoState.config.teamId },
                     objectType: "Team",
                     req: mockReq,
-                });
+                }) as { id: string; translatedName: string; config: any } | null;
 
                 if (!currentTeam || !currentTeam.config) {
                     const errorMsg = `Team ${convoState.config.teamId} not found or user lacks access.`;
@@ -1752,49 +1796,40 @@ export class SwarmTools {
                     __version: "1.0",
                     ...teamConfigData,
                 };
-                const currentTeamConfig = TeamConfig.parse({ config: configWithVersion }, logger, { useFallbacks: true });
+                const currentTeamConfig = TeamConfig.parse({ config: configWithVersion as TeamConfigObject }, logger, { useFallbacks: true });
 
                 // Apply updates to the team config
-                if (args.teamConfig.structure) {
-                    if (!currentTeamConfig.structure) {
-                        currentTeamConfig.structure = {
-                            type: args.teamConfig.structure.type || "MOISE+",
-                            version: args.teamConfig.structure.version || "1.0",
-                            content: args.teamConfig.structure.content || "",
-                        };
-                    } else {
-                        if (args.teamConfig.structure.type !== undefined) {
-                            currentTeamConfig.structure.type = args.teamConfig.structure.type;
-                        }
-                        if (args.teamConfig.structure.version !== undefined) {
-                            currentTeamConfig.structure.version = args.teamConfig.structure.version;
-                        }
-                        if (args.teamConfig.structure.content !== undefined) {
-                            currentTeamConfig.structure.content = args.teamConfig.structure.content;
-                        }
-                    }
-                }
+                // Note: args.teamConfig is a TeamConfigObject that contains the fields to update
+                // We merge the updates with the current config
+                const mergedConfig = {
+                    ...currentTeamConfig.export(),
+                    ...args.teamConfig,
+                };
+                updatedTeamConfig = mergedConfig;
 
                 // Update the team in the database
                 await updateOneHelper({
                     info: {} as any,
                     input: {
                         id: convoState.config.teamId,
-                        config: currentTeamConfig.export(),
+                        config: updatedTeamConfig,
                     },
                     objectType: "Team",
                     req: mockReq,
                 });
-
-                updatedTeamConfig = currentTeamConfig.export();
                 logger.info(`Updated team config for team ${convoState.config.teamId}`);
 
-                // Update the conversation state with the new team config
+                // Update the conversation state with the new team data
                 try {
-                    await this.conversationStore.updateTeamConfig(conversationId, updatedTeamConfig);
-                    logger.debug(`Refreshed team config in conversation state for ${conversationId}`);
+                    const teamData = {
+                        id: currentTeam.id,
+                        name: currentTeam.translatedName,
+                        config: updatedTeamConfig,
+                    };
+                    await this.conversationStore.updateTeam(conversationId, teamData);
+                    logger.debug(`Refreshed team data in conversation state for ${conversationId}`);
                 } catch (updateError) {
-                    logger.warn(`Failed to update team config in conversation state cache for ${conversationId}:`, updateError);
+                    logger.warn(`Failed to update team data in conversation state cache for ${conversationId}:`, updateError);
                     // Continue anyway - the team config was updated in the database and will be available on next fetch
                 }
 
@@ -1841,13 +1876,99 @@ export class SwarmTools {
         }
 
         // Apply blackboard operations
+        // NOTE: These operations are applied sequentially within a single update.
+        // For concurrent updates from multiple agents, consider implementing:
+        // 1. Optimistic locking with version numbers
+        // 2. Atomic operations at the database level
+        // 3. Conflict resolution strategies (last-write-wins, merge, etc.)
         if (args.blackboard) {
-            // Add/Update
+            // Add/Update (overwrites existing values)
             if (args.blackboard.set) {
                 for (const item of args.blackboard.set) {
                     currentScratchpad[item.id] = item.value;
                 }
             }
+            
+            // Append to arrays
+            if (args.blackboard.append) {
+                for (const op of args.blackboard.append) {
+                    const existing = currentScratchpad[op.id];
+                    if (existing === undefined) {
+                        // Initialize as new array if doesn't exist
+                        currentScratchpad[op.id] = [...op.values];
+                    } else if (Array.isArray(existing)) {
+                        // Append to existing array
+                        currentScratchpad[op.id] = [...existing, ...op.values];
+                    } else {
+                        logger.warn(`Cannot append to non-array blackboard item: ${op.id}`, {
+                            existingType: typeof existing,
+                            existingValue: existing,
+                        });
+                        throw new Error(`Blackboard item "${op.id}" is not an array. Cannot append values.`);
+                    }
+                }
+            }
+            
+            // Increment numeric values
+            if (args.blackboard.increment) {
+                for (const op of args.blackboard.increment) {
+                    const existing = currentScratchpad[op.id];
+                    if (existing === undefined) {
+                        // Initialize as the increment amount if doesn't exist
+                        currentScratchpad[op.id] = op.amount;
+                    } else if (typeof existing === "number") {
+                        // Increment existing number
+                        currentScratchpad[op.id] = existing + op.amount;
+                    } else {
+                        logger.warn(`Cannot increment non-numeric blackboard item: ${op.id}`, {
+                            existingType: typeof existing,
+                            existingValue: existing,
+                        });
+                        throw new Error(`Blackboard item "${op.id}" is not a number. Cannot increment.`);
+                    }
+                }
+            }
+            
+            // Merge objects (shallow)
+            if (args.blackboard.merge) {
+                for (const op of args.blackboard.merge) {
+                    const existing = currentScratchpad[op.id];
+                    if (existing === undefined) {
+                        // Initialize as new object if doesn't exist
+                        currentScratchpad[op.id] = { ...op.object };
+                    } else if (typeof existing === "object" && existing !== null && !Array.isArray(existing)) {
+                        // Shallow merge with existing object
+                        currentScratchpad[op.id] = { ...existing, ...op.object };
+                    } else {
+                        logger.warn(`Cannot merge with non-object blackboard item: ${op.id}`, {
+                            existingType: typeof existing,
+                            existingValue: existing,
+                        });
+                        throw new Error(`Blackboard item "${op.id}" is not an object. Cannot merge.`);
+                    }
+                }
+            }
+            
+            // Deep merge objects (recursive)
+            if (args.blackboard.deepMerge) {
+                for (const op of args.blackboard.deepMerge) {
+                    const existing = currentScratchpad[op.id];
+                    if (existing === undefined) {
+                        // Initialize as new object if doesn't exist
+                        currentScratchpad[op.id] = JSON.parse(JSON.stringify(op.object)); // Deep clone
+                    } else if (typeof existing === "object" && existing !== null && !Array.isArray(existing)) {
+                        // Deep merge with existing object
+                        currentScratchpad[op.id] = this.deepMergeObjects(existing, op.object);
+                    } else {
+                        logger.warn(`Cannot deep merge with non-object blackboard item: ${op.id}`, {
+                            existingType: typeof existing,
+                            existingValue: existing,
+                        });
+                        throw new Error(`Blackboard item "${op.id}" is not an object. Cannot deep merge.`);
+                    }
+                }
+            }
+            
             // Remove
             if (args.blackboard.delete) {
                 for (const keyToRemove of args.blackboard.delete) {
@@ -1944,8 +2065,22 @@ export class SwarmTools {
 
             logger.info(`User ${user.id} authorized to end swarm ${conversationId}. Delegating to SwarmStateMachine.`);
             try {
-                const result = await activeSwarmInstance.stop(args.mode || "graceful", args.reason, user);
-                return result;
+                const result = await activeSwarmInstance.stop({ mode: args.mode || "graceful", reason: args.reason, requestingUser: user });
+                // Map StopResult to the expected return type
+                return {
+                    success: result.success,
+                    message: result.message,
+                    finalState: result.finalState as {
+                        endedAt: string;
+                        reason?: string;
+                        mode: "graceful" | "force";
+                        totalSubTasks?: number;
+                        completedSubTasks?: number;
+                        totalCreditsUsed?: string;
+                        totalToolCalls?: number;
+                    } | undefined,
+                    error: result.error,
+                };
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : "Unknown error in SwarmStateMachine.stop()";
                 logger.error(`Error delegating to SwarmStateMachine.stop() for conversation ${conversationId}:`, error);

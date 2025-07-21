@@ -1,17 +1,16 @@
 import { type FindByIdInput, type PaymentSearchInput, generatePK } from "@vrooli/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { mockAuthenticatedSession, mockLoggedOutSession, mockApiSession, mockReadPrivatePermissions, mockWritePrivatePermissions } from "../../__test/session.js";
-import { assertEndpointRequiresAuth, assertEndpointRequiresApiKeyReadPermissions, assertEndpointRequiresApiKeyWritePermissions } from "../../__test/endpoints.js";
+import { assertRequiresApiKeyReadPermissions, assertRequiresAuth } from "../../__test/authTestUtils.js";
+import { mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { CacheService } from "../../redisConn.js";
 import { payment_findMany } from "../generated/payment_findMany.js";
 import { payment_findOne } from "../generated/payment_findOne.js";
 import { payment } from "./payment.js";
 // Import database fixtures for seeding
-import { PaymentDbFactory, seedTestPayments } from "../../__test/fixtures/db/paymentFixtures.js";
-import { seedTestUsers, UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
+import { PaymentDbFactory } from "../../__test/fixtures/db/paymentFixtures.js";
 import { TeamDbFactory } from "../../__test/fixtures/db/teamFixtures.js";
+import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
@@ -26,18 +25,18 @@ describe("EndpointsPayment", () => {
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["team","member","member_invite","meeting","user"],
+            tables: ["team", "member", "member_invite", "meeting", "user"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
     });
 
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.team(DbProvider.get());
-    }););
+    });
 
     afterAll(async () => {
         // Restore all mocks
@@ -45,10 +44,10 @@ describe("EndpointsPayment", () => {
     });
 
     // Helper function to create test data
-    const createTestData = async () => {
+    async function createTestData() {
         // Create test users
         const testUsers = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
-        
+
         // Create test teams
         const testTeam1 = await DbProvider.get().team.create({
             data: TeamDbFactory.createMinimal({
@@ -107,12 +106,12 @@ describe("EndpointsPayment", () => {
         ]);
 
         return { testUsers, testTeam1, testTeam2, payments };
-    };
+    }
 
     describe("findOne", () => {
         describe("authentication", () => {
             it("not logged in", async () => {
-                await assertEndpointRequiresAuth(
+                await assertRequiresAuth(
                     payment.findOne,
                     { id: generatePK() },
                     payment_findOne,
@@ -120,7 +119,7 @@ describe("EndpointsPayment", () => {
             });
 
             it("API key - no read permissions", async () => {
-                await assertEndpointRequiresApiKeyReadPermissions(
+                await assertRequiresApiKeyReadPermissions(
                     payment.findOne,
                     { id: generatePK() },
                     payment_findOne,
@@ -222,7 +221,7 @@ describe("EndpointsPayment", () => {
     describe("findMany", () => {
         describe("authentication", () => {
             it("not logged in", async () => {
-                await assertEndpointRequiresAuth(
+                await assertRequiresAuth(
                     payment.findMany,
                     {},
                     payment_findMany,
@@ -230,7 +229,7 @@ describe("EndpointsPayment", () => {
             });
 
             it("API key - no read permissions", async () => {
-                await assertEndpointRequiresApiKeyReadPermissions(
+                await assertRequiresApiKeyReadPermissions(
                     payment.findMany,
                     {},
                     payment_findMany,
@@ -251,7 +250,7 @@ describe("EndpointsPayment", () => {
 
                 expect(result.results).toHaveLength(3); // User 1 has 3 payments (2 user + 1 team)
                 expect(result.totalCount).toBe(3);
-                
+
                 // Verify all returned payments belong to user 1
                 const paymentIds = result.results.map(p => p.id);
                 expect(paymentIds).toContain(payments[0].id.toString()); // User 1's successful payment

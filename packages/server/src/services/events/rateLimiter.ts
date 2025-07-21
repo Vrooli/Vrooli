@@ -9,7 +9,6 @@
  * ensures fair usage across the three-tier execution architecture.
  */
 
-import type { ChatEventData } from "@vrooli/shared";
 import * as fs from "fs";
 import { type Cluster, type Redis } from "ioredis";
 import * as path from "path";
@@ -17,7 +16,7 @@ import { fileURLToPath } from "url";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { CacheService } from "../../redisConn.js";
-import { type CoordinationEvent, type ExecutionEvent, type ProcessEvent, type SafetyEvent, type ServiceEvent } from "./types.js";
+import { type CoordinationEvent, type ExecutionEvent, extractChatId, type ProcessEvent, type SafetyEvent, type ServiceEvent } from "./types.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -472,7 +471,7 @@ export class EventBusRateLimiter {
      * Extract conversation ID from event context  
      */
     private extractChatId<T extends ServiceEvent>(event: T): string | null {
-        return (event as ChatEventData).chatId || null;
+        return extractChatId(event);
     }
 
     /**

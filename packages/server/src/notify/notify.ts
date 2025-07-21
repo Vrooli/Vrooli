@@ -17,9 +17,9 @@ import { ModelMap } from "../models/base/index.js";
 import { PushDeviceModel } from "../models/base/pushDevice.js";
 import { CacheService } from "../redisConn.js";
 import { SocketService } from "../sockets/io.js";
-import type { BaseTaskData, ManagedQueue } from "../tasks/queueFactory.js";
+import type { ManagedQueue } from "../tasks/queueFactory.js";
 import { QueueService } from "../tasks/queues.js";
-import { QueueTaskType } from "../tasks/taskTypes.js";
+import { type BaseTaskData, QueueTaskType } from "../tasks/taskTypes.js";
 import { formatNotificationEmail, validateEmailTemplate } from "./formatters.js";
 import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings.js";
 
@@ -819,10 +819,10 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
          */
         toSubscribers: async (objectType, objectId, excludedUsers, deliveryMode) => {
             try {
-                // Capture default silent, rename notification-level languages
+                type NotificationBatchArgs = Omit<Prisma.notification_subscriptionFindManyArgs, "select"> & { select: NonNullable<Prisma.notification_subscriptionFindManyArgs["select"]> };
                 const { body, bodyKey, bodyVariables, category, link, title, titleKey, titleVariables, silent } = notification;
                 const { batch } = await import("../utils/batch.js");
-                await batch<Prisma.notification_subscriptionFindManyArgs, NotificationSubscriptionPayload>({
+                await batch<NotificationBatchArgs, NotificationSubscriptionPayload>({
                     objectType: "NotificationSubscription",
                     select: notificationSubscriptionSelect,
                     processBatch: async (batch) => {
@@ -866,9 +866,10 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
          */
         toChatParticipants: async (chatId, excludedUsers, deliveryMode) => {
             try {
+                type ChatBatchArgs = Omit<Prisma.chat_participantsFindManyArgs, "select"> & { select: NonNullable<Prisma.chat_participantsFindManyArgs["select"]> };
                 const { body, bodyKey, bodyVariables, category, link, title, titleKey, titleVariables, silent } = notification;
                 const { batch } = await import("../utils/batch.js");
-                await batch<Prisma.chat_participantsFindManyArgs, ChatParticipantPayload>({
+                await batch<ChatBatchArgs, ChatParticipantPayload>({
                     objectType: "ChatParticipant",
                     select: chatParticipantsSelect,
                     processBatch: async (batch) => {
@@ -1291,7 +1292,7 @@ export function Notify(languages: string[] | undefined) {
             };
 
             if (hasCost) {
-                bodyVariables.estimatedCost = typeof estimatedCost === "string" ? estimatedCost : estimatedCost!.toString();
+                bodyVariables.estimatedCost = typeof estimatedCost === "string" ? estimatedCost : (estimatedCost?.toString() ?? "");
             }
 
             // rawEndTs is used by NotifyResult -> replaceLabels -> getEventStartLabel to generate 'timeRemaining'

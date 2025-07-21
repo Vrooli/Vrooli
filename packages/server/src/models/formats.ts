@@ -1,5 +1,5 @@
 import { type ModelType } from "@vrooli/shared";
-import { type ApiKeyExternalModelInfo, type ApiKeyModelInfo, type AwardModelInfo, type BookmarkListModelInfo, type BookmarkModelInfo, type ChatInviteModelInfo, type ChatMessageModelInfo, type ChatModelInfo, type ChatParticipantModelInfo, type CommentModelInfo, type EmailModelInfo, type IssueModelInfo, type MeetingInviteModelInfo, type MeetingModelInfo, type MemberInviteModelInfo, type MemberModelInfo, type NotificationModelInfo, type NotificationSubscriptionModelInfo, type PaymentModelInfo, type PhoneModelInfo, type PullRequestModelInfo, type PushDeviceModelInfo, type ReactionModelInfo, type ReactionSummaryModelInfo, type ReminderItemModelInfo, type ReminderListModelInfo, type ReminderModelInfo, type ReportModelInfo, type ReportResponseModelInfo, type ResourceModelInfo, type ResourceVersionModelInfo, type ResourceVersionRelationModelInfo, type RunIOModelInfo, type RunModelInfo, type RunStepModelInfo, type ScheduleExceptionModelInfo, type ScheduleModelInfo, type ScheduleRecurrenceModelInfo, type SessionModelInfo, type StatsResourceModelInfo, type StatsSiteModelInfo, type StatsTeamModelInfo, type StatsUserModelInfo, type TagModelInfo, type TeamModelInfo, type TransferModelInfo, type UserModelInfo, type ViewModelInfo, type WalletModelInfo } from "./base/types.js";
+import { type ApiKeyExternalModelInfo, type ApiKeyModelInfo, type AwardModelInfo, type BookmarkListModelInfo, type BookmarkModelInfo, type ChatInviteModelInfo, type ChatMessageModelInfo, type ChatModelInfo, type ChatParticipantModelInfo, type CommentModelInfo, type EmailModelInfo, type IssueModelInfo, type MeetingInviteModelInfo, type MeetingModelInfo, type MemberInviteModelInfo, type MemberModelInfo, type NotificationModelInfo, type NotificationSubscriptionModelInfo, type PaymentModelInfo, type PhoneModelInfo, type PullRequestModelInfo, type PushDeviceModelInfo, type ReactionModelInfo, type ReactionSummaryModelInfo, type ReminderItemModelInfo, type ReminderListModelInfo, type ReminderModelInfo, type ReportModelInfo, type ReportResponseModelInfo, type ResourceModelInfo, type ResourceVersionModelInfo, type ResourceVersionRelationModelInfo, type RunIOModelInfo, type RunModelInfo, type RunStepModelInfo, type ScheduleExceptionModelInfo, type ScheduleModelInfo, type ScheduleRecurrenceModelInfo, type StatsResourceModelInfo, type StatsSiteModelInfo, type StatsTeamModelInfo, type StatsUserModelInfo, type TagModelInfo, type TeamModelInfo, type TransferModelInfo, type UserModelInfo, type ViewModelInfo, type WalletModelInfo } from "./base/types.js";
 import { type Formatter } from "./types.js";
 
 export const ApiKeyFormat: Formatter<ApiKeyModelInfo> = {
@@ -765,16 +765,6 @@ export const ScheduleRecurrenceFormat: Formatter<ScheduleRecurrenceModelInfo> = 
     countFields: {},
 };
 
-export const SessionFormat: Formatter<SessionModelInfo> = {
-    apiRelMap: {
-        __typename: "Session",
-    },
-    prismaRelMap: {
-        __typename: "Session",
-    },
-    countFields: {},
-};
-
 export const StatsResourceFormat: Formatter<StatsResourceModelInfo> = {
     apiRelMap: {
         __typename: "StatsResource",
@@ -1004,7 +994,6 @@ export const FormatMap: { [key in ModelType]?: Formatter<any> } = {
     Schedule: ScheduleFormat,
     ScheduleException: ScheduleExceptionFormat,
     ScheduleRecurrence: ScheduleRecurrenceFormat,
-    Session: SessionFormat,
     StatsResource: StatsResourceFormat,
     StatsSite: StatsSiteFormat,
     StatsTeam: StatsTeamFormat,

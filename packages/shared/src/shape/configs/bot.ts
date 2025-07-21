@@ -2,7 +2,7 @@ import { type User } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
 import type { RunState } from "../../execution/routine.js";
 import { type TranslationFunc, type TranslationKeyService } from "../../types.d.js";
-import { BaseConfig, type BaseConfigObject } from "./base.js";
+import { BaseConfig, type BaseConfigObject, type ModelConfig } from "./base.js";
 
 const LATEST_CONFIG_VERSION = "1.0";
 
@@ -318,19 +318,19 @@ export interface AgentSpec {
 }
 
 export interface BotConfigObject extends BaseConfigObject {
-    model?: string;
+    modelConfig?: ModelConfig;
     maxTokens?: number;
     agentSpec?: AgentSpec;
 }
 
 export class BotConfig extends BaseConfig<BotConfigObject> {
-    model?: BotConfigObject["model"];
+    modelConfig?: BotConfigObject["modelConfig"];
     maxTokens?: BotConfigObject["maxTokens"];
     agentSpec?: BotConfigObject["agentSpec"];
 
     constructor({ botSettings }: { botSettings: BotConfigObject }) {
         super({ config: botSettings });
-        this.model = botSettings.model;
+        this.modelConfig = botSettings.modelConfig;
         this.maxTokens = botSettings.maxTokens;
         this.agentSpec = botSettings.agentSpec;
     }
@@ -355,7 +355,7 @@ export class BotConfig extends BaseConfig<BotConfigObject> {
             botSettings: {
                 __version: LATEST_CONFIG_VERSION,
                 resources: [],
-                model: undefined,
+                modelConfig: undefined,
                 maxTokens: undefined,
                 agentSpec: undefined,
             },
@@ -365,7 +365,7 @@ export class BotConfig extends BaseConfig<BotConfigObject> {
     export(): BotConfigObject {
         return {
             ...super.export(),
-            model: this.model,
+            modelConfig: this.modelConfig,
             maxTokens: this.maxTokens,
             agentSpec: this.agentSpec,
         };

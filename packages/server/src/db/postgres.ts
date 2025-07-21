@@ -1,4 +1,5 @@
 import pkg from "@prisma/client";
+import { SECONDS_30_MS } from "@vrooli/shared";
 import { logger } from "../events/logger.js";
 import { type DatabaseService } from "./provider.js";
 
@@ -12,19 +13,31 @@ export class PostgresDriver implements DatabaseService {
     private prisma: InstanceType<typeof PrismaClient>;
 
     constructor() {
+        const dbUrl = process.env.DB_URL;
         // Prisma automatically picks up the DB_URL from your .env
         // e.g., DB_URL="postgresql://user:password@localhost:5432/mydb"
         // If you need custom configuration, pass it into the PrismaClient constructor
         this.prisma = new PrismaClient({
             log: debug ? ["info", "warn", "error"] : undefined,
+            datasources: {
+                db: {
+                    url: dbUrl,
+                },
+            },
         });
     }
 
     async connect(): Promise<void> {
         // Prisma doesn't require an explicit 'connect' to start using it.
         // But you can force a connection to check if the DB is reachable.
-        await this.prisma.$connect();
-        logger.info("Connected to PostgreSQL via Prisma");
+        // Add a timeout to prevent infinite hanging
+        const CONNECTION_TIMEOUT_MS = SECONDS_30_MS;
+        const connectPromise = this.prisma.$connect();
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error("Database connection timeout after 30 seconds")), CONNECTION_TIMEOUT_MS);
+        });
+
+        await Promise.race([connectPromise, timeoutPromise]);
     }
 
     async disconnect(): Promise<void> {
@@ -52,11 +65,11 @@ export class PostgresDriver implements DatabaseService {
         } catch (error) {
             // Check if this is a "table does not exist" error
             const errorMessage = error instanceof Error ? error.message : String(error);
-            const isTableMissing = errorMessage.includes("does not exist") || 
-                                   errorMessage.includes("doesn't exist") ||
-                                   errorMessage.includes("relation") ||
-                                   errorMessage.includes("P2021"); // Prisma error code for missing table
-            
+            const isTableMissing = errorMessage.includes("does not exist") ||
+                errorMessage.includes("doesn't exist") ||
+                errorMessage.includes("relation") ||
+                errorMessage.includes("P2021"); // Prisma error code for missing table
+
             if (isTableMissing) {
                 logger.error("PostgreSQL seeding failed: Database tables not found. Please run migrations first.", {
                     trace: "POSTGRES-SEED-NO-TABLES",

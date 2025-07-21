@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { DEFAULT_LANGUAGE, type SessionUser, generatePK } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { afterEach, describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { type Request } from "express";
 import type { Cluster, Redis } from "ioredis";
 import { type Socket } from "socket.io";

@@ -191,7 +191,7 @@ export function withResources<T extends BaseConfigObject>(
 /**
  * Create timestamp fields
  */
-export function withTimestamps(date: Date = new Date()) {
+export function withTimestamps(date: Date = new Date().toISOString()) {
     return {
         createdAt: date.toISOString(),
         updatedAt: date.toISOString(),
@@ -202,7 +202,7 @@ export function withTimestamps(date: Date = new Date()) {
  * Create schedule fields
  */
 export function withSchedule(
-    startTime: Date = new Date(),
+    startTime: Date = new Date().toISOString(),
     endTime?: Date,
     timezone = "UTC",
 ) {

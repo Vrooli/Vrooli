@@ -81,14 +81,16 @@
     },
     "./test-fixtures/api-inputs": {
       "import": "./test-dist/__test/fixtures/api-inputs/index.js",
-      "types": "./src/__test/fixtures/index.ts"
+      "types": "./src/__test/fixtures/api-inputs/index.ts"
     }
   },
   "scripts": {
     "test": "bash ../../scripts/package-test.sh shared",
     "test-watch": "npx vitest",
     "test-coverage": "NODE_OPTIONS='--max-old-space-size=8192' npx vitest run --coverage",
-    "lint": "eslint src --cache --cache-location .eslintcache --fix",
+    "lint": "eslint src --ignore-pattern '**/__test/**' --ignore-pattern '**/*.test.ts' --ignore-pattern '**/*.test.tsx' --ignore-pattern '**/*.spec.ts' --ignore-pattern '**/*.spec.tsx' --cache --cache-location .eslintcache --fix",
+    "lint:test": "eslint '{src,test}/**/*.{ts,tsx}' '{src,test}/**/*test.ts' '{src,test}/**/*test.tsx' '{src,test}/**/*spec.ts' '{src,test}/**/*spec.tsx' 'src/**/__test/**/*' --config .eslintrc.test.cjs --cache --cache-location .eslintcache.test --fix",
+    "lint:all": "pnpm run lint && pnpm run lint:test",
     "build": "rimraf dist .tsbuildinfo && cross-env NODE_ENV=production swc src -d dist --ignore \"**/*.test.ts,**/*.test.js,**/*.test.tsx,**/*.test.jsx,**/*.test.cjs,**/__test/**,**/__tools/**\" && tsc --project . --emitDeclarationOnly --outDir dist && pnpm run post-build",
     "build:test": "rimraf test-dist && cross-env NODE_ENV=test swc src -d test-dist && pnpm run post-build:test",
     "post-build": "run-s post-build-copy post-build-fix-imports",
@@ -97,7 +99,11 @@
     "post-build-copy:test": "copyfiles -u 1 \"src/**/*.json\" test-dist",
     "post-build-fix-imports": "sh ../../scripts/fixImports.sh assert dist",
     "post-build-fix-imports:test": "sh ../../scripts/fixImports.sh assert test-dist",
-    "type-check": "NODE_OPTIONS='--max-old-space-size=2048 --no-deprecation' tsc --noEmit"
+    "type-check": "NODE_OPTIONS='--max-old-space-size=2048 --no-deprecation' tsc --noEmit",
+    "type-check:test": "NODE_OPTIONS='--max-old-space-size=2048 --no-deprecation' tsc --noEmit -p tsconfig.test.json",
+    "type-check:all": "pnpm run type-check && pnpm run type-check:test",
+    "validate": "pnpm run lint && pnpm run type-check",
+    "validate:all": "pnpm run lint:all && pnpm run type-check:all"
   },
   "dependencies": {
     "bpmn-moddle": "^9.0.1",

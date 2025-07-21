@@ -3,6 +3,9 @@
  * Central export for all test fixtures in the shared package
  */
 
+// Export shared constants
+export * from "./constants.js";
+
 // Export API fixtures
 export * from "./api-inputs/index.js";
 

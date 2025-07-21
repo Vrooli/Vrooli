@@ -7,10 +7,8 @@ import { CustomError } from "../events/error.js";
 import { logger } from "../events/logger.js";
 import { ModelMap } from "../models/base/index.js";
 // AI_CHECK: TYPE_SAFETY=phase2-permissions | LAST: 2025-07-04 - Fixed type safety issues with ModelMap access
-import { type BaseModelLogic } from "../models/base/index.js";
-import { type ModelLogicType, type Validator } from "../models/types.js";
-import { hasTypename, isAuthData } from "../utils/typeGuards.js";
 import { type AuthDataById, type AuthDataItem } from "../utils/getAuthenticatedData.js";
+import { hasTypename } from "../utils/typeGuards.js";
 import { type InputsById, type QueryAction } from "../utils/types.js";
 
 /**
@@ -226,10 +224,12 @@ type ResolvedPermissions = { [x in Exclude<QueryAction, "Create"> as `can${x}`]:
 * @param inputsById Map of all input data, keyed by ID
 * @returns Input data for parent object, or undefined if parent doesn't exist or doesn't match typename
 */
-export function getParentInfo(id: string, typename: `${ModelType}`, inputsById: InputsById): unknown | undefined {
+export function getParentInfo(id: string, typename: `${ModelType}`, inputsById: InputsById): Record<string, unknown> | undefined {
     const node = inputsById[id]?.node;
     if (node?.__typename !== typename) return undefined;
-    return node?.parent ? inputsById[node.parent.id]?.input : undefined;
+    if (!node?.parent) return undefined;
+    const parentInput = inputsById[node.parent.id]?.input;
+    return (parentInput && typeof parentInput === "object") ? parentInput as Record<string, unknown> : undefined;
 }
 
 /**
@@ -326,6 +326,26 @@ export function defaultPermissions({
 }
 
 /**
+ * Filters defaultPermissions to only include the permissions that a specific model needs.
+ * This ensures type safety by only returning the permission fields that exist in the model's "You" type.
+ * @param permissions The full permissions object from defaultPermissions
+ * @param allowedKeys Array of permission keys that the model supports
+ * @returns Filtered permissions object with only the specified keys
+ */
+export function filterPermissions<T extends Record<string, () => any>>(
+    permissions: DefaultPermissionsReturn,
+    allowedKeys: readonly string[],
+): T {
+    const filtered: any = {};
+    for (const key of allowedKeys) {
+        if (key in permissions) {
+            filtered[key] = permissions[key];
+        }
+    }
+    return filtered;
+}
+
+/**
  * Calculates and returns permissions for a given object based on user and auth data.
  * @param authData The authentication data for the object.
  * @param userData Details about the user, such as ID and role.
@@ -333,14 +353,14 @@ export function defaultPermissions({
  * @param inputsById Optional data for additional permission logic context.
  * @returns A promise that resolves to an object with permission keys and boolean values.
  */
-// AI_CHECK: TYPE_SAFETY=server-type-safety-p1-5 | LAST: 2025-07-03 | Fixed validator interface types
+// AI_CHECK: TYPE_SAFETY=server-type-safety-p1-5 | LAST: 2025-07-07 | Fixed validator.permissionResolvers return type from Record<string, () => boolean> to Record<string, () => any>
 export async function calculatePermissions<T extends AuthDataItem>(
     authData: T,
     userData: Pick<SessionUser, "id"> | null,
     validator: {
         owner: (data: Record<string, unknown>, userId: string | null) => RawOwnerData | null;
         isDeleted: (data: Record<string, unknown>) => boolean;
-        isPublic: (data: Record<string, unknown>, getParentInfo: unknown) => boolean;
+        isPublic: (data: Record<string, unknown>, getParentInfo?: ((id: string, typename: ModelType | `${ModelType}`) => Record<string, unknown> | undefined)) => boolean;
         permissionResolvers: (params: {
             isAdmin: boolean;
             isDeleted: boolean;
@@ -348,7 +368,7 @@ export async function calculatePermissions<T extends AuthDataItem>(
             isPublic: boolean;
             data: Record<string, unknown>;
             userId: string | null;
-        }) => Record<string, () => boolean>;
+        }) => Record<string, () => any>;
     },
     inputsById?: InputsById,
 ): Promise<ResolvedPermissions> {
@@ -435,7 +455,7 @@ export async function getSingleTypePermissions<Permissions extends Record<string
     const { dbTable, validate } = ModelMap.getLogic(["dbTable", "validate"], type, true, "getSingleTypePermissions");
     const validator = validate();
     // Get auth data for all objects
-    let select: unknown;
+    let select: Record<string, unknown> | undefined;
     let dataById: Record<string, object>;
     try {
         select = permissionsSelectHelper(validator.permissionsSelect, userData?.id ?? null);
@@ -445,7 +465,7 @@ export async function getSingleTypePermissions<Permissions extends Record<string
         });
         dataById = Object.fromEntries(authData.map(item => [item.id, item as AuthDataItem]));
     } catch (error) {
-        throw new CustomError("0388", "InternalError", { ids, select, objectType: type });
+        throw new CustomError("0388", "InternalError", { ids, select: select ?? "undefined", objectType: type });
     }
     // Loop through each id and calculate permissions
     for (const id of ids) {

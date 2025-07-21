@@ -48,7 +48,7 @@ export const botConfigFixtures: ConfigTestFixtures<BotConfigObject> = {
         },
         invalidTypes: {
             __version: LATEST_CONFIG_VERSION,
-            maxTokens: "invalid", // Wrong type
+            maxTokens: "invalid" as unknown as number, // Intentionally wrong type
         },
     },
 

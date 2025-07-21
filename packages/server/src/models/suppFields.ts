@@ -38,7 +38,6 @@ export const SuppFields = {
     Schedule: [],
     ScheduleException: [],
     ScheduleRecurrence: [],
-    Session: [],
     StatsResource: [],
     StatsSite: [],
     StatsTeam: [],

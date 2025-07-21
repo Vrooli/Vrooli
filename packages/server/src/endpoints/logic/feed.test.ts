@@ -1,18 +1,17 @@
-import { type PopularSearchInput, VisibilityType, ResourceSortBy, TeamSortBy, UserSortBy, generatePK } from "@vrooli/shared";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { type PopularSearchInput, ResourceSortBy, TeamSortBy, VisibilityType, generatePK } from "@vrooli/shared";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { CacheService } from "../../redisConn.js";
 import { feed_home } from "../generated/feed_home.js";
 import { feed_popular } from "../generated/feed_popular.js";
 import { feed } from "./feed.js";
 // Import database fixtures
-import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
-import { ResourceDbFactory } from "../../__test/fixtures/db/resourceFixtures.js";
-import { TeamDbFactory } from "../../__test/fixtures/db/teamFixtures.js";
 import { ReminderDbFactory } from "../../__test/fixtures/db/reminderFixtures.js";
+import { ResourceDbFactory } from "../../__test/fixtures/db/resourceFixtures.js";
 import { ScheduleDbFactory } from "../../__test/fixtures/db/scheduleFixtures.js";
+import { TeamDbFactory } from "../../__test/fixtures/db/teamFixtures.js";
+import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
@@ -27,18 +26,18 @@ describe("EndpointsFeed", () => {
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["team","member","member_invite","meeting","user"],
+            tables: ["team", "member", "member_invite", "meeting", "user"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
     });
 
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.team(DbProvider.get());
-    }););
+    });
 
     afterAll(async () => {
         // Restore all mocks
@@ -46,15 +45,16 @@ describe("EndpointsFeed", () => {
     });
 
     // Helper function to create test data
-    const createTestData = async () => {
+    async function createTestData() {
         // Create test users
         const testUsers = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
-        
-        // Create test tags
+
+        // Create test tags with unique names to avoid conflicts
+        const uniqueSuffix = Date.now().toString();
         const tags = await Promise.all([
-            DbProvider.get().tag.create({ data: { id: generatePK(), tag: "api" } }),
-            DbProvider.get().tag.create({ data: { id: generatePK(), tag: "database" } }),
-            DbProvider.get().tag.create({ data: { id: generatePK(), tag: "utility" } }),
+            DbProvider.get().tag.create({ data: { id: generatePK(), tag: `api_${uniqueSuffix}` } }),
+            DbProvider.get().tag.create({ data: { id: generatePK(), tag: `database_${uniqueSuffix}` } }),
+            DbProvider.get().tag.create({ data: { id: generatePK(), tag: `utility_${uniqueSuffix}` } }),
         ]);
 
         // Create test team
@@ -133,7 +133,7 @@ describe("EndpointsFeed", () => {
         ]);
 
         return { testUsers, tags, team, resources, reminders, schedules };
-    };
+    }
 
     describe("home", () => {
         describe("authentication", () => {
@@ -179,10 +179,10 @@ describe("EndpointsFeed", () => {
 
                 // Verify reminder details
                 expect(result.reminders.every(r => r.isComplete === false)).toBe(true);
-                
+
                 // Verify resource details
                 expect(result.resources[0].root?.createdBy?.id).toBe(testUsers[0].id.toString());
-                
+
                 // Verify schedule details
                 expect(result.schedules[0].name).toBe("Morning meeting");
                 expect(result.schedules[0].createdBy?.id).toBe(testUsers[0].id.toString());
@@ -203,7 +203,7 @@ describe("EndpointsFeed", () => {
 
             it("filters out completed reminders", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create completed reminder
                 await DbProvider.get().reminder.create({
                     data: ReminderDbFactory.createWithItems({
@@ -229,7 +229,7 @@ describe("EndpointsFeed", () => {
 
             it("limits results to 10 items per category", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create many reminders (more than 10)
                 const reminderPromises = [];
                 for (let i = 0; i < 15; i++) {
@@ -261,7 +261,7 @@ describe("EndpointsFeed", () => {
 
             it("includes schedules for next 7 days", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 const now = new Date();
                 const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
                 const nextWeek = new Date(now.getTime() + 6 * 24 * 60 * 60 * 1000);
@@ -320,7 +320,7 @@ describe("EndpointsFeed", () => {
                 // The endpoint has rate limiting of 5000 per user
                 // This test verifies the rate limiting is in place (actual limit testing would require many requests)
                 const result = await feed.home({}, { req, res }, feed_home);
-                
+
                 expect(result).toBeDefined();
                 // If rate limiting fails, this would throw an error
             });
@@ -344,9 +344,9 @@ describe("EndpointsFeed", () => {
 
             it("provides same results for authenticated and unauthenticated users", async () => {
                 await createTestData();
-                
+
                 const input: PopularSearchInput = {};
-                
+
                 // Get results for unauthenticated user
                 const { req: req1, res: res1 } = await mockLoggedOutSession();
                 const result1 = await feed.popular({ input }, { req: req1, res: res1 }, feed_popular);
@@ -502,7 +502,7 @@ describe("EndpointsFeed", () => {
 
                 // Should contain alternating mix of different object types
                 expect(result.edges.length).toBeGreaterThan(0);
-                
+
                 const nodeTypes = result.edges.map(edge => edge.node.__typename);
                 const uniqueTypes = [...new Set(nodeTypes)];
                 expect(uniqueTypes.length).toBeGreaterThan(1); // Should have multiple types
@@ -527,10 +527,10 @@ describe("EndpointsFeed", () => {
                 const { req, res } = await mockLoggedOutSession();
 
                 const input: PopularSearchInput = {};
-                
+
                 // The endpoint has rate limiting of 5000 per user
                 const result = await feed.popular({ input }, { req, res }, feed_popular);
-                
+
                 expect(result).toBeDefined();
                 // If rate limiting fails, this would throw an error
             });

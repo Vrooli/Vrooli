@@ -8,7 +8,7 @@
  * Subclasses implement specific state transitions and event handling logic.
  */
 
-import { EventTypes, generatePK, RunState, type SocketEvent, type SocketEventPayloads } from "@vrooli/shared";
+import { EventTypes, generatePK, RunState, type SocketEvent, type SocketEventPayloads, type StopOptions, type StopResult } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
 import type { ManagedTaskStateMachine } from "../../../tasks/activeTaskRegistry.js";
 import { getEventBus } from "../../events/eventBus.js";
@@ -164,22 +164,18 @@ export abstract class BaseStateMachine<TEvent extends ServiceEvent = ServiceEven
      * Request stop (for ManagedTaskStateMachine interface)
      */
     public async requestStop(reason: string): Promise<boolean> {
-        const result = await this.stop("graceful", reason);
+        const result = await this.stop({ mode: "graceful", reason });
         return result.success;
     }
 
     /**
-     * Stop the state machine
+     * Stop the state machine with optional configuration
+     * @param options Stop configuration (mode, reason, requestingUser)
      */
-    public async stop(
-        mode: "graceful" | "force" = "graceful",
-        reason?: string,
-    ): Promise<{
-        success: boolean;
-        message?: string;
-        finalState?: unknown;
-        error?: string;
-    }> {
+    public async stop(options?: StopOptions): Promise<StopResult> {
+        const mode = options?.mode || "graceful";
+        const stopReason = options?.reason;
+        const requestingUser = options?.requestingUser;
         const stoppableStates = [
             RunState.RUNNING,
             RunState.READY,
@@ -204,7 +200,7 @@ export abstract class BaseStateMachine<TEvent extends ServiceEvent = ServiceEven
             };
         }
 
-        logger.info(`[${this.constructor.name}] Stopping (${mode}) - Reason: ${reason || "No reason"}`);
+        logger.info(`[${this.constructor.name}] Stopping (${mode}) - Reason: ${stopReason || "No reason"}`);
 
         const result = await this.errorHandler.wrap(
             async () => {
@@ -218,11 +214,11 @@ export abstract class BaseStateMachine<TEvent extends ServiceEvent = ServiceEven
                 await this.releaseDistributedProcessingLock();
 
                 // Let subclass handle cleanup
-                const finalState = await this.onStop(mode, reason);
+                const finalState = await this.onStop(mode, stopReason);
 
                 // Update state through event-driven transition
                 const newState = (mode === "force" ? RunState.CANCELLED : RunState.COMPLETED);
-                await this.applyStateTransition(newState, `stop_${mode}: ${reason || "no reason"}`);
+                await this.applyStateTransition(newState, `stop_${mode}: ${stopReason || "no reason"}`);
                 this.disposed = true;
 
                 return {
@@ -234,9 +230,10 @@ export abstract class BaseStateMachine<TEvent extends ServiceEvent = ServiceEven
             {
                 component: this.componentName,
                 operation: "stop",
-                reason,
+                reason: stopReason,
                 metadata: {
                     mode,
+                    requestingUser: requestingUser?.id,
                 },
             },
         );
@@ -563,6 +560,7 @@ export abstract class BaseStateMachine<TEvent extends ServiceEvent = ServiceEven
             );
 
             // Create unsubscribe function
+            // eslint-disable-next-line func-style
             const unsubscribe = async (): Promise<void> => {
                 await eventBus.unsubscribe(subscriptionId);
             };

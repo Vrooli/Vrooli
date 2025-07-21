@@ -119,9 +119,9 @@ export async function shapeHelper<
         // Shape the data
         const currShaped = shapeRelationshipData(curr, [], false);
         // Add to result
-        const key = lowercaseFirstLetter(t);
-        const existing = result[key];
-        result[key] = Array.isArray(existing) ?
+        const resultKey = lowercaseFirstLetter(t);
+        const existing = result[resultKey];
+        result[resultKey] = Array.isArray(existing) ?
             [...existing, ...currShaped] :
             currShaped;
     }
@@ -223,7 +223,7 @@ export async function shapeHelper<
         }
         if (result.delete) {
             // delete: [ { team_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } } ]
-            for (const id of (result?.delete ?? [])) {
+            for (const id of (result.delete as any[] ?? [])) {
                 const curr = {
                     [joinData.uniqueFieldName]: {
                         [joinData.childIdFieldName]: shapeId(idField, id[idField]),
@@ -235,7 +235,7 @@ export async function shapeHelper<
         }
         if (result.create) {
             // ex: create: [ { tag: { create: { id: 'asdf' } } } ]
-            for (const id of (result?.create ?? [])) {
+            for (const id of (result.create as any[] ?? [])) {
                 const curr = { id: generatePK(), [joinData.fieldName]: { create: shapeId(idField, id) } };
                 resultWithJoin.create.push(curr);
             }
@@ -245,7 +245,7 @@ export async function shapeHelper<
             //         where: { team_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } },
             //         data: { tag: { update: { tag: 'fdas', } } }
             //     }]
-            for (const data of (result?.update ?? [])) {
+            for (const data of (result.update as any[] ?? [])) {
                 const curr = {
                     where: {
                         [joinData.uniqueFieldName]: {
@@ -281,8 +281,9 @@ export async function shapeHelper<
     }
     // Remove values that are undefined or empty arrays
     result = Object.keys(result).reduce((acc, key) => {
-        if (result[key] === undefined || (Array.isArray(result[key]) && result[key].length === 0)) return acc;
-        acc[key] = result[key];
+        const value = result[key];
+        if (value === undefined || (Array.isArray(value) && value.length === 0)) return acc;
+        acc[key] = value;
         return acc;
     }, {} as Record<string, unknown>);
     // If result is empty, return undefined

@@ -411,11 +411,11 @@ export type Validator<
      * @param getParentInfo Used to get the data of the parent object. When using data from the 
      * database, this is not needed. When using data from a create mutation, it can be useful.
      */
-    isPublic: (data: Model["DbModel"], getParentInfo: ((id: string, typename: `${ModelType}`) => any | undefined)) => boolean;
+    isPublic: (data: Model["DbModel"], getParentInfo?: ((id: string, typename: `${ModelType}`) => any | undefined)) => boolean;
     /**
      * Permissions data for the object's owner
      */
-    owner: (data: Model["DbModel"] | undefined, userId: string) => {
+    owner: (data: Model["DbModel"] | undefined, userId: string | null) => {
         Team?: ({ id: bigint } & DbObject) | null;
         User?: ({ id: bigint } & DbObject) | null;
     }

@@ -63,7 +63,6 @@ export const pushDevice: EndpointsPushDevice = createStandardCrudEndpoints({
             const requestedId = input.id;
             const requestedDevice = pushDevices.find(({ id }) => id.toString() === requestedId);
             if (!requestedDevice) {
-                logger.info(`devices: ${requestedId}, ${JSON.stringify(pushDevices)}`);
                 throw new CustomError("0588", "Unauthorized");
             }
             const { Notify } = await import("../../notify/notify.js");

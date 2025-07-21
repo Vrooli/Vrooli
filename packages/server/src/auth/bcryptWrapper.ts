@@ -42,22 +42,25 @@ class BcryptServiceImpl implements BcryptService {
 }
 
 let bcryptService: BcryptService | null = null;
+let initializationPromise: Promise<BcryptService> | null = null;
 
-function getBcryptService(): BcryptService {
+/**
+ * Asynchronously initialize the bcrypt service using dynamic imports
+ */
+async function initializeBcryptService(): Promise<BcryptService> {
     if (bcryptService) {
         return bcryptService;
     }
 
     // First try native bcrypt for better performance
     try {
-        const bcrypt = require("bcrypt") as typeof bcryptTypes;
+        const bcrypt = await import("bcrypt") as typeof bcryptTypes;
         bcryptService = new BcryptServiceImpl(bcrypt, "bcrypt");
-        console.info("✅ Using native bcrypt for optimal performance");
         return bcryptService;
     } catch (bcryptError) {
         // Fall back to bcryptjs if native bcrypt fails
         try {
-            const bcryptjs = require("bcryptjs") as typeof bcryptTypes;
+            const bcryptjs = await import("bcryptjs") as typeof bcryptTypes;
             bcryptService = new BcryptServiceImpl(bcryptjs, "bcryptjs");
             console.warn("⚠️  Native bcrypt failed to load, using bcryptjs fallback. Performance may be reduced.");
             console.warn(`   Original error: ${bcryptError instanceof Error ? bcryptError.message : "Unknown error"}`);
@@ -72,5 +75,36 @@ function getBcryptService(): BcryptService {
     }
 }
 
-export { getBcryptService };
+/**
+ * Get the bcrypt service instance. This function ensures the service is initialized
+ * before returning it. For synchronous contexts where async isn't possible,
+ * make sure to call initializeBcryptService() during startup.
+ */
+function getBcryptService(): BcryptService {
+    if (bcryptService) {
+        return bcryptService;
+    }
+    
+    // This should not happen if initializeBcryptService() was called during startup
+    throw new Error("BcryptService not initialized. Call initializeBcryptService() during application startup.");
+}
+
+/**
+ * Get the bcrypt service instance asynchronously. This ensures proper initialization
+ * with dynamic imports.
+ */
+async function getBcryptServiceAsync(): Promise<BcryptService> {
+    if (bcryptService) {
+        return bcryptService;
+    }
+    
+    // Use a single initialization promise to avoid race conditions
+    if (!initializationPromise) {
+        initializationPromise = initializeBcryptService();
+    }
+    
+    return initializationPromise;
+}
+
+export { getBcryptService, getBcryptServiceAsync, initializeBcryptService };
 export type { BcryptService };

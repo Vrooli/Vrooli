@@ -4,17 +4,17 @@ import { LATEST_CONFIG_VERSION } from "../../../shape/configs/utils.js";
 /**
  * Validation result for config objects
  */
-export interface ValidationResult {
+export interface ValidationResult<T = unknown> {
     isValid: boolean;
     errors?: string[];
-    data?: any;
+    data?: T;
 }
 
 /**
  * Format types for config transformation
  */
-export type ApiConfigFormat = any; // Would be more specific in real implementation
-export type DbConfigFormat = any; // Would be more specific in real implementation
+export type ApiConfigFormat = Record<string, unknown>; // Would be more specific in real implementation
+export type DbConfigFormat = string; // JSON string for database storage
 
 /**
  * Enhanced factory interface for config fixtures
@@ -35,9 +35,9 @@ export interface ConfigFixtureFactory<TConfig extends BaseConfigObject> {
     invalid: {
         missingVersion?: Partial<TConfig>;
         invalidVersion?: TConfig;
-        malformedStructure?: any;
+        malformedStructure?: unknown;
         invalidTypes?: Partial<TConfig>;
-        [key: string]: any; // Allow additional invalid scenarios
+        [key: string]: unknown; // Allow additional invalid scenarios
     };
 
     // Factory methods
@@ -45,7 +45,7 @@ export interface ConfigFixtureFactory<TConfig extends BaseConfigObject> {
     createVariant: (variant: keyof ConfigFixtureFactory<TConfig>["variants"], overrides?: Partial<TConfig>) => TConfig;
 
     // Validation methods
-    validate: (config: any) => ValidationResult;
+    validate: (config: unknown) => ValidationResult<TConfig>;
     isValid: (config: unknown) => config is TConfig;
 
     // Composition helpers
@@ -70,9 +70,9 @@ export abstract class BaseConfigFactory<TConfig extends BaseConfigObject> implem
     abstract invalid: {
         missingVersion?: Partial<TConfig>;
         invalidVersion?: TConfig;
-        malformedStructure?: any;
+        malformedStructure?: unknown;
         invalidTypes?: Partial<TConfig>;
-        [key: string]: any;
+        [key: string]: unknown;
     };
 
     /**
@@ -97,7 +97,7 @@ export abstract class BaseConfigFactory<TConfig extends BaseConfigObject> implem
      * Validate a config object
      * Override this method in specific factories for custom validation
      */
-    validate(config: any): ValidationResult {
+    validate(config: unknown): ValidationResult<TConfig> {
         // Basic validation - check for required __version field
         if (!config || typeof config !== "object") {
             return {
@@ -106,23 +106,25 @@ export abstract class BaseConfigFactory<TConfig extends BaseConfigObject> implem
             };
         }
 
-        if (!config.__version) {
+        const configObj = config as Record<string, unknown>;
+
+        if (!configObj.__version) {
             return {
                 isValid: false,
                 errors: ["Missing required __version field"],
             };
         }
 
-        if (config.__version !== LATEST_CONFIG_VERSION) {
+        if (configObj.__version !== LATEST_CONFIG_VERSION) {
             return {
                 isValid: false,
-                errors: [`Invalid version: ${config.__version}`],
+                errors: [`Invalid version: ${configObj.__version}`],
             };
         }
 
         return {
             isValid: true,
-            data: config,
+            data: config as TConfig,
         };
     }
 
@@ -173,7 +175,10 @@ export abstract class BaseConfigFactory<TConfig extends BaseConfigObject> implem
             if (!validation.isValid) {
                 throw new Error(`Invalid config: ${validation.errors?.join(", ")}`);
             }
-            return validation.data as TConfig;
+            if (!validation.data) {
+                throw new Error("Validation succeeded but no data returned");
+            }
+            return validation.data;
         } catch (error) {
             throw new Error(`Failed to parse config JSON: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
@@ -191,7 +196,7 @@ export abstract class BaseConfigFactory<TConfig extends BaseConfigObject> implem
  * Deep merge utility function
  * Handles nested objects and arrays
  */
-export function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
+export function deepMerge<T extends Record<string, unknown>>(target: T, source: Partial<T>): T {
     const result = { ...target };
 
     for (const key in source) {
@@ -204,21 +209,21 @@ export function deepMerge<T extends Record<string, any>>(target: T, source: Part
             }
 
             if (sourceValue === null) {
-                result[key] = null as any;
+                result[key] = null as T[Extract<keyof T, string>];
             } else if (Array.isArray(sourceValue)) {
-                result[key] = [...sourceValue] as any;
+                result[key] = [...sourceValue] as T[Extract<keyof T, string>];
             } else if (
                 typeof sourceValue === "object" &&
                 sourceValue !== null &&
                 sourceValue.constructor === Object
             ) {
                 if (targetValue && typeof targetValue === "object" && !Array.isArray(targetValue)) {
-                    result[key] = deepMerge(targetValue, sourceValue);
+                    result[key] = deepMerge(targetValue as Record<string, unknown>, sourceValue as Record<string, unknown>) as T[Extract<keyof T, string>];
                 } else {
-                    result[key] = deepMerge({} as any, sourceValue);
+                    result[key] = deepMerge({}, sourceValue as Record<string, unknown>) as T[Extract<keyof T, string>];
                 }
             } else {
-                result[key] = sourceValue as any;
+                result[key] = sourceValue as T[Extract<keyof T, string>];
             }
         }
     }
@@ -233,8 +238,8 @@ export const validationHelpers = {
     /**
      * Check if a value is a valid enum value
      */
-    isValidEnum<T extends Record<string, string>>(value: any, enumObj: T): boolean {
-        return Object.values(enumObj).includes(value);
+    isValidEnum<T extends Record<string, string>>(value: unknown, enumObj: T): boolean {
+        return Object.values(enumObj).includes(value as string);
     },
 
     /**
@@ -277,7 +282,7 @@ export const compositionHelpers = {
         const result = { __version: source.__version } as Pick<T, K> & { __version: string };
         for (const key of keys) {
             if (key in source) {
-                (result as any)[key] = source[key];
+                (result as Record<string, unknown>)[key] = source[key];
             }
         }
         return result;
@@ -289,7 +294,7 @@ export const compositionHelpers = {
     omit<T extends BaseConfigObject, K extends keyof T>(source: T, keys: K[]): Omit<T, K> & { __version: string } {
         const result = { ...source };
         for (const key of keys) {
-            delete (result as any)[key];
+            delete (result as Record<string, unknown>)[key];
         }
         return result as Omit<T, K> & { __version: string };
     },

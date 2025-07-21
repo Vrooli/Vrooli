@@ -1,7 +1,8 @@
+import { MB_10_BYTES } from "@vrooli/shared";
 import winston from "winston";
 
 const LOG_DIR = `${process.env.PROJECT_DIR}/data/logs`;
-const MAX_LOG_SIZE = 5_242_880; // 5MB
+const MAX_LOG_SIZE = MB_10_BYTES;
 
 /**
  * @returns Array of transports to use for logging, depending on environment
@@ -49,14 +50,14 @@ function getTransports() {
 function getLogLevel(): string {
     const envLevel = process.env.LOG_LEVEL?.toLowerCase();
     const isTest = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === "test";
-    
+
     // Valid winston syslog levels
     const validLevels = ["emerg", "alert", "crit", "error", "warning", "notice", "info", "debug"];
-    
+
     if (envLevel && validLevels.includes(envLevel)) {
         return envLevel;
     }
-    
+
     // Default to 'error' in tests, 'info' otherwise
     return isTest ? "error" : "info";
 }

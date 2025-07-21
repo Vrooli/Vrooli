@@ -1,19 +1,28 @@
-import { type FindByIdInput, type NotificationSubscriptionCreateInput, type NotificationSubscriptionSearchInput, type NotificationSubscriptionUpdateInput, notificationSubscriptionTestDataFactory, generatePK } from "@vrooli/shared";
+import { type FindByIdInput, type NotificationSubscriptionCreateInput, type NotificationSubscriptionSearchInput, type NotificationSubscriptionUpdateInput, SubscribableObject, generatePK, nanoid } from "@vrooli/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { mockAuthenticatedSession, mockLoggedOutSession, mockApiSession, mockReadPrivatePermissions, mockWritePrivatePermissions } from "../../__test/session.js";
-import { assertRequiresAuth, assertRequiresApiKeyReadPermissions, assertRequiresApiKeyWritePermissions } from "../../__test/authTestUtils.js";
+import { assertRequiresApiKeyReadPermissions, assertRequiresApiKeyWritePermissions, assertRequiresAuth } from "../../__test/authTestUtils.js";
+import { mockApiSession, mockAuthenticatedSession, mockReadPrivatePermissions } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
-import { CacheService } from "../../redisConn.js";
-import { notificationSubscription_findOne } from "../generated/notificationSubscription_findOne.js";
-import { notificationSubscription_findMany } from "../generated/notificationSubscription_findMany.js";
 import { notificationSubscription_createOne } from "../generated/notificationSubscription_createOne.js";
+import { notificationSubscription_findMany } from "../generated/notificationSubscription_findMany.js";
+import { notificationSubscription_findOne } from "../generated/notificationSubscription_findOne.js";
 import { notificationSubscription_updateOne } from "../generated/notificationSubscription_updateOne.js";
 import { notificationSubscription } from "./notificationSubscription.js";
+
+// TODO: Import from @vrooli/shared when factory is properly exported
+const notificationSubscriptionTestDataFactory = {
+    createMinimal: (overrides?: any) => ({
+        id: generatePK(),
+        objectType: SubscribableObject.Resource,
+        objectConnect: generatePK(),
+        ...overrides,
+    }),
+};
 // Import database fixtures
-import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { NotificationSubscriptionDbFactory } from "../../__test/fixtures/db/notificationFixtures.js";
+import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
@@ -28,61 +37,175 @@ describe("EndpointsNotificationSubscription", () => {
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","session"],
+            tables: ["notification_subscription", "resource", "team", "user_auth", "email", "session", "user"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
     });
 
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.minimal(DbProvider.get());
-    }););
+
+        // Create admin user for tests that need it
+        const adminId = "00000000000000000001";
+        try {
+            await DbProvider.get().user.create({
+                data: {
+                    id: BigInt(adminId),
+                    publicId: "admin-public-id",
+                    handle: "admin",
+                    name: "Admin User",
+                    status: "Unlocked",
+                    isBot: false,
+                    isBotDepictingPerson: false,
+                    isPrivate: false,
+                },
+            });
+        } catch (error) {
+            // Admin user might already exist
+        }
+    });
 
     afterAll(async () => {
         // Restore all mocks
         vi.restoreAllMocks();
     });
 
+    // Helper function to create a user with auth for testing
+    async function createUserWithAuth() {
+        const { records: users } = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
+        const userWithAuth = await DbProvider.get().user.findUnique({
+            where: { id: users[0].id },
+            include: { auths: true, sessions: true },
+        });
+        if (!userWithAuth) throw new Error("Failed to create user with auth");
+        return userWithAuth;
+    }
+
+    // Helper function to create a resource for testing
+    async function createTestResource(userId: string) {
+        return await DbProvider.get().resource.create({
+            data: {
+                id: generatePK(),
+                publicId: nanoid(),
+                resourceType: "Code",
+                isPrivate: false,
+                hasCompleteVersion: false,
+                isDeleted: false,
+                ownedByUser: { connect: { id: userId } },
+            },
+        });
+    }
+
+    // Helper function to create a team for testing
+    async function createTestTeam() {
+        return await DbProvider.get().team.create({
+            data: {
+                id: generatePK(),
+                publicId: nanoid(),
+                handle: `team-${nanoid(6)}`,
+                isPrivate: false,
+            },
+        });
+    }
+
     // Helper function to create test data
-    const createTestData = async () => {
+    async function createTestData() {
         // Create test users
         const { records: testUsers } = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
-        
+
+        // Fetch users with auth data included for session mocking
+        const usersWithAuth = await Promise.all(
+            testUsers.map(user =>
+                DbProvider.get().user.findUnique({
+                    where: { id: user.id },
+                    include: { auths: true, sessions: true },
+                }),
+            ),
+        );
+
+        // Create resources for subscriptions to point to
+        const resource1 = await DbProvider.get().resource.create({
+            data: {
+                id: generatePK(),
+                publicId: nanoid(),
+                resourceType: "Code",
+                isPrivate: false,
+                hasCompleteVersion: false,
+                isDeleted: false,
+                ownedByUser: { connect: { id: testUsers.records[0].id } },
+            },
+        });
+
+        const resource2 = await DbProvider.get().resource.create({
+            data: {
+                id: generatePK(),
+                publicId: nanoid(),
+                resourceType: "Note",
+                isPrivate: false,
+                hasCompleteVersion: false,
+                isDeleted: false,
+                ownedByUser: { connect: { id: testUsers.records[0].id } },
+            },
+        });
+
+        // Create a team for the third subscription
+        const team = await DbProvider.get().team.create({
+            data: {
+                id: generatePK(),
+                publicId: nanoid(),
+                handle: `team-${nanoid(6)}`,
+                isPrivate: false,
+            },
+        });
+
         // Create notification subscriptions for users
         const subscriptions = await Promise.all([
             // User 1 subscriptions
             DbProvider.get().notification_subscription.create({
-                data: NotificationSubscriptionDbFactory.createMinimal({
-                    createdById: testUsers[0].id,
-                    objectType: "Project",
-                    objectId: generatePK(),
-                    condition: "CRUD",
-                }),
+                data: {
+                    ...NotificationSubscriptionDbFactory.createMinimal(testUsers.records[0].id.toString()),
+                    context: "Project updates subscription",
+                    silent: false,
+                    resource: { connect: { id: resource1.id } },
+                },
+                include: {
+                    resource: true,
+                    subscriber: true,
+                },
             }),
             DbProvider.get().notification_subscription.create({
-                data: NotificationSubscriptionDbFactory.createMinimal({
-                    createdById: testUsers[0].id,
-                    objectType: "Routine",
-                    objectId: generatePK(),
-                    condition: "CRUD",
-                }),
+                data: {
+                    ...NotificationSubscriptionDbFactory.createMinimal(testUsers.records[0].id.toString()),
+                    context: "Routine updates subscription",
+                    silent: false,
+                    resource: { connect: { id: resource2.id } },
+                },
+                include: {
+                    resource: true,
+                    subscriber: true,
+                },
             }),
             // User 2 subscription
             DbProvider.get().notification_subscription.create({
-                data: NotificationSubscriptionDbFactory.createMinimal({
-                    createdById: testUsers[1].id,
-                    objectType: "Team",
-                    objectId: generatePK(),
-                    condition: "CRUD",
-                }),
+                data: {
+                    ...NotificationSubscriptionDbFactory.createMinimal(testUsers.records[1].id.toString()),
+                    context: "Team updates subscription",
+                    silent: false,
+                    team: { connect: { id: team.id } },
+                },
+                include: {
+                    team: true,
+                    subscriber: true,
+                },
             }),
         ]);
 
-        return { testUsers, subscriptions };
-    };
+        return { testUsers: usersWithAuth.filter(u => u !== null) as any[], subscriptions, resources: [resource1, resource2], team };
+    }
 
     describe("findOne", () => {
         describe("authentication", () => {
@@ -106,27 +229,26 @@ describe("EndpointsNotificationSubscription", () => {
         describe("valid", () => {
             it("returns own notification subscription", async () => {
                 const { testUsers, subscriptions } = await createTestData();
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUsers[0].id.toString(),
-                });
+                const { req, res } = await mockAuthenticatedSession(testUsers[0]);
 
                 const input: FindByIdInput = { id: subscriptions[0].id.toString() };
                 const result = await notificationSubscription.findOne({ input }, { req, res }, notificationSubscription_findOne);
 
                 expect(result).toBeDefined();
                 expect(result.id).toBe(subscriptions[0].id.toString());
-                expect(result.objectType).toBe("Project");
-                expect(result.condition).toBe("CRUD");
-                expect(result.user?.id).toBe(testUsers[0].id.toString());
+                expect(result.context).toBe("Project updates subscription");
+                expect(result.silent).toBe(false);
+                expect(result.object.__typename).toBe("Resource");
             });
 
             it("returns subscription with API key", async () => {
                 const { testUsers, subscriptions } = await createTestData();
-                const { req, res } = await mockApiSession({
-                    userId: testUsers[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockReadPrivatePermissions(["NotificationSubscription"]),
-                });
+                const apiToken = nanoid();
+                const { req, res } = await mockApiSession(
+                    apiToken,
+                    mockReadPrivatePermissions(["NotificationSubscription"]),
+                    testUsers[0],
+                );
 
                 const input: FindByIdInput = { id: subscriptions[0].id.toString() };
                 const result = await notificationSubscription.findOne({ input }, { req, res }, notificationSubscription_findOne);
@@ -137,28 +259,23 @@ describe("EndpointsNotificationSubscription", () => {
 
             it("returns subscription with complete details", async () => {
                 const { testUsers, subscriptions } = await createTestData();
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUsers[0].id.toString(),
-                });
+                const { req, res } = await mockAuthenticatedSession(testUsers[0]);
 
                 const input: FindByIdInput = { id: subscriptions[0].id.toString() };
                 const result = await notificationSubscription.findOne({ input }, { req, res }, notificationSubscription_findOne);
 
-                expect(result.objectType).toBe("Project");
-                expect(result.objectId).toBeDefined();
-                expect(result.condition).toBe("CRUD");
+                expect(result.context).toBe("Project updates subscription");
+                expect(result.silent).toBe(false);
                 expect(result.createdAt).toBeDefined();
-                expect(result.updatedAt).toBeDefined();
-                expect(result.user).toBeDefined();
+                expect(result.object).toBeDefined();
+                expect(result.object.__typename).toBe("Resource");
             });
         });
 
         describe("invalid", () => {
             it("cannot access another user's subscription", async () => {
                 const { testUsers, subscriptions } = await createTestData();
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUsers[1].id.toString(), // User 2 trying to access user 1's subscription
-                });
+                const { req, res } = await mockAuthenticatedSession(testUsers[1]); // User 2 trying to access user 1's subscription
 
                 const input: FindByIdInput = { id: subscriptions[0].id.toString() }; // User 1's subscription
                 const result = await notificationSubscription.findOne({ input }, { req, res }, notificationSubscription_findOne);
@@ -167,10 +284,8 @@ describe("EndpointsNotificationSubscription", () => {
             });
 
             it("returns null for non-existent subscription", async () => {
-                const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUser[0].id.toString(),
-                });
+                const testUser = await createUserWithAuth();
+                const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: FindByIdInput = { id: generatePK() };
                 const result = await notificationSubscription.findOne({ input }, { req, res }, notificationSubscription_findOne);
@@ -202,67 +317,59 @@ describe("EndpointsNotificationSubscription", () => {
         describe("valid", () => {
             it("returns user's notification subscriptions", async () => {
                 const { testUsers } = await createTestData();
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUsers[0].id.toString(),
-                });
+                const { req, res } = await mockAuthenticatedSession(testUsers[0]);
 
                 const input: NotificationSubscriptionSearchInput = {};
                 const result = await notificationSubscription.findMany({ input }, { req, res }, notificationSubscription_findMany);
 
                 expect(result.results).toHaveLength(2); // User 1 has 2 subscriptions
                 expect(result.totalCount).toBe(2);
-                expect(result.results.every(s => s.user?.id === testUsers[0].id.toString())).toBe(true);
+                expect(result.results.every(s => s.object !== null)).toBe(true);
             });
 
             it("filters by object type", async () => {
                 const { testUsers } = await createTestData();
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUsers[0].id.toString(),
-                });
+                const { req, res } = await mockAuthenticatedSession(testUsers[0]);
 
                 const input: NotificationSubscriptionSearchInput = {
-                    objectType: "Project",
+                    objectType: SubscribableObject.Resource,
                 };
                 const result = await notificationSubscription.findMany({ input }, { req, res }, notificationSubscription_findMany);
 
-                expect(result.results).toHaveLength(1);
-                expect(result.results[0].objectType).toBe("Project");
+                expect(result.results).toHaveLength(2); // Both user 1 subscriptions are for Resource
+                expect(result.results.every(s => s.object.__typename === "Resource")).toBe(true);
             });
 
             it("filters by object ID", async () => {
-                const { testUsers, subscriptions } = await createTestData();
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUsers[0].id.toString(),
-                });
+                const { testUsers, resources } = await createTestData();
+                const { req, res } = await mockAuthenticatedSession(testUsers[0]);
 
+                // Get the objectId from the first resource
+                const objectId = resources[0].id.toString();
                 const input: NotificationSubscriptionSearchInput = {
-                    objectId: subscriptions[0].objectId.toString(),
+                    objectId,
                 };
                 const result = await notificationSubscription.findMany({ input }, { req, res }, notificationSubscription_findMany);
 
                 expect(result.results).toHaveLength(1);
-                expect(result.results[0].objectId).toBe(subscriptions[0].objectId.toString());
+                expect(result.results[0].object.id).toBe(objectId);
             });
 
-            it("filters by condition", async () => {
+            it("filters by silent flag", async () => {
                 const { testUsers } = await createTestData();
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUsers[0].id.toString(),
-                });
+                const { req, res } = await mockAuthenticatedSession(testUsers[0]);
 
                 const input: NotificationSubscriptionSearchInput = {
-                    condition: "CRUD",
+                    silent: false,
                 };
                 const result = await notificationSubscription.findMany({ input }, { req, res }, notificationSubscription_findMany);
 
-                expect(result.results.every(s => s.condition === "CRUD")).toBe(true);
+                expect(result.results.every(s => s.silent === false)).toBe(true);
             });
 
             it("sorts results", async () => {
                 const { testUsers } = await createTestData();
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUsers[0].id.toString(),
-                });
+                const { req, res } = await mockAuthenticatedSession(testUsers[0]);
 
                 const input: NotificationSubscriptionSearchInput = {
                     sortBy: "DateCreatedDesc",
@@ -279,9 +386,7 @@ describe("EndpointsNotificationSubscription", () => {
 
             it("paginates results", async () => {
                 const { testUsers } = await createTestData();
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUsers[0].id.toString(),
-                });
+                const { req, res } = await mockAuthenticatedSession(testUsers[0]);
 
                 const input: NotificationSubscriptionSearchInput = {
                     take: 1,
@@ -294,10 +399,8 @@ describe("EndpointsNotificationSubscription", () => {
             });
 
             it("returns empty results for user with no subscriptions", async () => {
-                const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUser[0].id.toString(),
-                });
+                const testUser = await createUserWithAuth();
+                const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: NotificationSubscriptionSearchInput = {};
                 const result = await notificationSubscription.findMany({ input }, { req, res }, notificationSubscription_findMany);
@@ -308,16 +411,14 @@ describe("EndpointsNotificationSubscription", () => {
 
             it("only returns own subscriptions", async () => {
                 const { testUsers } = await createTestData();
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUsers[1].id.toString(), // User 2
-                });
+                const { req, res } = await mockAuthenticatedSession(testUsers[1]); // User 2
 
                 const input: NotificationSubscriptionSearchInput = {};
                 const result = await notificationSubscription.findMany({ input }, { req, res }, notificationSubscription_findMany);
 
                 expect(result.results).toHaveLength(1); // User 2 has 1 subscription
-                expect(result.results[0].user?.id).toBe(testUsers[1].id.toString());
-                expect(result.results[0].objectType).toBe("Team");
+                expect(result.results[0].subscriber?.id).toBe(testUsers.records[1].id.toString());
+                expect(result.results[0].object.__typename).toBe("Team");
             });
         });
     });
@@ -343,16 +444,19 @@ describe("EndpointsNotificationSubscription", () => {
 
         describe("valid", () => {
             it("creates notification subscription", async () => {
-                const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUser[0].id.toString(),
-                });
+                const testUser = await createUserWithAuth();
+
+                // Create a resource to subscribe to
+                const resource = await createTestResource(testUser.id.toString());
+
+                const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: NotificationSubscriptionCreateInput = notificationSubscriptionTestDataFactory.createMinimal({
                     id: generatePK(),
-                    objectType: "Project",
-                    objectId: generatePK(),
-                    condition: "CRUD",
+                    objectConnect: resource.id.toString(), // ID of object to subscribe to
+                    objectType: SubscribableObject.Resource, // Type of object
+                    context: "Project notification subscription",
+                    silent: false,
                 });
 
                 const result = await notificationSubscription.createOne({ input }, { req, res }, notificationSubscription_createOne);
@@ -360,123 +464,136 @@ describe("EndpointsNotificationSubscription", () => {
                 expect(result).toBeDefined();
                 expect(result.__typename).toBe("NotificationSubscription");
                 expect(result.id).toBe(input.id);
-                expect(result.objectType).toBe("Project");
-                expect(result.condition).toBe("CRUD");
-                expect(result.user?.id).toBe(testUser[0].id.toString());
+                expect(result.context).toBe("Project notification subscription");
+                expect(result.silent).toBe(false);
+                expect(result.subscriber?.id).toBe(testUsers.records[0].id.toString());
 
                 // Verify in database
                 const created = await DbProvider.get().notification_subscription.findUnique({
                     where: { id: BigInt(input.id) },
                 });
                 expect(created).toBeDefined();
-                expect(created?.objectType).toBe("Project");
-                expect(created?.condition).toBe("CRUD");
+                expect(created?.context).toBe("Project notification subscription");
+                expect(created?.silent).toBe(false);
             });
 
-            it("creates subscription for different object types", async () => {
-                const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUser[0].id.toString(),
-                });
+            it("creates subscription with different contexts", async () => {
+                const testUser = await createUserWithAuth();
 
-                const objectTypes = ["Project", "Routine", "Team", "User"];
+                // Create resources to subscribe to
+                const resources = await Promise.all(
+                    ["Project updates", "Routine notifications", "Team announcements", "User messages"].map(() =>
+                        createTestResource(testUser.id.toString()),
+                    ),
+                );
+
+                const { req, res } = await mockAuthenticatedSession(testUser);
+
+                const contexts = ["Project updates", "Routine notifications", "Team announcements", "User messages"];
                 const results = [];
 
-                for (const objectType of objectTypes) {
+                for (let i = 0; i < contexts.length; i++) {
                     const input: NotificationSubscriptionCreateInput = notificationSubscriptionTestDataFactory.createMinimal({
                         id: generatePK(),
-                        objectType: objectType as any,
-                        objectId: generatePK(),
-                        condition: "CRUD",
+                        objectConnect: resources[i].id.toString(),
+                        objectType: SubscribableObject.Resource,
+                        context: contexts[i],
+                        silent: false,
                     });
 
                     const result = await notificationSubscription.createOne({ input }, { req, res }, notificationSubscription_createOne);
                     results.push(result);
-                    expect(result.objectType).toBe(objectType);
+                    expect(result.context).toBe(contexts[i]);
                 }
 
                 expect(results).toHaveLength(4);
             });
 
-            it("creates subscription with different conditions", async () => {
-                const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUser[0].id.toString(),
-                });
+            it("creates subscription with different silent settings", async () => {
+                const testUser = await createUserWithAuth();
+                const { req, res } = await mockAuthenticatedSession(testUser);
 
-                const conditions = ["CRUD", "Updated", "Completed"];
-                
-                for (const condition of conditions) {
+                const silentSettings = [true, false];
+
+                for (const silent of silentSettings) {
+                    const resource = await createTestResource(testUser.id.toString());
                     const input: NotificationSubscriptionCreateInput = notificationSubscriptionTestDataFactory.createMinimal({
                         id: generatePK(),
-                        objectType: "Project",
-                        objectId: generatePK(),
-                        condition: condition as any,
+                        objectConnect: resource.id.toString(),
+                        objectType: SubscribableObject.Resource,
+                        context: "Project notifications",
+                        silent,
                     });
 
                     const result = await notificationSubscription.createOne({ input }, { req, res }, notificationSubscription_createOne);
-                    expect(result.condition).toBe(condition);
+                    expect(result.silent).toBe(silent);
                 }
             });
 
-            it("allows multiple subscriptions for same object", async () => {
-                const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUser[0].id.toString(),
-                });
+            it("allows multiple subscriptions with different contexts", async () => {
+                const testUser = await createUserWithAuth();
+                const { req, res } = await mockAuthenticatedSession(testUser);
 
-                const objectId = generatePK();
+                // Create objects to subscribe to
+                const resource = await createTestResource(testUser.id.toString());
+                const team = await createTestTeam();
 
-                // Create two subscriptions for the same object with different conditions
+                // Create two subscriptions with different contexts
                 const input1: NotificationSubscriptionCreateInput = notificationSubscriptionTestDataFactory.createMinimal({
                     id: generatePK(),
-                    objectType: "Project",
-                    objectId,
-                    condition: "CRUD",
+                    objectConnect: resource.id.toString(),
+                    objectType: SubscribableObject.Resource,
+                    context: "Project updates",
+                    silent: false,
                 });
 
                 const input2: NotificationSubscriptionCreateInput = notificationSubscriptionTestDataFactory.createMinimal({
                     id: generatePK(),
-                    objectType: "Project",
-                    objectId,
-                    condition: "Updated",
+                    objectConnect: team.id.toString(),
+                    objectType: SubscribableObject.Team,
+                    context: "Project comments",
+                    silent: true,
                 });
 
                 const result1 = await notificationSubscription.createOne({ input: input1 }, { req, res }, notificationSubscription_createOne);
                 const result2 = await notificationSubscription.createOne({ input: input2 }, { req, res }, notificationSubscription_createOne);
 
-                expect(result1.objectId).toBe(objectId);
-                expect(result2.objectId).toBe(objectId);
-                expect(result1.condition).toBe("CRUD");
-                expect(result2.condition).toBe("Updated");
+                expect(result1.context).toBe("Project updates");
+                expect(result2.context).toBe("Project comments");
+                expect(result1.silent).toBe(false);
+                expect(result2.silent).toBe(true);
+                expect(result1.object.__typename).toBe("Resource");
+                expect(result2.object.__typename).toBe("Team");
             });
         });
 
         describe("invalid", () => {
-            it("prevents duplicate subscription", async () => {
-                const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+            it("validates subscription input", async () => {
+                const testUser = await createUserWithAuth();
+
                 // Create existing subscription
-                const objectId = generatePK();
                 await DbProvider.get().notification_subscription.create({
-                    data: NotificationSubscriptionDbFactory.createMinimal({
-                        createdById: testUser[0].id,
-                        objectType: "Project",
-                        objectId: BigInt(objectId),
-                        condition: "CRUD",
-                    }),
+                    data: NotificationSubscriptionDbFactory.createMinimal(
+                        testUser.id.toString(),
+                        {
+                            context: "Existing subscription",
+                            silent: false,
+                        },
+                    ),
                 });
 
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUser[0].id.toString(),
-                });
+                const { req, res } = await mockAuthenticatedSession(testUser);
 
-                // Try to create duplicate
+                // Create a resource to subscribe to
+                const resource = await createTestResource(testUser.id.toString());
+
+                // Try to create subscription with invalid data
                 const input: NotificationSubscriptionCreateInput = notificationSubscriptionTestDataFactory.createMinimal({
                     id: generatePK(),
-                    objectType: "Project",
-                    objectId,
-                    condition: "CRUD",
+                    objectConnect: resource.id.toString(),
+                    objectType: SubscribableObject.Resource,
+                    context: "", // Empty context should be invalid
+                    silent: false,
                 });
 
                 await expect(notificationSubscription.createOne({ input }, { req, res }, notificationSubscription_createOne))
@@ -484,10 +601,8 @@ describe("EndpointsNotificationSubscription", () => {
             });
 
             it("rejects invalid object type", async () => {
-                const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUser[0].id.toString(),
-                });
+                const testUser = await createUserWithAuth();
+                const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: NotificationSubscriptionCreateInput = {
                     id: generatePK(),
@@ -500,17 +615,16 @@ describe("EndpointsNotificationSubscription", () => {
                     .rejects.toThrow();
             });
 
-            it("rejects invalid condition", async () => {
-                const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUser[0].id.toString(),
-                });
+            it("rejects invalid input data", async () => {
+                const testUser = await createUserWithAuth();
+                const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: NotificationSubscriptionCreateInput = {
                     id: generatePK(),
-                    objectType: "Project",
-                    objectId: generatePK(),
-                    condition: "InvalidCondition" as any,
+                    objectConnect: generatePK(),
+                    objectType: SubscribableObject.Resource,
+                    context: null as any, // Invalid context
+                    silent: "invalid" as any, // Invalid boolean
                 };
 
                 await expect(notificationSubscription.createOne({ input }, { req, res }, notificationSubscription_createOne))
@@ -541,71 +655,63 @@ describe("EndpointsNotificationSubscription", () => {
         describe("valid", () => {
             it("updates own notification subscription", async () => {
                 const { testUsers, subscriptions } = await createTestData();
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUsers[0].id.toString(),
-                });
+                const { req, res } = await mockAuthenticatedSession(testUsers[0]);
 
                 const input: NotificationSubscriptionUpdateInput = {
                     id: subscriptions[0].id.toString(),
-                    condition: "Updated",
+                    context: "Updated subscription context",
                 };
 
                 const result = await notificationSubscription.updateOne({ input }, { req, res }, notificationSubscription_updateOne);
 
-                expect(result.condition).toBe("Updated");
+                expect(result.context).toBe("Updated subscription context");
                 expect(result.id).toBe(subscriptions[0].id.toString());
 
                 // Verify in database
                 const updated = await DbProvider.get().notification_subscription.findUnique({
                     where: { id: subscriptions[0].id },
                 });
-                expect(updated?.condition).toBe("Updated");
+                expect(updated?.context).toBe("Updated subscription context");
             });
 
-            it("updates condition type", async () => {
+            it("updates silent flag", async () => {
                 const { testUsers, subscriptions } = await createTestData();
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUsers[0].id.toString(),
-                });
+                const { req, res } = await mockAuthenticatedSession(testUsers[0]);
 
                 const input: NotificationSubscriptionUpdateInput = {
                     id: subscriptions[0].id.toString(),
-                    condition: "Completed",
+                    silent: true,
                 };
 
                 const result = await notificationSubscription.updateOne({ input }, { req, res }, notificationSubscription_updateOne);
 
-                expect(result.condition).toBe("Completed");
+                expect(result.silent).toBe(true);
             });
 
             it("preserves other fields when updating", async () => {
                 const { testUsers, subscriptions } = await createTestData();
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUsers[0].id.toString(),
-                });
+                const { req, res } = await mockAuthenticatedSession(testUsers[0]);
 
-                const originalObjectType = subscriptions[0].objectType;
-                const originalObjectId = subscriptions[0].objectId;
+                const originalContext = subscriptions[0].context;
+                const originalCreatedAt = subscriptions[0].createdAt;
 
                 const input: NotificationSubscriptionUpdateInput = {
                     id: subscriptions[0].id.toString(),
-                    condition: "Updated",
+                    silent: true,
                 };
 
                 const result = await notificationSubscription.updateOne({ input }, { req, res }, notificationSubscription_updateOne);
 
-                expect(result.objectType).toBe(originalObjectType);
-                expect(result.objectId).toBe(originalObjectId.toString());
-                expect(result.condition).toBe("Updated");
+                expect(result.context).toBe(originalContext);
+                expect(result.createdAt).toBe(originalCreatedAt);
+                expect(result.silent).toBe(true);
             });
         });
 
         describe("invalid", () => {
             it("cannot update another user's subscription", async () => {
                 const { testUsers, subscriptions } = await createTestData();
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUsers[1].id.toString(), // User 2 trying to update user 1's subscription
-                });
+                const { req, res } = await mockAuthenticatedSession(testUsers[1]); // User 2 trying to update user 1's subscription
 
                 const input: NotificationSubscriptionUpdateInput = {
                     id: subscriptions[0].id.toString(), // User 1's subscription
@@ -617,29 +723,25 @@ describe("EndpointsNotificationSubscription", () => {
             });
 
             it("cannot update non-existent subscription", async () => {
-                const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUser[0].id.toString(),
-                });
+                const testUser = await createUserWithAuth();
+                const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: NotificationSubscriptionUpdateInput = {
                     id: generatePK(),
-                    condition: "Updated",
+                    context: "Updated context",
                 };
 
                 await expect(notificationSubscription.updateOne({ input }, { req, res }, notificationSubscription_updateOne))
                     .rejects.toThrow(CustomError);
             });
 
-            it("rejects invalid condition update", async () => {
+            it("rejects invalid data update", async () => {
                 const { testUsers, subscriptions } = await createTestData();
-                const { req, res } = await mockAuthenticatedSession({
-                    id: testUsers[0].id.toString(),
-                });
+                const { req, res } = await mockAuthenticatedSession(testUsers[0]);
 
                 const input: NotificationSubscriptionUpdateInput = {
                     id: subscriptions[0].id.toString(),
-                    condition: "InvalidCondition" as any,
+                    silent: "invalid" as any, // Invalid boolean
                 };
 
                 await expect(notificationSubscription.updateOne({ input }, { req, res }, notificationSubscription_updateOne))

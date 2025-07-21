@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi, type MockedFunction } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockedFunction } from "vitest";
 import winston from "winston";
 import { logger } from "./logger.js";
 
@@ -262,5 +262,105 @@ describe("logger", () => {
             expect(infoSpy).toHaveBeenCalledWith("Info message");
             expect(debugSpy).toHaveBeenCalledWith("Debug message");
         });
+    });
+});
+
+// Additional test suite for error serialization (without mocking winston)
+describe("Logger Error Serialization (Integration)", () => {
+    let logOutput: any[] = [];
+    
+    // Create a test logger with a custom transport that captures output
+    const testTransport = new winston.transports.Stream({
+        stream: {
+            write: (message: string) => {
+                try {
+                    logOutput.push(JSON.parse(message));
+                } catch {
+                    logOutput.push(message);
+                }
+            },
+        } as any,
+    });
+    
+    // Import the actual error serializer
+    const { errorSerializer } = require("./logger.js");
+    
+    const testLogger = winston.createLogger({
+        format: winston.format.combine(
+            winston.format.errors({ stack: true }),
+            errorSerializer?.() || winston.format.json(), // Use the actual errorSerializer if available
+            winston.format.json(),
+        ),
+        transports: [testTransport],
+    });
+    
+    beforeEach(() => {
+        logOutput = [];
+    });
+    
+    it("should properly serialize Error objects in metadata", () => {
+        const testError = new Error("Test error message");
+        testError.stack = "Error: Test error message\n    at test.js:1:1";
+        
+        testLogger.error("Test log message", { error: testError, otherData: "test" });
+        
+        expect(logOutput).toHaveLength(1);
+        const logEntry = logOutput[0];
+        
+        // The error should be serialized, not [object Object]
+        expect(JSON.stringify(logEntry)).not.toContain("[object Object]");
+        
+        // Check that error properties are preserved
+        if (logEntry.error) {
+            expect(logEntry.error.message).toBe("Test error message");
+            expect(logEntry.error.name).toBe("Error");
+            expect(logEntry.error.stack).toContain("Test error message");
+        }
+    });
+    
+    it("should handle custom Error properties", () => {
+        const customError = new Error("Custom error") as any;
+        customError.code = "CUSTOM_CODE";
+        customError.statusCode = 404;
+        customError.details = { field: "username", issue: "required" };
+        
+        testLogger.error("Custom error test", { error: customError });
+        
+        expect(logOutput).toHaveLength(1);
+        const logEntry = logOutput[0];
+        
+        if (logEntry.error) {
+            expect(logEntry.error.message).toBe("Custom error");
+            expect(logEntry.error.code).toBe("CUSTOM_CODE");
+            expect(logEntry.error.statusCode).toBe(404);
+            expect(logEntry.error.details).toEqual({ field: "username", issue: "required" });
+        }
+    });
+    
+    it("should handle nested Error objects", () => {
+        const innerError = new Error("Inner error");
+        const outerError = new Error("Outer error");
+        
+        testLogger.error("Nested error test", { 
+            error: outerError,
+            errors: [innerError],
+            nested: { deep: { error: innerError } },
+        });
+        
+        expect(logOutput).toHaveLength(1);
+        const logEntry = logOutput[0];
+        
+        // All errors should be properly serialized
+        expect(JSON.stringify(logEntry)).not.toContain("[object Object]");
+        
+        if (logEntry.error) {
+            expect(logEntry.error.message).toBe("Outer error");
+        }
+        if (logEntry.errors?.[0]) {
+            expect(logEntry.errors[0].message).toBe("Inner error");
+        }
+        if (logEntry.nested?.deep?.error) {
+            expect(logEntry.nested.deep.error.message).toBe("Inner error");
+        }
     });
 });

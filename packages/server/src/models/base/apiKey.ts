@@ -1,4 +1,4 @@
-import { ApiKeySortBy, apiKeyValidation, generatePK, MaxObjects } from "@vrooli/shared";
+import { apiKeyValidation, generatePK, MaxObjects } from "@vrooli/shared";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { noNull } from "../../builders/noNull.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -6,7 +6,6 @@ import { DbProvider } from "../../db/provider.js";
 import { CacheService } from "../../redisConn.js";
 import { defaultPermissions } from "../../validators/permissions.js";
 import { ApiKeyFormat } from "../formats.js";
-import { SuppFields } from "../suppFields.js";
 import { type ApiKeyModelLogic } from "./types.js";
 
 const __typename = "ApiKey" as const;
@@ -41,7 +40,7 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
                     disabledAt: data.disabled === true ? new Date() : data.disabled === false ? null : undefined,
                     limitHard: BigInt(data.limitHard),
                     limitSoft: data.limitSoft ? BigInt(data.limitSoft) : null,
-                    key: ApiKeyEncryptionService.hashSiteKey(rawKeyToShowUser),
+                    key: await ApiKeyEncryptionService.hashSiteKey(rawKeyToShowUser),
                     name: data.name,
                     permissions: data.permissions,
                     stopAtLimit: data.stopAtLimit,
@@ -76,51 +75,13 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
         },
         yup: apiKeyValidation,
     },
-    search: {
-        defaultSort: ApiKeySortBy.DateCreatedDesc,
-        sortBy: ApiKeySortBy,
-        searchFields: {
-            createdTimeFrame: true,
-            excludeIds: true,
-            ids: true,
-            teamIdRoot: true,
-            userIdRoot: true,
-        },
-        searchStringQuery: () => ({
-            name: {
-                contains: "{{searchString}}",
-                mode: "insensitive",
-            },
-        }),
-        supplemental: {
-            dbFields: ["id"],
-            suppFields: SuppFields[__typename],
-            getSuppFields: async ({ ids, objects }) => {
-                // For each object, check if we have a raw key in the store
-                const keys: (string | null)[] = [];
-                for (const obj of objects) {
-                    const id = obj.id.toString();
-                    const rawKey = rawKeyStore.get(id);
-                    if (rawKey) {
-                        // Remove from store after retrieving
-                        rawKeyStore.delete(id);
-                        keys.push(rawKey);
-                    } else {
-                        keys.push(null);
-                    }
-                }
-                return {
-                    key: keys,
-                };
-            },
-        },
-    },
+    search: undefined,
     validate: () => ({
         isDeleted: () => false,
-        isPublic: () => false,
+        isPublic: (_data, _getParentInfo?) => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => ({
+        owner: (data, _userId) => ({
             Team: data?.team,
             User: data?.user,
         }),

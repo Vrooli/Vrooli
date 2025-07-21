@@ -1,6 +1,9 @@
-import { AwardCategory, type AwardSearchInput, type User, type Award } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { AwardCategory, type Award, type AwardSearchInput, type User } from "@vrooli/shared";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { seedAwards } from "../../__test/fixtures/db/awardFixtures.js";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
@@ -8,10 +11,6 @@ import { logger } from "../../events/logger.js";
 import { CacheService } from "../../redisConn.js";
 import { award_findMany } from "../generated/award_findMany.js";
 import { award } from "./award.js";
-import { AwardDbFactory, seedAwards } from "../../__test/fixtures/db/awardFixtures.js";
-import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
-import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
-import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 // AI_CHECK: TYPE_SAFETY=phase1-test-4 | LAST: 2025-07-04 - Replaced any[] with proper User[] and Award types
 
@@ -29,18 +28,17 @@ describe("EndpointsAward", () => {
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","session"],
+            tables: ["user", "user_auth", "email", "session"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
     });
 
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.minimal(DbProvider.get());
-    }););
 
         // Seed awards using database fixtures
         const awards1 = await seedAwards(DbProvider.get(), {

@@ -9,7 +9,7 @@ import { ModelMap } from "../models/base/index.js";
 export function oneIsPublic<PrismaSelect extends Record<string, unknown>>(
     list: [keyof PrismaSelect, `${ModelType}`][],
     permissionsData: { [key in keyof PrismaSelect]: unknown },
-    getParentInfo: ((id: string, typename: `${ModelType}`) => Record<string, unknown> | undefined),
+    getParentInfo?: ((id: string, typename: `${ModelType}`) => Record<string, unknown> | undefined),
 ): boolean {
     // Loop through each field in the list
     for (let i = 0; i < list.length; i++) {
@@ -17,7 +17,7 @@ export function oneIsPublic<PrismaSelect extends Record<string, unknown>>(
         // Get the validator for this type
         const { idField, validate } = ModelMap.getLogic(["idField", "validate"], type);
         // Use validator to determine if this field is public
-        if (permissionsData[field] && validate().isPublic(permissionsData[field] ?? getParentInfo(String(permissionsData.id ?? permissionsData[idField]), type), getParentInfo)) {
+        if (permissionsData[field] && validate().isPublic(permissionsData[field] ?? getParentInfo?.(String(permissionsData.id ?? permissionsData[idField]), type), getParentInfo)) {
             return true;
         }
     }

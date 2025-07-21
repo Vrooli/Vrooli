@@ -1,4 +1,5 @@
 export * from "./auth.js";
+export * from "./bcryptWrapper.js";
 export * from "./codes.js";
 export * from "./email.js";
 export * from "./jwt.js";

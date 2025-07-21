@@ -32,14 +32,16 @@ describe("EndpointsReminder", () => {
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
     });
 
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.minimal(DbProvider.get());
-    }););
+        // Clear Redis cache to reset rate limiting
+        await CacheService.get().flushAll();
+    });
 
     afterAll(async () => {
         // Restore all mocks
