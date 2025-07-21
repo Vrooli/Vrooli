@@ -106,7 +106,7 @@ export class IntegrationEngine<
      * });
      * ```
      */
-    constructor(config: StandardIntegrationConfig<TFormData, TShape, TCreateInput, TUpdateInput, TResult>) {
+    constructor(config: StandardIntegrationConfig<TShape, TCreateInput, TUpdateInput, TResult>) {
         this.config = config;
         this.validateConfig();
     }

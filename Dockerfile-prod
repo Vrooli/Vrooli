@@ -52,8 +52,8 @@ ENV PATH="/srv/app/node_modules/.bin:$PATH"
 # Copy full source and build all packages
 COPY . .
 
-# Skip Prisma client generation for now - will be handled at runtime
-# TODO: Fix Prisma client generation in Docker build
+# Generate Prisma client after copying source
+RUN cd packages/server && pnpm prisma generate
 
 # Build shared utilities - revert to using pnpm from root
 RUN pnpm --filter @vrooli/shared run build
@@ -74,12 +74,16 @@ ENV NODE_ENV=production
 FROM base AS server
 WORKDIR ${PROJECT_DIR}
 EXPOSE 5329
+# Ensure NODE_ENV is set for the runtime
+ENV NODE_ENV=production
 CMD ["node", "packages/server/dist/index.js"]
 
 ### Production jobs image
 FROM base AS jobs
 WORKDIR ${PROJECT_DIR}
 EXPOSE 4001
+# Ensure NODE_ENV is set for the runtime
+ENV NODE_ENV=production
 CMD ["node", "packages/jobs/dist/index.js"]
 
 ### Production UI image: serve built React app

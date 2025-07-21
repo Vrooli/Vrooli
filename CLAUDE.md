@@ -48,6 +48,9 @@ Key Files:
 
 ## 🚀 Quick Start Commands
 ```bash
+# Setup project (includes CLI installation)
+./scripts/main/setup.sh --target native-linux --yes yes
+
 # Start development environment
 ./scripts/main/develop.sh --target docker --detached yes
 
@@ -102,6 +105,12 @@ cd packages/server && pnpm prisma migrate deploy     # Deploy migrations
 # Alternative development commands
 pnpm run develop                                     # Alternative to develop script
 docker compose up --build                            # Direct Docker alternative - needs 5+ min timeout
+
+# CLI commands (after setup)
+vrooli --help                                        # Show CLI help
+vrooli auth login                                    # Login to Vrooli
+vrooli routine list                                  # List routines
+vrooli chat start                                    # Start a chat session
 ```
 
 > **Note**: When writing tests, make sure you're writing them to test against the DESIRED/EXPECTED behavior, not the actual implementation. This is important for the test to be useful and not just a checkmark.

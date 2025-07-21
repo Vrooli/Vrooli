@@ -185,6 +185,7 @@ data/stats/
 data/uploads/
 data/schema-hash
 data/backup*
+data/test-state/
 
 #Backups
 backups/

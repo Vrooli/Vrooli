@@ -126,7 +126,7 @@ cd packages/[package] && pnpm test path/to/specific.test.ts  # needs 3+ min time
 | Symptom                                                                   | Remedy                                                                          |
 | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | **Implementation assertions** (private state, enzyme‐style introspection) | Switch to public API / DOM behaviour assertions. ([vitest.dev][2])              |
-| **Multiple behaviours in one test**                                       | Split into focused test cases with clear names.                                 |
+| **Multiple behaviors in one test**                                       | Split into focused test cases with clear names.                                 |
 | **Excessive mocks**                                                       | Keep real modules; mock only side-effects (fetch, Date, RNG). ([vitest.dev][3]) |
 | **Giant snapshots**                                                       | Replace with explicit expects or slim snapshots. ([github.com][4])              |
 | **Brittle CSS selectors**                                                 | Prefer role / label queries. ([vitest.dev][2])                                  |

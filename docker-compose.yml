@@ -171,17 +171,22 @@ services:
     environment:
       POSTGRES_PASSWORD: "${DB_PASSWORD}"
       POSTGRES_USER: "${DB_USER:-site}"
+      POSTGRES_DB: "${DB_NAME:-vrooli}"
       PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
       PGPORT: "${PORT_DB:-5432}"
     expose:
       - ${PORT_DB:-5432}
+    # Development-only: localhost port mapping for native target access
+    # Security: Bound to localhost only, password-protected
+    ports:
+      - "127.0.0.1:${PORT_DB:-5432}:${PORT_DB:-5432}"
     networks:
       - app
     volumes:
       - ./data/postgres-dev:/var/lib/postgresql/data
       - ./packages/postgres/entrypoint/run-postgres.sh:/usr/local/bin/run-postgres.sh:ro
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-site} && psql -U ${DB_USER:-site} -d postgres -c 'SELECT 1'" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-site} && psql -U ${DB_USER:-site} -d ${DB_NAME:-vrooli} -c 'SELECT 1'" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -200,9 +205,13 @@ services:
       - ./scripts:${PROJECT_DIR:-/srv/app}/scripts
     expose:
       - ${PORT_REDIS:-6379}
+    # Development-only: localhost port mapping for native target access
+    # Security: Bound to localhost only, password-protected
+    ports:
+      - "127.0.0.1:${PORT_REDIS:-6379}:${PORT_REDIS:-6379}"
     command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/package/redis/start.sh"
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5

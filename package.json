@@ -21,6 +21,7 @@
     "typescript": "^5.8.3"
   },
   "scripts": {
+    "postinstall": "pnpm rebuild sharp || true",
     "setup": "bash scripts/main/setup.sh",
     "develop": "bash scripts/main/develop.sh",
     "build": "bash scripts/main/build.sh",
@@ -39,6 +40,7 @@
     "test:unit:server": "vitest run --project server",
     "test:unit:jobs": "vitest run --project jobs",
     "test:unit:shared": "vitest run --project shared",
+    "test:unit:cli": "vitest run --project cli",
     "test:integration": "cd packages/integration && pnpm test",
     "test:integration:roundtrip": "cd packages/integration && pnpm test src/round-trip",
     "test:integration:scenarios": "cd packages/integration && pnpm test src/scenarios",
