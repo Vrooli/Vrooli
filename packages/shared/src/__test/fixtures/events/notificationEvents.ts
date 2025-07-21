@@ -7,7 +7,7 @@ import { type Notification } from "../../../api/types.js";
 import { EventTypes, type UserSocketEventPayloads } from "../../../consts/socketEvents.js";
 import { BaseEventFactory } from "./BaseEventFactory.js";
 import { type SocketEventFixture } from "./types.js";
- 
+
 // Notification event types
 type NotificationEvent = SocketEventFixture<Notification> & {
     event: "notification";

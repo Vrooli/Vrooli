@@ -29,6 +29,10 @@
         "src/**/*.test.ts",
         "src/**/*.test.tsx",
         "**/*.test.ts",
-        "**/*.test.tsx"
+        "**/*.test.tsx",
+        "**/*.spec.ts",
+        "**/*.spec.tsx",
+        "**/fixtures/**",
+        "**/test/**"
     ]
 }

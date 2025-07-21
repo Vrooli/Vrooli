@@ -29,7 +29,7 @@ export interface RecoveryStrategy {
     backoffMultiplier?: number;
     maxDelay?: number;
     fallbackAction?: string;
-    condition?: (error: any, attempt: number) => boolean;
+    condition?: (error: unknown, attempt: number) => boolean;
 }
 
 // Telemetry integration for error tracking
@@ -46,7 +46,7 @@ export interface EnhancedApiError {
     status: number;
     code: string;
     message: string;
-    details?: any;
+    details?: Record<string, unknown>;
     retryAfter?: number;
     limit?: number;
     remaining?: number;
@@ -98,7 +98,7 @@ export interface EnhancedValidationError {
     context?: ErrorContext;
     // Validation-specific enhancements
     fieldPath?: string;
-    invalidValue?: any;
+    invalidValue?: unknown;
     constraint?: string;
     suggestion?: string;
 }
@@ -114,7 +114,7 @@ export interface EnhancedAuthError {
         expiresAt?: string;
         remainingAttempts?: number;
         lockoutDuration?: number;
-        [key: string]: any; // Allow additional properties
+        [key: string]: unknown; // Allow additional properties
     };
     action?: {
         type: string;
@@ -136,15 +136,15 @@ export interface EnhancedBusinessError {
     message: string;
     type: "limit" | "conflict" | "state" | "workflow" | "constraint" | "policy";
     details?: {
-        current?: any;
-        limit?: any;
-        required?: any;
-        conflictWith?: any;
+        current?: unknown;
+        limit?: unknown;
+        required?: unknown;
+        conflictWith?: unknown;
         suggestion?: string;
         missingSteps?: string[];
         yourVersion?: string;
         currentVersion?: string;
-        [key: string]: any; // Allow additional properties
+        [key: string]: unknown; // Allow additional properties
     };
     userAction?: {
         label: string;
@@ -171,7 +171,7 @@ export interface EnhancedSystemError {
         operation?: string;
         errorCode?: string;
         stackTrace?: string;
-        metadata?: Record<string, any>;
+        metadata?: Record<string, unknown>;
     };
     recovery?: {
         automatic?: boolean;
@@ -222,15 +222,15 @@ export interface RecoveryScenario<TError> {
 export interface RecoveryStep {
     action: "retry" | "backoff" | "circuit-break" | "fallback" | "escalate";
     delay?: number;
-    condition?: (error: any, attempt: number) => boolean;
-    transform?: (error: any) => any;
+    condition?: (error: unknown, attempt: number) => boolean;
+    transform?: (error: unknown) => unknown;
     description?: string;
 }
 
 // Error composition types
 export interface ComposedError {
-    primary: any;
-    causes: any[];
+    primary: unknown;
+    causes: unknown[];
     composition: "chain" | "cascade" | "context" | "timed";
     metadata: {
         created: Date;
@@ -240,7 +240,7 @@ export interface ComposedError {
 }
 
 export interface ErrorSequence {
-    errors: any[];
+    errors: unknown[];
     timing: "sequential" | "parallel" | "cascading";
     options: {
         failFast?: boolean;
@@ -274,7 +274,7 @@ export type ErrorVariants<T> = {
 export type ErrorFactories<T> = {
     create: (overrides?: Partial<T>) => T;
     createWithContext: (context: ErrorContext) => T;
-    createComposed: (primary: T, causes: any[]) => ComposedError;
+    createComposed: (primary: T, causes: unknown[]) => ComposedError;
     createRecoveryScenario: (error: T, steps: RecoveryStep[]) => RecoveryScenario<T>;
 };
 
@@ -288,19 +288,23 @@ export abstract class BaseErrorFactory<TError> implements ErrorFixtureFactory<TE
     abstract createWithContext(context: ErrorContext): TError;
 
     isRetryable(error: TError): boolean {
-        return (error as any).recovery?.strategy === "retry";
+        const errorWithRecovery = error as { recovery?: RecoveryStrategy };
+        return errorWithRecovery.recovery?.strategy === "retry";
     }
 
     getDisplayMessage(error: TError): string {
-        return (error as any).message || "An error occurred";
+        const errorWithMessage = error as { message?: string };
+        return errorWithMessage.message || "An error occurred";
     }
 
     getStatusCode(error: TError): number {
-        return (error as any).status || 500;
+        const errorWithStatus = error as { status?: number };
+        return errorWithStatus.status || 500;
     }
 
     simulateRecovery(error: TError): TError | null {
-        const recovery = (error as any).recovery;
+        const errorWithRecovery = error as { recovery?: RecoveryStrategy };
+        const recovery = errorWithRecovery.recovery;
         if (!recovery || recovery.strategy === "fail") {
             return null;
         }
@@ -308,10 +312,10 @@ export abstract class BaseErrorFactory<TError> implements ErrorFixtureFactory<TE
     }
 
     escalate(error: TError): TError {
-        const escalated = { ...error } as any;
+        const escalated = { ...error } as TError & { severity: string; userImpact: string };
         escalated.severity = "critical";
         escalated.userImpact = "blocking";
-        return escalated;
+        return escalated as TError;
     }
 }
 
@@ -323,9 +327,9 @@ export abstract class BaseErrorFactory<TError> implements ErrorFixtureFactory<TE
 export class BaseErrorFixture implements ParseableError {
     public code: TranslationKeyError;
     public trace: string;
-    public data?: Record<string, any>;
+    public data?: Record<string, unknown>;
 
-    constructor(code: TranslationKeyError, trace: string, data?: Record<string, any>) {
+    constructor(code: TranslationKeyError, trace: string, data?: Record<string, unknown>) {
         this.code = code;
         this.trace = trace;
         this.data = data;

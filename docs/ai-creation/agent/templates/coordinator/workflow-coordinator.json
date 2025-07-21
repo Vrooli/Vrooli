@@ -24,6 +24,26 @@
                     "goalId": "event.data.goalId",
                     "existingTasks": "subtasks.length",
                     "currentWorkload": "blackboard.workflows.active"
+                },
+                "outputOperations": {
+                    "append": [
+                        {
+                            "routineOutput": "tasks",
+                            "blackboardId": "workflow_tasks"
+                        }
+                    ],
+                    "set": [
+                        {
+                            "routineOutput": "decomposition.strategy",
+                            "blackboardId": "current_strategy"
+                        }
+                    ],
+                    "increment": [
+                        {
+                            "routineOutput": "metadata.taskCount",
+                            "blackboardId": "total_tasks_created"
+                        }
+                    ]
                 }
             },
             "qos": 1
@@ -47,7 +67,23 @@
                 "label": "Error Recovery Planner",
                 "inputMap": {
                     "error": "event.data.error",
-                    "runId": "event.data.runId"
+                    "runId": "event.data.runId",
+                    "totalTasks": "blackboard.total_tasks_created",
+                    "currentStrategy": "blackboard.current_strategy"
+                },
+                "outputOperations": {
+                    "append": [
+                        {
+                            "routineOutput": "recovery.actions",
+                            "blackboardId": "recovery_history"
+                        }
+                    ],
+                    "merge": [
+                        {
+                            "routineOutput": "metrics",
+                            "blackboardId": "workflow_metrics"
+                        }
+                    ]
                 }
             },
             "qos": 2

@@ -44,4 +44,12 @@ export default defineWorkspace([
             root: "./packages/integration",
         },
     },
+    // CLI package - Node environment
+    {
+        extends: "./packages/cli/vitest.config.ts",
+        test: {
+            name: "cli",
+            root: "./packages/cli",
+        },
+    },
 ]);

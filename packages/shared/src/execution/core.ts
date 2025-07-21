@@ -11,19 +11,7 @@ import type { SwarmId } from "./ids.js";
  * Execution strategy types for conversation and reasoning
  * Simple string union for strategy selection
  */
-export type ExecutionStrategy = "conversation" | "reasoning" | "deterministic";
-
-/**
- * Execution context shared across all tiers
- * This provides the common execution environment and metadata
- */
-export interface ExecutionContext {
-    readonly swarmId: SwarmId;
-    readonly userData: SessionUser;
-    readonly timestamp: Date;
-    readonly resources?: AvailableResources;
-    readonly history?: ExecutionHistory;
-}
+export type ExecutionStrategy = "conversational" | "reasoning" | "deterministic";
 
 /**
  * Available resources for execution
@@ -126,7 +114,6 @@ export interface ExecutionResult<T = unknown> {
     error?: ExecutionError;
     resourcesUsed: ExecutionResourceUsage;
     duration: number;
-    context: ExecutionContext;
     metadata?: ExecutionMetadata;
     confidence?: number;
     performanceScore?: number;
@@ -207,5 +194,32 @@ export interface ExecutionOptions {
     timeout?: number;
     priority?: "low" | "medium" | "high";
     retryPolicy?: RetryPolicy;
+    retryCount?: number;
     debugMode?: boolean;
+}
+
+/**
+ * Options for stopping a state machine
+ */
+export interface StopOptions {
+    /** Stop mode - graceful allows cleanup, force is immediate */
+    mode?: "graceful" | "force";
+    /** Human-readable reason for stopping */
+    reason?: string;
+    /** User requesting the stop (for audit/permissions) */
+    requestingUser?: SessionUser;
+}
+
+/**
+ * Result of a stop operation
+ */
+export interface StopResult {
+    /** Whether the stop was successful */
+    success: boolean;
+    /** Human-readable status message */
+    message?: string;
+    /** Final state of the machine before stopping */
+    finalState?: unknown;
+    /** Error message if stop failed */
+    error?: string;
 }

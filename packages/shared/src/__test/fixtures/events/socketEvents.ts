@@ -606,9 +606,6 @@ export const socketEventFixtures = {
 // Export factory instances for direct use
 export {
     connectionFactory,
-    errorFactory, reconnectionFactory, roomFactory,
+    errorFactory, reconnectionFactory, roomFactory
 };
-
-// Re-export types for convenience
-export type { EventSequenceItem } from "./types.js";
 

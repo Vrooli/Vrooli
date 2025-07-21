@@ -66,6 +66,76 @@ interface FetchEmbeddingsResponse {
 const MAX_UNICODE_CHAR_CODE = 0xFFFF;
 
 /**
+ * Maps ISO-639-1 language codes to ISO-639-3 codes used by the stopword package.
+ * The stopword package changed from 2-character to 3-character language codes in v2.x.
+ */
+const STOPWORD_LANGUAGE_MAP: Record<string, string> = {
+    "en": "eng", // English
+    "es": "spa", // Spanish
+    "fr": "fra", // French
+    "de": "deu", // German
+    "it": "ita", // Italian
+    "pt": "por", // Portuguese
+    "nl": "nld", // Dutch
+    "ru": "rus", // Russian
+    "ja": "jpn", // Japanese
+    "zh": "zho", // Chinese
+    "ar": "ara", // Arabic
+    "hi": "hin", // Hindi
+    "ko": "kor", // Korean
+    "sv": "swe", // Swedish
+    "no": "nob", // Norwegian
+    "da": "dan", // Danish
+    "fi": "fin", // Finnish
+    "pl": "pol", // Polish
+    "cs": "ces", // Czech
+    "hu": "hun", // Hungarian
+    "ro": "ron", // Romanian
+    "sk": "slk", // Slovak
+    "sl": "slv", // Slovenian
+    "hr": "hrv", // Croatian
+    "bg": "bul", // Bulgarian
+    "et": "est", // Estonian
+    "lv": "lav", // Latvian
+    "lt": "lit", // Lithuanian
+    "uk": "ukr", // Ukrainian
+    "el": "ell", // Greek
+    "he": "heb", // Hebrew
+    "th": "tha", // Thai
+    "vi": "vie", // Vietnamese
+    "tr": "tur", // Turkish
+    "fa": "fas", // Persian/Farsi
+    "ur": "urd", // Urdu
+    "bn": "ben", // Bengali
+    "gu": "guj", // Gujarati
+    "mr": "mar", // Marathi
+    "ta": "tgl", // Tamil -> Tagalog (best available match)
+    "ms": "msa", // Malay
+    "id": "ind", // Indonesian
+    "eu": "eus", // Basque
+    "ca": "cat", // Catalan
+    "gl": "glg", // Galician
+    "ga": "gle", // Irish
+    "cy": "lgg", // Welsh (using Luganda as closest available)
+    "mt": "lat", // Maltese -> Latin (best available match)
+    "is": "est", // Icelandic -> Estonian (best available match)
+    "fo": "dan", // Faroese -> Danish (best available match)
+    "sw": "swa", // Swahili
+    "zu": "zul", // Zulu
+    "af": "afr", // Afrikaans
+    "so": "som", // Somali
+    "yo": "yor", // Yoruba
+    "ha": "hau", // Hausa
+    "eo": "epo", // Esperanto
+    "la": "lat", // Latin
+    "br": "bre", // Breton
+    "ku": "kur", // Kurdish
+    "hy": "hye", // Armenian
+    "ka": "lgg", // Georgian -> Luganda (best available match)
+    "my": "mya", // Myanmar/Burmese
+};
+
+/**
  * Service for handling text embeddings, including fetching vectors from API, caching vectors,
  * and managing the cache for search results based on embeddings.
  */
@@ -120,12 +190,20 @@ export class EmbeddingService {
             let words = str.split(" ");
             // Remove stop words
             try {
-                // Ensure language exists in stopword object
+                // Map language code from ISO-639-1 to ISO-639-3 format used by stopword package
+                const mappedLanguage = STOPWORD_LANGUAGE_MAP[language] || language;
                 const swRef = stopword as any; // Use type assertion if needed for dynamic access
-                if (swRef[language]) {
-                    words = swRef.removeStopwords(words, swRef[language]);
+                
+                if (swRef[mappedLanguage]) {
+                    words = swRef.removeStopwords(words, swRef[mappedLanguage]);
+                    // Optional: log successful mapping for debugging (remove in production)
+                    // logger.debug("Stopwords removed successfully", { originalLanguage: language, mappedLanguage, wordsBefore: words.length, trace: "embedSvc-processString-sw-success" });
                 } else {
-                    logger.warn("Stopwords not available for language, skipping removal.", { language, trace: "embedSvc-processString-sw" });
+                    logger.warn("Stopwords not available for language, skipping removal.", { 
+                        originalLanguage: language, 
+                        mappedLanguage, 
+                        trace: "embedSvc-processString-sw", 
+                    });
                 }
             } catch (e) {
                 // Log error but don't throw, just proceed without stopword removal

@@ -14,7 +14,7 @@
  */
 import { type AITaskInfo } from "../ai/types.js";
 import { type ChatMessage, type ChatParticipant, type Notification } from "../api/types.js";
-import { type DeferredDecisionData, type RunTaskInfo } from "../run/types.js";
+import { type DeferredDecisionData } from "../run/types.js";
 import { type ChatConfigObject } from "../shape/configs/chat.js";
 import { type JOIN_CHAT_ROOM_ERRORS, type JOIN_RUN_ROOM_ERRORS, type JOIN_USER_ROOM_ERRORS, type LEAVE_CHAT_ROOM_ERRORS, type LEAVE_RUN_ROOM_ERRORS, type LEAVE_USER_ROOM_ERRORS } from "./api.js";
 
@@ -95,44 +95,37 @@ export interface RunEventData {
 }
 
 /**
- * Safety action event types.
+ * Data sensitivity types for access control.
  * 
- * This includes safety actions which have pre- and post-action events (i.e. safety checks), 
- * as well as actions which automatically pause/cancel swarms (e.g. emergency stop).
- * 
- * @enum SafetyActionType
+ * @enum DataSensitivityType
  */
-export enum SafetyActionType {
-    // Safety checks (can be cancelled)
-    ToolCall = "tool_call",
-    ApiCall = "api_call",
-    RoutineExecution = "routine_execution",
-    DataAccess = "data_access",
-    ExternalRequest = "external_request",
-    ThreatDetected = "threat_detected", // Typically should stop the swarm, but you could override this (e.g. multiple threat detection layers that validate each other)
-    // Automatically pause/cancel swarms
-    EmergencyStop = "emergency_stop",
+export enum DataSensitivityType {
+    PII = "PII",
+    PHI = "PHI",
+    FINANCIAL = "FINANCIAL",
+    CREDENTIAL = "CREDENTIAL",
+    PROPRIETARY = "PROPRIETARY",
+    PUBLIC = "PUBLIC",
 }
 
 /**
- * Base event structure for safety-specific events.
+ * Base event structure for security-specific events.
  * These always occur within the context of a swarm, so they extend the SwarmEventData interface 
  * and use the same room ID as swarms.
  * 
- * @interface SafetyEventData
+ * @interface SecurityEventData
  */
-export interface SafetyEventData extends SwarmEventData {
-    /** Type of action being performed */
-    actionType: SafetyActionType;
-    /** An ID to tie pre- and post-action events together */
-    actionId: string;
-    /** 
-     * ID of the entity performing the action.
-     * For system actions, this will be the chat ID.
-     */
-    actorId: string;
-    /** Type of actor who triggered the action */
-    actorType: "user" | "agent" | "system";
+export interface SecurityEventData extends SwarmEventData {
+    /** Entity that triggered the security event */
+    triggeredBy: {
+        id: string;
+        type: "user" | "bot" | "system";
+        name?: string;
+    };
+    /** Severity level of the security event */
+    severity: "info" | "warning" | "critical";
+    /** Additional context about the security event */
+    context?: Record<string, unknown>;
 }
 
 /**
@@ -196,29 +189,86 @@ export const EventTypes = {
         /** Fired when a bot sends model reasoning content */
         BOT_MODEL_REASONING_STREAM: "bot/reasoning/stream",
 
-        /** Fired when a tool is invoked */
-        TOOL_CALLED: "tool/called",
-
-        /** Fired when a tool execution completes successfully */
-        TOOL_COMPLETED: "tool/completed",
-
-        /** Fired when a tool execution fails */
-        TOOL_FAILED: "tool/failed",
-
-        /** Fired when a tool requires user approval before execution */
-        TOOL_APPROVAL_REQUIRED: "tool/approval/required",
-
-        /** Fired when user approves a pending tool execution */
-        TOOL_APPROVAL_GRANTED: "tool/approval/granted",
-
-        /** Fired when user rejects a pending tool execution */
-        TOOL_APPROVAL_REJECTED: "tool/approval/rejected",
-
-        /** Fired when tool approval times out without user response */
-        TOOL_APPROVAL_TIMEOUT: "tool/approval/timeout",
-
         /** Fired when user requests to cancel ongoing operation */
         CANCELLATION_REQUESTED: "cancellation/requested",
+    },
+
+    // ===== Tool Events =====
+    TOOL: {
+        /** Fired when a tool is invoked */
+        CALLED: "tool/called",
+
+        /** Fired when a tool execution completes successfully */
+        COMPLETED: "tool/completed",
+
+        /** Fired when a tool execution fails */
+        FAILED: "tool/failed",
+
+        /** Fired when a tool requires user approval before execution */
+        APPROVAL_REQUIRED: "tool/approval/required",
+
+        /** Fired when user approves a pending tool execution */
+        APPROVAL_GRANTED: "tool/approval/granted",
+
+        /** Fired when user rejects a pending tool execution */
+        APPROVAL_REJECTED: "tool/approval/rejected",
+
+        /** Fired when tool approval times out without user response */
+        APPROVAL_TIMEOUT: "tool/approval/timeout",
+
+        /** Fired before tool execution for pre-checks */
+        EXECUTION_REQUESTED: "tool/execution/requested",
+
+        /** Fired after tool execution for post-checks */
+        EXECUTION_COMPLETED: "tool/execution/completed",
+    },
+
+    // ===== Data Access Events =====
+    DATA: {
+        /** Fired before data access for pre-checks */
+        ACCESS_REQUESTED: "data/access/requested",
+
+        /** Fired after data access for post-checks */
+        ACCESS_COMPLETED: "data/access/completed",
+
+        /** Fired when data access is denied */
+        ACCESS_DENIED: "data/access/denied",
+
+        /** Fired before data modification */
+        MODIFICATION_REQUESTED: "data/modification/requested",
+
+        /** Fired after data modification */
+        MODIFICATION_COMPLETED: "data/modification/completed",
+    },
+
+    // ===== API Events =====
+    API: {
+        /** Fired before external API call */
+        CALL_REQUESTED: "api/call/requested",
+
+        /** Fired after external API call */
+        CALL_COMPLETED: "api/call/completed",
+
+        /** Fired when API call fails */
+        CALL_FAILED: "api/call/failed",
+    },
+
+    // ===== Resource Events (Extended) =====
+    RESOURCE: {
+        /** Fired before resource allocation */
+        ALLOCATION_REQUESTED: "resource/allocation/requested",
+
+        /** Fired after resource allocation */
+        ALLOCATION_COMPLETED: "resource/allocation/completed",
+
+        /** Fired when resource allocation is denied */
+        ALLOCATION_DENIED: "resource/allocation/denied",
+
+        /** Fired when resource limit is exceeded */
+        LIMIT_EXCEEDED: "resource/limit/exceeded",
+
+        /** Fired when resources are released */
+        RELEASED: "resource/released",
     },
 
     // ===== Swarm Room Events =====
@@ -262,9 +312,6 @@ export const EventTypes = {
         /** Fired when a routine run fails */
         FAILED: "run/failed",
 
-        /** Fired when a run task is ready for execution */
-        TASK_READY: "run/task/ready",
-
         /** Fired when a run requires user decision */
         DECISION_REQUESTED: "run/decision/requested",
 
@@ -276,23 +323,42 @@ export const EventTypes = {
 
         /** Fired when a step fails */
         STEP_FAILED: "step/failed",
+
+        /** Fired before routine execution for pre-checks */
+        EXECUTION_REQUESTED: "run/execution/requested",
+
+        /** Fired after routine execution for post-checks */
+        EXECUTION_COMPLETED: "run/execution/completed",
     },
 
-    // ===== Safety/Interception Events =====
-    SAFETY: {
-        /** Fired BEFORE any action execution (tool calls, API calls, routine execution, etc.) 
-         * Allows agents to intercept and validate/sanitize inputs before execution */
-        PRE_ACTION: "safety/pre_action",
-
-        /** Fired AFTER action completion but BEFORE results are returned to user
-         * Allows agents to validate outputs, check for compliance, quality, etc. */
-        POST_ACTION: "safety/post_action",
+    // ===== Security Events =====
+    SECURITY: {
+        /** Fired when a security threat is detected */
+        THREAT_DETECTED: "security/threat/detected",
 
         /** Fired when an emergency stop is triggered */
-        EMERGENCY_STOP: "safety/emergency_stop",
+        EMERGENCY_STOP: "security/emergency/stop",
 
-        /** Fired when a threat is detected */
-        THREAT_DETECTED: "safety/threat_detected",
+        /** Fired when permission check is needed */
+        PERMISSION_CHECK: "security/permission/check",
+
+        /** Fired when security audit is logged */
+        AUDIT_LOGGED: "security/audit/logged",
+
+        /** Fired when access is blocked for security reasons */
+        ACCESS_BLOCKED: "security/access/blocked",
+
+        /** Fired when security policy is violated */
+        POLICY_VIOLATED: "security/policy/violated",
+    },
+
+    // ===== System Events =====
+    SYSTEM: {
+        /** Fired when a component encounters an error */
+        ERROR: "system/error",
+
+        /** Fired when a component state changes */
+        STATE_CHANGED: "system/state/changed",
     },
 
     // ===== User Room Events =====
@@ -317,17 +383,27 @@ export const EventTypes = {
 /** Type for all event type values */
 export type SwarmEventTypeValue =
     | typeof EventTypes.CHAT[keyof typeof EventTypes.CHAT]
+    | typeof EventTypes.TOOL[keyof typeof EventTypes.TOOL]
+    | typeof EventTypes.DATA[keyof typeof EventTypes.DATA]
+    | typeof EventTypes.API[keyof typeof EventTypes.API]
+    | typeof EventTypes.RESOURCE[keyof typeof EventTypes.RESOURCE]
     | typeof EventTypes.SWARM[keyof typeof EventTypes.SWARM]
     | typeof EventTypes.RUN[keyof typeof EventTypes.RUN]
-    | typeof EventTypes.SAFETY[keyof typeof EventTypes.SAFETY]
+    | typeof EventTypes.SECURITY[keyof typeof EventTypes.SECURITY]
+    | typeof EventTypes.SYSTEM[keyof typeof EventTypes.SYSTEM]
     | typeof EventTypes.USER[keyof typeof EventTypes.USER]
     | typeof EventTypes.ROOM[keyof typeof EventTypes.ROOM];
 
 // Convenience aliases for backward compatibility
 export const ChatEvents = EventTypes.CHAT;
+export const ToolEvents = EventTypes.TOOL;
+export const DataEvents = EventTypes.DATA;
+export const ApiEvents = EventTypes.API;
+export const ResourceEvents = EventTypes.RESOURCE;
 export const SwarmEvents = EventTypes.SWARM;
 export const RunEvents = EventTypes.RUN;
-export const SafetyEvents = EventTypes.SAFETY;
+export const SecurityEvents = EventTypes.SECURITY;
+export const SystemEvents = EventTypes.SYSTEM;
 export const UserEvents = EventTypes.USER;
 export const RoomEvents = EventTypes.ROOM;
 
@@ -350,13 +426,6 @@ export const FlatEventTypes = {
     BOT_TYPING_UPDATED: EventTypes.CHAT.BOT_TYPING_UPDATED,
     BOT_RESPONSE_STREAM: EventTypes.CHAT.BOT_RESPONSE_STREAM,
     BOT_MODEL_REASONING_STREAM: EventTypes.CHAT.BOT_MODEL_REASONING_STREAM,
-    TOOL_CALLED: EventTypes.CHAT.TOOL_CALLED,
-    TOOL_COMPLETED: EventTypes.CHAT.TOOL_COMPLETED,
-    TOOL_FAILED: EventTypes.CHAT.TOOL_FAILED,
-    TOOL_APPROVAL_REQUIRED: EventTypes.CHAT.TOOL_APPROVAL_REQUIRED,
-    TOOL_APPROVAL_GRANTED: EventTypes.CHAT.TOOL_APPROVAL_GRANTED,
-    TOOL_APPROVAL_REJECTED: EventTypes.CHAT.TOOL_APPROVAL_REJECTED,
-    TOOL_APPROVAL_TIMEOUT: EventTypes.CHAT.TOOL_APPROVAL_TIMEOUT,
     CANCELLATION_REQUESTED: EventTypes.CHAT.CANCELLATION_REQUESTED,
     // Swarm events
     SWARM_STATE_CHANGED: EventTypes.SWARM.STATE_CHANGED,
@@ -371,7 +440,6 @@ export const FlatEventTypes = {
     RUN_STARTED: EventTypes.RUN.STARTED,
     RUN_COMPLETED: EventTypes.RUN.COMPLETED,
     RUN_FAILED: EventTypes.RUN.FAILED,
-    RUN_TASK_READY: EventTypes.RUN.TASK_READY,
     RUN_DECISION_REQUESTED: EventTypes.RUN.DECISION_REQUESTED,
     STEP_STARTED: EventTypes.RUN.STEP_STARTED,
     STEP_COMPLETED: EventTypes.RUN.STEP_COMPLETED,
@@ -382,9 +450,38 @@ export const FlatEventTypes = {
     // Room events
     ROOM_JOIN_REQUESTED: EventTypes.ROOM.JOIN_REQUESTED,
     ROOM_LEAVE_REQUESTED: EventTypes.ROOM.LEAVE_REQUESTED,
-    // Safety events
-    SAFETY_PRE_ACTION: EventTypes.SAFETY.PRE_ACTION,
-    SAFETY_POST_ACTION: EventTypes.SAFETY.POST_ACTION,
+    // Tool events (extended)
+    TOOL_EXECUTION_REQUESTED: EventTypes.TOOL.EXECUTION_REQUESTED,
+    TOOL_EXECUTION_COMPLETED: EventTypes.TOOL.EXECUTION_COMPLETED,
+    // Data events
+    DATA_ACCESS_REQUESTED: EventTypes.DATA.ACCESS_REQUESTED,
+    DATA_ACCESS_COMPLETED: EventTypes.DATA.ACCESS_COMPLETED,
+    DATA_ACCESS_DENIED: EventTypes.DATA.ACCESS_DENIED,
+    DATA_MODIFICATION_REQUESTED: EventTypes.DATA.MODIFICATION_REQUESTED,
+    DATA_MODIFICATION_COMPLETED: EventTypes.DATA.MODIFICATION_COMPLETED,
+    // API events
+    API_CALL_REQUESTED: EventTypes.API.CALL_REQUESTED,
+    API_CALL_COMPLETED: EventTypes.API.CALL_COMPLETED,
+    API_CALL_FAILED: EventTypes.API.CALL_FAILED,
+    // Resource events (extended)
+    RESOURCE_ALLOCATION_REQUESTED: EventTypes.RESOURCE.ALLOCATION_REQUESTED,
+    RESOURCE_ALLOCATION_COMPLETED: EventTypes.RESOURCE.ALLOCATION_COMPLETED,
+    RESOURCE_ALLOCATION_DENIED: EventTypes.RESOURCE.ALLOCATION_DENIED,
+    RESOURCE_LIMIT_EXCEEDED: EventTypes.RESOURCE.LIMIT_EXCEEDED,
+    RESOURCE_RELEASED: EventTypes.RESOURCE.RELEASED,
+    // Run events (extended)
+    RUN_EXECUTION_REQUESTED: EventTypes.RUN.EXECUTION_REQUESTED,
+    RUN_EXECUTION_COMPLETED: EventTypes.RUN.EXECUTION_COMPLETED,
+    // Security events
+    SECURITY_THREAT_DETECTED: EventTypes.SECURITY.THREAT_DETECTED,
+    SECURITY_EMERGENCY_STOP: EventTypes.SECURITY.EMERGENCY_STOP,
+    SECURITY_PERMISSION_CHECK: EventTypes.SECURITY.PERMISSION_CHECK,
+    SECURITY_AUDIT_LOGGED: EventTypes.SECURITY.AUDIT_LOGGED,
+    SECURITY_ACCESS_BLOCKED: EventTypes.SECURITY.ACCESS_BLOCKED,
+    SECURITY_POLICY_VIOLATED: EventTypes.SECURITY.POLICY_VIOLATED,
+    // System events
+    SYSTEM_ERROR: EventTypes.SYSTEM.ERROR,
+    SYSTEM_STATE_CHANGED: EventTypes.SYSTEM.STATE_CHANGED,
 } as const;
 
 /**
@@ -647,7 +744,7 @@ export interface SocketEventPayloads {
      * Payload for tool called events
      * @event TOOL_CALLED
      */
-    [EventTypes.CHAT.TOOL_CALLED]: ChatEventData & {
+    [EventTypes.TOOL.CALLED]: ChatEventData & {
         /** Unique ID for this tool call */
         toolCallId: string;
         /** Name of the tool being called */
@@ -662,7 +759,7 @@ export interface SocketEventPayloads {
      * Payload for tool completed events
      * @event TOOL_COMPLETED
      */
-    [EventTypes.CHAT.TOOL_COMPLETED]: ChatEventData & {
+    [EventTypes.TOOL.COMPLETED]: ChatEventData & {
         /** ID of the completed tool call */
         toolCallId: string;
         /** Name of the completed tool */
@@ -681,7 +778,7 @@ export interface SocketEventPayloads {
      * Payload for tool failed events
      * @event TOOL_FAILED
      */
-    [EventTypes.CHAT.TOOL_FAILED]: ChatEventData & {
+    [EventTypes.TOOL.FAILED]: ChatEventData & {
         /** ID of the failed tool call */
         toolCallId: string;
         /** Name of the failed tool */
@@ -698,7 +795,7 @@ export interface SocketEventPayloads {
      * Payload for tool approval request events
      * @event TOOL_APPROVAL_REQUIRED
      */
-    [EventTypes.CHAT.TOOL_APPROVAL_REQUIRED]: ChatEventData & {
+    [EventTypes.TOOL.APPROVAL_REQUIRED]: ChatEventData & {
         /** Unique ID for this pending approval */
         pendingId: string;
         /** ID of the tool call requiring approval */
@@ -721,7 +818,7 @@ export interface SocketEventPayloads {
      * Payload for tool approval granted events
      * @event TOOL_APPROVAL_GRANTED
      */
-    [EventTypes.CHAT.TOOL_APPROVAL_GRANTED]: ChatEventData & {
+    [EventTypes.TOOL.APPROVAL_GRANTED]: ChatEventData & {
         /** ID of the pending approval that was granted */
         pendingId: string;
         /** ID of the tool call */
@@ -738,7 +835,7 @@ export interface SocketEventPayloads {
      * Payload for tool approval rejection events
      * @event TOOL_APPROVAL_REJECTED
      */
-    [EventTypes.CHAT.TOOL_APPROVAL_REJECTED]: ChatEventData & {
+    [EventTypes.TOOL.APPROVAL_REJECTED]: ChatEventData & {
         /** ID of the pending approval that was rejected */
         pendingId: string;
         /** ID of the tool call that was rejected */
@@ -755,7 +852,7 @@ export interface SocketEventPayloads {
      * Payload for tool approval timeout events
      * @event TOOL_APPROVAL_TIMEOUT
      */
-    [EventTypes.CHAT.TOOL_APPROVAL_TIMEOUT]: ChatEventData & {
+    [EventTypes.TOOL.APPROVAL_TIMEOUT]: ChatEventData & {
         /** ID of the pending approval that timed out */
         pendingId: string;
         /** ID of the tool call */
@@ -797,7 +894,7 @@ export interface SocketEventPayloads {
      */
     [EventTypes.SWARM.STATE_CHANGED]: SwarmEventData & {
         /** Unique identifier of the swarm */
-        swarmId: string;
+        chatId: string;
         /** Previous state before the change */
         oldState: StateMachineState;
         /** New state after the change */
@@ -811,8 +908,6 @@ export interface SocketEventPayloads {
      * @event SWARM_RESOURCE_UPDATED
      */
     [EventTypes.SWARM.RESOURCE_UPDATED]: SwarmEventData & {
-        /** Unique identifier of the swarm */
-        swarmId: string;
         /** Total credits allocated to the swarm */
         allocated: number;
         /** Credits consumed so far */
@@ -835,8 +930,6 @@ export interface SocketEventPayloads {
      * @event SWARM_TEAM_UPDATED
      */
     [EventTypes.SWARM.TEAM_UPDATED]: SwarmEventData & {
-        /** Unique identifier of the swarm */
-        swarmId: string;
         /** ID of the team assigned to this swarm */
         teamId?: string;
         /** Bot ID of the swarm leader */
@@ -850,8 +943,6 @@ export interface SocketEventPayloads {
      * @event SWARM_GOAL_CREATED
      */
     [EventTypes.SWARM.GOAL_CREATED]: SwarmEventData & {
-        /** Unique identifier of the swarm */
-        swarmId: string;
         /** ID of the newly created goal */
         goalId: string;
         /** Goal description */
@@ -865,8 +956,6 @@ export interface SocketEventPayloads {
      * @event SWARM_GOAL_UPDATED
      */
     [EventTypes.SWARM.GOAL_UPDATED]: SwarmEventData & {
-        /** Unique identifier of the swarm */
-        swarmId: string;
         /** ID of the updated goal */
         goalId: string;
         /** Updated goal description */
@@ -882,8 +971,6 @@ export interface SocketEventPayloads {
      * @event SWARM_GOAL_COMPLETED
      */
     [EventTypes.SWARM.GOAL_COMPLETED]: SwarmEventData & {
-        /** Unique identifier of the swarm */
-        swarmId: string;
         /** ID of the completed goal */
         goalId: string;
         /** Goal description */
@@ -897,8 +984,6 @@ export interface SocketEventPayloads {
      * @event SWARM_GOAL_FAILED
      */
     [EventTypes.SWARM.GOAL_FAILED]: SwarmEventData & {
-        /** Unique identifier of the swarm */
-        swarmId: string;
         /** ID of the failed goal */
         goalId: string;
         /** Goal description */
@@ -922,6 +1007,8 @@ export interface SocketEventPayloads {
         inputs?: Record<string, unknown>;
         /** Estimated completion time (ms) */
         estimatedDuration?: number;
+        /** Parent swarm ID */
+        parentSwarmId?: string;
     };
 
     /**
@@ -948,15 +1035,8 @@ export interface SocketEventPayloads {
         duration?: number;
         /** Whether retry is possible */
         retryable?: boolean;
-    };
-
-    /**
-     * Payload for run task ready events
-     * @event RUN_TASK_READY
-     */
-    [EventTypes.RUN.TASK_READY]: RunEventData & {
-        /** Task information */
-        task: RunTaskInfo;
+        /** Parent swarm ID */
+        parentSwarmId?: string;
     };
 
     /**
@@ -966,6 +1046,8 @@ export interface SocketEventPayloads {
     [EventTypes.RUN.DECISION_REQUESTED]: RunEventData & {
         /** Decision data requiring user input */
         decision: DeferredDecisionData;
+        /** Parent swarm ID */
+        parentSwarmId?: string;
     };
 
     /**
@@ -979,6 +1061,8 @@ export interface SocketEventPayloads {
         name: string;
         /** Step inputs */
         inputs?: Record<string, unknown>;
+        /** Parent swarm ID */
+        parentSwarmId?: string;
     };
 
     /**
@@ -1022,7 +1106,7 @@ export interface SocketEventPayloads {
             /** Team context if applicable */
             teamId?: string;
             /** Parent swarm if part of swarm execution */
-            swarmId?: string;
+            chatId?: string;
         };
     };
 
@@ -1037,6 +1121,8 @@ export interface SocketEventPayloads {
         error: string;
         /** Execution time before failure (ms) */
         duration?: number;
+        /** Parent swarm ID */
+        parentSwarmId?: string;
     };
 
     // ===== User Room event payloads =====
@@ -1063,55 +1149,342 @@ export interface SocketEventPayloads {
         notification: Notification;
     };
 
-    // ===== Safety/Interception event payloads =====
+    // ===== Tool Execution event payloads =====
 
     /**
-     * Payload for pre-action safety checks
-     * @event SAFETY_PRE_ACTION
+     * Payload for tool execution requested events
+     * @event TOOL_EXECUTION_REQUESTED
      */
-    [EventTypes.SAFETY.PRE_ACTION]: SafetyEventData & {
-        /** Details about the action being attempted */
-        action: {
-            /** Name or identifier of the action */
-            name: string;
-            /** Parameters or payload of the action */
-            parameters?: Record<string, unknown>;
-            /** Target resource if applicable */
-            targetResource?: string;
-            /** Estimated cost in credits if applicable */
-            estimatedCost?: string;
+    [EventTypes.TOOL.EXECUTION_REQUESTED]: ChatEventData & {
+        /** Name of the tool to be executed */
+        toolName: string;
+        /** Unique ID for this tool call */
+        toolCallId: string;
+        /** Arguments to be passed to the tool */
+        arguments: Record<string, unknown>;
+        /** ID of the bot requesting execution */
+        callerBotId: string;
+        /** Estimated cost in credits */
+        estimatedCost?: string;
+        /** Risk level assessment */
+        riskLevel?: "low" | "medium" | "high" | "critical";
+        /** Whether this requires approval */
+        requiresApproval?: boolean;
+    };
+
+    /**
+     * Payload for tool execution completed events
+     * @event TOOL_EXECUTION_COMPLETED
+     */
+    [EventTypes.TOOL.EXECUTION_COMPLETED]: ChatEventData & {
+        /** Name of the executed tool */
+        toolName: string;
+        /** ID of the completed tool call */
+        toolCallId: string;
+        /** Result returned by the tool */
+        result?: unknown;
+        /** Execution duration in milliseconds */
+        duration: number;
+        /** Credits consumed by this tool call */
+        creditsUsed: string;
+        /** ID of the bot that made the call */
+        callerBotId: string;
+        /** Whether execution was blocked */
+        blocked?: boolean;
+        /** IDs of agents that blocked execution */
+        blockedBy?: string[];
+    };
+
+    // ===== Data Access event payloads =====
+
+    /**
+     * Payload for data access requested events
+     * @event DATA_ACCESS_REQUESTED
+     */
+    [EventTypes.DATA.ACCESS_REQUESTED]: SwarmEventData & {
+        /** Path to the data being accessed */
+        path: string;
+        /** Type of operation */
+        operation: "read" | "write" | "delete";
+        /** Data sensitivity level */
+        sensitivity?: DataSensitivityType;
+        /** ID of the requester */
+        requesterId: string;
+        /** Type of requester */
+        requesterType: "user" | "bot" | "system";
+        /** Additional context */
+        context?: Record<string, unknown>;
+    };
+
+    /**
+     * Payload for data access completed events
+     * @event DATA_ACCESS_COMPLETED
+     */
+    [EventTypes.DATA.ACCESS_COMPLETED]: SwarmEventData & {
+        /** Path to the accessed data */
+        path: string;
+        /** Type of operation performed */
+        operation: "read" | "write" | "delete";
+        /** Whether access was successful */
+        success: boolean;
+        /** Size of data accessed */
+        dataSize?: number;
+        /** Whether data was sanitized */
+        sanitized?: boolean;
+        /** ID of the requester */
+        requesterId: string;
+        /** Access duration in milliseconds */
+        duration: number;
+    };
+
+    /**
+     * Payload for data access denied events
+     * @event DATA_ACCESS_DENIED
+     */
+    [EventTypes.DATA.ACCESS_DENIED]: SwarmEventData & {
+        /** Path to the data */
+        path: string;
+        /** Type of operation attempted */
+        operation: "read" | "write" | "delete";
+        /** ID of the requester */
+        requesterId: string;
+        /** Reason for denial */
+        reason: string;
+        /** IDs of agents that denied access */
+        deniedBy?: string[];
+    };
+
+    // ===== API Call event payloads =====
+
+    /**
+     * Payload for API call requested events
+     * @event API_CALL_REQUESTED
+     */
+    [EventTypes.API.CALL_REQUESTED]: SwarmEventData & {
+        /** API endpoint URL */
+        endpoint: string;
+        /** HTTP method */
+        method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
+        /** Request headers */
+        headers?: Record<string, string>;
+        /** Request body */
+        body?: unknown;
+        /** ID of the requester */
+        requesterId: string;
+        /** Estimated response time */
+        estimatedDuration?: number;
+        /** Risk assessment */
+        riskLevel?: "low" | "medium" | "high" | "critical";
+    };
+
+    /**
+     * Payload for API call completed events
+     * @event API_CALL_COMPLETED
+     */
+    [EventTypes.API.CALL_COMPLETED]: SwarmEventData & {
+        /** API endpoint URL */
+        endpoint: string;
+        /** HTTP method used */
+        method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
+        /** Response status code */
+        statusCode: number;
+        /** Response size in bytes */
+        responseSize?: number;
+        /** Call duration in milliseconds */
+        duration: number;
+        /** ID of the requester */
+        requesterId: string;
+        /** Whether response was modified */
+        responseModified?: boolean;
+    };
+
+    // ===== Resource event payloads =====
+
+    /**
+     * Payload for resource allocation requested events
+     * @event RESOURCE_ALLOCATION_REQUESTED
+     */
+    [EventTypes.RESOURCE.ALLOCATION_REQUESTED]: SwarmEventData & {
+        /** Type of resource requested */
+        resourceType: "credits" | "memory" | "time" | "concurrency";
+        /** Amount requested */
+        amount: string | number;
+        /** Purpose of allocation */
+        purpose: string;
+        /** ID of the requester */
+        requesterId: string;
+        /** Priority level */
+        priority?: "low" | "medium" | "high" | "critical";
+        /** Estimated duration of use */
+        estimatedDuration?: number;
+    };
+
+    /**
+     * Payload for resource allocation completed events
+     * @event RESOURCE_ALLOCATION_COMPLETED
+     */
+    [EventTypes.RESOURCE.ALLOCATION_COMPLETED]: SwarmEventData & {
+        /** Type of resource allocated */
+        resourceType: "credits" | "memory" | "time" | "concurrency";
+        /** Amount allocated */
+        allocated: string | number;
+        /** Amount originally requested */
+        requested: string | number;
+        /** Allocation ID for tracking */
+        allocationId: string;
+        /** ID of the requester */
+        requesterId: string;
+        /** Expiry time for allocation */
+        expiresAt?: Date;
+    };
+
+    // ===== Run Execution event payloads =====
+
+    /**
+     * Payload for run execution requested events
+     * @event RUN_EXECUTION_REQUESTED
+     */
+    [EventTypes.RUN.EXECUTION_REQUESTED]: RunEventData & {
+        /** ID of the routine to execute */
+        routineId: string;
+        /** Execution parameters */
+        parameters?: Record<string, unknown>;
+        /** ID of the requester */
+        requesterId: string;
+        /** Estimated resource requirements */
+        estimatedResources?: {
+            credits: string;
+            duration: number;
+            memory: number;
         };
     };
 
     /**
-     * Payload for post-action safety checks
-     * @event SAFETY_POST_ACTION
+     * Payload for run execution completed events
+     * @event RUN_EXECUTION_COMPLETED
      */
-    [EventTypes.SAFETY.POST_ACTION]: SafetyEventData & {
-        /** Details about the action that was attempted */
-        action: {
-            /** Name or identifier of the action */
-            name: string;
-            /** Result of the action */
-            result?: unknown;
-            /** Whether the action succeeded */
-            success: boolean;
-            /** Error if action failed */
-            error?: ErrorPayload;
-            /** Duration of action execution in milliseconds */
-            duration?: number;
-            /** Actual credits consumed */
-            cost?: string;
-        }
+    [EventTypes.RUN.EXECUTION_COMPLETED]: RunEventData & {
+        /** ID of the executed routine */
+        routineId: string;
+        /** Execution results */
+        results?: Record<string, unknown>;
+        /** Resources actually used */
+        resourcesUsed: {
+            credits: string;
+            duration: number;
+            memory: number;
+        };
+        /** Whether execution was successful */
+        success: boolean;
+    };
+
+    // ===== Security event payloads =====
+
+    /**
+     * Payload for threat detected events
+     * @event SECURITY_THREAT_DETECTED
+     */
+    [EventTypes.SECURITY.THREAT_DETECTED]: SecurityEventData & {
+        /** Type of threat detected */
+        threatType: "injection" | "privilege_escalation" | "data_exfiltration" | "dos" | "unauthorized_access" | "other";
+        /** Threat description */
+        description: string;
+        /** Affected resources */
+        affectedResources?: string[];
+        /** Recommended actions */
+        recommendations?: string[];
     };
 
     /**
      * Payload for emergency stop events
-     * @event EMERGENCY_STOP
+     * @event SECURITY_EMERGENCY_STOP
      */
-    [EventTypes.SAFETY.EMERGENCY_STOP]: SafetyEventData & {
-        /** Any additional details you want to include */
+    [EventTypes.SECURITY.EMERGENCY_STOP]: SecurityEventData & {
+        /** Reason for emergency stop */
+        reason: string;
+        /** Components affected */
+        affectedComponents: string[];
+        /** Whether stop is reversible */
+        reversible: boolean;
+    };
+
+    /**
+     * Payload for permission check events
+     * @event SECURITY_PERMISSION_CHECK
+     */
+    [EventTypes.SECURITY.PERMISSION_CHECK]: SecurityEventData & {
+        /** Resource being accessed */
+        resource: string;
+        /** Action being attempted */
+        action: string;
+        /** Required permissions */
+        requiredPermissions: string[];
+        /** Actual permissions */
+        actualPermissions?: string[];
+        /** Check result */
+        allowed?: boolean;
+    };
+
+    /**
+     * Payload for security audit events
+     * @event SECURITY_AUDIT_LOGGED
+     */
+    [EventTypes.SECURITY.AUDIT_LOGGED]: SecurityEventData & {
+        /** Audit event type */
+        auditType: string;
+        /** Action that was audited */
+        action: string;
+        /** Outcome of the action */
+        outcome: "success" | "failure" | "blocked";
+        /** Additional audit details */
         details?: Record<string, unknown>;
+    };
+
+    // ===== System event payloads =====
+
+    /**
+     * Payload for system error events
+     * @event SYSTEM_ERROR
+     */
+    [EventTypes.SYSTEM.ERROR]: {
+        /** The swarm ID, if applicable */
+        chatId?: string;
+        /** The run ID, if applicable and not in a swarm */
+        runId?: string;
+        /** Component that encountered the error */
+        component: string;
+        /** Operation that failed */
+        operation: string;
+        /** Error details */
+        error: {
+            name: string;
+            message: string;
+            stack?: string;
+            code?: string;
+        };
+        /** Context information */
+        context?: Record<string, unknown>;
+    };
+
+    /**
+     * Payload for system state change events
+     * @event SYSTEM_STATE_CHANGED
+     */
+    [EventTypes.SYSTEM.STATE_CHANGED]: {
+        /** The swarm ID, if applicable */
+        chatId?: string;
+        /** The run ID, if applicable and not in a swarm */
+        runId?: string;
+        /** Task or component ID */
+        taskId: string;
+        /** Component name */
+        componentName: string;
+        /** Previous state */
+        previousState: string;
+        /** New state */
+        newState: string;
+        /** Additional context */
+        context?: Record<string, unknown>;
     };
 
     // ===== Room Management event payloads =====
@@ -1137,6 +1510,71 @@ export interface SocketEventPayloads {
         /** ID of the specific room */
         roomId: string;
     };
+
+    // ===== Room Socket Event Payloads =====
+
+    /**
+     * Payload for joining a chat room
+     * @event joinChatRoom
+     */
+    joinChatRoom: {
+        /** ID of the chat room to join */
+        chatId: string;
+    };
+
+    /**
+     * Payload for leaving a chat room
+     * @event leaveChatRoom
+     */
+    leaveChatRoom: {
+        /** ID of the chat room to leave */
+        chatId: string;
+    };
+
+    /**
+     * Payload for joining a run room
+     * @event joinRunRoom
+     */
+    joinRunRoom: {
+        /** ID of the run room to join */
+        runId: string;
+    };
+
+    /**
+     * Payload for leaving a run room
+     * @event leaveRunRoom
+     */
+    leaveRunRoom: {
+        /** ID of the run room to leave */
+        runId: string;
+    };
+
+    /**
+     * Payload for joining a user room
+     * @event joinUserRoom
+     */
+    joinUserRoom: {
+        /** ID of the user room to join */
+        userId: string;
+    };
+
+    /**
+     * Payload for leaving a user room
+     * @event leaveUserRoom
+     */
+    leaveUserRoom: {
+        /** ID of the user room to leave */
+        userId: string;
+    };
+
+    /**
+     * Payload for requesting cancellation in a chat
+     * @event requestCancellation
+     */
+    requestCancellation: {
+        /** ID of the chat to request cancellation for */
+        chatId: string;
+    };
 }
 
 /**
@@ -1155,7 +1593,6 @@ export type UserSocketEventPayloads = {
  * @deprecated Use SocketEventPayloads with EventTypes constants instead
  */
 export type RunSocketEventPayloads = {
-    [EventTypes.RUN.TASK_READY]: SocketEventPayloads[typeof EventTypes.RUN.TASK_READY];
     [EventTypes.RUN.DECISION_REQUESTED]: SocketEventPayloads[typeof EventTypes.RUN.DECISION_REQUESTED];
     [EventTypes.ROOM.JOIN_REQUESTED]: SocketEventPayloads[typeof EventTypes.ROOM.JOIN_REQUESTED] & { roomType: "run" };
     [EventTypes.ROOM.LEAVE_REQUESTED]: SocketEventPayloads[typeof EventTypes.ROOM.LEAVE_REQUESTED] & { roomType: "run" };
@@ -1179,8 +1616,8 @@ export type ChatSocketEventPayloads = {
     [EventTypes.CHAT.REASONING_STREAM_ERROR]: SocketEventPayloads[typeof EventTypes.CHAT.REASONING_STREAM_ERROR];
     [EventTypes.CHAT.LLM_TASKS_UPDATED]: SocketEventPayloads[typeof EventTypes.CHAT.LLM_TASKS_UPDATED];
     [EventTypes.CHAT.BOT_STATUS_UPDATED]: SocketEventPayloads[typeof EventTypes.CHAT.BOT_STATUS_UPDATED];
-    [EventTypes.CHAT.TOOL_APPROVAL_REQUIRED]: SocketEventPayloads[typeof EventTypes.CHAT.TOOL_APPROVAL_REQUIRED];
-    [EventTypes.CHAT.TOOL_APPROVAL_REJECTED]: SocketEventPayloads[typeof EventTypes.CHAT.TOOL_APPROVAL_REJECTED];
+    [EventTypes.TOOL.APPROVAL_REQUIRED]: SocketEventPayloads[typeof EventTypes.TOOL.APPROVAL_REQUIRED];
+    [EventTypes.TOOL.APPROVAL_REJECTED]: SocketEventPayloads[typeof EventTypes.TOOL.APPROVAL_REJECTED];
     [EventTypes.ROOM.JOIN_REQUESTED]: SocketEventPayloads[typeof EventTypes.ROOM.JOIN_REQUESTED] & { roomType: "chat" };
     [EventTypes.ROOM.LEAVE_REQUESTED]: SocketEventPayloads[typeof EventTypes.ROOM.LEAVE_REQUESTED] & { roomType: "chat" };
     [EventTypes.CHAT.CANCELLATION_REQUESTED]: SocketEventPayloads[typeof EventTypes.CHAT.CANCELLATION_REQUESTED];

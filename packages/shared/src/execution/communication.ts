@@ -72,20 +72,16 @@
  * @see ExecutionContext - For context propagation patterns
  */
 
-import type { TaskStatus } from "../api/types.js";
+import type { SessionUser, TaskStatus } from "../api/types.js";
 import type { RunConfig, RunTriggeredFrom } from "../run/types.js";
 import {
     type CoreResourceAllocation,
-    type ExecutionContext,
     type ExecutionOptions,
-    type ExecutionResult,
-    type ExecutionStatus,
+    type ExecutionStrategy,
 } from "./core.js";
 import type { SwarmId } from "./ids.js";
 
 export interface BaseTierExecutionRequest {
-    /** Execution context with tracing, environment, and hierarchy information */
-    context: ExecutionContext;
     /** Resource allocation limits to constrain execution and prevent runaway behaviors */
     allocation: CoreResourceAllocation;
     /** Optional execution parameters and strategy hints */
@@ -130,142 +126,14 @@ export interface BaseTierExecutionRequest {
  * - **options**: Optional execution parameters and hints
  */
 export type TierExecutionRequest<T = unknown> = BaseTierExecutionRequest & {
+    /** Execution metadata, tracing, and environment information */
+    context: {
+        swarmId: string;
+        userData: SessionUser;
+        parentSwarmId?: string;
+        timestamp?: Date;
+    };
     input: T;
-}
-
-/**
- * Standard Cross-Tier Communication Interface
- * 
- * This interface defines the contract that all three execution tiers must implement
- * to enable standardized, type-safe communication throughout the execution hierarchy.
- * Each tier acts as both a client (making requests) and server (handling requests).
- * 
- * ## Implementation Requirements
- * 
- * Each tier must implement this interface with tier-specific behavior:
- * 
- * **Tier 1 (TierOneCoordinator)**:
- * - Accepts: `SwarmExecutionInput` for swarm creation and management
- * - Delegates: `RoutineExecutionInput` to Tier 2 for routine execution
- * - Responsibilities: Swarm lifecycle, resource hierarchy, organizational constraints
- * 
- * **Tier 2 (TierTwoOrchestrator)**:
- * - Accepts: `RoutineExecutionInput` for complete routine execution
- * - Delegates: `StepExecutionInput` to Tier 3 for individual step execution
- * - Responsibilities: Workflow navigation, routine orchestration, step coordination
- * 
- * **Tier 3 (TierThreeExecutor)**:
- * - Accepts: `StepExecutionInput` for direct tool execution
- * - No delegation: Executes tools directly and returns results
- * - Responsibilities: Tool orchestration, strategy execution, direct execution
- * 
- * ## Type Safety Guarantees
- * 
- * The interface uses TypeScript generics to ensure type safety across tier boundaries:
- * - Input types are tier-specific and validated at compile time
- * - Output types maintain consistency through the execution chain
- * - Resource allocation is enforced structurally
- * - Context propagation preserves execution hierarchy
- * 
- * ## Resource Management
- * 
- * All implementations must:
- * 1. **Respect allocation limits**: Never exceed provided resource constraints
- * 2. **Track usage accurately**: Report actual resource consumption
- * 3. **Handle exhaustion gracefully**: Fail fast when resources are depleted
- * 4. **Aggregate child usage**: Roll up resource consumption from delegated executions
- * 
- * ## Error Handling Requirements
- * 
- * All implementations must:
- * 1. **Include tier identification**: Mark errors with originating tier
- * 2. **Preserve error chains**: Maintain causal error relationships
- * 3. **Provide actionable messages**: Include debugging context
- * 4. **Handle cleanup**: Release resources on failure
- * 
- * @see TierExecutionRequest - For request structure and usage patterns
- * @see ExecutionResult - For response structure and resource tracking
- * @see ExecutionContext - For context propagation and tracing
- */
-export interface TierCommunicationInterface {
-    /**
-     * Execute a tier-specific request and return structured results
-     * 
-     * This is the primary method for cross-tier execution delegation. Each tier
-     * processes the request according to its responsibilities and either executes
-     * directly or delegates to the next tier in the hierarchy.
-     * 
-     * ## Type Safety
-     * 
-     * The method uses TypeScript generics to ensure type safety:
-     * - `TInput` must match the tier's expected input type
-     * - `TOutput` represents the expected result structure
-     * - Type mismatches are caught at compile time
-     * 
-     * ## Resource Enforcement
-     * 
-     * Implementations must:
-     * - Never exceed `request.allocation` limits
-     * - Track and report actual usage in `ExecutionResult.resourcesUsed`
-     * - Fail gracefully when resources are exhausted
-     * 
-     * ## Error Handling
-     * 
-     * On failure, implementations must:
-     * - Return `ExecutionResult` with `success: false`
-     * - Include tier identification in error details
-     * - Preserve error causality for debugging
-     * - Release any allocated resources
-     * 
-     * @template TInput - Tier-specific input type (SwarmExecutionInput | RoutineExecutionInput | StepExecutionInput)
-     * @template TOutput - Expected result type from execution
-     * @param request - Complete execution request with context, input, and resource allocation
-     * @returns Promise resolving to structured execution result with resource usage
-     * 
-     * @throws Never throws - All errors must be returned in ExecutionResult structure
-     */
-    execute<TInput, TOutput>(
-        request: TierExecutionRequest<TInput>
-    ): Promise<ExecutionResult<TOutput>>;
-
-    /**
-     * Get current execution status for monitoring and coordination
-     * 
-     * Used for tracking long-running executions, particularly important for:
-     * - Tier 1: Swarm lifecycle and coordination status
-     * - Tier 2: Routine progress and step completion
-     * - Tier 3: Tool execution and resource consumption
-     * 
-     * @param swarmId - Unique identifier for the execution to monitor
-     * @returns Promise resolving to current execution status and metadata
-     */
-    getExecutionStatus(swarmId: SwarmId): Promise<ExecutionStatus>;
-
-    /**
-     * Cancel a running execution gracefully
-     * 
-     * Implementations must:
-     * - Stop ongoing execution as quickly as possible
-     * - Release allocated resources
-     * - Clean up any side effects
-     * - Propagate cancellation to delegated executions
-     * 
-     * @param swarmId - Unique identifier for the execution to cancel
-     */
-    cancelExecution(swarmId: SwarmId): Promise<void>;
-
-    /**
-     * Get tier-specific capabilities for discovery and routing
-     * 
-     * Used by coordination systems to:
-     * - Discover available execution capabilities
-     * - Make routing decisions based on tier characteristics
-     * - Estimate resource requirements and latency
-     * - Validate input type compatibility
-     * 
-     * @returns Promise resolving to tier capability description
-     */
-    getCapabilities?(): Promise<TierCapabilities>;
 }
 
 /**
@@ -336,13 +204,20 @@ export type SwarmExecutionInput = TierExecutionRequest<{
         /** The maximum number of parallel branches across all active runs. */
         parallelExecutionLimit?: number;
     };
+    /**
+     * The user data of the user who triggered the bot response
+     */
+    userData: SessionUser;
 }>
 
 /**
  * Tier 2 specific input types
  */
 export interface RoutineExecutionInput {
-    routineId: string;
+    /** The ID of the resource version to execute (what actually contains the executable routine) */
+    resourceVersionId: string;
+    /** Optional run ID for resuming existing executions */
+    runId?: string;
     parameters: Record<string, unknown>;
     workflow: WorkflowDefinition;
 }
@@ -376,13 +251,44 @@ export interface ParallelBranch {
 
 /**
  * Tier 3 specific input types
+ * 
+ * Enhanced to support the full range of step execution capabilities including
+ * LLM calls, tool execution, code execution, and API calls. The parameters
+ * field carries step-specific configuration that varies by step type.
  */
 export interface StepExecutionInput {
+    /** Unique identifier for this step execution */
     stepId: string;
+    
+    /** Type of step from the routine definition (e.g., "decision", "action", "subprocess") */
     stepType: string;
+    
+    /** Optional execution type hint for stepExecutor's type inference */
+    type?: "llm_call" | "tool_call" | "code_execution" | "api_call";
+    
+    /** Tool name for tool_call steps */
     toolName?: string;
+    
+    /** 
+     * Step parameters containing all execution configuration.
+     * The structure varies based on step type:
+     * - For LLM calls: may contain messages, prompt, instructions
+     * - For tool calls: contains tool-specific arguments
+     * - For code execution: contains code, language, inputs
+     * - For API calls: contains url, method, headers, body
+     */
     parameters: Record<string, unknown>;
-    strategy: string;
+    
+    /** Execution strategy to use for this step */
+    strategy: ExecutionStrategy;
+    
+    // Optional fields that may be present in parameters but are called out
+    // for type inference in stepExecutor
+    messages?: any[];
+    prompt?: string;
+    code?: string;
+    routineConfig?: any; // RoutineVersionConfigObject - avoiding circular dependency
+    ioMapping?: any; // SubroutineIOMapping - avoiding circular dependency, will be properly typed when imported
 }
 
 /**
@@ -428,28 +334,3 @@ export type RunExecutionInput = TierExecutionRequest<{
     /** Current task status */
     status: TaskStatus | `${TaskStatus}`;
 }>
-
-/**
- * Common delegation patterns
- */
-export type Tier1ToTier2Request = TierExecutionRequest<RoutineExecutionInput>;
-export type Tier2ToTier3Request = TierExecutionRequest<StepExecutionInput>;
-export type SwarmCoordinationRequest = TierExecutionRequest<SwarmExecutionInput>;
-export type RunCoordinationRequest = TierExecutionRequest<RunExecutionInput["input"]>;
-
-/**
- * Helper function to create execution requests
- */
-export function createTierRequest<T>(
-    context: ExecutionContext,
-    input: T,
-    allocation: CoreResourceAllocation,
-    options?: ExecutionOptions,
-): TierExecutionRequest<T> {
-    return {
-        context,
-        input,
-        allocation,
-        options,
-    };
-}

@@ -211,10 +211,19 @@ These minimal events enable emergent behaviors through creative agent configurat
         "when": "optional-condition"
       },
       "action": {
-        "type": "routine|invoke",
+        "type": "routine|invoke|emit",
         "label": "routine-label",
         "inputMap": {"key": "value"},
-        "purpose": "description-for-invoke"
+        "outputOperations": {
+          "append": [{"routineOutput": "result.items", "blackboardId": "allResults"}],
+          "increment": [{"routineOutput": "result.count", "blackboardId": "totalProcessed"}],
+          "merge": [{"routineOutput": "result.metadata", "blackboardId": "summary"}],
+          "deepMerge": [{"routineOutput": "result.config", "blackboardId": "configuration"}],
+          "set": [{"routineOutput": "result.status", "blackboardId": "currentStatus"}]
+        },
+        "purpose": "description-for-invoke",
+        "eventType": "custom/event/type",
+        "dataMapping": {"key": "jexl-expression"}
       },
       "qos": 0
     }
@@ -234,13 +243,41 @@ These minimal events enable emergent behaviors through creative agent configurat
 - **Type**: `"routine"`
 - **Use When**: Deterministic, predictable responses required
 - **Examples**: Data processing, calculations, standard workflows
-- **Configuration**: Requires `label` (routine name) and optional `inputMap`
+- **Configuration**: Requires `label` (routine name) and optional `inputMap`, `outputOperations`
+
+##### OutputOperations for Blackboard Updates
+Routine actions support **accumulation operations** that update the shared blackboard when routines complete:
+
+- **`append`**: Add arrays to existing blackboard arrays (e.g., collecting results from multiple runs)
+- **`increment`**: Add numbers to existing blackboard counters (e.g., tracking totals)
+- **`merge`**: Shallow merge objects into blackboard objects (e.g., updating configuration)
+- **`deepMerge`**: Recursively merge nested objects (e.g., complex configuration updates)
+- **`set`**: Simple assignment to blackboard (overwrites existing values)
+
+**Dot Notation Support**: Extract nested values from routine results using dot notation like `result.data.items` or `metadata.priority`.
+
+**Example**:
+```json
+"outputOperations": {
+  "append": [{"routineOutput": "result.findings", "blackboardId": "allFindings"}],
+  "increment": [{"routineOutput": "result.itemsProcessed", "blackboardId": "totalProcessed"}],
+  "set": [{"routineOutput": "result.status", "blackboardId": "lastStatus"}]
+}
+```
 
 #### Invoke Behaviors  
 - **Type**: `"invoke"`
 - **Use When**: Thinking, analysis, or adaptive responses needed
 - **Examples**: Decision making, creative tasks, complex problem solving
 - **Configuration**: Requires `purpose` description
+
+#### Emit Behaviors
+- **Type**: `"emit"`
+- **Use When**: Need to trigger other agents or coordinate swarm activities
+- **Examples**: Error escalation, workflow coordination, alert broadcasting  
+- **Configuration**: Requires `eventType` and optional `dataMapping`, `metadata`, `outputOperations`
+
+**Note**: EmitActions also support `outputOperations` for updating the blackboard with event emission results (event ID, timestamp, etc.). This enables tracking of coordination activities and event patterns.
 
 ### Quality of Service (QoS) Levels
 
@@ -335,7 +372,64 @@ Behavior: Calls task-decomposer routine to break goal into runs
 Emergence: Complex goals automatically decomposed into executable steps
 ```
 
-The key insight: We don't program specific behaviors - we configure agents to respond to events with routines, and complex behaviors emerge from their interactions.
+#### Example 5: Software Development Error Handling with Oversight
+```
+Main Agent:
+  Subscribes to: run/failed
+  Behavior 1: Run error-analyzer routine, save results to blackboard.error_analysis
+  Behavior 2: When blackboard.error_analysis.risk > 0.8, emit safety/high_risk_detected
+
+Oversight Agent:
+  Subscribes to: swarm/blackboard/updated
+  Behavior: When key contains 'error_analysis', check if main agent is staying on task
+  If off-task detected: Emit safety/stop_requested to halt the main agent's routine
+
+Emergence: Self-regulating error fixing with built-in oversight and safety mechanisms
+```
+
+#### Example 6: Software Development Data Accumulation
+```
+Test Runner Agent:
+  Subscribes to: run/completed
+  Behavior: When routine is "run-tests", accumulate results
+  OutputOperations:
+    - append: test results to blackboard.all_test_results
+    - increment: test count to blackboard.total_tests_run
+    - set: latest status to blackboard.last_test_status
+
+Code Analyzer Agent:
+  Subscribes to: step/completed
+  Behavior: When step is "analyze-code", collect metrics
+  OutputOperations:
+    - merge: complexity metrics into blackboard.code_metrics
+    - append: issues found to blackboard.code_issues
+    - increment: files analyzed to blackboard.files_processed
+
+Progress Reporter Agent:
+  Subscribes to: swarm/blackboard/updated
+  Behavior: When blackboard.total_tests_run changes, generate progress report
+  Uses accumulated data from blackboard to show comprehensive status
+
+Emergence: Rich data accumulation enables sophisticated progress tracking and reporting without complex coordination
+```
+
+#### Example 7: Chained Agent Coordination
+```
+Agent A subscribes to: swarm/resource/low
+Behavior: Run resource-optimizer routine, output to blackboard.optimization_plan
+Then emit: custom/optimization/ready with plan details
+
+Agent B subscribes to: custom/optimization/ready  
+Behavior: Execute optimization plan if confidence > 0.9
+Emit: custom/optimization/completed on success
+
+Agent C subscribes to: custom/optimization/completed
+Behavior: Update monitoring dashboards and notify stakeholders
+
+Emergence: Multi-agent workflows that chain together through blackboard data and custom events
+```
+
+The key insight: We don't program specific behaviors - we configure agents to respond to events with routines, and complex behaviors emerge from their interactions. Event emission enables sophisticated coordination patterns without requiring centralized control.
 
 ## Best Practices
 
@@ -442,6 +536,86 @@ The key insight: We don't program specific behaviors - we configure agents to re
 }
 ```
 
+### Emit Agent Template (Coordination & Error Handling)
+```json
+{
+  "identity": { "name": "error-handling-coordinator" },
+  "goal": "Coordinate error fixing processes with oversight mechanisms",
+  "role": "coordinator",
+  "subscriptions": ["run/failed", "swarm/blackboard/updated"],
+  "behaviors": [
+    {
+      "trigger": { 
+        "topic": "run/failed",
+        "when": "event.data.errorType == 'code_error'"
+      },
+      "action": { 
+        "type": "routine", 
+        "label": "error-analyzer",
+        "inputMap": { "errorData": "event.data" },
+        "outputOperations": {
+          "set": [{"routineOutput": "analysis", "blackboardId": "error_analysis"}]
+        }
+      }
+    },
+    {
+      "trigger": {
+        "topic": "swarm/blackboard/updated",
+        "when": "event.data.key == 'error_analysis' && event.data.value.risk > 0.8"
+      },
+      "action": {
+        "type": "emit",
+        "eventType": "safety/high_risk_detected",
+        "dataMapping": {
+          "riskLevel": "event.data.value.risk",
+          "errorType": "event.data.value.errorType",
+          "recommendedAction": "event.data.value.recommendedAction"
+        },
+        "metadata": {
+          "priority": "high",
+          "deliveryGuarantee": "reliable"
+        },
+        "outputOperations": {
+          "set": [
+            {"emitOutput": "eventId", "blackboardId": "last_alert_id"},
+            {"emitOutput": "timestamp", "blackboardId": "alert_timestamp"}
+          ]
+        }
+      }
+    },
+    {
+      "trigger": {
+        "topic": "swarm/blackboard/updated", 
+        "when": "event.data.key.includes('error_analysis')"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Monitor if error fixing agent is staying on task and emit stop signal if off-track"
+      }
+    }
+  ],
+  "resources": [
+    {
+      "type": "blackboard",
+      "label": "Error Analysis Blackboard",
+      "permissions": ["read", "write"],
+      "scope": "error_analysis.*"
+    },
+    {
+      "type": "blackboard", 
+      "label": "Alert Management",
+      "permissions": ["write"],
+      "scope": "last_alert_id,alert_timestamp"
+    }
+  ],
+  "prompt": {
+    "mode": "supplement",
+    "source": "direct",
+    "content": "Monitor error fixing processes and escalate high-risk situations. Always verify that main agents stay focused on their assigned tasks. When emitting safety events, include sufficient context for downstream agents to take appropriate action."
+  }
+}
+```
+
 ## Troubleshooting
 
 ### Generation Issues
@@ -545,6 +719,7 @@ jq -r '.availableNames[]' cache/routine-index.json | head -20
 
 ## Related Documentation
 
+- [`OUTPUT_OPERATIONS_GUIDE.md`](./OUTPUT_OPERATIONS_GUIDE.md) - **Comprehensive guide to blackboard accumulation operations**
 - [`../routine/README.md`](../routine/README.md) - Routine creation system for agent behaviors  
 - [`/docs/architecture/execution/README.md`](../../architecture/execution/README.md) - Swarm execution architecture
 - [`/docs/plans/agent-orchestration.md`](../../plans/agent-orchestration.md) - Agent coordination strategies

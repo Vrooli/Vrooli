@@ -398,20 +398,21 @@ async function handleCreditsAward(
     if (!creditAccount) {
         throw new Error("Credit account not found.");
     }
+    const accountId = creditAccount.id;
     // Add ledger entry and update balance
     await DbProvider.get().$transaction(async (tx) => {
         await tx.credit_ledger_entry.create({
             data: {
                 id: generatePK(),
                 idempotencyKey: checkoutId,
-                accountId: creditAccount.id,
+                accountId,
                 amount: creditsToAward,
                 type: CreditEntryType.Purchase,
                 source: CreditSourceSystem.Stripe,
             },
         });
         const acct = await tx.credit_account.findUniqueOrThrow({
-            where: { id: creditAccount.id },
+            where: { id: accountId },
             select: { id: true, currentBalance: true },
         });
         await tx.credit_account.update({ where: { id: acct.id }, data: { currentBalance: acct.currentBalance + creditsToAward } });
@@ -462,9 +463,10 @@ async function handleSubscriptionAward(
     if (!creditAccount) {
         creditAccount = await DbProvider.get().credit_account.create({ data: { id: generatePK(), userId: userIdBigInt } });
     }
+    const accountId = creditAccount.id;
     await DbProvider.get().$transaction(async (tx) => {
-        await tx.credit_ledger_entry.create({ data: { id: generatePK(), idempotencyKey: checkoutId, accountId: creditAccount!.id, amount: subscriptionCredits, type: CreditEntryType.Purchase, source: CreditSourceSystem.Stripe } });
-        const acct = await tx.credit_account.findUniqueOrThrow({ where: { id: creditAccount!.id }, select: { id: true, currentBalance: true } });
+        await tx.credit_ledger_entry.create({ data: { id: generatePK(), idempotencyKey: checkoutId, accountId, amount: subscriptionCredits, type: CreditEntryType.Purchase, source: CreditSourceSystem.Stripe } });
+        const acct = await tx.credit_account.findUniqueOrThrow({ where: { id: accountId }, select: { id: true, currentBalance: true } });
         await tx.credit_account.update({ where: { id: acct.id }, data: { currentBalance: acct.currentBalance + subscriptionCredits } });
     });
     // Notify clients of new credits

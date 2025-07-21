@@ -1,0 +1,167 @@
+{
+    "identity": {
+        "name": "test-result-aggregator",
+        "version": "1.0.0"
+    },
+    "goal": "Aggregate and analyze test execution results across the development workflow",
+    "role": "specialist", 
+    "subscriptions": [
+        "run/completed",
+        "step/completed", 
+        "swarm/blackboard/updated"
+    ],
+    "behaviors": [
+        {
+            "trigger": {
+                "topic": "run/completed",
+                "when": "event.data.routine_name.includes('test')"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Test Results Processor",
+                "inputMap": {
+                    "testResults": "event.data.outputs",
+                    "runId": "event.data.runId",
+                    "executionTime": "event.data.duration"
+                },
+                "outputOperations": {
+                    "append": [
+                        {
+                            "routineOutput": "results.testCases",
+                            "blackboardId": "all_test_results"
+                        },
+                        {
+                            "routineOutput": "results.failures",
+                            "blackboardId": "test_failures"
+                        }
+                    ],
+                    "increment": [
+                        {
+                            "routineOutput": "summary.totalTests",
+                            "blackboardId": "total_tests_run"
+                        },
+                        {
+                            "routineOutput": "summary.passedTests",
+                            "blackboardId": "total_tests_passed"
+                        },
+                        {
+                            "routineOutput": "summary.failedTests",
+                            "blackboardId": "total_tests_failed"
+                        }
+                    ],
+                    "merge": [
+                        {
+                            "routineOutput": "metrics.performance",
+                            "blackboardId": "test_performance_metrics"
+                        }
+                    ],
+                    "set": [
+                        {
+                            "routineOutput": "summary.lastRun",
+                            "blackboardId": "last_test_execution"
+                        }
+                    ]
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "step/completed",
+                "when": "event.data.stepType == 'code_analysis'"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Code Quality Analyzer",
+                "inputMap": {
+                    "analysisResults": "event.data.outputs",
+                    "stepId": "event.data.stepId"
+                },
+                "outputOperations": {
+                    "append": [
+                        {
+                            "routineOutput": "issues",
+                            "blackboardId": "code_quality_issues"
+                        }
+                    ],
+                    "deepMerge": [
+                        {
+                            "routineOutput": "qualityMetrics",
+                            "blackboardId": "code_quality_profile"
+                        }
+                    ],
+                    "increment": [
+                        {
+                            "routineOutput": "metrics.filesAnalyzed",
+                            "blackboardId": "total_files_analyzed"
+                        }
+                    ]
+                }
+            },
+            "qos": 1
+        },
+        {
+            "trigger": {
+                "topic": "swarm/blackboard/updated",
+                "when": "event.data.key == 'total_tests_run' && event.data.value % 10 == 0"
+            },
+            "action": {
+                "type": "routine",
+                "label": "Test Report Generator",
+                "inputMap": {
+                    "totalTests": "blackboard.total_tests_run",
+                    "totalPassed": "blackboard.total_tests_passed",
+                    "totalFailed": "blackboard.total_tests_failed",
+                    "allResults": "blackboard.all_test_results",
+                    "failures": "blackboard.test_failures",
+                    "performanceMetrics": "blackboard.test_performance_metrics",
+                    "qualityIssues": "blackboard.code_quality_issues",
+                    "qualityProfile": "blackboard.code_quality_profile"
+                },
+                "outputOperations": {
+                    "set": [
+                        {
+                            "routineOutput": "report",
+                            "blackboardId": "latest_test_report"
+                        }
+                    ],
+                    "append": [
+                        {
+                            "routineOutput": "summary",
+                            "blackboardId": "test_report_history"
+                        }
+                    ]
+                }
+            },
+            "qos": 1
+        }
+    ],
+    "prompt": {
+        "mode": "supplement",
+        "source": "direct",
+        "content": "You are responsible for aggregating test results and code analysis data across all development activities. Focus on providing comprehensive insights from accumulated data. Track trends and patterns in test results to identify potential quality issues. Generate reports every 10 test runs to provide regular feedback to the development team."
+    },
+    "resources": [
+        {
+            "type": "blackboard",
+            "label": "test-data-aggregation",
+            "permissions": ["read", "write"],
+            "scope": "all_test_results,test_failures,total_*,test_performance_metrics,last_test_execution",
+            "description": "Accumulate and access all test execution data"
+        },
+        {
+            "type": "blackboard", 
+            "label": "code-quality-tracking",
+            "permissions": ["read", "write"],
+            "scope": "code_quality_*,total_files_analyzed",
+            "description": "Track code quality metrics and issues over time"
+        },
+        {
+            "type": "blackboard",
+            "label": "reporting",
+            "permissions": ["read", "write"], 
+            "scope": "latest_test_report,test_report_history",
+            "description": "Store and manage test reports and historical data"
+        }
+    ]
+}

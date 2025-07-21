@@ -65,6 +65,19 @@ export type THEME = ValueOf<typeof THEME>;
 
 export const DEFAULT_LANGUAGE = "en";
 
+/**
+ * Default persona configuration for bots
+ */
+export const DEFAULT_PERSONA = {
+    creativity: 0.5,
+    verbosity: 0.5,
+} as const;
+
+/**
+ * UI order for default persona fields
+ */
+export const DEFAULT_PERSONA_UI_ORDER = ["creativity", "verbosity"] as const;
+
 export enum CodeLanguage {
     Angular = "angular",
     Cpp = "cpp",

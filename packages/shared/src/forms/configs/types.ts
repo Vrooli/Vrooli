@@ -42,16 +42,16 @@ export interface FormConfig<
     transformations: {
         /** Convert raw form data to internal shape format */
         formToShape: (formData: any) => TShape;
-        
+
         /** Shape transformation object with create/update methods */
         shapeToInput: {
             create?: (shape: TShape) => TCreateInput;
             update?: (existing: TShape, shape: TShape) => TUpdateInput | undefined;
         };
-        
+
         /** Convert API response back to shape (for round-trip testing) */
         apiResultToShape: (apiResult: TApiResult) => TShape;
-        
+
         /** Generate initial form values */
         getInitialValues: (session?: Session, existing?: Partial<TShape>) => TShape;
     };
@@ -78,7 +78,7 @@ export interface FormConfig<
 export interface FormFixtures<TShape extends { __typename: string; id: string }> {
     /** Reference to the form config this fixture is for */
     configType: string;
-    
+
     /** Valid test scenarios that should pass validation */
     valid: {
         /** Minimal valid data with only required fields */
@@ -88,7 +88,7 @@ export interface FormFixtures<TShape extends { __typename: string; id: string }>
         /** Additional valid scenarios */
         [key: string]: TShape;
     };
-    
+
     /** Invalid test scenarios that should fail validation */
     invalid: {
         /** Missing required fields */
@@ -98,7 +98,7 @@ export interface FormFixtures<TShape extends { __typename: string; id: string }>
         /** Additional invalid scenarios */
         [key: string]: TShape;
     };
-    
+
     /** Edge case scenarios for boundary testing */
     edge: {
         /** Maximum allowed values (e.g., max length strings) */
@@ -109,11 +109,3 @@ export interface FormFixtures<TShape extends { __typename: string; id: string }>
         [key: string]: TShape;
     };
 }
-
-/**
- * Helper types for extracting types from form configs
- */
-export type ExtractShapeType<T> = T extends FormConfig<infer TShape, any, any, any> ? TShape : never;
-export type ExtractCreateInputType<T> = T extends FormConfig<any, infer TCreateInput, any, any> ? TCreateInput : never;
-export type ExtractUpdateInputType<T> = T extends FormConfig<any, any, infer TUpdateInput, any> ? TUpdateInput : never;
-export type ExtractApiResultType<T> = T extends FormConfig<any, any, any, infer TApiResult> ? TApiResult : never;

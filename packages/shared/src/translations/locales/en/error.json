@@ -167,6 +167,8 @@
     "TagTooShort": "Tag too short.",
     "TagTooLong": "Tag too long.",
     "TaskNotSupported": "Task not supported.",
+    "ToolApprovalEventBlocked": "Tool approval event blocked.",
+    "ToolApprovalEventBlockedDetails": "The tool approval event was blocked by the system for security reasons. Please try again or contact support if the issue persists.",
     "TransferNotFound": "Transfer request not found.",
     "TransferNotFoundDetails": "Transfer request not found. This might mean that the originator canceled the request.",
     "TransferAlreadyAccepted": "Transfer request already accepted.",

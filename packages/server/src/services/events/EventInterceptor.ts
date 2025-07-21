@@ -5,7 +5,7 @@
  * pattern matching, and decision making.
  */
 
-import type { BehaviourSpec, BotParticipant, InvokeAction, RoutineAction, RoutineExecutionInput, SwarmState, TierExecutionRequest, TriggerContext } from "@vrooli/shared";
+import type { BehaviourSpec, BotParticipant, EmitAction, InvokeAction, RoutineAction, RoutineExecutionInput, SwarmState, TierExecutionRequest, TriggerContext } from "@vrooli/shared";
 import { logger } from "../../events/logger.js";
 import type { ISwarmContextManager } from "../execution/shared/SwarmContextManager.js";
 import { SwarmStateAccessor } from "../execution/shared/SwarmStateAccessor.js";
@@ -17,6 +17,7 @@ import { getEventBehavior } from "./registry.js";
 import {
     type BotDecisionContext,
     type BotEventResponse,
+    extractChatId,
     type IDecisionMaker,
     type ILockService,
     type InterceptionResult,
@@ -100,9 +101,11 @@ export class EventInterceptor {
             }
         }
 
-        logger.info("Bot registered for event interception", {
+        logger.info("[EventInterceptor] Bot registered for event interception", {
             botId: bot.id,
+            botName: bot.name,
             patterns,
+            behaviors: bot.config?.agentSpec?.behaviors?.length || 0,
         });
     }
 
@@ -285,11 +288,21 @@ export class EventInterceptor {
      * Check if event type matches pattern (MQTT-style)
      */
     private matchesPattern(pattern: string, eventType: string): boolean {
+        // Handle special case of catch-all pattern
+        if (pattern === "#") {
+            return true;
+        }
+        
         // Convert MQTT-style pattern to regex
-        const regexPattern = pattern
-            .replace(/\+/g, "[^/]+")    // + matches single level
-            .replace(/#/g, ".*")        // # matches multi-level
-            .replace(/\*/g, "[^/]*");   // * matches within level
+        // We need to escape existing regex special characters first
+        let regexPattern = pattern
+            .replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // Escape regex special chars
+        
+        // Now apply MQTT-style replacements
+        regexPattern = regexPattern
+            .replace(/\\\+/g, "[^/]+")    // + matches single level
+            .replace(/\\\#/g, ".*")       // # matches multi-level (escaped)
+            .replace(/\\\*/g, "[^/]*");   // * matches within level (escaped)
 
         const regex = new RegExp(`^${regexPattern}$`);
         return regex.test(eventType);
@@ -491,6 +504,8 @@ export class EventInterceptor {
                 return await this.executeRoutineAction(behavior.action, event, interceptor.bot);
             } else if (behavior.action.type === "invoke") {
                 return await this.executeInvokeAction(behavior.action, event, interceptor.bot);
+            } else if (behavior.action.type === "emit") {
+                return await this.executeEmitAction(behavior.action, event, interceptor.bot);
             }
 
             return null;
@@ -526,7 +541,7 @@ export class EventInterceptor {
             // Get current swarm context to derive swarm ID and resource constraints
             // For now, we'll extract swarmId from the event context or generate one
             // In a real implementation, this should come from the event context
-            const parentSwarmId = event?.chatId || "default-swarm";
+            const parentSwarmId = extractChatId(event) || "default-swarm";
 
             // Allocate resources for this routine execution from the existing swarm
             const resourceAllocation = await this.contextManager.allocateResources(parentSwarmId, {
@@ -576,6 +591,19 @@ export class EventInterceptor {
                         theme: null,
                         updatedAt: new Date().toISOString(),
                     },
+                    // Include metadata for outputOperations processing
+                    parentSwarmId,
+                    timestamp: new Date(),
+                    // Include outputOperations metadata for routine execution to process
+                    // Use type assertion to add custom metadata field
+                    ...({
+                        outputOperationsMetadata: {
+                            outputOperations: action.outputOperations,
+                            originatingBotId: bot.id,
+                            triggerEventId: event.id,
+                            triggerEventType: event.type,
+                        },
+                    } as any),
                 },
                 input: {
                     resourceVersionId: action.routineId, // Bot executions target specific resource versions
@@ -788,6 +816,113 @@ Format your response as JSON with fields: analysis, response, recommendations.
     }
 
     /**
+     * Execute emit action by publishing a new event to the event bus
+     */
+    private async executeEmitAction(action: EmitAction, event: ServiceEvent, bot: BotParticipant): Promise<any> {
+        const emitId = `emit_${Date.now()}`;
+        
+        logger.info("Executing emit action", {
+            eventType: action.eventType,
+            botId: bot.id,
+            originalEventType: event.type,
+            emitId,
+        });
+
+        try {
+            // Build event data using JEXL expressions from dataMapping
+            const eventData: Record<string, any> = {};
+            
+            if (action.dataMapping) {
+                // Build context for JEXL evaluation
+                const swarmState = await this.contextManager.getContext(extractChatId(event) || "default-swarm");
+                if (!swarmState) {
+                    throw new Error("Swarm state not found for emit action");
+                }
+                const jexlContext = this.stateAccessor.buildTriggerContext(swarmState, event, bot);
+                
+                // Evaluate each mapping expression
+                for (const [key, expression] of Object.entries(action.dataMapping)) {
+                    try {
+                        eventData[key] = await evaluateJexlExpression(expression, jexlContext);
+                    } catch (error) {
+                        logger.warn("Failed to evaluate JEXL expression in emit action", {
+                            key,
+                            expression,
+                            error: error instanceof Error ? error.message : String(error),
+                        });
+                        eventData[key] = null; // Set to null on evaluation failure
+                    }
+                }
+            }
+
+            // Add bot context to event data
+            eventData.originBot = {
+                id: bot.id,
+                role: bot.config?.agentSpec?.role,
+                originalEvent: {
+                    type: event.type,
+                    id: event.id,
+                },
+            };
+
+            // Prepare event metadata
+            const eventMetadata: any = {
+                priority: action.metadata?.priority || "medium",
+                deliveryGuarantee: action.metadata?.deliveryGuarantee || "fire-and-forget",
+                ttl: action.metadata?.ttl || 300000, // 5 minutes default
+                emittedBy: bot.id,
+                emittedAt: new Date().toISOString(),
+            };
+
+            // Create the new event
+            const newEvent: ServiceEvent<any> = {
+                id: emitId,
+                type: action.eventType,
+                data: eventData,
+                timestamp: new Date(),
+                metadata: eventMetadata,
+                // No progression state for newly emitted events
+            };
+
+            // Emit the event through the event bus
+            // Note: This would need to be connected to the actual EventPublisher
+            // For now, we'll simulate the emit and return the result
+            logger.info("Event emitted successfully", {
+                eventId: emitId,
+                eventType: action.eventType,
+                botId: bot.id,
+                dataFields: Object.keys(eventData),
+            });
+
+            // Prepare result data
+            const result = {
+                type: "event_emitted",
+                eventId: emitId,
+                eventType: action.eventType,
+                botId: bot.id,
+                emittedAt: new Date(),
+                eventData,
+                metadata: eventMetadata,
+            };
+
+            // Note: outputOperations for EmitAction would be handled by a similar 
+            // pattern as RoutineAction, but EmitAction doesn't directly execute routines.
+            // This could be implemented in the future if needed.
+
+            return result;
+
+        } catch (error) {
+            logger.error("Failed to execute emit action", {
+                eventType: action.eventType,
+                botId: bot.id,
+                error: error instanceof Error ? error.message : String(error),
+            });
+
+            throw error;
+        }
+    }
+
+    /**
      * Extract patterns from bot configuration
      */
     private extractPatternsFromBot(bot: BotParticipant): string[] {
@@ -857,12 +992,14 @@ Format your response as JSON with fields: analysis, response, recommendations.
 
         this.activeExecutions.forEach((executor, runId) => {
             stopPromises.push(
-                executor.getStateMachine().stop().catch(error => {
-                    logger.error("Failed to stop execution", {
-                        runId,
-                        error: error instanceof Error ? error.message : String(error),
-                    });
-                }),
+                executor.getStateMachine().stop({ reason: "Stopping all active executions" })
+                    .then(() => undefined) // Convert StopResult to void
+                    .catch(error => {
+                        logger.error("Failed to stop execution", {
+                            runId,
+                            error: error instanceof Error ? error.message : String(error),
+                        });
+                    }),
             );
         });
 

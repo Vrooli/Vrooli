@@ -123,6 +123,7 @@ export type ApiKeyCreated = ApiKey & {
 }
 
 export type ApiKeyCreateInput = {
+    id: Scalars["ID"];
     disabled?: InputMaybe<Scalars["Boolean"]>;
     limitHard: Scalars["BigInt"];
     limitSoft?: InputMaybe<Scalars["BigInt"]>;
@@ -1743,8 +1744,7 @@ export enum ReactionSortBy {
     DateUpdatedDesc = "DateUpdatedDesc"
 }
 
-export type ReactionSummary = {
-    __typename: "ReactionSummary";
+export type ReactionSummary = DbObject<"ReactionSummary"> & {
     count: Scalars["Int"];
     emoji: Scalars["String"];
 };
@@ -2632,13 +2632,13 @@ export type Schedule = DbObject<"Schedule"> & {
 };
 
 export type ScheduleCreateInput = {
-    endTime?: InputMaybe<Scalars["Date"]>;
+    endTime: Scalars["Date"];
     exceptionsCreate?: InputMaybe<Array<ScheduleExceptionCreateInput>>;
     id: Scalars["ID"];
     meetingConnect?: InputMaybe<Scalars["ID"]>;
     recurrencesCreate?: InputMaybe<Array<ScheduleRecurrenceCreateInput>>;
     runConnect?: InputMaybe<Scalars["ID"]>;
-    startTime?: InputMaybe<Scalars["Date"]>;
+    startTime: Scalars["Date"];
     timezone: Scalars["String"];
 };
 
@@ -3076,6 +3076,9 @@ export type TaskContextInfoInput = {
     data: Scalars["JSONObject"];
     id: Scalars["ID"];
     label: Scalars["String"];
+    name?: InputMaybe<Scalars["String"]>;
+    description?: InputMaybe<Scalars["String"]>;
+    type?: InputMaybe<Scalars["String"]>;
     template?: InputMaybe<Scalars["String"]>;
     templateVariables?: InputMaybe<TaskContextInfoTemplateVariablesInput>;
 };
@@ -3563,9 +3566,18 @@ export type WriteAssetsInput = {
 };
 
 export type SwarmTask = {
-    // TODO: This is a placeholder type to fix the build.
-    // The actual type should be defined here.
-    id: string;
+    goal: string;
+    teamConfiguration?: {
+        leaderAgentId: string;
+        preferredTeamSize: number;
+        requiredSkills: string[];
+    };
+    availableTools?: string[];
+    executionConfig?: {
+        model?: string;
+        temperature?: number;
+        parallelExecutionLimit?: number;
+    };
 };
 
 // Admin types

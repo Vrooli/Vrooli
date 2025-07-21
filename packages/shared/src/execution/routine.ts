@@ -4,7 +4,6 @@
  */
 
 import type { Location, RunConfig, RunProgress } from "../run/types.js";
-import type { ContextScope } from "./context.js";
 
 /**
  * Run lifecycle states
@@ -22,52 +21,6 @@ export enum RunState {
     FAILED = "FAILED",
     CANCELLED = "CANCELLED"
 }
-
-/**
- * Run event types for event-driven orchestration
- * Using enum for structured event names - renamed to avoid conflict with events.ts
- */
-export enum RunEventTypeEnum {
-    // Lifecycle events
-    RUN_STARTED = "RUN_STARTED",
-    RUN_PAUSED = "RUN_PAUSED",
-    RUN_RESUMED = "RUN_RESUMED",
-    RUN_COMPLETED = "RUN_COMPLETED",
-    RUN_FAILED = "RUN_FAILED",
-    RUN_CANCELLED = "RUN_CANCELLED",
-
-    // Step events
-    STEP_STARTED = "STEP_STARTED",
-    STEP_COMPLETED = "STEP_COMPLETED",
-    STEP_FAILED = "STEP_FAILED",
-    STEP_SKIPPED = "STEP_SKIPPED",
-
-    // Branch events
-    BRANCH_CREATED = "BRANCH_CREATED",
-    BRANCH_COMPLETED = "BRANCH_COMPLETED",
-    BRANCH_FAILED = "BRANCH_FAILED",
-
-    // Context events
-    CONTEXT_UPDATED = "CONTEXT_UPDATED",
-    VARIABLE_SET = "VARIABLE_SET",
-    CHECKPOINT_CREATED = "CHECKPOINT_CREATED",
-
-    // Performance events
-    BOTTLENECK_DETECTED = "BOTTLENECK_DETECTED",
-    OPTIMIZATION_APPLIED = "OPTIMIZATION_APPLIED"
-}
-
-/**
- * Base event interface for all run events
- */
-export interface RunEvent {
-    type: RunEventTypeEnum;
-    timestamp: Date;
-    runId: string;
-    stepId?: string;
-    metadata?: Record<string, unknown>;
-}
-
 
 /**
  * Step execution status
@@ -211,7 +164,6 @@ export interface ExecutionRun {
 export interface RunContext {
     variables: Record<string, unknown>;
     blackboard: Record<string, unknown>;
-    scopes: ContextScope[];
 }
 
 

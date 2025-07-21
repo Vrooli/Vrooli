@@ -14,6 +14,7 @@ export const MINUTES_15_S = 15 * MINUTES_1_S;
 export const MINUTES_15_MS = MINUTES_15_S * SECONDS_1_MS;
 export const MINUTES_30_MS = 30 * MINUTES_1_MS;
 
+export const HOURS_1_M = 60;
 export const HOURS_1_S = 60 * 60;
 export const HOURS_1_MS = HOURS_1_S * 1000;
 export const HOURS_2_MS = 2 * HOURS_1_MS;
