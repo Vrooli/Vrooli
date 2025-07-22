@@ -17,6 +17,7 @@ export var_DEST_DIR="$var_ROOT_DIR/dist"
 # Environment files
 export var_ENV_DEV_FILE="$var_ROOT_DIR/.env-dev"
 export var_ENV_PROD_FILE="$var_ROOT_DIR/.env-prod"
+export var_ENV_EXAMPLE_FILE="$var_ROOT_DIR/.env-example"
 
 # Docker Compose files
 export var_DOCKER_COMPOSE_DEV_FILE="$var_ROOT_DIR/docker-compose.yml"

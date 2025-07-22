@@ -13,6 +13,8 @@ source "${UTILS_DIR}/system.sh"
 source "${UTILS_DIR}/vault.sh"
 # shellcheck disable=SC1091
 source "${UTILS_DIR}/var.sh"
+# shellcheck disable=SC1091
+source "${UTILS_DIR}/flow.sh"
 
 env::dev_file_exists() {
     [ -f "$var_ENV_DEV_FILE" ]
@@ -209,6 +211,67 @@ env::load_jwt_key_from_pem_if_unset() {
     return 0
 }
 
+# Creates an environment file from .env-example with sensible defaults
+env::create_from_example() {
+    local target_file="$1"  # .env-dev or .env-prod
+    local is_production="$2"  # true/false
+    
+    # Copy .env-example to target
+    cp "$var_ENV_EXAMPLE_FILE" "$target_file"
+    
+    # Generate secure random passwords
+    local db_password
+    db_password=$(openssl rand -hex 16)
+    local redis_password
+    redis_password=$(openssl rand -hex 16)
+    local secret_key
+    secret_key=$(openssl rand -hex 32)
+    
+    # Update specific values in the copied file
+    if [[ "$is_production" == "false" ]]; then
+        # Development defaults
+        sed -i "s|NODE_ENV=development|NODE_ENV=development|g" "$target_file"
+        sed -i "s|PROJECT_DIR=.*|PROJECT_DIR=$(pwd)|g" "$target_file"
+        sed -i "s|SITE_IP=.*|SITE_IP=127.0.0.1|g" "$target_file"
+        sed -i "s|UI_URL=.*|UI_URL=http://localhost:3000|g" "$target_file"
+        sed -i "s|API_URL=.*|API_URL=http://localhost:5329|g" "$target_file"
+        sed -i "s|DB_NAME=.*|DB_NAME=vrooli|g" "$target_file"
+        sed -i "s|DB_USER=.*|DB_USER=vrooli_dev|g" "$target_file"
+        sed -i "s|DB_PASSWORD=.*|DB_PASSWORD=$db_password|g" "$target_file"
+        sed -i "s|REDIS_PASSWORD=.*|REDIS_PASSWORD=$redis_password|g" "$target_file"
+        sed -i "s|SECRET_KEY=.*|SECRET_KEY=$secret_key|g" "$target_file"
+        sed -i "s|CREATE_MOCK_DATA=.*|CREATE_MOCK_DATA=false|g" "$target_file"
+    else
+        # Production defaults - minimal, require manual configuration
+        sed -i "s|NODE_ENV=development|NODE_ENV=production|g" "$target_file"
+        sed -i "s|PROJECT_DIR=.*|PROJECT_DIR=/srv/app|g" "$target_file"
+        sed -i "s|DB_USER=.*|DB_USER=vrooli_prod|g" "$target_file"
+        sed -i "s|DB_PASSWORD=.*|DB_PASSWORD=$db_password|g" "$target_file"
+        sed -i "s|REDIS_PASSWORD=.*|REDIS_PASSWORD=$redis_password|g" "$target_file"
+        sed -i "s|SECRET_KEY=.*|SECRET_KEY=$secret_key|g" "$target_file"
+        sed -i "s|CREATE_MOCK_DATA=.*|CREATE_MOCK_DATA=false|g" "$target_file"
+    fi
+    
+    # Set proper permissions
+    chmod 600 "$target_file"
+    
+    log::success "Created $target_file from template with default values"
+    
+    if [[ "$is_production" == "false" ]]; then
+        log::info "Development environment created with defaults:"
+        log::info "  - Database password: $db_password"
+        log::info "  - Redis password: $redis_password"
+        log::info "  - Ports: UI=3000, API=5329, DB=5432, Redis=6379"
+        log::info ""
+        log::info "You can now run the setup. Optional: edit $target_file to add API keys for AI services, Stripe, etc."
+    else
+        log::warning "Production environment file created. You MUST edit $target_file to set:"
+        log::warning "  - SITE_IP, UI_URL, API_URL with your actual domain"
+        log::warning "  - Review and update all generated passwords"
+        log::warning "  - Add any required API keys"
+    fi
+}
+
 # Main function to load secrets based on the SECRETS_SOURCE environment variable.
 # NOTE: Make sure to call env::construct_derived_secrets() after this function and after any other secrets are loaded (e.g. check_location_if_not_set())
 env::load_secrets() {
@@ -224,10 +287,33 @@ env::load_secrets() {
 
     # Determine the correct .env file to source
     local env_file_to_source="$var_ENV_PROD_FILE"
+    local is_production="true"
     if env::in_development "$NODE_ENV"; then
         env_file_to_source="$var_ENV_DEV_FILE"
+        is_production="false"
     fi
 
+    # Check if env file exists, create from example if not
+    if [ ! -f "$env_file_to_source" ]; then
+        if [ -f "$var_ENV_EXAMPLE_FILE" ]; then
+            if flow::is_yes "$YES"; then
+                log::info "Environment file not found. Creating $env_file_to_source from template..."
+                env::create_from_example "$env_file_to_source" "$is_production"
+            else
+                log::warning "Environment file not found: $env_file_to_source"
+                if flow::confirm "Would you like to create it from the template with default values?"; then
+                    env::create_from_example "$env_file_to_source" "$is_production"
+                else
+                    log::error "Cannot proceed without environment file"
+                    exit "${ERROR_ENV_FILE_MISSING}"
+                fi
+            fi
+        else
+            log::error "Neither $env_file_to_source nor .env-example exists"
+            exit "${ERROR_ENV_FILE_MISSING}"
+        fi
+    fi
+    
     # Source the primary .env file first to load base config (like VAULT_ADDR, etc.)
     # This makes these variables available regardless of SECRETS_SOURCE
     if [ -f "$env_file_to_source" ]; then
