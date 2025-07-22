@@ -33,8 +33,22 @@ shellcheck::install() {
     MV_CMD="sudo mv"
     CHMOD_CMD="sudo chmod"
 
-    if ! flow::can_run_sudo "ShellCheck system-wide installation (/usr/local/bin)"; then
-        log::warning "Sudo not available or skipped. Installing ShellCheck to user directory."
+    # Check if we should use local installation
+    local use_local=false
+    
+    if [ "${SUDO_MODE:-error}" = "skip" ]; then
+        use_local=true
+        log::info "SUDO_MODE=skip: switching to user-local ShellCheck installation"
+    else
+        # Check if sudo is available without exiting
+        if ! command -v sudo >/dev/null 2>&1 || ! sudo -n true >/dev/null 2>&1; then
+            use_local=true
+            log::info "Sudo not available: switching to user-local ShellCheck installation"
+        fi
+    fi
+    
+    if [ "$use_local" = "true" ]; then
+        log::info "Installing ShellCheck to user directory."
         INSTALL_DIR="$HOME/.local/bin"
         MV_CMD="mv"
         CHMOD_CMD="chmod"

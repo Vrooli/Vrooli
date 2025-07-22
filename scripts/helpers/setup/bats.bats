@@ -24,8 +24,9 @@ teardown() {
 }
 
 @test "sourcing setupBats.sh defines functions" {
-    run bash -c "source '$SCRIPT_PATH' && declare -f bats::create_dependencies_dir bats::install_dependency bats::install_core bats::install"
+    run bash -c "source '$SCRIPT_PATH' && declare -f bats::determine_prefix bats::create_dependencies_dir bats::install_dependency bats::install_core bats::install"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ bats::determine_prefix ]]
     [[ "$output" =~ bats::create_dependencies_dir ]]
     [[ "$output" =~ bats::install_dependency ]]
     [[ "$output" =~ bats::install_core ]]
@@ -78,4 +79,60 @@ teardown() {
     run bats::install_core
     [ "$status" -eq 0 ]
     [[ "$output" =~ already\ installed ]]
+}
+
+@test "bats::determine_prefix defaults to /usr/local when sudo available" {
+    source "$SCRIPT_PATH"
+    # Simulate sudo being available
+    sudo() { [[ "$1" == "-n" ]] && [[ "$2" == "true" ]] && return 0; }
+    export -f sudo
+    
+    SUDO_MODE=error bats::determine_prefix
+    [ "$BATS_PREFIX" = "/usr/local" ]
+}
+
+@test "bats::determine_prefix switches to user local when SUDO_MODE=skip" {
+    source "$SCRIPT_PATH"
+    
+    SUDO_MODE=skip bats::determine_prefix
+    [ "$BATS_PREFIX" = "$HOME/.local" ]
+}
+
+@test "bats::determine_prefix switches to user local when sudo not available" {
+    source "$SCRIPT_PATH"
+    # Simulate sudo requiring password
+    sudo() { [[ "$1" == "-n" ]] && [[ "$2" == "true" ]] && return 1; }
+    export -f sudo
+    
+    SUDO_MODE=error bats::determine_prefix
+    [ "$BATS_PREFIX" = "$HOME/.local" ]
+}
+
+@test "bats::determine_prefix uses custom BATS_PREFIX when set" {
+    source "$SCRIPT_PATH"
+    
+    BATS_PREFIX=/custom/path bats::determine_prefix
+    [ "$BATS_PREFIX" = "/custom/path" ]
+}
+
+@test "bats::install_core installs without sudo to user directory" {
+    source "$SCRIPT_PATH"
+    # Stub git clone and install.sh
+    git() { [[ "$1" == "clone" ]] && mkdir -p "$BATS_DEPENDENCIES_DIR/bats-core"; }
+    # Simulate no sudo available
+    sudo() { return 1; }
+    export -f sudo
+    
+    # Create a mock install.sh that records if it was called
+    mkdir -p "$BATS_DEPENDENCIES_DIR/bats-core"
+    echo '#!/bin/bash
+echo "INSTALL_CALLED with prefix: $1" > "$BATS_DEPENDENCIES_DIR/install_result"' > "$BATS_DEPENDENCIES_DIR/bats-core/install.sh"
+    chmod +x "$BATS_DEPENDENCIES_DIR/bats-core/install.sh"
+    
+    export BATS_PREFIX="$HOME/.local"
+    cd "$BATS_DEPENDENCIES_DIR"
+    run bash -c "cd bats-core && ./install.sh \"$BATS_PREFIX\""
+    [ "$status" -eq 0 ]
+    [ -f "$BATS_DEPENDENCIES_DIR/install_result" ]
+    grep -q "INSTALL_CALLED with prefix: $HOME/.local" "$BATS_DEPENDENCIES_DIR/install_result"
 } 

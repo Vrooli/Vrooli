@@ -26,16 +26,32 @@ bats::determine_prefix() {
     local prefix=${BATS_PREFIX:-/usr/local}
 
     # Check if we need to switch to user-local dir
-    # Condition: Default prefix is used AND (sudo mode is skip OR sudo cannot be run)
-    if [ "$prefix" = "/usr/local" ] && { [ "${SUDO_MODE:-error}" = "skip" ] || ! flow::can_run_sudo "Bats system-wide installation (/usr/local)"; }; then
-        prefix="$HOME/.local"
-        log::info "Sudo unavailable/skipped: switching Bats install prefix to $prefix"
-        # Ensure the local bin directory exists for Bats install and PATH update
-        mkdir -p "$prefix/bin" # Bats install.sh might expect the base prefix to exist
+    if [ "$prefix" = "/usr/local" ]; then
+        # Check if we should use local installation
+        local use_local=false
+        
+        if [ "${SUDO_MODE:-error}" = "skip" ]; then
+            use_local=true
+            log::info "SUDO_MODE=skip: switching to user-local Bats installation"
+        elif [ "${SUDO_MODE:-error}" = "error" ]; then
+            # In error mode, check if sudo is available without exiting
+            # Test for passwordless sudo
+            if ! command -v sudo >/dev/null 2>&1 || ! sudo -n true >/dev/null 2>&1; then
+                use_local=true
+                log::info "Sudo not available: switching to user-local Bats installation"
+            fi
+        fi
+        
+        if [ "$use_local" = "true" ]; then
+            prefix="$HOME/.local"
+            log::info "Will install Bats to $prefix (user directory)"
+            # Ensure the local bin directory exists for Bats install and PATH update
+            mkdir -p "$prefix/bin" # Bats install.sh might expect the base prefix to exist
+        else
+            log::info "Using default Bats install prefix: $prefix"
+        fi
     elif [ "$prefix" != "/usr/local" ]; then
         log::info "Using user-defined BATS_PREFIX: $prefix"
-    else
-        log::info "Using default Bats install prefix: $prefix"
     fi
     export BATS_PREFIX="$prefix" # Export the final determined value
 }
@@ -68,12 +84,24 @@ bats::install_core() {
         git clone https://github.com/bats-core/bats-core.git
         cd bats-core
         # Ensure the BATS installation prefix exists (use sudo if required for system paths)
-        if flow::can_run_sudo "Bats directory creation" && [[ "$BATS_PREFIX" = "/usr/local"* ]]; then
+        # Check if we need sudo for system paths
+        local need_sudo=false
+        if [[ "$BATS_PREFIX" = "/usr/local"* ]]; then
+            # For system paths, check if we can use sudo (without exiting on failure)
+            if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+                need_sudo=true
+            fi
+        fi
+        
+        # Create directory with or without sudo
+        if [ "$need_sudo" = "true" ]; then
             sudo mkdir -p "$BATS_PREFIX"
         else
             mkdir -p "$BATS_PREFIX"
         fi
-        if flow::can_run_sudo "Bats installation"; then
+        
+        # Install with or without sudo
+        if [ "$need_sudo" = "true" ]; then
             log::info "Installing Bats-core into $BATS_PREFIX (with sudo)"
             sudo ./install.sh "$BATS_PREFIX"
         else
