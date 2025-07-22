@@ -1,6 +1,6 @@
 // AI_CHECK: TYPE_SAFETY=server-phase2-1 | LAST: 2025-07-03
 // AI_CHECK: TYPE_SAFETY=server-type-safety-maintenance-phase2 | LAST: 2025-07-04 - Added comprehensive return type annotation to Notify function with proper method signatures
-import { type Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { DAYS_1_MS, DAYS_1_S, DEFAULT_LANGUAGE, type DeferredDecisionData, endpointsTask, generatePK, HOURS_1_MS, type IssueStatus, LINKS, MINUTES_1_MS, type ModelType, nanoid, type NotificationSettingsUpdateInput, type PullRequestStatus, type PushDevice, type ReportStatus, SECONDS_1_MS, type SessionUser, SubscribableObject, type Success } from "@vrooli/shared";
 import fs from "fs";
 import i18next, { type TFuncKey } from "i18next";

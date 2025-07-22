@@ -1,6 +1,6 @@
 // AI_CHECK: TYPE_SAFETY=server-type-safety-fixes | LAST: 2025-07-01 - Fixed any type in searchInput to Record<string, unknown>
 import { type ModelType, type ResourceSubType, type ResourceType, type ScheduleFor, type TimeFrame, VisibilityType, lowercaseFirstLetter } from "@vrooli/shared";
-import { type PeriodType } from "@prisma/client";
+import type { PeriodType } from "@prisma/client";
 import { type RequestService } from "../auth/request.js";
 import { timeFrameToPrisma } from "../builders/timeFrame.js";
 import { visibilityBuilderPrisma } from "../builders/visibilityBuilder.js";

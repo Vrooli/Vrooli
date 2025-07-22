@@ -10,7 +10,6 @@
 
 ### **Implementation Types**
 - **Production**: `RedisStreamBus` - Distributed messaging via Redis Streams
-- **Development**: `InMemoryEventBus` - Single-process event handling
 - **Event Types**: Strongly-typed events with validation and routing
 
 ## 🔄 Event Flow Architecture

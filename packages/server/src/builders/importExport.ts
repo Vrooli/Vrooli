@@ -395,7 +395,8 @@ export async function importData(data: ImportData, config: ImportConfig): Promis
     }
 
     // If the userData is not the same as assignObjectTo, check that the user has permission to import
-    if (config.skipPermissions !== true || config.assignObjectsTo.__typename !== "User" || config.assignObjectsTo.id !== config.userData.id) {
+    // Skip this check entirely if skipPermissions is true (e.g., during seeding)
+    if (config.skipPermissions !== true && (config.assignObjectsTo.__typename !== "User" || config.assignObjectsTo.id !== config.userData.id)) {
         const objectType = config.assignObjectsTo.__typename;
         const id = config.assignObjectsTo.id;
         const authDataById = await getAuthenticatedData({ [objectType]: [id] }, config.userData);
@@ -447,6 +448,7 @@ export async function importData(data: ImportData, config: ImportConfig): Promis
         const partialInfoUpdate = InfoConverter.get().fromApiToPartialApi(await importer.getInfoUpdate(), format.apiRelMap) as PartialApiInfo;
         const selectImportUpdate = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfoUpdate)?.select;
         const combinedSelect = combineQueries([selectPermissions, selectImportCreate, selectImportUpdate], { mergeMode: "loose" });
+
         // Do a single findMany query for all objects of this type that have a publicId.
         const existingObjectsPrisma = publicIdsToCheck.length > 0
             ? await DbProvider.get()[dbTable].findMany({

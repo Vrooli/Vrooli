@@ -1,80 +1,375 @@
-import { JSDOM } from "jsdom";
+/**
+ * Per-test-file setup that runs after global setup
+ * Global setup handles containers and migrations
+ * This handles ModelMap, DbProvider, and mocks initialization
+ */
 
-const originalGlobals: { [key: string]: any } = {};
+import { vi, beforeAll, afterAll, expect } from "vitest";
 
-// Properties JSDOM might introduce that we'll manage.
-const jsdomGlobalProperties = [
-    "window", "document", "navigator", "localStorage", "sessionStorage",
-    "Node", "Element", "HTMLElement", "HTMLDocument", "Event", "CustomEvent", "MouseEvent",
-    "DocumentFragment", "Text", "Comment", "CDATASection", "ProcessingInstruction",
-    "Attr", "NamedNodeMap", "DOMTokenList", "NodeList", "HTMLCollection",
-    "URL", "URLSearchParams", "AbortController", "AbortSignal",
-];
+// Note: Sharp mocking is handled in vitest-sharp-mock-simple.ts
 
-let currentDOM: JSDOM | null = null;
+// Global singleton for error handlers to prevent memory leaks
+const errorHandlerSingleton = (() => {
+    let initialized = false;
+    let unhandledRejectionHandler: ((reason: any, promise: Promise<any>) => void) | null = null;
+    let uncaughtExceptionHandler: ((error: Error) => void) | null = null;
 
-export function setupDOM(initialUrl = "http://localhost") {
-    // If a DOM already exists from a previous unterminated test, try to clean it.
-    if (currentDOM) {
-        console.warn("JSDOM instance found at start of setupDOM. Tearing down previous instance.");
-        teardownDOM(); // Attempt to clean up previous state
-    }
+    return {
+        init() {
+            if (initialized || process.env.NODE_ENV !== "test") return;
+            
+            // Increase max listeners to handle multiple test files
+            // With 115 test files, we need more than the default 10
+            process.setMaxListeners(150);
+            
+            unhandledRejectionHandler = (reason, promise) => {
+                // Handle Redis connection errors that occur during test cleanup
+                if (reason instanceof Error) {
+                    if (reason.message.includes("Connection is closed") || 
+                        reason.message.includes("Connection is not available") ||
+                        reason.message.includes("Stream isn't writeable")) {
+                        // These are expected during test cleanup, only log if TEST_LOG_LEVEL is DEBUG
+                        if (process.env.TEST_LOG_LEVEL === "DEBUG") {
+                            console.debug("Test cleanup connection error (ignored):", reason.message);
+                        }
+                        return;
+                    }
+                }
+                
+                // For other unhandled rejections, only log if not suppressed
+                if (process.env.LOG_LEVEL !== "emerg" && process.env.LOG_LEVEL !== "alert") {
+                    console.error("Unhandled Rejection in tests:", reason);
+                }
+            };
 
-    currentDOM = new JSDOM("<!doctype html><html><body></body></html>", {
-        url: initialUrl,
-        runScripts: "dangerously",
-        pretendToBeVisual: true,
-    });
-    const { window: jsdomWindow } = currentDOM;
+            uncaughtExceptionHandler = (error) => {
+                // Handle Redis connection errors that occur during test cleanup
+                if (error.message.includes("Connection is closed") || 
+                    error.message.includes("Connection is not available") ||
+                    error.message.includes("Stream isn't writeable")) {
+                    // These are expected during test cleanup, only log if TEST_LOG_LEVEL is DEBUG
+                    if (process.env.TEST_LOG_LEVEL === "DEBUG") {
+                        console.debug("Test cleanup connection error (ignored):", error.message);
+                    }
+                    return;
+                }
+                
+                // For other uncaught exceptions, only log if not suppressed
+                if (process.env.LOG_LEVEL !== "emerg" && process.env.LOG_LEVEL !== "alert") {
+                    console.error("Uncaught Exception in tests:", error);
+                }
+            };
 
-    const propertiesToManage = [...new Set([...jsdomGlobalProperties, "window", "document", "navigator", "location", "history"])];
-
-    propertiesToManage.forEach(prop => {
-        if (Object.prototype.hasOwnProperty.call(global, prop) && !Object.prototype.hasOwnProperty.call(originalGlobals, prop)) {
-            originalGlobals[prop] = (global as any)[prop];
-        }
-
-        if (Object.prototype.hasOwnProperty.call(jsdomWindow, prop)) {
-            Object.defineProperty(global, prop, {
-                value: (jsdomWindow as any)[prop],
-                writable: true,
-                enumerable: true,
-                configurable: true,
-            });
-        } else {
-            if (Object.prototype.hasOwnProperty.call(global, prop) && !Object.prototype.hasOwnProperty.call(originalGlobals, prop)) {
-                delete (global as any)[prop];
+            process.on("unhandledRejection", unhandledRejectionHandler);
+            process.on("uncaughtException", uncaughtExceptionHandler);
+            initialized = true;
+        },
+        
+        cleanup() {
+            if (!initialized) return;
+            
+            if (unhandledRejectionHandler) {
+                process.removeListener("unhandledRejection", unhandledRejectionHandler);
             }
-        }
-    });
+            if (uncaughtExceptionHandler) {
+                process.removeListener("uncaughtException", uncaughtExceptionHandler);
+            }
+            initialized = false;
+        },
+    };
+})();
+
+// Initialize error handlers once
+errorHandlerSingleton.init();
+
+// Pre-import services to avoid dynamic import deadlocks in cleanup
+let CacheService: any;
+let QueueService: any;
+let BusService: any;
+let DbProvider: any;
+
+// Import these lazily but store references
+async function preloadServices() {
+    try {
+        ({ CacheService } = await import("../redisConn.js"));
+        ({ QueueService } = await import("../tasks/queues.js"));
+        ({ BusService } = await import("../services/bus.js"));
+        ({ DbProvider } = await import("../db/provider.js"));
+    } catch (e) {
+        console.error("Failed to preload services:", e);
+    }
 }
 
-export function teardownDOM() {
-    const propertiesToCleanup = [...new Set([...jsdomGlobalProperties, "window", "document", "navigator", "location", "history"])];
+// Setup QueueService mock early to prevent email service failures
+import { setupQueueServiceMock } from "./mocks/queueServiceMock.js";
 
-    propertiesToCleanup.forEach(prop => {
-        if (Object.prototype.hasOwnProperty.call(originalGlobals, prop)) {
-            Object.defineProperty(global, prop, {
-                value: originalGlobals[prop],
-                writable: true,
-                enumerable: true,
-                configurable: true,
+setupQueueServiceMock();
+
+const componentsInitialized = {
+    modelMap: false,
+    dbProvider: false,
+    mocks: false,
+    idGenerator: false,
+    socketService: false,
+};
+
+// Log level control for test setup
+const LOG_LEVEL = process.env.TEST_LOG_LEVEL || "ERROR";
+const logLevels = { ERROR: 0, WARN: 1, INFO: 2, DEBUG: 3 };
+const currentLogLevel = logLevels[LOG_LEVEL as keyof typeof logLevels] ?? logLevels.ERROR;
+
+function testLog(level: keyof typeof logLevels, ...args: any[]) {
+    if (logLevels[level] <= currentLogLevel) {
+        console.log(...args);
+    }
+}
+
+function testError(...args: any[]) {
+    console.error(...args);
+}
+
+function testWarn(...args: any[]) {
+    if (currentLogLevel >= logLevels.WARN) {
+        console.warn(...args);
+    }
+}
+
+
+beforeAll(async function setup() {
+    testLog("DEBUG", "=== Per-File Test Setup Starting ===");
+    
+    try {
+        // Debug environment variables
+        testLog("DEBUG", "Environment check:", {
+            REDIS_URL: process.env.REDIS_URL ? "SET" : "NOT SET",
+            DB_URL: process.env.DB_URL ? "SET" : "NOT SET",
+            NODE_ENV: process.env.NODE_ENV,
+            VITEST: process.env.VITEST,
+        });
+        
+        // Preload services to avoid dynamic import issues in cleanup
+        await preloadServices();
+        
+        // Note: Environment vars, containers, and Prisma are already set up by global setup
+        
+        // Step 1: Initialize ModelMap (this is what the tests need)
+        testLog("DEBUG", "Step 1: Initializing ModelMap...");
+        try {
+            // Clear module cache for ModelMap to work around vitest transformation issues
+            const modelMapPath = "../models/base/index.js";
+            
+            // Use dynamic import with cache busting
+            const modelModule = await import(modelMapPath);
+            testLog("DEBUG", "ModelMap module imported:", { 
+                keys: Object.keys(modelModule), 
+                hasModelMap: "ModelMap" in modelModule,
+                moduleType: typeof modelModule,
+                isDefault: "default" in modelModule,
             });
-        } else if (Object.prototype.hasOwnProperty.call(global, prop)) {
-            // Only delete if it was not an original global property
-            delete (global as any)[prop];
+            
+            // Handle both named and default exports
+            let ModelMap = modelModule.ModelMap;
+            if (!ModelMap && modelModule.default?.ModelMap) {
+                ModelMap = modelModule.default.ModelMap;
+                testLog("DEBUG", "Using ModelMap from default export");
+            }
+            
+            if (!ModelMap) {
+                // Try to access it directly from the module
+                const possibleExports = Object.keys(modelModule);
+                testError("ModelMap not found. Available exports:", possibleExports);
+                
+                // Check if it's a transformed class
+                const classExport = possibleExports.find(key => {
+                    const val = modelModule[key];
+                    return typeof val === "function" && val.name === "ModelMap";
+                });
+                
+                if (classExport) {
+                    ModelMap = modelModule[classExport];
+                    testLog("DEBUG", `Found ModelMap as ${classExport}`);
+                } else {
+                    throw new Error("ModelMap is undefined after import");
+                }
+            }
+            
+            // Verify ModelMap has the expected structure
+            if (typeof ModelMap !== "function") {
+                testError("ModelMap is not a function/class:", {
+                    type: typeof ModelMap,
+                    value: ModelMap,
+                    stringified: String(ModelMap),
+                });
+                throw new Error(`ModelMap is not a function (type: ${typeof ModelMap})`);
+            }
+            
+            // Check for init method
+            if (typeof ModelMap.init !== "function") {
+                testError("ModelMap.init is not a function:", {
+                    ModelMap: String(ModelMap),
+                    type: typeof ModelMap,
+                    constructor: ModelMap.constructor?.name,
+                    properties: Object.getOwnPropertyNames(ModelMap),
+                    prototype: ModelMap.prototype,
+                    staticMethods: Object.getOwnPropertyNames(ModelMap).filter(p => typeof ModelMap[p] === "function"),
+                });
+                throw new Error(`ModelMap.init is not a function (type: ${typeof ModelMap.init})`);
+            }
+            
+            // ModelMap.init() is already thread-safe and idempotent
+            await ModelMap.init();
+            componentsInitialized.modelMap = true;
+            testLog("DEBUG", "✓ ModelMap ready");
+        } catch (error) {
+            testError("ModelMap initialization failed:", error);
+            // Don't throw - continue without it
         }
-    });
+        
+        // Step 2: Initialize i18n for notification translations
+        testLog("DEBUG", "Step 2: Initializing i18n...");
+        try {
+            const { i18nConfig } = await import("@vrooli/shared");
+            const i18next = (await import("i18next")).default;
+            await i18next.init(i18nConfig(false)); // false for production mode in tests
+            testLog("DEBUG", "✓ i18n ready");
+        } catch (error) {
+            testError("i18n initialization failed:", error);
+            // Don't throw - tests can proceed without i18n but notifications may fail
+        }
 
-    if (currentDOM) {
-        currentDOM.window.close();
-        currentDOM = null;
+        // Step 3: Initialize DbProvider (idempotent - safe to call multiple times)
+        testLog("DEBUG", "Step 3: Initializing DbProvider...");
+        try {
+            if (!DbProvider) {
+                ({ DbProvider } = await import("../db/provider.js"));
+            }
+            // DbProvider.init() is idempotent - it checks if already initialized
+            await DbProvider.init();
+            componentsInitialized.dbProvider = true;
+            testLog("DEBUG", "✓ DbProvider ready");
+        } catch (error) {
+            testError("DbProvider initialization failed:", error);
+            throw error; // This is critical - tests cannot proceed without DB
+        }
+        
+        // Step 3.5: Initialize SocketService mock for tests
+        testLog("DEBUG", "Step 3.5: Initializing SocketService mock...");
+        try {
+            const { initializeSocketServiceMock } = await import("./mocks/socketServiceMock.js");
+            await initializeSocketServiceMock();
+            componentsInitialized.socketService = true;
+            testLog("DEBUG", "✓ SocketService mock ready");
+        } catch (error) {
+            testError("SocketService mock initialization failed:", error);
+            // Don't throw - tests can proceed without socket functionality
+        }
+        
+        // Step 4: Setup LLM service mocks
+        // TODO: Replace with new LLM mock implementation
+        // console.log("Step 4: Setting up LLM mocks...");
+        // try {
+        //     await setupLlmServiceMocks();
+        //     componentsInitialized.mocks = true;
+        //     console.log("✓ LLM mocks ready");
+        // } catch (error) {
+        //     console.error("LLM mock setup failed:", error);
+        // }
+        
+        testLog("DEBUG", "=== Per-File Test Setup Complete ===");
+        testLog("DEBUG", "Initialized components:", Object.entries(componentsInitialized)
+            .filter(([, enabled]) => enabled)
+            .map(([name]) => name)
+            .join(", "));
+        
+        // IMPORTANT: ID generator not initialized in global setup to avoid worker crashes
+        // 
+        // Root cause: Memory pressure from containers + Prisma + module complexity
+        // causes vitest workers (2GB heap limit) to crash when importing @vrooli/shared
+        // after full setup. This is NOT a bug in the ID generator itself.
+        //
+        // Tests that need ID generation should initialize it individually:
+        // const { initIdGenerator } = await import("@vrooli/shared");
+        // await initIdGenerator(0);
+        //
+        // This distributes memory load and prevents crashes. See ID_GENERATOR_CRASH_ROOT_CAUSE.md
+        // for detailed analysis.
+        
+    } catch (error) {
+        testError("=== Setup Failed ===");
+        testError(error);
+        await cleanup();
+        throw error;
     }
+}, 300000);
 
-    // Clear originalGlobals for the next test.
-    for (const key in originalGlobals) {
-        if (Object.prototype.hasOwnProperty.call(originalGlobals, key)) {
-            delete originalGlobals[key];
-        }
+// TODO: Replace with new LLM mock implementation
+// async function setupLlmServiceMocks() {
+//     try {
+//         const [
+//             { OpenAIService },
+//             { AnthropicService }, 
+//             { MistralService }
+//         ] = await Promise.all([
+//             import("../tasks/llm/services/openai.js"),
+//             import("../tasks/llm/services/anthropic.js"),
+//             import("../tasks/llm/services/mistral.js"),
+//         ]);
+//         
+//         vi.spyOn(OpenAIService.prototype, "generateResponse" as any).mockResolvedValue({
+//             attempts: 1,
+//             message: "Mocked OpenAI response",
+//             cost: 0.001,
+//         });
+//         
+//         vi.spyOn(AnthropicService.prototype, "generateResponse" as any).mockResolvedValue({
+//             attempts: 1,
+//             message: "Mocked Anthropic response",
+//             cost: 0.001,
+//         });
+//         
+//         vi.spyOn(MistralService.prototype, "generateResponse" as any).mockResolvedValue({
+//             attempts: 1,
+//             message: "Mocked Mistral response",
+//             cost: 0.001,
+//         });
+//         
+//         const mockEstimateTokens = vi.fn().mockReturnValue({ model: "default", tokens: 10 });
+//         vi.spyOn(OpenAIService.prototype, "estimateTokens" as any).mockImplementation(mockEstimateTokens);
+//         vi.spyOn(AnthropicService.prototype, "estimateTokens" as any).mockImplementation(mockEstimateTokens);
+//         vi.spyOn(MistralService.prototype, "estimateTokens" as any).mockImplementation(mockEstimateTokens);
+//     } catch (error) {
+//         console.warn("Could not setup LLM mocks:", error);
+//     }
+// }
+
+async function cleanup() {
+    // Minimal cleanup to prevent test skipping - prioritize not hanging over perfect cleanup
+    try {
+        // Basic mock cleanup
+        vi.clearAllMocks();
+        vi.unstubAllGlobals();
+        vi.clearAllTimers();
+        
+        // Force clear singleton instances without waiting for graceful shutdown
+        // This prevents hanging while still clearing memory references
+        if (BusService) (BusService as any).instance = null;
+        if (QueueService) (QueueService as any).instance = null;
+        if (CacheService) (CacheService as any).instance = null;
+        
+    } catch (e) {
+        // Ignore all cleanup errors to prevent test skipping
     }
 }
+
+afterAll(async () => {
+    try {
+        await cleanup();
+        // Force garbage collection if available to help with memory
+        if (global.gc) global.gc();
+    } catch (error) {
+        // Never throw errors in afterAll to prevent test skipping
+    }
+}, 5000); // Short timeout to prevent hanging
+
+// Export status for tests to check
+export const getSetupStatus = () => ({ ...componentsInitialized });

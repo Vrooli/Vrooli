@@ -63,4 +63,35 @@ vi.doMock('nodejs-snowflake', () => {
     };
 });
 
-console.log('[VITEST] Sharp and nodejs-snowflake modules mocked');
+// Mock bcrypt and bcryptjs to prevent native module loading issues
+vi.doMock('bcrypt', () => {
+    const mockBcrypt = {
+        hash: async (data: string, rounds: number): Promise<string> => `mocked_hash_${data}`,
+        hashSync: (data: string, rounds: number): string => `mocked_hash_${data}`,
+        compare: async (data: string, encrypted: string): Promise<boolean> => encrypted === `mocked_hash_${data}`,
+        compareSync: (data: string, encrypted: string): boolean => encrypted === `mocked_hash_${data}`,
+    };
+    
+    return {
+        __esModule: true,
+        default: mockBcrypt,
+        ...mockBcrypt,
+    };
+});
+
+vi.doMock('bcryptjs', () => {
+    const mockBcryptjs = {
+        hash: async (data: string, rounds: number): Promise<string> => `mocked_hash_${data}`,
+        hashSync: (data: string, rounds: number): string => `mocked_hash_${data}`,
+        compare: async (data: string, encrypted: string): Promise<boolean> => encrypted === `mocked_hash_${data}`,
+        compareSync: (data: string, encrypted: string): boolean => encrypted === `mocked_hash_${data}`,
+    };
+    
+    return {
+        __esModule: true,
+        default: mockBcryptjs,
+        ...mockBcryptjs,
+    };
+});
+
+console.log('[VITEST] Sharp, nodejs-snowflake, and bcrypt modules mocked');

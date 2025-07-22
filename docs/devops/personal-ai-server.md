@@ -19,23 +19,55 @@
 
 ## 1. Topology at a Glance
 
+```mermaid
+graph TB
+    subgraph "Bare-metal Server"
+        Host["Ubuntu 24.04 LTS<br/>ZFS rpool<br/>Proxmox VE 8.2"]
+        
+        subgraph "Virtual Machines & Containers"
+            PlanHQ["🧠 /plan-hq<br/>(KVM VM)<br/>GPU Passthrough<br/>Vrooli UI, Vector DB<br/>LLMs, Whisper"]
+            
+            ProjX["📁 /proj-x<br/>(LXC Container)<br/>Remote LLM calls<br/>Upwork project #1"]
+            
+            ProjY["📁 /proj-y<br/>(LXC Container)<br/>Remote LLM calls<br/>Upwork project #2"]
+            
+            VrooliDev["🔧 /vrooli-dev<br/>(LXC Container)<br/>Vrooli development"]
+            
+            OpsTools["📊 /ops-tools<br/>(LXC Container)<br/>Grafana, Prometheus<br/>Loki"]
+        end
+        
+        Host --> PlanHQ
+        Host --> ProjX
+        Host --> ProjY
+        Host --> VrooliDev
+        Host --> OpsTools
+    end
+    
+    subgraph "External Access"
+        Phone["📱 Mobile Device<br/>(Tailscale)"]
+        Internet["🌐 Internet"]
+    end
+    
+    Phone -.->|"SSH/HTTPS<br/>via Tailscale"| PlanHQ
+    PlanHQ -.->|"Message Bus"| ProjX
+    PlanHQ -.->|"Message Bus"| ProjY
+    PlanHQ -.->|"Message Bus"| VrooliDev
+    
+    ProjX -->|"Outbound Only"| Internet
+    ProjY -->|"Outbound Only"| Internet
+    VrooliDev -->|"Outbound Only"| Internet
+    
+    %% Styling
+    classDef vm fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef container fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef external fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef host fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    
+    class PlanHQ vm
+    class ProjX,ProjY,VrooliDev,OpsTools container
+    class Phone,Internet external
+    class Host host
 ```
-
-┌──────────────────────┐
-│ Bare-metal Ubuntu    │
-│  ▸ ZFS rpool         │
-│  ▸ Proxmox VE 8.2    │
-└─────────┬────────────┘
-│
-├── /plan-hq  (KVM VM, full GPU, Vrooli UI, vector DB,   )
-│               global-planner LLMs, Whisper/voice)
-│
-├── /proj-x   (LXC, remote LLM calls, Upwork project #1)
-├── /proj-y   (LXC, remote LLM calls, Upwork project #2)
-├── /vrooli-dev (LXC, works on Vrooli itself)
-└── /ops-tools (LXC, Grafana + Prometheus + Loki)
-
-````
 
 *East-West traffic* is denied by Proxmox firewalls; containers see only outbound internet and `/plan-hq`’s message bus.
 

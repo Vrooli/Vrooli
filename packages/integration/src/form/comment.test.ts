@@ -29,7 +29,7 @@ describe("Comment Round-Trip Tests - Form-Testing Infrastructure", () => {
 
     it("should complete full comment creation workflow with minimal data", async () => {
         // Test creating a simple comment through complete round-trip
-        const result = await commentFormIntegrationFactory.testRoundTripSubmission("minimal", {
+        const result = await commentFormIntegrationFactory.testRoundTripSubmission("valid.minimal", {
             isCreate: true,
             validateConsistency: true,
             contextData: {
@@ -43,14 +43,14 @@ describe("Comment Round-Trip Tests - Form-Testing Infrastructure", () => {
         expect(result.errors).toHaveLength(0);
 
         // Verify API response structure
-        expect(result.apiResult).toBeDefined();
-        expect(result.apiResult?.translations).toBeDefined();
-        expect(result.apiResult?.translations[0]?.text).toContain("test comment");
+        expect(result.dataFlow.apiResponse).toBeDefined();
+        expect(result.dataFlow.apiResponse?.translations).toBeDefined();
+        expect(result.dataFlow.apiResponse?.translations[0]?.text).toContain("test comment");
 
         // Verify database persistence
-        expect(result.databaseData).toBeDefined();
-        expect(result.databaseData?.id).toBe(result.apiResult?.id);
-        expect(result.databaseData?.translations).toBeDefined();
+        expect(result.dataFlow.databaseData).toBeDefined();
+        expect(result.dataFlow.databaseData?.id).toBe(result.dataFlow.apiResponse?.id);
+        expect(result.dataFlow.databaseData?.translations).toBeDefined();
 
         // Verify data consistency across layers
         expect(result.consistency.overallValid).toBe(true);
@@ -64,7 +64,7 @@ describe("Comment Round-Trip Tests - Form-Testing Infrastructure", () => {
 
     it("should handle complete comment with markdown formatting", async () => {
         // Test comprehensive comment with markdown content
-        const result = await commentFormIntegrationFactory.testRoundTripSubmission("complete", {
+        const result = await commentFormIntegrationFactory.testRoundTripSubmission("valid.complete", {
             isCreate: true,
             validateConsistency: true,
             contextData: {
@@ -74,15 +74,15 @@ describe("Comment Round-Trip Tests - Form-Testing Infrastructure", () => {
         });
 
         expect(result.success).toBe(true);
-        expect(result.apiResult?.translations[0]?.text).toContain("comprehensive");
-        expect(result.databaseData?.translations).toBeDefined();
-        expect(result.databaseData?.commentedOn).toBeDefined();
+        expect(result.dataFlow.apiResponse?.translations[0]?.text).toContain("comprehensive");
+        expect(result.dataFlow.databaseData?.translations).toBeDefined();
+        expect(result.dataFlow.databaseData?.commentedOn).toBeDefined();
         expect(result.consistency.overallValid).toBe(true);
     });
 
     it("should handle edge case with maximum length text", async () => {
         // Test edge case with very long comment text
-        const result = await commentFormIntegrationFactory.testRoundTripSubmission("edgeCase", {
+        const result = await commentFormIntegrationFactory.testRoundTripSubmission("edge.maxValues", {
             isCreate: true,
             validateConsistency: true,
             contextData: {
@@ -92,27 +92,27 @@ describe("Comment Round-Trip Tests - Form-Testing Infrastructure", () => {
         });
 
         expect(result.success).toBe(true);
-        expect(result.apiResult?.translations[0]?.text).toHaveLength(32768); // Maximum length
-        expect(result.databaseData?.translations[0]?.text).toHaveLength(32768);
+        expect(result.dataFlow.apiResponse?.translations[0]?.text).toHaveLength(32768); // Maximum length
+        expect(result.dataFlow.databaseData?.translations[0]?.text).toHaveLength(32768);
         expect(result.consistency.overallValid).toBe(true);
     });
 
     it("should reject invalid comment data gracefully", async () => {
         // Test validation failure with empty comment text
-        const result = await commentFormIntegrationFactory.testRoundTripSubmission("invalid", {
+        const result = await commentFormIntegrationFactory.testRoundTripSubmission("invalid.missingRequired", {
             isCreate: true,
             validateConsistency: false, // We expect this to fail
         });
 
         expect(result.success).toBe(false);
         expect(result.errors.length).toBeGreaterThan(0);
-        expect(result.apiResult).toBeNull();
-        expect(result.databaseData).toBeNull();
+        expect(result.dataFlow.apiResponse).toBeNull();
+        expect(result.dataFlow.databaseData).toBeNull();
     });
 
     it("should perform well under concurrent load", async () => {
         // Test performance with multiple concurrent comment operations
-        const performanceResult = await commentFormIntegrationFactory.testFormPerformance("minimal", {
+        const performanceResult = await commentFormIntegrationFactory.testFormPerformance("valid.minimal", {
             iterations: 3,
             concurrency: 2,
             isCreate: true,
@@ -129,7 +129,7 @@ describe("Comment Round-Trip Tests - Form-Testing Infrastructure", () => {
 
     it("should complete update workflow for existing comments", async () => {
         // First create a comment
-        const createResult = await commentFormIntegrationFactory.testRoundTripSubmission("minimal", {
+        const createResult = await commentFormIntegrationFactory.testRoundTripSubmission("valid.minimal", {
             isCreate: true,
             validateConsistency: true,
             contextData: {
@@ -139,11 +139,11 @@ describe("Comment Round-Trip Tests - Form-Testing Infrastructure", () => {
         });
 
         expect(createResult.success).toBe(true);
-        const commentId = createResult.apiResult?.id;
+        const commentId = createResult.dataFlow.apiResponse?.id;
         expect(commentId).toBeDefined();
 
         // Then update it
-        const updateResult = await commentFormIntegrationFactory.testRoundTripSubmission("complete", {
+        const updateResult = await commentFormIntegrationFactory.testRoundTripSubmission("valid.complete", {
             isCreate: false,
             validateConsistency: true,
             contextData: {
@@ -153,8 +153,8 @@ describe("Comment Round-Trip Tests - Form-Testing Infrastructure", () => {
         });
 
         expect(updateResult.success).toBe(true);
-        expect(updateResult.apiResult?.id).toBe(commentId);
-        expect(updateResult.databaseData?.id).toBe(commentId);
+        expect(updateResult.dataFlow.apiResponse?.id).toBe(commentId);
+        expect(updateResult.dataFlow.databaseData?.id).toBe(commentId);
         expect(updateResult.consistency.overallValid).toBe(true);
     });
 
@@ -206,7 +206,7 @@ describe("Comment Testing Migration Comparison", () => {
         // - Built-in performance metrics
         // - Comprehensive data consistency validation
 
-        const result = await commentFormIntegrationFactory.testRoundTripSubmission("minimal", {
+        const result = await commentFormIntegrationFactory.testRoundTripSubmission("valid.minimal", {
             isCreate: true,
             validateConsistency: true,
         });
@@ -224,7 +224,7 @@ describe("Comment Testing Migration Comparison", () => {
         expect(result.success).toBe(true);
         expect(result.timing).toBeDefined();
         expect(result.consistency).toBeDefined();
-        expect(result.apiResult).toBeDefined();
-        expect(result.databaseData).toBeDefined();
+        expect(result.dataFlow.apiResponse).toBeDefined();
+        expect(result.dataFlow.databaseData).toBeDefined();
     });
 });

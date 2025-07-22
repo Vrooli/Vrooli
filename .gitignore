@@ -50,6 +50,9 @@ coverage
 .vitest
 packages/*/.vitest
 
+# V8 compile cache
+v8-compile-cache-*/
+
 # Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
 .grunt
 

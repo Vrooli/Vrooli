@@ -1,4 +1,4 @@
-import { type PrismaPromise } from "@prisma/client";
+import type { PrismaPromise } from "@prisma/client";
 import { generatePK, type ModelType, type SessionUser, validatePK, type YupMutateParams } from "@vrooli/shared";
 import { type AnyObjectSchema, ValidationError as YupError } from "yup";
 import { InfoConverter } from "../builders/infoConverter.js";

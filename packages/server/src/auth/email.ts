@@ -1,5 +1,4 @@
-import type { Prisma, PrismaPromise, credit_account, email, phone, plan, session, user, user_auth } from "@prisma/client";
-import pkg from "@prisma/client";
+import pkg, { type Prisma, type PrismaPromise, type credit_account, type email, type phone, type plan, type session, type user, type user_auth } from "@prisma/client";
 import { AUTH_PROVIDERS, DAYS_2_MS, LINKS, MINUTES_15_MS, type Session, type TranslationKeyError, generatePK } from "@vrooli/shared";
 import { type Request } from "express";
 import { DbProvider } from "../db/provider.js";

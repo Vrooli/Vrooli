@@ -14,12 +14,13 @@
  * methods directly in UIFormTestConfig for better cohesion and type safety.
  */
 import type {
+    FormConfig,
+    FormFixtures,
     ListObject,
     OrArray,
     Session,
     YupModel,
 } from "@vrooli/shared";
-import type { FormConfig, FormFixtures } from "@vrooli/shared";
 
 /**
  * Core interface for standardized integration test configuration
@@ -51,17 +52,6 @@ export interface StandardIntegrationConfig<
     /** Validation schema for API inputs */
     validation: YupModel<["create", "update"]>;
 }
-
-/**
- * @deprecated ApiInputTransformer interface has been eliminated.
- * 
- * Transformation methods are now included directly in UIFormTestConfig:
- * - responseToCreateInput?
- * - responseToUpdateInput?
- * - validateBidirectionalTransform?
- * 
- * This provides better type safety and keeps all form-related logic together.
- */
 
 /**
  * Endpoint Caller interface
@@ -342,3 +332,4 @@ export interface IntegrationSuiteConfig<TFormData, TShape, TCreateInput, TUpdate
  */
 export type { ListObject, OrArray, Session, YupModel } from "@vrooli/shared";
 export type { UIFormTestConfig } from "@vrooli/ui/src/__test/fixtures/form-testing/UIFormTestFactory.js";
+

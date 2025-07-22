@@ -125,16 +125,24 @@ export async function logTeamStats(
             processBatch: async (batch: TeamPayload[]) => {
                 const runStats = await batchRuns(batch.map(team => team.id.toString()), periodStart, periodEnd);
                 await DbProvider.get().stats_team.createMany({
-                    data: batch.map(team => ({
-                        id: generatePK(),
-                        teamId: team.id,
-                        periodStart,
-                        periodEnd,
-                        periodType,
-                        members: team._count?.members ?? 0,
-                        resources: team._count?.resources ?? 0,
-                        ...runStats[team.id.toString()],
-                    })),
+                    data: batch.map(team => {
+                        const teamRunStats = runStats[team.id.toString()] ?? {
+                            runsStarted: 0,
+                            runsCompleted: 0,
+                            runCompletionTimeAverage: 0,
+                            runContextSwitchesAverage: 0,
+                        };
+                        return {
+                            id: generatePK(),
+                            teamId: team.id,
+                            periodStart,
+                            periodEnd,
+                            periodType,
+                            members: team._count?.members ?? 0,
+                            resources: team._count?.resources ?? 0,
+                            ...teamRunStats,
+                        };
+                    }),
                 });
             },
             select: teamStatsSelect,

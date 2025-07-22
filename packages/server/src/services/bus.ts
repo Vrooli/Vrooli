@@ -1,5 +1,5 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-06-17
-import { type CreditEntryType, type CreditSourceSystem } from "@prisma/client";
+import type { CreditEntryType, CreditSourceSystem } from "@prisma/client";
 import { MINUTES_1_MS, nanoid, SECONDS_1_MS, SECONDS_5_MS } from "@vrooli/shared";
 import { default as IORedis, type Redis } from "ioredis";
 import { EventEmitter } from "node:events";
