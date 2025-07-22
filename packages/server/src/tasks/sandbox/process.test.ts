@@ -1,13 +1,14 @@
 // AI_CHECK: TEST_COVERAGE=1 | LAST: 2025-06-18
 // AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { CodeLanguage, generatePK, initIdGenerator } from "@vrooli/shared";
 import { type Job } from "bullmq";
-import { initIdGenerator, generatePK, CodeLanguage } from "@vrooli/shared";
-import { sandboxProcess, runUserCode, doSandbox } from "./process.js";
-import { QueueTaskType, type SandboxTask } from "../taskTypes.js";
-import type { RunUserCodeInput, RunUserCodeOutput } from "./types.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import "../../__test/setup.js";
+import { createMockJob } from "../taskFactory.js";
+import { QueueTaskType, type SandboxTask } from "../taskTypes.js";
+import { doSandbox, runUserCode, sandboxProcess } from "./process.js";
+import type { RunUserCodeInput } from "./types.js";
 
 // Mock the sandbox worker manager to avoid spawning actual processes
 vi.mock("./sandboxWorkerManager.js", () => ({
@@ -64,23 +65,23 @@ vi.mock("../../validators/permissions.js", () => ({
 describe("sandboxProcess", () => {
     beforeEach(async () => {
         vi.clearAllMocks();
-        
+
         // Initialize ID generator for test data creation
         await initIdGenerator(0);
     });
 
-    const createTestSandboxPayload = (overrides: Partial<SandboxTask & { __process?: string }> = {}): SandboxTask & { __process: string } => {
-        const userId = generatePK().toString();
-        const codeVersionId = generatePK().toString();
+    function createTestSandboxPayload(overrides: Partial<SandboxTask> = {}): SandboxTask {
+        const userId = overrides.userData?.id || generatePK().toString();
+        const codeVersionId = overrides.codeVersionId || generatePK().toString();
 
         return {
+            id: overrides.id || generatePK().toString(),
             type: QueueTaskType.SANDBOX_EXECUTION,
-            __process: "Sandbox",
             codeVersionId,
-            input: { test: "input" },
-            shouldSpreadInput: false,
-            status: "Scheduled",
-            userData: {
+            input: overrides.input !== undefined ? overrides.input : { test: "input" },
+            shouldSpreadInput: overrides.shouldSpreadInput || false,
+            status: overrides.status || "Scheduled",
+            userData: overrides.userData || {
                 id: userId,
                 name: "testUser",
                 hasPremium: false,
@@ -91,27 +92,22 @@ describe("sandboxProcess", () => {
             },
             ...overrides,
         };
-    };
+    }
 
-    const createMockSandboxJob = (data: Partial<SandboxTask & { __process?: string }> = {}): Job<SandboxTask & { __process: string }> => {
-        const defaultData = createTestSandboxPayload(data);
-
-        return {
-            id: "sandbox-job-id",
-            data: defaultData,
-            name: "sandbox",
-            attemptsMade: 0,
-            opts: {},
-        } as Job<SandboxTask & { __process: string }>;
-    };
+    function createMockSandboxJob(data: Partial<SandboxTask> = {}): Job<SandboxTask> {
+        return createMockJob<SandboxTask>(
+            QueueTaskType.SANDBOX_EXECUTION,
+            createTestSandboxPayload(data),
+        );
+    }
 
     describe("successful code execution", () => {
         it("should execute JavaScript code", async () => {
             const payload = createTestSandboxPayload();
             const job = createMockSandboxJob(payload);
-            
+
             const result = await sandboxProcess(job);
-            
+
             expect(result).toEqual({
                 __type: "success",
                 stdout: "Hello World\n",
@@ -123,12 +119,12 @@ describe("sandboxProcess", () => {
         it("should execute code with return value", async () => {
             const input: RunUserCodeInput = {
                 code: "return 42;",
-                codeLanguage: CodeLanguage.JavaScript,
+                codeLanguage: CodeLanguage.Javascript,
                 input: { test: "input" },
             };
-            
+
             const result = await runUserCode(input);
-            
+
             expect(result).toEqual({
                 __type: "success",
                 stdout: "",
@@ -143,9 +139,9 @@ describe("sandboxProcess", () => {
                 codeLanguage: CodeLanguage.JavaScript,
                 input: {},
             };
-            
+
             const result = await runUserCode(input);
-            
+
             expect(result).toEqual({
                 __type: "success",
                 stdout: "Hello World\n",
@@ -160,9 +156,9 @@ describe("sandboxProcess", () => {
                 codeLanguage: CodeLanguage.Python,
                 input: {},
             };
-            
+
             const result = await runUserCode(input);
-            
+
             expect(result).toEqual({
                 __type: "success",
                 stdout: "Python Hello\n",
@@ -174,9 +170,9 @@ describe("sandboxProcess", () => {
         it("should handle test process type", async () => {
             const payload = createTestSandboxPayload({ __process: "Test" });
             const job = createMockSandboxJob(payload);
-            
+
             const result = await sandboxProcess(job);
-            
+
             expect(result).toEqual({ __typename: "Success", success: true });
         });
     });
@@ -188,9 +184,9 @@ describe("sandboxProcess", () => {
                 codeLanguage: CodeLanguage.JavaScript,
                 input: {},
             };
-            
+
             const result = await runUserCode(input);
-            
+
             // In a real sandbox, this would be blocked and return an error
             // For our mock, we just verify the function completes
             expect(result).toBeDefined();
@@ -202,9 +198,9 @@ describe("sandboxProcess", () => {
                 codeLanguage: CodeLanguage.JavaScript,
                 input: {},
             };
-            
+
             const result = await runUserCode(input);
-            
+
             // In a real sandbox, network access would be blocked
             expect(result).toBeDefined();
         });
@@ -215,9 +211,9 @@ describe("sandboxProcess", () => {
                 codeLanguage: CodeLanguage.JavaScript,
                 input: {},
             };
-            
+
             const result = await runUserCode(input);
-            
+
             // In a real sandbox, process spawning would be blocked
             expect(result).toBeDefined();
         });
@@ -228,9 +224,9 @@ describe("sandboxProcess", () => {
                 codeLanguage: CodeLanguage.JavaScript,
                 input: {},
             };
-            
+
             const result = await runUserCode(input);
-            
+
             // Verify code executes but is isolated
             expect(result).toBeDefined();
             expect((global as any).maliciousData).toBeUndefined();
@@ -244,9 +240,9 @@ describe("sandboxProcess", () => {
                 codeLanguage: CodeLanguage.JavaScript,
                 input: {},
             };
-            
+
             const result = await runUserCode(input);
-            
+
             expect(result).toEqual({
                 __type: "error",
                 error: "Execution timeout after 5000ms",
@@ -260,9 +256,9 @@ describe("sandboxProcess", () => {
                 codeLanguage: CodeLanguage.JavaScript,
                 input: {},
             };
-            
+
             const result = await runUserCode(input);
-            
+
             // Should complete successfully but be subject to resource limits
             expect(result).toBeDefined();
             expect(result.__type).toBe("success");
@@ -280,11 +276,11 @@ describe("sandboxProcess", () => {
                     theme: "light",
                 },
             });
-            
+
             const job = createMockSandboxJob(payload);
-            
+
             const result = await sandboxProcess(job);
-            
+
             // Premium users might have higher resource limits
             expect(result).toBeDefined();
         });
@@ -295,9 +291,9 @@ describe("sandboxProcess", () => {
                 codeLanguage: CodeLanguage.JavaScript,
                 input: {},
             };
-            
+
             const result = await runUserCode(input);
-            
+
             // Should handle reasonable memory usage
             expect(result).toBeDefined();
         });
@@ -310,9 +306,9 @@ describe("sandboxProcess", () => {
                 codeLanguage: CodeLanguage.JavaScript,
                 input: {},
             };
-            
+
             const result = await runUserCode(input);
-            
+
             // In a real implementation, syntax errors would be caught
             expect(result).toBeDefined();
         });
@@ -323,9 +319,9 @@ describe("sandboxProcess", () => {
                 codeLanguage: CodeLanguage.JavaScript,
                 input: {},
             };
-            
+
             const result = await runUserCode(input);
-            
+
             expect(result).toEqual({
                 __type: "error",
                 error: "Error: Test error\n    at <anonymous>:1:7",
@@ -336,7 +332,7 @@ describe("sandboxProcess", () => {
         it("should handle invalid process type", async () => {
             const payload = createTestSandboxPayload({ __process: "InvalidProcess" as any });
             const job = createMockSandboxJob(payload);
-            
+
             await expect(sandboxProcess(job)).rejects.toThrow();
         });
 
@@ -344,9 +340,9 @@ describe("sandboxProcess", () => {
             const { readOneHelper } = await import("../../actions/reads.js");
             const mockReadOneHelper = readOneHelper as any;
             mockReadOneHelper.mockResolvedValueOnce(null);
-            
+
             const payload = createTestSandboxPayload();
-            
+
             await expect(doSandbox(payload)).rejects.toThrow();
         });
 
@@ -354,7 +350,7 @@ describe("sandboxProcess", () => {
             const { permissionsCheck } = await import("../../validators/permissions.js");
             const mockPermissionsCheck = permissionsCheck as any;
             mockPermissionsCheck.mockRejectedValueOnce(new Error("Permission denied"));
-            
+
             const { CacheService } = await import("../../redisConn.js");
             const mockCacheService = CacheService.get() as any;
             mockCacheService.get.mockResolvedValueOnce({
@@ -362,9 +358,9 @@ describe("sandboxProcess", () => {
                 content: "console.log('test');",
                 codeLanguage: "JavaScript",
             });
-            
+
             const payload = createTestSandboxPayload();
-            
+
             await expect(doSandbox(payload)).rejects.toThrow("Permission denied");
         });
     });
@@ -376,9 +372,9 @@ describe("sandboxProcess", () => {
                 codeLanguage: CodeLanguage.JavaScript,
                 input: {},
             };
-            
+
             const result = await runUserCode(input);
-            
+
             expect(result).toBeDefined();
             expect(result.__type).toBe("success");
         });
@@ -389,9 +385,9 @@ describe("sandboxProcess", () => {
                 codeLanguage: CodeLanguage.TypeScript,
                 input: {},
             };
-            
+
             const result = await runUserCode(input);
-            
+
             expect(result).toBeDefined();
         });
 
@@ -401,9 +397,9 @@ describe("sandboxProcess", () => {
                 codeLanguage: CodeLanguage.Python,
                 input: {},
             };
-            
+
             const result = await runUserCode(input);
-            
+
             expect(result).toBeDefined();
         });
 
@@ -413,40 +409,40 @@ describe("sandboxProcess", () => {
                 codeLanguage: CodeLanguage.JavaScript,
                 input: {},
             };
-            
+
             const jsResult = await runUserCode(jsInput);
             expect(jsResult).toBeDefined();
-            
+
             const pythonInput: RunUserCodeInput = {
                 code: "import math\nprint(math.pi)",
                 codeLanguage: CodeLanguage.Python,
                 input: {},
             };
-            
+
             const pythonResult = await runUserCode(pythonInput);
             expect(pythonResult).toBeDefined();
         });
 
         it("should handle input data across languages", async () => {
             const testInput = { numbers: [1, 2, 3], message: "Hello" };
-            
+
             const jsInput: RunUserCodeInput = {
                 code: "console.log('Input received:', JSON.stringify(input));",
                 codeLanguage: CodeLanguage.JavaScript,
                 input: testInput,
             };
-            
+
             const result = await runUserCode(jsInput);
             expect(result).toBeDefined();
         });
     });
-    
+
     describe("doSandbox integration", () => {
         it("should process sandbox request with cache miss", async () => {
             const payload = createTestSandboxPayload();
-            
+
             const result = await doSandbox(payload);
-            
+
             expect(result).toEqual({
                 __type: "success",
                 stdout: "Hello World\n",
@@ -463,11 +459,11 @@ describe("sandboxProcess", () => {
                 content: "console.log('From cache');",
                 codeLanguage: "JavaScript",
             });
-            
+
             const payload = createTestSandboxPayload();
-            
+
             const result = await doSandbox(payload);
-            
+
             expect(result).toBeDefined();
         });
     });

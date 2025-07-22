@@ -25,17 +25,6 @@ import { QueueService } from "./tasks/queues.js";
 import { checkImageProcessingCapabilities } from "./utils/fileStorage.js";
 import { initSingletons } from "./utils/singletons.js";
 
-// DEBUG: Log critical environment variables at startup
-logger.info("🔍 Server startup environment check:", {
-    ADMIN_WALLET: process.env.ADMIN_WALLET ? "SET" : "NOT SET",
-    ADMIN_PASSWORD: process.env.ADMIN_PASSWORD ? "SET" : "NOT SET",
-    SITE_EMAIL_USERNAME: process.env.SITE_EMAIL_USERNAME || "NOT SET",
-    VALYXA_PASSWORD: process.env.VALYXA_PASSWORD ? "SET" : "NOT SET",
-    DB_URL: process.env.DB_URL ? "SET" : "NOT SET",
-    REDIS_URL: process.env.REDIS_URL ? "SET" : "NOT SET",
-    NODE_ENV: process.env.NODE_ENV || "NOT SET",
-});
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 

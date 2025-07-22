@@ -93,11 +93,11 @@ export async function afterMutationsRoot({ createdIds, deletedIds, objectType, p
         if (!preData || !preData.triggerMap || !preData.triggerMap[objectId]) {
             throw new CustomError("0085", "InternalError");
         }
-        const { hasBeenTransferred, hasParent, wasCompleteAndPublic } = preData.triggerMap[objectId];
+        const { transferredAt, hasParent, wasCompleteAndPublic } = preData.triggerMap[objectId];
         // Trigger objectDeleted
         await Trigger(userData.languages).objectDeleted({
             deletedById: userData.id,
-            hasBeenTransferred,
+            transferredAt,
             hasParent,
             objectId,
             objectType,

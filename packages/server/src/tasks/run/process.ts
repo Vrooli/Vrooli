@@ -114,11 +114,7 @@ export const activeRunRegistry = new RunRegistry();
  * for clean integration with the three-tier architecture.
  */
 async function processRoutineExecution(payload: RunTask) {
-    logger.info("[processRoutineExecution] Starting routine execution", {
-        runId: payload.input.runId,
-        resourceVersionId: payload.input.resourceVersionId,
-        userId: payload.context.userData.id,
-    });
+    // Starting routine execution
 
     try {
         // Extract run ID or generate new one if not provided
@@ -128,7 +124,7 @@ async function processRoutineExecution(payload: RunTask) {
         if (!payload.input.isNewRun) {
             const existingStateMachine = activeRunRegistry.get(runId);
             if (existingStateMachine) {
-                logger.info("[processRoutineExecution] Resuming existing execution", { runId });
+                // Resuming existing execution
                 await existingStateMachine.resume(); // Uses existing resume() infrastructure!
                 return { runId };
             }

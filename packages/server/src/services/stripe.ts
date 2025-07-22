@@ -301,7 +301,6 @@ export async function getVerifiedCustomerInfo({
                 result.subscriptionInfo = subscriptionInfo;
                 if (!subscriptionInfo) {
                     result.stripeCustomerId = null;
-                    logger.info("Stripe customer ID is not associated with an active subscription", { trace: "0518", result });
                 }
             }
         } catch (error) {

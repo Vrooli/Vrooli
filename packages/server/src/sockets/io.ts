@@ -95,12 +95,10 @@ export class SocketService {
      */
     public static async init(): Promise<SocketService> {
         if (SocketService.instance) { // Already initialized and instance is set
-            logger.debug("SocketService already initialized. Returning existing instance.");
             return SocketService.instance;
         }
 
         if (SocketService.initializationPromise) {
-            logger.debug("SocketService initialization already in progress. Returning existing promise.");
             return SocketService.initializationPromise;
         }
 

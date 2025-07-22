@@ -179,12 +179,7 @@ export class MessageTypeAdapters {
                 user: msg.user ? { id: msg.user.id } : null,
             };
 
-            logger.debug("[MessageTypeAdapters] Converted ChatMessage to MessageState", {
-                messageId: msg.id,
-                hasParent: !!messageState.parent,
-                hasUser: !!messageState.user,
-                textLength: msg.text.length,
-            });
+            // Converted ChatMessage to MessageState
 
             return messageState;
         } catch (error) {
@@ -236,12 +231,7 @@ export class MessageTypeAdapters {
                 name: msg.user?.id || undefined,
             };
 
-            logger.debug("[MessageTypeAdapters] Converted MessageState to LLMMessage", {
-                messageId: msg.id,
-                role,
-                contentLength: msg.text.length,
-                hasName: !!llmMessage.name,
-            });
+            // Converted MessageState to LLMMessage
 
             return llmMessage;
         } catch (error) {
@@ -302,13 +292,7 @@ export class MessageTypeAdapters {
                 parent: params.parentId ? { id: params.parentId } : null,
             };
 
-            logger.debug("[MessageTypeAdapters] Created new MessageState", {
-                messageId: messageState.id,
-                role: params.role,
-                textLength: params.text.length,
-                hasUser: !!messageState.user,
-                hasParent: !!messageState.parent,
-            });
+            // Created new MessageState
 
             return messageState;
         } catch (error) {

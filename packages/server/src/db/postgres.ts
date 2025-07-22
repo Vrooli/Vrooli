@@ -1,9 +1,7 @@
-import pkg from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { SECONDS_30_MS } from "@vrooli/shared";
 import { logger } from "../events/logger.js";
 import { type DatabaseService } from "./provider.js";
-
-const { PrismaClient } = pkg;
 
 const debug = process.env.NODE_ENV === "development";
 
@@ -42,7 +40,6 @@ export class PostgresDriver implements DatabaseService {
 
     async disconnect(): Promise<void> {
         await this.prisma.$disconnect();
-        logger.info("Disconnected from PostgreSQL");
     }
 
     // If you'd like a standard way to access the Prisma client from outside:
@@ -57,10 +54,8 @@ export class PostgresDriver implements DatabaseService {
                 console.info("skipping seed in test environment");
                 return true;
             }
-            logger.info("Starting PostgreSQL seeding");
             const { init } = await import("./seeds/init.js");
             await init(this.prisma);
-            logger.info("PostgreSQL seeding completed successfully");
             return true;
         } catch (error) {
             // Check if this is a "table does not exist" error
@@ -108,7 +103,6 @@ export class PostgresDriver implements DatabaseService {
         }
         // Execute the cached TRUNCATE statement
         await this.prisma.$executeRawUnsafe(PostgresDriver.truncateStatement);
-        logger.info("Truncated all tables in PostgreSQL via cached statement");
     }
 }
 

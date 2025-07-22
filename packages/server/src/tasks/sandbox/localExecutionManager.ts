@@ -1,17 +1,16 @@
 import { CodeLanguage } from "@vrooli/shared";
 import { execFile } from "child_process";
-import { promises as fs, chmodSync, mkdtempSync, rmSync, statSync, unlinkSync, writeFileSync } from "fs";
+import { chmodSync, promises as fs, mkdtempSync, rmSync, statSync, unlinkSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
 import { promisify } from "util";
-import { DEFAULT_JOB_TIMEOUT_MS } from "./consts.js";
-import { generateEnvironmentRequirementsError, isLanguageSupportedInEnvironment } from "./executionEnvironmentSupport.js";
+import { logger } from "../../events/logger.js";
+import { generateConfigurationErrorMessage, getExecutionConfig, type ExecutionConfig } from "./executionConfig.js";
 import { type RunUserCodeInput, type RunUserCodeOutput } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 
-// Environment variable for enabling local execution
-const LOCAL_EXECUTION_ENABLED = process.env.VROOLI_ENABLE_LOCAL_EXECUTION === "true";
+// Check environment
 const IS_DEV_OR_TEST = process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
 
 // Constants for file permissions and buffer sizes
@@ -21,25 +20,29 @@ const BYTES_PER_KB = 1024;
 
 
 /**
- * Safety checks for local execution
+ * Safety checks for local execution using configuration
  */
-function validateLocalExecution(): void {
-    if (!IS_DEV_OR_TEST || !LOCAL_EXECUTION_ENABLED) {
-        throw new Error(generateEnvironmentRequirementsError("local"));
+function validateLocalExecution(config: ExecutionConfig): void {
+    if (!IS_DEV_OR_TEST) {
+        throw new Error("Local execution requires development or test environment (NODE_ENV)");
+    }
+
+    if (!config.enabled) {
+        throw new Error(generateConfigurationErrorMessage());
     }
 }
 
 /**
- * Get the executable command for a given language
+ * Get the executable command for a given language from configuration
  */
-function getLanguageExecutable(language: CodeLanguage): string {
+function getLanguageExecutable(language: CodeLanguage, config: ExecutionConfig): string {
     switch (language) {
         case CodeLanguage.Shell:
-            return "bash";
+            return config.runtime.executables.bash;
         case CodeLanguage.Python:
-            return "python3";
+            return config.runtime.executables.python3;
         case CodeLanguage.Javascript:
-            return "node";
+            return config.runtime.executables.node;
         default:
             throw new Error(`Unsupported language for local execution: ${language}`);
     }
@@ -124,8 +127,15 @@ if (typeof main === 'function') {
  * Prepare environment variables for bash execution
  */
 function prepareBashEnvironment(input: unknown): Record<string, string> {
-    const env = { ...process.env };
-    
+    const env: Record<string, string> = {};
+
+    // Filter out undefined values from process.env
+    Object.entries(process.env).forEach(([key, value]) => {
+        if (value !== undefined) {
+            env[key] = value;
+        }
+    });
+
     if (input && typeof input === "object") {
         // Convert input object to environment variables
         Object.entries(input).forEach(([key, value]) => {
@@ -138,30 +148,49 @@ function prepareBashEnvironment(input: unknown): Record<string, string> {
     } else {
         env.INPUT_DATA = JSON.stringify(input);
     }
-    
+
     return env;
 }
 
 /**
- * Validates and sanitizes the working directory path
+ * Validates and sanitizes the working directory path against configuration
  */
-function validateWorkingDirectory(workingDir: string): string {
-    // Ensure it's within the project directory for security
+function validateWorkingDirectory(workingDir: string, config: ExecutionConfig): string {
     const projectDir = process.env.PROJECT_DIR || process.cwd();
     const resolvedPath = resolve(projectDir, workingDir);
-    
+
     // Check that the resolved path is within the project directory
     if (!resolvedPath.startsWith(resolve(projectDir))) {
         throw new Error("Working directory must be within the project directory");
     }
-    
+
+    // Check against allowed paths
+    const isAllowed = config.security.allowedPaths.some(allowedPath => {
+        const resolvedAllowed = resolve(projectDir, allowedPath);
+        return resolvedPath.startsWith(resolvedAllowed);
+    });
+
+    if (!isAllowed) {
+        throw new Error(`Working directory "${workingDir}" is not in allowed paths: ${config.security.allowedPaths.join(", ")}`);
+    }
+
+    // Check against denied paths
+    const isDenied = config.security.deniedPaths.some(deniedPath => {
+        const resolvedDenied = resolve(projectDir, deniedPath);
+        return resolvedPath.startsWith(resolvedDenied);
+    });
+
+    if (isDenied) {
+        throw new Error(`Working directory "${workingDir}" is in denied paths: ${config.security.deniedPaths.join(", ")}`);
+    }
+
     // Ensure the directory exists
     try {
         statSync(resolvedPath);
     } catch {
         throw new Error(`Working directory does not exist: ${resolvedPath}`);
     }
-    
+
     return resolvedPath;
 }
 
@@ -171,16 +200,18 @@ function validateWorkingDirectory(workingDir: string): string {
  */
 export class LocalExecutionManager {
     private tempDir: string;
+    private config: ExecutionConfig;
 
     constructor() {
         this.tempDir = mkdtempSync(join(tmpdir(), "vrooli-local-"));
+        this.config = getExecutionConfig();
     }
 
     /**
      * Check if a language is supported for local execution
      */
     isLanguageSupported(language: CodeLanguage): boolean {
-        return isLanguageSupportedInEnvironment(language, "local");
+        return this.config.allowedLanguages.includes(language);
     }
 
     /**
@@ -189,51 +220,66 @@ export class LocalExecutionManager {
     async runUserCode(input: RunUserCodeInput): Promise<RunUserCodeOutput> {
         try {
             // Safety checks
-            validateLocalExecution();
-            
+            validateLocalExecution(this.config);
+
             if (!this.isLanguageSupported(input.codeLanguage)) {
-                throw new Error(`Language ${input.codeLanguage} is not supported for local execution`);
+                const supportedLangs = this.config.allowedLanguages.join(", ");
+                throw new Error(`Language ${input.codeLanguage} is not supported for local execution. Allowed languages: ${supportedLangs}`);
             }
 
             const { code, codeLanguage, input: userInput, environmentConfig = {} } = input;
-            
-            // Apply environment config with defaults
-            const timeout = environmentConfig.timeoutMs ?? DEFAULT_JOB_TIMEOUT_MS;
-            const workingDirectory = environmentConfig.workingDirectory 
-                ? validateWorkingDirectory(environmentConfig.workingDirectory)
-                : this.tempDir;
-            
+
+            // Apply environment config with defaults and security limits
+            const requestedTimeout = environmentConfig.timeoutMs ?? this.config.defaults.timeoutMs;
+            const timeout = Math.min(requestedTimeout, this.config.security.maxTimeoutMs);
+
+            const requestedWorkingDir = environmentConfig.workingDirectory ?? this.config.defaults.workingDirectory;
+            const workingDirectory = requestedWorkingDir === this.config.defaults.workingDirectory && this.config.defaults.workingDirectory === "./"
+                ? this.tempDir  // Use temp dir for default "./" to avoid conflicts
+                : validateWorkingDirectory(requestedWorkingDir, this.config);
+
             // Prepare code for execution
             const preparedCode = prepareCodeForExecution(code, codeLanguage, userInput);
-            
+
             // Create temporary file
             const fileExtension = getLanguageExtension(codeLanguage);
             const tempFile = join(this.tempDir, `code_${Date.now()}${fileExtension}`);
             writeFileSync(tempFile, preparedCode);
-            
+
             // Make bash scripts executable
             if (codeLanguage === CodeLanguage.Shell) {
                 chmodSync(tempFile, EXECUTABLE_PERMISSION);
             }
-            
+
             // Prepare execution environment
-            const executable = getLanguageExecutable(codeLanguage);
+            const executable = getLanguageExecutable(codeLanguage, this.config);
             const args = [tempFile];
+
+            // Merge environment variables with configuration
+            const baseEnv = { ...this.config.runtime.environment };
+            const userEnv = environmentConfig.environmentVariables ?? {};
+            const execEnv = codeLanguage === CodeLanguage.Shell
+                ? { ...baseEnv, ...prepareBashEnvironment(userInput), ...userEnv }
+                : { ...process.env, ...baseEnv, ...userEnv };
+
+            const maxBuffer = Math.min(
+                this.config.security.maxOutputBufferKb * BYTES_PER_KB,
+                MAX_OUTPUT_BUFFER_KB * BYTES_PER_KB,
+            );
+
             const execOptions = {
                 timeout,
                 cwd: workingDirectory,
-                env: codeLanguage === CodeLanguage.Shell 
-                    ? prepareBashEnvironment(userInput)
-                    : { ...process.env, ...environmentConfig.environmentVariables },
-                maxBuffer: MAX_OUTPUT_BUFFER_KB * BYTES_PER_KB, // 1MB output limit
+                env: execEnv,
+                maxBuffer,
             };
-            
+
             // Execute the code
             const { stdout, stderr } = await execFileAsync(executable, args, execOptions);
-            
+
             // Clean up temp file
             unlinkSync(tempFile);
-            
+
             // Parse output based on language
             let output: unknown;
             if (codeLanguage === CodeLanguage.Shell) {
@@ -247,7 +293,7 @@ export class LocalExecutionManager {
                     output = stdout.trim();
                 }
             }
-            
+
             // Include stderr in output if present (as warning)
             if (stderr.trim()) {
                 if (typeof output === "object" && output !== null) {
@@ -256,9 +302,9 @@ export class LocalExecutionManager {
                     output = { result: output, _stderr: stderr.trim() };
                 }
             }
-            
+
             return { __type: "output", output };
-            
+
         } catch (error) {
             // Clean up any temp files on error
             try {
@@ -271,7 +317,7 @@ export class LocalExecutionManager {
             } catch {
                 // Ignore cleanup errors
             }
-            
+
             const errorMessage = error instanceof Error ? error.message : String(error);
             return { __type: "error", error: errorMessage };
         }

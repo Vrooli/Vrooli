@@ -19,11 +19,15 @@ export function authDataWithInput(
     authDataById: AuthDataById,
 ): object {
     // If input is a string, it's an ID, so get the input object
+    let inputObj: object;
     if (typeof input === "string") {
-        input = inputsById[input]?.input ?? {};
+        const foundInput = inputsById[input]?.input;
+        inputObj = (foundInput && typeof foundInput === "object") ? foundInput : {};
+    } else {
+        inputObj = input;
     }
     // Overwrite existingData with input
-    const combined = { ...existingData, ...input };
+    const combined = { ...existingData, ...inputObj };
     // Loop through fields to handle relationships
     for (const field in combined) {
         // If a relationship, find the action and process accordingly

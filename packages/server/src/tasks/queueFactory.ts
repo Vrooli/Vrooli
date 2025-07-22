@@ -346,16 +346,8 @@ export class ManagedQueue<Data extends BaseTaskData | Record<string, unknown> = 
                                 });
                             }
                         });
-                    } else {
-                        logger.debug(`⚡ ULTRA-PING for ${cfg.name}: ${successful}/${results.length} successful in ${duration}ms`, {
-                            queue: cfg.name,
-                            successful,
-                            failed,
-                            duration,
-                            timestamp: new Date().toISOString(),
-                            pingInterval: "8000ms",
-                        });
                     }
+                    // Ping check completed
                 } catch (error) {
                     logger.error(`⚡ ULTRA-PING EXCEPTION for queue ${cfg.name}`, { 
                         queue: cfg.name,
@@ -519,21 +511,9 @@ export class ManagedQueue<Data extends BaseTaskData | Record<string, unknown> = 
                 const jobCounts = await this.queue.getJobCounts();
                 const workerInfo = await this.worker.client.then(c => c.ping());
 
-                logger.debug(`Queue ${this.queueName} health check`, {
-                    queue: this.queueName,
-                    jobCounts,
-                    workerPing: workerInfo,
-                    connections: {
-                        queue: queueClient.status,
-                    },
-                });
+                // Health check completed successfully
             } else {
-                logger.debug(`Queue ${this.queueName} health check (connection not ready)`, {
-                    queue: this.queueName,
-                    connections: {
-                        queue: queueClient.status,
-                    },
-                });
+                // Connection not ready for health check
             }
         } catch (error) {
             const isTest = process.env.NODE_ENV === "test";
@@ -635,18 +615,18 @@ export class ManagedQueue<Data extends BaseTaskData | Record<string, unknown> = 
             });
 
             // 3. Close worker first (stops processing new jobs)
-            await this.worker.close(true).catch(error => {
-                logger.debug(`Worker close error for ${this.queueName}:`, error);
+            await this.worker.close(true).catch(() => {
+                // Worker close error - expected during shutdown
             });
 
             // 4. Close events listener
-            await this.events.close().catch(error => {
-                logger.debug(`Events close error for ${this.queueName}:`, error);
+            await this.events.close().catch(() => {
+                // Events close error - expected during shutdown
             });
 
             // 5. Close queue last
-            await this.queue.close().catch(error => {
-                logger.debug(`Queue close error for ${this.queueName}:`, error);
+            await this.queue.close().catch(() => {
+                // Queue close error - expected during shutdown
             });
 
             // 6. Small delay to ensure connections are fully closed
@@ -732,7 +712,7 @@ export class ManagedQueue<Data extends BaseTaskData | Record<string, unknown> = 
             if (!job) {
                 const trulyTerminalStates = ["completed", "failed"];
                 if (trulyTerminalStates.includes(normalizedStatus)) {
-                    logger.info(`Task with id ${taskId} not found, but considered a success as status is being changed to a terminal state '${normalizedStatus}'.`);
+                    // Task not found but terminal state - treating as success
                     return { __typename: "Success" as const, success: true };
                 }
                 logger.error(`Task with id ${taskId} not found. Cannot change status to '${normalizedStatus}'.`);

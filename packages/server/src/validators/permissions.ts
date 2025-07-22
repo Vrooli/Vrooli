@@ -353,7 +353,6 @@ export function filterPermissions<T extends Record<string, () => any>>(
  * @param inputsById Optional data for additional permission logic context.
  * @returns A promise that resolves to an object with permission keys and boolean values.
  */
-// AI_CHECK: TYPE_SAFETY=server-type-safety-p1-5 | LAST: 2025-07-07 | Fixed validator.permissionResolvers return type from Record<string, () => boolean> to Record<string, () => any>
 export async function calculatePermissions<T extends AuthDataItem>(
     authData: T,
     userData: Pick<SessionUser, "id"> | null,
@@ -507,7 +506,6 @@ export async function permissionsCheck(
     const permissionsById = await getMultiTypePermissions(authDataById, inputsById, userData);
     // If you're an admin, skip permissions checking
     if (isAdmin) {
-        logger.warning("Using admin privileges to perform action", { idsByAction, permissionsById });
         return true;
     }
     // Loop through each action and validate permissions

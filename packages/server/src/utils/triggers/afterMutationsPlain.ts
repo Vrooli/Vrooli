@@ -91,7 +91,7 @@ export async function afterMutationsPlain({
         Trigger(userData.languages).objectDeleted({
             deletedById: userData.id,
             wasCompleteAndPublic: true, // Not applicable
-            hasBeenTransferred: true, // Not applicable
+            transferredAt: null, // Not applicable
             hasParent: false, // Not applicable
             objectId,
             objectType,

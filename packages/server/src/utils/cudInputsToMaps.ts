@@ -9,7 +9,7 @@ import { ModelMap } from "../models/base/index.js";
 import { type Formatter, type ModelLogicType, type PreMap } from "../models/types.js";
 import { getActionFromFieldName } from "./getActionFromFieldName.js";
 import { InputNode } from "./inputNode.js";
-import { type CudInputData, type IdsByAction, type IdsByPlaceholder, type IdsByType, type IdsCreateToConnect, type InputsById, type InputsByType, type QueryAction, type ResultsById } from "./types.js";
+import { type CudInputData, type IdsByAction, type IdsByPlaceholder, type IdsByType, type IdsCreateToConnect, type InputsById, type InputsByType, type QueryAction, type ResultsById, type AllCreateInputs, type AllUpdateInputs } from "./types.js";
 
 /** Information about the closest known object with a valid, **existing** ID (i.e. not a new object) in a mutation */
 type ClosestWithId = { __typename: string, id: string, path: string };
@@ -59,7 +59,6 @@ export async function fetchAndMapPlaceholder(
     // Check if the placeholder is just an ID, in which case
     // we'll add it to the map and return
     if (parts.length === 1 && validatePK(rootId)) {
-        logger.warning("Unnecessary placeholder was generated. This may be a bug", { trace: "0163", placeholder });
         // Directly map the rootId as the ID without querying the database
         placeholderToIdMap[placeholder] = BigInt(rootId);
         return;
@@ -77,7 +76,7 @@ export async function fetchAndMapPlaceholder(
             const [relationType, relation] = part.split("|");
             const { idField } = ModelMap.getLogic(["idField"], relationType as ModelType, false, "fetchAndMapPlaceholder 2");
             currentSelect[relation] = { select: { [idField ?? "id"]: true } };
-            currentSelect = currentSelect[relation].select;
+            currentSelect = (currentSelect[relation] as { select: Record<string, unknown> }).select;
         }
     });
 
@@ -86,17 +85,18 @@ export async function fetchAndMapPlaceholder(
         select,
     });
 
-    let currentObject = queryResult;
+    let currentObject: unknown = queryResult;
     for (const part of parts.slice(1)) {
         const [, relation] = part.split("|");
         if (!currentObject) {
             break; // Break the loop if currentObject is null or undefined
         }
-        currentObject = currentObject[relation];
+        currentObject = currentObject && typeof currentObject === "object" ? 
+            (currentObject as Record<string, unknown>)[relation] : undefined;
     }
 
-    const resultId = currentObject && currentObject.id ? currentObject.id : null;
-    if (resultId) {
+    const resultId = currentObject && typeof currentObject === "object" && "id" in currentObject ? currentObject.id : null;
+    if (resultId && (typeof resultId === "string" || typeof resultId === "bigint")) {
         placeholderToIdMap[placeholder] = typeof resultId === "string" ? BigInt(resultId) : resultId;
     }
 }
@@ -148,7 +148,7 @@ export async function replacePlaceholdersInInputsById(
             id = placeholderToIdMap[maybePlaceholder];
         }
         if (id === null || id === undefined) {
-            logger.warning("Placeholder ID could not be resolved. This may be a bug, or the object may not exist", { trace: "0167", maybePlaceholder });
+            // Placeholder could not be resolved - object may not exist
             delete inputsById[maybePlaceholder];
             continue;
         }
@@ -160,9 +160,9 @@ export async function replacePlaceholdersInInputsById(
                 id: idStr,
             },
             input: typeof value.input === "string" ?
-                id : isRelationshipObject(value.input) ? {
+                idStr : isRelationshipObject(value.input) ? {
                     ...value.input,
-                    id,
+                    id: idStr,
                 } : value.input,
         };
         delete inputsById[maybePlaceholder];
@@ -204,7 +204,7 @@ export async function replacePlaceholdersInInputsByType(
                     id = placeholderToIdMap[maybePlaceholder];
                 }
                 if (id === null || id === undefined) {
-                    logger.warning("Placeholder ID could not be resolved. This may be a bug, or the object may not exist", { trace: "0169", maybePlaceholder });
+                    // Placeholder could not be resolved - object may not exist
                 }
 
                 inputWrapper.node.id = id !== null && id !== undefined ? id.toString() : "";
@@ -291,9 +291,9 @@ export function initializeInputMaps(
  * @param relation - The relation name, if not the root object (so we can update the path if no ID is found at this level).
  * @returns The updated closestWithId object or null.
  */
-export function updateClosestWithId<T extends Record<string, unknown>>(
+export function updateClosestWithId(
     action: QueryAction,
-    input: string | boolean | T,
+    input: string | boolean | AllCreateInputs | AllUpdateInputs,
     idField: string,
     inputType: ModelType | `${ModelType}`,
     closestWithId: ClosestWithId | null,
@@ -340,7 +340,7 @@ export function determineModelType<
     field: string,
     fieldName: string,
     input: ApiModel,
-    format: MinimumFormatter<ModelLogicType>,
+    format: MinimumFormatter<any>,
 ): `${ModelType}` | null {
     // Check if the field exists in the relMap (the standard case)
     const __typename: `${ModelType}` = format.apiRelMap[fieldName] as `${ModelType}`;
@@ -618,7 +618,7 @@ export function inputToMaps<
     DbModel extends ModelLogicType["DbModel"],
 >(
     action: QueryAction,
-    input: string | ApiModel,
+    input: string | AllCreateInputs | AllUpdateInputs,
     format: MinimumFormatter<{ __typename: Typename, ApiCreate: ApiCreate, ApiModel: ApiModel, DbModel: DbModel }>,
     idField = "id",
     closestWithId: { __typename: string, id: string, path: string } | null = { __typename: "", id: "", path: "" },
@@ -641,7 +641,7 @@ export function inputToMaps<
     closestWithId = updateClosestWithId(action, input, idField, format.apiRelMap.__typename, closestWithId);
 
     // Initialize object to store processed input info
-    const inputInfo: { node: InputNode, input: unknown } = { node: rootNode, input: {} };
+    const inputInfo: { node: InputNode, input: string | Record<string, unknown> } = { node: rootNode, input: {} };
 
     // If input is not an object (i.e. an ID)
     if (!isRelationshipObject(input)) {
@@ -661,7 +661,7 @@ export function inputToMaps<
         console.warn("TODO Not sure if this is a problem");
     }
     inputsById[id] = inputInfo;
-    inputsByType[typename]?.[action]?.push(inputInfo);
+    inputsByType[typename]?.[action]?.push(inputInfo as any);
     // Return the root node
     return rootNode;
 }
@@ -699,9 +699,11 @@ export async function cudInputsToMaps({
 
     for (const { action, input, objectType } of inputData) {
         const { format, idField } = ModelMap.getLogic(["format", "idField"], objectType, true, "cudInputsToMaps 2");
+        // Convert bigint to string for Delete actions
+        const processedInput = typeof input === "bigint" ? input.toString() : input;
         inputToMaps(
             action,
-            input,
+            processedInput,
             format as MinimumFormatter<ModelLogicType>,
             idField,
             null,

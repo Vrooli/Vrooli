@@ -174,10 +174,7 @@ export class CacheService {
             attempts += 1;
             try {
                 const isCluster = url.includes(",");
-                // Log only on retries after first attempt
-                if (attempts > 1) {
-                    logger.info("[CacheService] Retrying Redis connection", { attempts });
-                }
+                // Redis connection retry (warnings logged in retryStrategy)
                 const redisInstance = isCluster
                     ? new Cluster(
                         url.split(",").map(u => ({ host: new URL(u).hostname, port: +new URL(u).port || DEFAULT_REDIS_PORT })),

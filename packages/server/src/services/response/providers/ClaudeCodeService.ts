@@ -334,7 +334,6 @@ export class ClaudeCodeService extends AIService<string, ThirdPartyModelInfo> {
                         // Handle different event types
                         if (event.type === "system" && event.subtype === "init") {
                             sessionId = event.session_id;
-                            logger.debug(`[ClaudeCodeService] Session started: ${sessionId}`);
                             
                         } else if (event.type === "assistant" && event.message?.content) {
                             // Extract text content from assistant message

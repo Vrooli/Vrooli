@@ -4,6 +4,15 @@ import { ModelMap } from "../models/base/index.js";
 import { type PermissionsMap } from "../models/types.js";
 import { isRelationshipObject } from "./isOfType.js";
 
+// Type for injected model registry (for testing)
+export type ModelRegistry = {
+    get: (type: ModelType) => {
+        validate?: () => {
+            permissionsSelect?: (userId: string | null) => PermissionsMap<any>;
+        };
+    } | null;
+};
+
 const MAX_RECURSION_DEPTH = 50;
 
 /**
@@ -21,6 +30,7 @@ function removeFirstDotLayer(arr: string[]): string[] {
  * @param userID Current user ID
  * @param recursionDepth The current recursion depth. Used to detect infinite recursion
  * @param omitFields Fields to omit from the selection. Supports dot notation.
+ * @param modelRegistry Optional model registry for dependency injection (primarily for testing)
  * @returns A Prisma select query
  */
 export function permissionsSelectHelper<Select extends Record<string, unknown>>(
@@ -28,12 +38,18 @@ export function permissionsSelectHelper<Select extends Record<string, unknown>>(
     userId: string | null,
     recursionDepth = 0,
     omitFields: string[] = [],
+    modelRegistry?: ModelRegistry,
 ): Select {
     // If recursion depth is too high, throw an error
     if (recursionDepth > MAX_RECURSION_DEPTH) {
         throw new CustomError("0386", "InternalError", { userId, recursionDepth });
     }
     const map = typeof mapResolver === "function" ? mapResolver(userId) : mapResolver;
+    
+    // Use injected model registry if provided, otherwise default to ModelMap
+    const getModel = modelRegistry ? 
+        modelRegistry.get : 
+        (type: ModelType) => ModelMap.get(type, false);
     // Initialize result
     const result: Record<string, unknown> = {};
     // For every key in the PermissionsMap object
@@ -50,7 +66,7 @@ export function permissionsSelectHelper<Select extends Record<string, unknown>>(
             // attempt to recurse using substitution
             if (value.length === 2 && typeof value[0] === "string" && value[0] in ModelType && Array.isArray(value[1])) {
                 // Check if the validator exists. If not, assume this is not a substitution and add it to the result
-                const validate = ModelMap.get(value[0] as ModelType, false)?.validate;
+                const validate = getModel(value[0] as ModelType)?.validate;
                 if (!validate) {
                     result[key] = value;
                 }
@@ -61,7 +77,7 @@ export function permissionsSelectHelper<Select extends Record<string, unknown>>(
                     // Child map is the validator's permissionsSelect function
                     const childMap = validate().permissionsSelect(userId);
                     if (childMap) {
-                        result[key] = { select: permissionsSelectHelper(childMap, userId, recursionDepth + 1, childOmitFields) };
+                        result[key] = { select: permissionsSelectHelper(childMap, userId, recursionDepth + 1, childOmitFields, modelRegistry) };
                     }
                 }
             }
@@ -69,19 +85,19 @@ export function permissionsSelectHelper<Select extends Record<string, unknown>>(
             else {
                 // Child omit is curr omit with first dot level removed
                 const childOmitFields = removeFirstDotLayer(omitFields);
-                result[key] = value.map((x: unknown) => permissionsSelectHelper(x as PermissionsMap<Select>, userId, recursionDepth + 1, childOmitFields));
+                result[key] = value.map((x: unknown) => permissionsSelectHelper(x as PermissionsMap<Select>, userId, recursionDepth + 1, childOmitFields, modelRegistry));
             }
         }
         // If the value is an object, recurse
         else if (isRelationshipObject(value)) {
             // Child omit is curr omit with first dot level removed
             const childOmitFields = removeFirstDotLayer(omitFields);
-            result[key] = permissionsSelectHelper(value, userId, recursionDepth + 1, childOmitFields);
+            result[key] = permissionsSelectHelper(value as PermissionsMap<Select>, userId, recursionDepth + 1, childOmitFields, modelRegistry);
         }
         // If the value is a ModelType, attempt to recurse using substitution
         else if (typeof value === "string" && value in ModelType) {
             // Check if the validator exists. If not, assume this is some other string and add it to the result
-            const validate = ModelMap.get(value as ModelType, false)?.validate;
+            const validate = getModel(value as ModelType)?.validate;
             if (!validate) {
                 result[key] = value;
             }
@@ -92,7 +108,7 @@ export function permissionsSelectHelper<Select extends Record<string, unknown>>(
                 // Child map is the validator's permissionsSelect function
                 const childMap = validate().permissionsSelect(userId);
                 if (childMap) {
-                    result[key] = { select: permissionsSelectHelper(childMap, userId, recursionDepth + 1, childOmitFields) };
+                    result[key] = { select: permissionsSelectHelper(childMap, userId, recursionDepth + 1, childOmitFields, modelRegistry) };
                 }
             }
         }
@@ -104,3 +120,4 @@ export function permissionsSelectHelper<Select extends Record<string, unknown>>(
     // Return the result
     return result as Select;
 }
+

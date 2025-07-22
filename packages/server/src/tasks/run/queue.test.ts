@@ -1,6 +1,7 @@
 // AI_CHECK: TEST_QUALITY=1, TEST_COVERAGE=1 | LAST: 2025-06-18
 import { RunTriggeredFrom } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createRunTask } from "../../__test/fixtures/tasks/runTaskFactory.js";
 import "../../__test/setup.js";
 import { clearRedisCache } from "../queueFactory.js";
 import { QueueService } from "../queues.js";
@@ -35,23 +36,16 @@ describe("Run Queue", () => {
     });
 
     describe("processRun", () => {
-        const baseRunData = {
-            runId: "test-run-123",
-            routineId: "routine-456",
-            routineVersionId: "version-789",
-            isNewRun: true,
-            runFrom: RunTriggeredFrom.RunView,
-            userData: {
-                id: "user-123",
-                hasPremium: false,
-            },
-            config: {
-                isTimeSensitive: false,
-            },
+        const createBaseRunData = (overrides = {}) => {
+            const runTask = createRunTask(overrides);
+            // Remove status field as processRun expects Omit<RunTask, "status">
+            const { status, ...runDataWithoutStatus } = runTask;
+            return runDataWithoutStatus;
         };
 
         it("should add run task with correct type and status", async () => {
-            const result = await processRun(baseRunData, queueService);
+            const runData = createBaseRunData();
+            const result = await processRun(runData, queueService);
             expect(result.success).toBe(true);
             expect(result.data?.id).toBeDefined();
 
@@ -64,72 +58,96 @@ describe("Run Queue", () => {
 
         describe("priority calculation", () => {
             it("should set highest priority for RunView trigger", async () => {
-                const data = { ...baseRunData, runFrom: RunTriggeredFrom.RunView };
-                const result = await processRun(data, queueService);
+                const runData = createBaseRunData({
+                    input: { runFrom: RunTriggeredFrom.RunView },
+                });
+                const result = await processRun(runData, queueService);
                 const job = await queueService.run.queue.getJob(result.data!.id);
                 expect(job?.opts.priority).toBe(80); // 100 - 20
             });
 
             it("should set lower priority for Api trigger", async () => {
-                const data = { ...baseRunData, runFrom: RunTriggeredFrom.Api };
-                const result = await processRun(data, queueService);
+                const runData = createBaseRunData({
+                    input: { runFrom: RunTriggeredFrom.Api },
+                });
+                const result = await processRun(runData, queueService);
                 const job = await queueService.run.queue.getJob(result.data!.id);
                 expect(job?.opts.priority).toBe(84); // 100 - 16
             });
 
             it("should set lower priority for Chat trigger", async () => {
-                const data = { ...baseRunData, runFrom: RunTriggeredFrom.Chat };
-                const result = await processRun(data, queueService);
+                const runData = createBaseRunData({
+                    input: { runFrom: RunTriggeredFrom.Chat },
+                });
+                const result = await processRun(runData, queueService);
                 const job = await queueService.run.queue.getJob(result.data!.id);
                 expect(job?.opts.priority).toBe(86); // 100 - 14
             });
 
             it("should set lower priority for Webhook trigger", async () => {
-                const data = { ...baseRunData, runFrom: RunTriggeredFrom.Webhook };
-                const result = await processRun(data, queueService);
+                const runData = createBaseRunData({
+                    input: { runFrom: RunTriggeredFrom.Webhook },
+                });
+                const result = await processRun(runData, queueService);
                 const job = await queueService.run.queue.getJob(result.data!.id);
                 expect(job?.opts.priority).toBe(90); // 100 - 10
             });
 
             it("should set lower priority for Bot trigger", async () => {
-                const data = { ...baseRunData, runFrom: RunTriggeredFrom.Bot };
-                const result = await processRun(data, queueService);
+                const runData = createBaseRunData({
+                    input: { runFrom: RunTriggeredFrom.Bot },
+                });
+                const result = await processRun(runData, queueService);
                 const job = await queueService.run.queue.getJob(result.data!.id);
                 expect(job?.opts.priority).toBe(93); // 100 - 7
             });
 
             it("should set lower priority for Schedule trigger", async () => {
-                const data = { ...baseRunData, runFrom: RunTriggeredFrom.Schedule };
-                const result = await processRun(data, queueService);
+                const runData = createBaseRunData({
+                    input: { runFrom: RunTriggeredFrom.Schedule },
+                });
+                const result = await processRun(runData, queueService);
                 const job = await queueService.run.queue.getJob(result.data!.id);
                 expect(job?.opts.priority).toBe(97); // 100 - 3
             });
 
             it("should set lowest priority for Test trigger", async () => {
-                const data = { ...baseRunData, runFrom: RunTriggeredFrom.Test };
-                const result = await processRun(data, queueService);
+                const runData = createBaseRunData({
+                    input: { runFrom: RunTriggeredFrom.Test },
+                });
+                const result = await processRun(runData, queueService);
                 const job = await queueService.run.queue.getJob(result.data!.id);
                 expect(job?.opts.priority).toBe(99); // 100 - 1
             });
 
             it("should boost priority for time-sensitive runs", async () => {
-                const data = {
-                    ...baseRunData,
-                    config: { isTimeSensitive: true },
-                    runFrom: RunTriggeredFrom.RunView,
-                };
-                const result = await processRun(data, queueService);
+                const runData = createBaseRunData({
+                    input: {
+                        runFrom: RunTriggeredFrom.RunView,
+                        config: { isTimeSensitive: true },
+                    },
+                });
+                const result = await processRun(runData, queueService);
                 const job = await queueService.run.queue.getJob(result.data!.id);
                 expect(job?.opts.priority).toBe(65); // 100 - 20 - 15
             });
 
             it("should boost priority for premium users", async () => {
-                const data = {
-                    ...baseRunData,
-                    userData: { id: "user-123", hasPremium: true },
-                    runFrom: RunTriggeredFrom.RunView,
-                };
-                const result = await processRun(data, queueService);
+                const runData = createBaseRunData({
+                    context: {
+                        userData: {
+                            id: "user-123",
+                            hasPremium: true,
+                            name: "premiumUser",
+                            languages: ["en"],
+                            roles: [],
+                            wallets: [],
+                            theme: "light",
+                        },
+                    },
+                    input: { runFrom: RunTriggeredFrom.RunView },
+                });
+                const result = await processRun(runData, queueService);
                 const job = await queueService.run.queue.getJob(result.data!.id);
                 expect(job?.opts.priority).toBe(75); // 100 - 20 - 5
             });
@@ -142,8 +160,10 @@ describe("Run Queue", () => {
                     },
                 }));
 
-                const data = { ...baseRunData, isNewRun: false };
-                const result = await processRun(data, queueService);
+                const runData = createBaseRunData({
+                    input: { isNewRun: false },
+                });
+                const result = await processRun(runData, queueService);
                 const job = await queueService.run.queue.getJob(result.data!.id);
                 expect(job?.opts.priority).toBe(70); // 100 - 20 - 10
             });
@@ -156,14 +176,25 @@ describe("Run Queue", () => {
                     },
                 }));
 
-                const data = {
-                    ...baseRunData,
-                    isNewRun: false,
-                    runFrom: RunTriggeredFrom.RunView,
-                    userData: { id: "user-123", hasPremium: true },
-                    config: { isTimeSensitive: true },
-                };
-                const result = await processRun(data, queueService);
+                const runData = createBaseRunData({
+                    context: {
+                        userData: {
+                            id: "user-123",
+                            hasPremium: true,
+                            name: "premiumUser",
+                            languages: ["en"],
+                            roles: [],
+                            wallets: [],
+                            theme: "light",
+                        },
+                    },
+                    input: {
+                        isNewRun: false,
+                        runFrom: RunTriggeredFrom.RunView,
+                        config: { isTimeSensitive: true },
+                    },
+                });
+                const result = await processRun(runData, queueService);
                 const job = await queueService.run.queue.getJob(result.data!.id);
                 expect(job?.opts.priority).toBe(50); // 100 - 20 - 15 - 5 - 10
             });
@@ -177,16 +208,27 @@ describe("Run Queue", () => {
                 }));
 
                 // Max out all priority boosts to potentially go negative
-                const data = {
-                    ...baseRunData,
-                    isNewRun: false,
-                    runFrom: RunTriggeredFrom.RunView,
-                    userData: { id: "user-123", hasPremium: true },
-                    config: { isTimeSensitive: true },
-                };
+                const runData = createBaseRunData({
+                    context: {
+                        userData: {
+                            id: "user-123",
+                            hasPremium: true,
+                            name: "premiumUser",
+                            languages: ["en"],
+                            roles: [],
+                            wallets: [],
+                            theme: "light",
+                        },
+                    },
+                    input: {
+                        isNewRun: false,
+                        runFrom: RunTriggeredFrom.RunView,
+                        config: { isTimeSensitive: true },
+                    },
+                });
 
                 // Add more priority reductions to test floor
-                const result = await processRun(data, queueService);
+                const result = await processRun(runData, queueService);
                 const job = await queueService.run.queue.getJob(result.data!.id);
                 expect(job?.opts.priority).toBeGreaterThanOrEqual(0);
             });
@@ -195,8 +237,10 @@ describe("Run Queue", () => {
         it("should handle concurrent task additions", async () => {
             const promises = [];
             for (let i = 0; i < 5; i++) {
-                const data = { ...baseRunData, runId: `run-${i}` };
-                promises.push(processRun(data, queueService));
+                const runData = createBaseRunData({
+                    input: { runId: `run-${i}` },
+                });
+                promises.push(processRun(runData, queueService));
             }
 
             const results = await Promise.all(promises);

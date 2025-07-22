@@ -1,10 +1,9 @@
-import { type CodeLanguage } from "@vrooli/shared";
+import { type CodeLanguage, type ExecutionEnvironment, type EnvironmentConfig } from "@vrooli/shared";
 import type { SandboxTask } from "../taskTypes.js";
 
 export type RunUserCodeInput = Pick<SandboxTask, "input" | "shouldSpreadInput"> & {
     /**
-     * The user code to be executed. Will be run in a secure sandboxed environment, 
-     * with no access to the file system or network.
+     * The user code to be executed. Will be run according to the execution environment specified.
      * 
      * NOTE: To preserve escape characters, use a String.raw template literal.
      * Example: `String.raw`function test() { return "Hello, world!"; }`,
@@ -13,12 +12,23 @@ export type RunUserCodeInput = Pick<SandboxTask, "input" | "shouldSpreadInput"> 
     /**
      * The language of the user code.
      * 
-     * Any language not supported by the sandbox (which will probably only be JavaScript for a long time) will be rejected.
+     * Supported languages depend on the execution environment.
      */
     codeLanguage: CodeLanguage;
+    /**
+     * The execution environment where the code should run.
+     * 
+     * - "sandbox": Secure, isolated JavaScript execution (default)
+     * - "local": Local execution for development (requires dev/test environment + feature flag)
+     */
+    executionEnvironment?: ExecutionEnvironment;
+    /**
+     * Environment-specific configuration options.
+     */
+    environmentConfig?: EnvironmentConfig;
 }
 
-export type SandboxWorkerInput = Omit<RunUserCodeInput, "input"> & {
+export type SandboxWorkerInput = Omit<RunUserCodeInput, "input" | "executionEnvironment" | "environmentConfig"> & {
     input: string;
 }
 

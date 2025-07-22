@@ -30,13 +30,24 @@ export async function getAuthenticatedData(
         let where: Record<string, unknown> = {};
         // If idField is "id", just use that
         if (idField === "id") {
-            where = { id: { in: ids } };
+            // Convert all IDs to BigInt, handling both string and number inputs
+            where = { id: { in: ids.map(id => {
+                // Handle BigInt, string, and number types
+                if (typeof id === "bigint") return id;
+                if (typeof id === "string" || typeof id === "number") return BigInt(id);
+                throw new Error(`Invalid ID type for ${type}: ${typeof id}`);
+            }) } };
         } else {
             // We may have "id" values mixed with idField values
             const validPks = ids.filter(validatePK);
             const otherIds = ids.filter(x => !validatePK(x));
             if (validPks.length) {
-                where = { OR: [{ [idField]: { in: otherIds } }, { id: { in: validPks } }] };
+                where = { OR: [{ [idField]: { in: otherIds } }, { id: { in: validPks.map(id => {
+                    // Handle BigInt, string, and number types
+                    if (typeof id === "bigint") return id;
+                    if (typeof id === "string" || typeof id === "number") return BigInt(id);
+                    throw new Error(`Invalid ID type for ${type}: ${typeof id}`);
+                }) } }] };
             } else {
                 where = { [idField]: { in: ids } };
             }
@@ -53,16 +64,31 @@ export async function getAuthenticatedData(
             const dbResults = await (DbProvider.get()[dbTable] as PrismaDelegate).findMany({ where, select });
             data = dbResults.map(item => ({ ...item, select }));
         } catch (error) {
-            logger.error("getAuthenticatedData: findMany failed", { trace: "0453", error, type, select, where });
+            // Log the where clause with proper BigInt handling
+            const whereStr = JSON.stringify(where, (key, value) => 
+                typeof value === "bigint" ? value.toString() + "n" : value
+            );
+            logger.error("getAuthenticatedData: findMany failed", { 
+                trace: "0453", 
+                error, 
+                type, 
+                select, 
+                where, 
+                whereStr,
+                idsType: typeof ids[0],
+                idsValue: ids
+            });
             throw new CustomError("0453", "InternalError", { objectType: type });
         }
         // Add data to return object
         for (const datum of data) {
-            if (idField !== "id" && typeof datum[idField] === "string") {
-                authDataById[datum[idField] as string] = { __typename: type, id: datum[idField] as string, ...datum } as AuthDataItem;
+            if (idField !== "id" && datum[idField] != null) {
+                const idValue = String(datum[idField]);
+                authDataById[idValue] = { __typename: type, id: idValue, ...datum } as AuthDataItem;
             }
-            if (typeof datum.id === "string") {
-                authDataById[datum.id] = { __typename: type, id: datum.id, ...datum } as AuthDataItem;
+            if (datum.id != null) {
+                const idValue = String(datum.id);
+                authDataById[idValue] = { __typename: type, id: idValue, ...datum } as AuthDataItem;
             }
         }
     }
