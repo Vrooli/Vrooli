@@ -337,7 +337,7 @@ async function buildConversationContext(payload: LLMCompletionTask): Promise<Con
 /**
  * Load full ChatMessage objects from database with all required relations
  * TODO probably shouldn't have this
- * /
+ */
 async function loadFullChatMessages(messageIds: bigint[]): Promise<ChatMessage[]> {
     if (messageIds.length === 0) {
         return [];

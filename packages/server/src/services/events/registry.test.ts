@@ -16,7 +16,7 @@ import {
     requiresApproval,
     resetEventRegistry,
     validateEventRegistry,
-    validateEventUsage
+    validateEventUsage,
 } from "./registry.js";
 import type { EventBehavior, EventCoverage } from "./types.js";
 

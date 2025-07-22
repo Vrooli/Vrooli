@@ -10,7 +10,7 @@ import { AIServiceErrorType, AIServiceRegistry } from "./registry.js";
 import {
     FallbackRouter,
     type StreamEvent,
-    type StreamOptions
+    type StreamOptions,
 } from "./router.js";
 import type { AIService } from "./services.js";
 

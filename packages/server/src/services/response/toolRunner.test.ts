@@ -2,7 +2,7 @@ import {
     EventTypes,
     McpSwarmToolName,
     McpToolName,
-    type SocketEventPayloads
+    type SocketEventPayloads,
 } from "@vrooli/shared";
 import type OpenAI from "openai";
 import { beforeEach, describe, expect, it, vi } from "vitest";

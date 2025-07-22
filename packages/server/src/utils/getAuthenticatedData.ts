@@ -81,7 +81,7 @@ export async function getAuthenticatedData(
                 where, 
                 whereStr,
                 idsType: typeof ids[0],
-                idsValue: ids
+                idsValue: ids,
             });
             throw new CustomError("0453", "InternalError", { objectType: type });
         }
