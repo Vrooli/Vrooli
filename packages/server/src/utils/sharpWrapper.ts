@@ -59,15 +59,13 @@ async function loadSharp(): Promise<SharpModule | null> {
     try {
         const sharp = await import("sharp");
         sharpModule = sharp as unknown as SharpModule;
-        logger.info("[SharpWrapper] Sharp module loaded successfully");
         return sharpModule;
     } catch (error) {
         sharpLoadError = error instanceof Error ? error : new Error(String(error));
-        logger.error("[SharpWrapper] Failed to load Sharp module", {
+        logger.error("[SharpWrapper] Failed to load Sharp module - image processing features will be disabled", {
             error: sharpLoadError.message,
             stack: sharpLoadError.stack,
         });
-        logger.warn("[SharpWrapper] Image processing features will be disabled");
         return null;
     }
 }

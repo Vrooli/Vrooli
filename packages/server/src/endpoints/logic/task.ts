@@ -1,8 +1,10 @@
 // AI_CHECK: TYPE_SAFETY=2 | LAST: 2025-07-03
 import { type CancelTaskInput, type CheckTaskStatusesInput, type CheckTaskStatusesResult, EventTypes, generatePK, nanoid, PendingToolCallStatus, type RespondToToolApprovalInput, RunTriggeredFrom, type StartRunTaskInput, type StartSwarmTaskInput, type Success, TaskType } from "@vrooli/shared";
 import { RequestService } from "../../auth/request.js";
+import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
-import { getEventBus } from "../../services/events/eventBus.js";
+import { EventPublisher } from "../../services/events/publisher.js";
+import { CachedConversationStateStore, PrismaChatStore } from "../../services/response/chatStore.js";
 import { QueueService } from "../../tasks/queues.js";
 import { changeSandboxTaskStatus, getSandboxTaskStatuses } from "../../tasks/sandbox/queue.js";
 import { QueueTaskType, type RunTask, type SwarmExecutionTask } from "../../tasks/taskTypes.js";
@@ -10,22 +12,22 @@ import type { ApiEndpoint } from "../../types.js";
 import { createStandardCrudEndpoints } from "../helpers/endpointFactory.js";
 
 // Lazy imports to avoid circular dependencies
-async function getSwarmQueue(): Promise<{
-    processNewSwarmExecution: typeof import("../../tasks/swarm/queue.js")["processNewSwarmExecution"];
-    getSwarmTaskStatuses: typeof import("../../tasks/swarm/queue.js")["getSwarmTaskStatuses"];
-    changeSwarmTaskStatus: typeof import("../../tasks/swarm/queue.js")["changeSwarmTaskStatus"];
-}> {
-    const { processNewSwarmExecution, getSwarmTaskStatuses, changeSwarmTaskStatus } = await import("../../tasks/swarm/queue.js");
-    return { processNewSwarmExecution, getSwarmTaskStatuses, changeSwarmTaskStatus };
+async function getSwarmQueue() {
+    const module = await import("../../tasks/swarm/queue.js");
+    return {
+        processNewSwarmExecution: module.processNewSwarmExecution,
+        getSwarmTaskStatuses: module.getSwarmTaskStatuses,
+        changeSwarmTaskStatus: module.changeSwarmTaskStatus,
+    };
 }
 
-async function getRunQueue(): Promise<{
-    processRun: typeof import("../../tasks/run/queue.js")["processRun"];
-    getRunTaskStatuses: typeof import("../../tasks/run/queue.js")["getRunTaskStatuses"];
-    changeRunTaskStatus: typeof import("../../tasks/run/queue.js")["changeRunTaskStatus"];
-}> {
-    const { processRun, getRunTaskStatuses, changeRunTaskStatus } = await import("../../tasks/run/queue.js");
-    return { processRun, getRunTaskStatuses, changeRunTaskStatus };
+async function getRunQueue() {
+    const module = await import("../../tasks/run/queue.js");
+    return {
+        processRun: module.processRun,
+        getRunTaskStatuses: module.getRunTaskStatuses,
+        changeRunTaskStatus: module.changeRunTaskStatus,
+    };
 }
 
 // Removed getSwarmRegistry - using EventBus instead of direct registry access
@@ -39,7 +41,6 @@ export type EndpointsTask = {
 }
 
 export const task: EndpointsTask = createStandardCrudEndpoints({
-    objectType: "Task" as const,
     endpoints: {},
     customEndpoints: {
         checkStatuses: async (data, { req }) => {
@@ -77,11 +78,15 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
             await RequestService.get().rateLimit({ maxUser: 1000, req });
             if (!input) return { __typename: "Success" as const, success: false, error: "Input is required." };
 
+            const DEFAULT_TEMPERATURE = 0.7;
+            const DEFAULT_PARALLEL_LIMIT = 3;
+
             try {
                 const swarmId = generatePK().toString();
 
                 // Create SwarmExecutionTask for the three-tier architecture
                 const swarmTask: Omit<SwarmExecutionTask, "status"> = {
+                    id: nanoid(),
                     type: QueueTaskType.SWARM_EXECUTION,
                     context: {
                         swarmId,
@@ -89,12 +94,17 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
                         timestamp: new Date(),
                     },
                     input: {
-                        goal: "Provide helpful responses to user queries",
+                        goal: input.task.goal,
+                        swarmId,
                         chatId: input.chatId,
-                        messageId: input.messageId,
-                        model: input.model || "gpt-4o-mini",
-                        respondingBot: input.respondingBot,
-                        taskContexts: input.taskContexts || [],
+                        teamConfiguration: input.task.teamConfiguration,
+                        availableTools: input.task.availableTools?.map(tool => ({ name: tool, description: "" })),
+                        executionConfig: {
+                            model: input.model,
+                            temperature: input.task.executionConfig?.temperature || DEFAULT_TEMPERATURE,
+                            parallelExecutionLimit: input.task.executionConfig?.parallelExecutionLimit || DEFAULT_PARALLEL_LIMIT,
+                        },
+                        userData,
                     },
                     allocation: {
                         maxCredits: "10000",
@@ -126,7 +136,7 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
                 const swarmId = input.swarmId || `swarm-${nanoid()}`;
 
                 // Create RunTask for the three-tier architecture
-                const runTask: Omit<RunTask, "status"> = {
+                const runTask: RunTask = {
                     id: nanoid(),
                     type: QueueTaskType.RUN_START,
                     context: {
@@ -214,8 +224,11 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
             try {
                 logger.info(`Processing tool approval response for conversation ${conversationId}, pendingId ${pendingId}, approved: ${approved}`);
 
-                //TODO I think we need to use the event bus for tool responses, or a similar event/ file
-                const conversationState = await completionService.getConversationState(conversationId);
+                // Create chat store instance for loading chat configuration
+                const chatStore = new CachedConversationStateStore(new PrismaChatStore());
+
+                // Get conversation state from the chat store
+                const conversationState = await chatStore.get(conversationId);
                 if (!conversationState) {
                     logger.error(`Conversation state not found for ID: ${conversationId} while responding to tool approval.`);
                     return { __typename: "Success" as const, success: false, error: "Conversation not found." };
@@ -245,55 +258,49 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
                 pendingCall.approvedOrRejectedByUserId = userData.id;
                 pendingCall.statusReason = reason;
 
-                completionService.updateConversationConfig(conversationId, conversationState.config);
+                // Update the conversation config in the chat store
+                await chatStore.updateConfig(conversationId, conversationState.config);
 
                 logger.info(`Tool call ${pendingId} in conversation ${conversationId} was ${approved ? "approved" : "rejected"} by user ${userData.id}.`);
 
                 // Publish tool approval/rejection event through EventBus
                 // SwarmStateMachine listens for these events and handles them appropriately
-                const toolApprovalEvent = {
-                    id: generatePK().toString(),
-                    type: approved ? EventTypes.CHAT.TOOL_APPROVAL_GRANTED : EventTypes.CHAT.TOOL_APPROVAL_REJECTED,
-                    timestamp: new Date(),
-                    source: { tier: "cross-cutting" as const, component: "task-api" },
-                    data: {
-                        chatId: conversationId,
-                        pendingId,
-                        toolCallId: pendingCall.toolCallId,
-                        toolName: pendingCall.toolName,
-                        callerBotId: pendingCall.callerBotId,
-                        ...(approved ? { approvedBy: userData.id } : { reason: reason || "Tool use rejected by user" }),
-                    },
-                    metadata: {
-                        deliveryGuarantee: "reliable" as const,
-                        priority: "high" as const,
-                        conversationId,
-                    },
-                };
-
                 try {
-                    const publishResult = await getEventBus().publish(toolApprovalEvent);
-                    if (!publishResult.success) {
-                        logger.error("Failed to publish tool approval event", {
+                    const { proceed, reason: blockReason } = await EventPublisher.emit(
+                        approved ? EventTypes.TOOL.APPROVAL_GRANTED : EventTypes.TOOL.APPROVAL_REJECTED,
+                        {
+                            chatId: conversationId,
+                            pendingId,
+                            toolCallId: pendingCall.toolCallId,
+                            toolName: pendingCall.toolName,
+                            callerBotId: pendingCall.callerBotId,
+                            ...(approved ? { approvedBy: userData.id } : { reason: reason || "Tool use rejected by user" }),
+                        },
+                    );
+
+                    if (!proceed) {
+                        logger.error(`Tool ${approved ? "approval" : "rejection"} event was blocked`, {
                             conversationId,
                             pendingId,
-                            approved,
-                            error: publishResult.error?.message,
-                        });
-                    } else {
-                        logger.info(`Published tool ${approved ? "approval" : "rejection"} event for conversation ${conversationId}`, {
-                            pendingId,
                             toolName: pendingCall.toolName,
-                            eventId: toolApprovalEvent.id,
+                            blockReason,
                         });
+                        // This is a critical security event - if it's blocked, we should fail the operation
+                        throw new CustomError("0701", "ToolApprovalEventBlocked", { reason: blockReason });
                     }
+
+                    logger.info(`Published tool ${approved ? "approval" : "rejection"} event for conversation ${conversationId}`, {
+                        pendingId,
+                        toolName: pendingCall.toolName,
+                    });
                 } catch (eventError) {
                     logger.error("Error publishing tool approval event", {
                         conversationId,
                         pendingId,
                         error: eventError instanceof Error ? eventError.message : String(eventError),
                     });
-                    // Don't fail the whole operation if event publishing fails
+                    // Re-throw for security-critical events
+                    throw eventError;
                 }
 
                 return { __typename: "Success" as const, success: true };

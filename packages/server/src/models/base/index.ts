@@ -157,7 +157,6 @@ export class ModelMap {
         const isModelObject = this.isModel(objectType);
         if (!isModelObject && throwErrorIfNotFound) {
             const caller = errorTrace ?? getCallerFunctionName();
-            console.log("0024 error", { caller, objectType });
             throw new CustomError("0024", "InternalError", { caller, objectType });
         }
         return (isModelObject ? ModelMap.instance.map[objectType] : undefined) as ThrowError extends true ? T : (T | undefined);

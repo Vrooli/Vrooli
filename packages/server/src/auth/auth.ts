@@ -339,7 +339,7 @@ export class AuthService {
         try {
             permissions = JSON.parse(record.permissions) as Record<ApiKeyPermission, boolean>;
         } catch (e) {
-            logger.error("Failed to parse permissions JSON for API key", { apiKey, trace: "0902", error: e });
+            logger.error("Failed to parse permissions JSON for API key", { trace: "0902", error: e instanceof Error ? e.message : String(e) });
             throw new CustomError("0902", "InternalError");
         }
 
@@ -531,7 +531,6 @@ export function modifyPayloadToFitUsers(payload: SessionToken): SessionToken {
         const currPayload = users[i];
         currPayloadSize += JsonWebToken.calculateBase64Length(currPayload);
         if (currPayloadSize > JsonWebToken.get().getMaxPayloadSize()) {
-            logger.warning(`Could not add user ${currPayload.id} to session token due to size limit`, { trace: "0547" });
             break;
         }
         newPayload.users.push(currPayload);
@@ -569,7 +568,7 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
         const { token, maxAge } = await AuthTokensService.authenticateToken(tokenCookie, { modifyPayload });
         JsonWebToken.addToCookies(res, token, maxAge);
     } catch (error) {
-        logger.error("❗️ Session token is invalid during update attempt", { trace: "0447", error });
+        logger.error("Session token is invalid during update attempt", { trace: "0447", error: error instanceof Error ? error.message : String(error) });
         // If the token is invalid, clear the cookie.
         // The route handler calling this function will then proceed, potentially
         // with a now-cleared session, and should handle accordingly.

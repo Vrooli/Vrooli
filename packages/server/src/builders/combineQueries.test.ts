@@ -554,4 +554,223 @@ describe("combineQueries", () => {
             });
         });
     });
+
+    describe("real-world scenarios", () => {
+        describe("Prisma select queries with nested relations", () => {
+            it("should not leak parent fields into nested relation selects", () => {
+                // This tests the scenario where tag fields should not leak into tag_translation
+                const permissionsSelect = {
+                    id: true,
+                    tags: {
+                        select: {
+                            id: true,
+                            tag: true,
+                            createdById: true,  // This field exists on tag
+                            translations: {
+                                select: {
+                                    id: true,
+                                    language: true,
+                                    description: true,
+                                    // createdById should NOT appear here
+                                },
+                            },
+                        },
+                    },
+                };
+
+                const importSelect = {
+                    id: true,
+                    tags: {
+                        select: {
+                            id: true,
+                            tag: true,
+                            bookmarks: true,
+                            translations: {
+                                select: {
+                                    id: true,
+                                    language: true,
+                                    description: true,
+                                },
+                            },
+                        },
+                    },
+                };
+
+                const combined = combineQueries([permissionsSelect, importSelect], { mergeMode: "loose" });
+
+                // The expected result should combine fields at each level correctly
+                const expected = {
+                    id: true,
+                    tags: {
+                        select: {
+                            id: true,
+                            tag: true,
+                            createdById: true,  // Should be present at tag level
+                            bookmarks: true,
+                            translations: {
+                                select: {
+                                    id: true,
+                                    language: true,
+                                    description: true,
+                                    // createdById should NOT be present here
+                                },
+                            },
+                        },
+                    },
+                };
+
+                expect(combined).toEqual(expected);
+                
+                // Explicitly verify that createdById is NOT in translations.select
+                expect(combined.tags.select.translations.select).not.toHaveProperty("createdById");
+            });
+
+            it("should handle deeply nested relation selects without field leakage", () => {
+                // Test with resource -> tag -> translation hierarchy
+                const permissionsSelect = {
+                    id: true,
+                    createdBy: "User",
+                    hasCompleteVersion: true,
+                    tags: {
+                        select: {
+                            tag: {
+                                select: {
+                                    id: true,
+                                    tag: true,
+                                    createdById: true,
+                                    translations: {
+                                        select: {
+                                            id: true,
+                                            language: true,
+                                            description: true,
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                };
+
+                const endpointSelect = {
+                    id: true,
+                    publicId: true,
+                    tags: {
+                        select: {
+                            tag: {
+                                select: {
+                                    id: true,
+                                    tag: true,
+                                    bookmarks: true,
+                                    translations: {
+                                        select: {
+                                            id: true,
+                                            language: true,
+                                            description: true,
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                };
+
+                const combined = combineQueries([permissionsSelect, endpointSelect], { mergeMode: "loose" });
+
+                const expected = {
+                    id: true,
+                    createdBy: "User",
+                    hasCompleteVersion: true,
+                    publicId: true,
+                    tags: {
+                        select: {
+                            tag: {
+                                select: {
+                                    id: true,
+                                    tag: true,
+                                    createdById: true,
+                                    bookmarks: true,
+                                    translations: {
+                                        select: {
+                                            id: true,
+                                            language: true,
+                                            description: true,
+                                            // No createdById here
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                };
+
+                expect(combined).toEqual(expected);
+                expect(combined.tags.select.tag.select.translations.select).not.toHaveProperty("createdById");
+            });
+
+            it("should not propagate fields across different nested objects", () => {
+                // Test that fields from one nested object don't leak to another
+                const query1 = {
+                    user: {
+                        select: {
+                            id: true,
+                            createdAt: true,
+                            profile: {
+                                select: {
+                                    id: true,
+                                    bio: true,
+                                },
+                            },
+                        },
+                    },
+                    tags: {
+                        select: {
+                            id: true,
+                            translations: {
+                                select: {
+                                    id: true,
+                                    description: true,
+                                },
+                            },
+                        },
+                    },
+                };
+
+                const query2 = {
+                    user: {
+                        select: {
+                            id: true,
+                            email: true,
+                            profile: {
+                                select: {
+                                    id: true,
+                                    avatar: true,
+                                },
+                            },
+                        },
+                    },
+                    tags: {
+                        select: {
+                            id: true,
+                            createdById: true,  // This is at tag level
+                            translations: {
+                                select: {
+                                    id: true,
+                                    language: true,
+                                },
+                            },
+                        },
+                    },
+                };
+
+                const combined = combineQueries([query1, query2], { mergeMode: "loose" });
+
+                // User fields should not leak to tags and vice versa
+                expect(combined.user.select).not.toHaveProperty("createdById");
+                expect(combined.tags.select).toHaveProperty("createdById");
+                expect(combined.tags.select.translations.select).not.toHaveProperty("createdById");
+                expect(combined.tags.select.translations.select).not.toHaveProperty("email");
+                expect(combined.tags.select.translations.select).not.toHaveProperty("createdAt");
+            });
+        });
+    });
 });

@@ -20,7 +20,8 @@
         "tsBuildInfoFile": ".tsbuildinfo",
         "types": [
             "vitest/globals"
-        ]
+        ],
+        "skipLibCheck": true
     },
     "include": [
         "src"
@@ -28,7 +29,10 @@
     "exclude": [
         "**/*.spec.ts",
         "**/*.test.ts",
-        "**/__test/**"
+        "**/*.test.hybrid.ts",
+        "src/**/__test/**",
+        "**/fixtures/**",
+        "**/test/**"
     ],
     "references": [
         { "path": "../shared" }

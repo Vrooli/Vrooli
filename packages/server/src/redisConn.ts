@@ -17,7 +17,7 @@
  *  • Separating concerns keeps both classes smaller & easier to test.
  * ------------------------------------------------------------------ */
 import { LRUCache, MINUTES_15_S, SECONDS_1_MS } from "@vrooli/shared";
-import IORedis, { type Cluster, type Redis } from "ioredis";
+import { Cluster, Redis } from "ioredis";
 import { logger } from "./events/logger.js";
 import { type ServiceHealth } from "./services/health.js";
 
@@ -81,13 +81,14 @@ function namespaced(ns: string | undefined, key: string) {
 /* ------------------------------------------------------------------ */
 
 export class CacheService {
-    private static instance: CacheService;
+    private static instance: CacheService | null;
     private opts: CacheOptions;
     private client!: Redis | Cluster;       // instantiated lazily
     private local?: LRUCache<string, unknown>;
     private publishErrorCount = 0;
     private connecting?: Promise<void>;     // ensure single flight
     private inFlightMemoRequests: Map<string, Promise<unknown>> = new Map();
+    private pingInterval?: NodeJS.Timer;
 
     /* ── ctor is private; use CacheService.get() ───────────────────── */
     private constructor(opts: Partial<CacheOptions> = {}) {
@@ -136,12 +137,12 @@ export class CacheService {
                 throw new Error(`Failed to create CacheService instance: ${error instanceof Error ? error.message : String(error)}`);
             }
         }
-        
+
         // Defensive check to ensure instance is properly created
         if (!CacheService.instance) {
             throw new Error("CacheService.instance is unexpectedly null after creation attempt");
         }
-        
+
         return CacheService.instance;
     }
 
@@ -173,18 +174,12 @@ export class CacheService {
             attempts += 1;
             try {
                 const isCluster = url.includes(",");
-                logger.info("[CacheService] connect(): Preparing to instantiate IORedis client.", {
-                    url,
-                    isCluster,
-                    attempts,
-                    options: {
-                        enableReadyCheck: true,
-                        connectTimeout: this.opts.maxReconnectDelayMs,
-                        // Note: retryStrategy is not logged here as it's a function
-                    },
-                });
+                // Log only on retries after first attempt
+                if (attempts > 1) {
+                    logger.info("[CacheService] Retrying Redis connection", { attempts });
+                }
                 const redisInstance = isCluster
-                    ? new IORedis.Cluster(
+                    ? new Cluster(
                         url.split(",").map(u => ({ host: new URL(u).hostname, port: +new URL(u).port || DEFAULT_REDIS_PORT })),
                         {
                             enableReadyCheck: true,
@@ -192,13 +187,13 @@ export class CacheService {
                             // Example: retryStrategy: times => Math.min(times * 50, 2000)
                         },
                     )
-                    : new IORedis(url, {
+                    : new Redis(url, {
                         enableReadyCheck: true,
-                        connectTimeout: this.opts.maxReconnectDelayMs,
-                        commandTimeout: this.opts.maxReconnectDelayMs,
+                        connectTimeout: process.env.NODE_ENV === "test" ? 5000 : 30000, // 30s for production startup
+                        commandTimeout: process.env.NODE_ENV === "test" ? 5000 : 15000, // 15s for production operations
                         lazyConnect: true,
                         maxRetriesPerRequest: process.env.NODE_ENV === "test" ? 1 : 3,
-                        retryDelayOnFailover: process.env.NODE_ENV === "test" ? 100 : 1000, // Fast retry in tests
+                        keepAlive: process.env.NODE_ENV === "test" ? 0 : 10000, // Disable keepalive in tests to prevent timer accumulation
                         retryStrategy: (times: number) => {
                             // In test environment, fail immediately if can't connect
                             if (process.env.NODE_ENV === "test") {
@@ -206,13 +201,29 @@ export class CacheService {
                                 return 100; // Short retry once
                             }
                             if (times > 3) return null; // Stop retrying after 3 attempts
-                            return Math.min(times * 50, 1000);
+
+                            const delay = Math.min(times * 50, 1000);
+                            const stack = new Error().stack;
+                            const callingFunction = stack?.split("\n")[2]?.trim().replace(/^at\s+/, "") || "unknown";
+
+                            logger.warn(`Redis retry attempt ${times}, waiting ${delay}ms`, {
+                                attempt: times,
+                                delayMs: delay,
+                                operation: "cache_connection",
+                                component: "CacheService",
+                                caller: callingFunction,
+                                stackTrace: process.env.NODE_ENV === "development" ? stack : undefined,
+                                service: "cache",
+                                timestamp: new Date().toISOString(),
+                            });
+
+                            return delay;
                         },
                     });
 
                 // Set up error handling before connecting
                 this.client = redisInstance;
-                
+
                 // Set up error event listeners
                 this.client.on("error", (err) => {
                     // In test environment, only log non-timeout errors
@@ -224,7 +235,7 @@ export class CacheService {
                         code: err && typeof err === "object" && "code" in err ? err.code : undefined,
                     });
                 });
-                
+
                 // Since we're using lazyConnect, explicitly connect
                 await this.client.connect();
 
@@ -240,7 +251,7 @@ export class CacheService {
                 // After attempting to connect or giving it a moment, check the status.
                 // 'ready' is the desired state when enableReadyCheck is true.
                 if (this.client.status === "ready") {
-                    logger.info(`[CacheService] connect(): IORedis instance is ready. Status: ${this.client.status}`);
+                    // Client is ready - no need to log this normal state
                 } else {
                     logger.warning(`[CacheService] connect(): IORedis instance created but not initially ready. Status: ${this.client.status}. Waiting for 'ready' event or timeout.`);
 
@@ -262,7 +273,7 @@ export class CacheService {
                         const readyListener: (() => void) | undefined = () => {
                             clearTimeout(timeoutId);
                             if (errorListener) this.client.removeListener("error", errorListener);
-                            logger.info(`[CacheService] connect(): IORedis client became ready after waiting. Status: ${this.client.status}`);
+                            // Client became ready - expected behavior
                             resolve();
                         };
 
@@ -298,16 +309,15 @@ export class CacheService {
         };
 
         this.connecting = connect().finally(() => {
-            if (this.client) {
-                logger.info(`[CacheService] connect() promise finished. Final client status: ${this.client.status}`);
-            } else {
+            if (!this.client) {
                 logger.warning("[CacheService] connect() promise finished, but this.client is not set (connection likely failed definitively).");
             }
             this.connecting = undefined;
         });
         await this.connecting;
         if (this.client) {
-            logger.info(`[CacheService] ensure() returning. Client status: ${this.client.status}`);
+            // Removed redundant ping interval - TCP keepalive (10s) is already configured in Redis connection options
+            // This eliminates connection congestion from over-aggressive pinging
         } else {
             logger.error("[CacheService] ensure() returning, but this.client is not set. Connection failed.");
         }
@@ -444,7 +454,7 @@ export class CacheService {
     async scriptLoad(name: string, lua: string): Promise<string> {
         await this.ensure();
         const sha = await this.client.script("LOAD", lua);
-        logger.info(`[CacheService] Lua script "${name}" loaded (${sha})`);
+        // Script loaded successfully
         return sha as string;
     }
 
@@ -478,7 +488,7 @@ export class CacheService {
             }
 
             let numKeys: number;
-            if (this.client instanceof IORedis.Cluster) {
+            if (this.client instanceof Cluster) {
                 // For a Redis Cluster, client.info() typically returns info from a single node.
                 // An aggregate key count for the entire cluster is not reliably available via a simple INFO command.
                 // A more robust approach would involve querying DBSIZE on all master nodes and summing the results,
@@ -486,7 +496,7 @@ export class CacheService {
                 // For simplicity here, we report 0, acknowledging this limitation.
                 numKeys = 0;
                 logger.debug("[CacheService] metrics: Reporting 0 keys for Redis Cluster. For an accurate count, a different strategy is needed.");
-            } else if (this.client instanceof IORedis) { // Handles Redis standalone instances
+            } else if (this.client instanceof Redis) { // Handles Redis standalone instances
                 numKeys = await (this.client as Redis).dbsize();
             } else {
                 // This case should ideally not be reached if ensure() correctly initializes the client
@@ -532,6 +542,9 @@ export class CacheService {
 
     async close(): Promise<void> {
         this.local?.clear();
+        
+        // Ping interval cleanup no longer needed - removed redundant ping strategy
+        
         if (!this.client) return;
         await this.client.quit();
     }

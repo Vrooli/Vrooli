@@ -1,7 +1,7 @@
 // AI_CHECK: TYPE_SAFETY=2 | LAST: 2025-07-04
 import { type Prisma } from "@prisma/client";
 import { CacheService, Notify, batch, findFirstRel, logger, parseJsonOrDefault, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe, type ScheduleSubscriptionContext } from "@vrooli/server";
-import { calculateOccurrences, uppercaseFirstLetter, ModelType, type ModelType as ModelTypeType, type ScheduleRecurrenceType } from "@vrooli/shared";
+import { calculateOccurrences, uppercaseFirstLetter, ModelType, type ModelType as ModelTypeType, type ScheduleRecurrenceType, type Schedule } from "@vrooli/shared";
 
 const MINUTES_IN_HOUR = 60;
 const SECONDS_IN_MINUTE = 60;
@@ -106,7 +106,7 @@ async function scheduleNotifications(
 
                 // Find objectType and id of the object that has a schedule. Assume there is only one runRoutine, meeting, etc.
                 const [objectField, objectData] = findFirstRel(firstSubscription.schedule, ["meetings", "runs"]);
-                if (!objectField || !objectData || objectData.length === 0) {
+                if (!objectField || !objectData || !Array.isArray(objectData) || objectData.length === 0) {
                     logger.error(`Could not find object type for schedule ${scheduleId}`, { trace: "0433" });
                     return;
                 }
@@ -202,7 +202,10 @@ async function scheduleNotifications(
                     // We must convert this to a delay from now, using the formula: 
                     // delay = eventStart - (minutesBefore * 60 * 1000) - now
                     for (const userId in subscriberPrefs) {
-                        for (const reminder of subscriberPrefs[userId]) {
+                        const userReminders = subscriberPrefs[userId];
+                        if (!userReminders) continue;
+                        
+                        for (const reminder of userReminders) {
                             const delay = occurrence.start.getTime() - (reminder.minutesBefore * MINUTES_IN_HOUR * SECONDS_IN_MINUTE * MILLISECONDS_IN_SECOND) - now; // Use cached now
                             if (!subscriberDelays[userId]) {
                                 subscriberDelays[userId] = [];
@@ -275,35 +278,71 @@ export async function scheduleNotify(): Promise<void> {
                         ...scheduleData,
                         id: scheduleIdStr, // Convert bigint id to string to match shared types
                         __typename: "Schedule" as const,
-                    };
+                    } as unknown as Schedule;
 
                     // Map exceptions to match shared ScheduleException type
                     const exceptions = scheduleData.exceptions
                         .filter((ex): ex is NonNullable<typeof ex> => ex !== null && typeof ex.id !== "undefined" && ex.originalStartTime !== null)
-                        .map((ex) => ({
-                            id: ex.id.toString(),
-                            __typename: "ScheduleException" as const,
-                            originalStartTime: typeof ex.originalStartTime === "string" ? ex.originalStartTime : ex.originalStartTime.toISOString(),
-                            newStartTime: ex.newStartTime ? (typeof ex.newStartTime === "string" ? ex.newStartTime : ex.newStartTime.toISOString()) : undefined,
-                            newEndTime: ex.newEndTime ? (typeof ex.newEndTime === "string" ? ex.newEndTime : ex.newEndTime.toISOString()) : undefined,
-                            schedule: typedSchedule,
-                        }));
+                        .map((ex) => {
+                            const exception: {
+                                id: string;
+                                __typename: "ScheduleException";
+                                originalStartTime: string;
+                                newStartTime?: string;
+                                newEndTime?: string;
+                                schedule: Schedule;
+                            } = {
+                                id: ex.id.toString(),
+                                __typename: "ScheduleException" as const,
+                                originalStartTime: typeof ex.originalStartTime === "string" ? ex.originalStartTime : ex.originalStartTime.toISOString(),
+                                schedule: typedSchedule,
+                            };
+                            if (ex.newStartTime) {
+                                exception.newStartTime = typeof ex.newStartTime === "string" ? ex.newStartTime : ex.newStartTime.toISOString();
+                            }
+                            if (ex.newEndTime) {
+                                exception.newEndTime = typeof ex.newEndTime === "string" ? ex.newEndTime : ex.newEndTime.toISOString();
+                            }
+                            return exception;
+                        });
 
                     // Map recurrences to match shared ScheduleRecurrence type
                     const recurrences = scheduleData.recurrences
                         .filter((rec): rec is NonNullable<typeof rec> => rec !== null && typeof rec.id !== "undefined" && rec.recurrenceType !== null)
-                        .map((rec) => ({
-                            id: rec.id.toString(),
-                            __typename: "ScheduleRecurrence" as const,
-                            recurrenceType: rec.recurrenceType as string as ScheduleRecurrenceType,
-                            interval: rec.interval,
-                            dayOfWeek: rec.dayOfWeek ?? undefined,
-                            dayOfMonth: rec.dayOfMonth ?? undefined,
-                            month: rec.month ?? undefined,
-                            endDate: rec.endDate ? (typeof rec.endDate === "string" ? rec.endDate : rec.endDate.toISOString()) : undefined,
-                            duration: rec.duration ?? 0, // Duration is required and in minutes
-                            schedule: typedSchedule,
-                        }));
+                        .map((rec) => {
+                            const recurrence: {
+                                id: string;
+                                __typename: "ScheduleRecurrence";
+                                recurrenceType: ScheduleRecurrenceType;
+                                interval: number;
+                                dayOfWeek?: number | null;
+                                dayOfMonth?: number | null;
+                                month?: number | null;
+                                endDate?: string;
+                                duration: number;
+                                schedule: Schedule;
+                            } = {
+                                id: rec.id.toString(),
+                                __typename: "ScheduleRecurrence" as const,
+                                recurrenceType: rec.recurrenceType as string as ScheduleRecurrenceType,
+                                interval: rec.interval,
+                                duration: rec.duration ?? 0, // Duration is required and in minutes
+                                schedule: typedSchedule,
+                            };
+                            if (rec.dayOfWeek !== null && rec.dayOfWeek !== undefined) {
+                                recurrence.dayOfWeek = rec.dayOfWeek;
+                            }
+                            if (rec.dayOfMonth !== null && rec.dayOfMonth !== undefined) {
+                                recurrence.dayOfMonth = rec.dayOfMonth;
+                            }
+                            if (rec.month !== null && rec.month !== undefined) {
+                                recurrence.month = rec.month;
+                            }
+                            if (rec.endDate) {
+                                recurrence.endDate = typeof rec.endDate === "string" ? rec.endDate : rec.endDate.toISOString();
+                            }
+                            return recurrence;
+                        });
 
                     // Find all occurrences of the schedule within the next 25 hours
                     // Convert to string format if needed for calculateOccurrences

@@ -30,7 +30,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/usr/local/share/pnpm-store \
 # Copy full source and build all packages
 COPY . .
 # Generate Prisma client for correct schema
-RUN pnpm --filter @vrooli/server run prisma-generate
+RUN pnpm --filter @vrooli/server run prisma:generate
 
 # Build shared utilities
 RUN pnpm --filter @vrooli/shared run build

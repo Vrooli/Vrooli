@@ -187,8 +187,6 @@ export class HealthService {
             }, BUS_CHECK_TIMEOUT_MS);
         });
 
-        const startTime = Date.now();
-
         try {
             // Ensure bus exists (lazy init is idempotent) with timeout
             await Promise.race([

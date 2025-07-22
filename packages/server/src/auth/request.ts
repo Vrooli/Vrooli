@@ -624,7 +624,6 @@ export class RequestService {
         }
         // If Redis fails, the error is re-thrown, and the request is blocked (fail-closed).
         catch (error) {
-            logger.error("Error occured while connecting or accessing redis server", { trace: "0168", error });
             throw error;
         }
     }

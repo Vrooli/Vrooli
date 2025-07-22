@@ -62,9 +62,7 @@ async function initializeBcryptService(): Promise<BcryptService> {
         try {
             const bcryptjs = await import("bcryptjs") as typeof bcryptTypes;
             bcryptService = new BcryptServiceImpl(bcryptjs, "bcryptjs");
-            console.warn("⚠️  Native bcrypt failed to load, using bcryptjs fallback. Performance may be reduced.");
-            console.warn(`   Original error: ${bcryptError instanceof Error ? bcryptError.message : "Unknown error"}`);
-            console.warn("   NOTE: This is expected during testing and does not affect functionality.");
+            // Fallback to bcryptjs is expected during testing
             return bcryptService;
         } catch (bcryptjsError) {
             // Both failed - this is a critical error

@@ -72,12 +72,9 @@ export class JsonWebToken {
         const privateKey = process.env.JWT_PRIV ?? "";
         const publicKey = process.env.JWT_PUB ?? "";
 
-        // Check if the keys are available and log an error if not
-        if (privateKey.length <= 0) {
-            logger.error("JWT private key not found");
-        }
-        if (publicKey.length <= 0) {
-            logger.error("JWT public key not found");
+        // Check if the keys are available
+        if (privateKey.length <= 0 || publicKey.length <= 0) {
+            throw new Error("JWT keys not configured. Server cannot start without JWT_PRIV and JWT_PUB environment variables.");
         }
 
         // Store the keys for future use
@@ -261,7 +258,6 @@ export class JsonWebToken {
     static addToCookies(res: Response, token: string, maxAge: number) {
         // Headers may have already been sent, so we need to check
         if (res.headersSent) {
-            logger.error("❗️ Headers have already been sent", { trace: "0613" });
             return;
         }
         return res.cookie(COOKIE.Jwt, token, {

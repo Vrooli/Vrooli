@@ -25,11 +25,21 @@ import { QueueService } from "./tasks/queues.js";
 import { checkImageProcessingCapabilities } from "./utils/fileStorage.js";
 import { initSingletons } from "./utils/singletons.js";
 
+// DEBUG: Log critical environment variables at startup
+logger.info("🔍 Server startup environment check:", {
+    ADMIN_WALLET: process.env.ADMIN_WALLET ? "SET" : "NOT SET",
+    ADMIN_PASSWORD: process.env.ADMIN_PASSWORD ? "SET" : "NOT SET",
+    SITE_EMAIL_USERNAME: process.env.SITE_EMAIL_USERNAME || "NOT SET",
+    VALYXA_PASSWORD: process.env.VALYXA_PASSWORD ? "SET" : "NOT SET",
+    DB_URL: process.env.DB_URL ? "SET" : "NOT SET",
+    REDIS_URL: process.env.REDIS_URL ? "SET" : "NOT SET",
+    NODE_ENV: process.env.NODE_ENV || "NOT SET",
+});
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function main() {
-    logger.info("Starting server...");
 
     // Check for required .env variables
     const requiredEnvs = [
@@ -59,7 +69,6 @@ async function main() {
     // 1. Setup Database
     try {
         await DbProvider.init(); // This includes seeding
-        logger.info("Database initialized successfully (or seeding was not required/retrying if configured).");
     } catch (dbError) {
         logger.error("🚨 Critical: Database initialization or seeding failed. Server might not function correctly.", { error: dbError });
         // Depending on the severity, you might want to process.exit(1) here
@@ -69,7 +78,6 @@ async function main() {
     // 2. Initialize Redis Connection for CacheService
     try {
         CacheService.get(); // This will call its constructor and internal `ensure`
-        logger.info("CacheService obtained (Redis connection likely established or will be on first use).");
     } catch (cacheError) {
         const err = cacheError as Error;
         logger.error("🚨 Critical: CacheService initial get() or ensure() failed.", {
@@ -85,10 +93,7 @@ async function main() {
     try {
         const redisUrl = getRedisUrl();
         await queueService.init(redisUrl);
-        logger.info("QueueService Redis connection initialized successfully.");
-
-        queueService.initializeAllQueues();
-        logger.info("Task queues initialized.");
+        await queueService.initializeAllQueues();
 
     } catch (queueServiceError) {
         const err = queueServiceError as Error;
@@ -100,10 +105,9 @@ async function main() {
         });
     }
 
-    // 4. Start event bus and its workers (BillingWorker might use RedisStreamBus)
+    // 4. Start event bus and its workers
     try {
         await BillingWorker.start();
-        logger.info("BillingWorker (and potentially RedisStreamBus) started.");
     } catch (billingError) {
         logger.error("🚨 Critical: BillingWorker failed to start.", { error: billingError });
     }
@@ -112,7 +116,7 @@ async function main() {
     try {
         await checkImageProcessingCapabilities();
     } catch (error) {
-        logger.warn("Failed to check image processing capabilities", {
+        logger.error("Failed to check image processing capabilities", {
             error: error instanceof Error ? error.message : String(error),
             message: "Image processing features may be limited",
         });
@@ -129,8 +133,10 @@ async function main() {
 
     // For authentication
     app.use((req, res, next) => {
-        // Exclude webhooks, as they have their own authentication methods
-        if (req.originalUrl.startsWith("/webhooks")) {
+        // Exclude healthcheck endpoints and webhooks from authentication
+        // - Healthcheck needs to be accessible for monitoring without auth
+        // - Webhooks have their own authentication methods
+        if (req.originalUrl.startsWith("/webhooks") || req.originalUrl.startsWith("/healthcheck")) {
             next();
         } else {
             // Include everything else, which should include REST endpoints and websockets
@@ -204,6 +210,40 @@ async function main() {
         logger.error("🚨 Unhandled Rejection", { trace: "0003", reason, promise });
     });
 
+    // Handle server startup errors
+    server.on("error", (error: NodeJS.ErrnoException) => {
+        if (error.code === "EADDRINUSE") {
+            logger.error(`Port ${SERVER_PORT} is already in use`, {
+                trace: "0008",
+                port: SERVER_PORT,
+                suggestions: [
+                    `Kill the process using: lsof -ti :${SERVER_PORT} | xargs kill -9`,
+                    `Or set a different port: PORT_API=${SERVER_PORT + 1} pnpm run develop`,
+                    "Or use Docker: pnpm run develop --target docker",
+                ],
+            });
+            process.exit(1);
+        } else if (error.code === "EACCES") {
+            logger.error(`Permission denied to bind to port ${SERVER_PORT}`, {
+                trace: "0009",
+                port: SERVER_PORT,
+                suggestions: [
+                    "Use a port number above 1024",
+                    "Or run with elevated permissions (not recommended)",
+                ],
+            });
+            process.exit(1);
+        } else {
+            logger.error("Server startup error", {
+                trace: "0010",
+                error: error.message,
+                code: error.code,
+                stack: error.stack,
+            });
+            process.exit(1);
+        }
+    });
+
     // Start Express server
     server.listen(SERVER_PORT);
     logger.info(`🚀 Server running at ${SERVER_URL}`);
@@ -211,8 +251,8 @@ async function main() {
 
 // Only call this from the "server" package when not testing
 if (
-    process.env.npm_package_name === "@local/server" &&
-    process.env.NODE_ENV !== "test"
+    process.env.NODE_ENV !== "test" &&
+    (process.env.npm_package_name === "@vrooli/server" || !process.env.npm_package_name)
 ) {
     main();
 }

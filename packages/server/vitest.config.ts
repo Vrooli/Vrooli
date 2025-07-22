@@ -50,7 +50,8 @@ export default defineProject({
                 singleFork: true,
                 isolate: false, // Don't isolate to reduce overhead
                 env: {
-                    NODE_NO_WARNINGS: '1'
+                    NODE_NO_WARNINGS: '1',
+                    NODE_OPTIONS: '--max-old-space-size=4096' // Increase memory limit for test discovery and execution
                 }
             },
         },

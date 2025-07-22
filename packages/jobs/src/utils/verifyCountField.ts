@@ -40,7 +40,7 @@ interface CountVerificationConfig<TSelect> {
  * Compares cached count fields with actual relation counts and updates mismatches
  */
 export async function verifyCountField<
-    TFindManyArgs extends { select?: unknown },
+    TFindManyArgs extends { select?: Record<string, unknown> | null },
     TPayload extends CountPayload,
     TSelect extends TFindManyArgs["select"]
 >(config: CountVerificationConfig<TSelect>): Promise<void> {
@@ -64,7 +64,7 @@ export async function verifyCountField<
             
             await batch<TFindManyArgs, TPayload>({
                 objectType: modelTypeCandidate,
-                processBatch: async (batchItems) => {
+                processBatch: async (batchItems: TPayload[]) => {
                     // Type guards for safely accessing count fields
                     function hasCountField(obj: unknown, field: string): obj is Record<string, unknown> {
                         return obj !== null && typeof obj === "object" && field in obj;
