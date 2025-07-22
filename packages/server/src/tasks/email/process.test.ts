@@ -1,15 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 import { type Job } from "bullmq";
-import nodemailer from "nodemailer";
+import * as nodemailer from "nodemailer";
 import { emailProcess, setupTransporter } from "./process.js";
 import { type EmailTask, QueueTaskType } from "../taskTypes.js";
 import { logger } from "../../events/logger.js";
+import { createMockJob } from "../taskFactory.js";
 
 // Mock nodemailer
 vi.mock("nodemailer", () => ({
-    default: {
-        createTransport: vi.fn(),
-    },
+    createTransport: vi.fn(),
 }));
 
 describe("emailProcess", () => {
@@ -77,28 +76,22 @@ describe("emailProcess", () => {
         loggerInfoSpy.mockRestore();
     });
 
-    const createMockJob = (data: Partial<EmailTask> = {}): Job<EmailTask> => {
-        const defaultData: EmailTask = {
-            taskType: QueueTaskType.Email,
-            to: ["recipient@example.com"],
-            subject: "Test Subject",
-            text: "Test email body",
-            html: "<p>Test email body</p>",
-            ...data,
-        };
-        
-        return {
-            id: "test-job-id",
-            data: defaultData,
-            name: "email",
-            attemptsMade: 0,
-            opts: {},
-        } as Job<EmailTask>;
+    const createEmailMockJob = (data: Partial<EmailTask> = {}): Job<EmailTask> => {
+        return createEmailMockJob<EmailTask>(
+            QueueTaskType.EMAIL_SEND,
+            {
+                to: data.to || ["recipient@example.com"],
+                subject: data.subject || "Test Subject",
+                text: data.text || "Test email body",
+                html: data.html !== undefined ? data.html : "<p>Test email body</p>",
+                ...data,
+            },
+        );
     };
 
     describe("successful email sending", () => {
         it("should send email successfully with all fields", async () => {
-            const job = createMockJob();
+            const job = createEmailMockJob();
             
             const result = await emailProcess(job);
             
@@ -118,7 +111,7 @@ describe("emailProcess", () => {
         });
 
         it("should send email to multiple recipients", async () => {
-            const job = createMockJob({
+            const job = createEmailMockJob({
                 to: ["user1@example.com", "user2@example.com", "user3@example.com"],
             });
             
@@ -133,7 +126,7 @@ describe("emailProcess", () => {
         });
 
         it("should send email without HTML content", async () => {
-            const job = createMockJob({
+            const job = createEmailMockJob({
                 html: undefined,
             });
             
@@ -151,7 +144,7 @@ describe("emailProcess", () => {
         it("should use SITE_EMAIL_USERNAME when SITE_EMAIL_ALIAS is not set", async () => {
             delete process.env.SITE_EMAIL_ALIAS;
             
-            const job = createMockJob();
+            const job = createEmailMockJob();
             const result = await emailProcess(job);
             
             expect(result.success).toBe(true);
@@ -163,7 +156,7 @@ describe("emailProcess", () => {
         });
 
         it("should reuse existing transporter on subsequent calls", async () => {
-            const job = createMockJob();
+            const job = createEmailMockJob();
             
             // First call
             await emailProcess(job);
@@ -185,7 +178,7 @@ describe("emailProcess", () => {
                 pending: [],
             });
             
-            const job = createMockJob({
+            const job = createEmailMockJob({
                 to: ["rejected@example.com"],
             });
             
@@ -199,7 +192,7 @@ describe("emailProcess", () => {
             const sendError = new Error("SMTP connection failed");
             mockSendMail.mockRejectedValueOnce(sendError);
             
-            const job = createMockJob();
+            const job = createEmailMockJob();
             const result = await emailProcess(job);
             
             expect(result.success).toBe(false);
@@ -219,7 +212,7 @@ describe("emailProcess", () => {
             networkError.code = "ETIMEDOUT";
             mockSendMail.mockRejectedValueOnce(networkError);
             
-            const job = createMockJob();
+            const job = createEmailMockJob();
             const result = await emailProcess(job);
             
             expect(result.success).toBe(false);
@@ -239,7 +232,7 @@ describe("emailProcess", () => {
         it("should fail when SITE_EMAIL_USERNAME is missing", async () => {
             delete process.env.SITE_EMAIL_USERNAME;
             
-            const job = createMockJob();
+            const job = createEmailMockJob();
             const result = await emailProcess(job);
             
             expect(result.success).toBe(false);
@@ -253,7 +246,7 @@ describe("emailProcess", () => {
         it("should fail when SITE_EMAIL_PASSWORD is missing", async () => {
             delete process.env.SITE_EMAIL_PASSWORD;
             
-            const job = createMockJob();
+            const job = createEmailMockJob();
             const result = await emailProcess(job);
             
             expect(result.success).toBe(false);
@@ -266,7 +259,7 @@ describe("emailProcess", () => {
         it("should fail when SITE_EMAIL_FROM is missing", async () => {
             delete process.env.SITE_EMAIL_FROM;
             
-            const job = createMockJob();
+            const job = createEmailMockJob();
             const result = await emailProcess(job);
             
             expect(result.success).toBe(false);
@@ -281,7 +274,7 @@ describe("emailProcess", () => {
             delete process.env.SITE_EMAIL_USERNAME;
             process.env.SITE_EMAIL_PASSWORD = "test-password"; // Keep password to pass first check
             
-            const job = createMockJob();
+            const job = createEmailMockJob();
             const result = await emailProcess(job);
             
             expect(result.success).toBe(false);
@@ -299,7 +292,7 @@ describe("emailProcess", () => {
                 throw createError;
             });
             
-            const job = createMockJob();
+            const job = createEmailMockJob();
             const result = await emailProcess(job);
             
             expect(result.success).toBe(false);
@@ -314,7 +307,7 @@ describe("emailProcess", () => {
         it("should recover when credentials become available after initial failure", async () => {
             // First attempt without credentials
             delete process.env.SITE_EMAIL_PASSWORD;
-            let job = createMockJob();
+            let job = createEmailMockJob();
             let result = await emailProcess(job);
             
             expect(result.success).toBe(false);
@@ -338,7 +331,7 @@ describe("emailProcess", () => {
             loggerInfoSpy.mockClear();
             
             // Third attempt with restored credentials
-            job = createMockJob();
+            job = createEmailMockJob();
             result = await emailProcess(job);
             
             expect(result.success).toBe(true);
@@ -353,7 +346,7 @@ describe("emailProcess", () => {
         it("should handle non-Error objects thrown", async () => {
             mockSendMail.mockRejectedValueOnce({ message: "Custom error object", code: "CUSTOM" });
             
-            const job = createMockJob();
+            const job = createEmailMockJob();
             const result = await emailProcess(job);
             
             expect(result.success).toBe(false);
@@ -371,7 +364,7 @@ describe("emailProcess", () => {
         it("should handle string errors", async () => {
             mockSendMail.mockRejectedValueOnce("String error message");
             
-            const job = createMockJob();
+            const job = createEmailMockJob();
             const result = await emailProcess(job);
             
             expect(result.success).toBe(false);
@@ -388,7 +381,7 @@ describe("emailProcess", () => {
         it("should handle null/undefined errors", async () => {
             mockSendMail.mockRejectedValueOnce(null);
             
-            const job = createMockJob();
+            const job = createEmailMockJob();
             const result = await emailProcess(job);
             
             expect(result.success).toBe(false);

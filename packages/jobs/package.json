@@ -11,13 +11,19 @@
     "test": "bash ../../scripts/package-test.sh jobs",
     "test-watch": "npx vitest",
     "test-coverage": "NODE_OPTIONS='--max-old-space-size=8192' npx vitest run --coverage",
-    "lint": "eslint src --cache --cache-location .eslintcache --fix",
+    "lint": "eslint src --ignore-pattern '**/__test/**' --ignore-pattern '**/*.test.ts' --ignore-pattern '**/*.spec.ts' --cache --cache-location .eslintcache --fix",
+    "lint:test": "eslint 'src/**/*.test.ts' 'src/**/__test/**/*' --config .eslintrc.test.cjs --cache --cache-location .eslintcache.test --fix",
+    "lint:all": "pnpm run lint && pnpm run lint:test",
     "build": "rimraf dist && cross-env NODE_ENV=production swc src -d dist --ignore \"**/*.test.ts,**/*.test.js,**/*.test.tsx,**/*.test.jsx,**/*.test.cjs,**/__test/**\"",
     "pre-prod": "echo 'no pre-prod steps required'",
     "pre-develop": "pnpm run pre-prod",
-    "start-development": "cross-env NODE_OPTIONS=--max-old-space-size=4096 nodemon dist/index.js",
+    "start-development": "echo \"DEBUG: Starting jobs with REDIS_URL length: ${#REDIS_URL}, DB_URL length: ${#DB_URL}, NODE_ENV: $NODE_ENV\" && cross-env NODE_OPTIONS=--max-old-space-size=4096 REDIS_URL=\"$REDIS_URL\" DB_URL=\"$DB_URL\" NODE_ENV=\"$NODE_ENV\" nodemon dist/index.js",
     "start-production": "node --experimental-modules --experimental-specifier-resolution=node dist/index.js",
-    "type-check": "cross-env NODE_OPTIONS='--max-old-space-size=3072 --no-deprecation' tsc --noEmit"
+    "type-check": "cross-env NODE_OPTIONS='--max-old-space-size=3072 --no-deprecation' tsc --noEmit",
+    "type-check:test": "cross-env NODE_OPTIONS='--max-old-space-size=3072 --no-deprecation' tsc --noEmit -p tsconfig.test.json",
+    "type-check:all": "pnpm run type-check && pnpm run type-check:test",
+    "validate": "pnpm run lint && pnpm run type-check",
+    "validate:all": "pnpm run lint:all && pnpm run type-check:all"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.666.0",

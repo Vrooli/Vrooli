@@ -219,6 +219,44 @@ type Patch<T> = {
     /** IDs to remove */
     delete?: string[];
 };
+
+/**
+ * Extended patch operations for blackboard that support accumulation
+ */
+export type BlackboardPatch = {
+    /** New or updated items (overwrites existing values) */
+    set?: BlackboardItem[];
+    /** IDs to remove */
+    delete?: string[];
+    /** Append values to existing arrays */
+    append?: Array<{
+        /** ID of the blackboard item to append to */
+        id: string;
+        /** Values to append (target must be an array) */
+        values: unknown[];
+    }>;
+    /** Increment numeric values */
+    increment?: Array<{
+        /** ID of the blackboard item to increment */
+        id: string;
+        /** Amount to increment by (can be negative for decrement) */
+        amount: number;
+    }>;
+    /** Merge objects (shallow merge) */
+    merge?: Array<{
+        /** ID of the blackboard item to merge with */
+        id: string;
+        /** Object to merge (target must be an object) */
+        object: Record<string, unknown>;
+    }>;
+    /** Deep merge objects (recursive merge) */
+    deepMerge?: Array<{
+        /** ID of the blackboard item to deep merge with */
+        id: string;
+        /** Object to deep merge (target must be an object) */
+        object: Record<string, unknown>;
+    }>;
+};
 /**
  * Updates shared state for the current swarm. Bots in a swarm use this to coordinate and manage resources and responsibilities.
  */
@@ -235,9 +273,11 @@ export type UpdateSwarmSharedStateParams = Pick<ChatConfigObject, "goal" | "subt
      */
     resources?: Patch<SwarmResource>;
     /** 
-     * Scratchpad for storing arbitrary data that is shared between bots. 
+     * Scratchpad for storing arbitrary data that is shared between bots.
+     * Supports both basic operations (set/delete) and accumulation operations
+     * (append, increment, merge) for collaborative workflows.
      */
-    blackboard?: Patch<BlackboardItem>;
+    blackboard?: BlackboardPatch;
     /**
      * Update event map. topic → subscriber bot IDs
      */

@@ -105,7 +105,6 @@ export class SocketService {
         }
 
         SocketService.state = "initializing"; // Set state for clarity, though promise is key
-        logger.info("SocketService: Starting initialization...");
 
         SocketService.initializationPromise = (async () => {
             // Moved SIGTERM cleanup to the top of the IIFE.
@@ -130,14 +129,53 @@ export class SocketService {
                 let redisAdapter;
                 try {
                     const redisUrl = getRedisUrl();
-                    SocketService.pubClient = new Redis(redisUrl, { lazyConnect: true });
+                    
+                    // Use the same Redis configuration as BullMQ to prevent connection drops
+                    const redisOptions = {
+                        lazyConnect: true,
+                        enableReadyCheck: true,
+                        maxRetriesPerRequest: null,
+                        enableOfflineQueue: true,
+                        keepAlive: process.env.NODE_ENV === "test" ? 0 : 10000, // TCP keepalive every 10s in production
+                        connectTimeout: process.env.NODE_ENV === "test" ? 5000 : 30000,
+                        commandTimeout: process.env.NODE_ENV === "test" ? 5000 : 15000,
+                        retryStrategy: (times: number) => {
+                            if (process.env.NODE_ENV === "test") {
+                                if (times > 2) return null;
+                                return times * 100;
+                            }
+                            
+                            const baseDelay = Math.min(times * 100, 3000);
+                            const jitter = Math.random() * 100;
+                            const delay = baseDelay + jitter;
+                            
+                            logger.warn(`SocketIO Redis retry attempt ${times}, waiting ${Math.round(delay)}ms`, {
+                                attempt: times,
+                                delayMs: Math.round(delay),
+                                operation: "socket_redis_connection",
+                                component: "SocketIO",
+                                timestamp: new Date().toISOString(),
+                            });
+                            
+                            if (times > 10) {
+                                logger.error("SocketIO Redis connection failed after 10 attempts");
+                                return null;
+                            }
+                            return delay;
+                        },
+                        reconnectOnError: (err) => {
+                            if (process.env.NODE_ENV === "test") return false;
+                            logger.error("SocketIO Redis reconnect error", { error: err.message });
+                            return true;
+                        },
+                    };
+                    
+                    SocketService.pubClient = new Redis(redisUrl, redisOptions);
                     SocketService.subClient = SocketService.pubClient.duplicate();
 
                     await Promise.all([SocketService.pubClient.connect(), SocketService.subClient.connect()]);
-                    logger.info("SocketService: ioredis clients connected.");
 
                     redisAdapter = createAdapter(SocketService.pubClient, SocketService.subClient);
-                    logger.info("SocketService: Redis adapter initialized (ioredis backend).");
 
                     // Define and register the new SIGTERM handler only if Redis setup is successful
                     SocketService.currentSigtermHandler = async () => {
@@ -145,7 +183,6 @@ export class SocketService {
                         await SocketService.cleanupRedisClients();
                     };
                     process.on("SIGTERM", SocketService.currentSigtermHandler);
-                    logger.info("SocketService: SIGTERM handler for Redis clients set.");
 
                 } catch (redisError: unknown) {
                     if (redisError instanceof Error) {
@@ -173,12 +210,10 @@ export class SocketService {
 
                 // --- Setup Server-Side Event Listeners for Global Actions ---
                 instance.io.on("internal:disconnect_user_sockets", (userId: string) => {
-                    logger.info(`[SocketService] Received command via serverSideEmit to disconnect sockets for user: ${userId} on this instance.`);
                     instance._performLocalUserSocketDisconnection(userId);
                 });
 
                 instance.io.on("internal:disconnect_session_sockets", (sessionId: string) => {
-                    logger.info(`[SocketService] Received command via serverSideEmit to disconnect sockets for session: ${sessionId} on this instance.`);
                     instance._performLocalSessionSocketDisconnection(sessionId);
                 });
                 // --- End Server-Side Event Listeners ---
@@ -193,7 +228,7 @@ export class SocketService {
                     });
                 }, MINUTES_5_MS);
 
-                logger.info(`SocketService initialized successfully ${redisAdapter ? "with Redis adapter" : "with in-memory adapter"}.`);
+                logger.info(`SocketService ready (${redisAdapter ? "Redis" : "in-memory"} adapter)`);
                 return instance; // Resolve the promise with the instance
 
             } catch (error: unknown) { // Outer catch for the entire initialization IIFE
@@ -260,8 +295,6 @@ export class SocketService {
                 this.sessionSockets.set(sessionId, new Set<string>());
             }
             this.sessionSockets.get(sessionId)?.add(socket.id);
-
-            logger.debug(`Socket ${socket.id} added for user ${userId}, session ${sessionId}`);
         }
     }
 
@@ -297,7 +330,6 @@ export class SocketService {
                 }
             }
         }
-        logger.debug(`Socket ${socket.id} removed for user ${userId}, session ${sessionId}`);
     }
 
     /**
@@ -326,14 +358,6 @@ export class SocketService {
             timestamp: new Date(),
             data: payload,
         };
-
-        // Log event emission for debugging
-        logger.debug("Socket event emitted", {
-            eventId: wrappedEvent.id,
-            eventType: event,
-            roomId,
-            timestamp: wrappedEvent.timestamp,
-        });
 
         // Direct broadcast to room - let Socket.IO handle distribution
         // The Redis adapter will ensure this reaches all sockets in the room across all server instances

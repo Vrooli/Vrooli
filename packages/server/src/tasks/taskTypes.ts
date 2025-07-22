@@ -5,11 +5,18 @@
  * Using discriminated union types to ensure tasks are properly shaped based on their type.
  */
 
-import { type RunExecutionInput, type SessionUser, type SwarmExecutionInput, type TaskStatus, type TaskContextInfo } from "@vrooli/shared";
+import { type CoreResourceAllocation, type ExecutionOptions, type RunExecutionInput, type SessionUser, type SwarmExecutionInput, type TaskContextInfo, type TaskStatus } from "@vrooli/shared";
 import { type ExportConfig, type ImportConfig, type ImportData } from "../builders/importExport.js";
-import { type BaseTaskData } from "./queueFactory.js";
 
-// --------- Task Type Enum --------- 
+/**
+ * Base interface for all task data types in the system.
+ */
+export interface BaseTaskData {
+    type: string;
+    id: string;
+    userId?: string;
+    status?: string;
+}
 
 /**
  * Enum of all supported task types in the system.
@@ -94,6 +101,14 @@ export interface LLMCompletionTask extends Task {
      * This is optional and may not be present for all swarm tasks.
      */
     respondingBot?: { id?: string, publicId?: string, handle?: string };
+    /**
+     * Resource allocation limits for the LLM completion
+     */
+    allocation: CoreResourceAllocation;
+    /**
+     * Optional execution parameters and strategy hints
+     */
+    options?: ExecutionOptions;
 }
 
 /**
@@ -137,6 +152,12 @@ export interface PushNotificationTask extends Task {
  */
 export interface RunTask extends Task, RunExecutionInput {
     type: QueueTaskType.RUN_START;
+    context: {
+        swarmId: string;
+        parentSwarmId?: string;
+        userData: SessionUser;
+        timestamp: Date;
+    };
 }
 
 export interface SandboxTask extends Task {

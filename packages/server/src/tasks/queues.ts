@@ -1,44 +1,52 @@
 // queues/index.ts
 // AI_CHECK: TYPE_SAFETY=critical-generics | LAST: 2025-07-04 - Added proper types for lazy-loaded modules and queue limits
 import { type Success } from "@vrooli/shared";
-import { type Job, type JobsOptions } from "bullmq";
+import { type Job, type JobsOptions, type WorkerOptions } from "bullmq";
 import { logger } from "../events/logger.js";
-import { checkLongRunningTasksInRegistry } from "./activeTaskRegistry.js";
+import { checkLongRunningTasksInRegistry, type ActiveTaskRegistryLimits } from "./activeTaskRegistry.js";
 import { emailProcess } from "./email/process.js";
 import { exportProcess } from "./export/process.js";
 import { importProcess } from "./import/process.js";
 import { notificationCreateProcess } from "./notification/process.js";
 import { pushProcess } from "./push/process.js";
-import type { BaseTaskData, BaseQueueConfig } from "./queueFactory.js";
+import type { BaseQueueConfig } from "./queueFactory.js";
 import { ManagedQueue } from "./queueFactory.js";
 import { sandboxProcess } from "./sandbox/process.js";
 import { smsProcess } from "./sms/process.js";
 
-// Type for queue limits
-interface QueueLimits {
-    maxActive: number;
-    highLoadCheckIntervalMs: number;
-    taskTimeoutMs: number;
-}
 
 // Lazy load queue limits to avoid circular dependencies
-let _RUN_QUEUE_LIMITS: QueueLimits | null = null;
-let _SWARM_QUEUE_LIMITS: QueueLimits | null = null;
+let _RUN_QUEUE_LIMITS: ActiveTaskRegistryLimits | null = null;
+let _SWARM_QUEUE_LIMITS: ActiveTaskRegistryLimits | null = null;
 
 // Default limits used before async load completes
-const DEFAULT_RUN_LIMITS = {
+const DEFAULT_RUN_LIMITS: ActiveTaskRegistryLimits = {
     maxActive: 5,
     highLoadCheckIntervalMs: 5000,
     taskTimeoutMs: 600000,
+    highLoadThresholdPercentage: 0.8,
+    longRunningThresholdFreeMs: 60000,
+    longRunningThresholdPremiumMs: 300000,
+    shutdownGracePeriodMs: 10000,
+    onLongRunningFirstThreshold: "pause",
+    longRunningPauseRetries: 1,
+    longRunningStopRetries: 0,
 };
 
-const DEFAULT_SWARM_LIMITS = {
+const DEFAULT_SWARM_LIMITS: ActiveTaskRegistryLimits = {
     maxActive: 10,
     highLoadCheckIntervalMs: 5000,
     taskTimeoutMs: 600000,
+    highLoadThresholdPercentage: 0.8,
+    longRunningThresholdFreeMs: 60000,
+    longRunningThresholdPremiumMs: 300000,
+    shutdownGracePeriodMs: 10000,
+    onLongRunningFirstThreshold: "pause",
+    longRunningPauseRetries: 1,
+    longRunningStopRetries: 0,
 };
 
-async function getRunQueueLimits() {
+async function getRunQueueLimits(): Promise<ActiveTaskRegistryLimits> {
     if (!_RUN_QUEUE_LIMITS) {
         const module = await import("./run/limits.js");
         _RUN_QUEUE_LIMITS = module.RUN_QUEUE_LIMITS;
@@ -46,7 +54,7 @@ async function getRunQueueLimits() {
     return _RUN_QUEUE_LIMITS;
 }
 
-async function getSwarmQueueLimits() {
+async function getSwarmQueueLimits(): Promise<ActiveTaskRegistryLimits> {
     if (!_SWARM_QUEUE_LIMITS) {
         const module = await import("./swarm/limits.js");
         _SWARM_QUEUE_LIMITS = module.SWARM_QUEUE_LIMITS;
@@ -55,15 +63,15 @@ async function getSwarmQueueLimits() {
 }
 
 // Synchronously try to get limits, returning defaults if not yet loaded
-function getRunQueueLimitsSync() {
+function getRunQueueLimitsSync(): ActiveTaskRegistryLimits {
     return _RUN_QUEUE_LIMITS || DEFAULT_RUN_LIMITS;
 }
 
-function getSwarmQueueLimitsSync() {
+function getSwarmQueueLimitsSync(): ActiveTaskRegistryLimits {
     return _SWARM_QUEUE_LIMITS || DEFAULT_SWARM_LIMITS;
 }
 
-import type { AnyTask, EmailTask, ExportUserDataTask, ImportUserDataTask, NotificationCreateTask, PushNotificationTask, RunTask, SandboxTask, SMSTask, SwarmTask } from "./taskTypes.js";
+import type { AnyTask, BaseTaskData, EmailTask, ExportUserDataTask, ImportUserDataTask, NotificationCreateTask, PushNotificationTask, RunTask, SandboxTask, SMSTask, SwarmTask } from "./taskTypes.js";
 import { QueueTaskType } from "./taskTypes.js";
 
 /**
@@ -156,13 +164,17 @@ export class QueueService {
                 process.exit(0);
             }
         };
-        
-        const sigtermHandler = () => shutdownHandler("SIGTERM");
-        const sigintHandler = () => shutdownHandler("SIGINT");
-        
+
+        function sigtermHandler() {
+            shutdownHandler("SIGTERM");
+        }
+        function sigintHandler() {
+            shutdownHandler("SIGINT");
+        }
+
         process.once("SIGTERM", sigtermHandler);
         process.once("SIGINT", sigintHandler);
-        
+
         // Store references for cleanup
         this.processListeners.push(
             { signal: "SIGTERM", handler: sigtermHandler },
@@ -200,25 +212,24 @@ export class QueueService {
         if (!process.env.REDIS_URL) {
             process.env.REDIS_URL = redisUrl;
         }
-        logger.info("QueueService: Initialized with isolated queue connections");
+        // Redis URL configured for queue connections
     }
 
     /**
      * Reset all queue connections - useful for testing.
      */
     public async reset(): Promise<void> {
-        logger.info("QueueService: Resetting all queues.");
         await this.shutdown(); // Full shutdown of all queues
-        
+
         // Also clean up test Redis connections if in test environment
         if (process.env.NODE_ENV === "test") {
             try {
                 const { closeRedisConnections, clearRedisCache } = await import("./queueFactory.js");
                 await closeRedisConnections();
                 clearRedisCache();
-                logger.debug("QueueService: Test Redis connections cleaned up");
+                // Test Redis connections cleaned up
             } catch (error) {
-                logger.debug("QueueService: Error cleaning up test Redis connections:", error);
+                // Error cleaning up test Redis connections
             }
         }
     }
@@ -228,21 +239,19 @@ export class QueueService {
      * @returns Promise that resolves when all resources have been closed
      */
     public async shutdown(): Promise<void> {
-        logger.info("QueueService: Starting shutdown process.");
 
         // Close all queue instances
         const closePromises = Object.entries(this.queueInstances).map(async ([queueName, queueInstance]) => {
             try {
                 await queueInstance.close();
                 logger.debug(`QueueService: Closed queue ${queueName}`);
-            } catch (e) { 
-                logger.error("Error closing queue", { queueName, error: e }); 
+            } catch (e) {
+                logger.error("Error closing queue", { queueName, error: e });
             }
         });
 
         try {
             await Promise.all(closePromises);
-            logger.info("QueueService: All queue resources closed.");
         } catch (error) {
             logger.error("QueueService: Error during queue closure.", { error });
         }
@@ -260,8 +269,9 @@ export class QueueService {
         // Remove process event listeners to prevent memory leaks
         this.removeProcessListeners();
 
-        // Clear queue instances
+        // Clear queue instances and creation promises
         this.queueInstances = {};
+        this.queueCreationPromises = {};
         this.allQueuesInitialized = false;
 
         // Also shutdown SocketService if it was initialized by queue operations
@@ -293,45 +303,112 @@ export class QueueService {
     }
 
     /**
-     * Initialize all queue instances at once
-     * @returns Object containing all initialized queue names
+     * Initialize all queue instances with staggered connections
+     * @returns Promise that resolves to object containing all initialized queue names
      * 
      * This is useful for health checks and ensuring all queues are 
-     * properly initialized during application startup.
+     * properly initialized during application startup. Queues are initialized
+     * with a small delay between each to prevent Redis connection storms.
      */
-    public initializeAllQueues(): Record<string, ManagedQueue<any>> {
+    public async initializeAllQueues(): Promise<Record<string, ManagedQueue<any>>> {
         if (this.allQueuesInitialized) {
             return this.queueInstances;
         }
-        // Queues now use isolated connections, no need for shared connection check
-
-        // Access each getter to trigger initialization
-        this.email;
-        this.export;
-        this.import;
-        this.swarm;
-        this.push;
-        this.run;
-        this.sandbox;
-        this.sms;
-        this.notification;
+        
+        // Define queue getters with names for logging
+        const queueGetters: Array<{ name: string; getter: () => ManagedQueue<any> }> = [
+            { name: "email", getter: () => this.email },
+            { name: "export", getter: () => this.export },
+            { name: "import", getter: () => this.import },
+            { name: "swarm", getter: () => this.swarm },
+            { name: "push", getter: () => this.push },
+            { name: "run", getter: () => this.run },
+            { name: "sandbox", getter: () => this.sandbox },
+            { name: "sms", getter: () => this.sms },
+            { name: "notification", getter: () => this.notification },
+        ];
+        
+        // Initialize queues with a small delay between each
+        for (const { name, getter } of queueGetters) {
+            try {
+                getter(); // This will start the async creation
+                
+                // Add a delay between queue initializations to prevent connection storm
+                // Skip delay in test environment for faster tests
+                if (process.env.NODE_ENV !== "test") {
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+            } catch (error) {
+                logger.error(`QueueService: Failed to start initialization of ${name} queue`, { error });
+                // Continue with other queues even if one fails
+            }
+        }
+        
+        // Wait for all queues to be created
+        try {
+            await Promise.all(Object.values(this.queueCreationPromises));
+        } catch (error) {
+            logger.error("QueueService: Error waiting for queue creation", { error });
+        }
+        
         // Mark initialization as done
         this.allQueuesInitialized = true;
         return this.queueInstances;
     }
 
 
+    private queueCreationPromises: Record<string, Promise<ManagedQueue<any>>> = {};
+
     /**
      * Get a queue instance, creating it if it doesn't exist
      */
-    private getQueue<T>(name: string, processor: (job: Job<T>) => Promise<unknown>, options?: {
-        workerOpts?: Partial<import("bullmq").WorkerOptions>;
+    private getQueue<T extends BaseTaskData | Record<string, unknown>>(name: string, processor: (job: Job<T>) => Promise<unknown>, options?: {
+        workerOpts?: Partial<WorkerOptions>;
         jobOpts?: Partial<JobsOptions>;
         onReady?: () => void | Promise<void>;
         validator?: (data: T) => { valid: boolean; errors?: string[] };
     }): ManagedQueue<T> {
         // If queue doesn't exist, create it
         if (!this.queueInstances[name]) {
+            // Create a proxy that will defer to the actual queue once it's created
+            const proxyQueue = new Proxy({} as ManagedQueue<T>, {
+                get: (target, prop) => {
+                    // For critical properties that might be accessed before initialization,
+                    // ensure the queue is created
+                    if (name in this.queueCreationPromises) {
+                        // Return a function that waits for the queue to be created
+                        if (typeof prop === "string" && ["addTask", "getTaskStatuses", "changeTaskStatus", "close", "checkHealth", "getMetrics", "add"].includes(prop)) {
+                            return async (...args: any[]) => {
+                                const actualQueue = await this.queueCreationPromises[name];
+                                return (actualQueue as any)[prop](...args);
+                            };
+                        }
+                        
+                        // For properties like queue, worker, events, throw an error
+                        if (["queue", "worker", "events"].includes(prop as string)) {
+                            throw new Error(`Queue ${name} is still being initialized. Please await queue operations before accessing ${String(prop)}.`);
+                        }
+                        
+                        // For ready, return the promise
+                        if (prop === "ready") {
+                            return this.queueCreationPromises[name].then(q => q.ready);
+                        }
+                    }
+                    
+                    // If the queue is already created, return the property
+                    const actualQueue = this.queueInstances[name];
+                    if (actualQueue) {
+                        return (actualQueue as any)[prop];
+                    }
+                    
+                    throw new Error(`Queue ${name} not initialized`);
+                },
+            });
+            
+            // Store the proxy immediately
+            this.queueInstances[name] = proxyQueue;
+            
+            // Start the async creation
             const config: BaseQueueConfig<T> = {
                 name,
                 processor,
@@ -340,8 +417,17 @@ export class QueueService {
                 workerOpts: options?.workerOpts,
                 onReady: options?.onReady,
             };
-            this.queueInstances[name] = new ManagedQueue<T>(config);
-            logger.debug(`Created ManagedQueue for ${name} with isolated connections`);
+            
+            this.queueCreationPromises[name] = ManagedQueue.create<T>(config).then(queue => {
+                // Replace the proxy with the actual queue
+                this.queueInstances[name] = queue;
+                return queue;
+            }).catch(error => {
+                logger.error(`Failed to create queue ${name}`, { error });
+                delete this.queueInstances[name];
+                delete this.queueCreationPromises[name];
+                throw error;
+            });
         }
         return this.queueInstances[name] as ManagedQueue<T>;
     }
@@ -463,7 +549,7 @@ export class QueueService {
      * @param queueName Optional queue name if known
      * @returns Success response with __typename
      */
-    public async changeTaskStatus<T extends BaseTaskData>(
+    public async changeTaskStatus(
         taskId: string,
         status: string,
         userId: string,
@@ -496,7 +582,7 @@ export class QueueService {
                 logger.error(`User ${userId} is not allowed to update task ${taskId} owned by ${ownerId}`);
                 return { __typename: "Success" as const, success: false };
             }
-            return queue.changeTaskStatus<T>(taskId, status, userId);
+            return queue.changeTaskStatus(taskId, status, userId);
         }
 
         // Otherwise, try to find the task in all queues
@@ -517,7 +603,7 @@ export class QueueService {
                     return { __typename: "Success" as const, success: false };
                 }
                 // Perform the status change
-                return queue.changeTaskStatus<T>(taskId, status, userId);
+                return queue.changeTaskStatus(taskId, status, userId);
             }
         }
 
@@ -568,13 +654,13 @@ export class QueueService {
             onReady: async () => {
                 // Load actual limits asynchronously
                 const actualLimits = await getSwarmQueueLimits();
-                
+
                 const isTest = process.env.NODE_ENV === "test";
-                
+
                 if (this.swarmMonitorInterval) {
                     clearInterval(this.swarmMonitorInterval);
                 }
-                
+
                 // Only start monitor in non-test environments
                 if (!isTest) {
                     this.swarmMonitorInterval = setInterval(
@@ -618,13 +704,13 @@ export class QueueService {
             onReady: async () => {
                 // Load actual limits asynchronously
                 const actualLimits = await getRunQueueLimits();
-                
+
                 const isTest = process.env.NODE_ENV === "test";
-                
+
                 if (this.runMonitorInterval) {
                     clearInterval(this.runMonitorInterval);
                 }
-                
+
                 // Only start monitor in non-test environments
                 if (!isTest) {
                     this.runMonitorInterval = setInterval(

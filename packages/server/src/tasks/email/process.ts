@@ -1,5 +1,5 @@
 import { type Job } from "bullmq";
-import nodemailer from "nodemailer";
+import * as nodemailer from "nodemailer";
 import { logger } from "../../events/logger.js";
 import { type EmailTask } from "../taskTypes.js";
 
@@ -29,11 +29,7 @@ export function setupTransporter() {
             );
         } else {
             // Credentials still missing, and we already knew there was a critical failure.
-            // Log a concise warning that the critical issue persists.
-            logger.warn(
-                "Email transporter setup skipped: critical credential issue persists. Emails will not be sent.",
-                { trace: "email.transporter.setupSkippedCriticalPersists" },
-            );
+            // Skip repeated warnings - already logged on first detection
         }
         criticalSetupFailed = true;
         transporter = null; // Ensure transporter is cleared if credentials are (now) missing
@@ -43,10 +39,6 @@ export function setupTransporter() {
     // Credentials ARE present.
     // If criticalSetupFailed was true, it means credentials were missing but are now available.
     if (criticalSetupFailed) {
-        logger.info(
-            "Email credentials are now available. Attempting to initialize or reinitialize transporter.",
-            { trace: "email.transporter.credentialsRestored" },
-        );
         criticalSetupFailed = false; // Reset flag, as the critical issue (missing creds) is resolved.
         // Force re-initialization by setting transporter to null, ensuring we use the now-available credentials.
         transporter = null;
@@ -72,8 +64,6 @@ export function setupTransporter() {
                 pass: emailPassword, // Use validated variables
             },
         });
-        // Note: criticalSetupFailed is already false here due to the logic above.
-        logger.info("Email transporter initialized successfully.", { trace: "email.transporter.initialized" });
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         logger.error(

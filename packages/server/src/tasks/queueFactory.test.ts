@@ -733,7 +733,11 @@ describe("queueFactory - Queue Functionality (Mocked)", () => {
                     expect(errorSpy).toHaveBeenCalledWith(
                         "onReady hook failed for queue failing-hook-queue",
                         expect.objectContaining({
-                            error: expect.any(Error),
+                            error: expect.objectContaining({
+                                name: expect.any(String),
+                                message: "onReady failed",
+                                stack: expect.any(String),
+                            }),
                         }),
                     );
                 } finally {

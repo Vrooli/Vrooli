@@ -12,6 +12,21 @@ export type TaskContextInfo = {
      */
     id: string;
     /**
+     * Human-readable identifier for the context (e.g., "Code Review", "Search")
+     * @optional For backward compatibility
+     */
+    name?: string;
+    /**
+     * Detailed explanation of what the context contains
+     * @optional For backward compatibility
+     */
+    description?: string;
+    /**
+     * Machine-readable category for programmatic processing (e.g., "code", "search", "analysis", "math")
+     * @optional For backward compatibility
+     */
+    type?: string;
+    /**
      * The JSON-serializable data to provide to the LLM.
      */
     data: unknown;

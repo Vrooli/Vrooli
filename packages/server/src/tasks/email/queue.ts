@@ -1,6 +1,6 @@
 import { BUSINESS_NAME, LINKS } from "@vrooli/shared";
-import fs from "fs";
-import path from "path";
+import * as fs from "fs";
+import * as path from "path";
 import { fileURLToPath } from "url";
 import { logger } from "../../events/logger.js";
 import { UI_URL } from "../../server.js";

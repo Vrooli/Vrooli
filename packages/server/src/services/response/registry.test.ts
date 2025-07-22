@@ -1,6 +1,28 @@
 import { AnthropicModel, MistralModel, OpenAIModel } from "@vrooli/shared";
 import { expect, describe, it, beforeEach, afterEach, vi } from "vitest";
 import { AIServiceErrorType, LlmServiceId, AIServiceRegistry, AIServiceState } from "./registry.js";
+import { NetworkMonitor } from "./NetworkMonitor.js";
+
+// Mock NetworkMonitor
+vi.mock("./NetworkMonitor.js", () => ({
+    NetworkMonitor: {
+        getInstance: vi.fn(() => ({
+            start: vi.fn(),
+            getState: vi.fn(),
+        })),
+    },
+}));
+
+// Mock logger
+vi.mock("../../events/logger.js", () => ({
+    logger: {
+        info: vi.fn(),
+        warn: vi.fn(),
+        warning: vi.fn(),
+        error: vi.fn(),
+        debug: vi.fn(),
+    },
+}));
 
 describe("AIServiceRegistry", () => {
     let registry: AIServiceRegistry;
@@ -87,5 +109,206 @@ describe("AIServiceRegistry", () => {
         // Fast-forward to the end of the cooldown period (15 minutes)
         vi.advanceTimersByTime(15 * 60 * 1000);
         expect(registry.getServiceState("resetService")).toBe(AIServiceState.Active);
+    });
+
+    describe("Network Awareness", () => {
+        let mockNetworkMonitor: any;
+
+        beforeEach(() => {
+            mockNetworkMonitor = {
+                start: vi.fn(),
+                getState: vi.fn(),
+            };
+            vi.mocked(NetworkMonitor.getInstance).mockReturnValue(mockNetworkMonitor);
+        });
+
+        afterEach(() => {
+            vi.clearAllMocks();
+        });
+
+        describe("initialization", () => {
+            it("should start network monitoring on init", async () => {
+                await AIServiceRegistry.init();
+                expect(mockNetworkMonitor.start).toHaveBeenCalled();
+            });
+        });
+
+        describe("getBestService with network awareness", () => {
+            beforeEach(() => {
+                // Setup services as active
+                registry.registerService(LlmServiceId.LocalOllama, AIServiceState.Active);
+                registry.registerService(LlmServiceId.CloudflareGateway, AIServiceState.Active);
+                registry.registerService(LlmServiceId.OpenRouter, AIServiceState.Active);
+            });
+
+            it("should prefer local services when offline", async () => {
+                mockNetworkMonitor.getState.mockResolvedValue({
+                    isOnline: false,
+                    cloudServicesReachable: false,
+                    localServicesReachable: true,
+                });
+
+                const result = await registry.getBestService("llama3.1:8b");
+                expect(result).toBe(LlmServiceId.LocalOllama);
+            });
+
+            it("should return null when offline-only and no local services", async () => {
+                mockNetworkMonitor.getState.mockResolvedValue({
+                    isOnline: false,
+                    cloudServicesReachable: false,
+                    localServicesReachable: false,
+                });
+
+                const result = await registry.getBestService("llama3.1:8b", true);
+                expect(result).toBeNull();
+            });
+
+            it("should use cloud services when online", async () => {
+                mockNetworkMonitor.getState.mockResolvedValue({
+                    isOnline: true,
+                    cloudServicesReachable: true,
+                    localServicesReachable: true,
+                });
+
+                const result = await registry.getBestService("@cf/openai/gpt-4o");
+                expect(result).toBe(LlmServiceId.CloudflareGateway);
+            });
+
+            it("should fallback to available services when preferred is unreachable", async () => {
+                mockNetworkMonitor.getState.mockResolvedValue({
+                    isOnline: true,
+                    cloudServicesReachable: false,
+                    localServicesReachable: true,
+                });
+
+                const result = await registry.getBestService("@cf/openai/gpt-4o");
+                expect(result).toBe(LlmServiceId.LocalOllama);
+            });
+
+            it("should respect offline-only mode", async () => {
+                mockNetworkMonitor.getState.mockResolvedValue({
+                    isOnline: true,
+                    cloudServicesReachable: true,
+                    localServicesReachable: true,
+                });
+
+                const result = await registry.getBestService("@cf/openai/gpt-4o", true);
+                expect(result).toBe(LlmServiceId.LocalOllama);
+            });
+        });
+
+        describe("isServiceAvailable", () => {
+            beforeEach(() => {
+                registry.registerService(LlmServiceId.LocalOllama, AIServiceState.Active);
+                registry.registerService(LlmServiceId.CloudflareGateway, AIServiceState.Active);
+            });
+
+            it("should return false for inactive services", () => {
+                registry.registerService(LlmServiceId.OpenRouter, AIServiceState.Disabled);
+
+                const networkState = {
+                    cloudServicesReachable: true,
+                    localServicesReachable: true,
+                };
+
+                const result = registry["isServiceAvailable"](LlmServiceId.OpenRouter, networkState);
+                expect(result).toBe(false);
+            });
+
+            it("should return false for local services when local not reachable", () => {
+                const networkState = {
+                    cloudServicesReachable: true,
+                    localServicesReachable: false,
+                };
+
+                const result = registry["isServiceAvailable"](LlmServiceId.LocalOllama, networkState);
+                expect(result).toBe(false);
+            });
+
+            it("should return false for cloud services when cloud not reachable", () => {
+                const networkState = {
+                    cloudServicesReachable: false,
+                    localServicesReachable: true,
+                };
+
+                const result = registry["isServiceAvailable"](LlmServiceId.CloudflareGateway, networkState);
+                expect(result).toBe(false);
+            });
+
+            it("should return true for local services when local reachable", () => {
+                const networkState = {
+                    cloudServicesReachable: false,
+                    localServicesReachable: true,
+                };
+
+                const result = registry["isServiceAvailable"](LlmServiceId.LocalOllama, networkState);
+                expect(result).toBe(true);
+            });
+
+            it("should return true for cloud services when cloud reachable", () => {
+                const networkState = {
+                    cloudServicesReachable: true,
+                    localServicesReachable: false,
+                };
+
+                const result = registry["isServiceAvailable"](LlmServiceId.CloudflareGateway, networkState);
+                expect(result).toBe(true);
+            });
+        });
+
+        describe("model identification", () => {
+            it("should identify Cloudflare models", () => {
+                const result = registry.getServiceId("@cf/openai/gpt-4o");
+                expect(result).toBe(LlmServiceId.CloudflareGateway);
+            });
+
+            it("should identify OpenRouter models", () => {
+                const result = registry.getServiceId("openai/gpt-4o");
+                expect(result).toBe(LlmServiceId.OpenRouter);
+            });
+
+            it("should identify local Ollama models", () => {
+                const result = registry.getServiceId("llama3.1:8b");
+                expect(result).toBe(LlmServiceId.LocalOllama);
+            });
+
+            it("should return default for unknown models", () => {
+                const result = registry.getServiceId("unknown-model");
+                expect(result).toBe(LlmServiceId.LocalOllama); // Default service
+            });
+        });
+
+        describe("universal fallback chain", () => {
+            it("should try universal fallback when specific fallbacks fail", async () => {
+                mockNetworkMonitor.getState.mockResolvedValue({
+                    isOnline: true,
+                    cloudServicesReachable: true,
+                    localServicesReachable: false,
+                });
+
+                // Set LocalOllama as disabled to force fallback
+                registry.registerService(LlmServiceId.LocalOllama, AIServiceState.Disabled);
+                registry.registerService(LlmServiceId.CloudflareGateway, AIServiceState.Active);
+                registry.registerService(LlmServiceId.OpenRouter, AIServiceState.Active);
+
+                const result = await registry.getBestService("unknown-model");
+                expect(result).toBe(LlmServiceId.CloudflareGateway);
+            });
+
+            it("should return null when no services are available", async () => {
+                mockNetworkMonitor.getState.mockResolvedValue({
+                    isOnline: false,
+                    cloudServicesReachable: false,
+                    localServicesReachable: false,
+                });
+
+                registry.registerService(LlmServiceId.LocalOllama, AIServiceState.Disabled);
+                registry.registerService(LlmServiceId.CloudflareGateway, AIServiceState.Disabled);
+                registry.registerService(LlmServiceId.OpenRouter, AIServiceState.Disabled);
+
+                const result = await registry.getBestService("any-model");
+                expect(result).toBeNull();
+            });
+        });
     });
 });

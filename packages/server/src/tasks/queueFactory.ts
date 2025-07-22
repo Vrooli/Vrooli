@@ -9,6 +9,7 @@ import { Queue, QueueEvents, Worker, type ConnectionOptions, type Job, type Jobs
 import { Redis, type Cluster, type RedisOptions } from "ioredis";
 import { logger } from "../events/logger.js";
 import { extractOwnerId } from "../utils/typeGuards.js";
+import { createRedisUrlConfig, createRedisEnvConfig } from "../utils/redisConfig.js";
 import type { BaseTaskData } from "./taskTypes.js";
 
 /**
@@ -173,108 +174,47 @@ export async function getQueueHealth(
     return { status, jobCounts, activeJobs };
 }
 
-// Production-ready connection configuration
+// Production-ready connection configuration using centralized Redis settings
 export function getRedisConnectionConfig(): RedisOptions {
     const url = process.env.REDIS_URL;
-    if (url) {
-        // Parse Redis URL properly
-        const urlObj = new URL(url);
-        const options: RedisOptions = {
-            host: urlObj.hostname,
-            port: parseInt(urlObj.port) || 6379,
-            maxRetriesPerRequest: null, // BullMQ requires this to be null
-            enableReadyCheck: true,
-            lazyConnect: false,
-        };
+    
+    // Connection configuration handled by centralized Redis settings
+    
+    // Use centralized Redis configuration to ensure consistency across all services
+    const options = url 
+        ? createRedisUrlConfig(url, "BullMQ")
+        : createRedisEnvConfig("BullMQ");
+    
+    // BullMQ-specific overrides (these must be set for BullMQ compatibility)
+    options.maxRetriesPerRequest = null; // BullMQ requires this to be null
+    options.lazyConnect = false; // BullMQ manages connections internally
+    
+    // Connection options configured
 
-        if (urlObj.password) {
-            options.password = urlObj.password;
-        }
-
-        if (urlObj.pathname && urlObj.pathname.length > 1) {
-            options.db = parseInt(urlObj.pathname.slice(1)) || 0;
-        }
-
-        // Add test-specific settings
-        if (process.env.NODE_ENV === "test") {
-            options.connectTimeout = 5000;
-            options.lazyConnect = true;
-            options.retryStrategy = (times) => {
-                if (times > 2) return null; // Stop retrying after 2 attempts in tests
-                return times * 100;
-            };
-            // Enable offline queue for BullMQ compatibility in tests
-            options.enableOfflineQueue = true;
-            options.reconnectOnError = () => false; // Don't reconnect on errors in tests
-        } else {
-            // Production settings with improved connection handling
-            options.connectTimeout = 30000; // Increase timeout for initial connection (30s for startup)
-            options.commandTimeout = 15000; // Increase command timeout to 15s for heavy operations
-            options.enableOfflineQueue = true; // Queue commands when disconnected
-            
-            options.reconnectOnError = (err) => {
-                logger.error("Redis reconnect error", { error: serializeError(err) });
-                return true; // Always try to reconnect in production
-            };
-            
-            options.retryStrategy = (times) => {
-                // Use exponential backoff with jitter to prevent thundering herd
-                const baseDelay = Math.min(times * 100, 3000);
-                const jitter = Math.random() * 100; // Add 0-100ms jitter
-                const delay = baseDelay + jitter;
-                
-                const stack = new Error().stack;
-                const callingFunction = stack?.split("\n")[2]?.trim().replace(/^at\s+/, "") || "unknown";
-
-                logger.warn(`Redis retry attempt ${times}, waiting ${Math.round(delay)}ms`, {
-                    attempt: times,
-                    delayMs: Math.round(delay),
-                    operation: "queue_connection",
-                    component: "BullMQ",
-                    caller: callingFunction,
-                    stackTrace: process.env.NODE_ENV === "development" ? stack : undefined,
-                    redisUrl: process.env.REDIS_URL ? "configured" : "not_configured",
-                    timestamp: new Date().toISOString(),
-                });
-                
-                // Give up after 10 attempts
-                if (times > 10) {
-                    logger.error("Redis connection failed after 10 attempts", {
-                        operation: "queue_connection",
-                        component: "BullMQ",
-                    });
-                    return null;
-                }
-                
-                return delay;
-            };
-        }
-
-        return options;
-    }
-
-    return {
-        host: process.env.REDIS_HOST || "localhost",
-        port: parseInt(process.env.REDIS_PORT || "6379"),
-        password: process.env.REDIS_PASSWORD,
-        db: parseInt(process.env.REDIS_DB || "0"),
-        maxRetriesPerRequest: null, // BullMQ requires this to be null
-        enableReadyCheck: true,
-        lazyConnect: process.env.NODE_ENV === "test",
-        connectTimeout: process.env.NODE_ENV === "test" ? 5000 : 30000,
-        commandTimeout: process.env.NODE_ENV === "test" ? 5000 : 15000,
-        enableOfflineQueue: true,
-    };
+    return options;
 }
 
 // Convert Redis options to BullMQ connection options
 export function toBullMQConnectionOptions(redisOptions: RedisOptions): ConnectionOptions {
+    // For BullMQ, we need to ensure the options are in the right format
+    // BullMQ will create its own Redis connections using these options
     return {
-        ...redisOptions,
-        // BullMQ-specific options - make sure these are preserved
-        maxRetriesPerRequest: null, // BullMQ requires this to be null
-        enableReadyCheck: redisOptions.enableReadyCheck ?? true,
-        lazyConnect: redisOptions.lazyConnect ?? false,
+        host: redisOptions.host,
+        port: redisOptions.port,
+        password: redisOptions.password,
+        username: redisOptions.username,
+        db: redisOptions.db,
+        // BullMQ-specific requirements
+        maxRetriesPerRequest: null, // MUST be null for BullMQ
+        enableReadyCheck: true,
+        lazyConnect: false,
+        // Connection stability settings
+        connectTimeout: redisOptions.connectTimeout || 30000,
+        commandTimeout: redisOptions.commandTimeout || 15000,
+        keepAlive: redisOptions.keepAlive ?? (process.env.NODE_ENV === "test" ? 0 : 10000),
+        enableOfflineQueue: redisOptions.enableOfflineQueue ?? true,
+        retryStrategy: redisOptions.retryStrategy,
+        reconnectOnError: redisOptions.reconnectOnError,
     } as ConnectionOptions;
 }
 
@@ -289,6 +229,7 @@ export interface BaseQueueConfig<Data> {
     connectionOptions?: RedisOptions;
 }
 
+
 /**
  * ManagedQueue implementation with connection isolation
  * Each BullMQ component gets its own Redis connection for isolation
@@ -302,63 +243,55 @@ export class ManagedQueue<Data extends BaseTaskData | Record<string, unknown> = 
     private readonly queueName: string;
     private readonly validator?: (data: Data) => { valid: boolean; errors?: string[] };
     private readonly connectionMonitor?: NodeJS.Timer;
+    private readonly pingInterval?: NodeJS.Timer;
     private isClosing = false;
-    private readonly connectionInfo: {
-        queueConnection?: Redis | Cluster;
-        workerConnection?: Redis | Cluster;
-        eventsConnection?: Redis | Cluster;
+    private connectionInfo: {
+        // Connection tracking removed - BullMQ manages connections internally
     } = {};
 
-    constructor(cfg: BaseQueueConfig<Data>) {
+    private constructor(
+        cfg: BaseQueueConfig<Data>,
+        queue: Queue,
+        worker: Worker<Data>,
+        events: QueueEvents,
+    ) {
         this.queueName = cfg.name;
         this.validator = cfg.validator;
-
-        // Get connection configuration (not an instance!)
-        const redisOptions = cfg.connectionOptions || getRedisConnectionConfig();
-
-        // Create separate configuration objects for each BullMQ component
-        // This ensures BullMQ doesn't try to share connections between components
-        const queueConnectionOptions = toBullMQConnectionOptions({
-            ...redisOptions,
-            // Add unique identifier to prevent connection pooling
-            connectionName: `queue_${cfg.name}_${Date.now()}_${Math.random()}`,
-        });
-        const workerConnectionOptions = toBullMQConnectionOptions({
-            ...redisOptions,
-            // Add unique identifier to prevent connection pooling
-            connectionName: `worker_${cfg.name}_${Date.now()}_${Math.random()}`,
-        });
-        const eventsConnectionOptions = toBullMQConnectionOptions({
-            ...redisOptions,
-            // Add unique identifier to prevent connection pooling
-            connectionName: `events_${cfg.name}_${Date.now()}_${Math.random()}`,
-        });
-
-        // Each component creates its own connection
-        this.queue = new Queue(cfg.name, {
-            connection: queueConnectionOptions,
-            defaultJobOptions: { ...DEFAULT_JOB_OPTIONS, ...cfg.jobOpts },
+        this.queue = queue;
+        this.worker = worker;
+        this.events = events;
+        
+        // DEBUG: Add connection event monitoring
+        const queueConnDebug = (type: string) => {
+            return (err?: Error) => {
+                if (err) {
+                    logger.error(`Queue ${cfg.name} connection error: ${type}`, {
+                        queue: cfg.name,
+                        type,
+                        error: err.message,
+                    });
+                }
+            };
+        };
+        
+        // Monitor connection events
+        (this.queue as any).on("ioredis:connect", queueConnDebug("connect"));
+        (this.queue as any).on("ioredis:ready", queueConnDebug("ready"));
+        (this.queue as any).on("ioredis:error", queueConnDebug("error"));
+        (this.queue as any).on("ioredis:close", queueConnDebug("close"));
+        
+        // Monitor client connection failures
+        this.queue.client.catch(err => {
+            logger.error(`Queue ${cfg.name} failed to get client`, {
+                queue: cfg.name,
+                error: err.message,
+                stack: err.stack,
+            });
         });
 
         // Increase max listeners to prevent memory leak warnings in tests
         this.queue.setMaxListeners(100);
-
-        this.worker = new Worker<Data>(
-            cfg.name,
-            cfg.processor,
-            {
-                ...BASE_WORKER_OPTS,
-                ...cfg.workerOpts,
-                connection: workerConnectionOptions,
-            },
-        );
-
         this.worker.setMaxListeners(100);
-
-        this.events = new QueueEvents(cfg.name, {
-            connection: eventsConnectionOptions,
-        });
-
         this.events.setMaxListeners(100);
 
         // Set up comprehensive error handling
@@ -372,11 +305,111 @@ export class ManagedQueue<Data extends BaseTaskData | Record<string, unknown> = 
         if (!isTest) {
             this.connectionMonitor = setInterval(() => {
                 this.checkConnectionHealth();
-            }, 30000); // Every 30 seconds
+            }, 120000); // Every 2 minutes (reduced from 30s to prevent connection spam)
+
+            // Ultra-aggressive ping strategy to prevent WSL2/Docker NAT timeouts (every 8 seconds)
+            // TCP keepalive (5s) + application ping (8s) = dual protection against ~26s timeout
+            this.pingInterval = setInterval(async () => {
+                if (this.isClosing) return;
+                try {
+                    const startTime = Date.now();
+                    // Ping all three Redis connections (queue, worker, events)
+                    const pingPromises = [
+                        this.queue.client.then(c => c.ping()),
+                        this.worker.client.then(c => c.ping()),
+                        this.events.client.then(c => c.ping()),
+                    ];
+                    const results = await Promise.allSettled(pingPromises);
+                    const duration = Date.now() - startTime;
+                    
+                    // Log with more detail to verify execution
+                    const successful = results.filter(r => r.status === "fulfilled").length;
+                    const failed = results.filter(r => r.status === "rejected").length;
+                    
+                    // Only log successes at debug level to reduce noise, failures at warn level
+                    if (failed > 0) {
+                        logger.warn(`⚡ ULTRA-PING FAILED for ${cfg.name}: ${successful}/${results.length} successful in ${duration}ms`, {
+                            queue: cfg.name,
+                            successful,
+                            failed,
+                            duration,
+                            timestamp: new Date().toISOString(),
+                            pingInterval: "8000ms",
+                        });
+                        results.forEach((result, index) => {
+                            if (result.status === "rejected") {
+                                const connType = ["queue", "worker", "events"][index];
+                                logger.warn(`⚡ ULTRA-PING FAILED for ${cfg.name} ${connType}`, {
+                                    queue: cfg.name,
+                                    connectionType: connType,
+                                    error: serializeError(result.reason),
+                                });
+                            }
+                        });
+                    } else {
+                        logger.debug(`⚡ ULTRA-PING for ${cfg.name}: ${successful}/${results.length} successful in ${duration}ms`, {
+                            queue: cfg.name,
+                            successful,
+                            failed,
+                            duration,
+                            timestamp: new Date().toISOString(),
+                            pingInterval: "8000ms",
+                        });
+                    }
+                } catch (error) {
+                    logger.error(`⚡ ULTRA-PING EXCEPTION for queue ${cfg.name}`, { 
+                        queue: cfg.name,
+                        error: serializeError(error),
+                        pingInterval: "8000ms",
+                    });
+                }
+            }, 8000); // Ultra-aggressive 8-second ping interval (faster than TCP keepalive)
         }
 
         // Handle onReady
         this.ready = this.setupOnReady(cfg.onReady);
+    }
+
+    /**
+     * Factory method to create a ManagedQueue with pre-authenticated Redis connections
+     */
+    static async create<Data extends BaseTaskData | Record<string, unknown> = BaseTaskData>(
+        cfg: BaseQueueConfig<Data>,
+    ): Promise<ManagedQueue<Data>> {
+        // Create managed queue with isolated connections
+
+        // Get connection configuration (not an instance!)
+        const redisOptions = cfg.connectionOptions || getRedisConnectionConfig();
+
+        // Convert Redis options to BullMQ format
+
+        // Convert Redis options to BullMQ connection options
+        // BullMQ needs the options directly, not factory functions
+        const connectionOptions = toBullMQConnectionOptions(redisOptions);
+
+        const queue = new Queue(cfg.name, {
+            connection: connectionOptions,
+            defaultJobOptions: { ...DEFAULT_JOB_OPTIONS, ...cfg.jobOpts },
+        });
+
+        const worker = new Worker<Data>(
+            cfg.name,
+            cfg.processor,
+            {
+                ...BASE_WORKER_OPTS,
+                ...cfg.workerOpts,
+                connection: connectionOptions,
+            },
+        );
+
+        const events = new QueueEvents(cfg.name, {
+            connection: connectionOptions,
+        });
+
+        // Create the ManagedQueue instance with the pre-created BullMQ objects
+        const managedQueue = new ManagedQueue(cfg, queue, worker, events);
+        
+        return managedQueue;
     }
 
     private setupErrorHandlers(): void {
@@ -450,14 +483,8 @@ export class ManagedQueue<Data extends BaseTaskData | Record<string, unknown> = 
     }
 
     private async storeConnectionReferences(): Promise<void> {
-        // Store connection references for better monitoring and cleanup
-        try {
-            this.connectionInfo.queueConnection = await this.queue.client;
-            this.connectionInfo.workerConnection = await this.worker.client;
-            this.connectionInfo.eventsConnection = await this.events.client;
-        } catch (error) {
-            logger.debug(`Error storing connection references for ${this.queueName}:`, error);
-        }
+        // Connection references are now stored by the factory method
+        // This method is kept for backward compatibility but does nothing
     }
 
     private async checkConnectionHealth(): Promise<void> {
@@ -465,35 +492,65 @@ export class ManagedQueue<Data extends BaseTaskData | Record<string, unknown> = 
         if (this.isClosing) return;
 
         try {
-            // Check queue health
-            const queueClient = await this.queue.client;
+            // Add timeout to prevent hanging health checks
+            const queueClient = await Promise.race([
+                this.queue.client,
+                new Promise<never>((_, reject) => 
+                    setTimeout(() => reject(new Error("Health check timeout")), 5000),
+                ),
+            ]);
+            
             if (queueClient.status !== "ready") {
                 const isTest = process.env.NODE_ENV === "test";
                 if (!isTest) {
-                    logger.warn(`Queue Redis connection not ready for ${this.queueName}`, {
-                        status: queueClient.status,
-                        queue: this.queueName,
-                    });
+                    // Don't log warnings for transient connection states to reduce noise
+                    if (queueClient.status !== "connecting" && queueClient.status !== "reconnecting") {
+                        logger.warn(`Queue Redis connection not ready for ${this.queueName}`, {
+                            status: queueClient.status,
+                            queue: this.queueName,
+                        });
+                    }
                 }
+                return; // Skip health operations if not ready
             }
 
-            // Get queue metrics for monitoring
-            const jobCounts = await this.queue.getJobCounts();
-            const workerInfo = await this.worker.client.then(c => c.ping());
+            // Only perform monitoring operations if connection is ready
+            if (queueClient.status === "ready") {
+                const jobCounts = await this.queue.getJobCounts();
+                const workerInfo = await this.worker.client.then(c => c.ping());
 
-            logger.debug(`Queue ${this.queueName} health check`, {
-                queue: this.queueName,
-                jobCounts,
-                workerPing: workerInfo,
-                connections: {
-                    queue: queueClient.status,
-                    // Note: worker and events clients are internal to BullMQ
-                },
-            });
+                logger.debug(`Queue ${this.queueName} health check`, {
+                    queue: this.queueName,
+                    jobCounts,
+                    workerPing: workerInfo,
+                    connections: {
+                        queue: queueClient.status,
+                    },
+                });
+            } else {
+                logger.debug(`Queue ${this.queueName} health check (connection not ready)`, {
+                    queue: this.queueName,
+                    connections: {
+                        queue: queueClient.status,
+                    },
+                });
+            }
         } catch (error) {
             const isTest = process.env.NODE_ENV === "test";
             if (!isTest) {
-                logger.error(`Health check failed for queue ${this.queueName}`, { error: serializeError(error) });
+                // Only log errors that aren't timeout/connection related to reduce noise
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                if (!errorMessage.includes("timeout") && 
+                    !errorMessage.includes("connection") && 
+                    !errorMessage.includes("ECONNREFUSED") &&
+                    !errorMessage.includes("ETIMEDOUT")) {
+                    logger.error(`Health check failed for queue ${this.queueName}`, { error: serializeError(error) });
+                } else {
+                    logger.debug(`Health check timeout/connection issue for queue ${this.queueName}`, { 
+                        error: errorMessage,
+                        queue: this.queueName, 
+                    });
+                }
             }
         }
     }
@@ -561,57 +618,39 @@ export class ManagedQueue<Data extends BaseTaskData | Record<string, unknown> = 
             clearInterval(this.connectionMonitor);
         }
 
+        // Clear ping interval
+        if (this.pingInterval) {
+            clearInterval(this.pingInterval);
+        }
+
         try {
-            // 1. Pause the queue to stop accepting new jobs
-            await this.queue.pause().catch(() => {
-                // Ignore pause errors - queue might already be paused
-            });
-
-            // 2. Wait for any active jobs to complete (with timeout)
-            await this.waitForActiveJobs();
-
-            // 3. Remove event listeners to stop processing events
+            // 1. Remove all event listeners first to prevent new events
             this.worker.removeAllListeners();
             this.events.removeAllListeners();
             this.queue.removeAllListeners();
 
-            // 4. Add error handlers to catch any errors during close
-            this.worker.on("error", () => {
-                // Silently ignore errors during close
-            });
-            this.events.on("error", () => {
-                // Silently ignore errors during close
-            });
-            (this.queue as any).on("error", () => {
-                // Silently ignore errors during close
+            // 2. Pause the queue to stop accepting new jobs
+            await this.queue.pause().catch(() => {
+                // Ignore pause errors - queue might already be paused
             });
 
-            // 5. Close components in reverse dependency order
-            const closePromises = [
-                this.worker.close().catch(error => {
-                    logger.debug(`Worker close error for ${this.queueName}:`, error);
-                }),
-                this.events.close().catch(error => {
-                    logger.debug(`Events close error for ${this.queueName}:`, error);
-                }),
-                this.queue.close().catch(error => {
-                    logger.debug(`Queue close error for ${this.queueName}:`, error);
-                }),
-            ];
+            // 3. Close worker first (stops processing new jobs)
+            await this.worker.close(true).catch(error => {
+                logger.debug(`Worker close error for ${this.queueName}:`, error);
+            });
 
-            // Wait for all components to close
-            await Promise.allSettled(closePromises);
+            // 4. Close events listener
+            await this.events.close().catch(error => {
+                logger.debug(`Events close error for ${this.queueName}:`, error);
+            });
 
-            // 6. Give connections time to close gracefully
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // 5. Close queue last
+            await this.queue.close().catch(error => {
+                logger.debug(`Queue close error for ${this.queueName}:`, error);
+            });
 
-            // 7. Force close any remaining connections
-            await this.closeIndividualConnections();
-
-            // 8. Final delay to ensure all async operations complete
-            if (process.env.NODE_ENV === "test") {
-                await new Promise(resolve => setTimeout(resolve, 200));
-            }
+            // 6. Small delay to ensure connections are fully closed
+            await new Promise(resolve => setTimeout(resolve, 50));
 
         } catch (error) {
             logger.error(`Error during graceful close of queue ${this.queueName}`, { error: serializeError(error) });
@@ -620,6 +659,14 @@ export class ManagedQueue<Data extends BaseTaskData | Record<string, unknown> = 
 
     private async waitForActiveJobs(): Promise<void> {
         try {
+            // Check if connection is ready first
+            const queueClient = await this.queue.client;
+            if (queueClient.status !== "ready") {
+                // Just wait a bit for any active jobs to complete naturally
+                await new Promise(resolve => setTimeout(resolve, 500));
+                return;
+            }
+
             const jobCounts = await this.queue.getJobCounts();
             if (jobCounts.active > 0) {
                 logger.debug(`Waiting for ${jobCounts.active} active jobs to complete in ${this.queueName}`);
@@ -643,75 +690,7 @@ export class ManagedQueue<Data extends BaseTaskData | Record<string, unknown> = 
         }
     }
 
-    private async closeIndividualConnections(): Promise<void> {
-        const connections = [
-            { name: "queue", client: this.connectionInfo.queueConnection },
-            { name: "worker", client: this.connectionInfo.workerConnection },
-            { name: "events", client: this.connectionInfo.eventsConnection },
-        ];
-
-        const closePromises = connections.map(async ({ name, client }) => {
-            if (!client) return;
-
-            // Check if connection is already closed
-            if (client.status === "end" || client.status === "close") {
-                logger.debug(`${this.queueName}: ${name} connection already closed`);
-                return;
-            }
-
-            try {
-                // Remove all listeners to prevent unhandled events
-                client.removeAllListeners();
-
-                // Add comprehensive error handlers for the close process
-                client.on("error", (err) => {
-                    // Silently ignore connection errors during close
-                    logger.debug(`${this.queueName}: ${name} connection error during close (ignored):`, err.message);
-                });
-
-                client.on("close", () => {
-                    logger.debug(`${this.queueName}: ${name} connection closed event`);
-                });
-
-                client.on("end", () => {
-                    logger.debug(`${this.queueName}: ${name} connection end event`);
-                });
-
-                // Attempt graceful close first
-                if (client.status === "ready") {
-                    logger.debug(`${this.queueName}: Gracefully closing ${name} connection`);
-                    await Promise.race([
-                        client.quit(),
-                        new Promise((_, reject) =>
-                            setTimeout(() => reject(new Error("Quit timeout")), 2000),
-                        ),
-                    ]);
-                } else {
-                    logger.debug(`${this.queueName}: Force disconnecting ${name} connection (status: ${client.status})`);
-                    client.disconnect();
-                }
-
-                logger.debug(`${this.queueName}: ${name} connection closed successfully`);
-            } catch (error) {
-                logger.debug(`${this.queueName}: Error closing ${name} connection:`, error);
-                // Force disconnect if quit fails
-                try {
-                    client.disconnect();
-                    logger.debug(`${this.queueName}: Force disconnected ${name} connection`);
-                } catch (e) {
-                    logger.debug(`${this.queueName}: Final disconnect error for ${name} (ignored):`, e);
-                }
-            }
-        });
-
-        // Wait for all connections to close
-        await Promise.allSettled(closePromises);
-
-        // Clear connection references
-        this.connectionInfo.queueConnection = undefined;
-        this.connectionInfo.workerConnection = undefined;
-        this.connectionInfo.eventsConnection = undefined;
-    }
+    // Connection cleanup is now handled by BullMQ when we close queue/worker/events
 
     /**
      * Get the statuses of multiple tasks from this queue.
@@ -792,6 +771,25 @@ export class ManagedQueue<Data extends BaseTaskData | Record<string, unknown> = 
      */
     async checkHealth() {
         try {
+            // Check if the queue connection is ready before attempting operations
+            const queueClient = await this.queue.client;
+            if (queueClient.status !== "ready") {
+                // Return degraded status if connection isn't ready
+                return {
+                    status: "degraded" as const,
+                    jobCounts: {
+                        waiting: 0,
+                        delayed: 0,
+                        active: 0,
+                        failed: 0,
+                        completed: 0,
+                        paused: 0,
+                    },
+                    activeJobs: [],
+                };
+            }
+
+            // Normal health check - reuses existing connection
             const jobCounts = await this.queue.getJobCounts(
                 "waiting",
                 "delayed",
@@ -832,6 +830,18 @@ export class ManagedQueue<Data extends BaseTaskData | Record<string, unknown> = 
 
     // Production monitoring methods
     async getMetrics() {
+        // Check connection status first
+        const queueClient = await this.queue.client;
+        if (queueClient.status !== "ready") {
+            // Return minimal metrics if connection isn't ready
+            return {
+                queue: this.queueName,
+                jobs: {},
+                workers: 1, // Assume at least one worker
+                isPaused: false,
+            };
+        }
+
         const [jobCounts, workers] = await Promise.all([
             this.queue.getJobCounts(),
             this.queue.getWorkers(),

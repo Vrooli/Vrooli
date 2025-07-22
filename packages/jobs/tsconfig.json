@@ -16,7 +16,7 @@
         "noImplicitAny": true,
         "useUnknownInCatchVariables": true,
         "noUncheckedIndexedAccess": true,
-        "exactOptionalPropertyTypes": true
+        "exactOptionalPropertyTypes": false
     },
     "include": [
         "src"
@@ -24,7 +24,9 @@
     "exclude": [
         "**/*.spec.ts",
         "**/*.test.ts",
-        "**/__test/**"
+        "src/**/__test/**",
+        "**/fixtures/**",
+        "**/test/**"
     ],
     "references": [
         { "path": "../shared" },

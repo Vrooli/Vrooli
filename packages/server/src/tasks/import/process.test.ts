@@ -1,31 +1,34 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { type Job } from "bullmq";
-import { importProcess } from "./process.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createMockJob } from "../taskFactory.js";
 import { type ImportUserDataTask, QueueTaskType } from "../taskTypes.js";
-import { logger } from "../../events/logger.js";
 
 describe("importProcess", () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    const createMockImportJob = (data: Partial<ImportUserDataTask> = {}): Job<ImportUserDataTask> => {
-        const defaultData: ImportUserDataTask = {
-            taskType: QueueTaskType.ImportUserData,
-            userId: "user-123",
-            fileUrl: "https://example.com/data.json",
-            format: "json",
-            ...data,
-        };
-
-        return {
-            id: "import-job-id",
-            data: defaultData,
-            name: "import",
-            attemptsMade: 0,
-            opts: {},
-        } as Job<ImportUserDataTask>;
-    };
+    function createMockImportJob(data: Partial<ImportUserDataTask> = {}): Job<ImportUserDataTask> {
+        return createMockJob<ImportUserDataTask>(
+            QueueTaskType.IMPORT_USER_DATA,
+            {
+                data: data.data || {
+                    __source: "Vrooli",
+                    __version: "1.0.0",
+                    __date: new Date().toISOString(),
+                    data: [],
+                },
+                config: data.config || {
+                    allowForeignData: false,
+                    assignObjectsTo: { __typename: "User", id: "user-123" },
+                    onConflict: "skip",
+                    userData: { id: "user-123", languages: ["en"] },
+                    isSeeding: false,
+                },
+                ...data,
+            },
+        );
+    }
 
     describe("successful data import", () => {
         it("should import JSON data", async () => {
