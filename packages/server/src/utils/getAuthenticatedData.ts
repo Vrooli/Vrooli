@@ -30,13 +30,18 @@ export async function getAuthenticatedData(
         let where: Record<string, unknown> = {};
         // If idField is "id", just use that
         if (idField === "id") {
-            // Convert all IDs to BigInt, handling both string and number inputs
-            where = { id: { in: ids.map(id => {
-                // Handle BigInt, string, and number types
-                if (typeof id === "bigint") return id;
-                if (typeof id === "string" || typeof id === "number") return BigInt(id);
-                throw new Error(`Invalid ID type for ${type}: ${typeof id}`);
-            }) } };
+            // Filter out non-numeric IDs (public IDs) and convert valid ones to BigInt
+            const validIds = ids.filter(validatePK);
+            if (validIds.length === 0) {
+                where = { id: { in: [] } }; // No valid IDs
+            } else {
+                where = { id: { in: validIds.map(id => {
+                    // Handle BigInt, string, and number types
+                    if (typeof id === "bigint") return id;
+                    if (typeof id === "string" || typeof id === "number") return BigInt(id);
+                    throw new Error(`Invalid ID type for ${type}: ${typeof id}`);
+                }) } };
+            }
         } else {
             // We may have "id" values mixed with idField values
             const validPks = ids.filter(validatePK);

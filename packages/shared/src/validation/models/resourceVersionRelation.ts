@@ -15,7 +15,7 @@ const labelsArray = yup.array().transform((value) => {
     // Pre-process the array to filter out empty strings before individual validation
     if (Array.isArray(value)) {
         const filtered = value.filter((item) => item !== "" && item !== null && item !== undefined);
-        return filtered.length > 0 ? filtered : undefined;
+        return filtered; // Return the filtered array, even if empty
     }
     return value;
 }).of(label);
@@ -25,7 +25,6 @@ export const resourceVersionRelationValidation: YupModel<["create", "update"]> =
         id: req(id),
         labels: labelsArray.notRequired().nullable(),
     }, [
-        ["fromVersion", ["Connect"], "one", "req"],
         ["toVersion", ["Connect"], "one", "req"],
     ], [], d),
     update: (d) => yupObj({

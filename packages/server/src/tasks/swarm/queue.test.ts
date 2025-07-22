@@ -45,19 +45,6 @@ vi.mock("../../services/execution/tier3/stepExecutor.js", () => ({
     })),
 }));
 
-// Mock state store to avoid initialization errors
-vi.mock("../../services/execution/tier2/state/runStateStore.js", () => ({
-    getRunStateStore: vi.fn().mockResolvedValue({
-        initialize: vi.fn().mockResolvedValue(undefined),
-        createRun: vi.fn().mockResolvedValue(undefined),
-        getRun: vi.fn().mockResolvedValue(null),
-        updateRun: vi.fn().mockResolvedValue(undefined),
-        deleteRun: vi.fn().mockResolvedValue(undefined),
-        getRunState: vi.fn().mockResolvedValue("PENDING"),
-        updateRunState: vi.fn().mockResolvedValue(undefined),
-    }),
-}));
-
 describe("Swarm Queue", () => {
     let queueService: QueueService;
     const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
@@ -91,18 +78,39 @@ describe("Swarm Queue", () => {
     });
 
     describe("processSwarm", () => {
-        const baseSwarmData: Omit<SwarmTask, "status"> = {
-            type: QueueTaskType.SWARM_RUN,
-            swarmId: "swarm-123",
-            routineVersionId: "version-456",
-            runId: "run-789",
-            userData: {
-                id: "user-123",
-                hasPremium: false,
+        const baseSwarmData: Omit<SwarmExecutionTask, "status"> = {
+            type: QueueTaskType.SWARM_EXECUTION,
+            id: "swarm-123",
+            userId: "user-123",
+            allocation: {
+                maxCredits: "1000",
+                maxDurationMs: 300000,
+                maxMemoryMB: 256,
+                maxConcurrentSteps: 2,
             },
-            inputs: { input1: "value1" },
-            model: "gpt-4",
-            teamId: "team-456",
+            input: {
+                swarmId: "swarm-123",
+                goal: "Complete test objectives efficiently",
+                executionConfig: {
+                    model: "gpt-4",
+                },
+                userData: {
+                    __typename: "SessionUser" as const,
+                    id: "user-123",
+                    credits: "5000",
+                    hasPremium: false,
+                    hasReceivedPhoneVerificationReward: false,
+                    languages: ["en"],
+                    phoneNumberVerified: false,
+                    publicId: "pub_user-123",
+                    session: {
+                        __typename: "SessionUserSession" as const,
+                        id: "session-123",
+                        lastRefreshAt: new Date().toISOString(),
+                    },
+                    updatedAt: new Date().toISOString(),
+                },
+            },
         };
 
         it("should add swarm task with correct status", async () => {
@@ -114,7 +122,7 @@ describe("Swarm Queue", () => {
             const job = await queueService.swarm.queue.getJob(result.data!.id);
             expect(job).toBeDefined();
             expect(job?.data.status).toBe("Scheduled");
-            expect(job?.data.type).toBe(QueueTaskType.SWARM_RUN);
+            expect(job?.data.type).toBe(QueueTaskType.SWARM_EXECUTION);
         });
 
         describe("priority calculation", () => {
@@ -246,14 +254,35 @@ describe("Swarm Queue", () => {
         beforeEach(async () => {
             // Add a test job
             const result = await processSwarm({
-                type: QueueTaskType.SWARM_RUN,
-                swarmId: "test-swarm",
-                routineVersionId: "version-456",
-                runId: "run-789",
-                userData: { id: "user-123", hasPremium: false },
-                inputs: {},
-                model: "gpt-4",
-                teamId: "team-456",
+                type: QueueTaskType.SWARM_EXECUTION,
+                id: "test-swarm",
+                userId: "user-123",
+                allocation: {
+                    maxCredits: "1000",
+                    maxDurationMs: 300000,
+                    maxMemoryMB: 256,
+                    maxConcurrentSteps: 2,
+                },
+                input: {
+                    swarmId: "test-swarm",
+                    goal: "Test swarm status changes",
+                    userData: {
+                        __typename: "SessionUser" as const,
+                        id: "user-123",
+                        credits: "5000",
+                        hasPremium: false,
+                        hasReceivedPhoneVerificationReward: false,
+                        languages: ["en"],
+                        phoneNumberVerified: false,
+                        publicId: "pub_user-123",
+                        session: {
+                            __typename: "SessionUserSession" as const,
+                            id: "session-123",
+                            lastRefreshAt: new Date().toISOString(),
+                        },
+                        updatedAt: new Date().toISOString(),
+                    },
+                },
             }, queueService);
             taskId = result.data!.id;
         });
@@ -291,14 +320,35 @@ describe("Swarm Queue", () => {
             // Add multiple test jobs
             for (let i = 0; i < 3; i++) {
                 const result = await processSwarm({
-                    type: QueueTaskType.SWARM_RUN,
-                    swarmId: `swarm-${i}`,
-                    routineVersionId: "version-456",
-                    runId: `run-${i}`,
-                    userData: { id: "user-123", hasPremium: false },
-                    inputs: {},
-                    model: "gpt-4",
-                    teamId: "team-456",
+                    type: QueueTaskType.SWARM_EXECUTION,
+                    id: `swarm-${i}`,
+                    userId: "user-123",
+                    allocation: {
+                        maxCredits: "1000",
+                        maxDurationMs: 300000,
+                        maxMemoryMB: 256,
+                        maxConcurrentSteps: 2,
+                    },
+                    input: {
+                        swarmId: `swarm-${i}`,
+                        goal: `Test multiple swarms ${i}`,
+                        userData: {
+                            __typename: "SessionUser" as const,
+                            id: "user-123",
+                            credits: "5000",
+                            hasPremium: false,
+                            hasReceivedPhoneVerificationReward: false,
+                            languages: ["en"],
+                            phoneNumberVerified: false,
+                            publicId: "pub_user-123",
+                            session: {
+                                __typename: "SessionUserSession" as const,
+                                id: "session-123",
+                                lastRefreshAt: new Date().toISOString(),
+                            },
+                            updatedAt: new Date().toISOString(),
+                        },
+                    },
                 }, queueService);
                 taskIds.push(result.data!.id);
             }
@@ -363,14 +413,35 @@ describe("Swarm Queue", () => {
                 }));
 
                 const swarmData = {
-                    type: QueueTaskType.SWARM_RUN,
-                    swarmId: "test-swarm-integration",
-                    routineVersionId: "version-456",
-                    runId: "run-integration",
-                    userData: { id: "user-123", hasPremium: false },
-                    inputs: { test: true },
-                    model: "gpt-4",
-                    teamId: "team-456",
+                    type: QueueTaskType.SWARM_EXECUTION,
+                    id: "test-swarm-integration",
+                    userId: "user-123",
+                    allocation: {
+                        maxCredits: "1000",
+                        maxDurationMs: 300000,
+                        maxMemoryMB: 256,
+                        maxConcurrentSteps: 2,
+                    },
+                    input: {
+                        swarmId: "test-swarm-integration",
+                        goal: "Integration test execution",
+                        userData: {
+                            __typename: "SessionUser" as const,
+                            id: "user-123",
+                            credits: "5000",
+                            hasPremium: false,
+                            hasReceivedPhoneVerificationReward: false,
+                            languages: ["en"],
+                            phoneNumberVerified: false,
+                            publicId: "pub_user-123",
+                            session: {
+                                __typename: "SessionUserSession" as const,
+                                id: "session-123",
+                                lastRefreshAt: new Date().toISOString(),
+                            },
+                            updatedAt: new Date().toISOString(),
+                        },
+                    },
                 };
 
                 const result = await processSwarm(swarmData, isolatedQueueService);
@@ -419,14 +490,35 @@ describe("Swarm Queue", () => {
                 }));
 
                 const swarmData = {
-                    type: QueueTaskType.SWARM_RUN,
-                    swarmId: "test-swarm-fail",
-                    routineVersionId: "version-456",
-                    runId: "run-fail",
-                    userData: { id: "user-123", hasPremium: false },
-                    inputs: {},
-                    model: "gpt-4",
-                    teamId: "team-456",
+                    type: QueueTaskType.SWARM_EXECUTION,
+                    id: "test-swarm-fail",
+                    userId: "user-123",
+                    allocation: {
+                        maxCredits: "1000",
+                        maxDurationMs: 300000,
+                        maxMemoryMB: 256,
+                        maxConcurrentSteps: 2,
+                    },
+                    input: {
+                        swarmId: "test-swarm-fail",
+                        goal: "Test failure handling",
+                        userData: {
+                            __typename: "SessionUser" as const,
+                            id: "user-123",
+                            credits: "5000",
+                            hasPremium: false,
+                            hasReceivedPhoneVerificationReward: false,
+                            languages: ["en"],
+                            phoneNumberVerified: false,
+                            publicId: "pub_user-123",
+                            session: {
+                                __typename: "SessionUserSession" as const,
+                                id: "session-123",
+                                lastRefreshAt: new Date().toISOString(),
+                            },
+                            updatedAt: new Date().toISOString(),
+                        },
+                    },
                 };
 
                 const result = await processSwarm(swarmData, isolatedQueueService);
@@ -496,14 +588,35 @@ describe("Swarm Queue", () => {
             const promises = [];
             for (let i = 0; i < 20; i++) {
                 const data = {
-                    type: QueueTaskType.SWARM_RUN,
-                    swarmId: `swarm-concurrent-${i}`,
-                    routineVersionId: "version-456",
-                    runId: `run-concurrent-${i}`,
-                    userData: { id: `user-${i}`, hasPremium: i % 2 === 0 },
-                    inputs: {},
-                    model: "gpt-4",
-                    teamId: "team-456",
+                    type: QueueTaskType.SWARM_EXECUTION,
+                    id: `swarm-concurrent-${i}`,
+                    userId: `user-${i}`,
+                    allocation: {
+                        maxCredits: "1000",
+                        maxDurationMs: 300000,
+                        maxMemoryMB: 256,
+                        maxConcurrentSteps: 2,
+                    },
+                    input: {
+                        swarmId: `swarm-concurrent-${i}`,
+                        goal: `Concurrent test ${i}`,
+                        userData: {
+                            __typename: "SessionUser" as const,
+                            id: `user-${i}`,
+                            credits: "5000",
+                            hasPremium: i % 2 === 0,
+                            hasReceivedPhoneVerificationReward: false,
+                            languages: ["en"],
+                            phoneNumberVerified: false,
+                            publicId: `pub_user-${i}`,
+                            session: {
+                                __typename: "SessionUserSession" as const,
+                                id: `session-${i}`,
+                                lastRefreshAt: new Date().toISOString(),
+                            },
+                            updatedAt: new Date().toISOString(),
+                        },
+                    },
                 };
                 promises.push(processSwarm(data, queueService));
             }
@@ -530,13 +643,35 @@ describe("Swarm Queue", () => {
             const results = [];
             for (const task of tasks) {
                 const data = {
-                    type: QueueTaskType.SWARM_RUN,
-                    ...task,
-                    routineVersionId: "version-456",
-                    runId: `run-${task.swarmId}`,
-                    inputs: {},
-                    model: "gpt-4",
-                    teamId: "team-456",
+                    type: QueueTaskType.SWARM_EXECUTION,
+                    id: task.swarmId,
+                    userId: task.userData.id,
+                    allocation: {
+                        maxCredits: "1000",
+                        maxDurationMs: 300000,
+                        maxMemoryMB: 256,
+                        maxConcurrentSteps: 2,
+                    },
+                    input: {
+                        swarmId: task.swarmId,
+                        goal: `Priority test for ${task.swarmId}`,
+                        userData: {
+                            __typename: "SessionUser" as const,
+                            id: task.userData.id,
+                            credits: "5000",
+                            hasPremium: task.userData.hasPremium,
+                            hasReceivedPhoneVerificationReward: false,
+                            languages: ["en"],
+                            phoneNumberVerified: false,
+                            publicId: `pub_${task.userData.id}`,
+                            session: {
+                                __typename: "SessionUserSession" as const,
+                                id: `session-${task.userData.id}`,
+                                lastRefreshAt: new Date().toISOString(),
+                            },
+                            updatedAt: new Date().toISOString(),
+                        },
+                    },
                 };
                 const result = await processSwarm(data, queueService);
                 results.push({ id: result.data!.id, isPremium: task.userData.hasPremium });
@@ -615,14 +750,35 @@ describe("Swarm Queue", () => {
 
             // Add initial swarm task
             const result = await processSwarm({
-                type: QueueTaskType.SWARM_RUN,
-                swarmId,
-                routineVersionId: "version-456",
-                runId: "run-state-transition",
-                userData: { id: "user-123", hasPremium: false },
-                inputs: {},
-                model: "gpt-4",
-                teamId: "team-456",
+                type: QueueTaskType.SWARM_EXECUTION,
+                id: swarmId,
+                userId: "user-123",
+                allocation: {
+                    maxCredits: "1000",
+                    maxDurationMs: 300000,
+                    maxMemoryMB: 256,
+                    maxConcurrentSteps: 2,
+                },
+                input: {
+                    swarmId,
+                    goal: "Test state transitions",
+                    userData: {
+                        __typename: "SessionUser" as const,
+                        id: "user-123",
+                        credits: "5000",
+                        hasPremium: false,
+                        hasReceivedPhoneVerificationReward: false,
+                        languages: ["en"],
+                        phoneNumberVerified: false,
+                        publicId: "pub_user-123",
+                        session: {
+                            __typename: "SessionUserSession" as const,
+                            id: "session-123",
+                            lastRefreshAt: new Date().toISOString(),
+                        },
+                        updatedAt: new Date().toISOString(),
+                    },
+                },
             }, queueService);
 
             const taskId = result.data!.id;
@@ -729,14 +885,32 @@ describe("Swarm Queue", () => {
                 await isolatedQueueService.init(redisUrl);
 
                 const incompleteData = {
-                    type: QueueTaskType.SWARM_RUN,
-                    // Missing swarmId
-                    routineVersionId: "version-456",
-                    runId: "run-incomplete",
-                    userData: { id: "user-123", hasPremium: false },
-                    inputs: {},
-                    model: "gpt-4",
-                    teamId: "team-456",
+                    type: QueueTaskType.SWARM_EXECUTION,
+                    allocation: {
+                        maxCredits: "1000",
+                        maxDurationMs: 300000,
+                        maxMemoryMB: 256,
+                        maxConcurrentSteps: 2,
+                    },
+                    input: {
+                        // Missing required goal property to test validation
+                        userData: {
+                            __typename: "SessionUser" as const,
+                            id: "user-123",
+                            credits: "5000",
+                            hasPremium: false,
+                            hasReceivedPhoneVerificationReward: false,
+                            languages: ["en"],
+                            phoneNumberVerified: false,
+                            publicId: "pub_user-123",
+                            session: {
+                                __typename: "SessionUserSession" as const,
+                                id: "session-123",
+                                lastRefreshAt: new Date().toISOString(),
+                            },
+                            updatedAt: new Date().toISOString(),
+                        },
+                    },
                 } as any;
 
                 // Should still add (validation in processor)
@@ -762,14 +936,38 @@ describe("Swarm Queue", () => {
             for (let i = 0; i < overloadCount; i++) {
                 promises.push(
                     processSwarm({
-                        type: QueueTaskType.SWARM_RUN,
-                        swarmId: `overload-${i}`,
-                        routineVersionId: "version-456",
-                        runId: `run-overload-${i}`,
-                        userData: { id: `user-${i % 10}`, hasPremium: false },
-                        inputs: { index: i },
-                        model: "gpt-4",
-                        teamId: "team-456",
+                        type: QueueTaskType.SWARM_EXECUTION,
+                        id: `overload-${i}`,
+                        userId: `user-${i % 10}`,
+                        allocation: {
+                            maxCredits: "1000",
+                            maxDurationMs: 300000,
+                            maxMemoryMB: 256,
+                            maxConcurrentSteps: 2,
+                        },
+                        input: {
+                            swarmId: `overload-${i}`,
+                            goal: `Complete overload test ${i} efficiently`,
+                            executionConfig: {
+                                model: "gpt-4",
+                            },
+                            userData: {
+                                __typename: "SessionUser" as const,
+                                id: `user-${i % 10}`,
+                                credits: "5000",
+                                hasPremium: false,
+                                hasReceivedPhoneVerificationReward: false,
+                                languages: ["en"],
+                                phoneNumberVerified: false,
+                                publicId: `pub_user-${i % 10}`,
+                                session: {
+                                    __typename: "SessionUserSession" as const,
+                                    id: `session-${i % 10}`,
+                                    lastRefreshAt: new Date().toISOString(),
+                                },
+                                updatedAt: new Date().toISOString(),
+                            },
+                        },
                     }, queueService),
                 );
             }

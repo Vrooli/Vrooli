@@ -1,5 +1,7 @@
-import { generatePK, toBotId, toSwarmId, type BotParticipant, type ChatMessage, type ConversationContext, type ConversationParams, type MessageConfigObject, type MessageState } from "@vrooli/shared";
+import { type Prisma } from "@prisma/client";
+import { generatePK, LATEST_CONFIG_VERSION, MessageConfig, toBotId, toSwarmId, type BotConfigObject, type BotParticipant, type ChatMessage, type ConversationContext, type ConversationParams, type MessageConfigObject, type MessageState } from "@vrooli/shared";
 import { type Job } from "bullmq";
+import { getUserLanguages } from "../../auth/request.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
@@ -9,16 +11,33 @@ import { SwarmStateMachine } from "../../services/execution/tier1/swarmStateMach
 import { CachedConversationStateStore, PrismaChatStore } from "../../services/response/chatStore.js";
 import { RedisMessageStore } from "../../services/response/messageStore.js";
 import { ResponseService } from "../../services/response/responseService.js";
-import { getDefaultLlmRouter, getDefaultToolRunner } from "../../services/response/services.js";
-import { CacheService } from "../../redisConn.js";
+import { MessageTypeAdapters } from "../../services/response/typeAdapters.js";
 import { BaseActiveTaskRegistry, type BaseActiveTaskRecord } from "../activeTaskRegistry.js";
 import { QueueTaskType, type LLMCompletionTask, type SwarmExecutionTask } from "../taskTypes.js";
 
 // Default configuration constants
-const DEFAULT_MAX_TOKENS = 4000;
-const DEFAULT_TEMPERATURE = 0.7;
 const MAX_CONVERSATION_HISTORY = 20;
 
+// Type guards for task validation
+function isValidLLMCompletionTask(payload: unknown): payload is LLMCompletionTask {
+    return typeof payload === "object" &&
+        payload !== null &&
+        "chatId" in payload &&
+        "messageId" in payload &&
+        "userData" in payload &&
+        "allocation" in payload &&
+        "type" in payload &&
+        payload.type === QueueTaskType.LLM_COMPLETION;
+}
+
+function isValidSwarmExecutionTask(payload: unknown): payload is SwarmExecutionTask {
+    return typeof payload === "object" &&
+        payload !== null &&
+        "context" in payload &&
+        "input" in payload &&
+        "type" in payload &&
+        payload.type === QueueTaskType.SWARM_EXECUTION;
+}
 
 export type ActiveSwarmRecord = BaseActiveTaskRecord;
 class SwarmRegistry extends BaseActiveTaskRegistry<ActiveSwarmRecord, SwarmStateMachine> {
@@ -27,7 +46,7 @@ class SwarmRegistry extends BaseActiveTaskRegistry<ActiveSwarmRecord, SwarmState
 export const activeSwarmRegistry = new SwarmRegistry();
 
 
-export async function llmProcessBotMessage(payload: LLMCompletionTask): Promise<{ success: boolean; messageId?: string }> {
+export async function llmProcessBotMessage(payload: LLMCompletionTask): Promise<{ success: boolean; messageId?: string; swarmId?: string }> {
     logger.info("[llmProcessBotMessage] Processing direct bot response via ConversationEngine", {
         chatId: payload.chatId,
         messageId: payload.messageId,
@@ -45,7 +64,7 @@ export async function llmProcessBotMessage(payload: LLMCompletionTask): Promise<
                 type: "user_message",
                 message: await loadTriggerMessage(payload.messageId),
             },
-            strategy: "conversation",
+            strategy: "conversational",
             constraints: {
                 maxTurns: 1, // Single response turn
                 timeoutMs: 60000, // 60 second timeout
@@ -54,23 +73,12 @@ export async function llmProcessBotMessage(payload: LLMCompletionTask): Promise<
             },
         };
 
-        // 3. Create ConversationEngine with streaming-enabled ResponseService
-        const [toolRunner, contextBuilder] = await Promise.all([
-            getDefaultToolRunner(),
-            getDefaultContextBuilder(),
-        ]);
+        const responseService = new ResponseService({
+            enableStreaming: true,
+            streamingChatId: payload.chatId, // Enable streaming for this chat
+        });
 
-        const responseService = new ResponseService(
-            getDefaultLlmRouter(),
-            toolRunner,
-            contextBuilder,
-            {
-                enableStreaming: true,
-                streamingChatId: payload.chatId, // Enable streaming for this chat
-            },
-        );
-
-        const contextManager = new SwarmContextManager();
+        const contextManager = new SwarmContextManager(payload);
         const conversationEngine = new ConversationEngine(
             responseService,
             contextManager,
@@ -87,57 +95,52 @@ export async function llmProcessBotMessage(payload: LLMCompletionTask): Promise<
         const botMessage = result.messages[0];
         const dbMessage = await DbProvider.get().chat_message.create({
             data: {
-                chatId: BigInt(payload.chatId),
-                parentId: BigInt(payload.messageId),
-                createdAt: new Date(),
-                updatedAt: new Date(),
+                id: generatePK(),
+                chat: { connect: { id: BigInt(payload.chatId) } },
+                parent: { connect: { id: BigInt(payload.messageId) } },
+                user: { connect: { id: BigInt(botMessage.user?.id || "0") } },
+                config: (new MessageConfig({ config: { __version: LATEST_CONFIG_VERSION, role: "assistant" } })).export() as unknown as Prisma.InputJsonValue,
+                text: botMessage.text,
+                language: getUserLanguages(payload.userData.languages)[0],
+            },
+            select: {
+                id: true,
+                createdAt: true,
+                updatedAt: true,
+                config: true,
+                text: true,
+                language: true,
                 user: {
-                    connect: { id: BigInt(botMessage.user.id) },
+                    select: {
+                        id: true,
+                    },
                 },
                 parent: {
-                    connect: { id: BigInt(payload.messageId) },
+                    select: {
+                        id: true,
+                    },
                 },
                 chat: {
-                    connect: { id: BigInt(payload.chatId) },
+                    select: {
+                        id: true,
+                    },
                 },
-                config: {
-                    id: generatePK().toString(),
-                    role: "bot",
-                    text: botMessage.text,
-                    __version: "1.0.0",
-                },
-                translations: [{
-                    id: generatePK().toString(),
-                    language: payload.userData.languages?.[0] || "en",
-                    text: botMessage.text,
-                }],
             },
         });
 
         // 6. Update cache (after DB persistence as per interface contract)
-        await RedisMessageStore.get().addMessage(payload.chatId, {
+        const messageState: MessageState = {
             id: dbMessage.id.toString(),
-            chatId: payload.chatId,
-            createdAt: dbMessage.createdAt,
-            updatedAt: dbMessage.updatedAt,
+            createdAt: dbMessage.createdAt.toISOString(),
             config: dbMessage.config as unknown as MessageConfigObject,
+            text: dbMessage.text,
+            language: dbMessage.language,
             parent: payload.messageId ? { id: payload.messageId } : null,
-            user: { id: botMessage.user.id },
-            translations: dbMessage.translations.map(t => ({
-                id: t.id,
-                language: t.language,
-                text: t.text,
-            })),
-        } as MessageState);
+            user: { id: botMessage.user?.id?.toString() || "0" },
+        };
+        await RedisMessageStore.get().addMessage(payload.chatId, messageState);
 
-        // 7. Socket events are already handled by Trigger system in chatMessage.create
-
-        logger.info("[llmProcessBotMessage] Successfully processed bot response", {
-            chatId: payload.chatId,
-            messageId: dbMessage.id.toString(),
-        });
-
-        return { success: true, messageId: dbMessage.id.toString() };
+        return { success: true, messageId: dbMessage.id.toString(), swarmId: payload.chatId };
 
     } catch (error) {
         logger.error("[llmProcessBotMessage] Failed to process bot response", {
@@ -155,31 +158,22 @@ export async function llmProcessBotMessage(payload: LLMCompletionTask): Promise<
  * for clean integration with the three-tier architecture.
  */
 async function processSwarmExecution(payload: SwarmExecutionTask) {
-    logger.info("[processSwarmExecution] Starting swarm execution", {
-        swarmId: payload.context.swarmId,
-        userId: payload.context.userData.id,
-    });
+    // Starting swarm execution
 
     try {
         // Extract swarm ID or generate new one if not provided
-        const swarmId = payload.context.swarmId || generatePK().toString();
+        const swarmId = payload.input.swarmId || generatePK().toString();
 
         const responseService = new ResponseService();
-        const contextManager = new SwarmContextManager();
+        const contextManager = new SwarmContextManager(payload);
         const conversationEngine = new ConversationEngine(responseService, contextManager);
-        
+
         // Create chat store for loading chat configuration
-        const messageStore = new RedisMessageStore(CacheService.get());
-        const chatStore = new CachedConversationStateStore(
-            new PrismaChatStore(), 
-            CacheService.get(),
-            messageStore,
-        );
-        
+        const chatStore = new CachedConversationStateStore(new PrismaChatStore());
+
         const coordinator = new SwarmStateMachine(
             contextManager,
             conversationEngine,
-            responseService,
             chatStore,
         );
 
@@ -192,23 +186,21 @@ async function processSwarmExecution(payload: SwarmExecutionTask) {
         // Create registry record
         const record: ActiveSwarmRecord = {
             id: swarmId,
-            userId: payload.context.userData.id,
-            hasPremium: payload.context.userData.hasPremium || false,
+            userId: payload.input.userData.id,
+            hasPremium: payload.input.userData.hasPremium || false,
             startTime: Date.now(),
         };
 
         // Add coordinator to registry
         activeSwarmRegistry.add(record, coordinator);
 
-        logger.info("[processSwarmExecution] Successfully started swarm", {
-            swarmId,
-        });
+        // Swarm started successfully
 
-        return { swarmId };
+        return { success: true, swarmId, messageId: undefined };
 
     } catch (error) {
         logger.error("[processSwarmExecution] Failed to start swarm execution", {
-            swarmId: payload.context.swarmId,
+            swarmId: payload.input.swarmId,
             error: error instanceof Error ? error.message : String(error),
         });
         throw error;
@@ -218,10 +210,22 @@ async function processSwarmExecution(payload: SwarmExecutionTask) {
 export async function llmProcess({ data }: Job<LLMCompletionTask | SwarmExecutionTask>) {
     switch (data.type) {
         case QueueTaskType.LLM_COMPLETION:
-            return llmProcessBotMessage(data as LLMCompletionTask);
+            if (!isValidLLMCompletionTask(data)) {
+                throw new CustomError("0330", "InvalidArgs", {
+                    reason: "Invalid LLM completion task structure",
+                    required: ["chatId", "messageId", "userData"],
+                });
+            }
+            return llmProcessBotMessage(data);
 
         case QueueTaskType.SWARM_EXECUTION:
-            return processSwarmExecution(data as SwarmExecutionTask);
+            if (!isValidSwarmExecutionTask(data)) {
+                throw new CustomError("0330", "InvalidArgs", {
+                    reason: "Invalid swarm execution task structure",
+                    required: ["userData", "input.goal"],
+                });
+            }
+            return processSwarmExecution(data);
 
         default:
             throw new CustomError("0330", "InternalError", { process: (data as { __process?: unknown }).__process });
@@ -235,9 +239,11 @@ async function buildConversationContext(payload: LLMCompletionTask): Promise<Con
     // Load chat and participants from database
     const chat = await DbProvider.get().chat.findUnique({
         where: { id: BigInt(payload.chatId) },
-        include: {
+        select: {
+            id: true,
+            config: true,
             participants: {
-                include: {
+                select: {
                     user: {
                         select: {
                             id: true,
@@ -249,7 +255,6 @@ async function buildConversationContext(payload: LLMCompletionTask): Promise<Con
                     },
                 },
             },
-            config: true,
         },
     });
 
@@ -269,21 +274,8 @@ async function buildConversationContext(payload: LLMCompletionTask): Promise<Con
             botParticipants.push({
                 id: toBotId(botParticipant.user.id.toString()),
                 name: botParticipant.user.name || "Bot",
-                config: {
-                    id: botParticipant.user.id.toString(),
-                    name: botParticipant.user.name || "Bot",
-                    model: payload.model || botParticipant.user.botSettings?.model || "gpt-4",
-                    description: botParticipant.user.botSettings?.description || "AI Assistant",
-                    maxTokens: botParticipant.user.botSettings?.maxTokens || DEFAULT_MAX_TOKENS,
-                    temperature: botParticipant.user.botSettings?.temperature || DEFAULT_TEMPERATURE,
-                    specializations: botParticipant.user.botSettings?.specializations || [],
-                },
-                state: {
-                    isProcessing: false,
-                    isWaiting: true,
-                    hasResponded: false,
-                },
-                isAvailable: true,
+                config: botParticipant.user.botSettings as unknown as BotConfigObject,
+                state: "ready",
             });
         }
     } else {
@@ -293,21 +285,8 @@ async function buildConversationContext(payload: LLMCompletionTask): Promise<Con
                 botParticipants.push({
                     id: toBotId(participant.user.id.toString()),
                     name: participant.user.name || "Bot",
-                    config: {
-                        id: participant.user.id.toString(),
-                        name: participant.user.name || "Bot",
-                        model: payload.model || participant.user.botSettings?.model || "gpt-4",
-                        description: participant.user.botSettings?.description || "AI Assistant",
-                        maxTokens: participant.user.botSettings?.maxTokens || DEFAULT_MAX_TOKENS,
-                        temperature: participant.user.botSettings?.temperature || DEFAULT_TEMPERATURE,
-                        specializations: participant.user.botSettings?.specializations || [],
-                    },
-                    state: {
-                        isProcessing: false,
-                        isWaiting: true,
-                        hasResponded: false,
-                    },
-                    isAvailable: true,
+                    config: participant.user.botSettings as unknown as BotConfigObject,
+                    state: "ready",
                 });
             }
         }
@@ -318,7 +297,12 @@ async function buildConversationContext(payload: LLMCompletionTask): Promise<Con
         where: { chatId: BigInt(payload.chatId) },
         orderBy: { createdAt: "desc" },
         take: MAX_CONVERSATION_HISTORY,
-        include: {
+        select: {
+            id: true,
+            config: true,
+            createdAt: true,
+            language: true,
+            text: true,
             user: {
                 select: {
                     id: true,
@@ -326,22 +310,14 @@ async function buildConversationContext(payload: LLMCompletionTask): Promise<Con
                     handle: true,
                 },
             },
-            translations: true,
         },
     });
 
-    // Convert to ChatMessage format and reverse to chronological order
-    const conversationHistory: ChatMessage[] = messages.reverse().map(msg => ({
-        id: msg.id.toString(),
-        createdAt: msg.createdAt,
-        config: msg.config as MessageConfigObject,
-        text: msg.translations?.[0]?.text || "",
-        user: {
-            id: msg.user.id.toString(),
-            name: msg.user.name || undefined,
-            handle: msg.user.handle || undefined,
-        },
-    }));
+    // Load full ChatMessage objects and convert to MessageState[]
+    const fullChatMessages = await loadFullChatMessages(messages.map(m => BigInt(m.id)));
+    const conversationHistory: MessageState[] = fullChatMessages.map(msg =>
+        MessageTypeAdapters.chatMessageToMessageState(msg),
+    );
 
     // Load available tools (for now, return empty array - can be enhanced later)
     const availableTools = [];
@@ -359,36 +335,71 @@ async function buildConversationContext(payload: LLMCompletionTask): Promise<Con
 }
 
 /**
+ * Load full ChatMessage objects from database with all required relations
+ * TODO probably shouldn't have this
+ * /
+async function loadFullChatMessages(messageIds: bigint[]): Promise<ChatMessage[]> {
+    if (messageIds.length === 0) {
+        return [];
+    }
+
+    const recs = await DbProvider.get().chat_message.findMany({
+        where: { id: { in: messageIds } },
+        orderBy: { createdAt: "asc" },
+    });
+
+    // Convert database records to proper ChatMessage objects
+    return recs.map(rec => ({
+        __typename: "ChatMessage" as const,
+        id: rec.id.toString(),
+        createdAt: rec.createdAt.toISOString(),
+        updatedAt: rec.updatedAt.toISOString(),
+        config: rec.config as unknown as MessageConfigObject,
+        text: rec.text ?? "",
+        language: rec.language,
+        versionIndex: rec.versionIndex,
+        sequence: 0, // Default value
+        score: rec.score,
+        reportsCount: 0, // Default value
+        parent: rec.parentId ? {
+            __typename: "ChatMessageParent" as const,
+            id: rec.parentId.toString(),
+            createdAt: rec.createdAt.toISOString(),
+        } : undefined,
+        user: {
+            __typename: "User" as const,
+            id: rec.userId?.toString() || "unknown",
+            name: "",
+            handle: "",
+        } as any, // Simplified User object
+        chat: {
+            __typename: "Chat" as const,
+            id: rec.chatId.toString(),
+            name: "",
+        } as any, // Simplified Chat object
+        reactionSummaries: [],
+        reports: [],
+        you: {
+            __typename: "ChatMessageYou" as const,
+            canDelete: false,
+            canUpdate: false,
+            canReply: true,
+            canReport: false,
+            canReact: true,
+            reaction: null,
+        },
+    } as ChatMessage));
+}
+
+/**
  * Helper function to load the trigger message
  */
 async function loadTriggerMessage(messageId: string): Promise<ChatMessage> {
-    const message = await DbProvider.get().chat_message.findUnique({
-        where: { id: BigInt(messageId) },
-        include: {
-            user: {
-                select: {
-                    id: true,
-                    name: true,
-                    handle: true,
-                },
-            },
-            translations: true,
-        },
-    });
+    const fullChatMessages = await loadFullChatMessages([BigInt(messageId)]);
 
-    if (!message) {
+    if (fullChatMessages.length === 0) {
         throw new Error(`Message ${messageId} not found`);
     }
 
-    return {
-        id: message.id.toString(),
-        createdAt: message.createdAt.toISOString(),
-        config: message.config as MessageConfigObject,
-        text: message.translations?.[0]?.text || "",
-        user: {
-            id: message.user.id.toString(),
-            name: message.user.name || undefined,
-            handle: message.user.handle || undefined,
-        },
-    };
+    return fullChatMessages[0];
 }
