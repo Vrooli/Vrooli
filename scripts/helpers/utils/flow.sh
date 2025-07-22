@@ -59,19 +59,22 @@ flow::continue_with_error() {
 # Returns 0 if sudo operations should proceed, 1 if they should be skipped.
 # Exits with error if SUDO_MODE is 'error' and sudo is unavailable.
 flow::can_run_sudo() {
+    # Track what operation is requesting sudo for better error messages
+    local operation="${1:-privileged operations}"
+    
     # Determine behavior based on SUDO_MODE
     local mode=${SUDO_MODE:-skip}
 
     # skip mode always returns non-zero (no sudo)
     if [[ "$mode" == "skip" ]]; then
-        log::info "SUDO_MODE=skip: skipping privileged operations"
+        log::info "SUDO_MODE=skip: skipping $operation"
         return 1
     fi
 
     # If sudo is not installed, skip privileged ops
     # NOTE: Don't use system::is_command here, because it will cause a circular dependency
     if ! command -v sudo >/dev/null 2>&1; then
-        log::info "sudo not found: skipping privileged operations"
+        log::info "sudo not found: skipping $operation"
         return 1
     fi
 
@@ -87,9 +90,9 @@ flow::can_run_sudo() {
 
     # If error mode, abort; otherwise just skip
     if [[ "$mode" == "error" ]]; then
-        flow::exit_with_error "Privileged operations require sudo access, but unable to run sudo" "$ERROR_DEFAULT"
+        flow::exit_with_error "Unable to run sudo for: $operation. Either run setup with 'sudo' prefix, or use --sudo-mode skip to bypass privileged operations." "$ERROR_DEFAULT"
     else
-        log::info "sudo requires password or is blocked, skipping privileged operations"
+        log::info "sudo requires password or is blocked, skipping $operation"
         return 1
     fi
 }

@@ -226,7 +226,7 @@ system::update() {
     if system::is_command "apt-get"; then
         # If we can sudo, prefix apt commands; otherwise run as current user
         local update_cmd="apt-get"
-        if flow::can_run_sudo; then
+        if flow::can_run_sudo "system package list update (apt-get update)"; then
             update_cmd="sudo apt-get"
         else
             log::info "No sudo available, running apt-get update as current user"
@@ -247,7 +247,7 @@ system::upgrade() {
     if system::is_command "apt-get"; then
         # If we can sudo, prefix apt commands; otherwise run as current user
         local upgrade_cmd="apt-get"
-        if flow::can_run_sudo; then
+        if flow::can_run_sudo "system package upgrade (apt-get upgrade)"; then
             upgrade_cmd="sudo apt-get"
         else
             log::info "No sudo available, running apt-get upgrade as current user"

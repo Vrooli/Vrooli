@@ -17,7 +17,7 @@ source "${SETUP_DIR}/../utils/system.sh"
 clock::fix() {
     local can_sudo
     # Check for sudo capability; warn if unavailable but continue
-    if ! flow::can_run_sudo; then
+    if ! flow::can_run_sudo "system clock synchronization (hwclock -s)"; then
         log::warning "Skipping system clock accuracy check due to insufficient permissions"
         can_sudo=0
     else
