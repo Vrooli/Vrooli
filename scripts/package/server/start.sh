@@ -24,7 +24,11 @@ fi
 
 echo "INFO: Building server..."
 cd "${PROJECT_DIR}/packages/server"
-pnpm run build && pnpm run prisma:migrate && pnpm run prisma:generate
+
+# Pass environment variables explicitly to ensure they're available to Prisma
+DB_URL="${DB_URL}" REDIS_URL="${REDIS_URL}" pnpm run build && \
+DB_URL="${DB_URL}" REDIS_URL="${REDIS_URL}" pnpm run prisma:migrate && \
+DB_URL="${DB_URL}" REDIS_URL="${REDIS_URL}" pnpm run prisma:generate
 if [ $? -ne 0 ]; then
     echo "ERROR: Failed to build server. Keeping container running so you can debug..." >&2
     tail -f /dev/null
@@ -32,4 +36,12 @@ fi
 
 echo 'INFO: Starting server...'
 cd "${PROJECT_DIR}/packages/server"
+# Pass environment variables explicitly including seeding variables
+DB_URL="${DB_URL}" \
+REDIS_URL="${REDIS_URL}" \
+NODE_ENV="${NODE_ENV}" \
+ADMIN_WALLET="${ADMIN_WALLET}" \
+ADMIN_PASSWORD="${ADMIN_PASSWORD}" \
+SITE_EMAIL_USERNAME="${SITE_EMAIL_USERNAME}" \
+VALYXA_PASSWORD="${VALYXA_PASSWORD}" \
 pnpm run start-${NODE_ENV}

@@ -1,5 +1,5 @@
 // AI_CHECK: TYPE_SAFETY=server-type-safety-fixes | LAST: 2025-06-29 - Fixed null/undefined type mismatch
-import { ResourceSubType } from "@vrooli/shared";
+import { ResourceSubType, validatePK } from "@vrooli/shared";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
 
@@ -34,8 +34,10 @@ export async function calculateComplexity(
     }
 
     // Find inputs that already exist in the database, and every subroutine they depend on.
+    // Filter out non-numeric IDs (like public IDs) before converting to BigInt
+    const validIds = Array.from(fetchIds).filter(validatePK);
     const fetchedData = await DbProvider.get().resource_version.findMany({
-        where: { id: { in: Array.from(fetchIds).map(i => BigInt(i)) } },
+        where: { id: { in: validIds.map(i => BigInt(i)) } },
         select: {
             id: true,
             complexity: true,

@@ -221,7 +221,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
 
                     await Trigger(userData.languages).objectDeleted({
                         deletedById: userData.id,
-                        hasBeenTransferred: false, // N/A
+                        transferredAt: null, // N/A
                         hasParent: true, // N/A
                         objectId,
                         objectType: __typename,

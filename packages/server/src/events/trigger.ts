@@ -271,14 +271,14 @@ export function Trigger(languages: string[] | undefined) {
          */
         objectDeleted: async ({
             deletedById,
-            hasBeenTransferred,
+            transferredAt,
             hasParent,
             objectId,
             objectType,
             wasCompleteAndPublic,
         }: {
             deletedById: string,
-            hasBeenTransferred: boolean,
+            transferredAt: Date | null,
             hasParent: boolean,
             objectId: string,
             objectType: `${ModelType}`,
@@ -286,7 +286,7 @@ export function Trigger(languages: string[] | undefined) {
         }) => {
             // Step 1
             // If the object was not copied/forked (i.e. has no parent), was public and complete, and you are the original owner
-            if (!hasParent && !hasBeenTransferred && wasCompleteAndPublic) {
+            if (!hasParent && !transferredAt && wasCompleteAndPublic) {
                 // If the object is trackable for reputation, decrease reputation score
                 const reputationEvent = objectReputationEvent(objectType);
                 if (reputationEvent) {
@@ -294,13 +294,13 @@ export function Trigger(languages: string[] | undefined) {
                 }
             }
         },
-        objectCopy: async (owner: Owner, forkedByUserId: string, objectType: CopyType, parentId: string) => {
+        objectCopy: async (_owner: Owner, _forkedByUserId: string, _objectType: CopyType, _parentId: string) => {
             // const notification = Notify(languages).pushObjectFork();
             // // Send notification to owner(s), depending on how many forks the object already has
             // fdfdafdsaf
             // notification.toOwner(owner, forkedByUserId);
         },
-        objectBookmark: async (isBookmarked: boolean, objectType: BookmarkFor, objectId: string, userId: string) => {
+        objectBookmark: async (_isBookmarked: boolean, _objectType: BookmarkFor, _objectId: string, _userId: string) => {
             // const notification = Notify(languages).pushObjectStar();
             // // Send notification to owner(s), depending on how many bookmarks the object already has
             // fasdf

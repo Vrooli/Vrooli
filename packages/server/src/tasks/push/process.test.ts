@@ -1,31 +1,34 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { type Job } from "bullmq";
-import { pushProcess } from "./process.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createMockJob } from "../taskFactory.js";
 import { type PushNotificationTask, QueueTaskType } from "../taskTypes.js";
-import { logger } from "../../events/logger.js";
 
 describe("pushProcess", () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    const createMockPushJob = (data: Partial<PushNotificationTask> = {}): Job<PushNotificationTask> => {
-        const defaultData: PushNotificationTask = {
-            taskType: QueueTaskType.PushNotification,
-            userId: "user-123",
-            title: "New Message",
-            body: "You have a new message",
-            ...data,
-        };
-
-        return {
-            id: "push-job-id",
-            data: defaultData,
-            name: "push",
-            attemptsMade: 0,
-            opts: {},
-        } as Job<PushNotificationTask>;
-    };
+    function createMockPushJob(data: Partial<PushNotificationTask> = {}): Job<PushNotificationTask> {
+        return createMockJob<PushNotificationTask>(
+            QueueTaskType.PUSH_NOTIFICATION,
+            {
+                subscription: data.subscription || {
+                    endpoint: "https://push.example.com/endpoint",
+                    keys: {
+                        p256dh: "test-p256dh-key",
+                        auth: "test-auth-key",
+                    },
+                },
+                payload: data.payload || {
+                    title: "New Message",
+                    body: "You have a new message",
+                    link: "/messages/123",
+                    icon: "/icons/notification.png",
+                },
+                ...data,
+            },
+        );
+    }
 
     describe("successful push notification", () => {
         it("should send push notification to registered devices", async () => {

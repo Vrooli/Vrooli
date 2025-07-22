@@ -2,7 +2,7 @@
 import { ApiKeyPermission, COOKIE, DAYS_1_MS, DAYS_30_MS, SECONDS_1_MS, type SessionUser, generatePK } from "@vrooli/shared";
 import { generateKeyPairSync } from "crypto";
 import { type Response } from "express";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { withDbTransaction } from "../__test/helpers/transactionTest.js";
 import { DbProvider } from "../db/provider.js";
 import { logger } from "../events/logger.js";

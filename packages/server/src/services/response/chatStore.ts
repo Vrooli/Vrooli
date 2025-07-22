@@ -1,4 +1,4 @@
-import { type Prisma, type user } from "@prisma/client";
+import type { Prisma, user } from "@prisma/client";
 import { BotConfig, ChatConfig, LRUCache, MINUTES_1_S, generatePublicId, type BotParticipant, type ChatConfigObject, type TeamConfigObject, type User } from "@vrooli/shared";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";

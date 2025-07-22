@@ -7,7 +7,7 @@ import { DEFAULT_LANGUAGE, LRUCache, MB_10_BYTES, exists, getDotNotationValue, i
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
 import { FormatMap } from "../models/formats.js";
-import { type ApiRelMap, type SafeApiRelMap, type JoinMap, type ModelLogicType } from "../models/types.js";
+import { type ApiRelMap, type JoinMap, type ModelLogicType, type SafeApiRelMap } from "../models/types.js";
 import { type RecursivePartial } from "../types.js";
 import { groupPrismaData } from "./groupPrismaData.js";
 import { isRelationshipObject } from "./isOfType.js";
@@ -21,22 +21,15 @@ type DataShape = { [key: string]: unknown[] };
  * Type guard to check if a value is a union object mapping fields to ModelTypes
  */
 function isApiRelMapUnion(value: unknown): value is Record<string, `${ModelType}`> {
-    return isRelationshipObject(value) && 
-           Object.values(value).every(v => typeof v === "string");
-}
-
-/**
- * Type guard to check if a value is a ModelType string
- */
-function isModelTypeString(value: unknown): value is `${ModelType}` {
-    return typeof value === "string";
+    return isRelationshipObject(value) &&
+        Object.values(value).every(v => typeof v === "string");
 }
 
 /**
  * Safely spread an unknown value with additional properties
  */
 function safeSpread<T extends Record<string, unknown>>(
-    target: unknown, 
+    target: unknown,
     additions: Record<string, unknown>,
 ): T | Record<string, unknown> {
     if (!isRelationshipObject(target)) {
@@ -87,7 +80,7 @@ class Unions {
         // Any value in the apiRelMap which is an object is a union.
         // All other values can be ignored.
         const unionFields = Object.entries(apiRelMap).filter(
-            (entry): entry is [string, Record<string, `${ModelType}`>] => 
+            (entry): entry is [string, Record<string, `${ModelType}`>] =>
                 isApiRelMapUnion(entry[1]),
         );
         // For each union field
@@ -136,7 +129,7 @@ class Unions {
         // Any value in the apiRelMap which is an object is a union. 
         // All other values can be ignored.
         const unionFields = Object.entries(apiRelMap).filter(
-            (entry): entry is [string, Record<string, `${ModelType}`>] => 
+            (entry): entry is [string, Record<string, `${ModelType}`>] =>
                 isApiRelMapUnion(entry[1]),
         );
         // For each union field
@@ -312,6 +305,18 @@ export class CountFields {
 class Typenames {
     private static instance: Typenames;
 
+    // Fields that should not have __typename propagated to them as they are data fields, not GraphQL types
+    private static readonly FIELDS_WITHOUT_TYPENAME = [
+        "translations",
+        "config",
+        "permissions",
+        "languages",
+        "themes",
+        "metadata",
+        "props",
+        "data",
+    ] as const;
+
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     private constructor() { }
     public static get(): Typenames {
@@ -352,8 +357,14 @@ class Typenames {
             // If value is an object but not in the parent relationship map, add to result 
             // and make sure that no __typenames are present
             if (!nestedValue) {
-                // AI_CHECK: TYPE_SAFETY=server-type-safety-p1-3 | LAST: 2025-07-03 | Removed {} as any casting
-                result[selectKey] = this.addToData(selectValue, { __typename: parentRelationshipMap.__typename } as SafeApiRelMap<typeof parentRelationshipMap.__typename, ApiModel, DbModel>);
+                // Check if this field should not have typename propagated
+                if (Typenames.FIELDS_WITHOUT_TYPENAME.includes(selectKey as any)) {
+                    // Don't pass typename to data fields - pass empty object so no typename is added
+                    result[selectKey] = this.addToData(selectValue, {} as SafeApiRelMap<any, ApiModel, DbModel>);
+                } else {
+                    // AI_CHECK: TYPE_SAFETY=server-type-safety-p1-3 | LAST: 2025-07-03 | Removed {} as any casting
+                    result[selectKey] = this.addToData(selectValue, { __typename: parentRelationshipMap.__typename } as SafeApiRelMap<typeof parentRelationshipMap.__typename, ApiModel, DbModel>);
+                }
                 continue;
             }
             // If value is an object, recurse
@@ -416,12 +427,15 @@ class SupplementalFields {
         // Add db supplemental fields used to calculate API supplemental fields
         if (supplementer.dbFields) {
             // For each db supplemental field, add it to the select object with value true
-            const dbSupp = supplementer.dbFields.reduce((acc, curr) => {
-                acc[curr] = true;
-                return acc;
-            }, {});
-            // Merge db supplemental fields with select object
-            return mergeDeep(withoutGqlSupp, dbSupp);
+            // But only at the root level - don't let it leak into nested relations
+            const result = { ...withoutGqlSupp };
+            for (const field of supplementer.dbFields) {
+                // Only add the field if it's a simple field (not nested)
+                if (!field.includes(".")) {
+                    result[field] = true;
+                }
+            }
+            return result;
         }
         return withoutGqlSupp;
     }
@@ -527,8 +541,11 @@ export async function addSupplementalFields(
     partialInfo: OrArray<PartialApiInfo>,
 ): Promise<{ [x: string]: any }[]> {
     if (data.length === 0) return [];
+    // Filter out null and undefined values before processing
+    const validData = data.filter((item): item is { [x: string]: any } => item !== null && item !== undefined);
+    if (validData.length === 0) return [];
     // Group data into dictionaries, which will make later operations easier
-    const { objectTypesIdsDict, selectFieldsDict, objectIdsDataDict } = groupPrismaData(data, partialInfo);
+    const { objectTypesIdsDict, selectFieldsDict, objectIdsDataDict } = groupPrismaData(validData, partialInfo);
     // Dictionary to store supplemental data
     const supplementsByObjectId: { [x: string]: any } = {};
 
@@ -550,7 +567,8 @@ export async function addSupplementalFields(
         }
     }
     // Convert supplementsByObjectId dictionary back into shape of data
-    const result = data.map(d => (d === null || d === undefined) ? d : combineSupplements(d, supplementsByObjectId));
+    // Since we filtered out null/undefined values, we only process valid data
+    const result = validData.map(d => combineSupplements(d, supplementsByObjectId));
     return result;
 }
 
@@ -667,6 +685,8 @@ export class InfoConverter {
     }
 
     private getObjectCacheKey(obj: { __cacheKey?: string }): string {
+        // Handle null/undefined
+        if (!obj) return "null";
         // If object has a defined cache key, use it
         if (obj.__cacheKey) return obj.__cacheKey;
         // Otherwise, create a cache key from the object
@@ -735,10 +755,14 @@ export class InfoConverter {
 
     /**
      * Recursive helper function for fromPartialApiToPrismaSelect
+     * @param partial The partial API info to convert
      */
-    private toPrismaSelectHelper(partial: Omit<PartialApiInfo, "__typename">): PrismaSelect {
+    private toPrismaSelectHelper(
+        partial: Omit<PartialApiInfo, "__typename">,
+    ): PrismaSelect {
         // Create result object
         let result: PrismaSelect["select"] = {};
+
         // Loop through each key/value pair in partial
         for (const [key, value] of Object.entries(partial)) {
             if (key === "__typename" || key === "__cacheKey") continue;
@@ -754,15 +778,17 @@ export class InfoConverter {
         // Handle base case
         const type = partial.__typename as `${ModelType}`;
         const format = ModelMap.get(type, false)?.format;
+
         if (type) {
-            result = SupplementalFields.removeFromData(type, result);
+            result = SupplementalFields.removeFromData(type, result) as PrismaSelect["select"];
             delete result.__typename;
             delete result.__cacheKey;
-            if (format) {
-                result = Unions.deconstruct(result, format.apiRelMap) as PrismaSelect["select"];
-                result = JoinTables.addToData(result, format.joinMap as JoinMap);
-                result = CountFields.addToData(result, format.countFields);
-            }
+        }
+
+        if (format) {
+            result = Unions.deconstruct(result, format.apiRelMap) as PrismaSelect["select"];
+            result = JoinTables.addToData(result, format.joinMap as JoinMap);
+            result = CountFields.addToData(result, format.countFields);
         }
         return { select: result };
     }
@@ -772,6 +798,9 @@ export class InfoConverter {
      * @returns Object which can be passed into Prisma select directly
      */
     public fromPartialApiToPrismaSelect(partial: PartialApiInfo): PrismaSelect | undefined {
+        // Handle null/undefined input
+        if (!partial) return undefined;
+
         // Check if cached
         const cachedResult = this.checkCache(partial, "fromPartialToPrismaSelect");
         if (cachedResult !== undefined) {
@@ -779,6 +808,7 @@ export class InfoConverter {
         }
         // Convert partial's special cases (virtual/calculated fields, unions, etc.)
         const modified = this.toPrismaSelectHelper(partial);
+
         if (!isObject(modified)) return undefined;
         // Cache result
         this.setCache(partial, "fromPartialToPrismaSelect", modified);

@@ -14,7 +14,7 @@ type HasCompleteVersionData = {
 type ObjectTriggerData = {
     hasCompleteAndPublic: boolean,
     wasCompleteAndPublic: boolean,
-    hasBeenTransferred: boolean,
+    transferredAt: Date | null,
     hasParent: boolean,
     owner: {
         id: string,
@@ -24,19 +24,19 @@ type ObjectTriggerData = {
 
 // Type for version data from the database
 type VersionData = {
-    id: string,
+    id: string | bigint,
     isComplete: boolean,
     isPrivate: boolean,
 };
 
 // Type for the original data query result
 type OriginalDataResult = {
-    id: string,
-    hasBeenTransferred: boolean,
+    id: string | bigint,
+    transferredAt: Date | null,
     isPrivate: boolean,
-    ownedByTeam: { id: string } | null,
-    ownedByUser: { id: string } | null,
-    parent: { id: string } | null,
+    ownedByTeam: { id: string | bigint } | null,
+    ownedByUser: { id: string | bigint } | null,
+    parent: { id: string | bigint } | null,
     versions: VersionData[],
 };
 
@@ -90,7 +90,7 @@ export type PreShapeRootResult = {
 
 const originalDataSelect = {
     id: true,
-    hasBeenTransferred: true,
+    transferredAt: true,
     isPrivate: true,
     ownedByTeam: { select: { id: true } },
     ownedByUser: { select: { id: true } },
@@ -111,15 +111,16 @@ function isVersionData(obj: unknown): obj is VersionData {
         hasProperty(obj, "id") &&
         hasProperty(obj, "isComplete") &&
         hasProperty(obj, "isPrivate") &&
-        typeof obj.id === "string" &&
+        (typeof obj.id === "string" || typeof obj.id === "bigint") &&
         typeof obj.isComplete === "boolean" &&
         typeof obj.isPrivate === "boolean";
 }
 
 // Helper function to safely get ID from owner object
 function getOwnerId(owner: unknown): string {
-    if (owner !== null && typeof owner === "object" && hasProperty(owner, "id") && typeof owner.id === "string") {
-        return owner.id;
+    if (owner !== null && typeof owner === "object" && hasProperty(owner, "id")) {
+        if (typeof owner.id === "string") return owner.id;
+        if (typeof owner.id === "bigint") return owner.id.toString();
     }
     throw new CustomError("0414", "InternalError", { owner });
 }
@@ -154,7 +155,7 @@ export async function preShapeRoot({
         triggerMap[input.id] = {
             wasCompleteAndPublic: true, // Doesn't matter
             hasCompleteAndPublic: !input.isPrivate && (input.versionsCreate?.some(v => v.isComplete && !v.isPrivate) ?? false),
-            hasBeenTransferred: false, // Doesn't matter
+            transferredAt: null, // Doesn't matter
             hasParent: typeof input.parentConnect === "string",
             owner: {
                 id: (input.ownedByUserConnect ?? input.ownedByTeamConnect) as string,
@@ -165,21 +166,23 @@ export async function preShapeRoot({
     // For updateList (much more complicated)
     if (Update.length > 0) {
         // Find original data
+        const updateIds = Update.map(u => BigInt(u.input.id));
         const originalDataRaw = await (DbProvider.get()[dbTable] as PrismaDelegate).findMany({
-            where: { id: { in: Update.map(u => u.input.id) } },
+            where: { id: { in: updateIds } },
             select: originalDataSelect,
         });
         const originalData = originalDataRaw as OriginalDataResult[];
         // Loop through updates
         for (const { input } of Update) {
-            // Find original
-            const original = originalData.find(r => r.id === input.id);
-            if (!original) throw new CustomError("0412", "InternalError", { id: input?.id });
+            // Find original - convert both IDs to string for comparison
+            const original = originalData.find(r => r.id.toString() === input.id.toString());
+            if (!original) throw new CustomError("0412", "InternalError", { id: input?.id, updateIds, foundIds: originalData.map(d => d.id) });
             const isRootPrivate = input.isPrivate ?? original.isPrivate;
             // Convert original versions to map for easy lookup
             const updatedWithOriginal = original.versions.reduce((acc, v) => {
                 if (isVersionData(v)) {
-                    return { ...acc, [v.id]: v };
+                    const idStr = typeof v.id === "bigint" ? v.id.toString() : v.id;
+                    return { ...acc, [idStr]: v };
                 }
                 throw new CustomError("0415", "InternalError", { version: v });
             }, {} as Record<string, VersionData>);
@@ -201,7 +204,10 @@ export async function preShapeRoot({
                 isPrivate: v.isPrivate ?? false,
             }));
             const allVersions: VersionData[] = [...Object.values(updatedWithOriginal), ...newVersions];
-            const versions = allVersions.filter(v => !input.versionsDelete?.includes(v.id));
+            const versions = allVersions.filter(v => {
+                const idStr = typeof v.id === "bigint" ? v.id.toString() : v.id;
+                return !input.versionsDelete?.includes(idStr);
+            });
             // Calculate flags
             const hasCompleteVersion = versions.some(v => v.isComplete);
             versionMap[input.id] = {
@@ -211,7 +217,7 @@ export async function preShapeRoot({
             triggerMap[input.id] = {
                 wasCompleteAndPublic: !original.isPrivate && original.versions.some(v => v.isComplete && !v.isPrivate),
                 hasCompleteAndPublic: !isRootPrivate && versions.some(v => v.isComplete && !v.isPrivate),
-                hasBeenTransferred: original.hasBeenTransferred,
+                transferredAt: original.transferredAt,
                 hasParent: exists(original.parent),
                 // TODO owner might be changed here depending on how triggers are implemented.
                 // For now, using original owner
@@ -225,20 +231,21 @@ export async function preShapeRoot({
     // For deleteList (fairly simple)
     if (Delete.length > 0) {
         // Find original data
+        const deleteIds = Delete.map(d => BigInt(d.input));
         const originalDataRaw = await (DbProvider.get()[dbTable] as PrismaDelegate).findMany({
-            where: { id: { in: Delete.map(d => d.input) } },
+            where: { id: { in: deleteIds } },
             select: originalDataSelect,
         });
         const originalData = originalDataRaw as OriginalDataResult[];
         // Loop through deletes
         for (const { input: id } of Delete) {
-            // Find original
-            const original = originalData.find(r => r.id === id);
+            // Find original - convert both IDs to string for comparison
+            const original = originalData.find(r => r.id.toString() === id.toString());
             if (!original) throw new CustomError("0413", "InternalError", { id });
             triggerMap[id] = {
                 wasCompleteAndPublic: !original.isPrivate && original.versions.some(v => v.isComplete && !v.isPrivate),
                 hasCompleteAndPublic: true, // Doesn't matter
-                hasBeenTransferred: original.hasBeenTransferred,
+                transferredAt: original.transferredAt,
                 hasParent: exists(original.parent),
                 // TODO owner might be changed here depending on how triggers are implemented.
                 // For now, using original owner

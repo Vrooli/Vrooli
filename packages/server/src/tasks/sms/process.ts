@@ -23,14 +23,15 @@ export async function setupTextingClient() {
             const client = await import("twilio");
             texting_client = client.default(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
         } catch (error) {
-            logger.warning("TWILIO client could not be initialized. Sending SMS will not work", { trace: "0013", error });
+            logger.warning("TWILIO SMS service unavailable - client initialization failed", { trace: "0013", error });
+            return; // Skip phone number check if client failed
         }
     }
     if (phoneNumber === null) {
         if (process.env.TWILIO_PHONE_NUMBER) {
             phoneNumber = process.env.TWILIO_PHONE_NUMBER;
         } else {
-            logger.warning("TWILIO phone number not set. Sending SMS will not work", { trace: "0015" });
+            logger.warning("TWILIO SMS service unavailable - phone number not configured", { trace: "0015" });
         }
     }
 }
@@ -49,8 +50,7 @@ export async function smsProcess(job: Job<SMSTask>) {
                 body: job.data.body,
             });
         });
-        const results = await Promise.all(messagePromises);
-        results.forEach(result => console.log(result));
+        await Promise.all(messagePromises);
         return true;
     } catch (err) {
         logger.error("Error sending sms", { trace: "0082" });

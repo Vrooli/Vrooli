@@ -1,5 +1,6 @@
 import { type Job } from "bullmq";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createMockJob } from "../taskFactory.js";
 import { type SMSTask, QueueTaskType } from "../taskTypes.js";
 
 describe("smsProcess", () => {
@@ -7,22 +8,16 @@ describe("smsProcess", () => {
         vi.clearAllMocks();
     });
 
-    const createMockSmsJob = (data: Partial<SMSTask> = {}): Job<SMSTask> => {
-        const defaultData: SMSTask = {
-            taskType: QueueTaskType.SMS,
-            to: "+1234567890",
-            message: "Your verification code is 123456",
-            ...data,
-        };
-
-        return {
-            id: "sms-job-id",
-            data: defaultData,
-            name: "sms",
-            attemptsMade: 0,
-            opts: {},
-        } as Job<SMSTask>;
-    };
+    function createMockSmsJob(data: Partial<SMSTask> = {}): Job<SMSTask> {
+        return createMockJob<SMSTask>(
+            QueueTaskType.SMS_MESSAGE,
+            {
+                to: data.to || ["+1234567890"],
+                body: data.body || "Your verification code is 123456",
+                ...data,
+            },
+        );
+    }
 
     describe("successful SMS delivery", () => {
         it("should send SMS via Twilio", async () => {

@@ -5,8 +5,7 @@
  * execution types and the existing conversation types.
  */
 
-import type { ChatMessage, ExecutionError, ExecutionResourceUsage, ResponseContext, ToolCall } from "@vrooli/shared";
-import type { MessageState } from "../conversation/types.js";
+import type { ChatMessage, ExecutionError, ExecutionResourceUsage, ResponseContext, ToolCall, MessageState } from "@vrooli/shared";
 import type { LlmRouter } from "./router.js";
 import type { ToolRunner } from "./toolRunner.js";
 
@@ -79,7 +78,7 @@ export interface LlmCallResult {
     success: boolean;
 
     /** The generated message (if successful) */
-    message?: ChatMessage;
+    message?: MessageState;
 
     /** Tool calls requested by the LLM (if any) */
     toolCalls?: ToolCall[];

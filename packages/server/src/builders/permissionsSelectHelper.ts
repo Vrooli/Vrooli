@@ -45,10 +45,10 @@ export function permissionsSelectHelper<Select extends Record<string, unknown>>(
         throw new CustomError("0386", "InternalError", { userId, recursionDepth });
     }
     const map = typeof mapResolver === "function" ? mapResolver(userId) : mapResolver;
-    
+
     // Use injected model registry if provided, otherwise default to ModelMap
-    const getModel = modelRegistry ? 
-        modelRegistry.get : 
+    const getModel = modelRegistry ?
+        modelRegistry.get :
         (type: ModelType) => ModelMap.get(type, false);
     // Initialize result
     const result: Record<string, unknown> = {};
@@ -75,7 +75,7 @@ export function permissionsSelectHelper<Select extends Record<string, unknown>>(
                     // Child omit is curr omit with first dot level removed, combined with value[1]
                     const childOmitFields = removeFirstDotLayer(omitFields).concat(value[1]);
                     // Child map is the validator's permissionsSelect function
-                    const childMap = validate().permissionsSelect(userId);
+                    const childMap = validate().permissionsSelect?.(userId);
                     if (childMap) {
                         result[key] = { select: permissionsSelectHelper(childMap, userId, recursionDepth + 1, childOmitFields, modelRegistry) };
                     }
@@ -106,7 +106,7 @@ export function permissionsSelectHelper<Select extends Record<string, unknown>>(
                 // Child omit is curr omit with first dot level removed
                 const childOmitFields = removeFirstDotLayer(omitFields);
                 // Child map is the validator's permissionsSelect function
-                const childMap = validate().permissionsSelect(userId);
+                const childMap = validate().permissionsSelect?.(userId);
                 if (childMap) {
                     result[key] = { select: permissionsSelectHelper(childMap, userId, recursionDepth + 1, childOmitFields, modelRegistry) };
                 }

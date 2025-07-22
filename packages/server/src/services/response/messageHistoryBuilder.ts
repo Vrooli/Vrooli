@@ -5,18 +5,18 @@
  * buildMessages() returns a complete message array ready for any LLM.
  * 
  * Message Array Format:
- * [0] = System message (built from PromptService + ResponseContext)
+ * [0] = System message (built from ResponseService + ResponseContext)
  * [1..n] = Conversation history (token-budgeted, Redis-cached)
  */
 
-import type { ChatMessage, MessageConfigObject, ResponseContext } from "@vrooli/shared";
+import type { ChatMessage, MessageConfigObject, ResponseContext, MessageState } from "@vrooli/shared";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import type { MessageState } from "../conversation/types.js";
 import { ToolRegistry } from "../mcp/registry.js";
 import { ChatContextCache, TokenCounter } from "./messageStore.js";
-import { PromptService, type PromptContext } from "./promptService.js";
+import { ResponseService, type PromptContext } from "./responseService.js";
 import { AIServiceRegistry } from "./registry.js";
+import { MessageTypeAdapters } from "./typeAdapters.js";
 
 const CONTEXT_SIZE_SAFETY_BUFFER_PERCENT = 0.05;
 const MAX_HISTORY_ENTRIES = 1000;
@@ -95,7 +95,7 @@ export class MessageHistoryBuilder {
      * Returns: [systemMessage, ...conversationHistory]
      * This is the ONLY method ResponseService needs to call.
      */
-    async buildMessages(context: ResponseContext): Promise<ChatMessage[]> {
+    async buildMessages(context: ResponseContext): Promise<MessageState[]> {
         const startTime = Date.now();
 
         try {
@@ -109,15 +109,10 @@ export class MessageHistoryBuilder {
             const historyMessages = await this.loadConversationHistory(
                 context.swarmId,
                 budget.historyBudget,
-                context.bot.config.model || "gpt-4",
+                context.bot.config.modelConfig?.preferredModel || "gpt-4",
             );
 
-            logger.debug("MessageHistoryBuilder: Messages built successfully", {
-                duration: Date.now() - startTime,
-                systemTokens: budget.systemMessageBudget,
-                historyMessages: historyMessages.length,
-                totalBudget: budget.totalAvailable,
-            });
+            // Message history built
 
             // 4. Return complete message array for LLM
             return [systemMessage, ...historyMessages];
@@ -137,9 +132,9 @@ export class MessageHistoryBuilder {
     private calculateTokenBudget(context: ResponseContext): TokenBudget {
         // Get model limit from AI service registry
         const registry = AIServiceRegistry.get();
-        const serviceId = registry.getServiceId(context.bot.config.model || "gpt-4");
+        const serviceId = registry.getServiceId(context.bot.config.modelConfig?.preferredModel || "gpt-4");
         const service = registry.getService(serviceId);
-        const modelLimit = service.getContextSize(context.bot.config.model || "gpt-4");
+        const modelLimit = service.getContextSize(context.bot.config.modelConfig?.preferredModel || "gpt-4");
 
         const responseReserve = RESPONSE_RESERVE_TOKENS; // Reserve for LLM response
         const userMessageReserve = USER_MESSAGE_RESERVE_TOKENS; // Reserve for next user message
@@ -162,13 +157,13 @@ export class MessageHistoryBuilder {
     }
 
     /**
-     * Build system message using PromptService
+     * Build system message using ResponseService
      */
     private async buildSystemMessage(
         context: ResponseContext,
         tokenBudget: number,
-    ): Promise<ChatMessage> {
-        // Convert ResponseContext to PromptContext for PromptService
+    ): Promise<MessageState> {
+        // Convert ResponseContext to PromptContext for ResponseService
         const promptContext = this.convertToPromptContext(context);
 
         // Check for agent-specific direct prompt content
@@ -181,24 +176,24 @@ export class MessageHistoryBuilder {
                 promptMode: agentSpec.prompt.mode,
             });
 
-            // Use PromptService with direct prompt content
-            systemContent = await PromptService.buildSystemMessage(promptContext, {
+            // Use ResponseService with direct prompt content
+            systemContent = await ResponseService.buildSystemMessage(promptContext, {
                 directPromptContent: agentSpec.prompt.content,
                 userData: context.userData,
             });
         } else {
-            // Use PromptService for sophisticated prompt generation
-            systemContent = await PromptService.buildSystemMessage(promptContext, {
+            // Use ResponseService for sophisticated prompt generation
+            systemContent = await ResponseService.buildSystemMessage(promptContext, {
                 userData: context.userData,
             });
         }
 
         // Check if it fits in budget and truncate if needed
         const registry = AIServiceRegistry.get();
-        const serviceId = registry.getServiceId(context.bot.config.model || "gpt-4");
+        const serviceId = registry.getServiceId(context.bot.config.modelConfig?.preferredModel || "gpt-4");
         const service = registry.getService(serviceId);
         const systemTokens = service.estimateTokens({
-            aiModel: context.bot.config.model || "gpt-4",
+            aiModel: context.bot.config.modelConfig?.preferredModel || "gpt-4",
             text: systemContent,
         }).tokens;
 
@@ -207,33 +202,28 @@ export class MessageHistoryBuilder {
                 systemTokens,
                 tokenBudget,
             });
-            systemContent = await this.truncateSystemMessage(systemContent, tokenBudget, context.bot.config.model || "gpt-4");
+            systemContent = await this.truncateSystemMessage(systemContent, tokenBudget, context.bot.config.modelConfig?.preferredModel || "gpt-4");
         }
 
-        // Return as ChatMessage
-        return {
-            __typename: "ChatMessage" as const,
+        // Return as MessageState using type adapters
+        return MessageTypeAdapters.createMessageState({
             id: "system",
-            createdAt: new Date().toISOString(),
-            config: {
-                __version: "1.0",
-                role: "system",
-            } as MessageConfigObject,
             text: systemContent,
-            user: { id: "system" },
+            role: "system",
+            userId: "system",
             language: "en",
-        } as ChatMessage;
+        });
     }
 
     /**
-     * Convert ResponseContext to PromptContext for PromptService
+     * Convert ResponseContext to PromptContext for ResponseService
      */
     private convertToPromptContext(context: ResponseContext): PromptContext {
         // Extract goal from context or use default
         const effectiveGoal = context.bot.config.agentSpec?.goal || "Process current event.";
 
-        // Create conversation config from context data
-        const convoConfig = {
+        // Use the chatConfig from swarmState if available, otherwise create a minimal one
+        const convoConfig = context.swarmState?.chatConfig || {
             __version: "1.0" as const,
             teamId: context.swarmId,
             swarmLeader: context.bot.id,
@@ -258,11 +248,14 @@ export class MessageHistoryBuilder {
             secrets: {},
         };
 
+        // TODO: If teamId is present in convoConfig, we should load the team data
+        // For now, we'll leave team as undefined to match the current behavior
+        // In the future, this should be enhanced to load actual team data from the database
         return {
             goal: effectiveGoal,
             bot: context.bot,
             convoConfig,
-            teamConfig: undefined,
+            team: undefined,
             toolRegistry: this.toolRegistry,
             userId: context.userData?.id,
             swarmId: context.swarmId,
@@ -284,7 +277,7 @@ export class MessageHistoryBuilder {
         chatId: string,
         tokenBudget: number,
         aiModel: string,
-    ): Promise<ChatMessage[]> {
+    ): Promise<MessageState[]> {
         // 1. Try Redis cache first
         let map: HistoryMap | null = await this.cache.getHistoryMap(chatId);
 
@@ -299,8 +292,8 @@ export class MessageHistoryBuilder {
         // 4. Select messages within budget using parent-child traversal
         const selectedEntries = this.selectMessagesWithinBudget(map, tokenBudget);
 
-        // 5. Convert to ChatMessage format
-        return this.convertHistoryEntriesToChatMessages(selectedEntries);
+        // 5. Convert to MessageState format
+        return this.convertHistoryEntriesToMessageStates(selectedEntries);
     }
 
     /**
@@ -418,30 +411,73 @@ export class MessageHistoryBuilder {
     /**
      * Convert HistoryEntry[] to ChatMessage[]
      */
-    private async convertHistoryEntriesToChatMessages(
+    private async convertHistoryEntriesToMessageStates(
         entries: HistoryEntry[],
-    ): Promise<ChatMessage[]> {
+    ): Promise<MessageState[]> {
         if (entries.length === 0) {
             return [];
         }
 
-        // Fetch full messages from database
+        // Fetch full messages from database as proper ChatMessage objects
         const collectedIds = entries.map(e => BigInt(e.id));
+        const chatMessages = await this.loadFullChatMessages(collectedIds);
+
+        // Convert ChatMessage[] to MessageState[] using safe type adapters
+        return chatMessages.map(msg => MessageTypeAdapters.chatMessageToMessageState(msg));
+    }
+
+    /**
+     * Load full ChatMessage objects from database with all required relations
+     * 
+     * This method properly constructs ChatMessage objects with all the fields
+     * required by the interface, ensuring type safety and data integrity.
+     */
+    private async loadFullChatMessages(messageIds: bigint[]): Promise<ChatMessage[]> {
         const recs = await DbProvider.get().chat_message.findMany({
-            where: { id: { in: collectedIds } },
-            include: { parent: { select: { id: true } }, user: { select: { id: true } } },
+            where: { id: { in: messageIds } },
             orderBy: { createdAt: "asc" },
         });
 
-        // Convert to ChatMessage format
+        // Convert database records to proper ChatMessage objects
         return recs.map(rec => ({
             __typename: "ChatMessage" as const,
             id: rec.id.toString(),
             createdAt: rec.createdAt.toISOString(),
+            updatedAt: rec.updatedAt.toISOString(),
             config: rec.config as unknown as MessageConfigObject,
             text: rec.text ?? "",
-            user: rec.user?.id ? { id: rec.user.id.toString() } : { id: "unknown" },
             language: rec.language,
+            versionIndex: rec.versionIndex,
+            sequence: 0, // Default value since sequence field doesn't exist in database
+            score: rec.score,
+            reportsCount: 0, // Default value
+            parent: rec.parentId ? {
+                __typename: "ChatMessageParent" as const,
+                id: rec.parentId.toString(),
+                createdAt: rec.createdAt.toISOString(),
+            } : undefined,
+            user: {
+                __typename: "User" as const,
+                id: rec.userId?.toString() || "unknown",
+                name: "",
+                handle: "",
+            } as any, // Simplified User object
+            chat: {
+                __typename: "Chat" as const,
+                id: rec.chatId.toString(),
+                name: "",
+            } as any, // Simplified Chat object
+            reactionSummaries: [],
+            reports: [],
+            you: {
+                __typename: "ChatMessageYou" as const,
+                canDelete: false,
+                canUpdate: false,
+                canReply: true,
+                canReport: false,
+                canReact: true,
+                reaction: null,
+            },
         } as ChatMessage));
     }
 

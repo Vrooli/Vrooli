@@ -1,33 +1,29 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { type Job } from "bullmq";
-import { notificationCreateProcess } from "./process.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createMockJob } from "../taskFactory.js";
 import { type NotificationCreateTask, QueueTaskType } from "../taskTypes.js";
-import { logger } from "../../events/logger.js";
 
 describe("notificationCreateProcess", () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    const createMockNotificationJob = (data: Partial<NotificationCreateTask> = {}): Job<NotificationCreateTask> => {
-        const defaultData: NotificationCreateTask = {
-            taskType: QueueTaskType.NotificationCreate,
-            createdFor: "user-123",
-            notificationType: "SystemUpdate",
-            title: "System Update",
-            description: "A new feature has been released",
-            link: "/updates/new-feature",
-            ...data,
-        };
-
-        return {
-            id: "notification-job-id",
-            data: defaultData,
-            name: "notification",
-            attemptsMade: 0,
-            opts: {},
-        } as Job<NotificationCreateTask>;
-    };
+    function createMockNotificationJob(data: Partial<NotificationCreateTask> = {}): Job<NotificationCreateTask> {
+        return createMockJob<NotificationCreateTask>(
+            QueueTaskType.NOTIFICATION_CREATE,
+            {
+                id: data.id || "notification-123",
+                userId: data.userId || "user-123",
+                category: data.category || "SystemUpdate",
+                title: data.title || "System Update",
+                description: data.description || "A new feature has been released",
+                link: data.link || "/updates/new-feature",
+                imgLink: data.imgLink,
+                sendWebSocketEvent: data.sendWebSocketEvent !== undefined ? data.sendWebSocketEvent : true,
+                ...data,
+            },
+        );
+    }
 
     describe("successful notification creation", () => {
         it("should create basic notification", async () => {
