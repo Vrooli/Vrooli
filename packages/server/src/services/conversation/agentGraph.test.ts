@@ -8,13 +8,13 @@ import {
     type RunState,
     type RuntimeResources,
     type SwarmState,
-    type SystemMetadata
+    type SystemMetadata,
 } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
     ActiveBotGraph,
     CompositeGraph,
-    DirectResponderGraph
+    DirectResponderGraph,
 } from "./agentGraph.js";
 
 describe("DirectResponderGraph", () => {

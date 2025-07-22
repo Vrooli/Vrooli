@@ -5,14 +5,23 @@
             "node",
             "vitest/globals"
         ],
-        "sourceMap": true
+        "sourceMap": true,
+        "noEmit": true,
+        "allowJs": true
     },
     "include": [
-        "src/**/*.ts",
-        "src/**/*.tsx"
+        "src/**/*.test.ts",
+        "src/**/*.test.tsx", 
+        "src/**/*.spec.ts",
+        "src/**/*.spec.tsx",
+        "src/**/__test/**/*",
+        "test/**/*",
+        "**/__test/**/*",
+        "**/fixtures/**/*"
     ],
     "exclude": [
         "node_modules",
-        "dist"
+        "dist",
+        "test-dist"
     ]
 }

@@ -117,7 +117,6 @@ export const chatMessage: EndpointsChatMessage = createStandardCrudEndpoints({
             };
 
             await QueueService.get().swarm.addTask(llmTaskPayload);
-            logger.info(`LLM task ${llmTaskPayload.id} enqueued for message regeneration: ${messageId}`);
 
             return { __typename: "Success" as const, success: true };
         },

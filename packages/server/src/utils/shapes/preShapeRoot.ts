@@ -1,6 +1,4 @@
 import { exists, type ModelType, type SessionUser } from "@vrooli/shared";
-// AI_CHECK: TYPE_SAFETY=preShapeRoot-fixes | LAST: 2025-07-06 - Fixed all unknown type handling and missing property issues
-import { type Prisma } from "@prisma/client";
 import { type PrismaDelegate } from "../../builders/types.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
@@ -109,13 +107,13 @@ const originalDataSelect = {
 // Helper function to safely check if an object has version properties
 function isVersionData(obj: unknown): obj is VersionData {
     return obj !== null &&
-           typeof obj === "object" &&
-           hasProperty(obj, "id") &&
-           hasProperty(obj, "isComplete") &&
-           hasProperty(obj, "isPrivate") &&
-           typeof obj.id === "string" &&
-           typeof obj.isComplete === "boolean" &&
-           typeof obj.isPrivate === "boolean";
+        typeof obj === "object" &&
+        hasProperty(obj, "id") &&
+        hasProperty(obj, "isComplete") &&
+        hasProperty(obj, "isPrivate") &&
+        typeof obj.id === "string" &&
+        typeof obj.isComplete === "boolean" &&
+        typeof obj.isPrivate === "boolean";
 }
 
 // Helper function to safely get ID from owner object

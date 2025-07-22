@@ -836,6 +836,234 @@ jq '.routines[] | select(.name | test("pattern"; "i"))' docs/ai-creation/routine
 jq . staged/your-routine.json
 ```
 
+## Blackboard Integration and Agent Coordination
+
+Routines can interact with the swarm blackboard to enable sophisticated agent coordination patterns. This enables multi-agent workflows where one agent analyzes data, saves results to the blackboard, and other agents react to those results.
+
+### Blackboard Output Mapping
+
+Routines can save their outputs directly to the blackboard using `outputMapping` configurations:
+
+#### Data Processing with Blackboard Output
+```json
+{
+  "callDataCode": {
+    "schema": {
+      "inputTemplate": {
+        "errorData": "{{input.errorDetails}}",
+        "context": "{{input.contextInfo}}"
+      },
+      "outputMapping": {
+        "processedData": "result.analysis",
+        "blackboard.error_analysis": "result.analysis",
+        "blackboard.risk_level": "result.riskScore",
+        "blackboard.recommended_action": "result.recommendation"
+      }
+    }
+  }
+}
+```
+
+#### Analysis Routine with Risk Assessment
+```json
+{
+  "callDataCode": {
+    "schema": {
+      "inputTemplate": {
+        "dataset": "{{input.data}}",
+        "analysisType": "{{input.type}}"
+      },
+      "outputMapping": {
+        "analysisResult": "result.analysis",
+        "blackboard.analysis_complete": "true",
+        "blackboard.analysis_timestamp": "result.timestamp",
+        "blackboard.confidence_score": "result.confidence",
+        "blackboard.requires_review": "result.needsHumanReview"
+      }
+    }
+  }
+}
+```
+
+### Multi-Agent Coordination Patterns
+
+#### Pattern 1: Error Analysis → Oversight → Action
+```
+Step 1: Error Detection Agent
+  - Subscribes to: run/failed
+  - Runs: error-analyzer routine
+  - Saves to blackboard: error_analysis, risk_level
+
+Step 2: Oversight Agent  
+  - Subscribes to: swarm/blackboard/updated
+  - Trigger: when key contains 'error_analysis'
+  - Runs: task-compliance-checker routine
+  - Emits: safety/stop_requested if off-task detected
+
+Step 3: Action Agent
+  - Subscribes to: swarm/blackboard/updated
+  - Trigger: when risk_level > 0.8
+  - Runs: escalation-handler routine
+```
+
+#### Pattern 2: Data Pipeline with Quality Gates
+```
+Step 1: Data Validator
+  - Runs: data-quality-checker routine
+  - Saves: blackboard.data_quality_score, blackboard.validation_errors
+
+Step 2: Quality Gate Agent
+  - Subscribes to: swarm/blackboard/updated
+  - Trigger: when data_quality_score < threshold
+  - Emits: custom/data/rejected or custom/data/approved
+
+Step 3: Processing Agent
+  - Subscribes to: custom/data/approved
+  - Runs: data-processor routine
+  - Saves: blackboard.processed_results
+```
+
+### Routine Types for Agent Coordination
+
+#### RoutineData for Blackboard Updates
+```json
+{
+  "resourceSubType": "RoutineData",
+  "config": {
+    "callDataCode": {
+      "schema": {
+        "inputTemplate": {
+          "analysisData": "{{input.data}}",
+          "contextInfo": "{{input.context}}"
+        },
+        "outputMapping": {
+          "result": "analysis.summary",
+          "blackboard.analysis_status": "'completed'",
+          "blackboard.analysis_data": "analysis.details",
+          "blackboard.next_action": "analysis.recommendedAction"
+        }
+      }
+    }
+  }
+}
+```
+
+#### RoutineGenerate for Dynamic Responses
+```json
+{
+  "resourceSubType": "RoutineGenerate",
+  "config": {
+    "callDataGenerate": {
+      "schema": {
+        "inputTemplate": {
+          "situation": "{{input.currentSituation}}",
+          "constraints": "{{input.constraints}}"
+        },
+        "outputMapping": {
+          "response": "generated.response",
+          "blackboard.decision_rationale": "generated.reasoning",
+          "blackboard.confidence_level": "generated.confidence"
+        }
+      }
+    }
+  }
+}
+```
+
+### Best Practices for Agent-Routine Integration
+
+#### 1. Structured Blackboard Keys
+Use hierarchical naming for blackboard keys:
+```json
+{
+  "outputMapping": {
+    "blackboard.error_analysis.risk_score": "result.risk",
+    "blackboard.error_analysis.error_type": "result.type",
+    "blackboard.error_analysis.timestamp": "result.timestamp",
+    "blackboard.workflow.next_step": "result.nextAction"
+  }
+}
+```
+
+#### 2. Status and Progress Tracking
+Include status fields for agent coordination:
+```json
+{
+  "outputMapping": {
+    "blackboard.task_status": "'in_progress'",
+    "blackboard.completion_percentage": "result.progress",
+    "blackboard.last_update": "new Date().toISOString()"
+  }
+}
+```
+
+#### 3. Conditional Outputs
+Use dynamic expressions for conditional blackboard updates:
+```json
+{
+  "outputMapping": {
+    "blackboard.requires_escalation": "result.riskScore > 0.8 ? 'true' : 'false'",
+    "blackboard.approval_needed": "result.confidence < 0.7 ? 'true' : 'false'"
+  }
+}
+```
+
+### Example: Software Development Error Handling
+
+#### Error Analyzer Routine
+```json
+{
+  "name": "error-analyzer",
+  "resourceSubType": "RoutineGenerate",
+  "config": {
+    "callDataGenerate": {
+      "schema": {
+        "inputTemplate": {
+          "errorMessage": "{{input.error}}",
+          "codeContext": "{{input.context}}",
+          "stackTrace": "{{input.stack}}"
+        },
+        "outputMapping": {
+          "analysis": "analysis.summary",
+          "blackboard.error_analysis.type": "analysis.errorType",
+          "blackboard.error_analysis.severity": "analysis.severity",
+          "blackboard.error_analysis.risk_score": "analysis.riskScore",
+          "blackboard.error_analysis.recommended_fix": "analysis.suggestedFix",
+          "blackboard.error_analysis.requires_oversight": "analysis.riskScore > 0.8 ? 'true' : 'false'"
+        }
+      }
+    }
+  }
+}
+```
+
+#### Task Compliance Checker Routine
+```json
+{
+  "name": "task-compliance-checker",
+  "resourceSubType": "RoutineGenerate",
+  "config": {
+    "callDataGenerate": {
+      "schema": {
+        "inputTemplate": {
+          "originalTask": "{{input.originalGoal}}",
+          "currentAnalysis": "{{input.analysisData}}",
+          "agentActions": "{{input.recentActions}}"
+        },
+        "outputMapping": {
+          "complianceResult": "compliance.summary",
+          "blackboard.compliance_check.on_task": "compliance.isOnTask ? 'true' : 'false'",
+          "blackboard.compliance_check.deviation_level": "compliance.deviationScore",
+          "blackboard.compliance_check.recommended_action": "compliance.recommendedAction"
+        }
+      }
+    }
+  }
+}
+```
+
+This blackboard integration enables sophisticated multi-agent workflows where agents can coordinate through shared data and reactive behaviors, creating emergent intelligence from simple routine-based interactions.
+
 ## Contributing
 
 When adding new routine ideas to the backlog:

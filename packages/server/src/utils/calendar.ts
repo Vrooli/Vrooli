@@ -1,15 +1,30 @@
-// AI_CHECK: TYPE_SAFETY=server-type-safety-fixes | LAST: 2025-07-01 - Fixed any type in RRule options to proper interface
 import { HOURS_1_MS, MINUTES_1_MS, ScheduleRecurrenceType, generatePK, type Schedule, type ScheduleRecurrence } from "@vrooli/shared";
-import ical, { type CalendarResponse, type DateWithTimeZone, type VCalendar, type VEvent } from "node-ical";
-import rrulePkg from "rrule";
-
-const { RRule, Frequency } = rrulePkg;
+import * as ical from "node-ical";
+import { type CalendarResponse, type DateWithTimeZone, type VCalendar, type VEvent } from "node-ical";
+import pkg from "rrule";
+import { logger } from "../events/logger.js";
 import { type RequestFile } from "../types.js";
+
+// RRule has to be imported like this to avoid errors when starting the server. DO NOT attempt to fix this!
+const { RRule } = pkg;
+
+// rrule enum imports are a common source of errors, so we're defining it here. 
+// DO NOT attempt to fix this by doing `import { Frequency } from "rrule";`, as it will likely 
+// cause issues in the future.
+enum Frequency {
+    YEARLY = 0,
+    MONTHLY = 1,
+    WEEKLY = 2,
+    DAILY = 3,
+    HOURLY = 4,
+    // eslint-disable-next-line no-magic-numbers
+    MINUTELY = 5,
+    // eslint-disable-next-line no-magic-numbers
+    SECONDLY = 6,
+}
 
 // Type definitions for iCal date values
 type ICalDateValue = Date | DateWithTimeZone | string | { date: string; tz?: string } | null | undefined;
-
-// Note: Using RRule type from rrule library instead of custom interface
 
 const DEFAULT_EVENT_DURATION_MINUTES = 60;
 const SUNDAY_DAY_NUMBER = 7;
@@ -29,7 +44,7 @@ export async function parseICalFile(file: RequestFile): Promise<CalendarResponse
         const events = await ical.async.parseICS(icsString);
         return events;
     } catch (error) {
-        console.error("Error parsing iCal file:", error);
+        logger.error("Error parsing iCal file", { error: error instanceof Error ? error.message : String(error) });
         throw new Error("Failed to parse iCalendar file. Ensure the file is valid.");
     }
 }
@@ -171,7 +186,7 @@ function parseRRule(rrule: InstanceType<typeof RRule>, startTime: Date, endTime:
     const duration = endTime ? Math.floor((endTime.getTime() - startTime.getTime()) / MINUTES_1_MS) : DEFAULT_EVENT_DURATION_MINUTES; // Duration in minutes
 
     let recurrenceType: ScheduleRecurrenceType;
-    switch (rrule.options.freq) {
+    switch (rrule.options.freq as number) {
         case Frequency.DAILY:
             recurrenceType = ScheduleRecurrenceType.Daily;
             break;
@@ -420,7 +435,7 @@ export function createICalEvent(
         };
 
         if (recurrence.dayOfWeek) {
-            rruleOptions.byweekday = Array.isArray(recurrence.dayOfWeek) ? recurrence.dayOfWeek : [recurrence.dayOfWeek];
+            rruleOptions.byweekday = parseInt(recurrence.dayOfWeek, 10);
         }
         if (recurrence.dayOfMonth) {
             rruleOptions.bymonthday = recurrence.dayOfMonth;

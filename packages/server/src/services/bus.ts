@@ -40,11 +40,6 @@ export interface BillingNegativeBalanceEvent extends BaseSingleProcessEvent {
     };
 }
 
-/*──────────────────────── tool execution ───────────────────*/
-
-/*──────────────────────── routine execution ───────────────────*/
-
-
 /*──────────────────────── conversation execution ───────────────────*/
 /**
  * Events related to conversations, extending BaseSingleProcessEvent with conversation-specific fields.
@@ -89,8 +84,24 @@ type EventCallback = (evt: AppEvent) => void | Promise<void>;
 type XInfoStreamResponse = Array<string | number | null | Array<string | Array<[string, string]>>>;
 
 /** Wait helper – avoids re-implementing a back-off timer each time. */
-function sleep(ms: number) {
-    return new Promise(r => setTimeout(r, ms));
+function sleep(ms: number): Promise<void> & { cancel?: () => void } {
+    let timeoutId: NodeJS.Timeout;
+    let rejectFn: ((reason?: any) => void) | undefined;
+    
+    const promise = new Promise<void>((resolve, reject) => {
+        rejectFn = reject;
+        timeoutId = setTimeout(resolve, ms);
+    }) as Promise<void> & { cancel?: () => void };
+    
+    // Add cancel method for test environment
+    if (process.env.NODE_ENV === "test") {
+        promise.cancel = () => {
+            clearTimeout(timeoutId);
+            rejectFn?.(new Error("Sleep cancelled"));
+        };
+    }
+    
+    return promise;
 }
 
 /* ------------------------------------------------------------------
@@ -379,27 +390,66 @@ export class RedisStreamBus extends EventBus {
     private publishErrorCount = 0;
     private subscribeErrorCount = 0;
     private initialized = false; // Added to track initialization
+    private activeSleepPromise: (Promise<void> & { cancel?: () => void }) | null = null; // Track active sleep
+    // Removed pingInterval - TCP keepalive (10s) handles connection maintenance
 
     // Constructor
     constructor(options: Partial<StreamBusOptions> = {}) {
         super();
         this.options = { ...DEFAULT_STREAM_OPTIONS, ...options };
+        
+        // Disable keepalive in test environment to prevent timer accumulation
+        const keepAliveMs = process.env.NODE_ENV === "test" ? 0 : 10000;
+        
         this.client = new (IORedis as any)(getRedisUrl(), {
+            keepAlive: keepAliveMs, // Send TCP keepalive every 10 seconds (disabled in tests)
             retryStrategy: (retries) => {
                 if (retries > this.options.maxReconnectAttempts) {
                     logger.error("[RedisStreamBus] Max retries reached");
                     this.emitClose();
                     return null;          // stop retrying
                 }
-                return getReconnectDelay(retries, this.options);
+
+                const delay = getReconnectDelay(retries, this.options);
+                const stack = new Error().stack;
+                const callingFunction = stack?.split("\n")[2]?.trim().replace(/^at\s+/, "") || "unknown";
+
+                logger.warn(`Redis retry attempt ${retries}, waiting ${delay}ms`, {
+                    attempt: retries,
+                    delayMs: delay,
+                    operation: "event_bus_connection",
+                    component: "RedisStreamBus",
+                    streamName: this.options.streamName,
+                    groupName: this.options.groupName,
+                    caller: callingFunction,
+                    stackTrace: process.env.NODE_ENV === "development" ? stack : undefined,
+                    maxAttempts: this.options.maxReconnectAttempts,
+                    timestamp: new Date().toISOString(),
+                });
+
+                return delay;
             },
         });
     }
 
     async init(): Promise<void> {
-        if (this.initialized) return;
-        await this.ensure();
-        this.initialized = true;
+        if (this.initialized) {
+            logger.info("[RedisStreamBus] Already initialized, returning early");
+            return;
+        }
+        
+        try {
+            await this.ensure();
+            this.initialized = true;
+            // Removed redundant ping interval - TCP keepalive (10s) is already configured in Redis connection options
+            // This eliminates connection congestion from over-aggressive pinging
+        } catch (error) {
+            logger.error("[RedisStreamBus] Initialization failed", {
+                error: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
+            });
+            throw error;
+        }
     }
 
     private async ensure() {
@@ -409,9 +459,7 @@ export class RedisStreamBus extends EventBus {
             this.client.status !== "connecting" &&
             this.client.status !== "reconnecting") {
             try {
-                logger.info(`[RedisStreamBus] Attempting client.connect() for stream ${this.options.streamName}. Current status: ${this.client.status}`);
                 await this.client.connect();
-                logger.info(`[RedisStreamBus] Client.connect() successful for stream ${this.options.streamName}. Status: ${this.client.status}`);
             } catch (connectError) {
                 logger.error(`[RedisStreamBus] Client.connect() failed for stream ${this.options.streamName}.`, {
                     errorName: (connectError as Error)?.name,
@@ -425,6 +473,8 @@ export class RedisStreamBus extends EventBus {
 
         // Step 2: Always attempt to create stream & consumer-group idempotently,
         // as client 'ready' status doesn't guarantee these structures exist.
+        const xgroupStartTime = Date.now();
+        
         try {
             await this.client.xgroup(
                 "CREATE",
@@ -582,7 +632,23 @@ export class RedisStreamBus extends EventBus {
                             stack: err instanceof Error && err.stack ? err.stack : undefined,
                         });
                     }
-                    await sleep(this.options.autoClaimEveryMs);
+                    
+                    // Check if we should continue before sleeping
+                    if (!this.subRunning) break;
+                    
+                    // Store the sleep promise so it can be cancelled
+                    this.activeSleepPromise = sleep(this.options.autoClaimEveryMs);
+                    try {
+                        await this.activeSleepPromise;
+                    } catch (err) {
+                        // Sleep was cancelled, exit the loop
+                        if (err instanceof Error && err.message === "Sleep cancelled") {
+                            break;
+                        }
+                        throw err;
+                    } finally {
+                        this.activeSleepPromise = null;
+                    }
                 }
             };
 
@@ -593,6 +659,12 @@ export class RedisStreamBus extends EventBus {
 
     async close() {
         this.subRunning = false;
+        
+        // Cancel any active sleep to speed up shutdown
+        if (this.activeSleepPromise?.cancel) {
+            this.activeSleepPromise.cancel();
+        }
+        
         this.emitClose();
         // Give loops a moment to finish current batch
         await sleep(this.options.closeTimeoutMs);
@@ -608,6 +680,7 @@ export class RedisStreamBus extends EventBus {
 
         try {
             await this.ensure();
+            
             await this.client.ping();   // verifies connectivity
 
             /* ---------- STREAM BASICS -------------------------------- */
@@ -748,10 +821,22 @@ export class BusService {
      * Start the EventBus if not already started
      */
     public async startEventBus(): Promise<void> {
-        if (this.started) return;
-        this.bus = new RedisStreamBus();
-        await this.bus.init();
-        this.started = true;
+        if (this.started) {
+            logger.info("[BusService] EventBus already started, returning early");
+            return;
+        }
+        
+        try {
+            this.bus = new RedisStreamBus();
+            await this.bus.init();
+            this.started = true;
+        } catch (error) {
+            logger.error("[BusService] Failed to start EventBus", {
+                error: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
+            });
+            throw error;
+        }
     }
 
     /**

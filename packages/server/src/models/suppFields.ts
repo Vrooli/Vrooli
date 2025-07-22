@@ -28,7 +28,7 @@ export const SuppFields = {
     ReminderList: [],
     Report: ["you"],
     ReportResponse: ["you"],
-    Resource: [],
+    Resource: ["you", "translatedName"],
     ResourceVersion: ["you"],
     ResourceVersionRelation: [],
     Role: [],

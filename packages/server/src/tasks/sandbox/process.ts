@@ -1,14 +1,17 @@
-import { CodeLanguage, CodeVersionConfig, type ResourceVersion, type SessionUser } from "@vrooli/shared";
+import { CodeLanguage, CodeVersionConfig, type ExecutionEnvironment, type ResourceVersion } from "@vrooli/shared";
 import { type Job } from "bullmq";
 import { readOneHelper } from "../../actions/reads.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { CacheService } from "../../redisConn.js";
+import { validateLocalExecutionSafety } from "../../utils/executionMode.js";
 import { getAuthenticatedData } from "../../utils/getAuthenticatedData.js";
 import { permissionsCheck } from "../../validators/permissions.js";
+import { type SandboxTask } from "../taskTypes.js";
+import { getSupportedExecutionEnvironments } from "./executionEnvironmentSupport.js";
+import { getLocalExecutionManager } from "./localExecutionManager.js";
 import { SandboxChildProcessManager } from "./sandboxWorkerManager.js";
 import { type RunUserCodeInput, type RunUserCodeOutput } from "./types.js";
-import { type SandboxTask } from "../taskTypes.js";
 
 // Type for the sandbox process payload - picks the essential fields from SandboxTask
 type SandboxProcessPayload = Pick<SandboxTask, "codeVersionId" | "input" | "userData">;
@@ -24,26 +27,81 @@ interface CachedCodeObject {
     id: string;
     content: string;
     codeLanguage: CodeLanguage;
+    executionEnvironment?: ExecutionEnvironment;
+    environmentConfig?: {
+        workingDirectory?: string;
+        allowedPaths?: string[];
+        timeoutMs?: number;
+        memoryLimitMb?: number;
+        environmentVariables?: Record<string, string>;
+    };
 }
 
-// Create a new child process manager to run the user code
-const manager = new SandboxChildProcessManager();
+// Create a new child process manager to run the user code in sandbox
+const sandboxManager = new SandboxChildProcessManager();
 
 /**
- * Runs sandboxed user code in a secure environment, 
+ * Runs user code in the appropriate execution environment,
  * when you already know the code content and validated the user's permissions.
  */
 export async function runUserCode({
     code,
     codeLanguage,
     input,
+    executionEnvironment = "sandbox",
+    environmentConfig,
 }: RunUserCodeInput): Promise<RunUserCodeOutput> {
-    // Run the user code with the provided input
-    return await manager.runUserCode({
-        code,
-        codeLanguage: codeLanguage as CodeLanguage,
-        input,
-    });
+    // Route execution based on environment
+    switch (executionEnvironment) {
+        case "sandbox":
+            // Use the existing sandbox manager for isolated JavaScript execution
+            return await sandboxManager.runUserCode({
+                code,
+                codeLanguage: codeLanguage as CodeLanguage,
+                input,
+                executionEnvironment,
+                environmentConfig,
+            });
+
+        case "local": {
+            // Additional safety validation for local execution
+            try {
+                validateLocalExecutionSafety();
+            } catch (error) {
+                logger.warn("Local execution safety check failed", {
+                    error: error instanceof Error ? error.message : String(error),
+                    trace: "runUserCode-local-safety-fail",
+                });
+
+                // Provide configuration-aware error message
+                const errorMessage = error instanceof CustomError ? error.message :
+                    (error instanceof Error ? error.message : "Local execution safety check failed");
+
+                return {
+                    __type: "error",
+                    error: errorMessage,
+                };
+            }
+
+            // Use the local execution manager for development/testing
+            const localManager = getLocalExecutionManager();
+            return await localManager.runUserCode({
+                code,
+                codeLanguage: codeLanguage as CodeLanguage,
+                input,
+                executionEnvironment,
+                environmentConfig,
+            });
+        }
+
+        default: {
+            const supportedEnvs = getSupportedExecutionEnvironments().join(", ");
+            return {
+                __type: "error",
+                error: `Unsupported execution environment '${executionEnvironment}'. Supported environments: ${supportedEnvs}`,
+            };
+        }
+    }
 }
 
 /**
@@ -89,7 +147,10 @@ export async function doSandbox({
             // Deserialize config to get the actual code content
             const parsedConfig = CodeVersionConfig.parse(
                 // Provide the expected Pick<ResourceVersion, "codeLanguage" | "config"> object
-                { config: dbResult.config, codeLanguage: dbResult.codeLanguage },
+                {
+                    config: dbResult.config as ResourceVersion["config"],
+                    codeLanguage: dbResult.codeLanguage as ResourceVersion["codeLanguage"],
+                },
                 logger, // Pass the logger instance
             );
 
@@ -102,6 +163,8 @@ export async function doSandbox({
                 id: dbResult.id.toString(),
                 content: parsedConfig.content,
                 codeLanguage: parsedConfig.codeLanguage as CodeLanguage, // Ensure this is CodeLanguage enum
+                executionEnvironment: parsedConfig.executionEnvironment,
+                environmentConfig: parsedConfig.environmentConfig,
             };
 
             await cacheService.set(redisKey, codeObject);
@@ -120,7 +183,13 @@ export async function doSandbox({
         }
         const codeLang = codeObject.codeLanguage as CodeLanguage;
 
-        result = await runUserCode({ codeLanguage: codeLang, code, input });
+        result = await runUserCode({
+            codeLanguage: codeLang,
+            code,
+            input,
+            executionEnvironment: codeObject.executionEnvironment,
+            environmentConfig: codeObject.environmentConfig,
+        });
 
         if (!result) {
             throw new CustomError("0622", "InternalError", { process: "doSandbox", reason: "runUserCode returned undefined" });
@@ -148,7 +217,7 @@ export async function doSandbox({
 export async function sandboxProcess({ data }: Job<SandboxTask>) {
     // For backward compatibility, check if __process is provided
     const processType = ("__process" in data && typeof data.__process === "string") ? data.__process : "Sandbox";
-    
+
     switch (processType) {
         case "Sandbox":
             return doSandbox(data);

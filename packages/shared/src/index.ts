@@ -32,7 +32,7 @@ export type {
     OrArray,
     ArrayElement,
     DefinedArrayElement,
-} from "./types.d.ts";
+} from "./types.js";
 export * from "./utils/index.js";
 export * from "./validation/index.js";
 

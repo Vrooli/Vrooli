@@ -5,7 +5,7 @@
  */
 
 import { CommentFor } from "../../../api/types.js";
-import type { CommentShape } from "../../../api/types.js";
+import type { CommentShape } from "../../../shape/models/models.js";
 import type { FormFixtures } from "../../../forms/configs/types.js";
 
 /**

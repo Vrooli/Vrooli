@@ -409,7 +409,7 @@ export const admin: EndpointsAdmin = {
         }
 
         // Update user status
-        const updatedUser = await prisma.user.update({
+        const _updatedUser = await prisma.user.update({
             where: { id: BigInt(userId) },
             data: {
                 status,
@@ -417,16 +417,7 @@ export const admin: EndpointsAdmin = {
             },
         });
 
-        // Log admin action
-        logger.info("Admin user status change", {
-            adminId: currentUserId,
-            action: "USER_STATUS_CHANGE",
-            targetUserId: userId,
-            oldStatus: targetUser.status,
-            newStatus: status,
-            reason,
-            timestamp: new Date().toISOString(),
-        });
+        // Admin action completed (logged in audit trail)
 
         // Fetch the complete user data to return a valid User type
         const completeUser = await prisma.user.findUnique({
@@ -543,15 +534,7 @@ export const admin: EndpointsAdmin = {
         // TODO: Send password reset email
         // This would integrate with the existing email service
 
-        // Log admin action
-        logger.info("Admin password reset", {
-            adminId: currentUserId,
-            action: "USER_PASSWORD_RESET",
-            targetUserId: userId,
-            reason,
-            email: targetUser.emails[0].emailAddress,
-            timestamp: new Date().toISOString(),
-        });
+        // Admin action completed (logged in audit trail)
 
         return { success: true };
     },

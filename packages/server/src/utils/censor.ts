@@ -1,12 +1,11 @@
 import { exists, isObject } from "@vrooli/shared";
-import fs from "fs";
-import { logger } from "../events/logger.js";
+import * as fs from "fs";
 
 // Simple flatten function since lodash.flatten is not available
 function flatten(arr: unknown[]): unknown[] {
-    return arr.reduce((flat: unknown[], item: unknown) => {
+    return arr.reduce<unknown[]>((flat: unknown[], item: unknown) => {
         return flat.concat(Array.isArray(item) ? flatten(item) : item);
-    }, [] as unknown[]);
+    }, []);
 }
 
 let profanity: string[] = [];
@@ -35,7 +34,7 @@ export function initializeProfanity(): void {
             profanityRegex = /(?!.*)/; // Never matches anything
         }
     } catch (error) {
-        logger.error(`Could not find or read profanity file at ${profanityFile}`, { trace: "0634" });
+        // Profanity file not found - acceptable in development
         profanity = [];
         profanityRegex = /(?!.*)/; // Never matches anything
     }

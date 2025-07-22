@@ -187,14 +187,7 @@ async function resizeImage(buffer: Buffer, width: number, height: number, format
     // Use the safe wrapper that handles Sharp failures gracefully
     const result = await safeResizeImage(buffer, width, height, format);
 
-    if (!result.resized) {
-        logger.warn("[FileStorage] Image resize skipped - Sharp not available", {
-            error: result.error,
-            width,
-            height,
-            format,
-        });
-    }
+    // Sharp availability already logged during initialization
 
     return result.buffer;
 }
@@ -289,8 +282,6 @@ export async function checkImageProcessingCapabilities(): Promise<void> {
             status,
             message: "Sharp module failed to load. Image resizing and HEIC conversion will be disabled.",
         });
-    } else {
-        logger.info("[FileStorage] Image processing fully available", { status });
     }
 }
 
@@ -368,7 +359,7 @@ export async function processAndStoreFiles<TInput>(
                     });
                 }
                 // If we get here, HEIC conversion failed for another reason
-                logger.warn("[FileStorage] HEIC conversion failed, using original file", { file: file.originalname });
+                // HEIC conversion failed, using original file
             }
         }
 
@@ -384,10 +375,7 @@ export async function processAndStoreFiles<TInput>(
             const sharpStatus = getImageProcessingStatus();
             if (!sharpStatus.available) {
                 // Sharp not available - upload only the original size
-                logger.warn("[FileStorage] Image resizing unavailable, uploading original size only", {
-                    file: file.originalname,
-                    requestedSizes: fileConfig.imageSizes.length,
-                });
+                // Image resizing unavailable, uploading original size only
 
                 // Upload original image with a size suffix for consistency
                 const originalKey = `${filenameBase}_original.${extension}`;

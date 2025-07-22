@@ -1,6 +1,6 @@
 import { AccountStatus, SEEDED_PUBLIC_IDS, generatePK } from "@vrooli/shared";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { assertEndpointRequiresAuth } from "../../__test/endpoints.js";
+import { assertRequiresAuth } from "../../__test/authTestUtils.js";
 import { loggedInUserNoPremiumData, mockAuthenticatedSession } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -11,6 +11,8 @@ import { admin_userResetPassword } from "../generated/admin_userResetPassword.js
 import { admin } from "./admin.js";
 // Import database fixtures for seeding
 import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsAdmin", () => {
     beforeAll(async () => {
@@ -21,13 +23,19 @@ describe("EndpointsAdmin", () => {
     });
 
     beforeEach(async () => {
-        // Clean up tables used in tests
-        const prisma = DbProvider.get();
-        await prisma.api_key.deleteMany();
-        await prisma.credit_account.deleteMany();
-        await prisma.run.deleteMany();
-        await prisma.session.deleteMany();
-        await prisma.user.deleteMany();
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.userAuth(DbProvider.get());
+    });
+
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["user","user_auth","email","phone","push_device","session"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn("Test cleanup incomplete:", orphans);
+        }
     });
 
     afterAll(async () => {
@@ -66,7 +74,7 @@ describe("EndpointsAdmin", () => {
 
     describe("siteStats", () => {
         it("not logged in", async () => {
-            await assertEndpointRequiresAuth(admin.siteStats, admin_siteStats, {});
+            await assertRequiresAuth(admin.siteStats, admin_siteStats, {});
         });
 
         it("should require admin privileges", async () => {
@@ -140,7 +148,7 @@ describe("EndpointsAdmin", () => {
 
     describe("userList", () => {
         it("not logged in", async () => {
-            await assertEndpointRequiresAuth(admin.userList, admin_userList, {});
+            await assertRequiresAuth(admin.userList, admin_userList, {});
         });
 
         it("should require admin privileges", async () => {
@@ -226,7 +234,7 @@ describe("EndpointsAdmin", () => {
 
     describe("userUpdateStatus", () => {
         it("not logged in", async () => {
-            await assertEndpointRequiresAuth(admin.userUpdateStatus, admin_userUpdateStatus, {
+            await assertRequiresAuth(admin.userUpdateStatus, admin_userUpdateStatus, {
                 userId: "123",
                 status: AccountStatus.SoftLocked,
             });
@@ -343,7 +351,7 @@ describe("EndpointsAdmin", () => {
         }
 
         it("not logged in", async () => {
-            await assertEndpointRequiresAuth(admin.userResetPassword, admin_userResetPassword, {
+            await assertRequiresAuth(admin.userResetPassword, admin_userResetPassword, {
                 userId: "123",
             });
         });

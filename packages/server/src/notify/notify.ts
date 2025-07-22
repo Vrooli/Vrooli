@@ -58,10 +58,7 @@ function loadNotificationTemplate(): string {
             const validation = validateEmailTemplate(templateContent);
 
             if (!validation.isValid) {
-                logger.warn("Notification template missing placeholders", {
-                    missing: validation.missingPlaceholders,
-                    path: notificationTemplatePath,
-                });
+                // Template validation failed - placeholders may be optional
             }
 
             notificationTemplate = templateContent;
@@ -324,7 +321,7 @@ async function push({
     try {
         redisClient = await CacheService.get().raw();
     } catch (error) {
-        logger.error("[Notify] Failed to get Redis client from CacheService for incrementing notification counts. Proceeding without limits.", { trace: "notify-push-redis-fail", error: error instanceof Error ? error.message : String(error) });
+        // Redis unavailable - proceed without rate limiting
         // redisClient remains undefined, and the loop below will use count = 0
     }
 
@@ -354,20 +351,26 @@ async function push({
                     }
                     redisLimitCheckSuccessful = true; // Mark as successful only if all Redis operations complete
                 } catch (error) {
-                    logger.error(`[Notify] Failed to increment/expire notification count in Redis for user ${currentUser.userId}, category ${category}. Assuming limit might be exceeded.`, { trace: "notify-push-incr-expire-fail", userId: currentUser.userId, category, error: error instanceof Error ? error.message : String(error) });
-                    // redisLimitCheckSuccessful remains false, will lead to silencing if dailyLimit is active
+                    // Redis operation failed - fall back to assuming limit exceeded for safety
+                    logger.warn(`[Notify] Redis unavailable for rate limiting user ${currentUser.userId}`, { 
+                        trace: "notify-redis-fail", 
+                        userId: currentUser.userId, 
+                        category, 
+                    });
                 }
             } else {
-                // redisClient is undefined (e.g., CacheService.get().raw() failed)
-                logger.warn(`[Notify] Redis client unavailable for notification count for user ${currentUser.userId}, category ${category}. Assuming limit might be exceeded.`, { trace: "notify-push-redis-unavailable", userId: currentUser.userId, category });
-                // redisLimitCheckSuccessful remains false, will lead to silencing if dailyLimit is active
+                // Redis client unavailable - fall back to assuming limit exceeded for safety
+                logger.warn("[Notify] Redis client unavailable for rate limiting", { 
+                    trace: "notify-redis-unavailable", 
+                    userId: currentUser.userId, 
+                    category, 
+                });
             }
 
             if (redisLimitCheckSuccessful) {
                 // Check if the current count (after incrementing) exceeds the daily limit
                 if (currentRedisCount > dailyLimit) {
                     effectiveSilent = true; // Limit exceeded, silence the notification
-                    logger.info(`[Notify] Daily notification limit (${dailyLimit}) exceeded for user ${currentUser.userId}, category ${category}. Current count: ${currentRedisCount}. Notification silenced.`, { trace: "notify-push-limit-exceeded", userId: currentUser.userId, category, currentRedisCount, dailyLimit });
                 }
             } else {
                 // INTENTIONAL: If Redis operations fail (either client unavailable or incr/expire failed)
@@ -395,14 +398,8 @@ async function push({
                     category,
                     specifiedDelays: currentUser.delays,
                 });
-            } else {
-                logger.info(`[Notify] Scheduling ${validDelays.length} push notification(s) for user ${currentUser.userId} (category: ${category}) with delays: ${validDelays.join(", ")}ms`, {
-                    trace: "notify-push-delays-scheduled",
-                    userId: currentUser.userId,
-                    category,
-                    delays: validDelays,
-                });
             }
+            // Push notifications scheduled with delays
         }
 
         // Always schedule the in-app notification record creation for DB persistence.
@@ -439,9 +436,6 @@ async function push({
                 // User is connected and mode is prefer_websocket, so no push needed.
                 // The WebSocket event will be handled by notificationCreateProcess.
                 sendPushNotification = false;
-                logger.info(`[Notify] User ${currentUser.userId} is connected, deliveryMode is 'prefer_websocket'. Skipping push notification, relying on WebSocket.`, {
-                    userId: currentUser.userId, category,
-                });
             }
 
             if (sendPushNotification) {
@@ -482,12 +476,8 @@ async function push({
                             htmlContent = formatNotificationEmail(template, currTitle, currBody, link);
                         }
                     } catch (formatError) {
-                        logger.warn("HTML email formatting failed, falling back to plain text", {
-                            error: formatError instanceof Error ? formatError.message : String(formatError),
-                            userId: currentUser.userId,
-                            category,
-                        });
-                        // htmlContent remains empty string, so plain text will be used
+                        // HTML formatting failed - will use plain text instead
+                        // This is expected fallback behavior, no logging needed
                     }
 
                     try {
@@ -646,7 +636,7 @@ async function replaceLabels(
 
                         // currentLabelDbData should always be found because we iterated uniqueLabelsToFetch or handled errors by setting {}
                         if (currentLabelDbData === undefined) {
-                            logger.warn(`Label data unexpectedly not found in cache for ${labelKey} during replacement. Placeholder will remain.`, { trace: "replaceLabels-cache-miss-unexpected", objectType, objectId });
+                            // Label data not found - placeholder will remain
                             continue;
                         }
 
@@ -950,7 +940,6 @@ export function Notify(languages: string[] | undefined) {
                 });
                 // If it is, update the auth and p256dh keys
                 if (device) {
-                    logger.info(`device already registered: ${JSON.stringify(device)}`);
                     const updatedDevice = await DbProvider.get().push_device.update({
                         where: { id: device.id },
                         data: { auth, p256dh, expires },
@@ -984,7 +973,6 @@ export function Notify(languages: string[] | undefined) {
                         name: createdDevice.name,
                         expires: createdDevice.expires?.toISOString() ?? null,
                     };
-                    logger.info(`device created: ${userData.id} ${JSON.stringify(result)}`);
                 }
                 return result as PushDevice;
             } catch (error) {

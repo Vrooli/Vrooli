@@ -5,8 +5,8 @@ import { DbProvider } from "../db/provider.js";
 export const DEFAULT_BATCH_SIZE = 100;
 
 export type FindManyArgs = {
-    select?: unknown,
-    where?: unknown,
+    select?: Record<string, unknown> | null,
+    where?: Record<string, unknown>,
 }
 
 export interface BatchProps<T extends FindManyArgs, R = unknown> {
@@ -35,12 +35,15 @@ export async function batch<T extends FindManyArgs, R = unknown>({
 
     do {
         // Find all entities according to the given options
-        const batch = await delegate.findMany({
-            select,
+        const findManyArgs: any = {
             skip,
             take: batchSize,
-            where,
-        });
+            where: where ?? {},
+        };
+        if (select !== null && select !== undefined) {
+            findManyArgs.select = select;
+        }
+        const batch = await delegate.findMany(findManyArgs);
         skip += batchSize;
         currentBatchSize = batch.length;
 

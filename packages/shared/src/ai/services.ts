@@ -2,9 +2,10 @@
 import { type TranslationKeyService } from "../types.d.js";
 
 export enum AIServiceName {
-    OpenAI = "OpenAI",
-    Anthropic = "Anthropic",
-    Mistral = "Mistral",
+    LocalOllama = "LocalOllama",
+    CloudflareGateway = "CloudflareGateway",
+    OpenRouter = "OpenRouter",
+    ClaudeCode = "ClaudeCode",
 }
 
 /** All possible features that a model can support */
@@ -54,6 +55,16 @@ export type ModelInfo = {
 };
 
 /**
+ * ModelInfo variant for third-party providers that may not have translation keys
+ */
+export type ThirdPartyModelInfo = Omit<ModelInfo, "name" | "descriptionShort"> & {
+    /** The models' name as a string literal for third-party providers */
+    name: string;
+    /** A short description for the model as a string literal */
+    descriptionShort: string;
+};
+
+/**
  * Information about the models and behavior of an AI service
  */
 type AIServiceInfo<Models extends string> = {
@@ -69,15 +80,16 @@ type AIServiceInfo<Models extends string> = {
     displayOrder: Models[];
 }
 
-export type LlmServiceModel = AnthropicModel | MistralModel | OpenAIModel;
+export type LlmServiceModel = LocalOllamaModel | CloudflareGatewayModel | OpenRouterModel | ClaudeCodeModel;
 
 /**
  * All available services
  */
 export enum LlmServiceId {
-    Anthropic = "Anthropic",
-    Mistral = "Mistral",
-    OpenAI = "OpenAI",
+    LocalOllama = "LocalOllama",
+    CloudflareGateway = "CloudflareGateway",
+    OpenRouter = "OpenRouter",
+    ClaudeCode = "ClaudeCode",
 }
 
 /**
@@ -86,330 +98,981 @@ export enum LlmServiceId {
 export type AIServicesInfo = {
     defaultService: LlmServiceId;
     services: {
-        [AIServiceName.OpenAI]: AIServiceInfo<OpenAIModel>,
-        [AIServiceName.Anthropic]: AIServiceInfo<AnthropicModel>,
-        [AIServiceName.Mistral]: AIServiceInfo<MistralModel>,
+        [AIServiceName.LocalOllama]: AIServiceInfo<LocalOllamaModel>,
+        [AIServiceName.CloudflareGateway]: AIServiceInfo<CloudflareGatewayModel>,
+        [AIServiceName.OpenRouter]: AIServiceInfo<OpenRouterModel>,
+        [AIServiceName.ClaudeCode]: AIServiceInfo<ClaudeCodeModel>,
     },
     fallbacks: Record<LlmServiceModel, LlmServiceModel[]>,
 };
 
-// Resources: 
-// - https://platform.openai.com/docs/models
-// - https://openai.com/api/pricing/https://openai.com/api/pricing/
-export enum OpenAIModel {
-    Gpt4o_Mini = "gpt-4o-mini-2024-07-18",
-    Gpt4o = "gpt-4o-2024-05-13",
-    Gpt4 = "gpt-4-0125-preview",
-    Gpt4_Turbo = "gpt-4-turbo-2024-04-09",
-    o1_Mini = "o1-mini-2024-09-12",
-    o1_Preview = "o1-preview-2024-09-12",
-    // DallE3 = "dall-e-3",
-    // Whisper = "whisper-1",
-    // Gpt3_5Turbo = "gpt-3.5-turbo-0125", // Deprecated
+// Resources:
+// - https://ollama.com/library
+export enum LocalOllamaModel {
+    // Dynamic models - populated at runtime from Ollama API
+    Llama3_1_8B = "llama3.1:8b",
+    Llama3_1_70B = "llama3.1:70b",
+    CodeLlama_13B = "codellama:13b",
+    Mistral_7B = "mistral:7b",
+    Gemma2_9B = "gemma2:9b",
+    Phi3_Medium = "phi3:medium",
+    Dynamic = "dynamic", // Placeholder for runtime-discovered models
 }
-export const openAIServiceInfo: AIServiceInfo<OpenAIModel> = {
-    defaultModel: OpenAIModel.Gpt4o_Mini,
-    enabled: true,
-    name: "OpenAI",
-    fallbackMaxTokens: 4_096, // 4K tokens
-    models: {
-        [OpenAIModel.Gpt4o_Mini]: {
-            enabled: true,
-            name: "GPT_4o_Mini_Name",
-            descriptionShort: "GPT_4o_Mini_Description_Short",
-            inputCost: 150,          // $0.15
-            outputCost: 60,          // $0.60
-            contextWindow: 128_000,  // 128K tokens
-            maxOutputTokens: 16_384, // 16K tokens
-            features: {
-                [ModelFeature.CodeInterpreter]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
-                [ModelFeature.FileSearch]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing, potentially with storage fees for persistent capabilities." },
-                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
-                [ModelFeature.Vision]: { type: "vision", notes: "Image understanding is priced based on token consumption as per OpenAI's image tokenization rules." },
-            },
-            supportsReasoning: false,
-        },
-        [OpenAIModel.Gpt4o]: {
-            enabled: true,
-            name: "GPT_4o_Name",
-            descriptionShort: "GPT_4o_Description_Short",
-            inputCost: 250,          // $2.50 per 1M tokens (was 500)
-            outputCost: 1_000,       // $10.00 per 1M tokens (was 1500)
-            contextWindow: 128_000,  // 128K tokens
-            maxOutputTokens: 4_096,  // 4K tokens
-            features: {
-                [ModelFeature.CodeInterpreter]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
-                [ModelFeature.FileSearch]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing, potentially with storage fees for persistent capabilities." },
-                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
-                [ModelFeature.Vision]: { type: "vision", notes: "Image understanding is priced based on token consumption as per OpenAI's image tokenization rules." },
-            },
-            supportsReasoning: false,
-        },
-        [OpenAIModel.Gpt4]: {
-            enabled: true,
-            name: "GPT_4_Name",
-            descriptionShort: "GPT_4_Description_Short",
-            inputCost: 3_000,        // $30.00
-            outputCost: 6_000,       // $60.00
-            contextWindow: 8_192,    // 8K tokens
-            maxOutputTokens: 8_192,  // 8K tokens
-            features: {
-                [ModelFeature.CodeInterpreter]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
-                [ModelFeature.FileSearch]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing, potentially with storage fees for persistent capabilities." },
-                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
-                [ModelFeature.Vision]: { type: "vision", notes: "Image understanding is priced based on token consumption as per OpenAI's image tokenization rules." },
-            },
-            supportsReasoning: false,
-        },
-        [OpenAIModel.Gpt4_Turbo]: {
-            enabled: true,
-            name: "GPT_4_Turbo_Name",
-            descriptionShort: "GPT_4_Turbo_Description_Short",
-            inputCost: 1_000,        // $10.00
-            outputCost: 3_000,       // $30.00
-            contextWindow: 128_000,  // 128K tokens
-            maxOutputTokens: 4_096,  // 4K tokens
-            features: {
-                [ModelFeature.CodeInterpreter]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
-                [ModelFeature.FileSearch]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing, potentially with storage fees for persistent capabilities." },
-                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
-                [ModelFeature.Vision]: { type: "vision", notes: "Image understanding is priced based on token consumption as per OpenAI's image tokenization rules." },
-            },
-            supportsReasoning: false,
-        },
-        [OpenAIModel.o1_Mini]: {
-            enabled: true,
-            name: "o1_Mini_Name",
-            descriptionShort: "o1_Mini_Description_Short",
-            inputCost: 300,          // $3.00
-            outputCost: 1_200,       // $12.00   
-            contextWindow: 128_000,  // 128K tokens
-            maxOutputTokens: 65_536, // 65K tokens 
-            features: {
-                [ModelFeature.CodeInterpreter]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
-                [ModelFeature.FileSearch]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing, potentially with storage fees for persistent capabilities." },
-                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
-                [ModelFeature.Vision]: { type: "vision", notes: "Image understanding is priced based on token consumption as per OpenAI's image tokenization rules." },
-            },
-            supportsReasoning: true,
-        },
-        [OpenAIModel.o1_Preview]: {
-            enabled: true,
-            name: "o1_Preview_Name",
-            descriptionShort: "o1_Preview_Description_Short",
-            inputCost: 1_500,        // $15.00
-            outputCost: 6_000,       // $60.00
-            contextWindow: 128_000,  // 128K tokens
-            maxOutputTokens: 32_768, // 32K tokens
-            features: {
-                [ModelFeature.CodeInterpreter]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
-                [ModelFeature.FileSearch]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing, potentially with storage fees for persistent capabilities." },
-                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
-                [ModelFeature.Vision]: { type: "vision", notes: "Image understanding is priced based on token consumption as per OpenAI's image tokenization rules." },
-            },
-            supportsReasoning: true,
-        },
-        // [OpenAIModel.DallE3]: {
-        //     enabled: true,
-        //     name: "DALL_E_3_Name" as any,
-        //     descriptionShort: "DALL_E_3_Description_Short" as any,
-        //     inputCost: 0,
-        //     outputCost: 0,
-        //     contextWindow: 0,
-        //     maxOutputTokens: 0,
-        //     features: {
-        //         [ModelFeature.ImageGeneration]: {
-        //             type: "image_generation",
-        //             modelName: "DALL-E 3",
-        //             costs: [
-        //                 { quality: "standard", resolution: "1024x1024", costPerImage: 4 },
-        //                 { quality: "standard", resolution: "1024x1792", costPerImage: 8 },
-        //                 { quality: "hd", resolution: "1024x1024", costPerImage: 8 },
-        //                 { quality: "hd", resolution: "1024x1792", costPerImage: 12 },
-        //             ]
-        //         }
-        //     }
-        // },
-        // [OpenAIModel.Whisper]: {
-        //     enabled: true,
-        //     name: "Whisper_Name" as any,
-        //     descriptionShort: "Whisper_Description_Short" as any,
-        //     inputCost: 0,
-        //     outputCost: 0,
-        //     contextWindow: 0,
-        //     maxOutputTokens: 0,
-        //     features: {
-        //         [ModelFeature.Transcription]: {
-        //             type: "transcription",
-        //             modelName: "Whisper",
-        //             costPerMinute: 0.6
-        //         }
-        //     }
-        // }
-    },
-    displayOrder: [
-        OpenAIModel.Gpt4o_Mini,
-        OpenAIModel.Gpt4o,
-        OpenAIModel.Gpt4_Turbo,
-        OpenAIModel.Gpt4,
-        OpenAIModel.o1_Mini,
-        OpenAIModel.o1_Preview,
-        // OpenAIModel.DallE3,
-        // OpenAIModel.Whisper,
-    ],
-};
 
-// Resources: 
-// - https://docs.anthropic.com/en/docs/about-claude/models#model-comparison-table
-export enum AnthropicModel {
-    Haiku3 = "claude-3-haiku-20240307",
-    Opus3 = "claude-3-opus-20240229",
-    Sonnet3 = "claude-3-sonnet-20240229",
-    Sonnet3_5 = "claude-3-5-sonnet-20240620",
-}
-export const anthropicServiceInfo: AIServiceInfo<AnthropicModel> = {
-    defaultModel: AnthropicModel.Sonnet3_5,
+export const localOllamaServiceInfo: AIServiceInfo<LocalOllamaModel> = {
+    defaultModel: LocalOllamaModel.Llama3_1_8B,
     enabled: true,
-    name: "Anthropic",
-    fallbackMaxTokens: 4_096, // 4K tokens
+    name: "Local Ollama",
+    fallbackMaxTokens: 4_096,
     models: {
-        [AnthropicModel.Haiku3]: {
+        [LocalOllamaModel.Llama3_1_8B]: {
             enabled: true,
-            name: "Claude_3_Haiku_Name",
-            descriptionShort: "Claude_3_Haiku_Description_Short",
-            inputCost: 25,          // $0.25
-            outputCost: 125,        // $1.25
-            contextWindow: 200_000, // 200K tokens
-            maxOutputTokens: 4_096, // 4K tokens
+            name: "Llama_3_1_8B_Name",
+            descriptionShort: "Llama_3_1_8B_Description_Short",
+            inputCost: 0.001,  // Nominal cost for resource tracking
+            outputCost: 0.001,
+            contextWindow: 128_000,
+            maxOutputTokens: 4_096,
             features: {
-                [ModelFeature.Vision]: { type: "vision", notes: "Vision capabilities are supported; pricing is typically part of token consumption." },
+                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Basic function calling support" },
             },
             supportsReasoning: false,
         },
-        [AnthropicModel.Opus3]: {
+        [LocalOllamaModel.Llama3_1_70B]: {
             enabled: true,
-            name: "Claude_3_Opus_Name",
-            descriptionShort: "Claude_3_Opus_Description_Short",
-            inputCost: 1_500,       // $15.00
-            outputCost: 7_500,      // $75.00
-            contextWindow: 200_000, // 200K tokens
-            maxOutputTokens: 4_096, // 4K tokens
+            name: "Llama_3_1_70B_Name",
+            descriptionShort: "Llama_3_1_70B_Description_Short",
+            inputCost: 0.001,
+            outputCost: 0.001,
+            contextWindow: 128_000,
+            maxOutputTokens: 4_096,
             features: {
-                [ModelFeature.Vision]: { type: "vision", notes: "Vision capabilities are supported; pricing is typically part of token consumption." },
+                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Advanced function calling support" },
             },
             supportsReasoning: false,
         },
-        [AnthropicModel.Sonnet3]: {
+        [LocalOllamaModel.CodeLlama_13B]: {
             enabled: true,
-            name: "Claude_3_Sonnet_Name",
-            descriptionShort: "Claude_3_Sonnet_Description_Short",
-            inputCost: 300,         // $3.00
-            outputCost: 1_500,      // $15.00
-            contextWindow: 200_000, // 200K tokens
-            maxOutputTokens: 4_096, // 4K tokens
+            name: "CodeLlama_13B_Name",
+            descriptionShort: "CodeLlama_13B_Description_Short",
+            inputCost: 0.001,
+            outputCost: 0.001,
+            contextWindow: 16_384,
+            maxOutputTokens: 4_096,
             features: {
-                [ModelFeature.Vision]: { type: "vision", notes: "Vision capabilities are supported; pricing is typically part of token consumption." },
+                [ModelFeature.CodeInterpreter]: { type: "generic", notes: "Specialized for code generation" },
             },
             supportsReasoning: false,
         },
-        [AnthropicModel.Sonnet3_5]: {
+        [LocalOllamaModel.Mistral_7B]: {
             enabled: true,
-            name: "Claude_3_5_Sonnet_Name",
-            descriptionShort: "Claude_3_5_Sonnet_Description_Short",
-            inputCost: 300,         // $3.00
-            outputCost: 1_500,      // $15.00
-            contextWindow: 200_000, // 200K tokens
-            maxOutputTokens: 8_192, // 8K tokens
-            features: {
-                [ModelFeature.Vision]: { type: "vision", notes: "Vision capabilities are supported; pricing is typically part of token consumption." },
-            },
+            name: "Mistral_7B_Name",
+            descriptionShort: "Mistral_7B_Description_Short",
+            inputCost: 0.001,
+            outputCost: 0.001,
+            contextWindow: 32_768,
+            maxOutputTokens: 4_096,
+            features: {},
+            supportsReasoning: false,
+        },
+        [LocalOllamaModel.Gemma2_9B]: {
+            enabled: true,
+            name: "Gemma2_9B_Name",
+            descriptionShort: "Gemma2_9B_Description_Short",
+            inputCost: 0.001,
+            outputCost: 0.001,
+            contextWindow: 8_192,
+            maxOutputTokens: 4_096,
+            features: {},
+            supportsReasoning: false,
+        },
+        [LocalOllamaModel.Phi3_Medium]: {
+            enabled: true,
+            name: "Phi3_Medium_Name",
+            descriptionShort: "Phi3_Medium_Description_Short",
+            inputCost: 0.001,
+            outputCost: 0.001,
+            contextWindow: 128_000,
+            maxOutputTokens: 4_096,
+            features: {},
+            supportsReasoning: false,
+        },
+        [LocalOllamaModel.Dynamic]: {
+            enabled: true,
+            name: "Dynamic_Ollama_Model",
+            descriptionShort: "Runtime_Discovered_Model",
+            inputCost: 0.001,
+            outputCost: 0.001,
+            contextWindow: 8_192,
+            maxOutputTokens: 4_096,
+            features: {},
             supportsReasoning: false,
         },
     },
     displayOrder: [
-        AnthropicModel.Haiku3,
-        AnthropicModel.Sonnet3_5,
-        AnthropicModel.Opus3,
-        AnthropicModel.Sonnet3,
+        LocalOllamaModel.Llama3_1_8B,
+        LocalOllamaModel.Llama3_1_70B,
+        LocalOllamaModel.CodeLlama_13B,
+        LocalOllamaModel.Mistral_7B,
+        LocalOllamaModel.Gemma2_9B,
+        LocalOllamaModel.Phi3_Medium,
+        LocalOllamaModel.Dynamic,
     ],
 };
 
 // Resources:
-// - https://mistral.ai/technology/#pricing
-export enum MistralModel {
-    // _8x7b = "open-mixtral-8x7b", // Deprecated
-    // _7b = "open-mistral-7b", // Deprecated
-    Codestral = "codestral-2405",
-    Large2 = "mistral-large-2407",
-    Nemo = "open-mistral-nemo-2407",
+// - https://developers.cloudflare.com/ai/models/
+export enum CloudflareGatewayModel {
+    // OpenAI models via Cloudflare
+    GPT4o = "@cf/openai/gpt-4o",
+    GPT4o_Mini = "@cf/openai/gpt-4o-mini",
+    GPT4_Turbo = "@cf/openai/gpt-4-turbo",
+    GPT3_5_Turbo = "@cf/openai/gpt-3.5-turbo",
+
+    // Anthropic models via Cloudflare
+    Claude3_Sonnet = "@cf/anthropic/claude-3-sonnet",
+    Claude3_Haiku = "@cf/anthropic/claude-3-haiku",
+    Claude3_5_Sonnet = "@cf/anthropic/claude-3-5-sonnet",
+
+    // Meta models
+    Llama3_8B = "@cf/meta/llama-3-8b-instruct",
+    Llama3_70B = "@cf/meta/llama-3-70b-instruct",
+
+    // Mistral models
+    Mistral_7B = "@cf/mistral/mistral-7b-instruct",
+    Mistral_8x7B = "@cf/mistral/mixtral-8x7b-instruct",
+
+    // Microsoft models
+    Phi2 = "@cf/microsoft/phi-2",
+
+    // Google models
+    Gemma_7B = "@cf/google/gemma-7b-it",
 }
-export const mistralServiceInfo: AIServiceInfo<MistralModel> = {
-    defaultModel: MistralModel.Nemo,
+
+export const cloudflareGatewayServiceInfo: AIServiceInfo<CloudflareGatewayModel> = {
+    defaultModel: CloudflareGatewayModel.GPT4o_Mini,
     enabled: true,
-    name: "Mistral",
-    fallbackMaxTokens: 4_096, // 4K tokens
+    name: "Cloudflare Gateway",
+    fallbackMaxTokens: 4_096,
     models: {
-        [MistralModel.Codestral]: {
+        [CloudflareGatewayModel.GPT4o]: {
             enabled: true,
-            name: "Mistral_Codestral_Name",
-            descriptionShort: "Mistral_Codestral_Description_Short",
-            inputCost: 20,         // $0.20
-            outputCost: 60,        // $0.60
-            contextWindow: 32_000,  // 32K tokens
-            maxOutputTokens: 4_096, // NOTE: Couldn't find the actual value
+            name: "CF_GPT4o_Name",
+            descriptionShort: "CF_GPT4o_Description_Short",
+            inputCost: 250,  // Cloudflare Gateway pricing
+            outputCost: 1000,
+            contextWindow: 128_000,
+            maxOutputTokens: 4_096,
+            features: {
+                [ModelFeature.FunctionCalling]: { type: "generic" },
+                [ModelFeature.Vision]: { type: "vision" },
+            },
+            supportsReasoning: false,
+        },
+        [CloudflareGatewayModel.GPT4o_Mini]: {
+            enabled: true,
+            name: "CF_GPT4o_Mini_Name",
+            descriptionShort: "CF_GPT4o_Mini_Description_Short",
+            inputCost: 50,
+            outputCost: 150,
+            contextWindow: 128_000,
+            maxOutputTokens: 16_384,
+            features: {
+                [ModelFeature.FunctionCalling]: { type: "generic" },
+                [ModelFeature.Vision]: { type: "vision" },
+            },
+            supportsReasoning: false,
+        },
+        [CloudflareGatewayModel.Claude3_5_Sonnet]: {
+            enabled: true,
+            name: "CF_Claude3_5_Sonnet_Name",
+            descriptionShort: "CF_Claude3_5_Sonnet_Description_Short",
+            inputCost: 300,
+            outputCost: 1500,
+            contextWindow: 200_000,
+            maxOutputTokens: 8_192,
+            features: {
+                [ModelFeature.Vision]: { type: "vision" },
+            },
+            supportsReasoning: false,
+        },
+        [CloudflareGatewayModel.Claude3_Haiku]: {
+            enabled: true,
+            name: "CF_Claude3_Haiku_Name",
+            descriptionShort: "CF_Claude3_Haiku_Description_Short",
+            inputCost: 25,
+            outputCost: 125,
+            contextWindow: 200_000,
+            maxOutputTokens: 4_096,
+            features: {
+                [ModelFeature.Vision]: { type: "vision" },
+            },
+            supportsReasoning: false,
+        },
+        [CloudflareGatewayModel.Llama3_8B]: {
+            enabled: true,
+            name: "CF_Llama3_8B_Name",
+            descriptionShort: "CF_Llama3_8B_Description_Short",
+            inputCost: 10,
+            outputCost: 10,
+            contextWindow: 8_192,
+            maxOutputTokens: 4_096,
             features: {},
             supportsReasoning: false,
         },
-        [MistralModel.Large2]: {
+        [CloudflareGatewayModel.Llama3_70B]: {
             enabled: true,
-            name: "Mistral_Large_2_Name",
-            descriptionShort: "Mistral_Large_2_Description_Short",
-            inputCost: 200,         // $2.00
-            outputCost: 600,        // $6.00
-            contextWindow: 128_000, // 128K tokens
-            maxOutputTokens: 4_096, // NOTE: Couldn't find the actual value
+            name: "CF_Llama3_70B_Name",
+            descriptionShort: "CF_Llama3_70B_Description_Short",
+            inputCost: 50,
+            outputCost: 50,
+            contextWindow: 8_192,
+            maxOutputTokens: 4_096,
             features: {},
             supportsReasoning: false,
         },
-        [MistralModel.Nemo]: {
+        [CloudflareGatewayModel.GPT4_Turbo]: {
             enabled: true,
-            name: "Mistral_Nemo_Name",
-            descriptionShort: "Mistral_Nemo_Description_Short",
-            inputCost: 15,          // $0.15
-            outputCost: 15,         // $0.15
-            contextWindow: 128_000, // 128K tokens
-            maxOutputTokens: 4_096, // NOTE: Couldn't find the actual value
+            name: "CF_GPT4_Turbo_Name",
+            descriptionShort: "CF_GPT4_Turbo_Description_Short",
+            inputCost: 1000,
+            outputCost: 3000,
+            contextWindow: 128_000,
+            maxOutputTokens: 4_096,
+            features: {
+                [ModelFeature.FunctionCalling]: { type: "generic" },
+                [ModelFeature.Vision]: { type: "vision" },
+            },
+            supportsReasoning: false,
+        },
+        [CloudflareGatewayModel.GPT3_5_Turbo]: {
+            enabled: true,
+            name: "CF_GPT3_5_Turbo_Name",
+            descriptionShort: "CF_GPT3_5_Turbo_Description_Short",
+            inputCost: 50,
+            outputCost: 150,
+            contextWindow: 16_385,
+            maxOutputTokens: 4_096,
+            features: {
+                [ModelFeature.FunctionCalling]: { type: "generic" },
+            },
+            supportsReasoning: false,
+        },
+        [CloudflareGatewayModel.Claude3_Sonnet]: {
+            enabled: true,
+            name: "CF_Claude3_Sonnet_Name",
+            descriptionShort: "CF_Claude3_Sonnet_Description_Short",
+            inputCost: 300,
+            outputCost: 1500,
+            contextWindow: 200_000,
+            maxOutputTokens: 4_096,
+            features: {
+                [ModelFeature.Vision]: { type: "vision" },
+            },
+            supportsReasoning: false,
+        },
+        [CloudflareGatewayModel.Mistral_7B]: {
+            enabled: true,
+            name: "CF_Mistral_7B_Name",
+            descriptionShort: "CF_Mistral_7B_Description_Short",
+            inputCost: 25,
+            outputCost: 25,
+            contextWindow: 32_768,
+            maxOutputTokens: 4_096,
+            features: {},
+            supportsReasoning: false,
+        },
+        [CloudflareGatewayModel.Mistral_8x7B]: {
+            enabled: true,
+            name: "CF_Mistral_8x7B_Name",
+            descriptionShort: "CF_Mistral_8x7B_Description_Short",
+            inputCost: 50,
+            outputCost: 50,
+            contextWindow: 32_768,
+            maxOutputTokens: 4_096,
+            features: {},
+            supportsReasoning: false,
+        },
+        [CloudflareGatewayModel.Phi2]: {
+            enabled: true,
+            name: "CF_Phi2_Name",
+            descriptionShort: "CF_Phi2_Description_Short",
+            inputCost: 10,
+            outputCost: 10,
+            contextWindow: 2_048,
+            maxOutputTokens: 1_024,
+            features: {},
+            supportsReasoning: false,
+        },
+        [CloudflareGatewayModel.Gemma_7B]: {
+            enabled: true,
+            name: "CF_Gemma_7B_Name",
+            descriptionShort: "CF_Gemma_7B_Description_Short",
+            inputCost: 15,
+            outputCost: 15,
+            contextWindow: 8_192,
+            maxOutputTokens: 4_096,
             features: {},
             supportsReasoning: false,
         },
     },
     displayOrder: [
-        MistralModel.Nemo,
-        MistralModel.Codestral,
-        MistralModel.Large2,
+        CloudflareGatewayModel.GPT4o_Mini,
+        CloudflareGatewayModel.GPT4o,
+        CloudflareGatewayModel.Claude3_5_Sonnet,
+        CloudflareGatewayModel.Claude3_Haiku,
+        CloudflareGatewayModel.Llama3_8B,
+        CloudflareGatewayModel.Llama3_70B,
+        CloudflareGatewayModel.GPT4_Turbo,
+        CloudflareGatewayModel.GPT3_5_Turbo,
+        CloudflareGatewayModel.Claude3_Sonnet,
+        CloudflareGatewayModel.Mistral_7B,
+        CloudflareGatewayModel.Mistral_8x7B,
+        CloudflareGatewayModel.Phi2,
+        CloudflareGatewayModel.Gemma_7B,
+    ],
+};
+
+// Resources:
+// - https://openrouter.ai/models
+export enum OpenRouterModel {
+    // OpenAI models
+    GPT4o = "openai/gpt-4o",
+    GPT4o_Mini = "openai/gpt-4o-mini",
+    GPT4_Turbo = "openai/gpt-4-turbo",
+    GPT4 = "openai/gpt-4",
+    GPT3_5_Turbo = "openai/gpt-3.5-turbo",
+    o1_Preview = "openai/o1-preview",
+    o1_Mini = "openai/o1-mini",
+
+    // Anthropic models
+    Claude3_5_Sonnet = "anthropic/claude-3.5-sonnet",
+    Claude3_Opus = "anthropic/claude-3-opus",
+    Claude3_Sonnet = "anthropic/claude-3-sonnet",
+    Claude3_Haiku = "anthropic/claude-3-haiku",
+
+    // Google models
+    Gemini_1_5_Pro = "google/gemini-pro-1.5",
+    Gemini_1_5_Flash = "google/gemini-flash-1.5",
+    Gemini_Pro = "google/gemini-pro",
+
+    // Meta models
+    Llama3_1_405B = "meta-llama/llama-3.1-405b-instruct",
+    Llama3_1_70B = "meta-llama/llama-3.1-70b-instruct",
+    Llama3_1_8B = "meta-llama/llama-3.1-8b-instruct",
+    Llama3_70B = "meta-llama/llama-3-70b-instruct",
+    Llama3_8B = "meta-llama/llama-3-8b-instruct",
+
+    // Mistral models
+    Mistral_Large2 = "mistralai/mistral-large-2407",
+    Mistral_Nemo = "mistralai/mistral-nemo",
+    Mistral_7B = "mistralai/mistral-7b-instruct",
+    Codestral = "mistralai/codestral-mamba",
+
+    // Other popular models
+    Mixtral_8x7B = "mistralai/mixtral-8x7b-instruct",
+    Mixtral_8x22B = "mistralai/mixtral-8x22b-instruct",
+    Qwen2_72B = "qwen/qwen-2-72b-instruct",
+    DeepSeek_Coder = "deepseek/deepseek-coder",
+    CodeLlama_34B = "meta-llama/codellama-34b-instruct",
+}
+
+export const openRouterServiceInfo: AIServiceInfo<OpenRouterModel> = {
+    defaultModel: OpenRouterModel.GPT4o_Mini,
+    enabled: true,
+    name: "OpenRouter",
+    fallbackMaxTokens: 4_096,
+    models: {
+        [OpenRouterModel.GPT4o]: {
+            enabled: true,
+            name: "OR_GPT4o_Name",
+            descriptionShort: "OR_GPT4o_Description_Short",
+            inputCost: 250,  // OpenRouter competitive pricing
+            outputCost: 1000,
+            contextWindow: 128_000,
+            maxOutputTokens: 4_096,
+            features: {
+                [ModelFeature.FunctionCalling]: { type: "generic" },
+                [ModelFeature.Vision]: { type: "vision" },
+            },
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.GPT4o_Mini]: {
+            enabled: true,
+            name: "OR_GPT4o_Mini_Name",
+            descriptionShort: "OR_GPT4o_Mini_Description_Short",
+            inputCost: 15,
+            outputCost: 60,
+            contextWindow: 128_000,
+            maxOutputTokens: 16_384,
+            features: {
+                [ModelFeature.FunctionCalling]: { type: "generic" },
+                [ModelFeature.Vision]: { type: "vision" },
+            },
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.Claude3_5_Sonnet]: {
+            enabled: true,
+            name: "OR_Claude3_5_Sonnet_Name",
+            descriptionShort: "OR_Claude3_5_Sonnet_Description_Short",
+            inputCost: 300,
+            outputCost: 1500,
+            contextWindow: 200_000,
+            maxOutputTokens: 8_192,
+            features: {
+                [ModelFeature.Vision]: { type: "vision" },
+            },
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.Claude3_Opus]: {
+            enabled: true,
+            name: "OR_Claude3_Opus_Name",
+            descriptionShort: "OR_Claude3_Opus_Description_Short",
+            inputCost: 1500,
+            outputCost: 7500,
+            contextWindow: 200_000,
+            maxOutputTokens: 4_096,
+            features: {
+                [ModelFeature.Vision]: { type: "vision" },
+            },
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.Llama3_1_405B]: {
+            enabled: true,
+            name: "OR_Llama3_1_405B_Name",
+            descriptionShort: "OR_Llama3_1_405B_Description_Short",
+            inputCost: 300,
+            outputCost: 300,
+            contextWindow: 131_072,
+            maxOutputTokens: 4_096,
+            features: {},
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.Llama3_1_70B]: {
+            enabled: true,
+            name: "OR_Llama3_1_70B_Name",
+            descriptionShort: "OR_Llama3_1_70B_Description_Short",
+            inputCost: 40,
+            outputCost: 40,
+            contextWindow: 131_072,
+            maxOutputTokens: 4_096,
+            features: {},
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.Llama3_1_8B]: {
+            enabled: true,
+            name: "OR_Llama3_1_8B_Name",
+            descriptionShort: "OR_Llama3_1_8B_Description_Short",
+            inputCost: 6,
+            outputCost: 6,
+            contextWindow: 131_072,
+            maxOutputTokens: 4_096,
+            features: {},
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.Gemini_1_5_Pro]: {
+            enabled: true,
+            name: "OR_Gemini_1_5_Pro_Name",
+            descriptionShort: "OR_Gemini_1_5_Pro_Description_Short",
+            inputCost: 125,
+            outputCost: 375,
+            contextWindow: 2_097_152,
+            maxOutputTokens: 8_192,
+            features: {
+                [ModelFeature.Vision]: { type: "vision" },
+            },
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.Mistral_Large2]: {
+            enabled: true,
+            name: "OR_Mistral_Large2_Name",
+            descriptionShort: "OR_Mistral_Large2_Description_Short",
+            inputCost: 300,
+            outputCost: 900,
+            contextWindow: 128_000,
+            maxOutputTokens: 4_096,
+            features: {},
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.Codestral]: {
+            enabled: true,
+            name: "OR_Codestral_Name",
+            descriptionShort: "OR_Codestral_Description_Short",
+            inputCost: 25,
+            outputCost: 25,
+            contextWindow: 32_768,
+            maxOutputTokens: 4_096,
+            features: {
+                [ModelFeature.CodeInterpreter]: { type: "generic" },
+            },
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.Mixtral_8x7B]: {
+            enabled: true,
+            name: "OR_Mixtral_8x7B_Name",
+            descriptionShort: "OR_Mixtral_8x7B_Description_Short",
+            inputCost: 24,
+            outputCost: 24,
+            contextWindow: 32_768,
+            maxOutputTokens: 4_096,
+            features: {},
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.GPT4_Turbo]: {
+            enabled: true,
+            name: "OR_GPT4_Turbo_Name",
+            descriptionShort: "OR_GPT4_Turbo_Description_Short",
+            inputCost: 1000,
+            outputCost: 3000,
+            contextWindow: 128_000,
+            maxOutputTokens: 4_096,
+            features: {
+                [ModelFeature.FunctionCalling]: { type: "generic" },
+                [ModelFeature.Vision]: { type: "vision" },
+            },
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.GPT4]: {
+            enabled: true,
+            name: "OR_GPT4_Name",
+            descriptionShort: "OR_GPT4_Description_Short",
+            inputCost: 3000,
+            outputCost: 6000,
+            contextWindow: 8_192,
+            maxOutputTokens: 4_096,
+            features: {
+                [ModelFeature.FunctionCalling]: { type: "generic" },
+                [ModelFeature.Vision]: { type: "vision" },
+            },
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.GPT3_5_Turbo]: {
+            enabled: true,
+            name: "OR_GPT3_5_Turbo_Name",
+            descriptionShort: "OR_GPT3_5_Turbo_Description_Short",
+            inputCost: 50,
+            outputCost: 150,
+            contextWindow: 16_385,
+            maxOutputTokens: 4_096,
+            features: {
+                [ModelFeature.FunctionCalling]: { type: "generic" },
+            },
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.o1_Preview]: {
+            enabled: true,
+            name: "OR_o1_Preview_Name",
+            descriptionShort: "OR_o1_Preview_Description_Short",
+            inputCost: 1500,
+            outputCost: 6000,
+            contextWindow: 128_000,
+            maxOutputTokens: 32_768,
+            features: {
+                [ModelFeature.FunctionCalling]: { type: "generic" },
+            },
+            supportsReasoning: true,
+        },
+        [OpenRouterModel.o1_Mini]: {
+            enabled: true,
+            name: "OR_o1_Mini_Name",
+            descriptionShort: "OR_o1_Mini_Description_Short",
+            inputCost: 300,
+            outputCost: 1200,
+            contextWindow: 128_000,
+            maxOutputTokens: 65_536,
+            features: {
+                [ModelFeature.FunctionCalling]: { type: "generic" },
+            },
+            supportsReasoning: true,
+        },
+        [OpenRouterModel.Claude3_Sonnet]: {
+            enabled: true,
+            name: "OR_Claude3_Sonnet_Name",
+            descriptionShort: "OR_Claude3_Sonnet_Description_Short",
+            inputCost: 300,
+            outputCost: 1500,
+            contextWindow: 200_000,
+            maxOutputTokens: 4_096,
+            features: {
+                [ModelFeature.Vision]: { type: "vision" },
+            },
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.Claude3_Haiku]: {
+            enabled: true,
+            name: "OR_Claude3_Haiku_Name",
+            descriptionShort: "OR_Claude3_Haiku_Description_Short",
+            inputCost: 25,
+            outputCost: 125,
+            contextWindow: 200_000,
+            maxOutputTokens: 4_096,
+            features: {
+                [ModelFeature.Vision]: { type: "vision" },
+            },
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.Llama3_70B]: {
+            enabled: true,
+            name: "OR_Llama3_70B_Name",
+            descriptionShort: "OR_Llama3_70B_Description_Short",
+            inputCost: 52,
+            outputCost: 75,
+            contextWindow: 8_192,
+            maxOutputTokens: 4_096,
+            features: {},
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.Llama3_8B]: {
+            enabled: true,
+            name: "OR_Llama3_8B_Name",
+            descriptionShort: "OR_Llama3_8B_Description_Short",
+            inputCost: 6,
+            outputCost: 6,
+            contextWindow: 8_192,
+            maxOutputTokens: 4_096,
+            features: {},
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.Gemini_1_5_Flash]: {
+            enabled: true,
+            name: "OR_Gemini_1_5_Flash_Name",
+            descriptionShort: "OR_Gemini_1_5_Flash_Description_Short",
+            inputCost: 7,
+            outputCost: 21,
+            contextWindow: 1_048_576,
+            maxOutputTokens: 8_192,
+            features: {
+                [ModelFeature.Vision]: { type: "vision" },
+            },
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.Gemini_Pro]: {
+            enabled: true,
+            name: "OR_Gemini_Pro_Name",
+            descriptionShort: "OR_Gemini_Pro_Description_Short",
+            inputCost: 12,
+            outputCost: 37,
+            contextWindow: 30_720,
+            maxOutputTokens: 2_048,
+            features: {
+                [ModelFeature.Vision]: { type: "vision" },
+            },
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.Mistral_Nemo]: {
+            enabled: true,
+            name: "OR_Mistral_Nemo_Name",
+            descriptionShort: "OR_Mistral_Nemo_Description_Short",
+            inputCost: 18,
+            outputCost: 18,
+            contextWindow: 128_000,
+            maxOutputTokens: 4_096,
+            features: {},
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.Mistral_7B]: {
+            enabled: true,
+            name: "OR_Mistral_7B_Name",
+            descriptionShort: "OR_Mistral_7B_Description_Short",
+            inputCost: 6,
+            outputCost: 6,
+            contextWindow: 32_768,
+            maxOutputTokens: 4_096,
+            features: {},
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.Mixtral_8x22B]: {
+            enabled: true,
+            name: "OR_Mixtral_8x22B_Name",
+            descriptionShort: "OR_Mixtral_8x22B_Description_Short",
+            inputCost: 65,
+            outputCost: 65,
+            contextWindow: 65_536,
+            maxOutputTokens: 4_096,
+            features: {},
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.Qwen2_72B]: {
+            enabled: true,
+            name: "OR_Qwen2_72B_Name",
+            descriptionShort: "OR_Qwen2_72B_Description_Short",
+            inputCost: 56,
+            outputCost: 77,
+            contextWindow: 131_072,
+            maxOutputTokens: 4_096,
+            features: {},
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.DeepSeek_Coder]: {
+            enabled: true,
+            name: "OR_DeepSeek_Coder_Name",
+            descriptionShort: "OR_DeepSeek_Coder_Description_Short",
+            inputCost: 14,
+            outputCost: 28,
+            contextWindow: 16_384,
+            maxOutputTokens: 4_096,
+            features: {
+                [ModelFeature.CodeInterpreter]: { type: "generic" },
+            },
+            supportsReasoning: false,
+        },
+        [OpenRouterModel.CodeLlama_34B]: {
+            enabled: true,
+            name: "OR_CodeLlama_34B_Name",
+            descriptionShort: "OR_CodeLlama_34B_Description_Short",
+            inputCost: 80,
+            outputCost: 80,
+            contextWindow: 16_384,
+            maxOutputTokens: 4_096,
+            features: {
+                [ModelFeature.CodeInterpreter]: { type: "generic" },
+            },
+            supportsReasoning: false,
+        },
+    },
+    displayOrder: [
+        OpenRouterModel.GPT4o_Mini,
+        OpenRouterModel.GPT4o,
+        OpenRouterModel.Claude3_5_Sonnet,
+        OpenRouterModel.Claude3_Haiku,
+        OpenRouterModel.Llama3_1_8B,
+        OpenRouterModel.Llama3_1_70B,
+        OpenRouterModel.Llama3_1_405B,
+        OpenRouterModel.Gemini_1_5_Flash,
+        OpenRouterModel.Gemini_1_5_Pro,
+        OpenRouterModel.Mistral_Large2,
+        OpenRouterModel.Mixtral_8x7B,
+        OpenRouterModel.Codestral,
+        OpenRouterModel.GPT4_Turbo,
+        OpenRouterModel.GPT4,
+        OpenRouterModel.GPT3_5_Turbo,
+        OpenRouterModel.o1_Preview,
+        OpenRouterModel.o1_Mini,
+        OpenRouterModel.Claude3_Opus,
+        OpenRouterModel.Claude3_Sonnet,
+        OpenRouterModel.Llama3_70B,
+        OpenRouterModel.Llama3_8B,
+        OpenRouterModel.Gemini_Pro,
+        OpenRouterModel.Mistral_Nemo,
+        OpenRouterModel.Mistral_7B,
+        OpenRouterModel.Mixtral_8x22B,
+        OpenRouterModel.Qwen2_72B,
+        OpenRouterModel.DeepSeek_Coder,
+        OpenRouterModel.CodeLlama_34B,
+    ],
+};
+
+// Resources:
+// - Claude Code CLI models - dynamically available through CLI
+export enum ClaudeCodeModel {
+    // Claude model aliases
+    Sonnet = "sonnet",
+    Opus = "opus",
+    Haiku = "haiku",
+
+    // Full model names
+    Claude_Sonnet_4 = "claude-sonnet-4-20250514",
+    Claude_3_5_Sonnet = "claude-3-5-sonnet-20241022",
+    Claude_3_Opus = "claude-3-opus-20240229",
+    Claude_3_Haiku = "claude-3-haiku-20240307",
+}
+
+export const claudeCodeServiceInfo: AIServiceInfo<ClaudeCodeModel> = {
+    defaultModel: ClaudeCodeModel.Sonnet,
+    enabled: false,
+    name: "Claude Code",
+    fallbackMaxTokens: 8_192,
+    models: {
+        [ClaudeCodeModel.Sonnet]: {
+            enabled: true,
+            name: "Claude_3_Sonnet_Name",
+            descriptionShort: "Claude_3_Sonnet_Description_Short",
+            inputCost: 0,    // Monthly subscription model - no per-token cost
+            outputCost: 0,   // Monthly subscription model - no per-token cost
+            contextWindow: 200_000,
+            maxOutputTokens: 8_192,
+            features: {
+                [ModelFeature.CodeInterpreter]: { type: "generic", notes: "Built-in code execution through Claude Code tools" },
+                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Full tool access including Bash, Edit, Write, etc." },
+                [ModelFeature.FileSearch]: { type: "generic", notes: "File system access through built-in tools" },
+            },
+            supportsReasoning: true,
+        },
+        [ClaudeCodeModel.Opus]: {
+            enabled: true,
+            name: "Claude_3_Opus_Name",
+            descriptionShort: "Claude_3_Opus_Description_Short",
+            inputCost: 0,
+            outputCost: 0,
+            contextWindow: 200_000,
+            maxOutputTokens: 4_096,
+            features: {
+                [ModelFeature.CodeInterpreter]: { type: "generic", notes: "Built-in code execution through Claude Code tools" },
+                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Full tool access including Bash, Edit, Write, etc." },
+                [ModelFeature.FileSearch]: { type: "generic", notes: "File system access through built-in tools" },
+                [ModelFeature.Vision]: { type: "vision", notes: "Image understanding capabilities" },
+            },
+            supportsReasoning: false,
+        },
+        [ClaudeCodeModel.Haiku]: {
+            enabled: true,
+            name: "Claude_3_Haiku_Name",
+            descriptionShort: "Claude_3_Haiku_Description_Short",
+            inputCost: 0,
+            outputCost: 0,
+            contextWindow: 200_000,
+            maxOutputTokens: 4_096,
+            features: {
+                [ModelFeature.CodeInterpreter]: { type: "generic", notes: "Built-in code execution through Claude Code tools" },
+                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Full tool access including Bash, Edit, Write, etc." },
+                [ModelFeature.FileSearch]: { type: "generic", notes: "File system access through built-in tools" },
+            },
+            supportsReasoning: false,
+        },
+        [ClaudeCodeModel.Claude_Sonnet_4]: {
+            enabled: true,
+            name: "Claude_3_Sonnet_Name",
+            descriptionShort: "Claude_3_Sonnet_Description_Short",
+            inputCost: 0,
+            outputCost: 0,
+            contextWindow: 200_000,
+            maxOutputTokens: 8_192,
+            features: {
+                [ModelFeature.CodeInterpreter]: { type: "generic", notes: "Built-in code execution through Claude Code tools" },
+                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Full tool access including Bash, Edit, Write, etc." },
+                [ModelFeature.FileSearch]: { type: "generic", notes: "File system access through built-in tools" },
+            },
+            supportsReasoning: true,
+        },
+        [ClaudeCodeModel.Claude_3_5_Sonnet]: {
+            enabled: true,
+            name: "Claude_3_5_Sonnet_Name",
+            descriptionShort: "Claude_3_5_Sonnet_Description_Short",
+            inputCost: 0,
+            outputCost: 0,
+            contextWindow: 200_000,
+            maxOutputTokens: 8_192,
+            features: {
+                [ModelFeature.CodeInterpreter]: { type: "generic", notes: "Built-in code execution through Claude Code tools" },
+                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Full tool access including Bash, Edit, Write, etc." },
+                [ModelFeature.FileSearch]: { type: "generic", notes: "File system access through built-in tools" },
+            },
+            supportsReasoning: false,
+        },
+        [ClaudeCodeModel.Claude_3_Opus]: {
+            enabled: true,
+            name: "Claude_3_Opus_Name",
+            descriptionShort: "Claude_3_Opus_Description_Short",
+            inputCost: 0,
+            outputCost: 0,
+            contextWindow: 200_000,
+            maxOutputTokens: 4_096,
+            features: {
+                [ModelFeature.CodeInterpreter]: { type: "generic", notes: "Built-in code execution through Claude Code tools" },
+                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Full tool access including Bash, Edit, Write, etc." },
+                [ModelFeature.FileSearch]: { type: "generic", notes: "File system access through built-in tools" },
+                [ModelFeature.Vision]: { type: "vision", notes: "Image understanding capabilities" },
+            },
+            supportsReasoning: false,
+        },
+        [ClaudeCodeModel.Claude_3_Haiku]: {
+            enabled: true,
+            name: "Claude_3_Haiku_Name",
+            descriptionShort: "Claude_3_Haiku_Description_Short",
+            inputCost: 0,
+            outputCost: 0,
+            contextWindow: 200_000,
+            maxOutputTokens: 4_096,
+            features: {
+                [ModelFeature.CodeInterpreter]: { type: "generic", notes: "Built-in code execution through Claude Code tools" },
+                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Full tool access including Bash, Edit, Write, etc." },
+                [ModelFeature.FileSearch]: { type: "generic", notes: "File system access through built-in tools" },
+            },
+            supportsReasoning: false,
+        },
+    },
+    displayOrder: [
+        ClaudeCodeModel.Sonnet,
+        ClaudeCodeModel.Claude_Sonnet_4,
+        ClaudeCodeModel.Claude_3_5_Sonnet,
+        ClaudeCodeModel.Opus,
+        ClaudeCodeModel.Claude_3_Opus,
+        ClaudeCodeModel.Haiku,
+        ClaudeCodeModel.Claude_3_Haiku,
     ],
 };
 
 export const aiServicesInfo: AIServicesInfo = {
-    defaultService: LlmServiceId.OpenAI,
+    defaultService: LlmServiceId.LocalOllama,
     services: {
-        [AIServiceName.OpenAI]: openAIServiceInfo,
-        [AIServiceName.Anthropic]: anthropicServiceInfo,
-        [AIServiceName.Mistral]: mistralServiceInfo,
+        [AIServiceName.LocalOllama]: localOllamaServiceInfo,
+        [AIServiceName.CloudflareGateway]: cloudflareGatewayServiceInfo,
+        [AIServiceName.OpenRouter]: openRouterServiceInfo,
+        [AIServiceName.ClaudeCode]: claudeCodeServiceInfo,
     },
     fallbacks: {
-        [AnthropicModel.Haiku3]: [OpenAIModel.Gpt4o_Mini, MistralModel.Nemo],
-        [AnthropicModel.Opus3]: [OpenAIModel.Gpt4_Turbo, MistralModel.Large2],
-        [AnthropicModel.Sonnet3]: [OpenAIModel.Gpt4o, MistralModel.Nemo],
-        [AnthropicModel.Sonnet3_5]: [OpenAIModel.Gpt4o, MistralModel.Nemo],
-        [MistralModel.Codestral]: [OpenAIModel.Gpt4o, AnthropicModel.Sonnet3_5],
-        [MistralModel.Large2]: [OpenAIModel.Gpt4_Turbo, AnthropicModel.Opus3],
-        [MistralModel.Nemo]: [OpenAIModel.Gpt4o_Mini, AnthropicModel.Haiku3],
-        [OpenAIModel.Gpt4o_Mini]: [AnthropicModel.Haiku3, MistralModel.Nemo],
-        [OpenAIModel.Gpt4o]: [AnthropicModel.Sonnet3_5, MistralModel.Nemo],
-        [OpenAIModel.Gpt4]: [AnthropicModel.Opus3, MistralModel.Large2],
-        [OpenAIModel.Gpt4_Turbo]: [AnthropicModel.Opus3, MistralModel.Large2],
-        [OpenAIModel.o1_Mini]: [AnthropicModel.Haiku3, MistralModel.Nemo],
-        [OpenAIModel.o1_Preview]: [AnthropicModel.Sonnet3_5, MistralModel.Large2],
+        // Universal fallback strategy: LocalOllama -> CloudflareGateway -> OpenRouter
+        // LocalOllama models
+        [LocalOllamaModel.Llama3_1_8B]: [CloudflareGatewayModel.Llama3_8B, OpenRouterModel.Llama3_1_8B],
+        [LocalOllamaModel.Llama3_1_70B]: [CloudflareGatewayModel.Llama3_70B, OpenRouterModel.Llama3_1_70B],
+        [LocalOllamaModel.CodeLlama_13B]: [CloudflareGatewayModel.GPT4o_Mini, OpenRouterModel.CodeLlama_34B],
+        [LocalOllamaModel.Mistral_7B]: [CloudflareGatewayModel.Mistral_7B, OpenRouterModel.Mistral_7B],
+        [LocalOllamaModel.Gemma2_9B]: [CloudflareGatewayModel.Gemma_7B, OpenRouterModel.Gemini_Pro],
+        [LocalOllamaModel.Phi3_Medium]: [CloudflareGatewayModel.Phi2, OpenRouterModel.GPT4o_Mini],
+        [LocalOllamaModel.Dynamic]: [CloudflareGatewayModel.GPT4o_Mini, OpenRouterModel.GPT4o_Mini],
+
+        // CloudflareGateway models
+        [CloudflareGatewayModel.GPT4o]: [OpenRouterModel.GPT4o],
+        [CloudflareGatewayModel.GPT4o_Mini]: [OpenRouterModel.GPT4o_Mini],
+        [CloudflareGatewayModel.GPT4_Turbo]: [OpenRouterModel.GPT4_Turbo],
+        [CloudflareGatewayModel.GPT3_5_Turbo]: [OpenRouterModel.GPT3_5_Turbo],
+        [CloudflareGatewayModel.Claude3_Sonnet]: [OpenRouterModel.Claude3_Sonnet],
+        [CloudflareGatewayModel.Claude3_Haiku]: [OpenRouterModel.Claude3_Haiku],
+        [CloudflareGatewayModel.Claude3_5_Sonnet]: [OpenRouterModel.Claude3_5_Sonnet],
+        [CloudflareGatewayModel.Llama3_8B]: [OpenRouterModel.Llama3_8B],
+        [CloudflareGatewayModel.Llama3_70B]: [OpenRouterModel.Llama3_70B],
+        [CloudflareGatewayModel.Mistral_7B]: [OpenRouterModel.Mistral_7B],
+        [CloudflareGatewayModel.Mistral_8x7B]: [OpenRouterModel.Mixtral_8x7B],
+        [CloudflareGatewayModel.Phi2]: [OpenRouterModel.GPT4o_Mini],
+        [CloudflareGatewayModel.Gemma_7B]: [OpenRouterModel.Gemini_Pro],
+
+        // OpenRouter models - last in chain, no fallbacks
+        [OpenRouterModel.GPT4o]: [],
+        [OpenRouterModel.GPT4o_Mini]: [],
+        [OpenRouterModel.GPT4_Turbo]: [],
+        [OpenRouterModel.GPT4]: [],
+        [OpenRouterModel.GPT3_5_Turbo]: [],
+        [OpenRouterModel.o1_Preview]: [],
+        [OpenRouterModel.o1_Mini]: [],
+        [OpenRouterModel.Claude3_5_Sonnet]: [],
+        [OpenRouterModel.Claude3_Opus]: [],
+        [OpenRouterModel.Claude3_Sonnet]: [],
+        [OpenRouterModel.Claude3_Haiku]: [],
+        [OpenRouterModel.Gemini_1_5_Pro]: [],
+        [OpenRouterModel.Gemini_1_5_Flash]: [],
+        [OpenRouterModel.Gemini_Pro]: [],
+        [OpenRouterModel.Llama3_1_405B]: [],
+        [OpenRouterModel.Llama3_1_70B]: [],
+        [OpenRouterModel.Llama3_1_8B]: [],
+        [OpenRouterModel.Llama3_70B]: [],
+        [OpenRouterModel.Llama3_8B]: [],
+        [OpenRouterModel.Mistral_Large2]: [],
+        [OpenRouterModel.Mistral_Nemo]: [],
+        [OpenRouterModel.Mistral_7B]: [],
+        [OpenRouterModel.Codestral]: [],
+        [OpenRouterModel.Mixtral_8x7B]: [],
+        [OpenRouterModel.Mixtral_8x22B]: [],
+        [OpenRouterModel.Qwen2_72B]: [],
+        [OpenRouterModel.DeepSeek_Coder]: [],
+        [OpenRouterModel.CodeLlama_34B]: [],
+
+        // ClaudeCode models - fallback to OpenRouter equivalents if available
+        [ClaudeCodeModel.Sonnet]: [OpenRouterModel.Claude3_5_Sonnet],
+        [ClaudeCodeModel.Opus]: [OpenRouterModel.Claude3_Opus],
+        [ClaudeCodeModel.Haiku]: [OpenRouterModel.Claude3_Haiku],
+        [ClaudeCodeModel.Claude_Sonnet_4]: [OpenRouterModel.Claude3_5_Sonnet],
+        [ClaudeCodeModel.Claude_3_5_Sonnet]: [OpenRouterModel.Claude3_5_Sonnet],
+        [ClaudeCodeModel.Claude_3_Opus]: [OpenRouterModel.Claude3_Opus],
+        [ClaudeCodeModel.Claude_3_Haiku]: [OpenRouterModel.Claude3_Haiku],
     },
 };
