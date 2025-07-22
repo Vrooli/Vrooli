@@ -17,7 +17,7 @@ source "${UTILS_DIR}/system.sh"
 source "${UTILS_DIR}/var.sh"
 
 docker::install() {
-    if ! flow::can_run_sudo; then
+    if ! flow::can_run_sudo "Docker installation"; then
         log::warning "Skipping Docker installation due to sudo mode"
         return
     fi
@@ -39,7 +39,7 @@ docker::install() {
 }
 
 docker::start() {
-    if ! flow::can_run_sudo; then
+    if ! flow::can_run_sudo "Docker service start"; then
         log::warning "Skipping Docker start due to sudo mode"
         return
     fi
@@ -55,7 +55,7 @@ docker::start() {
 }
 
 docker::restart() {
-    if ! flow::can_run_sudo; then
+    if ! flow::can_run_sudo "Docker service restart"; then
         log::warning "Skipping Docker restart due to sudo mode"
         return
     fi
@@ -82,7 +82,7 @@ docker::kill_all() {
 }
 
 docker::setup_docker_compose() {
-    if ! flow::can_run_sudo; then
+    if ! flow::can_run_sudo "Docker Compose installation"; then
         log::warning "Skipping Docker Compose installation due to sudo mode"
         return
     fi
@@ -122,7 +122,7 @@ docker::show_daemon() {
 }
 
 docker::update_daemon() {
-    if ! flow::can_run_sudo; then
+    if ! flow::can_run_sudo "Docker daemon configuration update"; then
         log::warning "Skipping Docker daemon update due to sudo mode"
         return
     fi
@@ -279,7 +279,7 @@ EOF
 # and the docker.service override will be in
 # /etc/systemd/system/docker.service.d/slice.conf.
 docker::configure_resource_limits() {
-    if ! flow::can_run_sudo; then
+    if ! flow::can_run_sudo "Docker resource limits configuration"; then
         log::warning "Skipping Docker resource limits setup due to sudo mode"
         return
     fi

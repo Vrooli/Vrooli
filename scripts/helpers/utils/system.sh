@@ -85,7 +85,7 @@ system::install_pkg() {
     # Brew never needs sudo; others only if allowed
     if [[ "$pm" == "brew" ]]; then
         prefix=""
-    elif flow::can_run_sudo; then
+    elif flow::can_run_sudo "system package installation ($pkg)"; then
         prefix="sudo"
     else
         prefix=""

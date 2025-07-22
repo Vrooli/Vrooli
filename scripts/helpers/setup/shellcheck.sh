@@ -33,7 +33,7 @@ shellcheck::install() {
     MV_CMD="sudo mv"
     CHMOD_CMD="sudo chmod"
 
-    if ! flow::can_run_sudo; then
+    if ! flow::can_run_sudo "ShellCheck system-wide installation (/usr/local/bin)"; then
         log::warning "Sudo not available or skipped. Installing ShellCheck to user directory."
         INSTALL_DIR="$HOME/.local/bin"
         MV_CMD="mv"
