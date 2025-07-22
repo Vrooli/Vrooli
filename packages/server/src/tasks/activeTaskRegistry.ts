@@ -168,11 +168,9 @@ async function attemptActionWithRetries(
 ): Promise<void> {
     const maxAttempts = (retries ?? 0) + 1;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        logger.info(`Attempting to ${actionName} long-running ${taskTypeName} task ${taskId} (attempt ${attempt}/${maxAttempts})`);
         try {
             const success = await actionFn();
             if (success) {
-                logger.info(`${actionName.charAt(0).toUpperCase() + actionName.slice(1)} request for ${taskId} successful.`);
                 return;
             } else {
                 logger.warn(`${actionName.charAt(0).toUpperCase() + actionName.slice(1)} request for ${taskId} failed or was not applicable (attempt ${attempt}/${maxAttempts}).`);

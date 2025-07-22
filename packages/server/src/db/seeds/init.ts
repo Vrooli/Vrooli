@@ -4,9 +4,8 @@
  * 
  * AI_CHECK: TYPE_SAFETY=server-type-safety-maintenance-phase2 | LAST: 2025-07-04 - Added Promise<void> return type annotation to init function
  */
+import pkg, { type Prisma, CreditEntryType, CreditSourceSystem } from "@prisma/client";
 import { API_CREDITS_PREMIUM, AUTH_PROVIDERS, DEFAULT_LANGUAGE, generatePK, generatePublicId, SEEDED_PUBLIC_IDS, SEEDED_TAGS, STANDARD_RESOURCE_QUOTAS, TeamConfig } from "@vrooli/shared";
-import type { Prisma } from "@prisma/client";
-import pkg, { CreditEntryType, CreditSourceSystem } from "@prisma/client";
 import { readManyHelper } from "../../actions/reads.js";
 import { PasswordAuthService } from "../../auth/email.js";
 import { importData } from "../../builders/importExport.js";
@@ -302,9 +301,14 @@ async function initTeams(client: InstanceType<typeof PrismaClient>) {
 
 export async function init(client: InstanceType<typeof PrismaClient>): Promise<void> {
     logger.info("🌱 Starting database initial seed...");
+
     // Check for required .env variables
-    if (["ADMIN_WALLET", "ADMIN_PASSWORD", "SITE_EMAIL_USERNAME", "VALYXA_PASSWORD"].some(name => !process.env[name])) {
-        logger.error("🚨 Missing required .env variables. Not seeding database.", { trace: "0006" });
+    const requiredVars = ["ADMIN_WALLET", "ADMIN_PASSWORD", "SITE_EMAIL_USERNAME", "VALYXA_PASSWORD"];
+    if (requiredVars.some(name => !process.env[name])) {
+        logger.error("🚨 Missing required .env variables. Not seeding database.", {
+            trace: "0006",
+            missing: requiredVars.filter(name => !process.env[name]),
+        });
         return;
     }
 

@@ -60,7 +60,6 @@ export function setVapidDetails() {
         );
         vapidDetailsSet = true;
         vapidCriticalSetupFailed = false; // Explicitly false on success
-        logger.info("VAPID details initialized successfully.", { trace: "push.vapid.initialized" });
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         logger.error(
@@ -97,7 +96,6 @@ export async function pushProcess({ data, id: jobId }: Job<PushNotificationTask>
         }
 
         await webpush.sendNotification(subscription, JSON.stringify(payload));
-        logger.info("Push notification sent successfully.", { jobId, trace: "push.send.success" });
     } catch (err) {
         let errorMessage = "An unknown error occurred during push notification processing.";
         let errorCode: string | undefined;

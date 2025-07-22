@@ -1,9 +1,9 @@
-import { describe, expect, test, beforeEach, afterEach, vi, type MockedFunction } from "vitest";
-import { RunState, EventTypes, type SessionUser } from "@vrooli/shared";
-import { BaseStateMachine, type StateMachineCoordinationConfig } from "./BaseStateMachine.js";
-import { ErrorHandler, type Result } from "./ErrorHandler.js";
+import type { StopOptions } from "@vrooli/shared";
+import { EventTypes, RunState, type SessionUser } from "@vrooli/shared";
+import { afterEach, beforeEach, describe, expect, test, vi, type MockedFunction } from "vitest";
 import type { ServiceEvent } from "../../events/types.js";
-import type { StopOptions, StopResult } from "./stopTypes.js";
+import { BaseStateMachine, type StateMachineCoordinationConfig } from "./BaseStateMachine.js";
+import { ErrorHandler } from "./ErrorHandler.js";
 
 // Mock dependencies
 vi.mock("../../../events/logger.js", async () => {
@@ -103,7 +103,7 @@ class TestStateMachine extends BaseStateMachine<ServiceEvent> {
         return { stopped: true, mode, reason };
     }
 
-    protected async isErrorFatal(error: unknown, event: ServiceEvent): Promise<boolean> {
+    protected async isErrorFatal(_error: unknown, _event: ServiceEvent): Promise<boolean> {
         return this.fatalErrorResult;
     }
 
@@ -111,7 +111,7 @@ class TestStateMachine extends BaseStateMachine<ServiceEvent> {
         return this.eventPatterns;
     }
 
-    protected shouldHandleEvent(event: ServiceEvent): boolean {
+    protected shouldHandleEvent(_event: ServiceEvent): boolean {
         return this.shouldHandleEventResult;
     }
 
@@ -163,10 +163,10 @@ describe("BaseStateMachine", () => {
         } catch (error) {
             // Ignore cleanup errors in tests
         }
-        
+
         // Clear all mocks to prevent state leakage between tests
         vi.clearAllMocks();
-        
+
         // Clear all timers to prevent timeout issues
         vi.clearAllTimers();
     });
@@ -186,7 +186,7 @@ describe("BaseStateMachine", () => {
                 contextId: "context-789",
             };
             const customMachine = new TestStateMachine(RunState.READY, "CustomMachine", config);
-            
+
             expect(customMachine.getState()).toBe(RunState.READY);
             expect(customMachine.getCoordinationStatus().chatId).toBe("chat-123");
         });
@@ -219,24 +219,24 @@ describe("BaseStateMachine", () => {
 
         test("should apply valid state transitions", async () => {
             await stateMachine.testApplyStateTransition(RunState.LOADING, "test_transition");
-            
+
             expect(stateMachine.getState()).toBe(RunState.LOADING);
         });
 
         test("should reject invalid state transitions", async () => {
             const initialState = stateMachine.getState();
-            
+
             await stateMachine.testApplyStateTransition(RunState.RUNNING, "invalid_transition");
-            
+
             // State should remain unchanged
             expect(stateMachine.getState()).toBe(initialState);
         });
 
         test("should emit state change events on valid transitions", async () => {
             const { EventPublisher } = await import("../../events/publisher.js");
-            
+
             await stateMachine.testApplyStateTransition(RunState.LOADING, "test_emit");
-            
+
             expect(EventPublisher.emit).toHaveBeenCalledWith(
                 EventTypes.SYSTEM.STATE_CHANGED,
                 expect.objectContaining({
@@ -250,20 +250,22 @@ describe("BaseStateMachine", () => {
     });
 
     describe("Event Queue Management", () => {
-        const createTestEvent = (type = "test/event", id = "event-1"): ServiceEvent => ({
-            id,
-            type,
-            timestamp: new Date(),
-            tier: "tier2",
-            source: "test",
-            chatId: "test-chat",
-        });
+        function createTestEvent(type = "test/event", id = "event-1"): ServiceEvent {
+            return {
+                id,
+                type,
+                timestamp: new Date(),
+                tier: "tier2",
+                source: "test",
+                chatId: "test-chat",
+            };
+        }
 
         test("should queue events when not in terminated state", async () => {
             const event = createTestEvent();
-            
+
             await stateMachine.handleEvent(event);
-            
+
             expect(stateMachine.getEventQueueLength()).toBe(1);
             expect(stateMachine.getEventQueue()[0]).toBe(event);
         });
@@ -273,27 +275,27 @@ describe("BaseStateMachine", () => {
             await stateMachine.testApplyStateTransition(RunState.READY, "setup");
             await stateMachine.stop();
             const event = createTestEvent();
-            
+
             await stateMachine.handleEvent(event);
-            
+
             expect(stateMachine.getEventQueueLength()).toBe(0);
         });
 
         test("should ignore events when cancelled", async () => {
             await stateMachine.testApplyStateTransition(RunState.CANCELLED, "test_cancel");
             const event = createTestEvent();
-            
+
             await stateMachine.handleEvent(event);
-            
+
             expect(stateMachine.getEventQueueLength()).toBe(0);
         });
 
         test("should filter events based on shouldHandleEvent", async () => {
             stateMachine.shouldHandleEventResult = false;
             const event = createTestEvent();
-            
+
             await stateMachine.handleEvent(event);
-            
+
             expect(stateMachine.getEventQueueLength()).toBe(0);
         });
 
@@ -303,7 +305,7 @@ describe("BaseStateMachine", () => {
             for (let i = 0; i < 1000; i++) {
                 events.push(createTestEvent("test/event", `event-${i}`));
             }
-            
+
             // Add events up to capacity
             for (const event of events) {
                 await stateMachine.handleEvent(event);
@@ -313,14 +315,14 @@ describe("BaseStateMachine", () => {
             // Add one more event - should trigger eviction
             const overflowEvent = createTestEvent("test/overflow", "overflow-event");
             await stateMachine.handleEvent(overflowEvent);
-            
+
             // Should still be at capacity, but oldest 10% (100 events) should be evicted
             expect(stateMachine.getEventQueueLength()).toBe(901); // 1000 - 100 + 1
-            
+
             // Verify the overflow event was added
             const queue = stateMachine.getEventQueue();
             expect(queue[queue.length - 1]).toBe(overflowEvent);
-            
+
             // Verify oldest events were removed (first 100 should be gone)
             expect(queue.find(e => e.id === "event-0")).toBeUndefined();
             expect(queue.find(e => e.id === "event-99")).toBeUndefined();
@@ -330,20 +332,20 @@ describe("BaseStateMachine", () => {
         test("should schedule drain when in READY state", async () => {
             await stateMachine.testApplyStateTransition(RunState.READY, "test_ready");
             const drainSpy = vi.spyOn(stateMachine as any, "scheduleDrain");
-            
+
             const event = createTestEvent();
             await stateMachine.handleEvent(event);
-            
+
             expect(drainSpy).toHaveBeenCalled();
         });
 
         test("should not schedule drain when not in READY state", async () => {
             // Machine starts in UNINITIALIZED state
             const drainSpy = vi.spyOn(stateMachine as any, "scheduleDrain");
-            
+
             const event = createTestEvent();
             await stateMachine.handleEvent(event);
-            
+
             expect(drainSpy).not.toHaveBeenCalled();
         });
     });
@@ -355,9 +357,9 @@ describe("BaseStateMachine", () => {
             await stateMachine.testApplyStateTransition(RunState.CONFIGURING, "setup2");
             await stateMachine.testApplyStateTransition(RunState.READY, "setup3");
             await stateMachine.testApplyStateTransition(RunState.RUNNING, "setup4");
-            
+
             const result = await stateMachine.pause();
-            
+
             expect(result).toBe(true);
             expect(stateMachine.getState()).toBe(RunState.PAUSED);
             expect(stateMachine.pauseCallCount).toBe(1);
@@ -368,9 +370,9 @@ describe("BaseStateMachine", () => {
             await stateMachine.testApplyStateTransition(RunState.LOADING, "setup1");
             await stateMachine.testApplyStateTransition(RunState.CONFIGURING, "setup2");
             await stateMachine.testApplyStateTransition(RunState.READY, "setup3");
-            
+
             const result = await stateMachine.pause();
-            
+
             expect(result).toBe(true);
             expect(stateMachine.getState()).toBe(RunState.PAUSED);
         });
@@ -378,7 +380,7 @@ describe("BaseStateMachine", () => {
         test("should not pause from invalid states", async () => {
             // Try to pause from UNINITIALIZED
             const result = await stateMachine.pause();
-            
+
             expect(result).toBe(false);
             expect(stateMachine.getState()).toBe(RunState.UNINITIALIZED);
             expect(stateMachine.pauseCallCount).toBe(0);
@@ -390,9 +392,9 @@ describe("BaseStateMachine", () => {
             await stateMachine.testApplyStateTransition(RunState.CONFIGURING, "setup2");
             await stateMachine.testApplyStateTransition(RunState.READY, "setup3");
             await stateMachine.testApplyStateTransition(RunState.PAUSED, "setup4");
-            
+
             const result = await stateMachine.resume();
-            
+
             expect(result).toBe(true);
             expect(stateMachine.getState()).toBe(RunState.READY);
             expect(stateMachine.resumeCallCount).toBe(1);
@@ -402,9 +404,9 @@ describe("BaseStateMachine", () => {
             // SUSPENDED can only be reached by manual state setting (not through normal transitions)
             // This simulates an external system putting the machine in SUSPENDED state
             (stateMachine as any).state = RunState.SUSPENDED;
-            
+
             const result = await stateMachine.resume();
-            
+
             expect(result).toBe(true);
             expect(stateMachine.getState()).toBe(RunState.READY);
         });
@@ -415,9 +417,9 @@ describe("BaseStateMachine", () => {
             await stateMachine.testApplyStateTransition(RunState.CONFIGURING, "setup2");
             await stateMachine.testApplyStateTransition(RunState.READY, "setup3");
             await stateMachine.testApplyStateTransition(RunState.RUNNING, "setup4");
-            
+
             const result = await stateMachine.resume();
-            
+
             expect(result).toBe(false);
             expect(stateMachine.getState()).toBe(RunState.RUNNING);
             expect(stateMachine.resumeCallCount).toBe(0);
@@ -430,9 +432,9 @@ describe("BaseStateMachine", () => {
             await stateMachine.testApplyStateTransition(RunState.READY, "setup3");
             await stateMachine.testApplyStateTransition(RunState.PAUSED, "setup4");
             const drainSpy = vi.spyOn(stateMachine as any, "scheduleDrain");
-            
+
             await stateMachine.resume();
-            
+
             expect(drainSpy).toHaveBeenCalled();
         });
     });
@@ -444,9 +446,9 @@ describe("BaseStateMachine", () => {
             await stateMachine.testApplyStateTransition(RunState.CONFIGURING, "setup2");
             await stateMachine.testApplyStateTransition(RunState.READY, "setup3");
             await stateMachine.testApplyStateTransition(RunState.RUNNING, "setup4");
-            
+
             const result = await stateMachine.stop();
-            
+
             expect(result.success).toBe(true);
             expect(result.message).toContain("Stopped successfully (graceful)");
             expect(stateMachine.getState()).toBe(RunState.COMPLETED);
@@ -461,9 +463,9 @@ describe("BaseStateMachine", () => {
             await stateMachine.testApplyStateTransition(RunState.CONFIGURING, "setup2");
             await stateMachine.testApplyStateTransition(RunState.READY, "setup3");
             await stateMachine.testApplyStateTransition(RunState.RUNNING, "setup4");
-            
+
             const result = await stateMachine.stop({ reason: "user requested" });
-            
+
             expect(result.success).toBe(true);
             expect(stateMachine.lastStopReason).toBe("user requested");
             expect(stateMachine.lastStopMode).toBe("graceful");
@@ -475,9 +477,9 @@ describe("BaseStateMachine", () => {
             await stateMachine.testApplyStateTransition(RunState.CONFIGURING, "setup2");
             await stateMachine.testApplyStateTransition(RunState.READY, "setup3");
             await stateMachine.testApplyStateTransition(RunState.RUNNING, "setup4");
-            
+
             const result = await stateMachine.stop({ mode: "force", reason: "emergency stop" });
-            
+
             expect(result.success).toBe(true);
             expect(stateMachine.getState()).toBe(RunState.CANCELLED);
             expect(stateMachine.lastStopMode).toBe("force");
@@ -496,9 +498,9 @@ describe("BaseStateMachine", () => {
                 reason: "system shutdown",
                 requestingUser: user,
             };
-            
+
             const result = await stateMachine.stop(options);
-            
+
             expect(result.success).toBe(true);
             expect(stateMachine.lastStopMode).toBe("force");
             expect(stateMachine.lastStopReason).toBe("system shutdown");
@@ -506,18 +508,18 @@ describe("BaseStateMachine", () => {
 
         test("should return success if already completed", async () => {
             await stateMachine.testApplyStateTransition(RunState.COMPLETED, "setup");
-            
+
             const result = await stateMachine.stop();
-            
+
             expect(result.success).toBe(true);
             expect(result.message).toContain("Already in state COMPLETED");
         });
 
         test("should return success if already cancelled", async () => {
             await stateMachine.testApplyStateTransition(RunState.CANCELLED, "setup");
-            
+
             const result = await stateMachine.stop();
-            
+
             expect(result.success).toBe(true);
             expect(result.message).toContain("Already in state CANCELLED");
         });
@@ -525,7 +527,7 @@ describe("BaseStateMachine", () => {
         test("should reject graceful stop from invalid states", async () => {
             // Try to gracefully stop from UNINITIALIZED
             const result = await stateMachine.stop({ mode: "graceful" });
-            
+
             expect(result.success).toBe(false);
             expect(result.message).toContain("Cannot gracefully stop from state UNINITIALIZED");
             expect(result.error).toBe("INVALID_STATE");
@@ -534,7 +536,7 @@ describe("BaseStateMachine", () => {
         test("should force stop from any state", async () => {
             // Force stop should work from any state, including UNINITIALIZED
             const result = await stateMachine.stop({ mode: "force", reason: "emergency" });
-            
+
             expect(result.success).toBe(true);
             expect(stateMachine.getState()).toBe(RunState.CANCELLED);
         });
@@ -545,15 +547,15 @@ describe("BaseStateMachine", () => {
             await stateMachine.testApplyStateTransition(RunState.CONFIGURING, "setup2");
             await stateMachine.testApplyStateTransition(RunState.READY, "setup3");
             await stateMachine.testApplyStateTransition(RunState.RUNNING, "setup4");
-            
+
             // Mock error handler to return failure
             mockErrorHandler.wrap.mockResolvedValueOnce({
                 success: false,
                 error: new Error("Stop failed"),
             });
-            
+
             const result = await stateMachine.stop();
-            
+
             expect(result.success).toBe(false);
             expect(result.message).toBe("Error during stop");
             expect(result.error).toBe("Stop failed");
@@ -568,9 +570,9 @@ describe("BaseStateMachine", () => {
             await stateMachine.testApplyStateTransition(RunState.CONFIGURING, "setup2");
             await stateMachine.testApplyStateTransition(RunState.READY, "setup3");
             await stateMachine.testApplyStateTransition(RunState.RUNNING, "setup4");
-            
+
             const result = await stateMachine.requestPause();
-            
+
             expect(result).toBe(true);
             expect(stateMachine.getState()).toBe(RunState.PAUSED);
         });
@@ -581,9 +583,9 @@ describe("BaseStateMachine", () => {
             await stateMachine.testApplyStateTransition(RunState.CONFIGURING, "setup2");
             await stateMachine.testApplyStateTransition(RunState.READY, "setup3");
             await stateMachine.testApplyStateTransition(RunState.RUNNING, "setup4");
-            
+
             const result = await stateMachine.requestStop("test reason");
-            
+
             expect(result).toBe(true);
             expect(stateMachine.getState()).toBe(RunState.COMPLETED);
             expect(stateMachine.lastStopReason).toBe("test reason");
@@ -595,13 +597,13 @@ describe("BaseStateMachine", () => {
             const event = createTestEvent();
             await stateMachine.testApplyStateTransition(RunState.READY, "setup");
             await stateMachine.handleEvent(event);
-            
+
             // Trigger drain to process the event
             await stateMachine.testScheduleDrain();
-            
+
             // Wait for async processing
             await new Promise(resolve => setTimeout(resolve, 10));
-            
+
             expect(mockErrorHandler.wrap).toHaveBeenCalled();
         });
 
@@ -611,20 +613,20 @@ describe("BaseStateMachine", () => {
             await stateMachine.testApplyStateTransition(RunState.LOADING, "setup1");
             await stateMachine.testApplyStateTransition(RunState.CONFIGURING, "setup2");
             await stateMachine.testApplyStateTransition(RunState.READY, "setup3");
-            
+
             // Mock error handler to return failure
             mockErrorHandler.wrap.mockResolvedValueOnce({
                 success: false,
                 error: new Error("Non-fatal error"),
             });
-            
+
             const event = createTestEvent();
             await stateMachine.handleEvent(event);
-            
+
             // Trigger drain to process the event
             await (stateMachine as any).drain();
             await new Promise(resolve => setTimeout(resolve, 20));
-            
+
             // Should remain in READY state for non-fatal errors
             expect(stateMachine.getState()).toBe(RunState.READY);
         });
@@ -635,20 +637,20 @@ describe("BaseStateMachine", () => {
             await stateMachine.testApplyStateTransition(RunState.LOADING, "setup1");
             await stateMachine.testApplyStateTransition(RunState.CONFIGURING, "setup2");
             await stateMachine.testApplyStateTransition(RunState.READY, "setup3");
-            
+
             // Mock error handler to return failure
             mockErrorHandler.wrap.mockResolvedValueOnce({
                 success: false,
                 error: new Error("Fatal error"),
             });
-            
+
             const event = createTestEvent();
             await stateMachine.handleEvent(event);
-            
+
             // Trigger drain to process the event
             await (stateMachine as any).drain();
             await new Promise(resolve => setTimeout(resolve, 20));
-            
+
             expect(stateMachine.getState()).toBe(RunState.FAILED);
         });
     });
@@ -663,7 +665,7 @@ describe("BaseStateMachine", () => {
 
         test("should setup event subscriptions for patterns", async () => {
             await (stateMachine as any).setupEventSubscriptions();
-            
+
             expect(mockEventBus.subscribe).toHaveBeenCalledTimes(2);
             expect(mockEventBus.subscribe).toHaveBeenCalledWith(
                 "test/event",
@@ -678,31 +680,31 @@ describe("BaseStateMachine", () => {
         test("should cleanup event subscriptions", async () => {
             await (stateMachine as any).setupEventSubscriptions();
             await (stateMachine as any).cleanupEventSubscriptions();
-            
+
             expect(mockEventBus.unsubscribe).toHaveBeenCalledTimes(2);
             expect(mockEventBus.unsubscribe).toHaveBeenCalledWith("subscription-id");
         });
 
         test("should handle subscription cleanup errors gracefully", async () => {
             await (stateMachine as any).setupEventSubscriptions();
-            
+
             // Mock unsubscribe to throw error
             mockEventBus.unsubscribe.mockRejectedValueOnce(new Error("Unsubscribe failed"));
-            
+
             // Should not throw
             await expect((stateMachine as any).cleanupEventSubscriptions()).resolves.not.toThrow();
         });
 
         test("should route subscribed events to handleEvent", async () => {
             await (stateMachine as any).setupEventSubscriptions();
-            
+
             // Get the subscription handler that was registered
             const subscriptionHandler = mockEventBus.subscribe.mock.calls[0][1];
             const handleEventSpy = vi.spyOn(stateMachine, "handleEvent");
-            
+
             const testEvent = createTestEvent();
             await subscriptionHandler(testEvent);
-            
+
             expect(handleEventSpy).toHaveBeenCalledWith(testEvent);
         });
     });
@@ -720,10 +722,10 @@ describe("BaseStateMachine", () => {
         test("should not drain when not in drainable state", async () => {
             const event = createTestEvent();
             await stateMachine.handleEvent(event);
-            
+
             // Machine starts in UNINITIALIZED, which is not drainable
             await (stateMachine as any).drain();
-            
+
             // Event should still be in queue
             expect(stateMachine.getEventQueueLength()).toBe(1);
             expect(stateMachine.lastProcessedEvent).toBeNull();
@@ -734,21 +736,21 @@ describe("BaseStateMachine", () => {
             await stateMachine.testApplyStateTransition(RunState.LOADING, "setup1");
             await stateMachine.testApplyStateTransition(RunState.CONFIGURING, "setup2");
             await stateMachine.testApplyStateTransition(RunState.READY, "setup3");
-            
+
             const event1 = createTestEvent("test/event", "event-1");
             const event2 = createTestEvent("test/event", "event-2");
             const event3 = createTestEvent("test/event", "event-3");
-            
+
             await stateMachine.handleEvent(event1);
             await stateMachine.handleEvent(event2);
             await stateMachine.handleEvent(event3);
-            
+
             expect(stateMachine.getEventQueueLength()).toBe(3);
-            
+
             // Process events one by one
             await (stateMachine as any).drain();
             await new Promise(resolve => setTimeout(resolve, 20));
-            
+
             // All events should be processed and queue should be empty
             expect(stateMachine.getEventQueueLength()).toBe(0);
             expect(stateMachine.lastProcessedEvent).toBe(event3); // Last processed
@@ -763,13 +765,13 @@ describe("BaseStateMachine", () => {
             await stateMachine.testApplyStateTransition(RunState.READY, "setup3");
             const event = createTestEvent();
             await stateMachine.handleEvent(event);
-            
+
             const drainPromise = (stateMachine as any).drain();
-            
+
             // Check state immediately after drain starts
             await new Promise(resolve => setTimeout(resolve, 1));
             expect(stateMachine.getState()).toBe(RunState.RUNNING);
-            
+
             await drainPromise;
         });
 
@@ -778,22 +780,22 @@ describe("BaseStateMachine", () => {
             await stateMachine.testApplyStateTransition(RunState.LOADING, "setup1");
             await stateMachine.testApplyStateTransition(RunState.CONFIGURING, "setup2");
             await stateMachine.testApplyStateTransition(RunState.READY, "setup3");
-            
+
             const event1 = createTestEvent("test/event", "event-1");
             await stateMachine.handleEvent(event1);
-            
+
             const scheduleDrainSpy = vi.spyOn(stateMachine as any, "scheduleDrain");
-            
+
             // Start draining
             const drainPromise = (stateMachine as any).drain();
-            
+
             // Add another event while draining
             const event2 = createTestEvent("test/event", "event-2");
             await stateMachine.handleEvent(event2);
-            
+
             await drainPromise;
             await new Promise(resolve => setTimeout(resolve, 10));
-            
+
             // scheduleDrain should be called again for the new event
             expect(scheduleDrainSpy).toHaveBeenCalled();
         });
@@ -802,38 +804,38 @@ describe("BaseStateMachine", () => {
             const event = createTestEvent();
             await stateMachine.handleEvent(event);
             await stateMachine.stop();
-            
+
             await (stateMachine as any).drain();
-            
+
             // Event should still be in queue (not processed)
             expect(stateMachine.lastProcessedEvent).toBeNull();
         });
 
         test("should clear pending drain timeout", () => {
             stateMachine.testScheduleDrain(100); // Schedule with delay
-            
+
             // Should set a timeout
             expect((stateMachine as any).pendingDrainTimeout).not.toBeNull();
-            
+
             stateMachine.testClearPendingDrainTimeout();
-            
+
             // Should clear the timeout
             expect((stateMachine as any).pendingDrainTimeout).toBeNull();
         });
 
         test("should schedule immediate drain with no delay", () => {
             const setImmediateSpy = vi.spyOn(global, "setImmediate");
-            
+
             stateMachine.testScheduleDrain(0);
-            
+
             expect(setImmediateSpy).toHaveBeenCalled();
         });
 
         test("should schedule delayed drain with timeout", () => {
             const setTimeoutSpy = vi.spyOn(global, "setTimeout");
-            
+
             stateMachine.testScheduleDrain(100);
-            
+
             expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 100);
         });
 
@@ -843,12 +845,12 @@ describe("BaseStateMachine", () => {
             await stateMachine.testApplyStateTransition(RunState.CONFIGURING, "setup2");
             await stateMachine.testApplyStateTransition(RunState.READY, "setup3");
             await stateMachine.testApplyStateTransition(RunState.PAUSED, "setup4");
-            
+
             const setTimeoutSpy = vi.spyOn(global, "setTimeout");
             const setImmediateSpy = vi.spyOn(global, "setImmediate");
-            
+
             stateMachine.testScheduleDrain();
-            
+
             expect(setTimeoutSpy).not.toHaveBeenCalled();
             expect(setImmediateSpy).not.toHaveBeenCalled();
         });
@@ -859,13 +861,13 @@ describe("BaseStateMachine", () => {
             await stateMachine.testApplyStateTransition(RunState.READY, "setup");
             const event = createTestEvent();
             await stateMachine.handleEvent(event);
-            
+
             const statusBefore = stateMachine.getCoordinationStatus();
             expect(statusBefore.currentLock).toBeNull();
-            
+
             // Trigger drain which should acquire lock
             await (stateMachine as any).drain();
-            
+
             // Lock should be released after drain
             const statusAfter = stateMachine.getCoordinationStatus();
             expect(statusAfter.currentLock).toBeNull();
@@ -875,16 +877,16 @@ describe("BaseStateMachine", () => {
             // Mock the private method to simulate lock failure
             const originalAcquire = (stateMachine as any).acquireDistributedProcessingLock;
             (stateMachine as any).acquireDistributedProcessingLock = vi.fn().mockResolvedValue(false);
-            
+
             await stateMachine.testApplyStateTransition(RunState.READY, "setup");
             const event = createTestEvent();
             await stateMachine.handleEvent(event);
-            
+
             await (stateMachine as any).drain();
-            
+
             // Event should still be in queue since lock wasn't acquired
             expect(stateMachine.getEventQueueLength()).toBe(1);
-            
+
             // Restore original method
             (stateMachine as any).acquireDistributedProcessingLock = originalAcquire;
         });
@@ -893,9 +895,9 @@ describe("BaseStateMachine", () => {
     describe("Event Publishing", () => {
         test("should publish events with correct metadata", async () => {
             const { EventPublisher } = await import("../../events/publisher.js");
-            
+
             await (stateMachine as any).publishEvent("test/custom", { data: "test" }, { custom: "metadata" });
-            
+
             expect(EventPublisher.emit).toHaveBeenCalledWith(
                 "test/custom",
                 { data: "test" },
@@ -906,7 +908,7 @@ describe("BaseStateMachine", () => {
         test("should handle blocked event publication gracefully", async () => {
             const { EventPublisher } = await import("../../events/publisher.js");
             EventPublisher.emit.mockResolvedValueOnce({ proceed: false, reason: "Rate limited" });
-            
+
             // Should not throw
             await expect((stateMachine as any).publishEvent("test/blocked", {})).resolves.not.toThrow();
         });
@@ -914,7 +916,7 @@ describe("BaseStateMachine", () => {
         test("should handle event publication errors gracefully", async () => {
             const { EventPublisher } = await import("../../events/publisher.js");
             EventPublisher.emit.mockRejectedValueOnce(new Error("Publication failed"));
-            
+
             // Should not throw
             await expect((stateMachine as any).publishEvent("test/error", {})).resolves.not.toThrow();
         });
@@ -935,9 +937,9 @@ describe("BaseStateMachine", () => {
 
         test("should log lifecycle events", async () => {
             const { logger } = await import("../../../events/logger.js");
-            
+
             (stateMachine as any).logLifecycleEvent("test_event", { custom: "data" });
-            
+
             expect(logger.info).toHaveBeenCalledWith(
                 "[TestStateMachine] test_event",
                 expect.objectContaining({
@@ -955,9 +957,9 @@ describe("BaseStateMachine", () => {
                 swarmId: "swarm-456",
             };
             const machine = new TestStateMachine(RunState.UNINITIALIZED, "TestMachine", config);
-            
+
             const status = machine.getCoordinationStatus();
-            
+
             expect(status.chatId).toBe("chat-123");
             expect(status.currentLock).toBeNull();
         });

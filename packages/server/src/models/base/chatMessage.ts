@@ -1,4 +1,4 @@
-import { type Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { type ChatMessage, type ChatMessageSearchTreeInput, type ChatMessageSearchTreeResult, ChatMessageSortBy, chatMessageValidation, DEFAULT_LANGUAGE, generatePK, MaxObjects, type TaskContextInfo, validatePK } from "@vrooli/shared";
 import { type Request } from "express";
 import { SessionService } from "../../auth/session.js";
@@ -172,7 +172,6 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                             },
                         };
                         QueueService.get().swarm.addTask(llmTaskPayload);
-                        logger.info(`LLM task ${llmTaskPayload.id} added to queue for message ${objectId}.`);
                     }
                 }
 

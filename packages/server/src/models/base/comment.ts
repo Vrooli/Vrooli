@@ -1,4 +1,4 @@
-import { type Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { type Comment, type CommentFor, type CommentSearchInput, type CommentSearchResult, CommentSortBy, type CommentThread, MaxObjects, type ModelType, type SessionUser, VisibilityType, commentValidation, getTranslation, lowercaseFirstLetter } from "@vrooli/shared";
 import { type Request } from "express";
 import { SessionService } from "../../auth/session.js";

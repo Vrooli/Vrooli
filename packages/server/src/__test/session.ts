@@ -26,6 +26,9 @@ export function loggedInUserNoPremiumData(): UserDataForPasswordAuth {
         emails: [{
             emailAddress: "test-user@example.com",
         }],
+        phones: [],
+        plan: null,
+        creditAccount: null,
         languages: ["en"],
         sessions: [],
     };
@@ -39,7 +42,7 @@ export function loggedInUserNoPremiumData(): UserDataForPasswordAuth {
  * @returns A mock session object with appropriate session data
  */
 async function createMockSession(userData: UserDataForPasswordAuth, req: Request, res: Response) {
-    const authId = userData.auths.find(a => a.provider === "Password")?.id;
+    const authId = userData.auths?.find(a => a.provider === "Password")?.id;
     if (!authId) {
         throw new Error("User must be password authenticated to create a mock session");
     }
@@ -165,15 +168,33 @@ export function mockResponse(): Response {
 
 /**
  * Creates a request and response pair with proper authentication for testing
- * @param userData User data to authenticate with
+ * @param userData User data to authenticate with - can be full UserDataForPasswordAuth or simple object with id
  * @returns Object containing req and res objects ready for use in tests
  */
-export async function mockAuthenticatedSession(userData: UserDataForPasswordAuth) {
+export async function mockAuthenticatedSession(userData: UserDataForPasswordAuth | { id: string; [key: string]: any }) {
     const req = mockRequest();
     const res = mockResponse();
 
+    // If userData is a simple object with just id, create a full UserDataForPasswordAuth object
+    let fullUserData: UserDataForPasswordAuth;
+    if ("emails" in userData && "auths" in userData) {
+        // It's already a full UserDataForPasswordAuth object
+        fullUserData = userData as UserDataForPasswordAuth;
+    } else {
+        // It's a simple object, create a full UserDataForPasswordAuth object
+        fullUserData = {
+            ...loggedInUserNoPremiumData(),
+            id: BigInt(userData.id),
+            publicId: userData.publicId || generatePublicId(),
+            name: userData.name || "Test User",
+            handle: userData.handle || "test-user",
+            // Override any other properties provided
+            ...userData,
+        };
+    }
+
     // Set up the session with the provided user data
-    await createMockSession(userData, req, res);
+    await createMockSession(fullUserData, req, res);
 
     // Transfer cookies from response to request to simulate a real browser flow
     // where cookies set in a previous response are sent in subsequent requests
@@ -185,6 +206,13 @@ export async function mockAuthenticatedSession(userData: UserDataForPasswordAuth
             resolve();
         });
     });
+
+    // If users array was provided, set it in the session
+    if ("users" in userData && Array.isArray(userData.users)) {
+        if (req.session) {
+            req.session.users = userData.users as any;
+        }
+    }
 
     return { req, res };
 }
@@ -200,8 +228,9 @@ export async function mockApiSession(apiToken: string, permissions: Record<ApiKe
     const req = mockRequest();
     const res = mockResponse();
 
-    // Generate API token
-    await AuthTokensService.generateApiToken(res, apiToken, permissions, userData.id.toString());
+    // Generate API token - ensure ID is a string
+    const userId = typeof userData.id === "bigint" ? userData.id.toString() : userData.id.toString();
+    await AuthTokensService.generateApiToken(res, apiToken, permissions, userId);
 
     // Transfer cookies from response to request to simulate a real browser flow
     req.cookies = (res as any).cookies;

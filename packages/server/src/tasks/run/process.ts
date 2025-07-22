@@ -183,10 +183,6 @@ async function processRoutineExecution(payload: RunTask) {
         // Add state machine to registry (get it from the RoutineExecutor)
         activeRunRegistry.add(record, routineExecutor.getStateMachine());
 
-        logger.info("[processRoutineExecution] Successfully started routine", {
-            runId,
-        });
-
         return { runId };
 
     } catch (error) {

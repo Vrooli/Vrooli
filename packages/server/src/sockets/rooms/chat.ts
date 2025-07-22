@@ -97,8 +97,6 @@ export function chatSocketRoomHandlers(socket: Socket): void {
                 return;
             }
 
-            logger.info(`Processing cancellation request for chatId: ${chatId} from user: ${userId}, socket: ${socket.id}`);
-
             // Emit cancellation event to the event system
             const { proceed, reason } = await EventPublisher.emit(EventTypes.CHAT.CANCELLATION_REQUESTED, {
                 chatId,

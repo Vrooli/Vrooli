@@ -1,12 +1,11 @@
-import { AUTH_PROVIDERS, AccountStatus, COOKIE, type EmailLogInInput, type EmailRequestPasswordChangeInput, type EmailResetPasswordInput, type EmailSignUpInput, type Session, type SwitchCurrentAccountInput, type ValidateSessionInput, type WalletCompleteInput, type WalletInitInput, generatePK, generatePublicId } from "@vrooli/shared";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { AUTH_PROVIDERS, type EmailLogInInput, type EmailRequestPasswordChangeInput, type EmailResetPasswordInput, type EmailSignUpInput, type SwitchCurrentAccountInput, type ValidateSessionInput, type WalletCompleteInput, type WalletInitInput, generatePK } from "@vrooli/shared";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
 import { randomString } from "../../auth/codes.js";
 import { PasswordAuthService } from "../../auth/email.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
-import { CacheService } from "../../redisConn.js";
 import { auth_emailLogIn } from "../generated/auth_emailLogIn.js";
 import { auth_emailRequestPasswordChange } from "../generated/auth_emailRequestPasswordChange.js";
 import { auth_emailResetPassword } from "../generated/auth_emailResetPassword.js";
@@ -20,9 +19,10 @@ import { auth_walletComplete } from "../generated/auth_walletComplete.js";
 import { auth_walletInit } from "../generated/auth_walletInit.js";
 import { auth } from "./auth.js";
 // Import database fixtures for seeding
-import { seedTestUsers, UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
+import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
-import { emailLogInFixtures, emailRequestPasswordChangeFixtures, emailResetPasswordFixtures, validateSessionFixtures, switchCurrentAccountFixtures } from "@vrooli/shared/test-fixtures/api-inputs";
+import { emailLogInFixtures, emailRequestPasswordChangeFixtures, emailResetPasswordFixtures, switchCurrentAccountFixtures, validateSessionFixtures } from "@vrooli/shared/test-fixtures/api-inputs";
+import { expectCustomErrorAsync } from "../../__test/errorTestUtils.js";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
@@ -38,7 +38,7 @@ vi.mock("../../notify/notify.js", () => ({
             toTeamMembers: vi.fn().mockResolvedValue(undefined),
             toProjectMembers: vi.fn().mockResolvedValue(undefined),
         };
-        
+
         // Return an object with all notification methods as mocked functions
         return new Proxy({}, {
             get: (target, prop) => {
@@ -48,34 +48,23 @@ vi.mock("../../notify/notify.js", () => ({
                 return vi.fn().mockReturnValue(mockNotificationResult);
             },
         });
-
-    afterEach(async () => {
-        // Validate cleanup to detect any missed records
-        const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","phone","push_device","session"],
-            logOrphans: true,
-        });
-        if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
-        }
-    });
     }),
-});
+}));
 
 // Mock the QueueService to prevent email service failures
 vi.mock("../../tasks/queues.js", () => ({
     QueueService: {
         get: vi.fn().mockReturnValue({
             email: {
-                addTask: vi.fn().mockResolvedValue({ 
-                    __typename: "Success" as const, 
-                    success: true, 
+                addTask: vi.fn().mockResolvedValue({
+                    __typename: "Success" as const,
+                    success: true,
                 }),
             },
         }),
         reset: vi.fn().mockResolvedValue(undefined),
     },
-});
+}));
 
 describe("EndpointsAuth", () => {
     beforeAll(async () => {
@@ -90,6 +79,17 @@ describe("EndpointsAuth", () => {
         await cleanupGroups.userAuth(DbProvider.get());
     });
 
+    afterEach(async () => {
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["user", "user_auth", "email", "phone", "push_device", "session"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn("Test cleanup incomplete:", orphans);
+        }
+    });
+
     afterAll(async () => {
         // Restore all mocks
         vi.restoreAllMocks();
@@ -98,12 +98,13 @@ describe("EndpointsAuth", () => {
     describe("emailSignUp", () => {
         it("should create a new user with valid input", async () => {
             const { req, res } = await mockLoggedOutSession();
-            
+
             // Use validation fixtures for consistent test data
             const input: EmailSignUpInput = {
                 name: "Test User",
                 email: "test@example.com",
                 password: "SecurePassword123!",
+                confirmPassword: "SecurePassword123!",
                 marketingEmails: false,
                 theme: "dark",
             };
@@ -130,7 +131,7 @@ describe("EndpointsAuth", () => {
 
         it("should reject signup with existing email", async () => {
             const { req, res } = await mockLoggedOutSession();
-            
+
             // Create existing user
             await DbProvider.get().user.create({
                 data: UserDbFactory.createWithAuth({
@@ -147,62 +148,74 @@ describe("EndpointsAuth", () => {
                 name: "New User",
                 email: "existing@example.com",
                 password: "SecurePassword123!",
+                confirmPassword: "SecurePassword123!",
                 marketingEmails: false,
                 theme: "light",
             };
 
-            await expect(auth.emailSignUp({ input }, { req, res }, auth_emailSignUp))
-                .rejects.toThrow(CustomError);
+            await expectCustomErrorAsync(
+                auth.emailSignUp({ input }, { req, res }, auth_emailSignUp),
+                "EmailInUse",
+                "0141",
+            );
         });
 
         it("should reject signup with profane name", async () => {
             const { req, res } = await mockLoggedOutSession();
-            
+
             const input: EmailSignUpInput = {
                 name: "fuck",
                 email: "test@example.com",
                 password: "SecurePassword123!",
+                confirmPassword: "SecurePassword123!",
                 marketingEmails: false,
                 theme: "light",
             };
 
-            await expect(auth.emailSignUp({ input }, { req, res }, auth_emailSignUp))
-                .rejects.toThrow(CustomError);
+            await expectCustomErrorAsync(
+                auth.emailSignUp({ input }, { req, res }, auth_emailSignUp),
+                "BannedWord",
+                "0140",
+            );
         });
 
         it("should reject invalid email format", async () => {
             const { req, res } = await mockLoggedOutSession();
-            
+
             const input: EmailSignUpInput = {
                 name: "Test User",
                 email: "invalid-email",
                 password: "SecurePassword123!",
+                confirmPassword: "SecurePassword123!",
                 marketingEmails: false,
                 theme: "light",
             };
 
+            // Validation errors throw standard errors, not CustomErrors
             await expect(auth.emailSignUp({ input }, { req, res }, auth_emailSignUp))
-                .rejects.toThrow();
+                .rejects.toThrow(Error);
         });
 
         it("should reject weak password", async () => {
             const { req, res } = await mockLoggedOutSession();
-            
+
             const input: EmailSignUpInput = {
                 name: "Test User",
                 email: "test@example.com",
                 password: "weak",
+                confirmPassword: "weak",
                 marketingEmails: false,
                 theme: "light",
             };
 
+            // Validation errors throw standard errors, not CustomErrors
             await expect(auth.emailSignUp({ input }, { req, res }, auth_emailSignUp))
-                .rejects.toThrow();
+                .rejects.toThrow(Error);
         });
     });
 
     describe("emailLogIn", () => {
-        const createTestUserWithPassword = async (email: string, password: string) => {
+        async function createTestUserWithPassword(email: string, password: string) {
             const hashedPassword = PasswordAuthService.hashPassword(password);
             return await DbProvider.get().user.create({
                 data: UserDbFactory.createWithAuth({
@@ -222,11 +235,11 @@ describe("EndpointsAuth", () => {
                 }),
                 include: { emails: true, auths: true },
             });
-        };
+        }
 
         it("should log in with valid credentials", async () => {
             const { req, res } = await mockLoggedOutSession();
-            
+
             // Use validation fixtures for consistent test data
             const loginData = emailLogInFixtures.complete.create;
             const testUser = await createTestUserWithPassword(loginData.email, loginData.password);
@@ -247,7 +260,7 @@ describe("EndpointsAuth", () => {
 
         it("should reject invalid password", async () => {
             const { req, res } = await mockLoggedOutSession();
-            
+
             // Use validation fixtures for consistent test data
             const validLoginData = emailLogInFixtures.complete.create;
             await createTestUserWithPassword(validLoginData.email, validLoginData.password);
@@ -257,13 +270,16 @@ describe("EndpointsAuth", () => {
                 password: "WrongPassword123!",
             };
 
-            await expect(auth.emailLogIn({ input }, { req, res }, auth_emailLogIn))
-                .rejects.toThrow(CustomError);
+            await expectCustomErrorAsync(
+                auth.emailLogIn({ input }, { req, res }, auth_emailLogIn),
+                "InvalidCredentials",
+                "0062",
+            );
         });
 
         it("should reject non-existent email", async () => {
             const { req, res } = await mockLoggedOutSession();
-            
+
             // Use validation fixtures for consistent test data
             const input: EmailLogInInput = emailLogInFixtures.complete.create;
 
@@ -273,7 +289,7 @@ describe("EndpointsAuth", () => {
 
         it("should handle user without password (requires reset)", async () => {
             const { req, res } = await mockLoggedOutSession();
-            
+
             // Create user without password
             const testUser = await DbProvider.get().user.create({
                 data: UserDbFactory.createMinimal({
@@ -299,7 +315,7 @@ describe("EndpointsAuth", () => {
             // Use validation fixtures for consistent test data
             const loginData = emailLogInFixtures.complete.create;
             const testUser = await createTestUserWithPassword(loginData.email, loginData.password);
-            
+
             // Set up verification code
             const verificationCode = loginData.verificationCode;
             await DbProvider.get().email.update({
@@ -329,7 +345,7 @@ describe("EndpointsAuth", () => {
     describe("emailRequestPasswordChange", () => {
         it("should send password reset for existing user", async () => {
             const { req, res } = await mockLoggedOutSession();
-            
+
             // Use validation fixtures for consistent test data
             const resetData = emailRequestPasswordChangeFixtures.minimal.create;
             await DbProvider.get().user.create({
@@ -367,7 +383,7 @@ describe("EndpointsAuth", () => {
 
         it("should reject non-existent email", async () => {
             const { req, res } = await mockLoggedOutSession();
-            
+
             // Use validation fixtures for consistent test data
             const input: EmailRequestPasswordChangeInput = emailRequestPasswordChangeFixtures.minimal.create;
 
@@ -379,7 +395,7 @@ describe("EndpointsAuth", () => {
     describe("emailResetPassword", () => {
         it("should reset password with valid code", async () => {
             const { req, res } = await mockLoggedOutSession();
-            
+
             // Use validation fixtures for consistent test data
             const resetData = emailResetPasswordFixtures.minimal.create;
             const testUser = await DbProvider.get().user.create({
@@ -422,7 +438,7 @@ describe("EndpointsAuth", () => {
 
         it("should reject invalid reset code", async () => {
             const { req, res } = await mockLoggedOutSession();
-            
+
             const testUser = await DbProvider.get().user.create({
                 data: UserDbFactory.createWithAuth({
                     auths: {
@@ -449,7 +465,7 @@ describe("EndpointsAuth", () => {
 
         it("should reject expired reset code", async () => {
             const { req, res } = await mockLoggedOutSession();
-            
+
             const resetCode = randomString(8);
             const testUser = await DbProvider.get().user.create({
                 data: UserDbFactory.createWithAuth({
@@ -480,7 +496,7 @@ describe("EndpointsAuth", () => {
     describe("guestLogIn", () => {
         it("should return guest session", async () => {
             const { req, res } = await mockLoggedOutSession();
-            
+
             const result = await auth.guestLogIn({}, { req, res }, auth_guestLogIn);
 
             expect(result).toBeDefined();
@@ -507,7 +523,7 @@ describe("EndpointsAuth", () => {
 
         it("should return guest session if already logged out", async () => {
             const { req, res } = await mockLoggedOutSession();
-            
+
             const result = await auth.logOut({}, { req, res }, auth_logOut);
 
             expect(result).toBeDefined();
@@ -543,7 +559,7 @@ describe("EndpointsAuth", () => {
     describe("logOutAll", () => {
         it("should revoke all sessions for user", async () => {
             const { records: testUser } = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-            
+
             // Create multiple sessions
             const sessions = await Promise.all([
                 DbProvider.get().session.create({
@@ -691,7 +707,7 @@ describe("EndpointsAuth", () => {
             const { req, res } = await mockLoggedOutSession();
 
             const stakingAddress = "stake1uy4jj73pfyejl4d2rs6nc70eykkhhu56p3y2t2s7deaxrze38lcm3";
-            
+
             // Create existing wallet
             await DbProvider.get().wallet.create({
                 data: {
@@ -733,7 +749,7 @@ describe("EndpointsAuth", () => {
 
             const stakingAddress = "stake1uy4jj73pfyejl4d2rs6nc70eykkhhu56p3y2t2s7deaxrze38lcm3";
             const nonce = "test-nonce";
-            
+
             // Create wallet with nonce
             await DbProvider.get().wallet.create({
                 data: {
@@ -771,7 +787,7 @@ describe("EndpointsAuth", () => {
             const { req, res } = await mockLoggedOutSession();
 
             const stakingAddress = "stake1uy4jj73pfyejl4d2rs6nc70eykkhhu56p3y2t2s7deaxrze38lcm3";
-            
+
             // Create wallet with expired nonce
             await DbProvider.get().wallet.create({
                 data: {

@@ -1,4 +1,4 @@
-import { type Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { DEFAULT_LANGUAGE, MaxObjects, ScheduleSortBy, generatePublicId, scheduleValidation, type ModelType, type ScheduleFor } from "@vrooli/shared";
 import i18next from "i18next";
 import { noNull } from "../../builders/noNull.js";

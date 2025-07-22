@@ -5,7 +5,7 @@
 
 import { generatePK } from "@vrooli/shared";
 import { type Job } from "bullmq";
-import { type Task, type QueueTaskType, type BaseTaskData } from "./taskTypes.js";
+import { type BaseTaskData, type QueueTaskType, type Task } from "./taskTypes.js";
 
 /**
  * Creates valid task data with all required base properties.
@@ -61,7 +61,7 @@ export function createMockJob<T extends Task>(
         status: taskData.status,
         ...taskData,
     } as T;
-    
+
     return {
         id: jobOverrides.id || `test-job-${Date.now()}`,
         data: defaultData,
@@ -74,34 +74,4 @@ export function createMockJob<T extends Task>(
         progress: jobOverrides.progress || 0,
         ...jobOverrides,
     } as Job<T>;
-}
-
-/**
- * Creates task data with a deduplication ID pattern.
- * Use this for tasks that should override existing jobs.
- * 
- * @param type - The queue task type
- * @param userId - User ID for the deduplication pattern
- * @param action - Action identifier for the deduplication pattern
- * @param specificData - Task-specific data
- * @returns Task data with deduplication ID
- * 
- * @example
- * const task = createTaskWithDeduplicationId(
- *   QueueTaskType.EMAIL_SEND,
- *   "user-123",
- *   "reset-password",
- *   { to: ["user@example.com"], subject: "Reset", text: "..." }
- * );
- */
-export function createTaskWithDeduplicationId<T extends Task>(
-    type: QueueTaskType,
-    userId: string,
-    action: string,
-    specificData: Omit<T, keyof BaseTaskData>,
-): T {
-    return createValidTaskData(type, specificData, {
-        id: `${userId}:${action}`,
-        userId,
-    });
 }

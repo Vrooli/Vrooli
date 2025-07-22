@@ -1,8 +1,6 @@
 import { MINUTES_5_MS, SEEDED_PUBLIC_IDS } from "@vrooli/shared";
-import pkg from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { logger } from "../events/logger.js";
-
-const { PrismaClient } = pkg;
 
 const DEFAULT_DB_TYPE = "postgres";
 const DB_TYPE = process.env.DB_TYPE || DEFAULT_DB_TYPE;

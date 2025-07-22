@@ -1,16 +1,16 @@
 // AI_CHECK: TYPE_SAFETY=phase2-tests | LAST: 2025-07-04 - Type safety verification tests
-import { describe, it, expect } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { ModelMap } from "../models/base/index.js";
-import { 
-    hasProperty, 
-    hasStringProperty, 
-    hasId, 
-    hasTypename, 
-    hasUserId,
+import {
+    extractOwnerId,
+    hasId,
+    hasProperty,
     hasStatus,
+    hasStringProperty,
+    hasTypename,
+    hasUserId,
     isAuthData,
     isObject,
-    extractOwnerId,
 } from "../utils/typeGuards.js";
 
 describe("Type Guards", () => {
@@ -72,8 +72,8 @@ describe("Type Guards", () => {
         });
 
         it("should prioritize userId over others", () => {
-            expect(extractOwnerId({ 
-                userId: "123", 
+            expect(extractOwnerId({
+                userId: "123",
                 startedById: "456",
                 userData: { id: "789" },
             })).toBe("123");
@@ -114,7 +114,7 @@ describe("ModelMap Type Safety", () => {
         const { dbTable, validate } = ModelMap.getLogic(["dbTable", "validate"], "User");
         expect(typeof dbTable).toBe("string");
         expect(typeof validate).toBe("function");
-        
+
         const validator = validate();
         expect(validator).toBeDefined();
         expect(typeof validator.isPublic).toBe("function");
@@ -124,7 +124,7 @@ describe("ModelMap Type Safety", () => {
 describe("Type Inference", () => {
     it("should narrow types with guards", () => {
         const data: unknown = { userId: "123", status: "active" };
-        
+
         if (isObject(data)) {
             // TypeScript knows data is Record<string, unknown>
             if (hasUserId(data)) {
@@ -132,7 +132,7 @@ describe("Type Inference", () => {
                 const id: string = data.userId;
                 expect(id).toBe("123");
             }
-            
+
             if (hasStatus(data)) {
                 // TypeScript knows data has status: string
                 const status: string = data.status;
@@ -146,7 +146,7 @@ describe("Type Inference", () => {
         // This should compile without type errors
         const validator = logic.validate();
         const displayInfo = logic.display();
-        
+
         expect(validator).toBeDefined();
         expect(displayInfo).toBeDefined();
     });

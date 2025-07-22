@@ -1,4 +1,4 @@
-import { type Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { type BookmarkFor, BookmarkSortBy, MaxObjects, type ModelType, bookmarkValidation, exists, lowercaseFirstLetter, uppercaseFirstLetter } from "@vrooli/shared";
 import { findFirstRel } from "../../builders/findFirstRel.js";
 import { onlyValidIds } from "../../builders/onlyValid.js";

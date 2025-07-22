@@ -1,4 +1,5 @@
-import { type FindByPublicIdInput, type TeamCreateInput, type TeamSearchInput, type TeamUpdateInput, teamTestDataFactory, generatePK, generatePublicId, AccountStatus } from "@vrooli/shared";
+import { type FindByPublicIdInput, type TeamCreateInput, type TeamSearchInput, type TeamUpdateInput, generatePK, generatePublicId, AccountStatus } from "@vrooli/shared";
+import { teamTestDataFactory } from "@vrooli/shared/test-fixtures/api-inputs";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockAuthenticatedSession, mockLoggedOutSession, mockApiSession, mockReadPublicPermissions, loggedInUserNoPremiumData } from "../../__test/session.js";
 // Removed deprecated test helpers - using direct endpoint testing instead
@@ -21,6 +22,9 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
     beforeAll(async function setupBeforeAll() {
         // Use Vitest spies to suppress logger output during tests
         vi.spyOn(logger, "error").mockImplementation(function mockError() { return logger; });
+        vi.spyOn(logger, "info").mockImplementation(function mockInfo() { return logger; });
+        vi.spyOn(logger, "warning").mockImplementation(function mockWarning() { return logger; });
+    });
 
     afterEach(async () => {
         // Validate cleanup to detect any missed records
@@ -29,20 +33,40 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
-    });
-        vi.spyOn(logger, "info").mockImplementation(function mockInfo() { return logger; });
-        vi.spyOn(logger, "warning").mockImplementation(function mockWarning() { return logger; });
     });
 
     beforeEach(async function setupBeforeEach() {
-        // Clean up tables used in tests
+        // Use proper cleanup order to avoid foreign key constraint violations
+        // Clean child tables first, then parent tables
         const prisma = DbProvider.get();
+        
+        // Clean team-related child tables first
         await prisma.member.deleteMany();
+        await prisma.member_invite.deleteMany();
+        await prisma.meeting_attendees.deleteMany();
+        await prisma.meeting_invite.deleteMany();
+        await prisma.meeting.deleteMany();
+        
+        // Clean teams before users to avoid FK constraints
         await prisma.team.deleteMany();
-        await prisma.tag.deleteMany();
+        
+        // Clean user-related data (all potential relationships created by seedTestUsers)
+        await prisma.session.deleteMany();
+        await prisma.user_auth.deleteMany();
+        await prisma.email.deleteMany();
+        await prisma.phone.deleteMany();
+        await prisma.user_translation.deleteMany();
+        await prisma.push_device.deleteMany();
+        await prisma.wallet.deleteMany();
+        await prisma.api_key.deleteMany();
+        await prisma.credit_account.deleteMany();
+        await prisma.award.deleteMany();
+        
+        // Finally clean users
         await prisma.user.deleteMany();
+        
         // Clear Redis cache
         await CacheService.get().flushAll();
     });
@@ -69,11 +93,12 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
         const testUsersResult = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
         const testUsers = testUsersResult.records;
         
-        // Create test tags
+        // Create test tags with unique names to avoid conflicts
+        const uniqueSuffix = Date.now().toString();
         const tags = await Promise.all([
-            DbProvider.get().tag.create({ data: { id: generatePK(), tag: "javascript" } }),
-            DbProvider.get().tag.create({ data: { id: generatePK(), tag: "opensource" } }),
-            DbProvider.get().tag.create({ data: { id: generatePK(), tag: "collaboration" } }),
+            DbProvider.get().tag.create({ data: { id: generatePK(), tag: `javascript_${uniqueSuffix}` } }),
+            DbProvider.get().tag.create({ data: { id: generatePK(), tag: `opensource_${uniqueSuffix}` } }),
+            DbProvider.get().tag.create({ data: { id: generatePK(), tag: `collaboration_${uniqueSuffix}` } }),
         ]);
 
         // Create test teams using Option 2 approach
@@ -201,7 +226,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
                 const { req, res } = await mockApiSession(
                     "test-api-key-" + generatePK(),
                     mockReadPublicPermissions(["Team"]),
-                    { id: testUsers[0].id, email: "test@example.com", handle: "testuser" },
+                    { id: testUsers[0].id, emails: [{ emailAddress: "test@example.com" }], handle: "testuser" },
                 );
 
                 const input: FindByPublicIdInput = { publicId: teams[0].publicId };
@@ -301,7 +326,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
                 const { req, res } = await mockApiSession(
                     "test-api-key-" + generatePK(),
                     mockReadPublicPermissions(["Team"]),
-                    { id: testUsers[0].id, email: "test@example.com", handle: "testuser" },
+                    { id: testUsers[0].id, emails: [{ emailAddress: "test@example.com" }], handle: "testuser" },
                 );
 
                 const input: TeamSearchInput = {};
@@ -452,10 +477,11 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
                 const testUser = testUserResult.records;
                 const { req, res } = await mockAuthenticatedSession(createAuthSessionData(testUser[0]));
 
-                // Create tags for the team
+                // Create tags for the team with unique names
+                const uniqueSuffix = Date.now().toString();
                 const tags = await Promise.all([
-                    DbProvider.get().tag.create({ data: { id: generatePK(), tag: "javascript" } }),
-                    DbProvider.get().tag.create({ data: { id: generatePK(), tag: "opensource" } }),
+                    DbProvider.get().tag.create({ data: { id: generatePK(), tag: `javascript_${uniqueSuffix}` } }),
+                    DbProvider.get().tag.create({ data: { id: generatePK(), tag: `opensource_${uniqueSuffix}` } }),
                 ]);
 
                 const input: TeamCreateInput = teamTestDataFactory.createComplete({

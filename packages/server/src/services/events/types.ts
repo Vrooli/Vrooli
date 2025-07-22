@@ -8,7 +8,7 @@
  * true emergent capabilities through agent-extensible event types.
  */
 
-import type { BotParticipant, SocketEvent, SocketEventPayloads } from "@vrooli/shared";
+import type { BotParticipant, ChatEventData, RunEventData, SecurityEventData, SocketEvent, SocketEventPayloads, SwarmEventData } from "@vrooli/shared";
 
 /**
  * Event progression control - determines what happens after an event is processed
@@ -426,6 +426,64 @@ export interface Lock {
 export interface LockOptions {
     ttl: number;       // Time to live in ms
     retries?: number;  // Number of retry attempts
+}
+
+/**
+ * Type guards for event data types
+ */
+
+/**
+ * Check if event data is ChatEventData
+ */
+export function isChatEventData(data: unknown): data is ChatEventData {
+    return typeof data === "object" && data !== null && "chatId" in data;
+}
+
+/**
+ * Check if event data is RunEventData
+ */
+export function isRunEventData(data: unknown): data is RunEventData {
+    return typeof data === "object" && data !== null && "runId" in data;
+}
+
+/**
+ * Check if event data is SwarmEventData (alias for ChatEventData)
+ */
+export function isSwarmEventData(data: unknown): data is SwarmEventData {
+    return isChatEventData(data);
+}
+
+/**
+ * Check if event data is SecurityEventData
+ */
+export function isSecurityEventData(data: unknown): data is SecurityEventData {
+    return (
+        isChatEventData(data) &&
+        "triggeredBy" in data &&
+        "severity" in data &&
+        typeof (data as any).triggeredBy === "object" &&
+        ["info", "warning", "critical"].includes((data as any).severity)
+    );
+}
+
+/**
+ * Extract chat ID from event data if present
+ */
+export function extractChatId(event: ServiceEvent): string | null {
+    if (isChatEventData(event.data)) {
+        return event.data.chatId;
+    }
+    return null;
+}
+
+/**
+ * Extract run ID from event data if present
+ */
+export function extractRunId(event: ServiceEvent): string | null {
+    if (isRunEventData(event.data)) {
+        return event.data.runId;
+    }
+    return null;
 }
 
 

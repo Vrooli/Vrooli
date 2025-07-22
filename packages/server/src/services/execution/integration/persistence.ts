@@ -248,7 +248,7 @@ export class RunPersistenceService {
                         timeElapsed,
                         complexity: this.estimateStepComplexity(stepData.resourceUsage),
                         order: 0, // Would need to track step order
-                        resourceInId: stepData.stepId, // Using stepId as resource identifier
+                        resourceInId: stepData.stepId,
                     },
                 });
             }
@@ -288,9 +288,17 @@ export class RunPersistenceService {
         logger.debug("[RunPersistenceService] Loading run", { runId });
 
         try {
+            // Validate runId format before BigInt conversion
+            let runIdBigInt: bigint;
+            try {
+                runIdBigInt = BigInt(runId);
+            } catch (conversionError) {
+                return null; // Non-existent run
+            }
+
             const run = await DbProvider.get().run.findUnique({
                 where: {
-                    id: BigInt(runId),
+                    id: runIdBigInt,
                 },
                 include: {
                     resourceVersion: true,
@@ -447,9 +455,17 @@ export class RunPersistenceService {
         });
 
         try {
+            // Validate runId format before BigInt conversion
+            let runIdBigInt: bigint;
+            try {
+                runIdBigInt = BigInt(runId);
+            } catch (conversionError) {
+                throw new Error(`Run not found: ${runId}`);
+            }
+
             // Get current run data
             const run = await DbProvider.get().run.findUnique({
-                where: { id: BigInt(runId) },
+                where: { id: runIdBigInt },
                 select: { data: true },
             });
 
@@ -465,7 +481,7 @@ export class RunPersistenceService {
 
             // Update run with new data
             await DbProvider.get().run.update({
-                where: { id: BigInt(runId) },
+                where: { id: runIdBigInt },
                 data: {
                     data: JSON.stringify(parsedData),
                     completedAt: new Date(),

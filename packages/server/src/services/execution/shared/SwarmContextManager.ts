@@ -390,7 +390,13 @@ export class SwarmContextManager implements ISwarmContextManager {
             this.contextCache.set(chatId, record);
 
             // Update access count in Redis (fire and forget)
-            redis.set(key, JSON.stringify(record), "EX", Math.floor(this.cacheTTL / SECONDS_1_MS)).catch(error => {
+            const updatedData = JSON.stringify(record, (key, value) => {
+                if (typeof value === "bigint") {
+                    return value.toString();
+                }
+                return value;
+            });
+            redis.set(key, updatedData, "EX", Math.floor(this.cacheTTL / SECONDS_1_MS)).catch(error => {
                 logger.warn("[SwarmContextManager] Failed to update access metadata", {
                     chatId,
                     error: error instanceof Error ? error.message : String(error),
@@ -967,7 +973,12 @@ export class SwarmContextManager implements ISwarmContextManager {
         };
 
         const key = this.getContextKey(context.swarmId);
-        const data = JSON.stringify(record);
+        const data = JSON.stringify(record, (key, value) => {
+            if (typeof value === "bigint") {
+                return value.toString();
+            }
+            return value;
+        });
 
         const redis = await CacheService.get().raw();
         await redis.set(key, data, "EX", Math.floor(this.cacheTTL / SECONDS_1_MS));
@@ -1081,7 +1092,14 @@ export class SwarmContextManager implements ISwarmContextManager {
 
     private calculateChecksum(context: SwarmState): string {
         // Simple checksum implementation - in production, use proper hashing
-        return Buffer.from(JSON.stringify(context)).toString("base64").substring(0, SwarmContextManager.CHECKSUM_LENGTH);
+        // Handle BigInt serialization by converting to string
+        const serialized = JSON.stringify(context, (key, value) => {
+            if (typeof value === "bigint") {
+                return value.toString();
+            }
+            return value;
+        });
+        return Buffer.from(serialized).toString("base64").substring(0, SwarmContextManager.CHECKSUM_LENGTH);
     }
 
     private computeChanges(

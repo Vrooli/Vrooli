@@ -1,5 +1,5 @@
 import { type FindByIdInput, type ReminderCreateInput, type ReminderSearchInput, type ReminderUpdateInput, generatePK } from "@vrooli/shared";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
@@ -11,12 +11,12 @@ import { reminder_findOne } from "../generated/reminder_findOne.js";
 import { reminder_updateOne } from "../generated/reminder_updateOne.js";
 import { reminder } from "./reminder.js";
 // Import database fixtures for seeding
-import { ReminderListDbFactory, seedReminders } from "../../__test/fixtures/db/reminderFixtures.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
 import { reminderTestDataFactory } from "@vrooli/shared";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
+import { CacheService } from "../../redisConn.js";
 
 describe("EndpointsReminder", () => {
     beforeAll(async () => {
@@ -28,7 +28,7 @@ describe("EndpointsReminder", () => {
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","session"],
+            tables: ["user", "user_auth", "email", "session"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
@@ -49,7 +49,7 @@ describe("EndpointsReminder", () => {
     });
 
     // Helper function to create test data
-    const createTestData = async () => {
+    async function createTestData() {
         // Seed test users using database fixtures
         const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
 
@@ -102,7 +102,7 @@ describe("EndpointsReminder", () => {
             userReminder1,
             userReminder2,
         };
-    };
+    }
 
     describe("findOne", () => {
         describe("valid", () => {

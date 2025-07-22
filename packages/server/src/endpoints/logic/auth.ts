@@ -1,4 +1,4 @@
-import type { PrismaPromise } from "@prisma/client";
+import { type Prisma } from "@prisma/client";
 import { AUTH_PROVIDERS, AccountStatus, COOKIE, type EmailLogInInput, type EmailRequestPasswordChangeInput, type EmailResetPasswordInput, type EmailSignUpInput, MINUTES_5_MS, type Session, type Success, type SwitchCurrentAccountInput, type ValidateSessionInput, type WalletComplete, type WalletCompleteInput, type WalletInit, type WalletInitInput, emailLogInFormValidation, emailRequestPasswordChangeSchema, emailResetPasswordSchema, emailSignUpValidation, generatePK, generatePublicId, switchCurrentAccountSchema, validateSessionSchema } from "@vrooli/shared";
 import type { Response } from "express";
 import { AuthTokensService } from "../../auth/auth.js";
@@ -325,7 +325,7 @@ export const auth: EndpointsAuth = {
         const deviceInfo = RequestService.getDeviceInfo(req);
         const ipAddress = req.ip;
         // Update database
-        const transactions: PrismaPromise<object>[] = [
+        const transactions: Prisma.PrismaPromise<object>[] = [
             // Update reset password request data and set new password
             DbProvider.get().user_auth.update({
                 where: {

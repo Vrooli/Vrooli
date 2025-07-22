@@ -1,9 +1,10 @@
-import { BUSINESS_NAME } from "@vrooli/shared";
+import { BUSINESS_NAME, generatePK } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { clearRedisCache } from "../queueFactory.js";
 import { QueueService } from "../queues.js";
 import { QueueTaskType } from "../taskTypes.js";
 import { AUTH_EMAIL_TEMPLATES } from "./queue.js";
+import { createValidTaskData } from "../taskFactory.js";
 
 
 describe("Email Queue Tests (BullMQ)", () => {
@@ -85,13 +86,15 @@ describe("Email Queue Tests (BullMQ)", () => {
             const html = "<p>Test email body</p>";
             const delay = 5000; // 5 seconds
 
-            const result = await queueService.email.addTask({
-                type: QueueTaskType.EMAIL_SEND,
-                to: testEmails,
-                subject,
-                text,
-                html,
-            }, { delay });
+            const result = await queueService.email.addTask(
+                createValidTaskData(QueueTaskType.EMAIL_SEND, {
+                    to: testEmails,
+                    subject,
+                    text,
+                    html,
+                }), 
+                { delay },
+            );
 
             expect(result.success).toBe(true);
             expect(result.data?.id).toBeDefined();
@@ -113,12 +116,13 @@ describe("Email Queue Tests (BullMQ)", () => {
             const subject = "No HTML Subject";
             const text = "Email body without HTML";
 
-            const result = await queueService.email.addTask({
-                type: QueueTaskType.EMAIL_SEND,
-                to: testEmails,
-                subject,
-                text,
-            });
+            const result = await queueService.email.addTask(
+                createValidTaskData(QueueTaskType.EMAIL_SEND, {
+                    to: testEmails,
+                    subject,
+                    text,
+                }),
+            );
 
             expect(result.success).toBe(true);
 
@@ -137,12 +141,14 @@ describe("Email Queue Tests (BullMQ)", () => {
         it("enqueues an email with a delay", async () => {
             const delay = 10000; // 10 seconds
 
-            const result = await queueService.email.addTask({
-                type: QueueTaskType.EMAIL_SEND,
-                to: ["delayed@example.com"],
-                subject: "Delayed Email",
-                text: "This is a delayed email.",
-            }, { delay });
+            const result = await queueService.email.addTask(
+                createValidTaskData(QueueTaskType.EMAIL_SEND, {
+                    to: ["delayed@example.com"],
+                    subject: "Delayed Email",
+                    text: "This is a delayed email.",
+                }), 
+                { delay },
+            );
 
             expect(result.success).toBe(true);
 
@@ -159,12 +165,13 @@ describe("Email Queue Tests (BullMQ)", () => {
         });
 
         it("handles empty recipient list", async () => {
-            const result = await queueService.email.addTask({
-                type: QueueTaskType.EMAIL_SEND,
-                to: [],
-                subject: "Subject",
-                text: "Text body",
-            });
+            const result = await queueService.email.addTask(
+                createValidTaskData(QueueTaskType.EMAIL_SEND, {
+                    to: [],
+                    subject: "Subject",
+                    text: "Text body",
+                }),
+            );
 
             // The task should be added but may fail during processing
             expect(result.success).toBe(true);
@@ -372,19 +379,23 @@ describe("Email Queue Tests (BullMQ)", () => {
     describe("BullMQ-specific features", () => {
         it("should handle job priorities", async () => {
             // Add multiple jobs with different priorities
-            const highPriorityResult = await queueService.email.addTask({
-                type: QueueTaskType.EMAIL_SEND,
-                to: ["high@example.com"],
-                subject: "High Priority",
-                text: "This is high priority",
-            }, { priority: 10 });
+            const highPriorityResult = await queueService.email.addTask(
+                createValidTaskData(QueueTaskType.EMAIL_SEND, {
+                    to: ["high@example.com"],
+                    subject: "High Priority",
+                    text: "This is high priority",
+                }), 
+                { priority: 10 },
+            );
 
-            const lowPriorityResult = await queueService.email.addTask({
-                type: QueueTaskType.EMAIL_SEND,
-                to: ["low@example.com"],
-                subject: "Low Priority",
-                text: "This is low priority",
-            }, { priority: 100 });
+            const lowPriorityResult = await queueService.email.addTask(
+                createValidTaskData(QueueTaskType.EMAIL_SEND, {
+                    to: ["low@example.com"],
+                    subject: "Low Priority",
+                    text: "This is low priority",
+                }), 
+                { priority: 100 },
+            );
 
             expect(highPriorityResult.success).toBe(true);
             expect(lowPriorityResult.success).toBe(true);
@@ -401,22 +412,22 @@ describe("Email Queue Tests (BullMQ)", () => {
             const duplicateId = "unique-email-123";
 
             // Add first job
-            const result1 = await queueService.email.addTask({
-                type: QueueTaskType.EMAIL_SEND,
-                id: duplicateId,
-                to: ["test@example.com"],
-                subject: "First Version",
-                text: "This is the first version",
-            });
+            const result1 = await queueService.email.addTask(
+                createValidTaskData(QueueTaskType.EMAIL_SEND, {
+                    to: ["test@example.com"],
+                    subject: "First Version",
+                    text: "This is the first version",
+                }, { id: duplicateId }),
+            );
 
             // Try to add duplicate
-            const result2 = await queueService.email.addTask({
-                type: QueueTaskType.EMAIL_SEND,
-                id: duplicateId,
-                to: ["test@example.com"],
-                subject: "Second Version",
-                text: "This is the second version",
-            });
+            const result2 = await queueService.email.addTask(
+                createValidTaskData(QueueTaskType.EMAIL_SEND, {
+                    to: ["test@example.com"],
+                    subject: "Second Version",
+                    text: "This is the second version",
+                }, { id: duplicateId }),
+            );
 
             expect(result1.success).toBe(true);
             expect(result2.success).toBe(true);
@@ -432,12 +443,13 @@ describe("Email Queue Tests (BullMQ)", () => {
             const promises = [];
             for (let i = 0; i < 10; i++) {
                 promises.push(
-                    queueService.email.addTask({
-                        type: QueueTaskType.EMAIL_SEND,
-                        to: [`user${i}@example.com`],
-                        subject: `Email ${i}`,
-                        text: `This is email number ${i}`,
-                    }),
+                    queueService.email.addTask(
+                        createValidTaskData(QueueTaskType.EMAIL_SEND, {
+                            to: [`user${i}@example.com`],
+                            subject: `Email ${i}`,
+                            text: `This is email number ${i}`,
+                        }),
+                    ),
                 );
             }
 
@@ -454,12 +466,13 @@ describe("Email Queue Tests (BullMQ)", () => {
         });
 
         it("should retrieve job statuses", async () => {
-            const result = await queueService.email.addTask({
-                type: QueueTaskType.EMAIL_SEND,
-                to: ["status@example.com"],
-                subject: "Status Test",
-                text: "Testing job status",
-            });
+            const result = await queueService.email.addTask(
+                createValidTaskData(QueueTaskType.EMAIL_SEND, {
+                    to: ["status@example.com"],
+                    subject: "Status Test",
+                    text: "Testing job status",
+                }),
+            );
 
             expect(result.success).toBe(true);
             const jobId = result.data!.id;
@@ -473,12 +486,13 @@ describe("Email Queue Tests (BullMQ)", () => {
         });
 
         it("should handle job removal", async () => {
-            const result = await queueService.email.addTask({
-                type: QueueTaskType.EMAIL_SEND,
-                to: ["remove@example.com"],
-                subject: "To Be Removed",
-                text: "This job will be removed",
-            });
+            const result = await queueService.email.addTask(
+                createValidTaskData(QueueTaskType.EMAIL_SEND, {
+                    to: ["remove@example.com"],
+                    subject: "To Be Removed",
+                    text: "This job will be removed",
+                }),
+            );
 
             expect(result.success).toBe(true);
             const jobId = result.data!.id;
@@ -526,14 +540,13 @@ describe("Email Queue Tests (BullMQ)", () => {
         });
 
         it("should maintain job data integrity", async () => {
-            const complexData = {
-                type: QueueTaskType.EMAIL_SEND,
+            const complexData = createValidTaskData(QueueTaskType.EMAIL_SEND, {
                 to: ["data-integrity@example.com", "second@example.com"],
                 subject: "Complex Subject with 特殊字符 and émojis 🎉",
                 text: "This is a test with\nmultiple lines\nand special chars: <>&\"",
                 html: "<p>HTML with <strong>tags</strong> and &entities;</p>",
                 customField: "This should be preserved",
-            };
+            });
 
             const result = await queueService.email.addTask(complexData);
             expect(result.success).toBe(true);
@@ -544,12 +557,13 @@ describe("Email Queue Tests (BullMQ)", () => {
 
         it("should handle queue shutdown and restart", async () => {
             // Add a job before shutdown
-            const beforeResult = await queueService.email.addTask({
-                type: QueueTaskType.EMAIL_SEND,
-                to: ["before-shutdown@example.com"],
-                subject: "Before Shutdown",
-                text: "Added before shutdown",
-            });
+            const beforeResult = await queueService.email.addTask(
+                createValidTaskData(QueueTaskType.EMAIL_SEND, {
+                    to: ["before-shutdown@example.com"],
+                    subject: "Before Shutdown",
+                    text: "Added before shutdown",
+                }),
+            );
             expect(beforeResult.success).toBe(true);
             const beforeJobId = beforeResult.data!.id;
 
@@ -569,12 +583,13 @@ describe("Email Queue Tests (BullMQ)", () => {
             expect(job?.data.subject).toBe("Before Shutdown");
 
             // Add a new job after restart
-            const afterResult = await newQueueService.email.addTask({
-                type: QueueTaskType.EMAIL_SEND,
-                to: ["after-restart@example.com"],
-                subject: "After Restart",
-                text: "Added after restart",
-            });
+            const afterResult = await newQueueService.email.addTask(
+                createValidTaskData(QueueTaskType.EMAIL_SEND, {
+                    to: ["after-restart@example.com"],
+                    subject: "After Restart",
+                    text: "Added after restart",
+                }),
+            );
             expect(afterResult.success).toBe(true);
 
             // Clean up

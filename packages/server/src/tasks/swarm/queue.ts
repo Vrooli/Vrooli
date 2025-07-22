@@ -21,9 +21,28 @@ const PREMIUM_USER_PRIORITY_ADJUSTMENT = -20; // Premium users get higher priori
  */
 function determinePriority(payload: Omit<SwarmTask, "type" | "status">): number {
     let priority = BASE_PRIORITY;
-    if (payload.userData?.hasPremium) {
+    
+    // Check for premium status from different possible locations
+    let hasPremium = false;
+    
+    // For SwarmExecutionTask, check input.userData and context.userData
+    if ("input" in payload && payload.input && typeof payload.input === "object" && "userData" in payload.input) {
+        hasPremium = (payload.input as any).userData?.hasPremium || false;
+    }
+    
+    if (!hasPremium && "context" in payload && payload.context && typeof payload.context === "object" && "userData" in payload.context) {
+        hasPremium = (payload.context as any).userData?.hasPremium || false;
+    }
+    
+    // For LLMCompletionTask, check userData directly
+    if (!hasPremium && "userData" in payload && payload.userData && typeof payload.userData === "object") {
+        hasPremium = (payload.userData as any).hasPremium || false;
+    }
+    
+    if (hasPremium) {
         priority += PREMIUM_USER_PRIORITY_ADJUSTMENT;
     }
+    
     return Math.max(0, priority); // Ensure priority doesn\'t go below 0
 }
 
@@ -88,5 +107,5 @@ export async function changeSwarmTaskStatus(
     userId: string,
     queueService: QueueServiceType,
 ): Promise<Success> {
-    return queueService.swarm.changeTaskStatus<SwarmTask>(taskId, status, userId);
+    return queueService.swarm.changeTaskStatus(taskId, status, userId);
 }

@@ -1,4 +1,4 @@
-import { type Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { DEFAULT_LANGUAGE, generatePublicId, MaxObjects, type ModelType, type ReportFor, type ReportSearchInput, ReportSortBy, ReportStatus, reportValidation } from "@vrooli/shared";
 import i18next from "i18next";
 import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder.js";

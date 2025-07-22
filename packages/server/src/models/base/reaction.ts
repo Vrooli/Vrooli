@@ -1,4 +1,4 @@
-import { type Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { EventTypes, MaxObjects, type ModelType, type ReactInput, ReactionFor, type ReactionSearchInput, ReactionSortBy, type SessionUser, camelCase, exists, generatePK, getReactionScore, lowercaseFirstLetter, removeModifiers } from "@vrooli/shared";
 import { onlyValidIds } from "../../builders/onlyValid.js";
 import { permissionsSelectHelper } from "../../builders/permissionsSelectHelper.js";

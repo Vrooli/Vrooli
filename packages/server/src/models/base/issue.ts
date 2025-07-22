@@ -1,4 +1,4 @@
-import { type Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { generatePublicId, getTranslation, type IssueFor, type IssueSearchInput, IssueSortBy, IssueStatus, issueValidation, MaxObjects, type ModelType } from "@vrooli/shared";
 import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
