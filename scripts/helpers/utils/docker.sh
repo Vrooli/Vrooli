@@ -17,14 +17,16 @@ source "${UTILS_DIR}/system.sh"
 source "${UTILS_DIR}/var.sh"
 
 docker::install() {
-    if ! flow::can_run_sudo "Docker installation"; then
-        log::warning "Skipping Docker installation due to sudo mode"
-        return
-    fi
-
+    # Check if Docker is already installed FIRST
     if system::is_command "docker"; then
         log::info "Detected: $(docker --version)"
         return 0
+    fi
+
+    # Docker is not installed, check if we can install it
+    if ! flow::can_run_sudo "Docker installation"; then
+        log::error "Docker is not installed and sudo is not available for installation"
+        return 1
     fi
 
     log::info "Docker is not installed. Installing Docker..."
@@ -39,19 +41,30 @@ docker::install() {
 }
 
 docker::start() {
-    if ! flow::can_run_sudo "Docker service start"; then
-        log::warning "Skipping Docker start due to sudo mode"
-        return
+    # First check if Docker is already running
+    if system::is_command "docker" && docker version >/dev/null 2>&1; then
+        log::info "Docker is already running"
+        return 0
     fi
 
-    # Try to start Docker (if already running, this should be a no-op)
+    # Docker is not running, check if we can start it
+    if ! flow::can_run_sudo "Docker service start"; then
+        log::warning "Docker is not running and sudo is not available to start it"
+        log::warning "Please start Docker manually or ensure Docker Desktop is running"
+        return 1
+    fi
+
+    # Try to start Docker
+    log::info "Starting Docker service..."
     sudo service docker start
 
-    # Verify Docker is running by attempting a command
-    if ! system::is_command "docker"; then
+    # Verify Docker is now running
+    if ! docker version >/dev/null 2>&1; then
         log::error "Failed to start Docker or Docker is not running. If you are in Windows Subsystem for Linux (WSL), please start Docker Desktop and try again."
         return 1
     fi
+    
+    log::success "Docker service started successfully"
 }
 
 docker::restart() {
@@ -82,14 +95,22 @@ docker::kill_all() {
 }
 
 docker::setup_docker_compose() {
-    if ! flow::can_run_sudo "Docker Compose installation"; then
-        log::warning "Skipping Docker Compose installation due to sudo mode"
-        return
-    fi
-
+    # Check if Docker Compose is already available FIRST
     if system::is_command "docker-compose"; then
         log::info "Detected: $(docker-compose --version)"
         return 0
+    fi
+    
+    # Also check for newer 'docker compose' plugin syntax
+    if system::is_command "docker" && docker compose version >/dev/null 2>&1; then
+        log::info "Detected: $(docker compose version)"
+        return 0
+    fi
+
+    # Docker Compose is not installed, check if we can install it
+    if ! flow::can_run_sudo "Docker Compose installation"; then
+        log::error "Docker Compose is not installed and sudo is not available for installation"
+        return 1
     fi
 
     log::info "Docker Compose is not installed. Installing Docker Compose..."
