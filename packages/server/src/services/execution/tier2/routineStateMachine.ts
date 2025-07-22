@@ -1,10 +1,10 @@
-import { RunState, type ExecutionResourceUsage } from "@vrooli/shared";
+import { RunState, generatePK, getDotNotationValue, type BlackboardItem, type ExecutionResourceUsage, type RoutineAction, type RoutineExecutionInput, type TierExecutionRequest } from "@vrooli/shared";
 import { DbProvider } from "../../../db/provider.js";
 import { logger } from "../../../events/logger.js";
-import { RunProcessSelect } from "../../../tasks/run/process.js";
 import type { ServiceEvent } from "../../events/types.js";
+import type { BlackboardPatch } from "../../types/tools.js";
 import { BaseStateMachine } from "../shared/BaseStateMachine.js";
-import type { ISwarmContextManager } from "../shared/SwarmContextManager.js";
+import type { ISwarmContextManager, SwarmContextManager } from "../shared/SwarmContextManager.js";
 import type { IRunContextManager } from "./runContextManager.js";
 import type { RunAllocation, RunExecutionContext } from "./types.js";
 
@@ -29,10 +29,13 @@ import type { RunAllocation, RunExecutionContext } from "./types.js";
  */
 export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
     private readonly contextId: string;
-    private readonly swarmContextManager?: ISwarmContextManager;
+    protected readonly swarmContextManager: SwarmContextManager | null = null;
     private readonly runContextManager?: IRunContextManager;
     private readonly parentSwarmId?: string;
     private userId?: string;
+
+    // Execution request metadata for outputOperations processing
+    private executionRequest?: TierExecutionRequest<RoutineExecutionInput>;
 
     // Resource tracking
     private currentAllocation?: RunAllocation;
@@ -57,7 +60,7 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
             swarmId: parentSwarmId, // Use actual swarmId for swarm coordination
         });
         this.contextId = contextId;
-        this.swarmContextManager = swarmContextManager;
+        this.swarmContextManager = swarmContextManager as SwarmContextManager | null;
         this.runContextManager = runContextManager;
         this.parentSwarmId = parentSwarmId;
         this.userId = userId;
@@ -93,6 +96,13 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
      */
     public getTaskId(): string {
         return this.contextId;
+    }
+
+    /**
+     * Set the execution request for outputOperations processing
+     */
+    public setExecutionRequest(request: TierExecutionRequest<RoutineExecutionInput>): void {
+        this.executionRequest = request;
     }
 
     /**
@@ -137,7 +147,7 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
         try {
             // Get current run context and update execution state
             const currentContext = await this.runContextManager.getRunContext(this.contextId);
-            
+
             // Update the execution state in routine context
             const updatedContext = {
                 ...currentContext,
@@ -231,23 +241,23 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
                     runId: executionId,
                     routineId: resourceVersionId,
                     swarmId,
-                    
+
                     // Navigation state (will be populated by navigator)
                     navigator: null,
                     currentLocation: { id: "start", routineId: resourceVersionId, nodeId: "start" },
                     visitedLocations: [],
-                    
+
                     // Execution state
                     variables: {},
                     outputs: {},
                     completedSteps: [],
                     parallelBranches: [],
-                    
+
                     // Swarm inheritance
                     parentContext: swarmId ? { swarmId } : undefined,
                     availableResources: this.currentAllocation ? [this.currentAllocation] : [],
                     sharedKnowledge: {},
-                    
+
                     // Resource tracking
                     resourceLimits: {
                         maxCredits: this.currentAllocation?.allocated.credits.toString() || "1000",
@@ -262,7 +272,7 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
                         stepsExecuted: 0,
                         startTime: new Date(),
                     },
-                    
+
                     // Progress tracking
                     progress: {
                         currentStepId: null,
@@ -270,13 +280,13 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
                         totalSteps: 0,
                         percentComplete: 0,
                     },
-                    
+
                     // Error handling
                     retryCount: 0,
                 };
 
                 await this.runContextManager.updateRunContext(this.contextId, initialContext);
-                
+
                 logger.debug("[RoutineStateMachine] Run execution context initialized", {
                     executionId,
                     resourceVersionId,
@@ -294,15 +304,21 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
         if (this.swarmContextManager && this.parentSwarmId) {
             try {
                 await this.swarmContextManager.updateContext(this.parentSwarmId, {
-                    "activeRoutines": {
-                        [this.contextId]: {
+                    execution: {
+                        status: RunState.RUNNING,
+                        agents: [],
+                        startedAt: new Date(),
+                        lastActivityAt: new Date(),
+                        activeRuns: [{
+                            runId: this.contextId,
                             routineId: resourceVersionId,
-                            startedAt: new Date().toISOString(),
+                            agentId: "tier2-routine-executor",
+                            startedAt: new Date(),
                             status: "running",
-                        },
+                        }],
                     },
                 });
-                
+
                 logger.debug("[RoutineStateMachine] Notified swarm of routine start", {
                     swarmId: this.parentSwarmId,
                     routineExecutionId: this.contextId,
@@ -329,7 +345,18 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
     private async loadRunFromDatabase(runId: string) {
         const run = await DbProvider.get().run.findUnique({
             where: { id: BigInt(runId) },
-            select: RunProcessSelect.Run,
+            select: {
+                id: true,
+                status: true,
+                isPrivate: true,
+                name: true,
+                data: true,
+                startedAt: true,
+                completedAt: true,
+                timeElapsed: true,
+                completedComplexity: true,
+                contextSwitches: true,
+            },
         });
 
         if (!run) {
@@ -342,7 +369,7 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
     /**
      * Load and resume existing run from database
      */
-    private async loadAndResumeExistingRun(runId: string, resourceVersionId: string, swarmId?: string): Promise<void> {
+    private async loadAndResumeExistingRun(runId: string, resourceVersionId: string, _swarmId?: string): Promise<void> {
         logger.info("[RoutineStateMachine] Loading existing run for resumption", {
             runId,
             resourceVersionId,
@@ -373,9 +400,9 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
                         "Failed": RunState.FAILED,
                         "Cancelled": RunState.CANCELLED,
                     };
-                    
+
                     this.state = statusToRunState[existingRun.status] || RunState.PAUSED;
-                    
+
                     // Restore resource usage from run context
                     if (runContext.resourceUsage) {
                         this.resourceUsage = {
@@ -385,12 +412,12 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
                             stepsExecuted: runContext.resourceUsage.stepsExecuted,
                             toolCalls: 0, // Default if not tracked
                         };
-                        
+
                         if (runContext.resourceUsage.startTime) {
                             this.executionStartTime = new Date(runContext.resourceUsage.startTime);
                         }
                     }
-                    
+
                     logger.info("[RoutineStateMachine] State and context restored from run context", {
                         runId,
                         restoredState: this.state,
@@ -404,7 +431,7 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
                     contextId: this.contextId,
                     error: error instanceof Error ? error.message : String(error),
                 });
-                
+
                 // Fallback: use database status to determine state
                 const statusToRunState: Record<string, RunState> = {
                     "Paused": RunState.PAUSED,
@@ -485,75 +512,10 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
         });
     }
 
-    // Note: Background execution methods removed as they referenced non-existent activeExecutions
-    // This class is focused on state machine management, not execution orchestration
-
-    /**
-     * Stop the state machine (transition to cancelled)
-     */
-    async stop(reason?: string): Promise<void> {
-        if (await this.isTerminal()) {
-            logger.debug("[RoutineStateMachine] Already in terminal state, ignoring stop", {
-                contextId: this.contextId,
-                currentState: this.getState(),
-            });
-            return;
-        }
-
-        await this.transitionTo(RunState.CANCELLED);
-
-        // Update routine context with stop details
-        if (this.runContextManager) {
-            try {
-                const currentContext = await this.runContextManager.getRunContext(this.contextId);
-                const updatedContext = {
-                    ...currentContext,
-                    lastStateTransition: {
-                        state: RunState.CANCELLED,
-                        timestamp: new Date().toISOString(),
-                        reason: reason || "Manual stop",
-                    },
-                };
-                await this.runContextManager.updateRunContext(this.contextId, updatedContext);
-            } catch (error) {
-                logger.warn("[RoutineStateMachine] Failed to update run context on stop", {
-                    contextId: this.contextId,
-                    error: error instanceof Error ? error.message : String(error),
-                });
-            }
-        }
-
-        // Notify swarm of routine cancellation (minimal update)
-        if (this.swarmContextManager && this.parentSwarmId) {
-            try {
-                await this.swarmContextManager.updateContext(this.parentSwarmId, {
-                    "completedRoutines": {
-                        [this.contextId]: {
-                            routineId: await this.getRoutineId() || "unknown",
-                            status: "cancelled",
-                            completedAt: new Date().toISOString(),
-                            reason: reason || "Manual stop",
-                        },
-                    },
-                });
-            } catch (error) {
-                logger.warn("[RoutineStateMachine] Failed to notify swarm of routine cancellation", {
-                    swarmId: this.parentSwarmId,
-                    error: error instanceof Error ? error.message : String(error),
-                });
-            }
-        }
-
-        logger.info("[RoutineStateMachine] Execution stopped", {
-            contextId: this.contextId,
-            reason,
-        });
-    }
-
     /**
      * Pause the state machine (only valid during execution)
      */
-    async pause(): Promise<void> {
+    async pause(): Promise<boolean> {
         if (this.getState() !== RunState.RUNNING) {
             throw new Error(`Cannot pause from state ${this.getState()}`);
         }
@@ -562,12 +524,13 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
         logger.info("[RoutineStateMachine] Execution paused", {
             contextId: this.contextId,
         });
+        return true;
     }
 
     /**
      * Resume the state machine (only valid when paused or suspended)
      */
-    async resume(): Promise<void> {
+    async resume(): Promise<boolean> {
         const currentState = this.getState();
         if (currentState !== RunState.PAUSED && currentState !== RunState.SUSPENDED) {
             throw new Error(`Cannot resume from state ${currentState}`);
@@ -577,6 +540,7 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
         logger.info("[RoutineStateMachine] Execution resumed", {
             contextId: this.contextId,
         });
+        return true;
     }
 
     /**
@@ -659,18 +623,23 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
         if (this.swarmContextManager && this.parentSwarmId) {
             try {
                 await this.swarmContextManager.updateContext(this.parentSwarmId, {
-                    "completedRoutines": {
-                        [this.contextId]: {
-                            routineId: await this.getRoutineId() || "unknown",
-                            status: "failed",
-                            completedAt: new Date().toISOString(),
-                            error,
-                            resourcesConsumed: {
-                                credits: this.resourceUsage.creditsUsed,
-                                durationMs: this.resourceUsage.durationMs,
-                                stepsExecuted: this.resourceUsage.stepsExecuted,
-                            },
+                    chatConfig: {
+                        __version: "1.0",
+                        stats: {
+                            totalToolCalls: 0,
+                            totalCredits: "0",
+                            startedAt: Date.now(),
+                            lastProcessingCycleEndedAt: null,
                         },
+                        records: [{
+                            id: generatePK().toString(),
+                            routine_id: await this.getRoutineId() || "unknown",
+                            routine_name: "Failed Routine",
+                            params: {},
+                            output_resource_ids: [],
+                            caller_bot_id: "tier2-routine-executor",
+                            created_at: Date.now().toString(),
+                        }],
                     },
                 });
             } catch (swarmError) {
@@ -698,6 +667,9 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
 
         // Calculate final resource usage
         this.updateResourceUsage();
+
+        // Process outputOperations if present (before state transition)
+        await this.processOutputOperations(result);
 
         await this.transitionTo(RunState.COMPLETED);
 
@@ -758,26 +730,26 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
         if (this.swarmContextManager && this.parentSwarmId) {
             try {
                 await this.swarmContextManager.updateContext(this.parentSwarmId, {
-                    "completedRoutines": {
-                        [this.contextId]: {
-                            routineId: await this.getRoutineId() || "unknown",
-                            status: "completed",
-                            completedAt: new Date().toISOString(),
-                            success: result?.success !== false, // Default to true unless explicitly false
-                            resourcesConsumed: {
-                                credits: this.resourceUsage.creditsUsed,
-                                durationMs: this.resourceUsage.durationMs,
-                                stepsExecuted: this.resourceUsage.stepsExecuted,
-                            },
-                            // Only include summary of results, not full execution details
-                            resultSummary: {
-                                hasOutputs: result && Object.keys(result).length > 0,
-                                outputCount: result ? Object.keys(result).length : 0,
-                            },
+                    chatConfig: {
+                        __version: "1.0",
+                        stats: {
+                            totalToolCalls: 0,
+                            totalCredits: "0",
+                            startedAt: Date.now(),
+                            lastProcessingCycleEndedAt: Date.now(),
                         },
+                        records: [{
+                            id: generatePK().toString(),
+                            routine_id: await this.getRoutineId() || "unknown",
+                            routine_name: "Completed Routine",
+                            params: {},
+                            output_resource_ids: result && Object.keys(result).length > 0 ? Object.keys(result) : [],
+                            caller_bot_id: "tier2-routine-executor",
+                            created_at: Date.now().toString(),
+                        }],
                     },
                 });
-                
+
                 logger.debug("[RoutineStateMachine] Notified swarm of routine completion", {
                     swarmId: this.parentSwarmId,
                     routineExecutionId: this.contextId,
@@ -795,6 +767,374 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
             contextId: this.contextId,
             resourceUsage: this.resourceUsage,
         });
+    }
+
+    /**
+     * Process outputOperations from agent behavior to update blackboard
+     */
+    private async processOutputOperations(result: any): Promise<void> {
+        // Type assertion to access our custom metadata field
+        const context = this.executionRequest?.context as any;
+        if (!context?.outputOperationsMetadata?.outputOperations) {
+            return; // No outputOperations to process
+        }
+
+        if (!this.swarmContextManager || !this.parentSwarmId) {
+            logger.warn("[RoutineStateMachine] Cannot process outputOperations: missing swarm context", {
+                contextId: this.contextId,
+                hasSwarmManager: !!this.swarmContextManager,
+                hasParentSwarmId: !!this.parentSwarmId,
+            });
+            return;
+        }
+
+        const outputOperations = context.outputOperationsMetadata.outputOperations as RoutineAction["outputOperations"];
+
+        if (!outputOperations) {
+            return; // Additional safety check
+        }
+
+        try {
+            // Build BlackboardPatch from outputOperations
+            const blackboardPatch: BlackboardPatch = {
+                set: [],
+                append: [],
+                increment: [],
+                merge: [],
+                deepMerge: [],
+            };
+
+            // Process append operations
+            if (outputOperations.append) {
+                for (const operation of outputOperations.append) {
+                    try {
+                        const value = getDotNotationValue(result, operation.routineOutput);
+                        if (Array.isArray(value)) {
+                            blackboardPatch.append!.push({
+                                id: operation.blackboardId,
+                                values: value,
+                            });
+                        } else {
+                            logger.warn("[RoutineStateMachine] Append operation: value is not an array", {
+                                routineOutput: operation.routineOutput,
+                                blackboardId: operation.blackboardId,
+                                valueType: typeof value,
+                            });
+                        }
+                    } catch (error) {
+                        logger.warn("[RoutineStateMachine] Failed to extract value for append operation", {
+                            routineOutput: operation.routineOutput,
+                            error: error instanceof Error ? error.message : String(error),
+                        });
+                    }
+                }
+            }
+
+            // Process increment operations
+            if (outputOperations.increment) {
+                for (const operation of outputOperations.increment) {
+                    try {
+                        const value = getDotNotationValue(result, operation.routineOutput);
+                        if (typeof value === "number") {
+                            blackboardPatch.increment!.push({
+                                id: operation.blackboardId,
+                                amount: value,
+                            });
+                        } else {
+                            logger.warn("[RoutineStateMachine] Increment operation: value is not a number", {
+                                routineOutput: operation.routineOutput,
+                                blackboardId: operation.blackboardId,
+                                valueType: typeof value,
+                            });
+                        }
+                    } catch (error) {
+                        logger.warn("[RoutineStateMachine] Failed to extract value for increment operation", {
+                            routineOutput: operation.routineOutput,
+                            error: error instanceof Error ? error.message : String(error),
+                        });
+                    }
+                }
+            }
+
+            // Process merge operations
+            if (outputOperations.merge) {
+                for (const operation of outputOperations.merge) {
+                    try {
+                        const value = getDotNotationValue(result, operation.routineOutput);
+                        if (value && typeof value === "object" && !Array.isArray(value)) {
+                            blackboardPatch.merge!.push({
+                                id: operation.blackboardId,
+                                object: value as Record<string, unknown>,
+                            });
+                        } else {
+                            logger.warn("[RoutineStateMachine] Merge operation: value is not an object", {
+                                routineOutput: operation.routineOutput,
+                                blackboardId: operation.blackboardId,
+                                valueType: typeof value,
+                            });
+                        }
+                    } catch (error) {
+                        logger.warn("[RoutineStateMachine] Failed to extract value for merge operation", {
+                            routineOutput: operation.routineOutput,
+                            error: error instanceof Error ? error.message : String(error),
+                        });
+                    }
+                }
+            }
+
+            // Process deepMerge operations
+            if (outputOperations.deepMerge) {
+                for (const operation of outputOperations.deepMerge) {
+                    try {
+                        const value = getDotNotationValue(result, operation.routineOutput);
+                        if (value && typeof value === "object" && !Array.isArray(value)) {
+                            blackboardPatch.deepMerge!.push({
+                                id: operation.blackboardId,
+                                object: value as Record<string, unknown>,
+                            });
+                        } else {
+                            logger.warn("[RoutineStateMachine] DeepMerge operation: value is not an object", {
+                                routineOutput: operation.routineOutput,
+                                blackboardId: operation.blackboardId,
+                                valueType: typeof value,
+                            });
+                        }
+                    } catch (error) {
+                        logger.warn("[RoutineStateMachine] Failed to extract value for deepMerge operation", {
+                            routineOutput: operation.routineOutput,
+                            error: error instanceof Error ? error.message : String(error),
+                        });
+                    }
+                }
+            }
+
+            // Process set operations
+            if (outputOperations.set) {
+                for (const operation of outputOperations.set) {
+                    try {
+                        const value = getDotNotationValue(result, operation.routineOutput);
+                        blackboardPatch.set!.push({
+                            id: operation.blackboardId,
+                            value,
+                            created_at: new Date().toISOString(),
+                        });
+                    } catch (error) {
+                        logger.warn("[RoutineStateMachine] Failed to extract value for set operation", {
+                            routineOutput: operation.routineOutput,
+                            error: error instanceof Error ? error.message : String(error),
+                        });
+                    }
+                }
+            }
+
+            // Apply blackboard updates using existing swarm context infrastructure
+            if (this.hasBlackboardOperations(blackboardPatch)) {
+                // Get current context to access blackboard
+                const currentContext = await this.swarmContextManager.getContext(this.parentSwarmId);
+                if (!currentContext) {
+                    throw new Error(`Swarm context not found for ID: ${this.parentSwarmId}`);
+                }
+
+                // Apply blackboard operations to current blackboard
+                const updatedBlackboard = await this.applyBlackboardOperations(
+                    currentContext.chatConfig.blackboard || [],
+                    blackboardPatch,
+                );
+
+                // Update swarm context with modified blackboard
+                await this.swarmContextManager.updateContext(this.parentSwarmId, {
+                    chatConfig: {
+                        ...currentContext.chatConfig,
+                        blackboard: updatedBlackboard,
+                    },
+                }, `OutputOperations from routine ${this.contextId}`);
+
+                logger.info("[RoutineStateMachine] OutputOperations processed successfully", {
+                    contextId: this.contextId,
+                    operationCounts: {
+                        append: blackboardPatch.append?.length || 0,
+                        increment: blackboardPatch.increment?.length || 0,
+                        merge: blackboardPatch.merge?.length || 0,
+                        deepMerge: blackboardPatch.deepMerge?.length || 0,
+                        set: blackboardPatch.set?.length || 0,
+                    },
+                });
+            } else {
+                logger.debug("[RoutineStateMachine] No valid outputOperations to apply", {
+                    contextId: this.contextId,
+                });
+            }
+
+        } catch (error) {
+            logger.error("[RoutineStateMachine] Failed to process outputOperations", {
+                contextId: this.contextId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            // Don't throw - outputOperations failure shouldn't crash routine completion
+        }
+    }
+
+    /**
+     * Check if blackboard patch has any operations to apply
+     */
+    private hasBlackboardOperations(patch: BlackboardPatch): boolean {
+        return !!(
+            (patch.set && patch.set.length > 0) ||
+            (patch.append && patch.append.length > 0) ||
+            (patch.increment && patch.increment.length > 0) ||
+            (patch.merge && patch.merge.length > 0) ||
+            (patch.deepMerge && patch.deepMerge.length > 0)
+        );
+    }
+
+    /**
+     * Apply blackboard operations to existing blackboard items
+     * Uses the same logic as the MCP updateSwarmSharedState tool
+     */
+    private async applyBlackboardOperations(
+        currentBlackboard: BlackboardItem[],
+        patch: BlackboardPatch,
+    ): Promise<BlackboardItem[]> {
+        // Convert blackboard array to map for easier manipulation, preserving created_at
+        const blackboardMap = new Map<string, { value: unknown; created_at: string }>();
+        for (const item of currentBlackboard) {
+            blackboardMap.set(item.id, { value: item.value, created_at: item.created_at });
+        }
+
+        const currentTimestamp = new Date().toISOString();
+
+        // Apply set operations (overwrite values)
+        if (patch.set) {
+            for (const item of patch.set) {
+                const existingItem = blackboardMap.get(item.id);
+                blackboardMap.set(item.id, {
+                    value: item.value,
+                    created_at: existingItem?.created_at || currentTimestamp,
+                });
+            }
+        }
+
+        // Apply append operations (append to arrays)
+        if (patch.append) {
+            for (const op of patch.append) {
+                const existing = blackboardMap.get(op.id);
+                if (existing === undefined) {
+                    blackboardMap.set(op.id, {
+                        value: [...op.values],
+                        created_at: currentTimestamp,
+                    });
+                } else if (Array.isArray(existing.value)) {
+                    blackboardMap.set(op.id, {
+                        value: [...existing.value, ...op.values],
+                        created_at: existing.created_at,
+                    });
+                } else {
+                    logger.warn(`[RoutineStateMachine] Blackboard item "${op.id}" is not an array. Cannot append values.`, {
+                        existingType: typeof existing.value,
+                        existingValue: existing.value,
+                    });
+                }
+            }
+        }
+
+        // Apply increment operations (add to numbers)
+        if (patch.increment) {
+            for (const op of patch.increment) {
+                const existing = blackboardMap.get(op.id);
+                if (existing === undefined) {
+                    blackboardMap.set(op.id, {
+                        value: op.amount,
+                        created_at: currentTimestamp,
+                    });
+                } else if (typeof existing.value === "number") {
+                    blackboardMap.set(op.id, {
+                        value: existing.value + op.amount,
+                        created_at: existing.created_at,
+                    });
+                } else {
+                    logger.warn(`[RoutineStateMachine] Blackboard item "${op.id}" is not a number. Cannot increment.`, {
+                        existingType: typeof existing.value,
+                        existingValue: existing.value,
+                    });
+                }
+            }
+        }
+
+        // Apply merge operations (shallow merge objects)
+        if (patch.merge) {
+            for (const op of patch.merge) {
+                const existing = blackboardMap.get(op.id);
+                if (existing === undefined) {
+                    blackboardMap.set(op.id, {
+                        value: { ...op.object },
+                        created_at: currentTimestamp,
+                    });
+                } else if (existing.value && typeof existing.value === "object" && !Array.isArray(existing.value)) {
+                    blackboardMap.set(op.id, {
+                        value: { ...existing.value as Record<string, unknown>, ...op.object },
+                        created_at: existing.created_at,
+                    });
+                } else {
+                    logger.warn(`[RoutineStateMachine] Blackboard item "${op.id}" is not an object. Cannot merge.`, {
+                        existingType: typeof existing.value,
+                        existingValue: existing.value,
+                    });
+                }
+            }
+        }
+
+        // Apply deepMerge operations (recursive merge objects)
+        if (patch.deepMerge) {
+            for (const op of patch.deepMerge) {
+                const existing = blackboardMap.get(op.id);
+                if (existing === undefined) {
+                    blackboardMap.set(op.id, {
+                        value: this.deepMergeObjects({}, op.object),
+                        created_at: currentTimestamp,
+                    });
+                } else if (existing.value && typeof existing.value === "object" && !Array.isArray(existing.value)) {
+                    blackboardMap.set(op.id, {
+                        value: this.deepMergeObjects(existing.value as Record<string, unknown>, op.object),
+                        created_at: existing.created_at,
+                    });
+                } else {
+                    logger.warn(`[RoutineStateMachine] Blackboard item "${op.id}" is not an object. Cannot deep merge.`, {
+                        existingType: typeof existing.value,
+                        existingValue: existing.value,
+                    });
+                }
+            }
+        }
+
+        // Convert back to BlackboardItem array
+        const updatedBlackboard: BlackboardItem[] = [];
+        for (const [id, item] of blackboardMap.entries()) {
+            updatedBlackboard.push({ id, value: item.value, created_at: item.created_at });
+        }
+
+        return updatedBlackboard;
+    }
+
+    /**
+     * Deep merge two objects recursively
+     * Uses the same logic as the MCP tool
+     */
+    private deepMergeObjects(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
+        const result = { ...target };
+
+        for (const [key, value] of Object.entries(source)) {
+            if (value && typeof value === "object" && !Array.isArray(value)) {
+                if (result[key] && typeof result[key] === "object" && !Array.isArray(result[key])) {
+                    result[key] = this.deepMergeObjects(result[key] as Record<string, unknown>, value as Record<string, unknown>);
+                } else {
+                    result[key] = { ...value as Record<string, unknown> };
+                }
+            } else {
+                result[key] = value;
+            }
+        }
+
+        return result;
     }
 
     /**
@@ -1037,7 +1377,7 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
     }
 
     /**
-     * Called when stopping - return final state data
+     * Called when stopping - handles routine-specific cleanup and returns final state data
      */
     protected async onStop(mode: "graceful" | "force", reason?: string): Promise<unknown> {
         logger.info("[RoutineStateMachine] Stopping execution", {
@@ -1046,6 +1386,59 @@ export class RoutineStateMachine extends BaseStateMachine<ServiceEvent> {
             reason,
             runState: this.getState(),
         });
+
+        // Update routine context with stop details
+        if (this.runContextManager) {
+            try {
+                const currentContext = await this.runContextManager.getRunContext(this.contextId);
+                const updatedContext = {
+                    ...currentContext,
+                    lastStateTransition: {
+                        state: RunState.CANCELLED,
+                        timestamp: new Date().toISOString(),
+                        reason: reason || `Manual stop (${mode})`,
+                    },
+                };
+                await this.runContextManager.updateRunContext(this.contextId, updatedContext);
+            } catch (error) {
+                logger.warn("[RoutineStateMachine] Failed to update run context on stop", {
+                    contextId: this.contextId,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        }
+
+        // Notify swarm of routine cancellation (minimal update)
+        if (this.swarmContextManager && this.parentSwarmId) {
+            try {
+                await this.swarmContextManager.updateContext(this.parentSwarmId, {
+                    chatConfig: {
+                        __version: "1.0",
+                        stats: {
+                            totalToolCalls: 0,
+                            totalCredits: "0",
+                            startedAt: Date.now(),
+                            lastProcessingCycleEndedAt: null,
+                        },
+                        records: [{
+                            id: generatePK().toString(),
+                            routine_id: await this.getRoutineId() || "unknown",
+                            routine_name: "Cancelled Routine",
+                            params: { cancelled: true, reason: reason || `Manual stop (${mode})` },
+                            output_resource_ids: [],
+                            caller_bot_id: "tier2-routine-executor",
+                            created_at: Date.now().toString(),
+                        }],
+                    },
+                });
+            } catch (error) {
+                logger.error("[RoutineStateMachine] Failed to notify swarm of cancellation", {
+                    contextId: this.contextId,
+                    parentSwarmId: this.parentSwarmId,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        }
 
         // Clean up resources
         if (this.runContextManager && this.currentAllocation) {

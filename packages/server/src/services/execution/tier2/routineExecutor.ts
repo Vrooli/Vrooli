@@ -79,6 +79,9 @@ export class RoutineExecutor {
                 input.runId, // Pass runId for resumption support
             );
 
+            // Set execution request for outputOperations processing
+            this.stateMachine.setExecutionRequest(request);
+
             // Step 2: Start execution (this will emit the run started event)
             await this.stateMachine.start();
 
@@ -248,13 +251,14 @@ export class RoutineExecutor {
     ): Promise<any> {
         const stepId = stepInfo.id;
         const stepType = stepInfo.type;
+        const stepStartTime = Date.now();
         // Step 1: Allocate step-level resources if RunContextManager available
         let stepAllocation;
         if (this.runContextManager) {
             try {
                 stepAllocation = await this.runContextManager.allocateForStep(swarmId, {
                     stepId,
-                    stepType,
+                    stepType: stepType as "llm_call" | "tool_execution" | "data_processing",
                     estimatedRequirements: {
                         credits: "50", // Estimated credits for this step
                         durationMs: 60000, // 1 minute
@@ -283,9 +287,9 @@ export class RoutineExecutor {
                 swarmId,
                 stepId,
                 {
-                    variables: context.variables || {},
+                    variables: {},
                     blackboard: {},
-                },
+                } as RunContext,
             );
 
             if (!permissionCheck) {
@@ -311,7 +315,6 @@ export class RoutineExecutor {
             }
 
             // Step 4: Track step execution start
-            const stepStartTime = Date.now();
 
             // Step 5: Delegate actual execution to Tier 3
             const tier3Request = this.createTier3Request(
@@ -324,14 +327,15 @@ export class RoutineExecutor {
 
             // Step 6: Calculate actual step resource usage
             const actualUsage = {
-                credits: "30", // Would be calculated based on actual execution
+                creditsUsed: "30", // Would be calculated based on actual execution
                 durationMs: Date.now() - stepStartTime,
-                memoryMB: 100, // Would be measured
+                memoryUsedMB: 100, // Would be measured
                 stepsExecuted: 1,
+                toolCalls: 0, // Would be tracked from tier3Result
             };
 
             // Step 7: Update state machine resource tracking
-            this.stateMachine.addCreditsUsed(actualUsage.credits);
+            this.stateMachine.addCreditsUsed(actualUsage.creditsUsed);
             this.stateMachine.incrementStepCount();
 
             // Step 8: Release step resources back to run
@@ -352,7 +356,7 @@ export class RoutineExecutor {
                 success: tier3Result.success,
                 metrics: {
                     duration: actualUsage.durationMs,
-                    creditsUsed: actualUsage.credits,
+                    creditsUsed: actualUsage.creditsUsed,
                     stepsExecuted: 1,
                     stepsFailed: tier3Result.success ? 0 : 1,
                 },
@@ -375,10 +379,11 @@ export class RoutineExecutor {
             // If step fails, still release resources
             if (this.runContextManager && stepAllocation) {
                 const partialUsage = {
-                    credits: "15", // Partial usage on failure
-                    durationMs: Date.now() - Date.now(), // Calculate actual time
-                    memoryMB: 50,
+                    creditsUsed: "15", // Partial usage on failure
+                    durationMs: Date.now() - stepStartTime, // Calculate actual time
+                    memoryUsedMB: 50,
                     stepsExecuted: 0,
+                    toolCalls: 0, // No tool calls on failure
                 };
 
                 await this.runContextManager.releaseFromStep(
@@ -427,20 +432,10 @@ export class RoutineExecutor {
                 strategy,
             },
             allocation: allocation || {
-                allocated: {
-                    credits: "50",
-                    timeoutMs: 60000,
-                    memoryMB: 128,
-                    concurrentExecutions: 1,
-                },
-                remaining: {
-                    credits: "50",
-                    timeoutMs: 60000,
-                    memoryMB: 128,
-                    concurrentExecutions: 1,
-                },
-                allocatedAt: new Date(),
-                expiresAt: new Date(Date.now() + 60000),
+                maxCredits: "50",
+                maxDurationMs: 60000,
+                maxMemoryMB: 128,
+                maxConcurrentSteps: 1,
             },
             options: {
                 timeout: 30000,
@@ -562,7 +557,7 @@ export class RoutineExecutor {
      * Stop execution
      */
     async stop(reason?: string): Promise<void> {
-        await this.stateMachine.stop(reason);
+        await this.stateMachine.stop({ reason });
         logger.info("[RoutineExecutor] Execution stopped", { reason });
     }
 

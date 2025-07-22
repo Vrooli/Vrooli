@@ -3,7 +3,9 @@
 import { generatePK, initIdGenerator, MINUTES_5_MS } from "@vrooli/shared";
 import { type Job } from "bullmq";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createRunTask, runTaskScenarios } from "../../__test/fixtures/tasks/runTaskFactory.js";
 import "../../__test/setup.js";
+import { createMockJob } from "../taskFactory.js";
 import { type RunTask, QueueTaskType } from "../taskTypes.js";
 
 // TODO: Remove these mocks once the execution tier modules are optimized for test loading.
@@ -58,63 +60,17 @@ describe("runProcess", () => {
         }
     });
 
-    const createTestRunTask = (overrides: Partial<RunTask> = {}): RunTask => {
-        const userId = generatePK();
-        const runId = generatePK();
-        const resourceVersionId = generatePK();
-
-        return {
-            taskType: QueueTaskType.RUN_START,
-            type: QueueTaskType.RUN_START,
-            runId: runId.toString(),
-            resourceVersionId: resourceVersionId.toString(),
-            isNewRun: true,
-            runFrom: "Trigger",
-            startedById: userId.toString(),
-            status: "Scheduled",
-            userData: {
-                id: userId.toString(),
-                name: "testUser",
-                hasPremium: false,
-                languages: ["en"],
-                roles: [],
-                wallets: [],
-                theme: "light",
-            },
-            config: {
-                botConfig: {
-                    strategy: "reasoning",
-                    model: "gpt-4",
-                },
-                limits: {
-                    maxSteps: 50,
-                    maxTime: MINUTES_5_MS,
-                },
-            },
-            formValues: {
-                input1: "test value",
-                input2: 42,
-            },
-            ...overrides,
-        };
-    };
-
-    const createMockRunJob = (data: Partial<RunTask> = {}): Job<RunTask> => {
-        const defaultData: RunTask = createTestRunTask(data);
-
-        return {
-            id: "run-job-id",
-            data: defaultData,
-            name: "run",
-            attemptsMade: 0,
-            opts: {},
-        } as Job<RunTask>;
-    };
+    function createMockRunJob(overrides: Partial<RunTask> = {}): Job<RunTask> {
+        const runTask = createRunTask(overrides);
+        return createMockJob<RunTask>(
+            QueueTaskType.RUN_START,
+            runTask,
+        );
+    }
 
     describe("successful execution", () => {
         it("should execute simple routine", async () => {
-            const runTask = createTestRunTask();
-            const job = createMockRunJob(runTask);
+            const job = createMockRunJob();
 
             const result = await runProcess(job);
 
@@ -123,24 +79,14 @@ describe("runProcess", () => {
             // Verify run was added to active registry
             const activeRuns = activeRunRegistry.listActive();
             expect(activeRuns).toHaveLength(1);
-            expect(activeRuns[0].id).toBe(runTask.runId);
+            expect(activeRuns[0].id).toBe(job.data.input.runId);
         });
 
         it("should handle new run initialization", async () => {
-            const runTask = createTestRunTask({
-                isNewRun: true,
-                userData: {
-                    id: generatePK().toString(),
-                    name: "premiumUser",
-                    hasPremium: true,
-                    languages: ["en"],
-                    roles: [],
-                    wallets: [],
-                    theme: "light",
-                },
+            const job = createMockRunJob({
+                ...runTaskScenarios.newRun(),
+                ...runTaskScenarios.premiumUser(),
             });
-
-            const job = createMockRunJob(runTask);
 
             const result = await runProcess(job);
 
@@ -154,11 +100,8 @@ describe("runProcess", () => {
         });
 
         it("should handle existing run resumption", async () => {
-            const runTask = createTestRunTask({
-                isNewRun: false, // Resuming existing run
-            });
-
-            const job = createMockRunJob(runTask);
+            const runId = generatePK().toString();
+            const job = createMockRunJob(runTaskScenarios.resumeRun(runId));
 
             const result = await runProcess(job);
 
@@ -170,29 +113,21 @@ describe("runProcess", () => {
         });
 
         it("should respect premium user configuration", async () => {
-            const runTask = createTestRunTask({
-                userData: {
-                    id: generatePK().toString(),
-                    name: "premiumUser",
-                    hasPremium: true,
-                    languages: ["en"],
-                    roles: [],
-                    wallets: [],
-                    theme: "light",
-                },
-                config: {
-                    botConfig: {
-                        strategy: "advanced",
-                        model: "gpt-4",
-                    },
-                    limits: {
-                        maxSteps: 200,
-                        maxTime: MINUTES_5_MS * 12, // 1 hour
+            const job = createMockRunJob({
+                ...runTaskScenarios.premiumUser(),
+                input: {
+                    config: {
+                        botConfig: {
+                            strategy: "advanced",
+                            model: "gpt-4",
+                        },
+                        limits: {
+                            maxSteps: 200,
+                            maxTime: MINUTES_5_MS * 12, // 1 hour
+                        },
                     },
                 },
             });
-
-            const job = createMockRunJob(runTask);
 
             const result = await runProcess(job);
 
@@ -204,20 +139,20 @@ describe("runProcess", () => {
         });
 
         it("should handle complex configuration", async () => {
-            const runTask = createTestRunTask({
-                config: {
-                    botConfig: {
-                        strategy: "advanced",
-                        model: "gpt-4",
-                    },
-                    limits: {
-                        maxSteps: 100,
-                        maxTime: MINUTES_5_MS * 12, // 1 hour
+            const job = createMockRunJob({
+                input: {
+                    config: {
+                        botConfig: {
+                            strategy: "advanced",
+                            model: "gpt-4",
+                        },
+                        limits: {
+                            maxSteps: 100,
+                            maxTime: MINUTES_5_MS * 12, // 1 hour
+                        },
                     },
                 },
             });
-
-            const job = createMockRunJob(runTask);
 
             const result = await runProcess(job);
 
@@ -227,11 +162,9 @@ describe("runProcess", () => {
 
     describe("error handling", () => {
         it("should handle invalid task type", async () => {
-            const runTask = createTestRunTask({
+            const job = createMockRunJob({
                 type: "invalid-task-type" as any,
             });
-
-            const job = createMockRunJob(runTask);
 
             await expect(runProcess(job)).rejects.toThrow();
 
@@ -241,11 +174,11 @@ describe("runProcess", () => {
         });
 
         it("should handle missing resource version", async () => {
-            const runTask = createTestRunTask({
-                resourceVersionId: "invalid-resource-id",
+            const job = createMockRunJob({
+                input: {
+                    resourceVersionId: "invalid-resource-id",
+                },
             });
-
-            const job = createMockRunJob(runTask);
 
             await expect(runProcess(job)).rejects.toThrow();
 
@@ -255,19 +188,19 @@ describe("runProcess", () => {
         });
 
         it("should handle invalid user data", async () => {
-            const runTask = createTestRunTask({
-                userData: {
-                    id: "invalid-user-id",
-                    name: "invalidUser",
-                    hasPremium: false,
-                    languages: ["en"],
-                    roles: [],
-                    wallets: [],
-                    theme: "light",
+            const job = createMockRunJob({
+                context: {
+                    userData: {
+                        id: "invalid-user-id",
+                        name: "invalidUser",
+                        hasPremium: false,
+                        languages: ["en"],
+                        roles: [],
+                        wallets: [],
+                        theme: "light",
+                    },
                 },
             });
-
-            const job = createMockRunJob(runTask);
 
             // This should still process but with invalid user data
             const result = await runProcess(job);
@@ -280,11 +213,11 @@ describe("runProcess", () => {
         });
 
         it("should handle missing configuration gracefully", async () => {
-            const runTask = createTestRunTask({
-                config: undefined, // Missing config
+            const job = createMockRunJob({
+                input: {
+                    config: undefined, // Missing config
+                },
             });
-
-            const job = createMockRunJob(runTask);
 
             const result = await runProcess(job);
             expect(result).toEqual({ __typename: "Success", success: true });
@@ -293,29 +226,31 @@ describe("runProcess", () => {
 
     describe("user tier and limits", () => {
         it("should track free user runs", async () => {
-            const runTask = createTestRunTask({
-                userData: {
-                    id: generatePK().toString(),
-                    name: "freeUser",
-                    hasPremium: false,
-                    languages: ["en"],
-                    roles: [],
-                    wallets: [],
-                    theme: "light",
-                },
-                config: {
-                    botConfig: {
-                        strategy: "simple",
-                        model: "gpt-3.5-turbo",
+            const job = createMockRunJob({
+                context: {
+                    userData: {
+                        id: generatePK().toString(),
+                        name: "freeUser",
+                        hasPremium: false,
+                        languages: ["en"],
+                        roles: [],
+                        wallets: [],
+                        theme: "light",
                     },
-                    limits: {
-                        maxSteps: 10,
-                        maxTime: MINUTES_5_MS / 2,
+                },
+                input: {
+                    config: {
+                        botConfig: {
+                            strategy: "simple",
+                            model: "gpt-3.5-turbo",
+                        },
+                        limits: {
+                            maxSteps: 10,
+                            maxTime: MINUTES_5_MS / 2,
+                        },
                     },
                 },
             });
-
-            const job = createMockRunJob(runTask);
 
             const result = await runProcess(job);
             expect(result).toEqual({ __typename: "Success", success: true });
@@ -325,29 +260,7 @@ describe("runProcess", () => {
         });
 
         it("should track premium user runs", async () => {
-            const runTask = createTestRunTask({
-                userData: {
-                    id: generatePK().toString(),
-                    name: "premiumUser",
-                    hasPremium: true,
-                    languages: ["en"],
-                    roles: [],
-                    wallets: [],
-                    theme: "light",
-                },
-                config: {
-                    botConfig: {
-                        strategy: "advanced",
-                        model: "gpt-4",
-                    },
-                    limits: {
-                        maxSteps: 200,
-                        maxTime: MINUTES_5_MS * 12, // 1 hour
-                    },
-                },
-            });
-
-            const job = createMockRunJob(runTask);
+            const job = createMockRunJob(runTaskScenarios.premiumUser());
 
             const result = await runProcess(job);
             expect(result).toEqual({ __typename: "Success", success: true });
@@ -359,32 +272,33 @@ describe("runProcess", () => {
         it("should handle multiple concurrent runs per user", async () => {
             const userId = generatePK().toString();
 
-            const runTask1 = createTestRunTask({
-                userData: {
-                    id: userId,
-                    name: "testUser",
-                    hasPremium: false,
-                    languages: ["en"],
-                    roles: [],
-                    wallets: [],
-                    theme: "light",
+            const job1 = createMockRunJob({
+                context: {
+                    userData: {
+                        id: userId,
+                        name: "testUser",
+                        hasPremium: false,
+                        languages: ["en"],
+                        roles: [],
+                        wallets: [],
+                        theme: "light",
+                    },
                 },
             });
 
-            const runTask2 = createTestRunTask({
-                userData: {
-                    id: userId,
-                    name: "testUser",
-                    hasPremium: false,
-                    languages: ["en"],
-                    roles: [],
-                    wallets: [],
-                    theme: "light",
+            const job2 = createMockRunJob({
+                context: {
+                    userData: {
+                        id: userId,
+                        name: "testUser",
+                        hasPremium: false,
+                        languages: ["en"],
+                        roles: [],
+                        wallets: [],
+                        theme: "light",
+                    },
                 },
             });
-
-            const job1 = createMockRunJob(runTask1);
-            const job2 = createMockRunJob(runTask2);
 
             const [result1, result2] = await Promise.all([
                 runProcess(job1),
@@ -402,8 +316,7 @@ describe("runProcess", () => {
 
     describe("active run registry", () => {
         it("should track active runs", async () => {
-            const runTask = createTestRunTask();
-            const job = createMockRunJob(runTask);
+            const job = createMockRunJob();
 
             // Verify registry is initially empty
             expect(activeRunRegistry.listActive()).toHaveLength(0);
@@ -413,25 +326,13 @@ describe("runProcess", () => {
             // Verify run was tracked
             const activeRuns = activeRunRegistry.listActive();
             expect(activeRuns).toHaveLength(1);
-            expect(activeRuns[0].id).toBe(runTask.runId);
-            expect(activeRuns[0].userId).toBe(runTask.userData.id);
+            expect(activeRuns[0].id).toBe(job.data.input.runId);
+            expect(activeRuns[0].userId).toBe(job.data.context.userData.id);
             expect(activeRuns[0].startTime).toBeTypeOf("number");
         });
 
         it("should create proper state machine adapter", async () => {
-            const runTask = createTestRunTask({
-                userData: {
-                    id: generatePK().toString(),
-                    name: "premiumUser",
-                    hasPremium: true,
-                    languages: ["en"],
-                    roles: [],
-                    wallets: [],
-                    theme: "light",
-                },
-            });
-
-            const job = createMockRunJob(runTask);
+            const job = createMockRunJob(runTaskScenarios.premiumUser());
 
             await runProcess(job);
 
@@ -441,13 +342,12 @@ describe("runProcess", () => {
 
             // Test adapter functionality indirectly through registry
             const runRecord = activeRuns[0];
-            expect(runRecord.id).toBe(runTask.runId);
-            expect(runRecord.userId).toBe(runTask.userData.id);
+            expect(runRecord.id).toBe(job.data.input.runId);
+            expect(runRecord.userId).toBe(job.data.context.userData.id);
         });
 
         it("should handle registry cleanup", async () => {
-            const runTask = createTestRunTask();
-            const job = createMockRunJob(runTask);
+            const job = createMockRunJob();
 
             await runProcess(job);
 

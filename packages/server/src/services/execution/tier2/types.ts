@@ -153,6 +153,242 @@ export interface RunConfig {
 }
 
 /**
+ * Enhanced execution context for BPMN and complex workflow support
+ * 
+ * Extends basic variable tracking to include comprehensive execution state:
+ * events, parallel branches, subprocesses, gateways, and external integrations.
+ */
+export interface EnhancedExecutionContext {
+    // Current variables (unchanged from basic context)
+    variables: Record<string, unknown>;
+    
+    // Event management system
+    events: {
+        // Currently monitoring boundary events (timers, errors, signals, etc.)
+        active: BoundaryEvent[];
+        // Intermediate events waiting to be triggered
+        pending: IntermediateEvent[];
+        // Recently fired events with their payloads
+        fired: EventInstance[];
+        // Active timer events with expiration tracking
+        timers: TimerEvent[];
+    };
+    
+    // Parallel execution tracking
+    parallelExecution: {
+        // Currently executing parallel branches
+        activeBranches: ParallelBranch[];
+        // Completed branch IDs for join synchronization
+        completedBranches: string[];
+        // Gateway join points waiting for synchronization
+        joinPoints: JoinPoint[];
+    };
+    
+    // Subprocess management
+    subprocesses: {
+        // Stack of nested subprocess contexts
+        stack: SubprocessContext[];
+        // Active event subprocesses (interrupting/non-interrupting)
+        eventSubprocesses: EventSubprocess[];
+    };
+    
+    // External integration events
+    external: {
+        // Pending message event correlations
+        messageEvents: MessageEvent[];
+        // External webhook trigger events
+        webhookEvents: WebhookEvent[];
+        // Signal propagation events
+        signalEvents: SignalEvent[];
+    };
+    
+    // Gateway execution state
+    gateways: {
+        // Inclusive gateway multi-path activation states
+        inclusiveStates: InclusiveGatewayState[];
+        // Complex gateway custom logic states
+        complexConditions: ComplexGatewayState[];
+    };
+}
+
+// Supporting types for enhanced context
+
+export interface BoundaryEvent {
+    id: string;
+    type: "timer" | "error" | "message" | "signal" | "compensation";
+    attachedToRef: string; // ID of the activity this event is attached to
+    interrupting: boolean;
+    config: Record<string, unknown>;
+    activatedAt: Date;
+}
+
+export interface IntermediateEvent {
+    id: string;
+    type: "message" | "timer" | "signal" | "link" | "conditional";
+    eventDefinition: Record<string, unknown>;
+    waiting: boolean;
+    correlationKey?: string;
+}
+
+export interface EventInstance {
+    id: string;
+    eventId: string;
+    type: string;
+    payload: Record<string, unknown>;
+    firedAt: Date;
+    source?: string;
+}
+
+export interface TimerEvent {
+    id: string;
+    eventId: string;
+    duration?: number; // milliseconds
+    dueDate?: Date;
+    cycle?: string; // ISO 8601 duration for repeating timers
+    expiresAt: Date;
+    attachedToRef?: string; // For boundary events
+}
+
+export interface ParallelBranch {
+    id: string;
+    branchId: string;
+    currentLocation: Location;
+    status: "pending" | "running" | "completed" | "failed";
+    startedAt: Date;
+    completedAt?: Date;
+    result?: unknown;
+}
+
+export interface JoinPoint {
+    id: string;
+    gatewayId: string;
+    requiredBranches: string[];
+    completedBranches: string[];
+    isReady: boolean;
+}
+
+export interface SubprocessContext {
+    id: string;
+    subprocessId: string;
+    parentLocation: Location;
+    variables: Record<string, unknown>;
+    startedAt: Date;
+    status: "running" | "completed" | "failed";
+}
+
+export interface EventSubprocess {
+    id: string;
+    subprocessId: string;
+    triggerEvent: string;
+    interrupting: boolean;
+    status: "monitoring" | "active" | "completed";
+    startedAt?: Date;
+}
+
+export interface MessageEvent {
+    id: string;
+    messageRef: string;
+    correlationKey: string;
+    expectedPayload?: Record<string, unknown>;
+    receivedAt?: Date;
+    payload?: Record<string, unknown>;
+}
+
+export interface WebhookEvent {
+    id: string;
+    webhookId: string;
+    url: string;
+    method: string;
+    payload: Record<string, unknown>;
+    receivedAt: Date;
+}
+
+export interface SignalEvent {
+    id: string;
+    signalRef: string;
+    scope: "global" | "process" | "local";
+    payload?: Record<string, unknown>;
+    propagatedAt: Date;
+}
+
+export interface InclusiveGatewayState {
+    id: string;
+    gatewayId: string;
+    evaluatedConditions: Array<{
+        conditionId: string;
+        expression: string;
+        result: boolean;
+        evaluatedAt: Date;
+    }>;
+    activatedPaths: string[];
+}
+
+export interface ComplexGatewayState {
+    id: string;
+    gatewayId: string;
+    customLogic: string;
+    state: Record<string, unknown>;
+    lastEvaluatedAt: Date;
+}
+
+/**
+ * Abstract location types for complex execution states
+ */
+export type LocationType = 
+    | "node"                    // Simple BPMN node
+    | "boundary_event_monitor"  // Monitoring a boundary event
+    | "parallel_branch"         // Executing in parallel branch
+    | "subprocess_context"      // Inside a subprocess
+    | "event_waiting"          // Waiting for intermediate event
+    | "gateway_evaluation"     // Evaluating gateway conditions
+    | "timer_waiting"          // Waiting for timer event
+    | "message_waiting"        // Waiting for message correlation
+    | "signal_waiting"         // Waiting for signal event
+    | "compensation_active"    // Compensation handler active
+    | "multi_instance_execution" // Executing multi-instance activity
+    | "multi_instance_waiting"   // Waiting for multi-instance completion
+    | "loop_execution";         // Executing loop iteration
+
+export interface AbstractLocation extends Location {
+    locationType: LocationType;
+    parentNodeId?: string;      // Original BPMN node this state derives from
+    branchId?: string;          // For parallel execution
+    subprocessId?: string;      // For subprocess execution
+    eventId?: string;           // For event-related states
+    metadata?: Record<string, unknown>; // Additional state-specific data
+}
+
+/**
+ * Context transformation utilities
+ */
+export interface ContextTransformer {
+    /**
+     * Convert basic context to enhanced context
+     */
+    enhance(basicContext: Record<string, unknown>): EnhancedExecutionContext;
+    
+    /**
+     * Extract basic context from enhanced context
+     */
+    simplify(enhancedContext: EnhancedExecutionContext): Record<string, unknown>;
+    
+    /**
+     * Merge contexts while preserving enhanced state
+     */
+    merge(base: EnhancedExecutionContext, updates: Partial<EnhancedExecutionContext>): EnhancedExecutionContext;
+    
+    /**
+     * Validate context structure and data
+     */
+    validate(context: EnhancedExecutionContext): boolean;
+    
+    /**
+     * Prune completed/expired state from context
+     */
+    prune(context: EnhancedExecutionContext): EnhancedExecutionContext;
+}
+
+/**
  * RunExecutionContext - Comprehensive execution state for Tier 2
  * 
  * This type represents the complete state of a routine execution,

@@ -823,7 +823,7 @@ describe("SwarmStateMachine", () => {
             });
             vi.mocked(mockContextManager.getContext).mockResolvedValueOnce(mockContext);
             
-            const result = await stateMachine.stop("graceful", "Test complete");
+            const result = await stateMachine.stop({ mode: "graceful", reason: "Test complete" });
             
             expect(result.success).toBe(true);
             expect(result.finalState).toMatchObject({
@@ -848,7 +848,7 @@ describe("SwarmStateMachine", () => {
         test("should stop forcefully", async () => {
             await stateMachine.start(createMockSwarmExecutionTask());
             
-            const result = await stateMachine.stop("force", "Emergency");
+            const result = await stateMachine.stop({ mode: "force", reason: "Emergency" });
             
             expect(result.success).toBe(true);
             expect(stateMachine.getState()).toBe(RunState.CANCELLED);
@@ -865,7 +865,7 @@ describe("SwarmStateMachine", () => {
             await stateMachine.start(createMockSwarmExecutionTask());
             
             const requestingUser = createMockUser({ id: "admin-user" });
-            const result = await stateMachine.stop("graceful", "Admin stopped", requestingUser);
+            const result = await stateMachine.stop({ mode: "graceful", reason: "Admin stopped", requestingUser });
             
             expect(result.success).toBe(true);
         });

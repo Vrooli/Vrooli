@@ -13,7 +13,8 @@
  * spawn_swarm to accomplish these tasks when they determine it's necessary.
  */
 
-import { ChatConfig, EventTypes, generatePK, RunState, toSwarmId, type BotParticipant, type ConversationContext, type ConversationTrigger, type RunEventData, type SessionUser, type SocketEventPayloads, type StateMachineState, type SwarmState, type SwarmSubTask } from "@vrooli/shared";
+import { ChatConfig, EventTypes, generatePK, RunState, toSwarmId, type BotParticipant, type ConversationContext, type ConversationTrigger, type RunEventData, type SessionUser, type SocketEventPayloads, type StateMachineState, type SwarmState, type SwarmSubTask, type TeamConfigObject } from "@vrooli/shared";
+import { DbProvider } from "../../../db/provider.js";
 import { logger } from "../../../events/logger.js";
 import type { SwarmExecutionTask } from "../../../tasks/taskTypes.js";
 import type { ConversationEngine } from "../../conversation/conversationEngine.js";
@@ -23,7 +24,6 @@ import { EventPublisher } from "../../events/publisher.js";
 import type { ServiceEvent } from "../../events/types.js";
 import type { CachedConversationStateStore } from "../../response/chatStore.js";
 import { BaseStateMachine } from "../shared/BaseStateMachine.js";
-import type { StopOptions, StopResult } from "../shared/stopTypes.js";
 import type { ISwarmContextManager } from "../shared/SwarmContextManager.js";
 
 /**
@@ -314,25 +314,6 @@ export class SwarmStateMachine extends BaseStateMachine<ServiceEvent> {
         await this.persistEventIfConfigured(event);
     }
 
-    /**
-     * Override stop to add requesting user parameter support
-     * Maintains compatibility with BaseStateMachine's overloaded signatures
-     */
-    async stop(
-        modeOrReasonOrOptions?: "graceful" | "force" | string | StopOptions,
-        reason?: string,
-        _requestingUser?: SessionUser,
-    ): Promise<StopResult> {
-        // If a SessionUser is provided as third parameter, incorporate it into options
-        if (_requestingUser && typeof modeOrReasonOrOptions === "string" && 
-            (modeOrReasonOrOptions === "graceful" || modeOrReasonOrOptions === "force")) {
-            // Called as stop(mode, reason, user)
-            return super.stop({ mode: modeOrReasonOrOptions, reason, requestingUser: _requestingUser });
-        }
-        
-        // Otherwise delegate normally to parent class
-        return super.stop(modeOrReasonOrOptions as any, reason);
-    }
 
     /**
      * Called when stopping - return final state data
@@ -468,7 +449,7 @@ export class SwarmStateMachine extends BaseStateMachine<ServiceEvent> {
         try {
             // Register with EventInterceptor for event handling
             this.eventInterceptor.registerBot(agent);
-            
+
             logger.info("[SwarmStateMachine] Registered agent with EventInterceptor", {
                 swarmId: this.swarmId,
                 agentId: agent.id,
@@ -510,7 +491,7 @@ export class SwarmStateMachine extends BaseStateMachine<ServiceEvent> {
         try {
             // Unregister from EventInterceptor
             this.eventInterceptor.unregisterBot(agentId);
-            
+
             logger.info("[SwarmStateMachine] Unregistered agent from EventInterceptor", {
                 swarmId: this.swarmId,
                 agentId,
@@ -629,6 +610,27 @@ export class SwarmStateMachine extends BaseStateMachine<ServiceEvent> {
             sharedState[item.id] = item.value;
         }
 
+        // Get team configuration if teamId is set
+        let teamConfig: TeamConfigObject | undefined;
+        if (context.chatConfig.teamId) {
+            // Load team configuration from database
+            // Note: This is a simplified approach. In production, you might want to cache this
+            try {
+                const team = await DbProvider.get().team.findUnique({
+                    where: { id: BigInt(context.chatConfig.teamId) },
+                    select: { config: true },
+                });
+                if (team?.config) {
+                    teamConfig = team.config as unknown as TeamConfigObject;
+                }
+            } catch (error) {
+                logger.warn("[SwarmStateMachine] Failed to load team config", {
+                    teamId: context.chatConfig.teamId,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        }
+
         return {
             swarmId: toSwarmId(this.swarmId),
             userData: this.initiatingUser,
@@ -636,7 +638,7 @@ export class SwarmStateMachine extends BaseStateMachine<ServiceEvent> {
             participants,
             conversationHistory: [],
             availableTools: [],
-            teamConfig: undefined,
+            teamConfig,
             sharedState,
         };
     }
@@ -1111,11 +1113,11 @@ export class SwarmStateMachine extends BaseStateMachine<ServiceEvent> {
 
             const chatConfig = new ChatConfig({ config: context.chatConfig });
             const eventConfig = chatConfig.eventConfig;
-            
+
             // Only persist if event type is in recorded list
             if (eventConfig?.recordedEventTypes.includes(event.type)) {
                 chatConfig.addSwarmEvent(event);
-                
+
                 // Update the context with the new chat config
                 await this.contextManager.updateContext(this.swarmId, {
                     chatConfig: chatConfig.export(),

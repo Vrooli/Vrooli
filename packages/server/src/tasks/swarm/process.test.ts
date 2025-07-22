@@ -62,7 +62,7 @@ describe("llmProcess", () => {
         }
     });
 
-    const createTestSwarmExecutionTask = (overrides: Partial<SwarmExecutionTask> = {}): SwarmExecutionTask => {
+    function createTestSwarmExecutionTask(overrides: Partial<SwarmExecutionTask> = {}): SwarmExecutionTask {
         const swarmId = generatePK().toString();
         const userId = generatePK().toString();
 
@@ -102,12 +102,21 @@ describe("llmProcess", () => {
             },
             ...overrides,
         };
-    };
+    }
 
-    const createTestLLMCompletionTask = (overrides: Partial<LLMCompletionTask> = {}): LLMCompletionTask => {
+    function createTestLLMCompletionTask(overrides: Partial<LLMCompletionTask> = {}): LLMCompletionTask {
         const chatId = generatePK().toString();
         const messageId = generatePK().toString();
         const userId = generatePK().toString();
+        const userData = overrides.userData || {
+            id: userId,
+            name: "testUser",
+            hasPremium: false,
+            languages: ["en"],
+            roles: [],
+            wallets: [],
+            theme: "light",
+        };
 
         return {
             taskType: QueueTaskType.LLM_COMPLETION,
@@ -116,25 +125,33 @@ describe("llmProcess", () => {
             messageId,
             model: "gpt-4",
             taskContexts: [],
-            userData: {
-                id: userId,
-                name: "testUser",
-                hasPremium: false,
-                languages: ["en"],
-                roles: [],
-                wallets: [],
-                theme: "light",
-            },
+            userData,
             respondingBot: {
                 id: generatePK().toString(),
                 publicId: "test-bot",
                 handle: "testbot",
             },
+            allocation: {
+                maxCredits: userData.hasPremium ? "200" : "100",
+                maxDurationMs: 60000,
+                maxMemoryMB: 256,
+                maxConcurrentSteps: 1,
+            },
+            options: {
+                priority: userData.hasPremium ? "high" : "medium",
+                timeout: 60000,
+                retryPolicy: {
+                    maxRetries: 3,
+                    backoffMs: 1000,
+                    backoffMultiplier: 2,
+                    maxBackoffMs: 30000,
+                },
+            },
             ...overrides,
         };
-    };
+    }
 
-    const createMockSwarmJob = (data: Partial<SwarmExecutionTask | LLMCompletionTask> = {}): Job<SwarmExecutionTask | LLMCompletionTask> => {
+    function createMockSwarmJob(data: Partial<SwarmExecutionTask | LLMCompletionTask> = {}): Job<SwarmExecutionTask | LLMCompletionTask> {
         const defaultData = data.type === QueueTaskType.LLM_COMPLETION
             ? createTestLLMCompletionTask(data as Partial<LLMCompletionTask>)
             : createTestSwarmExecutionTask(data as Partial<SwarmExecutionTask>);
@@ -146,7 +163,7 @@ describe("llmProcess", () => {
             attemptsMade: 0,
             opts: {},
         } as Job<SwarmExecutionTask | LLMCompletionTask>;
-    };
+    }
 
     describe("successful swarm execution", () => {
         it("should process swarm execution task", async () => {
@@ -379,16 +396,17 @@ describe("llmProcess", () => {
             expect(activeSwarms).toHaveLength(0);
         });
 
-        it("should handle LLM completion task (deprecated)", async () => {
+        it("should handle LLM completion task successfully", async () => {
             const llmTask = createTestLLMCompletionTask();
             const job = createMockSwarmJob(llmTask);
 
-            await expect(llmProcess(job)).rejects.toThrow("LLM completion through conversation service deprecated");
+            const result = await llmProcess(job);
 
-            // Verify no task was added to registry on error
-            const activeSwarms = activeSwarmRegistry.listActive();
-            expect(activeSwarms).toHaveLength(0);
+            expect(result).toBeDefined();
+            expect(result.success).toBe(true);
+            expect(result.messageId).toBeDefined();
         });
+        // AI_CHECK: COMPLETION_SERVICE_FIX=completionService-test-fix | LAST: 2025-07-09 - Updated test to expect success instead of deprecated error
 
         it("should handle swarm state machine failures", async () => {
             // Mock SwarmStateMachine to throw an error
