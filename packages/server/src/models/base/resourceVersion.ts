@@ -1,6 +1,7 @@
 import { type Prisma } from "@prisma/client";
 import { LATEST_CONFIG_VERSION, MaxObjects, ResourceVersionSortBy, generatePublicId, getTranslation, resourceVersionValidation } from "@vrooli/shared";
 import { noNull } from "../../builders/noNull.js";
+import { seedId } from "../../builders/seedIdHelper.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { EmbeddingService } from "../../services/embedding.js";
@@ -81,11 +82,12 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
                 const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });
                 return { ...maps, complexityMap };
             },
-            create: async ({ data, ...rest }) => {
+            create: async ({ adminFlags, data, ...rest }) => {
                 const preData = rest.preMap[__typename] as ResourceVersionPre;
+                const isSeeding = adminFlags?.isSeeding ?? false;
                 return {
-                    id: BigInt(data.id),
-                    publicId: rest.isSeeding ? (data.publicId ?? generatePublicId()) : generatePublicId(),
+                    id: seedId(data.id, isSeeding),
+                    publicId: isSeeding ? (data.publicId ?? generatePublicId()) : generatePublicId(),
                     complexity: preData.complexityMap[data.id] ?? 0,
                     config: (data.config ?? { __version: LATEST_CONFIG_VERSION }) as unknown as Prisma.InputJsonValue,
                     isAutomatable: noNull(data.isAutomatable),
@@ -94,7 +96,7 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
                     resourceSubType: data.resourceSubType,
                     versionLabel: data.versionLabel,
                     versionNotes: noNull(data.versionNotes),
-                    root: await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Resource", parentRelationshipName: "versions", data, ...rest }),
+                    root: await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Resource", parentRelationshipName: "versions", data, adminFlags, ...rest }),
                     relatedVersions: await shapeHelper({
                         relation: "relatedVersions",
                         relTypes: ["Create"],
@@ -110,12 +112,13 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
                             parentIdFieldName: "parentRoutineId",
                             parentId: data.id ?? null,
                         },
+                        adminFlags,
                         ...rest,
                     }),
-                    translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, adminFlags, ...rest }),
                 };
             },
-            update: async ({ data, ...rest }) => {
+            update: async ({ adminFlags, data, ...rest }) => {
                 const preData = rest.preMap[__typename] as ResourceVersionPre;
                 return {
                     complexity: preData.complexityMap[data.id] ?? 0,
@@ -125,7 +128,7 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
                     isComplete: noNull(data.isComplete),
                     versionLabel: noNull(data.versionLabel),
                     versionNotes: noNull(data.versionNotes),
-                    root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Resource", parentRelationshipName: "versions", data, ...rest }),
+                    root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Resource", parentRelationshipName: "versions", data, adminFlags, ...rest }),
                     //TODO
                     relatedVersions: await shapeHelper({
                         relation: "relatedVersions",
@@ -141,9 +144,10 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
                             parentIdFieldName: "parentRoutineId",
                             parentId: data.id ?? null,
                         },
+                        adminFlags,
                         ...rest,
                     }),
-                    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, adminFlags, ...rest }),
                 };
             },
         },

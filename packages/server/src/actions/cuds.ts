@@ -257,7 +257,7 @@ function groupTopLevelDataByType(inputData: CudInputData[]): TopLevelInputsByTyp
  * @param userData The session user data.
  * @param maps The maps containing grouped data.
  * @param additionalData Additional data to pass to the shape functions.
- * @param isSeeding Whether the operation is part of seeding.
+ * @param adminFlags Admin flags including isSeeding.
  * @returns An object containing the operations array and transaction data.
  */
 async function buildOperations(
@@ -267,7 +267,7 @@ async function buildOperations(
     userData: SessionUser,
     maps: CudDataMaps,
     additionalData: CudAdditionalData,
-    isSeeding: boolean,
+    adminFlags?: CudHelperParams["adminFlags"],
 ): Promise<CudTransactionData> {
     const operations: PrismaPromise<object>[] = [];
     const deletedIdsByType: { [key in ModelType]?: string[] } = {};
@@ -290,9 +290,9 @@ async function buildOperations(
             const data = mutate.shape.create
                 ? await mutate.shape.create({
                     additionalData,
+                    adminFlags,
                     data: input,
                     idsCreateToConnect: maps.idsCreateToConnect,
-                    isSeeding,
                     preMap: maps.preMap,
                     userData,
                 })
@@ -312,6 +312,7 @@ async function buildOperations(
             const data = mutate.shape.update
                 ? await mutate.shape.update({
                     additionalData,
+                    adminFlags,
                     data: input,
                     idsCreateToConnect: maps.idsCreateToConnect,
                     preMap: maps.preMap,
@@ -531,7 +532,7 @@ export async function cudHelper({
     const topInputsByType = groupTopLevelDataByType(inputData);
     Object.freeze(topInputsByType);
 
-    const transactionData = await buildOperations(topInputsByType, inputData, info, userData, maps, additionalData || {}, adminFlags?.isSeeding ?? false);
+    const transactionData = await buildOperations(topInputsByType, inputData, info, userData, maps, additionalData || {}, adminFlags);
     Object.freeze(transactionData);
 
     const transactionResult = await executeTransaction(transactionData.operations);

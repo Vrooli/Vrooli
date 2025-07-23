@@ -8,6 +8,7 @@ export * from "./isOfType.js";
 export * from "./noNull.js";
 export * from "./onlyValid.js";
 export * from "./permissionsSelectHelper.js";
+export * from "./seedIdHelper.js";
 export * from "./shapeHelper.js";
 export * from "./shapeRelationshipData.js";
 export * from "./timeFrame.js";

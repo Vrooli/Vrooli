@@ -71,7 +71,7 @@ export async function getAuthenticatedData(
         } catch (error) {
             // Log the where clause with proper BigInt handling
             const whereStr = JSON.stringify(where, (key, value) => 
-                typeof value === "bigint" ? value.toString() + "n" : value
+                typeof value === "bigint" ? value.toString() + "n" : value,
             );
             logger.error("getAuthenticatedData: findMany failed", { 
                 trace: "0453", 

@@ -1,5 +1,6 @@
 import { type DotNotation, type ModelType, type ObjectLimit, type SessionUser, type YupMutateParams } from "@vrooli/shared";
 import { type AnyObjectSchema } from "yup";
+import { type CudHelperParams } from "../actions/types.js";
 import { type PartialApiInfo } from "../builders/types.js";
 import { type PromiseOrValue } from "../types.js";
 import { type InputNode } from "../utils/inputNode.js";
@@ -10,6 +11,7 @@ import { type IdsCreateToConnect, type InputsById, type QueryAction } from "../u
 
 type ApiObject = Record<string, any>;
 type DbObject = Record<string, any>;
+type AdminFlags = CudHelperParams["adminFlags"];
 
 /** Types and flags for an object's business layer */
 export type ModelLogicType = {
@@ -525,18 +527,19 @@ export type Mutater<Model extends {
         }) => PromiseOrValue<(string | null)[]>,
         /** Shapes data for create mutations */
         create?: Model["ApiCreate"] extends ApiObject ?
-        Model["DbCreate"] extends DbObject ? ({ additionalData, data, idsCreateToConnect, preMap, userData }: {
+        Model["DbCreate"] extends DbObject ? ({ additionalData, adminFlags, data, idsCreateToConnect, preMap, userData }: {
             additionalData: Record<string, any>,
+            adminFlags?: AdminFlags,
             data: Model["ApiCreate"],
             idsCreateToConnect: IdsCreateToConnect,
-            isSeeding: boolean,
             preMap: PreMap;
             userData: SessionUser,
         }) => PromiseOrValue<Model["DbCreate"]> : never : never,
         /** Shapes data for update mutations */
         update?: Model["ApiUpdate"] extends ApiObject ?
-        Model["DbUpdate"] extends DbObject ? ({ additionalData, data, idsCreateToConnect, preMap, userData }: {
+        Model["DbUpdate"] extends DbObject ? ({ additionalData, adminFlags, data, idsCreateToConnect, preMap, userData }: {
             additionalData: Record<string, any>,
+            adminFlags?: AdminFlags,
             data: Model["ApiUpdate"],
             idsCreateToConnect: IdsCreateToConnect,
             preMap: PreMap,

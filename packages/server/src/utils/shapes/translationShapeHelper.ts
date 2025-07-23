@@ -1,4 +1,5 @@
 import { type ModelType } from "@vrooli/shared";
+import { seedId } from "../../builders/seedIdHelper.js";
 import { shapeHelper, type ShapeHelperOutput, type ShapeHelperProps } from "../../builders/shapeHelper.js";
 import { type RelationshipType } from "../../builders/types.js";
 import { type EmbeddingLanguageUpdateMap } from "./preShapeEmbeddableTranslatable.js";
@@ -20,17 +21,18 @@ export async function translationShapeHelper<
     ...rest
 }: TranslationShapeHelperProps<Types>):
     Promise<ShapeHelperOutput<false, "id">> {
+    const isSeeding = rest.adminFlags?.isSeeding ?? false;
     return shapeHelper({
         data: {
             translationsCreate: data.translationsCreate?.map(({ language, ...rest }) => ({
                 ...rest,
-                id: BigInt(rest.id),
+                id: seedId(rest.id, isSeeding),
                 language,
                 embeddingExpiredAt: embeddingNeedsUpdate[language] === true ? new Date() : undefined,
             })),
             translationsUpdate: data.translationsUpdate?.map(({ language, ...rest }) => ({
                 ...rest,
-                id: BigInt(rest.id),
+                id: seedId(rest.id, isSeeding),
                 language,
                 embeddingExpiredAt: embeddingNeedsUpdate[language] === true ? new Date() : undefined,
             })),

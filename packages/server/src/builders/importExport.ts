@@ -305,6 +305,31 @@ export class ResourceImportExport extends AbstractImportExport<ResourceImportDat
     public async importUpdate(existing: Resource, data: ResourceImportData, config: ImportConfig): Promise<Resource> {
         const info = await this.getInfoUpdate();
         const resourceShape = this.shapeData(data, config);
+        
+        // During seeding, we need to match existing versions by versionIndex to avoid unique constraint violations
+        if (config.isSeeding && existing.versions && resourceShape.versions) {
+            // Create a map of existing versions by versionIndex
+            const existingVersionsMap = new Map(
+                existing.versions.map(v => [(v as any).versionIndex ?? 0, v])
+            );
+            
+            // Update the shape versions to include IDs of existing versions
+            resourceShape.versions = resourceShape.versions.map(shapeVersion => {
+                // Since ResourceVersionShape doesn't include versionIndex, we need to access it from the raw data
+                const versionIndex = (shapeVersion as any).versionIndex ?? 0;
+                // Find matching existing version by versionIndex
+                const existingVersion = existingVersionsMap.get(versionIndex);
+                if (existingVersion) {
+                    // Include the existing version's ID to trigger an update instead of create
+                    return {
+                        ...shapeVersion,
+                        id: existingVersion.id,
+                    };
+                }
+                return shapeVersion;
+            });
+        }
+        
         const input = shapeResource.update({ ...existing, owner: existing.owner ?? null }, resourceShape);
         const req = this.buildRequest(config);
         const adminFlags = config.isSeeding ? { isSeeding: true } : undefined;

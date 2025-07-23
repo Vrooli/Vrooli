@@ -1,4 +1,5 @@
 import { type ModelType, type SessionUser, generatePK, lowercaseFirstLetter, validatePK } from "@vrooli/shared";
+import { seedId } from "./seedIdHelper.js";
 import { type CudHelperParams } from "../actions/types.js";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
@@ -128,7 +129,12 @@ export async function shapeHelper<
     const logic = ModelMap.getLogic(["idField"], objectType, false);
     const idField = logic?.idField ?? "id";
     function shapeId(field: string, id: string) {
-        if (field === "id" && validatePK(id)) return BigInt(id);
+        if (field === "id") {
+            // During seeding, use seedId helper to handle nanoid placeholders
+            if (isSeeding) return seedId(id, true);
+            // Otherwise, validate and convert normally
+            if (validatePK(id)) return BigInt(id);
+        }
         return id;
     }
     // Now we can further shape the result
@@ -182,7 +188,7 @@ export async function shapeHelper<
     if (mutate?.shape.create && Array.isArray(result.create) && result.create.length > 0) {
         const shaped: { [x: string]: any }[] = [];
         for (const create of result.create) {
-            const created = await mutate.shape.create({ additionalData, data: create, idsCreateToConnect, isSeeding, preMap, userData });
+            const created = await mutate.shape.create({ additionalData, adminFlags, data: create, idsCreateToConnect, preMap, userData });
             // Exclude parent relationship to prevent circular references
             const { [parentRelationshipName]: _, ...rest } = created;
             shaped.push(rest);
@@ -192,7 +198,7 @@ export async function shapeHelper<
     if (mutate?.shape.update && Array.isArray(result.update) && result.update.length > 0) {
         const shaped: { [x: string]: any }[] = [];
         for (const update of result.update) {
-            const updated = await mutate.shape.update({ additionalData, data: update.data, idsCreateToConnect, preMap, userData });
+            const updated = await mutate.shape.update({ additionalData, adminFlags, data: update.data, idsCreateToConnect, preMap, userData });
             // Exclude parent relationship to prevent circular references
             const { [parentRelationshipName]: _, ...rest } = updated;
             shaped.push({ where: update.where, data: rest });

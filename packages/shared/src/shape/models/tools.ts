@@ -275,8 +275,34 @@ export function updateVersion<
     const originalVersions = originalRoot.versions ?? [];
     // Find every version in the updated root that is not in the original root (using the version's id)
     const newVersions = updatedRoot.versions.filter((v) => !originalVersions.find((ov) => ov.id === v.id));
+    // Helper function to compare objects with BigInt support
+    const objectsEqual = (a: any, b: any): boolean => {
+        if (a === b) return true;
+        if (!a || !b) return false;
+        if (typeof a !== 'object' || typeof b !== 'object') return false;
+        
+        const keysA = Object.keys(a);
+        const keysB = Object.keys(b);
+        if (keysA.length !== keysB.length) return false;
+        
+        for (const key of keysA) {
+            if (!keysB.includes(key)) return false;
+            const valA = a[key];
+            const valB = b[key];
+            
+            if (typeof valA === 'bigint' && typeof valB === 'bigint') {
+                if (valA !== valB) return false;
+            } else if (typeof valA === 'object' && typeof valB === 'object') {
+                if (!objectsEqual(valA, valB)) return false;
+            } else if (valA !== valB) {
+                return false;
+            }
+        }
+        return true;
+    };
+    
     // Versions in the originalRoot and the updatedRoot, which are different from each other, are updates
-    const updatedVersions = updatedRoot.versions.filter((v) => originalVersions.some((ov) => ov.id === v.id && JSON.stringify(ov) !== JSON.stringify(v)));
+    const updatedVersions = updatedRoot.versions.filter((v) => originalVersions.some((ov) => ov.id === v.id && !objectsEqual(ov, v)));
     // Shape and return version data
     const result: { versionsCreate?: VersionCreateInput[], versionsUpdate?: VersionUpdateInput[] } = {};
     if (newVersions.length > 0) {

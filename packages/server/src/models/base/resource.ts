@@ -1,5 +1,6 @@
 import { DEFAULT_LANGUAGE, generatePublicId, getTranslation, MaxObjects, ResourceSortBy, resourceValidation, type ResourceVersion } from "@vrooli/shared";
 import { noNull } from "../../builders/noNull.js";
+import { seedId } from "../../builders/seedIdHelper.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { getLabels } from "../../getters/getLabels.js";
@@ -75,11 +76,12 @@ export const ResourceModel: ResourceModelLogic = ({
                 const maps = await preShapeRoot({ ...params, objectType: __typename });
                 return { ...maps };
             },
-            create: async ({ data, ...rest }) => {
+            create: async ({ adminFlags, data, ...rest }) => {
                 const preData = rest.preMap[__typename] as ResourcePre;
+                const isSeeding = adminFlags?.isSeeding ?? false;
                 return {
-                    id: BigInt(data.id),
-                    publicId: rest.isSeeding ? (data.publicId ?? generatePublicId()) : generatePublicId(),
+                    id: seedId(data.id, isSeeding),
+                    publicId: isSeeding ? (data.publicId ?? generatePublicId()) : generatePublicId(),
                     isInternal: noNull(data.isInternal),
                     isPrivate: data.isPrivate,
                     permissions: noNull(data.permissions) ?? JSON.stringify({}),
@@ -87,12 +89,12 @@ export const ResourceModel: ResourceModelLogic = ({
                     resourceType: data.resourceType,
                     ...preData.versionMap[data.id],
                     ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "resources", isCreate: true, objectType: __typename, data, ...rest })),
-                    parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "ResourceVersion", parentRelationshipName: "forks", data, ...rest }),
-                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "ResourceVersion", parentRelationshipName: "root", data, ...rest }),
+                    parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "ResourceVersion", parentRelationshipName: "forks", data, adminFlags, ...rest }),
+                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "ResourceVersion", parentRelationshipName: "root", data, adminFlags, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Resource", data, ...rest }),
                 };
             },
-            update: async ({ data, ...rest }) => {
+            update: async ({ adminFlags, data, ...rest }) => {
                 const preData = rest.preMap[__typename] as ResourcePre;
                 return {
                     isInternal: noNull(data.isInternal),
@@ -100,7 +102,7 @@ export const ResourceModel: ResourceModelLogic = ({
                     permissions: noNull(data.permissions),
                     ...preData.versionMap[data.id],
                     ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "resources", isCreate: false, objectType: __typename, data, ...rest })),
-                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ResourceVersion", parentRelationshipName: "root", data, ...rest }),
+                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ResourceVersion", parentRelationshipName: "root", data, adminFlags, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Resource", data, ...rest }),
                 };
             },
