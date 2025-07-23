@@ -1,6 +1,6 @@
 import { EventEmitter } from "events";
 import { logger } from "../../events/logger.js";
-import type { ILocalResource, ResourceInfo, ResourceEventData } from "./types.js";
+import type { IResource, ResourceInfo, ResourceEventData } from "./types.js";
 import { ResourceEvent , ResourceCategory, DiscoveryStatus} from "./types.js";
 import type { ResourcesConfig } from "./resourcesConfig.js";
 import { loadResourcesConfig } from "./resourcesConfig.js";
@@ -11,17 +11,17 @@ import { buildHealthCheck } from "./healthCheck.js";
 const DEFAULT_DISCOVERY_INTERVAL_MS = 3600000; // 1 hour
 
 /**
- * Registry for all local resources
+ * Registry for all resources (local and cloud)
  * Manages registration, discovery, and lifecycle of resources
  */
-export class LocalResourceRegistry extends EventEmitter {
-    private static instance: LocalResourceRegistry;
+export class ResourceRegistry extends EventEmitter {
+    private static instance: ResourceRegistry;
     
     /** Map of resource ID to resource instance */
-    private resources = new Map<string, ILocalResource>();
+    private resources = new Map<string, IResource>();
     
     /** Map of resource ID to resource class constructor */
-    private resourceClasses = new Map<string, new () => ILocalResource>();
+    private resourceClasses = new Map<string, new () => IResource>();
     
     /** Current configuration */
     private config?: ResourcesConfig;
@@ -39,32 +39,32 @@ export class LocalResourceRegistry extends EventEmitter {
     /**
      * Get singleton instance
      */
-    static getInstance(): LocalResourceRegistry {
-        if (!LocalResourceRegistry.instance) {
-            LocalResourceRegistry.instance = new LocalResourceRegistry();
+    static getInstance(): ResourceRegistry {
+        if (!ResourceRegistry.instance) {
+            ResourceRegistry.instance = new ResourceRegistry();
         }
-        return LocalResourceRegistry.instance;
+        return ResourceRegistry.instance;
     }
     
     /**
      * Register a resource class
      * This is called by resource implementations at module load time
      */
-    registerResourceClass(ResourceClass: new () => ILocalResource): void {
+    registerResourceClass(ResourceClass: new () => IResource): void {
         const instance = new ResourceClass();
         const id = instance.id;
         
         if (this.resourceClasses.has(id)) {
-            logger.warn(`[LocalResourceRegistry] Resource ${id} already registered, overwriting`);
+            logger.warn(`[ResourceRegistry] Resource ${id} already registered, overwriting`);
         }
         
         this.resourceClasses.set(id, ResourceClass);
-        logger.info(`[LocalResourceRegistry] Registered resource class: ${id}`);
+        logger.info(`[ResourceRegistry] Registered resource class: ${id}`);
         
         // If already initialized, instantiate this resource
         if (this.initialized && this.config?.enabled) {
             this.instantiateResource(id).catch(error => {
-                logger.error(`[LocalResourceRegistry] Failed to instantiate ${id}`, error);
+                logger.error(`[ResourceRegistry] Failed to instantiate ${id}`, error);
             });
         }
     }
@@ -74,7 +74,7 @@ export class LocalResourceRegistry extends EventEmitter {
      */
     async initialize(configPath?: string): Promise<void> {
         if (this.initialized) {
-            logger.warn("[LocalResourceRegistry] Already initialized");
+            logger.warn("[ResourceRegistry] Already initialized");
             return;
         }
         
@@ -83,7 +83,7 @@ export class LocalResourceRegistry extends EventEmitter {
             this.config = await loadResourcesConfig(configPath);
             
             if (!this.config.enabled) {
-                logger.info("[LocalResourceRegistry] Local resources disabled in configuration");
+                logger.info("[ResourceRegistry] Resources disabled in configuration");
                 this.initialized = true;
                 return;
             }
@@ -97,9 +97,9 @@ export class LocalResourceRegistry extends EventEmitter {
             }
             
             this.initialized = true;
-            logger.info("[LocalResourceRegistry] Initialized successfully");
+            logger.info("[ResourceRegistry] Initialized successfully");
         } catch (error) {
-            logger.error("[LocalResourceRegistry] Failed to initialize", error);
+            logger.error("[ResourceRegistry] Failed to initialize", error);
             throw error;
         }
     }
@@ -123,7 +123,7 @@ export class LocalResourceRegistry extends EventEmitter {
     private async instantiateResource(id: string): Promise<void> {
         const ResourceClass = this.resourceClasses.get(id);
         if (!ResourceClass) {
-            logger.warn(`[LocalResourceRegistry] No class registered for resource ${id}`);
+            logger.warn(`[ResourceRegistry] No class registered for resource ${id}`);
             return;
         }
         
@@ -144,12 +144,12 @@ export class LocalResourceRegistry extends EventEmitter {
                     this.emit(ResourceEvent.HealthChanged, data);
                 });
             } else {
-                logger.warn(`[LocalResourceRegistry] Resource ${id} does not extend EventEmitter`);
+                logger.warn(`[ResourceRegistry] Resource ${id} does not extend EventEmitter`);
             }
             
             // Get configuration for this resource
             const category = resource.category;
-            const serviceConfig = this.config?.localServices?.[category]?.[id];
+            const serviceConfig = this.config?.services?.[category]?.[id];
             
             if (serviceConfig?.enabled) {
                 await resource.initialize({
@@ -157,10 +157,10 @@ export class LocalResourceRegistry extends EventEmitter {
                     globalConfig: this.config as ResourcesConfig,
                 });
             } else {
-                logger.debug(`[LocalResourceRegistry] Resource ${id} not enabled in configuration`);
+                logger.debug(`[ResourceRegistry] Resource ${id} not enabled in configuration`);
             }
         } catch (error) {
-            logger.error(`[LocalResourceRegistry] Failed to instantiate resource ${id}`, error);
+            logger.error(`[ResourceRegistry] Failed to instantiate resource ${id}`, error);
         }
     }
     
@@ -176,24 +176,24 @@ export class LocalResourceRegistry extends EventEmitter {
         
         // Perform initial discovery
         this.performDiscovery().catch(error => {
-            logger.error("[LocalResourceRegistry] Initial discovery failed", error);
+            logger.error("[ResourceRegistry] Initial discovery failed", error);
         });
         
         // Start periodic discovery
         this.discoveryInterval = setInterval(() => {
             this.performDiscovery().catch(error => {
-                logger.error("[LocalResourceRegistry] Periodic discovery failed", error);
+                logger.error("[ResourceRegistry] Periodic discovery failed", error);
             });
         }, intervalMs);
         
-        logger.info(`[LocalResourceRegistry] Started discovery with interval ${intervalMs}ms`);
+        logger.info(`[ResourceRegistry] Started discovery with interval ${intervalMs}ms`);
     }
     
     /**
      * Perform discovery for all resources
      */
     private async performDiscovery(): Promise<void> {
-        logger.debug("[LocalResourceRegistry] Starting discovery scan");
+        logger.debug("[ResourceRegistry] Starting discovery scan");
         
         const promises: Promise<void>[] = [];
         
@@ -202,44 +202,44 @@ export class LocalResourceRegistry extends EventEmitter {
                 resource.discover()
                     .then(found => {
                         if (found) {
-                            logger.info(`[LocalResourceRegistry] Discovered resource: ${id}`);
+                            logger.info(`[ResourceRegistry] Discovered resource: ${id}`);
                         }
                     })
                     .catch(error => {
-                        logger.error(`[LocalResourceRegistry] Discovery failed for ${id}`, error);
+                        logger.error(`[ResourceRegistry] Discovery failed for ${id}`, error);
                     }),
             );
         }
         
         await Promise.allSettled(promises);
-        logger.debug("[LocalResourceRegistry] Discovery scan complete");
+        logger.debug("[ResourceRegistry] Discovery scan complete");
     }
     
     /**
      * Get a specific resource by ID
      */
-    getResource<T extends ILocalResource = ILocalResource>(id: string): T | undefined {
+    getResource<T extends IResource = IResource>(id: string): T | undefined {
         return this.resources.get(id) as T | undefined;
     }
     
     /**
      * Get all resources
      */
-    getAllResources(): ILocalResource[] {
+    getAllResources(): IResource[] {
         return Array.from(this.resources.values());
     }
     
     /**
      * Get resources by category
      */
-    getResourcesByCategory(category: ResourceCategory): ILocalResource[] {
+    getResourcesByCategory(category: ResourceCategory): IResource[] {
         return this.getAllResources().filter(r => r.category === category);
     }
     
     /**
      * Get resources by status
      */
-    getResourcesByStatus(status: DiscoveryStatus): ILocalResource[] {
+    getResourcesByStatus(status: DiscoveryStatus): IResource[] {
         return this.getAllResources().filter(r => r.getInfo().status === status);
     }
     
@@ -289,9 +289,9 @@ export class LocalResourceRegistry extends EventEmitter {
         
         // Determine which resources are enabled in config
         const enabledResourceIds = new Set<string>();
-        if (this.config?.localServices) {
+        if (this.config?.services) {
             for (const category of Object.values(ResourceCategory)) {
-                const categoryServices = this.config.localServices[category];
+                const categoryServices = this.config.services[category];
                 if (categoryServices) {
                     for (const [id, serviceConfig] of Object.entries(categoryServices)) {
                         if ((serviceConfig as any)?.enabled) {
@@ -310,7 +310,7 @@ export class LocalResourceRegistry extends EventEmitter {
      * Shutdown the registry and all resources
      */
     async shutdown(): Promise<void> {
-        logger.info("[LocalResourceRegistry] Shutting down");
+        logger.info("[ResourceRegistry] Shutting down");
         
         // Stop discovery
         if (this.discoveryInterval) {
@@ -333,7 +333,7 @@ export class LocalResourceRegistry extends EventEmitter {
         // Remove all event listeners
         this.removeAllListeners();
         
-        logger.info("[LocalResourceRegistry] Shutdown complete");
+        logger.info("[ResourceRegistry] Shutdown complete");
     }
 }
 
@@ -341,7 +341,7 @@ export class LocalResourceRegistry extends EventEmitter {
  * Decorator to auto-register resource classes
  * Usage: @RegisterResource
  */
-export function RegisterResource(target: new () => ILocalResource): void {
-    LocalResourceRegistry.getInstance().registerResourceClass(target);
+export function RegisterResource(target: new () => IResource): void {
+    ResourceRegistry.getInstance().registerResourceClass(target);
 }
 

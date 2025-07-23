@@ -22,7 +22,7 @@ Resources are configured via `.vrooli/resources.local.json`:
 ```json
 {
   "enabled": true,
-  "localServices": {
+  "services": {
     "ai": {
       "ollama": {
         "enabled": true,

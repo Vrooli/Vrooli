@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 import { logger } from "../../events/logger.js";
 import type { 
-    ILocalResource, 
+    IResource, 
     ResourceInfo, 
     ResourceCategory,
     HealthCheckResult,
@@ -10,18 +10,19 @@ import type {
 } from "./types.js";
 import { ResourceEvent , 
     ResourceHealth, 
-    DiscoveryStatus} from "./types.js";
+    DiscoveryStatus,
+    type DeploymentType} from "./types.js";
 
 // Constants
 const DEFAULT_FETCH_TIMEOUT_MS = 5000;
 
 /**
- * Abstract base class for all local resource providers
+ * Abstract base class for all resource providers
  * Handles common functionality like health checks, discovery, and lifecycle
  */
-export abstract class LocalResourceProvider<TConfig extends BaseResourceConfig = BaseResourceConfig> 
+export abstract class ResourceProvider<TConfig extends BaseResourceConfig = BaseResourceConfig> 
     extends EventEmitter 
-    implements ILocalResource {
+    implements IResource {
     
     protected config?: TConfig;
     protected _health: ResourceHealth = ResourceHealth.Unknown;
@@ -40,6 +41,7 @@ export abstract class LocalResourceProvider<TConfig extends BaseResourceConfig =
     abstract readonly displayName: string;
     abstract readonly description: string;
     abstract readonly isSupported: boolean;
+    abstract readonly deploymentType: DeploymentType;
     
     // Abstract methods that must be implemented
     protected abstract performHealthCheck(): Promise<HealthCheckResult>;
@@ -94,12 +96,13 @@ export abstract class LocalResourceProvider<TConfig extends BaseResourceConfig =
             return false;
         }
         
+        const previousStatus = this._status;
         this._status = DiscoveryStatus.Discovering;
         
         try {
             const found = await this.performDiscovery();
             
-            const wasAvailable = this._status === DiscoveryStatus.Available;
+            const wasAvailable = previousStatus === DiscoveryStatus.Available;
             this._status = found ? DiscoveryStatus.Available : DiscoveryStatus.NotFound;
             
             // Emit events based on status change

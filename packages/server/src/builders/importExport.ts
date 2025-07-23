@@ -310,7 +310,7 @@ export class ResourceImportExport extends AbstractImportExport<ResourceImportDat
         if (config.isSeeding && existing.versions && resourceShape.versions) {
             // Create a map of existing versions by versionIndex
             const existingVersionsMap = new Map(
-                existing.versions.map(v => [(v as any).versionIndex ?? 0, v])
+                existing.versions.map(v => [(v as any).versionIndex ?? 0, v]),
             );
             
             // Update the shape versions to include IDs of existing versions

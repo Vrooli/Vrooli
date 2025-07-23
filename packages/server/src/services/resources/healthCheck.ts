@@ -6,7 +6,7 @@ import {
 } from "./constants.js";
 
 /**
- * Health status for the local resources system
+ * Health status for the resources system
  */
 export enum ResourceSystemHealth {
     /** All enabled services are available */
@@ -89,7 +89,7 @@ export function calculateSystemHealth(
     if (enabledCount === 0) {
         return {
             status: ResourceSystemHealth.Operational,
-            message: "No local services enabled",
+            message: "No services enabled",
         };
     }
     

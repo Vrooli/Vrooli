@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { logger } from "../../events/logger.js";
 
@@ -8,7 +8,7 @@ import { logger } from "../../events/logger.js";
 export interface ResourcesConfig {
     version: string;
     enabled: boolean;
-    localServices?: {
+    services?: {
         ai?: Record<string, any>;
         automation?: Record<string, any>;
         agents?: Record<string, any>;
@@ -69,7 +69,7 @@ export interface ResourcesConfig {
 const DEFAULT_CONFIG: ResourcesConfig = {
     version: "1.0.0",
     enabled: false,
-    localServices: {
+    services: {
         ai: {},
         automation: {},
         agents: {},
@@ -115,30 +115,30 @@ const DEFAULT_CONFIG: ResourcesConfig = {
 export async function loadResourcesConfig(customPath?: string): Promise<ResourcesConfig> {
     const projectRoot = process.cwd();
     const vrooliDir = resolve(projectRoot, ".vrooli");
-    
+
     // Configuration file paths in order of precedence
     const configPaths = [
         customPath,
         resolve(vrooliDir, "resources.local.json"),
         resolve(vrooliDir, "resources.json"),
     ].filter(Boolean) as string[];
-    
+
     let config: ResourcesConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
     let configLoaded = false;
-    
+
     // Try to load configuration files
     for (const configPath of configPaths) {
         if (existsSync(configPath)) {
             try {
                 const fileContent = readFileSync(configPath, "utf8");
                 const fileConfig = JSON.parse(fileContent);
-                
+
                 // Merge with existing config (later files override earlier ones)
                 config = mergeConfigs(config, fileConfig);
                 configLoaded = true;
-                
+
                 logger.info(`[ResourcesConfig] Loaded configuration from: ${configPath}`);
-                
+
                 // If we loaded a local config, stop here (highest precedence)
                 if (configPath.endsWith("resources.local.json")) {
                     break;
@@ -148,17 +148,17 @@ export async function loadResourcesConfig(customPath?: string): Promise<Resource
             }
         }
     }
-    
+
     if (!configLoaded) {
         logger.info("[ResourcesConfig] No configuration files found, using defaults");
     }
-    
+
     // Apply environment variable substitutions
     config = substituteEnvironmentVariables(config);
-    
+
     // Validate configuration
     validateConfig(config);
-    
+
     return config;
 }
 
@@ -167,23 +167,23 @@ export async function loadResourcesConfig(customPath?: string): Promise<Resource
  */
 function mergeConfigs(base: any, override: any): any {
     const result = { ...base };
-    
+
     for (const key in override) {
         if (override[key] === null || override[key] === undefined) {
             continue;
         }
-        
+
         if (key === "_documentation") {
             continue; // Skip documentation fields
         }
-        
+
         if (typeof override[key] === "object" && !Array.isArray(override[key])) {
             result[key] = mergeConfigs(result[key] || {}, override[key]);
         } else {
             result[key] = override[key];
         }
     }
-    
+
     return result;
 }
 
@@ -205,11 +205,11 @@ function substituteEnvironmentVariables(config: any): any {
         }
         return config;
     }
-    
+
     if (Array.isArray(config)) {
         return config.map(item => substituteEnvironmentVariables(item));
     }
-    
+
     if (typeof config === "object" && config !== null) {
         const result: any = {};
         for (const key in config) {
@@ -217,7 +217,7 @@ function substituteEnvironmentVariables(config: any): any {
         }
         return result;
     }
-    
+
     return config;
 }
 
@@ -229,17 +229,17 @@ function validateConfig(config: ResourcesConfig): void {
     if (!config.version.match(/^\d+\.\d+\.\d+$/)) {
         throw new Error(`Invalid version format: ${config.version}`);
     }
-    
+
     // Validate discovery settings
     if (config.discovery?.enabled && !config.discovery.strategy) {
         throw new Error("Discovery enabled but no strategy specified");
     }
-    
+
     // Validate security settings
     if (config.security?.network?.allowedHosts && config.security.network.allowedHosts.length === 0) {
         logger.warn("[ResourcesConfig] No allowed hosts specified, this may block all connections");
     }
-    
+
     // Validate rate limiting
     if (config.security?.rateLimit?.enabled) {
         if (!config.security.rateLimit.requestsPerMinute || config.security.rateLimit.requestsPerMinute < 1) {
@@ -253,10 +253,10 @@ function validateConfig(config: ResourcesConfig): void {
  */
 export function getServiceConfig(
     config: ResourcesConfig,
-    category: keyof NonNullable<ResourcesConfig["localServices"]>,
+    category: keyof NonNullable<ResourcesConfig["services"]>,
     serviceId: string,
 ): any | undefined {
-    return config.localServices?.[category]?.[serviceId];
+    return config.services?.[category]?.[serviceId];
 }
 
 /**
@@ -265,11 +265,11 @@ export function getServiceConfig(
 export function isHostAllowed(config: ResourcesConfig, host: string): boolean {
     const allowedHosts = config.security?.network?.allowedHosts || ["localhost", "127.0.0.1"];
     const allowCustom = config.security?.network?.allowCustomHosts || false;
-    
+
     if (allowCustom) {
         return true;
     }
-    
+
     return allowedHosts.includes(host);
 }
 

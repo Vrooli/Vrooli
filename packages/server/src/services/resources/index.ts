@@ -1,23 +1,24 @@
 /**
- * Local Resources System
+ * Resources System
  * 
- * This system allows Vrooli to discover and interact with locally running services
- * such as AI models (Ollama), automation platforms (n8n), browser agents (Puppeteer),
+ * This system allows Vrooli to discover and interact with both local and cloud services
+ * such as AI models (Ollama, OpenRouter), automation platforms (n8n), browser agents (Puppeteer),
  * and storage services (MinIO).
  * 
  * ## Usage:
  * 
  * ### 1. Creating a new resource provider:
  * ```typescript
- * import { LocalResourceProvider, RegisterResource, ResourceCategory } from '@services/resources';
+ * import { ResourceProvider, RegisterResource, ResourceCategory, DeploymentType } from '@services/resources';
  * 
  * @RegisterResource
- * export class OllamaResource extends LocalResourceProvider<OllamaConfig> {
+ * export class OllamaResource extends ResourceProvider<OllamaConfig> {
  *     readonly id = 'ollama';
  *     readonly category = ResourceCategory.AI;
  *     readonly displayName = 'Ollama';
  *     readonly description = 'Local LLM inference engine';
  *     readonly isSupported = true;
+ *     readonly deploymentType = DeploymentType.Local;
  *     
  *     protected async performDiscovery(): Promise<boolean> {
  *         // Check if Ollama is running
@@ -43,10 +44,10 @@
  * 
  * ### 2. Using the registry:
  * ```typescript
- * import { LocalResourceRegistry } from '@services/resources';
+ * import { ResourceRegistry } from '@services/resources';
  * 
  * // Initialize the registry (usually done at server startup)
- * const registry = LocalResourceRegistry.getInstance();
+ * const registry = ResourceRegistry.getInstance();
  * await registry.initialize();
  * 
  * // Check if a resource is available
@@ -68,7 +69,7 @@
  * ```json
  * {
  *   "enabled": true,
- *   "localServices": {
+ *   "services": {
  *     "ai": {
  *       "ollama": {
  *         "enabled": true,
@@ -80,18 +81,18 @@
  * ```
  */
 
-export * from "./types.js";
-export * from "./LocalResourceProvider.js";
-export * from "./LocalResourceRegistry.js";
-export * from "./resourcesConfig.js";
-export * from "./healthCheck.js";
 export * from "./constants.js";
+export * from "./healthCheck.js";
+export * from "./ResourceProvider.js";
+export * from "./ResourceRegistry.js";
+export * from "./resourcesConfig.js";
+export * from "./types.js";
 
 // Example of how AI services will integrate with the existing system
 export interface AIResourceAdapter {
     /**
-     * Convert LocalResourceProvider to AIService interface
-     * This allows local resources to be used wherever AIService is expected
+     * Convert ResourceProvider to AIService interface
+     * This allows resources to be used wherever AIService is expected
      */
     toAIService(): any; // Would return AIService instance
 }
@@ -102,7 +103,7 @@ export interface AutomationResourceAdapter {
      * Execute a Vrooli routine using external automation service
      */
     executeRoutine(routineId: string, inputs: Record<string, any>): Promise<any>;
-    
+
     /**
      * Convert Vrooli routine to external format (e.g., n8n workflow)
      */
@@ -115,7 +116,7 @@ export interface AgentResourceAdapter {
      * Create a tool definition for AI tiers to use this agent
      */
     toToolDefinition(): any; // Would return Tool interface
-    
+
     /**
      * Execute agent action
      */
@@ -128,12 +129,12 @@ export interface StorageResourceAdapter {
      * Upload file to storage service
      */
     uploadFile(bucket: string, key: string, data: Buffer): Promise<string>;
-    
+
     /**
      * Download file from storage service
      */
     downloadFile(bucket: string, key: string): Promise<Buffer>;
-    
+
     /**
      * Generate presigned URL for direct access
      */

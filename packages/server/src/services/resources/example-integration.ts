@@ -1,10 +1,10 @@
 /**
- * Example integration of Local Resources health check with a server health endpoint
- * This demonstrates how to use the LocalResourceRegistry in your application
+ * Example integration of Resources health check with a server health endpoint
+ * This demonstrates how to use the ResourceRegistry in your application
  */
 
 import type { Request, Response } from "express";
-import { LocalResourceRegistry, ResourceSystemHealth } from "./index.js";
+import { ResourceRegistry, ResourceSystemHealth } from "./index.js";
 
 // HTTP Status codes
 const HTTP_OK = 200;
@@ -16,9 +16,9 @@ const HTTP_SERVICE_UNAVAILABLE = 503;
  * Example health check endpoint handler
  * Add this to your Express routes
  */
-export async function localResourcesHealthCheck(req: Request, res: Response): Promise<void> {
+export async function resourcesHealthCheck(req: Request, res: Response): Promise<void> {
     try {
-        const registry = LocalResourceRegistry.getInstance();
+        const registry = ResourceRegistry.getInstance();
         const healthCheck = registry.getHealthCheck();
         
         // Determine HTTP status code based on health status
@@ -54,14 +54,14 @@ export async function localResourcesHealthCheck(req: Request, res: Response): Pr
 /**
  * Example: Initialize the registry at server startup
  */
-export async function initializeLocalResources(): Promise<void> {
+export async function initializeResources(): Promise<void> {
     try {
-        const registry = LocalResourceRegistry.getInstance();
+        const registry = ResourceRegistry.getInstance();
         await registry.initialize();
         
         // Log initial status
         const healthCheck = registry.getHealthCheck();
-        console.log(`Local Resources initialized: ${healthCheck.message}`);
+        console.log(`Resources initialized: ${healthCheck.message}`);
         console.log(`- Total supported: ${healthCheck.stats.totalSupported}`);
         console.log(`- Implemented: ${healthCheck.stats.totalRegistered}`);
         console.log(`- Enabled: ${healthCheck.stats.totalEnabled}`);
@@ -80,7 +80,7 @@ export async function initializeLocalResources(): Promise<void> {
             console.log(`Resource health changed: ${data.resourceId}`);
         });
     } catch (error) {
-        console.error("Failed to initialize local resources:", error);
+        console.error("Failed to initialize resources:", error);
         // Don't throw - allow server to start even if resources fail
     }
 }
@@ -88,13 +88,13 @@ export async function initializeLocalResources(): Promise<void> {
 /**
  * Example: Graceful shutdown
  */
-export async function shutdownLocalResources(): Promise<void> {
+export async function shutdownResources(): Promise<void> {
     try {
-        const registry = LocalResourceRegistry.getInstance();
+        const registry = ResourceRegistry.getInstance();
         await registry.shutdown();
-        console.log("Local resources shut down successfully");
+        console.log("Resources shut down successfully");
     } catch (error) {
-        console.error("Error shutting down local resources:", error);
+        console.error("Error shutting down resources:", error);
     }
 }
 
@@ -102,20 +102,20 @@ export async function shutdownLocalResources(): Promise<void> {
  * Example route setup (Express)
  * 
  * // In your routes file:
- * import { localResourcesHealthCheck } from './services/resources/example-integration.js';
+ * import { resourcesHealthCheck } from './services/resources/example-integration.js';
  * 
- * app.get('/health/resources', localResourcesHealthCheck);
+ * app.get('/health/resources', resourcesHealthCheck);
  * 
  * // In your server startup:
- * import { initializeLocalResources } from './services/resources/example-integration.js';
+ * import { initializeResources } from './services/resources/example-integration.js';
  * 
- * await initializeLocalResources();
+ * await initializeResources();
  * 
  * // In your graceful shutdown:
- * import { shutdownLocalResources } from './services/resources/example-integration.js';
+ * import { shutdownResources } from './services/resources/example-integration.js';
  * 
  * process.on('SIGTERM', async () => {
- *     await shutdownLocalResources();
+ *     await shutdownResources();
  *     process.exit(0);
  * });
  */
