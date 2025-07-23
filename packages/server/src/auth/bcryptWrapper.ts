@@ -83,6 +83,9 @@ function getBcryptService(): BcryptService {
         return bcryptService;
     }
     
+    // Log the error for debugging
+    console.error("BcryptService not initialized when getBcryptService() was called");
+    
     // This should not happen if initializeBcryptService() was called during startup
     throw new Error("BcryptService not initialized. Call initializeBcryptService() during application startup.");
 }

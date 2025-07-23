@@ -151,7 +151,12 @@ export class PasswordAuthService {
         const accountError = this.statusToError(user.status);
         if (accountError !== null) throw new CustomError("0050", accountError);
         // Validate plaintext password against hash
-        return getBcryptService().compareSync(plaintext, passwordHash);
+        try {
+            return getBcryptService().compareSync(plaintext, passwordHash);
+        } catch (error) {
+            logger.error("Failed to validate password - bcrypt service error", { error });
+            throw new CustomError("0462", "InternalError", { detail: "Password validation service unavailable" });
+        }
     }
 
     static isLogInAttemptsResettable(user: Pick<UserDataForPasswordAuth, "lastLoginAttempt" | "status">): boolean {
