@@ -10,9 +10,24 @@ source "${SETUP_DIR}/../utils/log.sh"
 source "${SETUP_DIR}/../utils/system.sh"
 # shellcheck disable=SC1091
 source "${SETUP_DIR}/../utils/var.sh"
+# shellcheck disable=SC1091
+source "${SETUP_DIR}/../setup/nodejs.sh"
 
 # Ensure pnpm is available, using corepack if possible, otherwise fallback to npm install -g pnpm
 pnpm_tools::ensure_pnpm() {
+    # First ensure Node.js is installed
+    if ! command -v node >/dev/null 2>&1; then
+        log::info "Node.js not found. Installing Node.js first..."
+        nodejs::check_and_install || {
+            log::error "Failed to install Node.js"
+            return 1
+        }
+        
+        # Source Node.js environment to make node available in current shell
+        nodejs::source_environment
+    else
+        log::info "Node.js is already installed: $(node --version)"
+    fi
     # Try to use corepack if available and pnpm is available after activation
     if system::is_command "corepack"; then
         corepack enable || true
@@ -24,7 +39,8 @@ pnpm_tools::ensure_pnpm() {
         echo "pnpm not found, installing standalone binary..."
         export PNPM_HOME="$HOME/.local/share/pnpm"
         mkdir -p "$PNPM_HOME"
-        curl -fsSL https://get.pnpm.io/install.sh | bash -
+        # Download pnpm installer with retry
+        nodejs::download_with_retry "https://get.pnpm.io/install.sh" | bash -
         export PATH="$PNPM_HOME:$PATH"
     fi
 

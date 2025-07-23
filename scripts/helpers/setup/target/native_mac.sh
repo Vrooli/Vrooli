@@ -18,20 +18,6 @@ native_mac::brew_install() {
     fi
 }
 
-native_mac::volta_install() {
-    if ! system::is_command "volta"; then
-        log::info "Volta not found, installing..."
-        brew install volta
-    else
-        log::info "Volta is already installed."
-    fi
-}
-
-native_mac::node_pnpm_setup() {
-    volta install node
-    volta install pnpm
-}
-
 native_mac::gnu_tools_install() {
     brew install coreutils findutils
 }
@@ -43,9 +29,15 @@ native_mac::docker_compose_infra() {
 native_mac::setup_native_mac() {
     log::header "Setting up native Mac development/production..."
     native_mac::brew_install
-    native_mac::volta_install
-    native_mac::node_pnpm_setup
+    # Volta, Node, and pnpm are now handled by pnpm_tools::setup
+    # which calls nodejs::check_and_install
     native_mac::gnu_tools_install
+    
+    # Setup pnpm and generate Prisma client (this will install Node/Volta if needed)
+    # shellcheck disable=SC1091
+    source "${SETUP_TARGET_DIR}/../../utils/pnpm_tools.sh"
+    pnpm_tools::setup
+    
     native_mac::docker_compose_infra
 }
 

@@ -13,7 +13,7 @@ native_win::setup_native_win() {
     log::header "Setting up native Windows development/production..."
 
     # Check if running on Windows
-    if [[ "$(uname)" != *"NT"* ]]; then
+    if [[ "$(uname)" != *"NT"* ]] && [[ "$(uname)" != *"MINGW"* ]] && [[ "$(uname)" != *"MSYS"* ]] && [[ "$(uname)" != *"CYGWIN"* ]]; then
         log::error "This script must be run on Windows"
         exit 1
     fi
@@ -22,34 +22,21 @@ native_win::setup_native_win() {
     if ! system::is_command "nvm"; then
         log::info "Installing nvm-windows..."
         # Download and install nvm-windows
+        # shellcheck disable=SC2154
         powershell -Command "
-            $nvmUrl = 'https://github.com/coreybutler/nvm-windows/releases/latest/download/nvm-setup.exe';
-            $nvmInstaller = [System.IO.Path]::Combine($env:TEMP, 'nvm-setup.exe');
-            Invoke-WebRequest -Uri $nvmUrl -OutFile $nvmInstaller;
-            Start-Process -FilePath $nvmInstaller -Wait;
+            \$nvmUrl = 'https://github.com/coreybutler/nvm-windows/releases/latest/download/nvm-setup.exe';
+            \$nvmInstaller = [System.IO.Path]::Combine(\$env:TEMP, 'nvm-setup.exe');
+            Invoke-WebRequest -Uri \$nvmUrl -OutFile \$nvmInstaller;
+            Start-Process -FilePath \$nvmInstaller -Wait;
         "
+        
+        log::warning "nvm-windows has been installed. You may need to restart your terminal for it to be available."
     fi
 
-    # Install Node.js LTS version
-    log::info "Installing Node.js LTS version..."
-    nvm install lts
-    nvm use lts
-
-    # Install essential global packages
-    log::info "Installing essential global packages..."
-    pnpm add -g typescript@latest
-    pnpm add -g @types/node
-    pnpm add -g ts-node
-    pnpm add -g eslint
-    pnpm add -g prettier
-
-    # Install project dependencies
-    log::info "Installing project dependencies..."
-    pnpm install
-
-    # Setup Git hooks
-    log::info "Setting up Git hooks..."
-    npm run prepare
+    # Setup pnpm and generate Prisma client (this will install Node if needed)
+    # shellcheck disable=SC1091
+    source "${SETUP_TARGET_DIR}/../../utils/pnpm_tools.sh"
+    pnpm_tools::setup
 
     log::success "Native Windows setup completed successfully!"
 }

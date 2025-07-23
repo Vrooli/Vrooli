@@ -12,6 +12,8 @@ source "${SETUP_DIR}/../utils/exit_codes.sh"
 source "${SETUP_DIR}/../utils/system.sh"
 # shellcheck disable=SC1091
 source "${SETUP_DIR}/../utils/var.sh"
+# shellcheck disable=SC1091
+source "${SETUP_DIR}/nodejs.sh"
 
 vrooli_cli::setup() {
     log::header "Setting up the Vrooli CLI..."
@@ -38,6 +40,15 @@ vrooli_cli::setup() {
         log::error "Failed to navigate to CLI package directory"
         return "${ERROR_DIRECTORY_NOT_FOUND}"
     }
+
+    # Ensure Node.js is available before building
+    if ! command -v node >/dev/null 2>&1; then
+        log::info "Node.js not found. Sourcing Node.js environment..."
+        nodejs::source_environment || {
+            log::error "Failed to source Node.js environment"
+            return "${ERROR_DEPENDENCY_MISSING}"
+        }
+    fi
 
     # Build the CLI package
     log::info "Building Vrooli CLI package..."
