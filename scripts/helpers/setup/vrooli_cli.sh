@@ -83,29 +83,97 @@ EOF
 
     chmod +x "${cli_wrapper}"
 
-    # Link the CLI globally using pnpm
-    log::info "Linking Vrooli CLI globally..."
-    if ! pnpm link --global; then
-        log::warning "Failed to link CLI globally with pnpm, trying alternative method..."
+    # Detect if running with sudo and get the actual user
+    local actual_user=""
+    local actual_home=""
+    local user_bin_dir=""
+    
+    if [[ -n "${SUDO_USER:-}" ]]; then
+        # Running with sudo
+        actual_user="${SUDO_USER}"
+        actual_home=$(eval echo "~${actual_user}")
+        log::info "Running with sudo. Installing CLI for user: ${actual_user}"
+    else
+        # Running as regular user
+        actual_user="${USER}"
+        actual_home="${HOME}"
+    fi
+    
+    # Try multiple installation methods in order of preference
+    local install_success=false
+    
+    # Method 1: Try pnpm global install (might fail due to permissions or missing setup)
+    log::info "Attempting global installation with pnpm..."
+    if pnpm link --global 2>/dev/null; then
+        install_success=true
+        log::success "Successfully linked CLI globally with pnpm"
+    else
+        log::info "pnpm global link failed, trying alternative methods..."
+    fi
+    
+    # Method 2: Install to actual user's local bin directory
+    if [[ "${install_success}" != "true" ]]; then
+        user_bin_dir="${actual_home}/.local/bin"
+        log::info "Installing CLI to user's local bin: ${user_bin_dir}"
         
-        # Alternative: Create symlink in user's local bin
-        local user_bin_dir="${HOME}/.local/bin"
-        mkdir -p "${user_bin_dir}"
+        # Create directory with proper ownership
+        if [[ -n "${SUDO_USER:-}" ]]; then
+            # Running with sudo - create as the actual user
+            sudo -u "${actual_user}" mkdir -p "${user_bin_dir}"
+        else
+            mkdir -p "${user_bin_dir}"
+        fi
         
+        # Create symlink
         if ln -sf "${cli_wrapper}" "${user_bin_dir}/vrooli"; then
             log::info "Created symlink in ${user_bin_dir}/vrooli"
             
+            # Fix ownership if running with sudo
+            if [[ -n "${SUDO_USER:-}" ]]; then
+                chown -h "${actual_user}:${actual_user}" "${user_bin_dir}/vrooli"
+            fi
+            
+            install_success=true
+            
             # Check if user's local bin is in PATH
             if [[ ":${PATH}:" != *":${user_bin_dir}:"* ]]; then
-                log::warning "⚠️  ${user_bin_dir} is not in your PATH."
-                log::warning "Add the following line to your ~/.bashrc or ~/.zshrc:"
-                log::warning "export PATH=\"${user_bin_dir}:\$PATH\""
-                log::warning "Then run: source ~/.bashrc (or source ~/.zshrc)"
+                log::warning "⚠️  ${user_bin_dir} is not in PATH."
+                log::info "To add it to PATH, run as ${actual_user}:"
+                log::info "echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.bashrc"
+                log::info "source ~/.bashrc"
+                
+                # Try to add to user's bashrc if we have permission
+                local bashrc_file="${actual_home}/.bashrc"
+                if [[ -f "${bashrc_file}" ]]; then
+                    if ! grep -q "/.local/bin" "${bashrc_file}"; then
+                        if [[ -n "${SUDO_USER:-}" ]]; then
+                            # Add as the actual user
+                            sudo -u "${actual_user}" bash -c "echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> '${bashrc_file}'"
+                            log::success "Added ${user_bin_dir} to ${actual_user}'s PATH in .bashrc"
+                        elif [[ -w "${bashrc_file}" ]]; then
+                            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "${bashrc_file}"
+                            log::success "Added ${user_bin_dir} to PATH in .bashrc"
+                        fi
+                    fi
+                fi
             fi
         else
-            log::error "Failed to create symlink"
-            return "${ERROR_OPERATION_FAILED}"
+            log::error "Failed to create symlink in ${user_bin_dir}"
         fi
+    fi
+    
+    # Method 3: If still not successful, try /usr/local/bin (requires sudo)
+    if [[ "${install_success}" != "true" ]] && [[ -w "/usr/local/bin" || -n "${SUDO_USER:-}" ]]; then
+        log::info "Attempting installation to /usr/local/bin..."
+        if ln -sf "${cli_wrapper}" "/usr/local/bin/vrooli"; then
+            install_success=true
+            log::success "Created symlink in /usr/local/bin/vrooli"
+        fi
+    fi
+    
+    if [[ "${install_success}" != "true" ]]; then
+        log::error "Failed to install CLI to any standard location"
+        return "${ERROR_OPERATION_FAILED}"
     fi
 
     # Return to original directory
@@ -113,14 +181,39 @@ EOF
 
     # Verify installation
     log::info "Verifying Vrooli CLI installation..."
+    
+    # Check if CLI is available in current shell
+    local cli_available=false
     if command -v vrooli &> /dev/null; then
-        vrooli --version || log::info "Version check failed, but CLI is available"
+        cli_available=true
+    elif [[ -x "${user_bin_dir}/vrooli" ]]; then
+        # CLI exists but not in current PATH
+        log::info "CLI installed at ${user_bin_dir}/vrooli but not in current PATH"
+    elif [[ -x "/usr/local/bin/vrooli" ]]; then
+        # CLI exists in /usr/local/bin
+        cli_available=true
+    fi
+    
+    if [[ "${cli_available}" == "true" ]]; then
+        vrooli --version 2>/dev/null || log::info "Version check failed, but CLI is available"
         log::success "✅ Vrooli CLI setup complete!"
-        log::info "You can now use 'vrooli' command from anywhere."
+        if [[ -n "${SUDO_USER:-}" ]]; then
+            log::info "CLI installed for user: ${actual_user}"
+            log::info "The user may need to reload their shell or run: source ~/.bashrc"
+        else
+            log::info "You can now use 'vrooli' command from anywhere."
+        fi
     else
-        log::warning "⚠️  Vrooli CLI installed but not found in PATH."
-        log::warning "You may need to refresh your shell or add the install location to PATH."
-        log::info "Try running: hash -r"
+        log::warning "⚠️  Vrooli CLI installed but not found in current PATH."
+        if [[ -n "${SUDO_USER:-}" ]]; then
+            log::info "To use the CLI, ${actual_user} should:"
+            log::info "1. Exit this sudo session"
+            log::info "2. Run: source ~/.bashrc"
+            log::info "3. Run: vrooli --version"
+        else
+            log::warning "You may need to refresh your shell or add the install location to PATH."
+            log::info "Try running: source ~/.bashrc"
+        fi
     fi
 
     return 0
