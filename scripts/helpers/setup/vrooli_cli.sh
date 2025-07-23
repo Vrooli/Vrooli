@@ -19,9 +19,28 @@ vrooli_cli::setup() {
     log::header "Setting up the Vrooli CLI..."
 
     # Check if vrooli CLI is already installed and working
-    if command -v vrooli &> /dev/null; then
-        log::info "Vrooli CLI is already installed. Verifying version:"
-        vrooli --version || true
+    # When running with sudo, check as the actual user
+    local cli_check_passed=false
+    
+    if [[ -n "${SUDO_USER:-}" ]]; then
+        # Running with sudo - check if CLI works for the actual user
+        if sudo -u "${SUDO_USER}" bash -c 'command -v vrooli' &> /dev/null; then
+            log::info "Vrooli CLI found for user ${SUDO_USER}. Verifying version:"
+            if sudo -u "${SUDO_USER}" bash -c 'vrooli --version' 2>/dev/null; then
+                cli_check_passed=true
+            fi
+        fi
+    else
+        # Not running with sudo - check normally
+        if command -v vrooli &> /dev/null; then
+            log::info "Vrooli CLI is already installed. Verifying version:"
+            if vrooli --version 2>/dev/null; then
+                cli_check_passed=true
+            fi
+        fi
+    fi
+    
+    if [[ "$cli_check_passed" == "true" ]]; then
         log::success "Vrooli CLI setup check complete."
         return 0
     fi

@@ -397,11 +397,31 @@ nodejs::check_and_install() {
     local platform
     platform=$(nodejs::detect_platform)
     
-    # If running with sudo on Linux, prefer system-wide installation
+    # If running with sudo on Linux, check if Node.js is available to the actual user
     if [[ -n "${SUDO_USER:-}" ]] && [[ "$platform" == "linux" ]]; then
-        log::info "Running with sudo - installing Node.js system-wide"
-        nodejs::install_system_wide "$@"
-        return $?
+        log::info "Running with sudo - checking if Node.js is available to user: ${SUDO_USER}"
+        
+        # Check if Node.js is available to the actual user (not root)
+        local node_available_to_user=false
+        if sudo -u "${SUDO_USER}" bash -c 'command -v node >/dev/null 2>&1'; then
+            node_available_to_user=true
+            local user_node_version
+            user_node_version=$(sudo -u "${SUDO_USER}" bash -c 'node --version 2>/dev/null' || echo "unknown")
+            log::info "Node.js is available to ${SUDO_USER}: ${user_node_version}"
+        else
+            log::info "Node.js is NOT available to ${SUDO_USER}"
+        fi
+        
+        # If Node.js is not available to the actual user, install it system-wide
+        if [[ "$node_available_to_user" != "true" ]]; then
+            log::info "Installing Node.js system-wide so all users can access it"
+            nodejs::install_system_wide "$@"
+            return $?
+        else
+            # Node.js is already available to the user
+            log::info "Node.js is already accessible to ${SUDO_USER}, skipping installation"
+            return 0
+        fi
     fi
     
     # Otherwise use user-specific installation

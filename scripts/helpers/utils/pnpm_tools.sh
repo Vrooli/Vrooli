@@ -15,9 +15,29 @@ source "${SETUP_DIR}/../setup/nodejs.sh"
 
 # Ensure pnpm is available, using corepack if possible, otherwise fallback to npm install -g pnpm
 pnpm_tools::ensure_pnpm() {
-    # First ensure Node.js is installed
-    if ! command -v node >/dev/null 2>&1; then
-        log::info "Node.js not found. Installing Node.js first..."
+    # Check if Node.js is available to the actual user (important when running with sudo)
+    local need_node_install=false
+    
+    if [[ -n "${SUDO_USER:-}" ]]; then
+        # Running with sudo - check if Node.js is available to the actual user
+        if ! sudo -u "${SUDO_USER}" bash -c 'command -v node >/dev/null 2>&1'; then
+            need_node_install=true
+            log::info "Node.js not found for user ${SUDO_USER}. Installing Node.js..."
+        else
+            log::info "Node.js is available to ${SUDO_USER}: $(sudo -u "${SUDO_USER}" bash -c 'node --version')"
+        fi
+    else
+        # Not running with sudo - check normally
+        if ! command -v node >/dev/null 2>&1; then
+            need_node_install=true
+            log::info "Node.js not found. Installing Node.js first..."
+        else
+            log::info "Node.js is already installed: $(node --version)"
+        fi
+    fi
+    
+    # Install Node.js if needed
+    if [[ "$need_node_install" == "true" ]]; then
         nodejs::check_and_install || {
             log::error "Failed to install Node.js"
             return 1
@@ -25,8 +45,6 @@ pnpm_tools::ensure_pnpm() {
         
         # Source Node.js environment to make node available in current shell
         nodejs::source_environment
-    else
-        log::info "Node.js is already installed: $(node --version)"
     fi
     # Try to use corepack if available and pnpm is available after activation
     if system::is_command "corepack"; then
