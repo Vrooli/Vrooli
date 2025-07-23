@@ -1,3 +1,4 @@
+import { ModelStrategy } from "../../../shape/configs/base.js";
 import { type ChatConfigObject, PendingToolCallStatus } from "../../../shape/configs/chat.js";
 import { LATEST_CONFIG_VERSION } from "../../../shape/configs/utils.js";
 
@@ -31,7 +32,11 @@ export const chatConfigFixtures: ChatConfigTestFixtures = {
     complete: {
         __version: LATEST_CONFIG_VERSION,
         goal: "Complete the user's tasks efficiently and collaboratively",
-        preferredModel: "claude-3-opus",
+        modelConfig: {
+            strategy: ModelStrategy.QUALITY_FIRST,
+            preferredModel: "claude-3-opus",
+            offlineOnly: false,
+        },
         subtasks: [{
             id: "task-1",
             description: "Initialize the conversation",

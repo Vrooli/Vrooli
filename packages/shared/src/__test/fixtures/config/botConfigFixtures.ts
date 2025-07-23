@@ -1,3 +1,4 @@
+import { ModelStrategy } from "../../../shape/configs/base.js";
 import { type BotConfigObject } from "../../../shape/configs/bot.js";
 import { LATEST_CONFIG_VERSION } from "../../../shape/configs/utils.js";
 import { type ConfigTestFixtures } from "./baseConfigFixtures.js";
@@ -15,7 +16,11 @@ export const botConfigFixtures: ConfigTestFixtures<BotConfigObject> = {
 
     complete: {
         __version: LATEST_CONFIG_VERSION,
-        model: "gpt-4",
+        modelConfig: {
+            strategy: ModelStrategy.FALLBACK,
+            preferredModel: "gpt-4",
+            offlineOnly: false,
+        },
         maxTokens: 2048,
         resources: [{
             link: "https://example.com/bot-docs",
@@ -35,16 +40,24 @@ export const botConfigFixtures: ConfigTestFixtures<BotConfigObject> = {
     invalid: {
         missingVersion: {
             // Missing __version
-            model: "gpt-4",
+            modelConfig: {
+                strategy: ModelStrategy.FIXED,
+                preferredModel: "gpt-4",
+                offlineOnly: false,
+            },
             maxTokens: 2048,
         },
         invalidVersion: {
             __version: "0.1", // Invalid version
-            model: "gpt-4",
+            modelConfig: {
+                strategy: ModelStrategy.FIXED,
+                preferredModel: "gpt-4",
+                offlineOnly: false,
+            },
         },
         malformedStructure: {
             __version: LATEST_CONFIG_VERSION,
-            model: 123, // Wrong type
+            modelConfig: 123, // Wrong type
         },
         invalidTypes: {
             __version: LATEST_CONFIG_VERSION,
@@ -55,24 +68,40 @@ export const botConfigFixtures: ConfigTestFixtures<BotConfigObject> = {
     variants: {
         basicBot: {
             __version: LATEST_CONFIG_VERSION,
-            model: "gpt-3.5-turbo",
+            modelConfig: {
+                strategy: ModelStrategy.COST_OPTIMIZED,
+                preferredModel: "gpt-3.5-turbo",
+                offlineOnly: false,
+            },
         },
 
         creativeBotHighTokens: {
             __version: LATEST_CONFIG_VERSION,
-            model: "gpt-4",
+            modelConfig: {
+                strategy: ModelStrategy.QUALITY_FIRST,
+                preferredModel: "gpt-4",
+                offlineOnly: false,
+            },
             maxTokens: 4096,
         },
 
         technicalBotPrecise: {
             __version: LATEST_CONFIG_VERSION,
-            model: "claude-3",
+            modelConfig: {
+                strategy: ModelStrategy.QUALITY_FIRST,
+                preferredModel: "claude-3",
+                offlineOnly: false,
+            },
             maxTokens: 8192,
         },
 
         researchBot: {
             __version: LATEST_CONFIG_VERSION,
-            model: "claude-3",
+            modelConfig: {
+                strategy: ModelStrategy.QUALITY_FIRST,
+                preferredModel: "claude-3",
+                offlineOnly: false,
+            },
             maxTokens: 16384,
             resources: [
                 {
@@ -107,7 +136,11 @@ export function createBotConfigForModel(
 ): BotConfigObject {
     return {
         __version: LATEST_CONFIG_VERSION,
-        model,
+        modelConfig: {
+            strategy: ModelStrategy.FIXED,
+            preferredModel: model,
+            offlineOnly: false,
+        },
         maxTokens,
     };
 }

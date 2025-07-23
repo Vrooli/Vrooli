@@ -1,4 +1,5 @@
 import type { BotCreateInput, BotUpdateInput, UserTranslationCreateInput, UserTranslationUpdateInput } from "../../../api/types.js";
+import { ModelStrategy } from "../../../shape/configs/base.js";
 import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
 import { botTranslationValidation, botValidation } from "../../../validation/models/bot.js";
 import { setupFileMock } from "../../mocks/fileMock.js";
@@ -50,7 +51,11 @@ export const botFixtures: ModelTestFixtures<BotCreateInput, BotUpdateInput> = {
             bannerImage: createMockFile("fake-banner-image-data", "banner.png", "image/png"),
             botSettings: {
                 __version: "1.0",
-                model: "gpt-4",
+                modelConfig: {
+                    strategy: ModelStrategy.FALLBACK,
+                    preferredModel: "gpt-4",
+                    offlineOnly: false,
+                },
                 maxTokens: 2048,
                 agentSpec: {
                     goal: "Provide helpful assistance to users",
@@ -80,7 +85,11 @@ export const botFixtures: ModelTestFixtures<BotCreateInput, BotUpdateInput> = {
             id: validIds.id2,
             botSettings: {
                 __version: "1.0",
-                model: "claude-3",
+                modelConfig: {
+                    strategy: ModelStrategy.QUALITY_FIRST,
+                    preferredModel: "claude-3",
+                    offlineOnly: false,
+                },
                 maxTokens: 4096,
             },
             handle: "updatedbot",

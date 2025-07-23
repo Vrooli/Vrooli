@@ -1,37 +1,47 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-04
-import { type Prisma } from "@prisma/client";
-import { DbProvider, batch, logger } from "@vrooli/server";
-import { DAYS_90_MS, ModelType } from "@vrooli/shared";
+import { DbProvider, logger } from "@vrooli/server";
+import { DAYS_90_MS } from "@vrooli/shared";
 
 const REVOKED_SESSION_TIMEOUT = DAYS_90_MS;
-
-// 1) Define the select shape once and derive payload type
-const sessionSelect = { id: true } as const;
-type SessionIdPayload = Prisma.sessionGetPayload<{ select: typeof sessionSelect }>;
+const BATCH_SIZE = 100;
 
 /**
  * Removes sessions from the database that have been revoked for a long time
  */
 export async function cleanupRevokedSessions(): Promise<void> {
     try {
-        // Array to store deletion counts from each batch
-        const counts: number[] = [];
-        await batch<Prisma.sessionFindManyArgs, SessionIdPayload>({
-            objectType: ModelType.Session,
-            processBatch: async (sessions: SessionIdPayload[]) => {
-                const sessionIds = sessions.map(session => session.id);
-                // Delete sessions
-                const { count } = await DbProvider.get().session.deleteMany({
-                    where: { id: { in: sessionIds } },
-                });
-                // Add the count from this batch to the array
-                counts.push(count);
-            },
-            select: sessionSelect,
-            where: { revokedAt: { lte: new Date(Date.now() - REVOKED_SESSION_TIMEOUT) } },
-        });
-        // Sum all collected counts after all batch processing is complete
-        const totalDeleted = counts.reduce((sum, current) => sum + current, 0);
+        const cutoffDate = new Date(Date.now() - REVOKED_SESSION_TIMEOUT);
+        let totalDeleted = 0;
+        let hasMore = true;
+
+        // Process in batches to avoid overloading the database
+        while (hasMore) {
+            // Find sessions to delete
+            const sessionsToDelete = await DbProvider.get().session.findMany({
+                where: { revokedAt: { lte: cutoffDate } },
+                select: { id: true },
+                take: BATCH_SIZE,
+            });
+
+            if (sessionsToDelete.length === 0) {
+                hasMore = false;
+                break;
+            }
+
+            // Delete the batch
+            const sessionIds = sessionsToDelete.map(session => session.id);
+            const { count } = await DbProvider.get().session.deleteMany({
+                where: { id: { in: sessionIds } },
+            });
+
+            totalDeleted += count;
+
+            // If we got less than BATCH_SIZE, we're done
+            if (sessionsToDelete.length < BATCH_SIZE) {
+                hasMore = false;
+            }
+        }
+
         logger.info(`Deleted ${totalDeleted} revoked sessions.`);
     } catch (error) {
         logger.error("deleteRevokedSessions caught error", { error, trace: "0223" });

@@ -83,27 +83,8 @@ const errorHandlerSingleton = (() => {
 errorHandlerSingleton.init();
 
 // Pre-import services to avoid dynamic import deadlocks in cleanup
-let CacheService: any;
-let QueueService: any;
-let BusService: any;
-let DbProvider: any;
-
-// Import these lazily but store references
-async function preloadServices() {
-    try {
-        ({ CacheService } = await import("../redisConn.js"));
-        ({ QueueService } = await import("../tasks/queues.js"));
-        ({ BusService } = await import("../services/bus.js"));
-        ({ DbProvider } = await import("../db/provider.js"));
-    } catch (e) {
-        console.error("Failed to preload services:", e);
-    }
-}
-
-// Setup QueueService mock early to prevent email service failures
-import { setupQueueServiceMock } from "./mocks/queueServiceMock.js";
-
-setupQueueServiceMock();
+// NOTE: These services don't exist in the shared package - it's a pure utility package
+// The shared package doesn't need Redis, Queue, Bus, or DB services
 
 const componentsInitialized = {
     modelMap: false,
@@ -136,171 +117,35 @@ function testWarn(...args: any[]) {
 
 
 beforeAll(async function setup() {
-    testLog("DEBUG", "=== Per-File Test Setup Starting ===");
+    testLog("DEBUG", "=== Shared Package Test Setup Starting ===");
     
     try {
-        // Debug environment variables
-        testLog("DEBUG", "Environment check:", {
-            REDIS_URL: process.env.REDIS_URL ? "SET" : "NOT SET",
-            DB_URL: process.env.DB_URL ? "SET" : "NOT SET",
-            NODE_ENV: process.env.NODE_ENV,
-            VITEST: process.env.VITEST,
-        });
+        // The shared package is a pure utility package and doesn't need:
+        // - Redis/Queue/Bus services (server-only)
+        // - Database connections (server-only)
+        // - ModelMap (server-only)
+        // - Socket services (server-only)
         
-        // Preload services to avoid dynamic import issues in cleanup
-        await preloadServices();
-        
-        // Note: Environment vars, containers, and Prisma are already set up by global setup
-        
-        // Step 1: Initialize ModelMap (this is what the tests need)
-        testLog("DEBUG", "Step 1: Initializing ModelMap...");
-        try {
-            // Clear module cache for ModelMap to work around vitest transformation issues
-            const modelMapPath = "../models/base/index.js";
-            
-            // Use dynamic import with cache busting
-            const modelModule = await import(modelMapPath);
-            testLog("DEBUG", "ModelMap module imported:", { 
-                keys: Object.keys(modelModule), 
-                hasModelMap: "ModelMap" in modelModule,
-                moduleType: typeof modelModule,
-                isDefault: "default" in modelModule,
-            });
-            
-            // Handle both named and default exports
-            let ModelMap = modelModule.ModelMap;
-            if (!ModelMap && modelModule.default?.ModelMap) {
-                ModelMap = modelModule.default.ModelMap;
-                testLog("DEBUG", "Using ModelMap from default export");
-            }
-            
-            if (!ModelMap) {
-                // Try to access it directly from the module
-                const possibleExports = Object.keys(modelModule);
-                testError("ModelMap not found. Available exports:", possibleExports);
-                
-                // Check if it's a transformed class
-                const classExport = possibleExports.find(key => {
-                    const val = modelModule[key];
-                    return typeof val === "function" && val.name === "ModelMap";
-                });
-                
-                if (classExport) {
-                    ModelMap = modelModule[classExport];
-                    testLog("DEBUG", `Found ModelMap as ${classExport}`);
-                } else {
-                    throw new Error("ModelMap is undefined after import");
-                }
-            }
-            
-            // Verify ModelMap has the expected structure
-            if (typeof ModelMap !== "function") {
-                testError("ModelMap is not a function/class:", {
-                    type: typeof ModelMap,
-                    value: ModelMap,
-                    stringified: String(ModelMap),
-                });
-                throw new Error(`ModelMap is not a function (type: ${typeof ModelMap})`);
-            }
-            
-            // Check for init method
-            if (typeof ModelMap.init !== "function") {
-                testError("ModelMap.init is not a function:", {
-                    ModelMap: String(ModelMap),
-                    type: typeof ModelMap,
-                    constructor: ModelMap.constructor?.name,
-                    properties: Object.getOwnPropertyNames(ModelMap),
-                    prototype: ModelMap.prototype,
-                    staticMethods: Object.getOwnPropertyNames(ModelMap).filter(p => typeof ModelMap[p] === "function"),
-                });
-                throw new Error(`ModelMap.init is not a function (type: ${typeof ModelMap.init})`);
-            }
-            
-            // ModelMap.init() is already thread-safe and idempotent
-            await ModelMap.init();
-            componentsInitialized.modelMap = true;
-            testLog("DEBUG", "✓ ModelMap ready");
-        } catch (error) {
-            testError("ModelMap initialization failed:", error);
-            // Don't throw - continue without it
-        }
-        
-        // Step 2: Initialize i18n for notification translations
-        testLog("DEBUG", "Step 2: Initializing i18n...");
+        // Only initialize i18n if it's actually used by shared package tests
+        testLog("DEBUG", "Step 1: Initializing i18n...");
         try {
             const { i18nConfig } = await import("@vrooli/shared");
             const i18next = (await import("i18next")).default;
             await i18next.init(i18nConfig(false)); // false for production mode in tests
             testLog("DEBUG", "✓ i18n ready");
         } catch (error) {
-            testError("i18n initialization failed:", error);
-            // Don't throw - tests can proceed without i18n but notifications may fail
-        }
-
-        // Step 3: Initialize DbProvider (idempotent - safe to call multiple times)
-        testLog("DEBUG", "Step 3: Initializing DbProvider...");
-        try {
-            if (!DbProvider) {
-                ({ DbProvider } = await import("../db/provider.js"));
-            }
-            // DbProvider.init() is idempotent - it checks if already initialized
-            await DbProvider.init();
-            componentsInitialized.dbProvider = true;
-            testLog("DEBUG", "✓ DbProvider ready");
-        } catch (error) {
-            testError("DbProvider initialization failed:", error);
-            throw error; // This is critical - tests cannot proceed without DB
+            testLog("DEBUG", "i18n initialization skipped (not needed for utility tests):", error);
+            // Don't throw - shared package tests don't need i18n
         }
         
-        // Step 3.5: Initialize SocketService mock for tests
-        testLog("DEBUG", "Step 3.5: Initializing SocketService mock...");
-        try {
-            const { initializeSocketServiceMock } = await import("./mocks/socketServiceMock.js");
-            await initializeSocketServiceMock();
-            componentsInitialized.socketService = true;
-            testLog("DEBUG", "✓ SocketService mock ready");
-        } catch (error) {
-            testError("SocketService mock initialization failed:", error);
-            // Don't throw - tests can proceed without socket functionality
-        }
-        
-        // Step 4: Setup LLM service mocks
-        // TODO: Replace with new LLM mock implementation
-        // console.log("Step 4: Setting up LLM mocks...");
-        // try {
-        //     await setupLlmServiceMocks();
-        //     componentsInitialized.mocks = true;
-        //     console.log("✓ LLM mocks ready");
-        // } catch (error) {
-        //     console.error("LLM mock setup failed:", error);
-        // }
-        
-        testLog("DEBUG", "=== Per-File Test Setup Complete ===");
-        testLog("DEBUG", "Initialized components:", Object.entries(componentsInitialized)
-            .filter(([, enabled]) => enabled)
-            .map(([name]) => name)
-            .join(", "));
-        
-        // IMPORTANT: ID generator not initialized in global setup to avoid worker crashes
-        // 
-        // Root cause: Memory pressure from containers + Prisma + module complexity
-        // causes vitest workers (2GB heap limit) to crash when importing @vrooli/shared
-        // after full setup. This is NOT a bug in the ID generator itself.
-        //
-        // Tests that need ID generation should initialize it individually:
-        // const { initIdGenerator } = await import("@vrooli/shared");
-        // await initIdGenerator(0);
-        //
-        // This distributes memory load and prevents crashes. See ID_GENERATOR_CRASH_ROOT_CAUSE.md
-        // for detailed analysis.
+        testLog("DEBUG", "=== Shared Package Test Setup Complete ===");
         
     } catch (error) {
         testError("=== Setup Failed ===");
         testError(error);
-        await cleanup();
         throw error;
     }
-}, 300000);
+}, 30000);
 
 // TODO: Replace with new LLM mock implementation
 // async function setupLlmServiceMocks() {
@@ -343,19 +188,12 @@ beforeAll(async function setup() {
 // }
 
 async function cleanup() {
-    // Minimal cleanup to prevent test skipping - prioritize not hanging over perfect cleanup
+    // Minimal cleanup for shared package tests
     try {
         // Basic mock cleanup
         vi.clearAllMocks();
         vi.unstubAllGlobals();
         vi.clearAllTimers();
-        
-        // Force clear singleton instances without waiting for graceful shutdown
-        // This prevents hanging while still clearing memory references
-        if (BusService) (BusService as any).instance = null;
-        if (QueueService) (QueueService as any).instance = null;
-        if (CacheService) (CacheService as any).instance = null;
-        
     } catch (e) {
         // Ignore all cleanup errors to prevent test skipping
     }
