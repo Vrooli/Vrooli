@@ -270,10 +270,141 @@ nodejs::source_environment() {
     esac
 }
 
+nodejs::install_system_wide() {
+    local version="${1:-$DEFAULT_NODE_VERSION}"
+    
+    log::header "Installing Node.js system-wide..."
+    
+    # Check if running with proper permissions
+    if [[ $EUID -ne 0 ]] && [[ -z "${SUDO_USER:-}" ]]; then
+        log::error "System-wide installation requires root privileges"
+        return 1
+    fi
+    
+    local platform
+    platform=$(nodejs::detect_platform)
+    
+    case "$platform" in
+        linux)
+            # Install Node.js using NodeSource repository for consistent system-wide installation
+            log::info "Setting up NodeSource repository for Node.js ${version}.x..."
+            
+            # Install prerequisites
+            if command -v apt-get >/dev/null 2>&1; then
+                apt-get update
+                apt-get install -y ca-certificates curl gnupg
+                
+                # Add NodeSource GPG key
+                mkdir -p /etc/apt/keyrings
+                curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+                
+                # Add NodeSource repository
+                NODE_MAJOR="${version}"
+                echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" > /etc/apt/sources.list.d/nodesource.list
+                
+                # Update and install
+                apt-get update
+                apt-get install -y nodejs
+                
+            elif command -v yum >/dev/null 2>&1; then
+                # For RHEL/CentOS/Fedora
+                curl -fsSL https://rpm.nodesource.com/setup_${version}.x | bash -
+                yum install -y nodejs
+                
+            else
+                log::warning "Package manager not supported for automatic installation"
+                log::info "Falling back to manual binary installation..."
+                
+                # Manual installation from nodejs.org binaries
+                local arch
+                arch=$(uname -m)
+                case "$arch" in
+                    x86_64) arch="x64" ;;
+                    aarch64) arch="arm64" ;;
+                    armv7l) arch="armv7l" ;;
+                    *) log::error "Unsupported architecture: $arch"; return 1 ;;
+                esac
+                
+                # Get the latest version number for the major version
+                local latest_version
+                latest_version=$(curl -sL "https://nodejs.org/dist/latest-v${version}.x/" | grep -oP 'node-v\K[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+                if [[ -z "$latest_version" ]]; then
+                    log::error "Failed to determine latest Node.js version"
+                    return 1
+                fi
+                
+                local node_url="https://nodejs.org/dist/v${latest_version}/node-v${latest_version}-linux-${arch}.tar.xz"
+                log::info "Downloading Node.js v${latest_version} from $node_url..."
+                
+                cd /tmp || return 1
+                if ! nodejs::download_with_retry "$node_url" > "node.tar.xz"; then
+                    log::error "Failed to download Node.js"
+                    return 1
+                fi
+                
+                tar -xf node.tar.xz
+                rm node.tar.xz
+                
+                # Find the extracted directory
+                local node_dir
+                node_dir=$(find . -maxdepth 1 -type d -name "node-v*" | head -1)
+                
+                # Copy to /usr/local
+                cp -r "${node_dir}"/* /usr/local/
+                rm -rf "${node_dir}"
+                
+                # Create symlinks in /usr/bin for compatibility
+                ln -sf /usr/local/bin/node /usr/bin/node
+                ln -sf /usr/local/bin/npm /usr/bin/npm
+                ln -sf /usr/local/bin/npx /usr/bin/npx
+            fi
+            ;;
+        mac)
+            # On Mac, use Homebrew for system-wide installation
+            if command -v brew >/dev/null 2>&1; then
+                log::info "Installing Node.js via Homebrew..."
+                brew install node@${version} || brew install node
+            else
+                log::error "Homebrew not found. Please install Homebrew first."
+                return 1
+            fi
+            ;;
+        *)
+            log::error "System-wide installation not supported on $platform"
+            return 1
+            ;;
+    esac
+    
+    # Verify installation
+    if command -v node >/dev/null 2>&1; then
+        log::success "Node.js installed system-wide: $(node --version)"
+        log::info "npm version: $(npm --version)"
+        
+        # Enable corepack globally
+        if command -v corepack >/dev/null 2>&1; then
+            log::info "Enabling corepack globally..."
+            corepack enable
+        fi
+        
+        return 0
+    else
+        log::error "System-wide Node.js installation failed"
+        return 1
+    fi
+}
+
 nodejs::check_and_install() {
     local platform
     platform=$(nodejs::detect_platform)
     
+    # If running with sudo on Linux, prefer system-wide installation
+    if [[ -n "${SUDO_USER:-}" ]] && [[ "$platform" == "linux" ]]; then
+        log::info "Running with sudo - installing Node.js system-wide"
+        nodejs::install_system_wide "$@"
+        return $?
+    fi
+    
+    # Otherwise use user-specific installation
     case "$platform" in
         linux)
             # Check if we're in a shell that can source nvm

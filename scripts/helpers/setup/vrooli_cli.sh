@@ -64,24 +64,55 @@ vrooli_cli::setup() {
     fi
 
     chmod +x dist/index.js
+    
+    # If running with sudo, ensure the actual user can access the built files
+    if [[ -n "${SUDO_USER:-}" ]]; then
+        log::info "Fixing file ownership for user: ${SUDO_USER}"
+        # Make the CLI package accessible to the actual user
+        chown -R "${SUDO_USER}:${SUDO_USER}" "${project_root}/packages/cli/dist" || true
+        chown "${SUDO_USER}:${SUDO_USER}" "${project_root}/packages/cli/bin" || true
+        # Ensure the actual user has read access to necessary files
+        chmod -R a+r "${project_root}/packages/cli/dist" || true
+    fi
 
     # Create a wrapper script for the CLI
     local cli_wrapper="${project_root}/packages/cli/bin/vrooli"
     mkdir -p "$(dirname "${cli_wrapper}")"
     
-    cat > "${cli_wrapper}" << EOF
+    cat > "${cli_wrapper}" << 'EOF'
 #!/usr/bin/env bash
 # Vrooli CLI wrapper script
 # Use readlink to resolve the actual path when called through a symlink
-REAL_PATH="\$(readlink -f "\${BASH_SOURCE[0]}")"
-SCRIPT_DIR="\$(cd "\$(dirname "\${REAL_PATH}")" && pwd)"
-CLI_DIR="\$(cd "\${SCRIPT_DIR}/.." && pwd)"
+REAL_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(cd "$(dirname "${REAL_PATH}")" && pwd)"
+CLI_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Check if Node.js is available
+if ! command -v node >/dev/null 2>&1; then
+    echo "Error: Node.js not found." >&2
+    echo "" >&2
+    echo "Please install Node.js using one of these methods:" >&2
+    echo "" >&2
+    echo "1. System-wide (requires sudo):" >&2
+    echo "   sudo apt-get update && sudo apt-get install -y nodejs" >&2
+    echo "" >&2
+    echo "2. User-specific (no sudo required):" >&2
+    echo "   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash" >&2
+    echo "   source ~/.bashrc" >&2
+    echo "   nvm install 20" >&2
+    exit 1
+fi
 
 # Execute the Node.js CLI with proper environment
-exec node "\${CLI_DIR}/dist/index.js" "\$@"
+exec node "${CLI_DIR}/dist/index.js" "$@"
 EOF
 
     chmod +x "${cli_wrapper}"
+    
+    # Fix ownership of wrapper if running with sudo
+    if [[ -n "${SUDO_USER:-}" ]]; then
+        chown "${SUDO_USER}:${SUDO_USER}" "${cli_wrapper}" || true
+    fi
 
     # Detect if running with sudo and get the actual user
     local actual_user=""
