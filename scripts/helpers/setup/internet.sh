@@ -41,20 +41,21 @@ internet::check_connection() {
 
     # Determine appropriate ping command with timeout support
     # Prefer external timeout utilities to avoid ping flag inconsistencies
+    # Force IPv4 to avoid IPv6-related issues
     local ping_cmd
     if command -v timeout >/dev/null 2>&1; then
-        ping_cmd=(timeout 1 ping -c1 "$host")
+        ping_cmd=(timeout 1 ping -4 -c1 "$host")
     elif command -v gtimeout >/dev/null 2>&1; then
-        ping_cmd=(gtimeout 1 ping -c1 "$host")
+        ping_cmd=(gtimeout 1 ping -4 -c1 "$host")
     else
         # Fallback to ping flags
-        if ping -c1 -W1 127.0.0.1 >/dev/null 2>&1; then
-            ping_cmd=(ping -c1 -W1 "$host")
-        elif ping -c1 -w1 127.0.0.1 >/dev/null 2>&1; then
-            ping_cmd=(ping -c1 -w1 "$host")
+        if ping -4 -c1 -W1 127.0.0.1 >/dev/null 2>&1; then
+            ping_cmd=(ping -4 -c1 -W1 "$host")
+        elif ping -4 -c1 -w1 127.0.0.1 >/dev/null 2>&1; then
+            ping_cmd=(ping -4 -c1 -w1 "$host")
         else
             log::warning "Could not determine ping timeout flags; defaulting to plain ping"
-            ping_cmd=(ping -c1 "$host")
+            ping_cmd=(ping -4 -c1 "$host")
         fi
     fi
 
