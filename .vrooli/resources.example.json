@@ -1,0 +1,213 @@
+{
+  "$schema": "./schemas/resources-config.schema.json",
+  "version": "1.0.0",
+  "enabled": false,
+  "localServices": {
+    "ai": {
+      "ollama": {
+        "enabled": true,
+        "baseUrl": "http://localhost:11434",
+        "expectedModels": ["llama3.1:8b", "codellama:13b"],
+        "healthCheck": {
+          "endpoint": "/api/tags",
+          "intervalMs": 300000,
+          "timeoutMs": 5000
+        }
+      },
+      "localai": {
+        "enabled": false,
+        "baseUrl": "http://localhost:8080",
+        "expectedModels": ["gpt4all", "whisper"],
+        "healthCheck": {
+          "endpoint": "/v1/models",
+          "intervalMs": 300000,
+          "timeoutMs": 5000
+        }
+      },
+      "whisper": {
+        "enabled": false,
+        "baseUrl": "http://localhost:9000",
+        "model": "base",
+        "healthCheck": {
+          "endpoint": "/health",
+          "intervalMs": 300000,
+          "timeoutMs": 5000
+        }
+      }
+    },
+    "automation": {
+      "n8n": {
+        "enabled": false,
+        "baseUrl": "http://localhost:5678",
+        "apiKey": "${N8N_API_KEY}",
+        "capabilities": ["workflow", "webhook", "schedule"],
+        "routineMapping": {
+          "enabled": false,
+          "prefix": "n8n://",
+          "defaultWorkspace": "vrooli"
+        },
+        "healthCheck": {
+          "endpoint": "/api/v1/info",
+          "intervalMs": 300000,
+          "timeoutMs": 5000,
+          "requiresAuth": true
+        }
+      },
+      "nodered": {
+        "enabled": false,
+        "baseUrl": "http://localhost:1880",
+        "apiKey": "${NODERED_API_KEY}",
+        "capabilities": ["flow", "dashboard"],
+        "healthCheck": {
+          "endpoint": "/flows",
+          "intervalMs": 300000,
+          "timeoutMs": 5000
+        }
+      }
+    },
+    "agents": {
+      "puppeteer": {
+        "enabled": false,
+        "mode": "standalone",
+        "executable": "chromium",
+        "headless": true,
+        "constraints": {
+          "maxInstances": 3,
+          "maxMemoryMb": 512,
+          "timeoutMs": 30000
+        },
+        "sandbox": {
+          "enabled": true,
+          "args": ["--no-sandbox", "--disable-setuid-sandbox"],
+          "userDataDir": "./data/puppeteer"
+        }
+      },
+      "playwright": {
+        "enabled": false,
+        "mode": "standalone",
+        "browsers": ["chromium", "firefox"],
+        "headless": true,
+        "constraints": {
+          "maxInstances": 3,
+          "maxMemoryMb": 512,
+          "timeoutMs": 30000
+        }
+      },
+      "browserless": {
+        "enabled": false,
+        "mode": "service",
+        "baseUrl": "http://localhost:3000",
+        "token": "${BROWSERLESS_TOKEN}",
+        "healthCheck": {
+          "endpoint": "/pressure",
+          "intervalMs": 60000,
+          "timeoutMs": 5000
+        }
+      }
+    },
+    "storage": {
+      "minio": {
+        "enabled": false,
+        "endpoint": "localhost:9000",
+        "useSSL": false,
+        "accessKey": "${MINIO_ACCESS_KEY}",
+        "secretKey": "${MINIO_SECRET_KEY}",
+        "region": "us-east-1",
+        "buckets": {
+          "userUploads": "vrooli-user-uploads",
+          "agentArtifacts": "vrooli-agent-artifacts",
+          "modelCache": "vrooli-model-cache"
+        },
+        "healthCheck": {
+          "intervalMs": 300000,
+          "timeoutMs": 5000
+        }
+      },
+      "ipfs": {
+        "enabled": false,
+        "apiUrl": "http://localhost:5001",
+        "gatewayUrl": "http://localhost:8080",
+        "healthCheck": {
+          "endpoint": "/api/v0/id",
+          "intervalMs": 300000,
+          "timeoutMs": 5000
+        }
+      }
+    }
+  },
+  "discovery": {
+    "enabled": true,
+    "strategy": "automatic",
+    "methods": {
+      "portScanning": {
+        "enabled": true,
+        "scanIntervalMs": 3600000,
+        "ports": {
+          "ollama": 11434,
+          "localai": 8080,
+          "n8n": 5678,
+          "nodered": 1880,
+          "minio": 9000,
+          "browserless": 3000
+        }
+      },
+      "dockerIntegration": {
+        "enabled": true,
+        "socketPath": "/var/run/docker.sock",
+        "labelPrefix": "com.vrooli.resource"
+      },
+      "processScanning": {
+        "enabled": false,
+        "patterns": ["ollama", "n8n", "minio"]
+      }
+    },
+    "notifications": {
+      "onDiscovery": true,
+      "onLoss": true
+    }
+  },
+  "security": {
+    "network": {
+      "allowedHosts": ["localhost", "127.0.0.1", "host.docker.internal"],
+      "allowCustomHosts": false,
+      "enforceHttps": false
+    },
+    "authentication": {
+      "requireForAll": false,
+      "keyStorage": "environment",
+      "keyPrefix": "VROOLI_RESOURCE_"
+    },
+    "rateLimit": {
+      "enabled": true,
+      "requestsPerMinute": 100,
+      "burstSize": 20
+    },
+    "audit": {
+      "enabled": true,
+      "logLevel": "info",
+      "retentionDays": 30
+    }
+  },
+  "_documentation": {
+    "description": "Configuration for local resources available to Vrooli",
+    "usage": [
+      "1. Copy this file to .vrooli/resources.local.json",
+      "2. Set enabled: true at the root level",
+      "3. Enable and configure specific services you have running locally",
+      "4. Set appropriate API keys in environment variables",
+      "5. Restart Vrooli server to apply changes"
+    ],
+    "security_notes": [
+      "API keys should never be stored directly in this file",
+      "Use environment variables with ${VAR_NAME} syntax",
+      "Restrict allowedHosts in production environments",
+      "Enable authentication for sensitive services"
+    ],
+    "service_notes": {
+      "ai": "Local AI models for inference without external API calls",
+      "automation": "Workflow engines that can execute complex multi-step processes",
+      "agents": "Browser automation for web scraping and testing",
+      "storage": "Object storage for files and artifacts"
+    }
+  }
+}

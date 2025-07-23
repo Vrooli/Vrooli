@@ -223,3 +223,4 @@ scripts/tests/tmp
 
 # Local execution configuration (keep example files, ignore local settings)
 .vrooli/execution.local.json
+.vrooli/resources.local.json

@@ -29,7 +29,7 @@ export async function cleanupRevokedSessions(): Promise<void> {
             }
 
             // Delete the batch
-            const sessionIds = sessionsToDelete.map(session => session.id);
+            const sessionIds = sessionsToDelete.map((session) => session.id);
             const { count } = await DbProvider.get().session.deleteMany({
                 where: { id: { in: sessionIds } },
             });
