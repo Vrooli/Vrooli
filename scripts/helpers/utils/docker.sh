@@ -58,9 +58,19 @@ docker::start() {
     log::info "Starting Docker service..."
     sudo service docker start
 
+    # Wait a moment for Docker to fully start
+    sleep 2
+    
     # Verify Docker is now running
     if ! docker version >/dev/null 2>&1; then
-        log::error "Failed to start Docker or Docker is not running. If you are in Windows Subsystem for Linux (WSL), please start Docker Desktop and try again."
+        # Check if it's a permission issue
+        if [[ -S /var/run/docker.sock ]] && ! groups | grep -q docker; then
+            log::error "Docker appears to be running but you don't have permission to access it"
+            log::error "You are not in the docker group. Run: sudo usermod -aG docker $USER"
+            log::error "Then log out and back in, or run: newgrp docker"
+        else
+            log::error "Failed to start Docker or Docker is not running. If you are in Windows Subsystem for Linux (WSL), please start Docker Desktop and try again."
+        fi
         return 1
     fi
     
@@ -120,6 +130,109 @@ docker::setup_docker_compose() {
     if ! system::is_command "docker-compose"; then
         log::error "Docker Compose installation failed."
         return 1
+    fi
+}
+
+docker::manage_docker_group() {
+    # Determine the actual user (handle sudo case)
+    local actual_user
+    if [[ -n "${SUDO_USER:-}" ]] && [[ "$SUDO_USER" != "root" ]]; then
+        # Running under sudo, use the real user
+        actual_user="$SUDO_USER"
+    else
+        # Not under sudo, use current user
+        actual_user="$USER"
+    fi
+    
+    # Check if the actual user is already in docker group
+    if groups "$actual_user" 2>/dev/null | grep -q docker; then
+        log::info "User '$actual_user' is already in docker group"
+        return 0
+    fi
+    
+    # User is not in docker group
+    log::warning "User '$actual_user' is not in the docker group"
+    
+    # Check if we can add user to docker group
+    if ! flow::can_run_sudo "Add user to docker group"; then
+        log::warning "Cannot add user to docker group without sudo privileges"
+        log::warning "To fix this manually, run: sudo usermod -aG docker $actual_user"
+        log::warning "Then log out and back in, or run: newgrp docker"
+        return 0  # Don't fail setup, just warn
+    fi
+    
+    # Ask user if they want to be added to docker group
+    if ! flow::is_yes "$YES"; then
+        log::info "Adding user to docker group requires logout/login to take effect."
+        if ! flow::confirm "Add '$actual_user' to docker group?"; then
+            log::warning "Skipping docker group addition. You may need sudo to run Docker commands."
+            return 0
+        fi
+    fi
+    
+    # Add user to docker group
+    log::info "Adding user '$actual_user' to docker group..."
+    if sudo usermod -aG docker "$actual_user"; then
+        log::success "User '$actual_user' added to docker group"
+        log::warning "IMPORTANT: You need to log out and back in for this to take effect"
+        log::info "Alternatively, run: newgrp docker"
+        log::info "Or restart your terminal session"
+        
+        # Note: newgrp won't work in this context when running with sudo
+        if [[ -z "${SUDO_USER:-}" ]]; then
+            # Only try newgrp if not running under sudo
+            if command -v newgrp >/dev/null 2>&1; then
+                log::info "Attempting to activate docker group in current session..."
+                # This won't work in a script context, but we try anyway
+                newgrp docker 2>/dev/null || true
+            fi
+        fi
+    else
+        log::error "Failed to add user '$actual_user' to docker group"
+        return 1
+    fi
+}
+
+docker::diagnose() {
+    log::header "Docker Diagnostics"
+    
+    # Check if Docker is installed
+    if system::is_command "docker"; then
+        log::info "Docker installation: FOUND"
+        log::info "Docker version: $(docker --version 2>/dev/null || echo 'Unable to get version')"
+    else
+        log::error "Docker installation: NOT FOUND"
+        return 1
+    fi
+    
+    # Check Docker daemon status
+    log::info "Checking Docker daemon status..."
+    if docker version >/dev/null 2>&1; then
+        log::success "Docker daemon: RUNNING"
+    else
+        log::error "Docker daemon: NOT RUNNING or NOT ACCESSIBLE"
+        
+        # Try to get more info
+        if command -v systemctl >/dev/null 2>&1; then
+            log::info "Docker service status:"
+            systemctl status docker --no-pager 2>&1 | head -20 || true
+        fi
+    fi
+    
+    # Check Docker socket
+    if [[ -S /var/run/docker.sock ]]; then
+        log::info "Docker socket: EXISTS"
+        log::info "Docker socket permissions: $(ls -l /var/run/docker.sock)"
+    else
+        log::warning "Docker socket: NOT FOUND at /var/run/docker.sock"
+    fi
+    
+    # Check user groups
+    log::info "Current user groups: $(groups)"
+    if groups | grep -q docker; then
+        log::success "User is in docker group"
+    else
+        log::warning "User is NOT in docker group (may need: sudo usermod -aG docker $USER)"
     fi
 }
 
@@ -326,6 +439,7 @@ docker::configure_resource_limits() {
 
 docker::setup() {
     docker::install
+    docker::manage_docker_group
     docker::start
     docker::setup_docker_compose
     if ! flow::is_yes "${IS_CI:-}"; then
