@@ -4,6 +4,7 @@ import { API_CREDITS_MULTIPLIER } from "../../consts/api.js";
 import { DAYS_1_MS, MINUTES_10_MS, MINUTES_1_MS, SECONDS_1_MS } from "../../consts/numbers.js";
 import { chatConfigFixtures } from "../../__test/fixtures/config/chatConfigFixtures.js";
 import { runComprehensiveConfigTests } from "./__test/configTestUtils.js";
+import { ModelStrategy } from "./base.js";
 
 describe("ChatConfig", () => {
     // Standardized config tests using fixtures
@@ -32,7 +33,11 @@ describe("ChatConfig", () => {
             const config: ChatConfigObject = {
                 __version: "1.0",
                 goal: "Complete the user's task",
-                preferredModel: "gpt-4",
+                modelConfig: {
+                    strategy: ModelStrategy.FALLBACK,
+                    preferredModel: "gpt-4",
+                    offlineOnly: false,
+                },
                 subtasks: [{
                     id: "task1",
                     description: "First task",
@@ -97,7 +102,11 @@ describe("ChatConfig", () => {
 
             expect(chatConfig.__version).toBe("1.0");
             expect(chatConfig.goal).toBe("Complete the user's task");
-            expect(chatConfig.preferredModel).toBe("gpt-4");
+            expect(chatConfig.modelConfig).toEqual({
+                strategy: ModelStrategy.FALLBACK,
+                preferredModel: "gpt-4",
+                offlineOnly: false,
+            });
             expect(chatConfig.subtasks).toHaveLength(1);
             expect(chatConfig.subtasks?.[0].id).toBe("task1");
             expect(chatConfig.swarmLeader).toBe("bot1");
@@ -120,7 +129,7 @@ describe("ChatConfig", () => {
 
             expect(chatConfig.__version).toBe("1.0");
             expect(chatConfig.goal).toBeUndefined();
-            expect(chatConfig.preferredModel).toBeUndefined();
+            expect(chatConfig.modelConfig).toBeUndefined();
             expect(chatConfig.subtasks).toEqual([]);
             expect(chatConfig.blackboard).toEqual([]);
             expect(chatConfig.resources).toEqual([]);
@@ -198,7 +207,7 @@ describe("ChatConfig", () => {
 
             expect(chatConfig.__version).toBe("1.0");
             expect(chatConfig.goal).toBeUndefined();
-            expect(chatConfig.preferredModel).toBeUndefined();
+            expect(chatConfig.modelConfig).toBeUndefined();
             expect(chatConfig.subtasks).toEqual([]);
             expect(chatConfig.blackboard).toEqual([]);
             expect(chatConfig.resources).toEqual([]);
@@ -220,7 +229,11 @@ describe("ChatConfig", () => {
             const originalConfig: ChatConfigObject = {
                 __version: "1.0",
                 goal: "Test export",
-                preferredModel: "gpt-4",
+                modelConfig: {
+                    strategy: ModelStrategy.FALLBACK,
+                    preferredModel: "gpt-4",
+                    offlineOnly: false,
+                },
                 subtasks: [{
                     id: "task1",
                     description: "Task 1",

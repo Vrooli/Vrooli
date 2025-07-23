@@ -279,7 +279,7 @@ export function updateVersion<
     const objectsEqual = (a: any, b: any): boolean => {
         if (a === b) return true;
         if (!a || !b) return false;
-        if (typeof a !== 'object' || typeof b !== 'object') return false;
+        if (typeof a !== "object" || typeof b !== "object") return false;
         
         const keysA = Object.keys(a);
         const keysB = Object.keys(b);
@@ -290,9 +290,9 @@ export function updateVersion<
             const valA = a[key];
             const valB = b[key];
             
-            if (typeof valA === 'bigint' && typeof valB === 'bigint') {
+            if (typeof valA === "bigint" && typeof valB === "bigint") {
                 if (valA !== valB) return false;
-            } else if (typeof valA === 'object' && typeof valB === 'object') {
+            } else if (typeof valA === "object" && typeof valB === "object") {
                 if (!objectsEqual(valA, valB)) return false;
             } else if (valA !== valB) {
                 return false;

@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, test, vi } from "vitest";
-import { setupDOM, teardownDOM } from "../__test/setup.js";
 import { ResourceSubType } from "../api/types.js";
 import { LINKS } from "../consts/ui.js";
 import {
@@ -71,13 +70,23 @@ describe.concurrent("encodeValue and decodeValue", () => {
 });
 
 describe("parseSearchParams", () => {
-    // Set up DOM once for all tests in this describe block
+    // Mock window object for tests
     beforeAll(() => {
-        setupDOM();
+        // @ts-ignore
+        global.window = {
+            location: { search: "" },
+            history: {
+                replaceState: vi.fn((state, title, url) => {
+                    const searchMatch = url.match(/\?(.*)$/);
+                    global.window.location.search = searchMatch ? `?${searchMatch[1]}` : "";
+                }),
+            },
+        };
     });
 
     afterAll(() => {
-        teardownDOM();
+        // @ts-ignore
+        delete global.window;
     });
 
     // Reset URL to clean state before each test
@@ -193,13 +202,23 @@ describe.concurrent("stringifySearchParams", () => {
 });
 
 describe("stringifySearchParams and parseSearchParams", () => {
-    // Set up DOM once for all tests
+    // Mock window object for tests
     beforeAll(() => {
-        setupDOM();
+        // @ts-ignore
+        global.window = {
+            location: { search: "" },
+            history: {
+                replaceState: vi.fn((state, title, url) => {
+                    const searchMatch = url.match(/\?(.*)$/);
+                    global.window.location.search = searchMatch ? `?${searchMatch[1]}` : "";
+                }),
+            },
+        };
     });
 
     afterAll(() => {
-        teardownDOM();
+        // @ts-ignore
+        delete global.window;
     });
 
     const testCases = [
@@ -603,11 +622,21 @@ describe("UrlTools", () => {
 
     describe("parseSearchParams", () => {
         beforeAll(() => {
-            setupDOM();
+            // @ts-ignore
+            global.window = {
+                location: { search: "" },
+                history: {
+                    replaceState: vi.fn((state, title, url) => {
+                        const searchMatch = url.match(/\?(.*)$/);
+                        global.window.location.search = searchMatch ? `?${searchMatch[1]}` : "";
+                    }),
+                },
+            };
         });
 
         afterAll(() => {
-            teardownDOM();
+            // @ts-ignore
+            delete global.window;
         });
 
         beforeEach(() => {
@@ -651,7 +680,16 @@ describe("error handling", () => {
     });
 
     it("should handle parseSearchParams JSON parsing errors by falling back to strings", () => {
-        setupDOM();
+        // @ts-ignore
+        global.window = {
+            location: { search: "" },
+            history: {
+                replaceState: vi.fn((state, title, url) => {
+                    const searchMatch = url.match(/\?(.*)$/);
+                    global.window.location.search = searchMatch ? `?${searchMatch[1]}` : "";
+                }),
+            },
+        };
 
         // Set invalid JSON in search params
         window.history.replaceState({}, "", "?invalid=notjson");
@@ -660,11 +698,21 @@ describe("error handling", () => {
         // When JSON parsing fails, the parameter falls back to string value
         expect(result).toEqual({ invalid: "notjson" });
 
-        teardownDOM();
+        // @ts-ignore
+        delete global.window;
     });
 
     it("should log errors in parseSearchParams when not in test environment", () => {
-        setupDOM();
+        // @ts-ignore
+        global.window = {
+            location: { search: "" },
+            history: {
+                replaceState: vi.fn((state, title, url) => {
+                    const searchMatch = url.match(/\?(.*)$/);
+                    global.window.location.search = searchMatch ? `?${searchMatch[1]}` : "";
+                }),
+            },
+        };
 
         const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => { });
         const originalNodeEnv = process.env.NODE_ENV;
@@ -688,7 +736,8 @@ describe("error handling", () => {
         // Restore environment and mocks
         process.env.NODE_ENV = originalNodeEnv;
         consoleErrorSpy.mockRestore();
-        teardownDOM();
+        // @ts-ignore
+        delete global.window;
     });
 
     it("should warn for invalid objects in getObjectUrlBase", () => {

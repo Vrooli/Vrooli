@@ -3,7 +3,7 @@ import { API_CREDITS_MULTIPLIER } from "../../consts/api.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
 import { DAYS_1_MS, MINUTES_10_MS, MINUTES_1_MS, SECONDS_1_MS } from "../../consts/numbers.js";
 import { EventTypes } from "../../consts/socketEvents.js";
-import { RunState } from "../../execution/routine.js";
+import { type RunState } from "../../execution/routine.js";
 import { type ResourceSpec } from "./bot.js";
 import { type ModelConfig } from "./base.js";
 

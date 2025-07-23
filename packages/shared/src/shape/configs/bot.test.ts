@@ -2,8 +2,8 @@
 import jexl from "jexl";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { botConfigFixtures } from "../../__test/fixtures/config/botConfigFixtures.js";
-import { OpenAIModel } from "../../ai/services.js";
 import { type User } from "../../api/types.js";
+import { ModelStrategy } from "./base.js";
 import { type AgentSpec, type BehaviourSpec, BotConfig, type BotConfigObject, getModelDescription, getModelName, type LlmModel, type ResourceSpec } from "./bot.js";
 
 const LATEST_VERSION_STRING = "1.0"; // Consistent version string
@@ -106,7 +106,11 @@ describe("BotConfig", () => {
     it("retains valid fields from botSettings object and fills defaults for missing ones", () => {
         const partialBotSettingsObject: Partial<BotConfigObject> = {
             // __version is missing, should be defaulted by parseBase
-            model: "retained-model",
+            modelConfig: {
+                strategy: ModelStrategy.FIXED,
+                preferredModel: "retained-model",
+                offlineOnly: false,
+            },
             // maxTokens is missing, should be undefined in BotConfig constructor
             // resources are missing, should be defaulted by parseBase to []
         };
@@ -117,7 +121,11 @@ describe("BotConfig", () => {
 
         const expectedExport: BotConfigObject = {
             __version: LATEST_VERSION_STRING, // Defaulted by parseBase
-            model: "retained-model",
+            modelConfig: {
+                strategy: ModelStrategy.FIXED,
+                preferredModel: "retained-model",
+                offlineOnly: false,
+            },
             maxTokens: undefined, // BotConfig constructor specific
             resources: [], // Defaulted by parseBase
             agentSpec: undefined,
@@ -403,12 +411,6 @@ describe("getModelDescription", () => {
 
         expect(result).toBe("");
         expect(mockTranslation).not.toHaveBeenCalled();
-    });
-});
-
-describe("OpenAIModel related tests", () => {
-    it("should exist (placeholder)", () => {
-        expect(OpenAIModel).toBeDefined();
     });
 });
 
