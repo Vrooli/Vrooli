@@ -96,6 +96,15 @@ setup::main() {
 
     # Setup tools
     common_deps::check_and_install
+    
+    # Configure git to ignore file permission changes
+    # This prevents shell scripts from showing as modified when only permissions change
+    if command -v git &> /dev/null && [ -d ".git" ]; then
+        log::info "Configuring git to ignore file permission changes..."
+        git config core.filemode false
+        log::success "✅ Git configured to ignore permission changes"
+    fi
+    
     # Clean up volumes & caches
     if flow::is_yes "$CLEAN"; then
         clean::main
@@ -152,7 +161,26 @@ setup::main() {
         shellcheck::install
     fi
 
-    docker::setup
+    # Setup Docker with better error handling
+    if ! docker::setup; then
+        log::error "Docker setup failed"
+        log::info "Running Docker diagnostics..."
+        docker::diagnose || true
+        
+        # Provide helpful error message based on environment
+        if grep -qi microsoft /proc/version 2>/dev/null || [[ -f /proc/sys/fs/binfmt_misc/WSLInterop ]]; then
+            log::error ""
+            log::error "Docker setup failed in WSL environment!"
+            log::error "Please ensure Docker Desktop is running on Windows and WSL integration is enabled."
+            log::error ""
+            log::error "You can run './diagnose-docker.sh' for detailed diagnostics."
+        else
+            log::error ""
+            log::error "Docker setup failed!"
+            log::error "You can run './diagnose-docker.sh' for detailed diagnostics."
+        fi
+        exit "${ERROR_DOCKER_SETUP_FAILED}"
+    fi
 
     # Run the target-specific setup script
     TARGET_SCRIPT="${MAIN_DIR}/../helpers/setup/target/${TARGET//-/_}.sh"
