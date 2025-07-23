@@ -1,9 +1,67 @@
 #!/usr/bin/env bash
-# Vrooli CLI wrapper script
+# Vrooli CLI wrapper script with enhanced error handling
 # Use readlink to resolve the actual path when called through a symlink
 REAL_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="$(cd "$(dirname "${REAL_PATH}")" && pwd)"
 CLI_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+PROJECT_ROOT="$(cd "${CLI_DIR}/../.." && pwd)"
+
+# Colors for output (only if terminal supports it)
+if [ -t 1 ]; then
+    RED='\033[0;31m'
+    YELLOW='\033[0;33m'
+    NC='\033[0m' # No Color
+else
+    RED=''
+    YELLOW=''
+    NC=''
+fi
+
+# Check if CLI is built
+if [ ! -f "${CLI_DIR}/dist/index.js" ]; then
+    echo -e "${RED}❌ Vrooli CLI not built${NC}"
+    echo ""
+    echo "The CLI needs to be built before use. Run one of these commands:"
+    echo ""
+    echo "  Option 1 - Full setup (recommended):"
+    echo "    cd ${PROJECT_ROOT}"
+    echo "    ./scripts/main/setup.sh --target native-linux --yes yes"
+    echo ""
+    echo "  Option 2 - Build CLI only:"
+    echo "    cd ${CLI_DIR}"
+    echo "    pnpm run build"
+    echo ""
+    echo "This is a one-time setup. After building, the CLI will work normally."
+    exit 1
+fi
+
+# Check if shared package is built (warning only)
+if [ ! -d "${PROJECT_ROOT}/packages/shared/dist" ]; then
+    echo -e "${YELLOW}⚠️  Warning: @vrooli/shared package not built${NC}"
+    echo "Some CLI features may not work properly."
+    echo "Consider running the full setup script or building the shared package."
+    echo ""
+fi
+
+# Check if we can determine server status (optional enhancement)
+# This is non-blocking - just informational
+if command -v curl >/dev/null 2>&1; then
+    # Try a quick health check (1 second timeout)
+    # Store the output to check for errors
+    HEALTH_CHECK_OUTPUT=$(curl -s --max-time 1 http://localhost:5329/healthcheck 2>&1)
+    HEALTH_CHECK_STATUS=$?
+    
+    if [ $HEALTH_CHECK_STATUS -ne 0 ] || [ -z "$HEALTH_CHECK_OUTPUT" ]; then
+        # Only show this for commands that need the server
+        case "${1}" in
+            auth|routine|chat|agent|team)
+                echo -e "${YELLOW}ℹ️  Note: Vrooli server appears to be offline${NC}"
+                echo "Start it with: cd ${PROJECT_ROOT} && ./scripts/main/develop.sh"
+                echo ""
+                ;;
+        esac
+    fi
+fi
 
 # Execute the Node.js CLI with proper environment
 exec node "${CLI_DIR}/dist/index.js" "$@"

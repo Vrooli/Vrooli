@@ -61,7 +61,7 @@ export class AuthCommands {
 
             try {
                 // Call login endpoint
-                const session = await this.client.post<Session>("/auth/login", {
+                const session = await this.client.post<Session>("/auth/email/login", {
                     email: credentials.email,
                     password: credentials.password,
                 });

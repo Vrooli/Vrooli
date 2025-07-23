@@ -4,6 +4,7 @@ import { type ConfigManager } from "./config.js";
 import { logger } from "./logger.js";
 import FormData from "form-data";
 import { HTTP_STATUS, LIMITS } from "./constants.js";
+import { formatErrorWithTrace } from "./errorMessages.js";
 
 export interface ApiError {
     message: string;
@@ -17,7 +18,7 @@ export class ApiClient {
 
     constructor(private config: ConfigManager) {
         this.axios = axios.create({
-            baseURL: config.getServerUrl(),
+            baseURL: `${config.getServerUrl()}/api/v2`,
             timeout: 30000,
             headers: {
                 "Content-Type": "application/json",
@@ -86,14 +87,39 @@ export class ApiClient {
 
     private formatError(error: AxiosError): Error {
         if (error.response) {
-            const data = error.response.data as { message?: string; error?: string; code?: string; details?: unknown };
-            const message = data?.message || data?.error || error.message;
-            const err = new Error(message);
-            (err as ApiError).code = data?.code || error.code;
+            // Handle the server's error response structure
+            const data = error.response.data as { 
+                errors?: Array<{ trace?: string; code?: string }>;
+                message?: string; 
+                error?: string; 
+                code?: string; 
+                details?: unknown 
+            };
+            
+            // Extract error information from the errors array if present
+            let errorCode: string | undefined;
+            let errorTrace: string | undefined;
+            let fallbackMessage = error.message;
+            
+            if (data?.errors && Array.isArray(data.errors) && data.errors.length > 0) {
+                const firstError = data.errors[0];
+                errorCode = firstError.code;
+                errorTrace = firstError.trace;
+            } else {
+                // Fallback to other error formats
+                errorCode = data?.code;
+                fallbackMessage = data?.message || data?.error || error.message;
+            }
+            
+            // Create error with formatted message
+            const formattedMessage = formatErrorWithTrace(errorCode, errorTrace, fallbackMessage);
+            const err = new Error(formattedMessage);
+            (err as ApiError).code = errorCode || error.code;
             (err as ApiError).details = data?.details || data;
             return err;
         } else if (error.request) {
-            return new Error("No response from server. Is the server running?");
+            // Use our error message for connection failures
+            return new Error(formatErrorWithTrace("CannotConnectToServer", undefined));
         }
         return error;
     }

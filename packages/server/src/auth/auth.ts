@@ -379,7 +379,8 @@ export class AuthService {
         // Try API key authentication (env var, header, or query param)
         const candidateKey: string | undefined = (() => {
             // 1) Environment variable (for local development or MCP)
-            if (process.env.MCP_API_KEY) {
+            // Only use MCP_API_KEY for MCP-specific endpoints
+            if (process.env.MCP_API_KEY && req.originalUrl.startsWith("/mcp")) {
                 return process.env.MCP_API_KEY;
             }
             // 2) X-API-Key header
