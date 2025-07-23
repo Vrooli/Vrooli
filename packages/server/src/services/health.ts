@@ -27,6 +27,7 @@ import { EmbeddingService } from "./embedding.js";
 import { runWithMcpContext } from "./mcp/context.js";
 import { getMcpServer } from "./mcp/index.js";
 import { AIServiceRegistry, AIServiceState } from "./response/registry.js";
+import { ResourceRegistry } from "./resources/ResourceRegistry.js";
 
 const exec = promisify(execCb);
 
@@ -69,6 +70,7 @@ interface SystemHealth {
         websocket: ServiceHealth;
         imageStorage: ServiceHealth;
         embeddingService: ServiceHealth;
+        resources: ServiceHealth;
     };
     timestamp: number;
 }
@@ -135,6 +137,7 @@ export class HealthService {
     private websocketHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
     private imageStorageHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
     private embeddingServiceHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
+    private resourcesHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     private constructor() { }
@@ -1154,6 +1157,61 @@ export class HealthService {
     }
 
     /**
+     * Check Resources health
+     */
+    private async checkResources(): Promise<ServiceHealth> {
+        const cachedHealth = this.getCachedHealthIfValid(this.resourcesHealthCache);
+        if (cachedHealth) {
+            return cachedHealth;
+        }
+
+        try {
+            const registry = ResourceRegistry.getInstance();
+            const healthCheck = registry.getHealthCheck();
+            
+            // Map ResourceSystemHealth enum to ServiceStatus
+            let status: ServiceStatus;
+            switch (healthCheck.status) {
+                case "Operational":
+                    status = ServiceStatus.Operational;
+                    break;
+                case "Degraded":
+                    status = ServiceStatus.Degraded;
+                    break;
+                case "Down":
+                    status = ServiceStatus.Down;
+                    break;
+                default:
+                    status = ServiceStatus.Down;
+            }
+            
+            this.resourcesHealthCache = this.createServiceCache(
+                status,
+                DEFAULT_SERVICE_CACHE_MS,
+                {
+                    systemHealth: healthCheck.status,
+                    totalSupported: healthCheck.stats.totalSupported,
+                    totalRegistered: healthCheck.stats.totalRegistered,
+                    totalEnabled: healthCheck.stats.totalEnabled,
+                    totalActive: healthCheck.stats.totalActive,
+                    categories: healthCheck.categories,
+                    message: healthCheck.message,
+                    missingImplementations: healthCheck.missingImplementations,
+                    unavailableServices: healthCheck.unavailableServices,
+                },
+            );
+            return this.resourcesHealthCache.health;
+        } catch (error) {
+            this.resourcesHealthCache = this.createServiceCache(
+                ServiceStatus.Down,
+                DEFAULT_SERVICE_CACHE_MS,
+                { error: `Failed to check Resources: ${(error instanceof Error) ? error.message : String(error)}` },
+            );
+            return this.resourcesHealthCache.health;
+        }
+    }
+
+    /**
      * Wrapper to run a health check with timeout
      */
     private async withTimeout<T>(check: () => Promise<T>, serviceName: string, defaultValue: T): Promise<T> {
@@ -1191,6 +1249,7 @@ export class HealthService {
             { name: "WebSocket", check: () => this.withTimeout(() => this.checkWebSocket(), "WebSocket", createDownStatus("WebSocket", new Error("Timeout"))) },
             { name: "ImageStorage", check: () => this.withTimeout(() => this.checkImageStorage(), "ImageStorage", createDownStatus("ImageStorage", new Error("Timeout"))) },
             { name: "EmbeddingService", check: () => this.withTimeout(() => this.checkEmbeddingService(), "EmbeddingService", createDownStatus("EmbeddingService", new Error("Timeout"))) },
+            { name: "Resources", check: () => this.withTimeout(() => this.checkResources(), "Resources", createDownStatus("Resources", new Error("Timeout"))) },
         ];
 
         const results: { name: string, status: "fulfilled" | "rejected", value?: any, reason?: any }[] = [];
@@ -1281,6 +1340,7 @@ export class HealthService {
         const websocketHealth = results.find(r => r.name === "WebSocket")?.status === "fulfilled" ? results.find(r => r.name === "WebSocket")!.value : createDownStatus("WebSocket", results.find(r => r.name === "WebSocket")?.reason);
         const imageStorageHealth = results.find(r => r.name === "ImageStorage")?.status === "fulfilled" ? results.find(r => r.name === "ImageStorage")!.value : createDownStatus("Image Storage", results.find(r => r.name === "ImageStorage")?.reason);
         const embeddingServiceHealth = results.find(r => r.name === "EmbeddingService")?.status === "fulfilled" ? results.find(r => r.name === "EmbeddingService")!.value : createDownStatus("Embedding Service", results.find(r => r.name === "EmbeddingService")?.reason);
+        const resourcesHealth = results.find(r => r.name === "Resources")?.status === "fulfilled" ? results.find(r => r.name === "Resources")!.value : createDownStatus("Resources", results.find(r => r.name === "Resources")?.reason);
 
 
         // Determine overall status
@@ -1299,6 +1359,7 @@ export class HealthService {
             websocketHealth,
             imageStorageHealth,
             embeddingServiceHealth,
+            resourcesHealth,
             // Spread results from checks that return an object of ServiceHealth
             ...(Object.values(queueHealths) as ServiceHealth[]),
             ...(Object.values(llmHealth) as ServiceHealth[]),
@@ -1329,6 +1390,7 @@ export class HealthService {
                 websocket: websocketHealth,
                 imageStorage: imageStorageHealth,
                 embeddingService: embeddingServiceHealth,
+                resources: resourcesHealth,
             },
             timestamp: Date.now(),
         };

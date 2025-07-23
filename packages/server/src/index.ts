@@ -16,6 +16,7 @@ import { setupErrorReporting } from "./services/errorReporting.js";
 import { setupHealthCheck } from "./services/health.js";
 import { setupMCP } from "./services/mcp/index.js";
 import { setupMetrics } from "./services/metrics.js";
+import { ResourceRegistry } from "./services/resources/ResourceRegistry.js";
 import { setupStripe } from "./services/stripe.js";
 import { SocketService } from "./sockets/io.js";
 import { chatSocketRoomHandlers } from "./sockets/rooms/chat.js";
@@ -64,7 +65,17 @@ async function main() {
         // For now, allowing to continue to see if other services can start, or if retries handle it.
     }
 
-    // 2. Initialize Redis Connection for CacheService
+    // 2. Initialize Resource Registry
+    try {
+        const resourceRegistry = ResourceRegistry.getInstance();
+        await resourceRegistry.initialize();
+        logger.info("✅ Resource Registry initialized successfully");
+    } catch (resourceError) {
+        logger.error("⚠️ Resource Registry initialization failed. Local resources won't be available.", { error: resourceError });
+        // Non-critical - server can run without local resources
+    }
+
+    // 3. Initialize Redis Connection for CacheService
     try {
         CacheService.get(); // This will call its constructor and internal `ensure`
     } catch (cacheError) {
@@ -77,7 +88,7 @@ async function main() {
         });
     }
 
-    // 3. Initialize Redis Connection for QueueService
+    // 4. Initialize Redis Connection for QueueService
     const queueService = QueueService.get();
     try {
         const redisUrl = getRedisUrl();
@@ -94,14 +105,14 @@ async function main() {
         });
     }
 
-    // 4. Start event bus and its workers
+    // 5. Start event bus and its workers
     try {
         await BillingWorker.start();
     } catch (billingError) {
         logger.error("🚨 Critical: BillingWorker failed to start.", { error: billingError });
     }
 
-    // 5. Check image processing capabilities (non-critical)
+    // 6. Check image processing capabilities (non-critical)
     try {
         await checkImageProcessingCapabilities();
     } catch (error) {
