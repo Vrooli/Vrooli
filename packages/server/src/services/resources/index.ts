@@ -23,8 +23,11 @@
  *     protected async performDiscovery(): Promise<boolean> {
  *         // Check if Ollama is running
  *         try {
- *             const response = await this.fetchWithTimeout(`${this.config.baseUrl}/api/tags`);
- *             return response.ok;
+ *             const result = await this.httpClient!.makeRequest({
+ *                 url: `${this.config.baseUrl}/api/tags`,
+ *                 method: "GET",
+ *             });
+ *             return result.success;
  *         } catch {
  *             return false;
  *         }
@@ -32,10 +35,13 @@
  *     
  *     protected async performHealthCheck(): Promise<HealthCheckResult> {
  *         // Check Ollama health
- *         const response = await this.fetchWithTimeout(`${this.config.baseUrl}/api/tags`);
+ *         const result = await this.httpClient!.makeRequest({
+ *             url: `${this.config.baseUrl}/api/tags`,
+ *             method: "GET",
+ *         });
  *         return {
- *             healthy: response.ok,
- *             message: response.ok ? 'Ollama is running' : 'Ollama is not responding',
+ *             healthy: result.success,
+ *             message: result.success ? 'Ollama is running' : 'Ollama is not responding',
  *             timestamp: new Date(),
  *         };
  *     }

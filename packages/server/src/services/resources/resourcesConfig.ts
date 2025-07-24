@@ -1,6 +1,16 @@
 import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { logger } from "../../events/logger.js";
+import type {
+    AgentResourceId,
+    AIResourceId,
+    AutomationResourceId,
+    GetConfig,
+    ResourceConfigMap,
+    ResourceId,
+    StorageResourceId,
+} from "./typeRegistry.js";
+import { ResourceCategory } from "./types.js";
 
 /**
  * Type definitions matching the JSON schema
@@ -64,9 +74,24 @@ export interface ResourcesConfig {
 }
 
 /**
- * Default configuration
+ * Fully typed version of ResourcesConfig with proper type safety for services
+ * Uses the comprehensive type system from typeRegistry.ts
  */
-const DEFAULT_CONFIG: ResourcesConfig = {
+export interface TypedResourcesConfig extends Omit<ResourcesConfig, "services" | "_documentation"> {
+    services?: {
+        ai?: Partial<Pick<ResourceConfigMap, AIResourceId>>;
+        automation?: Partial<Pick<ResourceConfigMap, AutomationResourceId>>;
+        agents?: Partial<Pick<ResourceConfigMap, AgentResourceId>>;
+        storage?: Partial<Pick<ResourceConfigMap, StorageResourceId>>;
+    };
+    /** Documentation field for JSON configs - ignored during processing */
+    _documentation?: Record<string, unknown>;
+}
+
+/**
+ * Default configuration with full type safety
+ */
+const DEFAULT_CONFIG: TypedResourcesConfig = {
     version: "1.0.0",
     enabled: false,
     services: {
@@ -110,9 +135,9 @@ const DEFAULT_CONFIG: ResourcesConfig = {
 };
 
 /**
- * Load resources configuration from JSON files
+ * Load resources configuration from JSON files with full type safety
  */
-export async function loadResourcesConfig(customPath?: string): Promise<ResourcesConfig> {
+export async function loadResourcesConfig(customPath?: string): Promise<TypedResourcesConfig> {
     const projectRoot = process.cwd();
     const vrooliDir = resolve(projectRoot, ".vrooli");
 
@@ -123,7 +148,7 @@ export async function loadResourcesConfig(customPath?: string): Promise<Resource
         resolve(vrooliDir, "resources.json"),
     ].filter(Boolean) as string[];
 
-    let config: ResourcesConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    let config: TypedResourcesConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
     let configLoaded = false;
 
     // Try to load configuration files
@@ -249,20 +274,64 @@ function validateConfig(config: ResourcesConfig): void {
 }
 
 /**
- * Get a specific service configuration
+ * Get a specific service configuration (legacy - untyped)
  */
 export function getServiceConfig(
-    config: ResourcesConfig,
-    category: keyof NonNullable<ResourcesConfig["services"]>,
+    config: TypedResourcesConfig,
+    category: keyof NonNullable<TypedResourcesConfig["services"]>,
     serviceId: string,
-): any | undefined {
+): unknown {
     return config.services?.[category]?.[serviceId];
+}
+
+/**
+ * Get a specific service configuration with full type safety
+ */
+export function getTypedServiceConfig<TId extends ResourceId>(
+    config: TypedResourcesConfig,
+    resourceId: TId,
+): GetConfig<TId> | undefined {
+    const category = getResourceCategory(resourceId);
+    const categoryServices = config.services?.[category];
+    if (!categoryServices) {
+        return undefined;
+    }
+    return (categoryServices as any)[resourceId] as GetConfig<TId> | undefined;
+}
+
+/**
+ * Helper function to get resource category from resource ID
+ */
+function getResourceCategory(resourceId: ResourceId): keyof NonNullable<TypedResourcesConfig["services"]> {
+    // Import the category mappings from typeRegistry
+    import("./typeRegistry.js").then(({ isResourceInCategory }) => {
+        if (isResourceInCategory(resourceId, ResourceCategory.AI)) return "ai";
+        if (isResourceInCategory(resourceId, ResourceCategory.Automation)) return "automation";
+        if (isResourceInCategory(resourceId, ResourceCategory.Agents)) return "agents";
+        if (isResourceInCategory(resourceId, ResourceCategory.Storage)) return "storage";
+    });
+
+    // Static fallback for now - in real implementation this would use the typeRegistry
+    if (["ollama", "localai", "llamacpp", "vllm", "tgi", "onnx", "whisper", "comfyui", "stablediffusion", "cloudflare", "openrouter"].includes(resourceId)) {
+        return "ai";
+    }
+    if (["n8n", "nodered", "windmill", "automatisch", "activepieces", "huginn", "kestra", "beehive", "airflow", "temporal"].includes(resourceId)) {
+        return "automation";
+    }
+    if (["puppeteer", "playwright", "selenium", "browserless"].includes(resourceId)) {
+        return "agents";
+    }
+    if (["minio", "seaweedfs", "glusterfs", "ipfs", "rclone"].includes(resourceId)) {
+        return "storage";
+    }
+
+    throw new Error(`Unknown resource ID: ${resourceId}`);
 }
 
 /**
  * Check if a host is allowed based on security configuration
  */
-export function isHostAllowed(config: ResourcesConfig, host: string): boolean {
+export function isHostAllowed(config: TypedResourcesConfig, host: string): boolean {
     const allowedHosts = config.security?.network?.allowedHosts || ["localhost", "127.0.0.1"];
     const allowCustom = config.security?.network?.allowCustomHosts || false;
 
@@ -276,8 +345,7 @@ export function isHostAllowed(config: ResourcesConfig, host: string): boolean {
 /**
  * Get environment variable name for a service key
  */
-export function getEnvVarName(config: ResourcesConfig, serviceId: string, keyName: string): string {
+export function getEnvVarName(config: TypedResourcesConfig, serviceId: string, keyName: string): string {
     const prefix = config.security?.authentication?.keyPrefix || "VROOLI_RESOURCE_";
     return `${prefix}${serviceId.toUpperCase()}_${keyName.toUpperCase()}`;
 }
-

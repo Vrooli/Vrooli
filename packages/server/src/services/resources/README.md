@@ -130,10 +130,11 @@ export class MyResource extends LocalResourceProvider<MyConfig> {
     protected async performDiscovery(): Promise<boolean> {
         // Check if service is running
         try {
-            const response = await this.fetchWithTimeout(
-                `${this.config.baseUrl}/health`
-            );
-            return response.ok;
+            const result = await this.httpClient!.makeRequest({
+                url: `${this.config.baseUrl}/health`,
+                method: "GET",
+            });
+            return result.success;
         } catch {
             return false;
         }
@@ -141,12 +142,13 @@ export class MyResource extends LocalResourceProvider<MyConfig> {
     
     protected async performHealthCheck(): Promise<HealthCheckResult> {
         // Verify service is healthy
-        const response = await this.fetchWithTimeout(
-            `${this.config.baseUrl}/health`
-        );
+        const result = await this.httpClient!.makeRequest({
+            url: `${this.config.baseUrl}/health`,
+            method: "GET",
+        });
         return {
-            healthy: response.ok,
-            message: response.ok ? 'Service is healthy' : 'Service is unhealthy',
+            healthy: result.success,
+            message: result.success ? 'Service is healthy' : 'Service is unhealthy',
             timestamp: new Date(),
         };
     }

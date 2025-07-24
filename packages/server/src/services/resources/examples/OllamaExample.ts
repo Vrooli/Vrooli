@@ -3,9 +3,11 @@
  * Demonstrates how to implement a resource for AI model inference.
  */
 
-import { ResourceProvider, RegisterResource } from "../ResourceProvider.js";
+import { ResourceProvider } from "../ResourceProvider.js";
+import { RegisterResource } from "../ResourceRegistry.js";
 import { ResourceCategory, DeploymentType, ResourceHealth, DiscoveryStatus } from "../types.js";
 import type { HealthCheckResult, IAIResource, BaseResourceConfig } from "../types.js";
+import type { AIMetadata } from "../typeRegistry.js";
 import { logger } from "../../../events/logger.js";
 
 /**
@@ -24,7 +26,7 @@ interface OllamaConfig extends BaseResourceConfig {
  * Provides access to locally running Ollama LLM inference engine.
  */
 @RegisterResource
-export class OllamaResource extends ResourceProvider<OllamaConfig> implements IAIResource {
+export class OllamaResource extends ResourceProvider<"ollama", OllamaConfig> implements IAIResource {
     // Resource identification
     readonly id = "ollama";
     readonly category = ResourceCategory.AI;
@@ -41,16 +43,15 @@ export class OllamaResource extends ResourceProvider<OllamaConfig> implements IA
      */
     protected async performDiscovery(): Promise<boolean> {
         try {
-            const response = await this.fetchWithTimeout(
-                `${this.config!.baseUrl}/api/tags`,
-                {},
-                5000,
-            );
+            const result = await this.httpClient!.makeRequest({
+                url: `${this.config!.baseUrl}/api/tags`,
+                method: "GET",
+                timeout: 5000,
+            });
             
-            if (response.ok) {
+            if (result.success) {
                 // Cache the models while we're at it
-                const data = await response.json();
-                this.models = data.models?.map((m: any) => m.name) || [];
+                this.models = result.data.models?.map((m: any) => m.name) || [];
                 return true;
             }
             
@@ -66,22 +67,21 @@ export class OllamaResource extends ResourceProvider<OllamaConfig> implements IA
      */
     protected async performHealthCheck(): Promise<HealthCheckResult> {
         try {
-            const response = await this.fetchWithTimeout(
-                `${this.config!.baseUrl}/api/tags`,
-                {},
-                this.config!.healthCheck?.timeoutMs || 5000,
-            );
+            const result = await this.httpClient!.makeRequest({
+                url: `${this.config!.baseUrl}/api/tags`,
+                method: "GET",
+                timeout: this.config!.healthCheck?.timeoutMs || 5000,
+            });
             
-            if (response.ok) {
-                const data = await response.json();
-                const modelCount = data.models?.length || 0;
+            if (result.success) {
+                const modelCount = result.data.models?.length || 0;
                 
                 return {
                     healthy: true,
                     message: `Ollama is running with ${modelCount} models`,
                     details: {
                         modelCount,
-                        version: data.version,
+                        version: result.data.version,
                     },
                     timestamp: new Date(),
                 };
@@ -89,7 +89,7 @@ export class OllamaResource extends ResourceProvider<OllamaConfig> implements IA
             
             return {
                 healthy: false,
-                message: `Ollama returned status ${response.status}`,
+                message: `Ollama returned status ${result.status}`,
                 timestamp: new Date(),
             };
         } catch (error) {
@@ -110,19 +110,19 @@ export class OllamaResource extends ResourceProvider<OllamaConfig> implements IA
         }
         
         try {
-            const response = await this.fetchWithTimeout(
-                `${this.config!.baseUrl}/api/tags`,
-            );
+            const result = await this.httpClient!.makeRequest({
+                url: `${this.config!.baseUrl}/api/tags`,
+                method: "GET",
+            });
             
-            if (response.ok) {
-                const data = await response.json();
-                this.models = data.models?.map((m: any) => m.name) || [];
+            if (result.success) {
+                this.models = result.data.models?.map((m: any) => m.name) || [];
                 return this.models;
             }
             
             return [];
         } catch (error) {
-            logger.error(`[Ollama] Failed to list models:`, error);
+            logger.error("[Ollama] Failed to list models:", error);
             return [];
         }
     }
@@ -138,7 +138,7 @@ export class OllamaResource extends ResourceProvider<OllamaConfig> implements IA
     /**
      * Provide metadata about the resource
      */
-    protected getMetadata(): Record<string, any> {
+    protected getMetadata(): AIMetadata {
         return {
             version: "0.1.0",
             capabilities: [
@@ -148,7 +148,10 @@ export class OllamaResource extends ResourceProvider<OllamaConfig> implements IA
                 "chat",
             ],
             supportedModels: this.models,
-            baseUrl: this.config?.baseUrl,
+            lastUpdated: new Date(),
+            discoveredAt: this._lastHealthCheck,
+            maxTokens: 4096, // Default context window for most Ollama models
+            contextWindow: 4096,
         };
     }
     
@@ -160,19 +163,17 @@ export class OllamaResource extends ResourceProvider<OllamaConfig> implements IA
             throw new Error("Ollama is not available");
         }
         
-        const response = await this.fetchWithTimeout(
-            `${this.config!.baseUrl}/api/pull`,
-            {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: modelName }),
-            },
+        const result = await this.httpClient!.makeRequest({
+            url: `${this.config!.baseUrl}/api/pull`,
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: { name: modelName },
             // Pulling can take a long time
-            600000, // 10 minutes
-        );
+            timeout: 600000, // 10 minutes
+        });
         
-        if (!response.ok) {
-            throw new Error(`Failed to pull model ${modelName}: ${response.statusText}`);
+        if (!result.success) {
+            throw new Error(`Failed to pull model ${modelName}: ${result.error}`);
         }
         
         // Refresh model list
@@ -200,27 +201,24 @@ export class OllamaResource extends ResourceProvider<OllamaConfig> implements IA
             throw new Error(`Model ${model} not available`);
         }
         
-        const response = await this.fetchWithTimeout(
-            `${this.config!.baseUrl}/api/generate`,
-            {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    model,
-                    prompt,
-                    stream: false,
-                    options,
-                }),
+        const result = await this.httpClient!.makeRequest({
+            url: `${this.config!.baseUrl}/api/generate`,
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: {
+                model,
+                prompt,
+                stream: false,
+                options,
             },
-            this.config!.timeout || 30000,
-        );
+            timeout: this.config!.timeout || 30000,
+        });
         
-        if (!response.ok) {
-            throw new Error(`Generation failed: ${response.statusText}`);
+        if (!result.success) {
+            throw new Error(`Generation failed: ${result.error}`);
         }
         
-        const data = await response.json();
-        return data.response;
+        return result.data.response;
     }
 }
 

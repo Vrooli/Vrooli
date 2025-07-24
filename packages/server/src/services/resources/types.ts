@@ -1,4 +1,13 @@
-import type { ResourcesConfig } from "./resourcesConfig.js";
+import type { ResourcesConfig, TypedResourcesConfig } from "./resourcesConfig.js";
+import type { 
+    ResourceId, 
+    GetConfig, 
+    GetResourceMetadata,
+    AIResourceId,
+    AutomationResourceId, 
+    AgentResourceId,
+    StorageResourceId,
+} from "./typeRegistry.js";
 
 /**
  * Resource categories that can be registered
@@ -51,6 +60,13 @@ export enum DiscoveryStatus {
  */
 export interface BaseResourceConfig {
     enabled: boolean;
+    // Authentication options (used by ResourceProvider.getAuthConfig)
+    apiKey?: string;
+    apiKeyHeader?: string;
+    bearerToken?: string;
+    username?: string;
+    password?: string;
+    // Health check configuration
     healthCheck?: {
         endpoint?: string;
         intervalMs: number;
@@ -82,7 +98,88 @@ export interface InternalResourceInfo extends PublicResourceInfo {
 }
 
 /**
- * Result of a health check
+ * Fully typed public resource information with category-specific metadata
+ */
+export interface TypedPublicResourceInfo<TId extends ResourceId = ResourceId> 
+    extends Omit<PublicResourceInfo, "metadata"> {
+    metadata?: GetResourceMetadata<TId>;
+}
+
+/**
+ * Fully typed internal resource information with category-specific metadata and config
+ * @internal WARNING: Contains sensitive configuration data including API keys
+ */
+export interface TypedInternalResourceInfo<TId extends ResourceId = ResourceId> 
+    extends Omit<InternalResourceInfo, "metadata" | "config"> {
+    config?: GetConfig<TId>;
+    metadata?: GetResourceMetadata<TId>;
+}
+
+/**
+ * Union type for all possible typed resource info (for runtime collections)
+ */
+export type AnyTypedResourceInfo = 
+    | TypedPublicResourceInfo<AIResourceId>
+    | TypedPublicResourceInfo<AutomationResourceId>
+    | TypedPublicResourceInfo<AgentResourceId>
+    | TypedPublicResourceInfo<StorageResourceId>;
+
+// ============================================================================
+// Health Check Detail Types
+// ============================================================================
+
+/**
+ * Health details specific to AI resources
+ */
+export interface AIHealthDetails {
+    modelCount?: number;
+    availableModels?: string[];
+    version?: string;
+    memoryUsage?: number;
+    activeRequests?: number;
+    totalRequests?: number;
+    averageResponseTime?: number;
+}
+
+/**
+ * Health details specific to automation resources  
+ */
+export interface AutomationHealthDetails {
+    workflowCount?: number;
+    activeExecutions?: number;
+    queueSize?: number;
+    version?: string;
+    uptime?: number;
+    failedExecutions?: number;
+    totalExecutions?: number;
+}
+
+/**
+ * Health details specific to agent resources
+ */
+export interface AgentHealthDetails {
+    activeInstances: number;
+    maxInstances: number;
+    browserVersion?: string;
+    availableBrowsers?: string[];
+    totalSessions?: number;
+    averageSessionDuration?: number;
+}
+
+/**
+ * Health details specific to storage resources
+ */
+export interface StorageHealthDetails {
+    totalSpace?: number;
+    usedSpace?: number;
+    bucketCount?: number;
+    objectCount?: number;
+    connectivity?: "healthy" | "degraded" | "offline";
+    averageResponseTime?: number;
+}
+
+/**
+ * Result of a health check with untyped details (legacy)
  */
 export interface HealthCheckResult {
     healthy: boolean;
@@ -92,12 +189,35 @@ export interface HealthCheckResult {
 }
 
 /**
- * Options for initializing a resource
+ * Fully typed health check result with category-specific details
  */
-export interface ResourceInitOptions {
-    config: any;
+export interface TypedHealthCheckResult<TCategory extends ResourceCategory = ResourceCategory> 
+    extends Omit<HealthCheckResult, "details"> {
+    details?: TCategory extends ResourceCategory.AI ? AIHealthDetails :
+             TCategory extends ResourceCategory.Automation ? AutomationHealthDetails :
+             TCategory extends ResourceCategory.Agents ? AgentHealthDetails :
+             TCategory extends ResourceCategory.Storage ? StorageHealthDetails :
+             Record<string, unknown>;
+}
+
+/**
+ * Options for initializing a resource with full type safety
+ */
+export interface ResourceInitOptions<TId extends ResourceId = ResourceId> {
+    config: GetConfig<TId>;
     /** Global resources config for cross-resource access */
-    globalConfig: ResourcesConfig;
+    globalConfig: TypedResourcesConfig;
+    /** Signal for cancellation */
+    signal?: AbortSignal;
+}
+
+/**
+ * Runtime-safe version for when resource ID is not known at compile time
+ */
+export interface UntypedResourceInitOptions {
+    config: unknown;
+    /** Global resources config for cross-resource access */
+    globalConfig: TypedResourcesConfig;
     /** Signal for cancellation */
     signal?: AbortSignal;
 }
