@@ -1,0 +1,79 @@
+[
+    {
+        "id": "test-docker-flow",
+        "type": "tab",
+        "label": "Test Docker Access",
+        "disabled": false,
+        "info": "Test flow for Docker socket access"
+    },
+    {
+        "id": "http-in-docker",
+        "type": "http in",
+        "z": "test-docker-flow",
+        "name": "Docker Test",
+        "url": "/test/docker",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 130,
+        "y": 100,
+        "wires": [["exec-docker-ps"]]
+    },
+    {
+        "id": "exec-docker-ps",
+        "type": "exec",
+        "z": "test-docker-flow",
+        "command": "docker ps --format 'table {{.Names}}\\t{{.Status}}\\t{{.Ports}}'",
+        "addpay": "",
+        "append": "",
+        "useSpawn": "false",
+        "timer": "10",
+        "winHide": false,
+        "oldrc": false,
+        "name": "Docker PS",
+        "x": 310,
+        "y": 100,
+        "wires": [["format-docker-success"], ["format-docker-error"], ["format-docker-error"]]
+    },
+    {
+        "id": "format-docker-success",
+        "type": "function",
+        "z": "test-docker-flow",
+        "name": "Format Success",
+        "func": "msg.payload = {\n    status: 'success',\n    message: 'Docker access is working',\n    containers: msg.payload,\n    timestamp: new Date().toISOString()\n};\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 520,
+        "y": 80,
+        "wires": [["http-out-docker"]]
+    },
+    {
+        "id": "format-docker-error",
+        "type": "function",
+        "z": "test-docker-flow",
+        "name": "Format Error",
+        "func": "msg.statusCode = 500;\nmsg.payload = {\n    status: 'error',\n    message: 'Docker access failed',\n    error: msg.payload,\n    timestamp: new Date().toISOString()\n};\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 510,
+        "y": 120,
+        "wires": [["http-out-docker"]]
+    },
+    {
+        "id": "http-out-docker",
+        "type": "http response",
+        "z": "test-docker-flow",
+        "name": "Send Response",
+        "statusCode": "",
+        "headers": {},
+        "x": 720,
+        "y": 100,
+        "wires": []
+    }
+]
