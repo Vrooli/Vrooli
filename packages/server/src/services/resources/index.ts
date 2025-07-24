@@ -94,6 +94,18 @@ export * from "./ResourceRegistry.js";
 export * from "./resourcesConfig.js";
 export * from "./types.js";
 
+// Import resource providers to ensure @RegisterResource decorators run
+import "./providers/OllamaResource.js";
+import "./providers/N8nResource.js";
+import "./providers/PuppeteerResource.js";
+import "./providers/PlaywrightResource.js";
+
+// Export specific provider classes for direct access
+export { OllamaResource } from "./providers/OllamaResource.js";
+export { N8nResource } from "./providers/N8nResource.js";
+export { PuppeteerResource } from "./providers/PuppeteerResource.js";
+export { PlaywrightResource } from "./providers/PlaywrightResource.js";
+
 // Example of how AI services will integrate with the existing system
 export interface AIResourceAdapter {
     /**

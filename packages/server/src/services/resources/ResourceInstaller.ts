@@ -422,7 +422,7 @@ export class ResourceInstaller extends EventEmitter {
             return ResourceCategory.Automation;
         }
         // Agent resources
-        if (["puppeteer", "playwright", "selenium", "browserless"].includes(resourceId)) {
+        if (["browserless", "claude-code"].includes(resourceId)) {
             return ResourceCategory.Agents;
         }
         // Storage resources

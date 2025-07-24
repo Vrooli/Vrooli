@@ -29,8 +29,10 @@ scripts/resources/
 │   ├── minio.sh           # MinIO object storage (planned)
 │   └── ipfs.sh            # IPFS distributed storage (planned)
 └── agents/                # Browser automation agents
-    └── browserless/       # Browser automation service
-        └── manage.sh      # Browserless Chrome-as-a-Service
+    ├── browserless/       # Browser automation service
+    │   └── manage.sh      # Browserless Chrome-as-a-Service
+    └── claude-code/       # Claude CLI tool
+        └── manage.sh      # Claude Code installation manager
 ```
 
 ## 🚀 Quick Start
@@ -98,6 +100,7 @@ You can also use the resource manager directly:
 | Resource | Status | Description | Default Port |
 |----------|--------|-------------|--------------|
 | `browserless` | ✅ Implemented | Browser automation service (Chrome-as-a-Service) | 4110 |
+| `claude-code` | ✅ Implemented | Anthropic's official CLI for Claude | N/A (CLI) |
 
 ## 🔧 Resource Categories
 

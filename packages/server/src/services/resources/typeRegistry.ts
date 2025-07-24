@@ -53,10 +53,8 @@ export type AutomationResourceId =
  * All agent resource IDs
  */
 export type AgentResourceId =
-    | "puppeteer"
-    | "playwright"
-    | "selenium"
-    | "browserless";
+    | "browserless"
+    | "claude-code";
 
 /**
  * All storage resource IDs
@@ -302,39 +300,20 @@ export interface TemporalConfig extends AutomationResourceConfig {
 
 // Agent Resource Configurations
 
-export interface PuppeteerConfig extends AgentResourceConfig {
-    browserEndpoint?: string;
-    browserWSEndpoint?: string;
-    executablePath?: string;
-    headless?: boolean;
-    args?: string[];
-}
-
-export interface PlaywrightConfig extends AgentResourceConfig {
-    browserEndpoint?: string;
-    browsers?: ("chromium" | "firefox" | "webkit")[];
-    headless?: boolean;
-    proxy?: {
-        server: string;
-        username?: string;
-        password?: string;
-    };
-}
-
-export interface SeleniumConfig extends AgentResourceConfig {
-    hubUrl: string;
-    browser?: "chrome" | "firefox" | "edge" | "safari";
-    browserVersion?: string;
-    platformName?: string;
-    capabilities?: Record<string, unknown>;
-}
-
 export interface BrowserlessConfig extends AgentResourceConfig {
     baseUrl: string;
     token?: string;
     concurrent?: number;
     timeout?: number;
     headless?: boolean;
+}
+
+export interface ClaudeCodeConfig extends AgentResourceConfig {
+    executablePath?: string;
+    workingDirectory?: string;
+    sessionTimeout?: number;
+    maxConcurrentSessions?: number;
+    apiKey?: string;
 }
 
 // Storage Resource Configurations
@@ -407,10 +386,8 @@ export interface ResourceConfigMap {
     temporal: TemporalConfig;
     
     // Agent Resources
-    puppeteer: PuppeteerConfig;
-    playwright: PlaywrightConfig;
-    selenium: SeleniumConfig;
     browserless: BrowserlessConfig;
+    "claude-code": ClaudeCodeConfig;
     
     // Storage Resources
     minio: MinIOConfig;
@@ -615,7 +592,7 @@ export function isResourceId(id: string): id is ResourceId {
         "n8n", "nodered", "windmill", "automatisch", "activepieces",
         "huginn", "kestra", "beehive", "airflow", "temporal",
         // Agents
-        "puppeteer", "playwright", "selenium", "browserless",
+        "browserless", "claude-code",
         // Storage
         "minio", "seaweedfs", "glusterfs", "ipfs", "rclone",
     ];
@@ -639,7 +616,7 @@ export function isResourceInCategory<TCategory extends ResourceCategory>(
             "huginn", "kestra", "beehive", "airflow", "temporal",
         ],
         [ResourceCategory.Agents]: [
-            "puppeteer", "playwright", "selenium", "browserless",
+            "browserless", "claude-code",
         ],
         [ResourceCategory.Storage]: [
             "minio", "seaweedfs", "glusterfs", "ipfs", "rclone",
@@ -732,13 +709,10 @@ export function isResourceConfig<TId extends keyof ResourceConfigMap>(
             return typeof c.address === "string";
             
         // Agent resources
-        case "puppeteer":
-        case "playwright":
-            return true; // These can work with defaults
-        case "selenium":
-            return typeof c.hubUrl === "string";
         case "browserless":
             return typeof c.baseUrl === "string";
+        case "claude-code":
+            return true; // Can work with defaults
             
         // Storage resources
         case "minio":

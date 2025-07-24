@@ -15,14 +15,14 @@ source "${RESOURCES_DIR}/../helpers/utils/args.sh"
 
 # Available resources organized by category
 declare -A AVAILABLE_RESOURCES=(
-    ["ai"]="ollama localai llamacpp"
+    ["ai"]="ollama whisper localai llamacpp"
     ["automation"]="n8n nodered"
     ["storage"]="minio ipfs"
-    ["agents"]="browserless"
+    ["agents"]="browserless claude-code"
 )
 
 # All available resources as a flat list
-ALL_RESOURCES="ollama localai llamacpp n8n nodered minio ipfs browserless"
+ALL_RESOURCES="ollama whisper localai llamacpp n8n nodered minio ipfs browserless claude-code"
 
 #######################################
 # Parse command line arguments

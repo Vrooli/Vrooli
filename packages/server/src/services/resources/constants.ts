@@ -31,10 +31,8 @@ export const SUPPORTED_RESOURCES = {
         { id: "temporal", name: "Temporal", description: "Durable workflow execution", deploymentType: DeploymentType.Hybrid },
     ],
     [ResourceCategory.Agents]: [
-        { id: "puppeteer", name: "Puppeteer", description: "Headless Chrome automation", deploymentType: DeploymentType.Local },
-        { id: "playwright", name: "Playwright", description: "Multi-browser automation", deploymentType: DeploymentType.Local },
-        { id: "selenium", name: "Selenium Grid", description: "Distributed browser testing", deploymentType: DeploymentType.Local },
         { id: "browserless", name: "Browserless", description: "Headless browser service", deploymentType: DeploymentType.Hybrid },
+        { id: "claude-code", name: "Claude Code", description: "AI-powered coding assistant", deploymentType: DeploymentType.Local },
     ],
     [ResourceCategory.Storage]: [
         { id: "minio", name: "MinIO", description: "S3-compatible object storage", deploymentType: DeploymentType.Local },

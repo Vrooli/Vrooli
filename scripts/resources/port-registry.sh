@@ -24,6 +24,7 @@ declare -g -A RESOURCE_PORTS=(
     # AI Services (11xxx range)
     ["ollama"]="11434"         # LLM inference engine
     ["localai"]="11435"        # Alternative AI service (changed from 8080)
+    ["whisper"]="8090"         # Speech-to-text service
     
     # Automation Services (56xx range)
     ["n8n"]="5678"             # Workflow automation
