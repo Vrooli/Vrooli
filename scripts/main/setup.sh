@@ -57,6 +57,13 @@ setup::parse_arguments() {
         --options "yes|no" \
         --default "no"
 
+    args::register \
+        --name "resources" \
+        --flag "r" \
+        --desc "Local resources to install (comma-separated, or 'all', 'ai-only', 'none')" \
+        --type "value" \
+        --default "none"
+
     if args::is_asking_for_help "$@"; then
         args::usage "$DESCRIPTION"
         exit_codes::print
@@ -74,6 +81,7 @@ setup::parse_arguments() {
     export YES=$(args::get "yes")
     export LOCATION=$(args::get "location")
     export ENVIRONMENT=$(args::get "environment")
+    export RESOURCES=$(args::get "resources")
 }
 
 setup::main() {

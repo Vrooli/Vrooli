@@ -80,3 +80,15 @@ log::warning() {
 log::prompt() {
     log::echo_color BLUE "[PROMPT]  $*"
 }
+
+# Aliases for compatibility
+log::warn() {
+    log::warning "$@"
+}
+
+log::debug() {
+    # Only show debug messages if DEBUG is set
+    if [[ "${DEBUG:-}" == "true" ]]; then
+        log::echo_color WHITE "[DEBUG]   $*"
+    fi
+}
