@@ -35,7 +35,7 @@ browserless::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|info" \
+        --options "install|uninstall|start|stop|restart|status|logs|info|usage" \
         --default "install"
     
     args::register \
@@ -65,6 +65,25 @@ browserless::parse_arguments() {
         --type "value" \
         --default "30000"
     
+    args::register \
+        --name "usage-type" \
+        --desc "Type of usage example to run" \
+        --type "value" \
+        --options "screenshot|pdf|scrape|pressure|all|help" \
+        --default "help"
+    
+    args::register \
+        --name "url" \
+        --desc "URL to use for usage examples" \
+        --type "value" \
+        --default "https://example.com"
+    
+    args::register \
+        --name "output" \
+        --desc "Output file for usage examples" \
+        --type "value" \
+        --default ""
+    
     if args::is_asking_for_help "$@"; then
         browserless::usage
         exit 0
@@ -78,6 +97,9 @@ browserless::parse_arguments() {
     export MAX_BROWSERS=$(args::get "max-browsers")
     export HEADLESS=$(args::get "headless")
     export TIMEOUT=$(args::get "timeout")
+    export USAGE_TYPE=$(args::get "usage-type")
+    export URL=$(args::get "url")
+    export OUTPUT=$(args::get "output")
 }
 
 #######################################
@@ -92,6 +114,9 @@ browserless::usage() {
     echo "  $0 --action install --headless no                # Install with headed browsers"
     echo "  $0 --action status                               # Check Browserless status"
     echo "  $0 --action logs                                 # View Browserless logs"
+    echo "  $0 --action usage                                # Show usage examples"
+    echo "  $0 --action usage --usage-type screenshot        # Test screenshot API"
+    echo "  $0 --action usage --usage-type all              # Run all usage examples"
     echo "  $0 --action uninstall                           # Remove Browserless"
 }
 
@@ -616,11 +641,11 @@ Service Details:
 
 Endpoints:
 - Status Check: $BROWSERLESS_BASE_URL/pressure
-- Screenshot: POST $BROWSERLESS_BASE_URL/screenshot
-- PDF: POST $BROWSERLESS_BASE_URL/pdf
-- Content: POST $BROWSERLESS_BASE_URL/content
-- Function: POST $BROWSERLESS_BASE_URL/function
-- Scrape: POST $BROWSERLESS_BASE_URL/scrape
+- Screenshot: POST $BROWSERLESS_BASE_URL/chrome/screenshot
+- PDF: POST $BROWSERLESS_BASE_URL/chrome/pdf
+- Content: POST $BROWSERLESS_BASE_URL/chrome/content
+- Function: POST $BROWSERLESS_BASE_URL/chrome/function
+- Scrape: POST $BROWSERLESS_BASE_URL/chrome/scrape
 
 Configuration:
 - Max Browsers: ${MAX_BROWSERS:-5}
@@ -639,24 +664,244 @@ Browserless Features:
 
 Example Usage:
 # Take a screenshot
-curl -X POST $BROWSERLESS_BASE_URL/screenshot \\
+curl -X POST $BROWSERLESS_BASE_URL/chrome/screenshot \\
   -H "Content-Type: application/json" \\
   -d '{"url": "https://example.com"}' \\
   --output screenshot.png
 
 # Generate PDF
-curl -X POST $BROWSERLESS_BASE_URL/pdf \\
+curl -X POST $BROWSERLESS_BASE_URL/chrome/pdf \\
   -H "Content-Type: application/json" \\
   -d '{"url": "https://example.com"}' \\
   --output document.pdf
 
 # Scrape webpage
-curl -X POST $BROWSERLESS_BASE_URL/content \\
+curl -X POST $BROWSERLESS_BASE_URL/chrome/content \\
   -H "Content-Type: application/json" \\
   -d '{"url": "https://example.com"}'
 
 For more information, visit: https://www.browserless.io/docs/
 EOF
+}
+
+#######################################
+# Show usage examples help
+#######################################
+browserless::usage_help() {
+    log::header "🎭 Browserless Usage Examples"
+    echo
+    echo "Available usage examples:"
+    echo "  $0 --action usage --usage-type screenshot [url] [output]  # Test screenshot API"
+    echo "  $0 --action usage --usage-type pdf [url] [output]         # Test PDF generation"
+    echo "  $0 --action usage --usage-type scrape [url]               # Test web scraping"
+    echo "  $0 --action usage --usage-type pressure                   # Check pool status"
+    echo "  $0 --action usage --usage-type all [url]                  # Run all examples"
+    echo
+    echo "Examples:"
+    echo "  $0 --action usage --usage-type screenshot --url https://github.com --output screenshot.png"
+    echo "  $0 --action usage --usage-type pdf --url https://wikipedia.org --output wiki.pdf"
+    echo "  $0 --action usage --usage-type all --url https://example.com"
+}
+
+#######################################
+# Test screenshot API
+#######################################
+browserless::usage_screenshot() {
+    log::header "📸 Testing Browserless Screenshot API"
+    
+    if ! browserless::is_healthy; then
+        log::error "Browserless is not running or healthy"
+        return 1
+    fi
+    
+    local test_url="${URL:-https://example.com}"
+    local output_file="${OUTPUT:-screenshot_test.png}"
+    
+    log::info "Taking screenshot of: $test_url"
+    log::info "Output file: $output_file"
+    
+    if curl -X POST "$BROWSERLESS_BASE_URL/chrome/screenshot" \
+        -H "Content-Type: application/json" \
+        -d "{\"url\": \"$test_url\", \"options\": {\"fullPage\": true}}" \
+        --output "$output_file" \
+        --silent \
+        --show-error; then
+        
+        log::success "✓ Screenshot saved to: $output_file"
+        if [[ -f "$output_file" ]]; then
+            log::info "File size: $(du -h "$output_file" | cut -f1)"
+        fi
+    else
+        log::error "Failed to take screenshot"
+        return 1
+    fi
+}
+
+#######################################
+# Test PDF generation
+#######################################
+browserless::usage_pdf() {
+    log::header "📄 Testing Browserless PDF API"
+    
+    if ! browserless::is_healthy; then
+        log::error "Browserless is not running or healthy"
+        return 1
+    fi
+    
+    local test_url="${URL:-https://example.com}"
+    local output_file="${OUTPUT:-document_test.pdf}"
+    
+    log::info "Generating PDF from: $test_url"
+    log::info "Output file: $output_file"
+    
+    if curl -X POST "$BROWSERLESS_BASE_URL/chrome/pdf" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"url\": \"$test_url\",
+            \"options\": {
+                \"format\": \"A4\",
+                \"printBackground\": true,
+                \"margin\": {
+                    \"top\": \"1cm\",
+                    \"bottom\": \"1cm\",
+                    \"left\": \"1cm\",
+                    \"right\": \"1cm\"
+                }
+            }
+        }" \
+        --output "$output_file" \
+        --silent \
+        --show-error; then
+        
+        log::success "✓ PDF saved to: $output_file"
+        if [[ -f "$output_file" ]]; then
+            log::info "File size: $(du -h "$output_file" | cut -f1)"
+        fi
+    else
+        log::error "Failed to generate PDF"
+        return 1
+    fi
+}
+
+#######################################
+# Test web scraping
+#######################################
+browserless::usage_scrape() {
+    log::header "🕷️ Testing Browserless Content Scraping"
+    
+    if ! browserless::is_healthy; then
+        log::error "Browserless is not running or healthy"
+        return 1
+    fi
+    
+    local test_url="${URL:-https://example.com}"
+    
+    log::info "Scraping content from: $test_url"
+    
+    local response
+    response=$(curl -X POST "$BROWSERLESS_BASE_URL/chrome/content" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"url\": \"$test_url\"
+        }" \
+        --silent \
+        --show-error 2>&1)
+    
+    if [[ $? -eq 0 ]]; then
+        log::success "✓ Content scraped successfully"
+        echo
+        log::info "Response preview (first 500 chars):"
+        echo "$response" | head -c 500
+        echo
+        echo "..."
+        
+        # Save full response to file
+        local output_file="${OUTPUT:-scrape_test.html}"
+        echo "$response" > "$output_file"
+        log::info "Full response saved to: $output_file"
+    else
+        log::error "Failed to scrape content: $response"
+        return 1
+    fi
+}
+
+#######################################
+# Check browser pool status
+#######################################
+browserless::usage_pressure() {
+    log::header "📊 Checking Browserless Pool Status"
+    
+    if ! browserless::is_healthy; then
+        log::error "Browserless is not running or healthy"
+        return 1
+    fi
+    
+    local response
+    response=$(curl -X GET "$BROWSERLESS_BASE_URL/pressure" \
+        --silent \
+        --show-error 2>&1)
+    
+    if [[ $? -eq 0 ]]; then
+        log::success "✓ Pool status retrieved"
+        echo
+        log::info "Current pressure metrics:"
+        echo "$response" | jq . 2>/dev/null || echo "$response"
+        
+        # Parse and display key metrics
+        if command -v jq &> /dev/null; then
+            local running=$(echo "$response" | jq -r '.running // 0')
+            local queued=$(echo "$response" | jq -r '.queued // 0')
+            local maxConcurrent=$(echo "$response" | jq -r '.maxConcurrent // "N/A"')
+            
+            echo
+            log::info "Summary:"
+            log::info "  Running browsers: $running"
+            log::info "  Queued requests: $queued"
+            log::info "  Max concurrent: $maxConcurrent"
+        fi
+    else
+        log::error "Failed to get pool status: $response"
+        return 1
+    fi
+}
+
+#######################################
+# Run all usage examples
+#######################################
+browserless::usage_all() {
+    log::header "🎭 Running All Browserless Usage Examples"
+    
+    if ! browserless::is_healthy; then
+        log::error "Browserless is not healthy. Please check the service."
+        return 1
+    fi
+    
+    # Create test output directory
+    local test_dir="browserless_test_$(date +%Y%m%d_%H%M%S)"
+    mkdir -p "$test_dir"
+    cd "$test_dir" || return 1
+    
+    log::info "Test outputs will be saved in: $(pwd)"
+    echo
+    
+    # Run each test
+    browserless::usage_pressure
+    echo
+    sleep 2
+    
+    URL="$URL" OUTPUT="screenshot.png" browserless::usage_screenshot
+    echo
+    sleep 2
+    
+    URL="$URL" OUTPUT="document.pdf" browserless::usage_pdf
+    echo
+    sleep 2
+    
+    URL="$URL" OUTPUT="scrape.html" browserless::usage_scrape
+    echo
+    
+    log::success "✅ All tests completed. Results saved in: $(pwd)"
+    cd ..
 }
 
 #######################################
@@ -689,6 +934,29 @@ browserless::main() {
             ;;
         "info")
             browserless::info
+            ;;
+        "usage")
+            # Handle usage examples
+            case "$USAGE_TYPE" in
+                "screenshot")
+                    browserless::usage_screenshot
+                    ;;
+                "pdf")
+                    browserless::usage_pdf
+                    ;;
+                "scrape")
+                    browserless::usage_scrape
+                    ;;
+                "pressure")
+                    browserless::usage_pressure
+                    ;;
+                "all")
+                    browserless::usage_all
+                    ;;
+                "help"|*)
+                    browserless::usage_help
+                    ;;
+            esac
             ;;
         *)
             log::error "Unknown action: $ACTION"

@@ -84,14 +84,47 @@ Browserless.io provides Chrome-as-a-Service, handling the complex parts of runni
 ./manage.sh --action uninstall
 ```
 
+### Usage Examples
+The management script includes built-in examples to test Browserless functionality:
+
+```bash
+# Show all available usage examples
+./manage.sh --action usage
+
+# Test screenshot API
+./manage.sh --action usage --usage-type screenshot
+./manage.sh --action usage --usage-type screenshot --url https://github.com --output github.png
+
+# Test PDF generation
+./manage.sh --action usage --usage-type pdf
+./manage.sh --action usage --usage-type pdf --url https://wikipedia.org --output wiki.pdf
+
+# Test web scraping
+./manage.sh --action usage --usage-type scrape
+./manage.sh --action usage --usage-type scrape --url https://news.ycombinator.com
+
+# Check browser pool status
+./manage.sh --action usage --usage-type pressure
+
+# Run all usage examples
+./manage.sh --action usage --usage-type all
+./manage.sh --action usage --usage-type all --url https://example.com
+```
+
+These examples help you:
+- Verify Browserless is working correctly after installation  
+- Learn the API endpoints with working examples
+- Test core browser automation features (screenshots, PDFs, scraping)
+- Generate sample outputs for development
+
 ## API Endpoints
 
 ### Core Endpoints
 
-#### Screenshot - `/screenshot`
+#### Screenshot - `/chrome/screenshot`
 Capture screenshots of web pages:
 ```bash
-curl -X POST http://localhost:4110/screenshot \
+curl -X POST http://localhost:4110/chrome/screenshot \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://example.com",
@@ -103,10 +136,10 @@ curl -X POST http://localhost:4110/screenshot \
   --output screenshot.png
 ```
 
-#### PDF Generation - `/pdf`
+#### PDF Generation - `/chrome/pdf`
 Convert web pages to PDF:
 ```bash
-curl -X POST http://localhost:4110/pdf \
+curl -X POST http://localhost:4110/chrome/pdf \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://example.com",
@@ -193,7 +226,7 @@ curl http://localhost:4110/metrics
 ### Authentication with Screenshots
 ```bash
 # Screenshot with cookies
-curl -X POST http://localhost:4110/screenshot \
+curl -X POST http://localhost:4110/chrome/screenshot \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://app.example.com/dashboard",
@@ -236,7 +269,7 @@ curl -X POST http://localhost:4110/function \
 
 ### PDF with Custom Headers/Footers
 ```bash
-curl -X POST http://localhost:4110/pdf \
+curl -X POST http://localhost:4110/chrome/pdf \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://example.com/report",
@@ -257,7 +290,7 @@ curl -X POST http://localhost:4110/pdf \
 ### Mobile Device Emulation
 ```bash
 # Screenshot as mobile device
-curl -X POST http://localhost:4110/screenshot \
+curl -X POST http://localhost:4110/chrome/screenshot \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://example.com",
@@ -343,7 +376,7 @@ docker run -d --shm-size=4gb ...
 ./manage.sh --action install --timeout 60000
 
 # Or per-request timeout
-curl -X POST http://localhost:4110/screenshot \
+curl -X POST http://localhost:4110/chrome/screenshot \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://slow-site.com",
