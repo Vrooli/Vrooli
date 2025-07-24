@@ -15,7 +15,7 @@ source "${RESOURCES_DIR}/common.sh"
 source "${RESOURCES_DIR}/../helpers/utils/args.sh"
 
 # n8n configuration
-readonly N8N_PORT="5678"
+readonly N8N_PORT="${N8N_CUSTOM_PORT:-$(resources::get_default_port "n8n")}"
 readonly N8N_BASE_URL="http://localhost:${N8N_PORT}"
 readonly N8N_CONTAINER_NAME="n8n"
 readonly N8N_DATA_DIR="${HOME}/.n8n"
@@ -41,7 +41,7 @@ n8n::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|reset-password|logs" \
+        --options "install|uninstall|start|stop|restart|status|reset-password|logs|info" \
         --default "install"
     
     args::register \
@@ -461,6 +461,13 @@ n8n::install() {
         return 1
     fi
     
+    # Validate port assignment
+    if ! resources::validate_port "n8n" "$N8N_PORT"; then
+        log::error "Port validation failed for n8n"
+        log::info "You can set a custom port with: export N8N_CUSTOM_PORT=<port>"
+        return 1
+    fi
+    
     # Generate password if needed
     if [[ "$BASIC_AUTH" == "yes" && -z "$AUTH_PASSWORD" ]]; then
         AUTH_PASSWORD=$(n8n::generate_password)
@@ -572,11 +579,10 @@ n8n::install() {
             fi
             
             # Update Vrooli configuration
-            # TODO: Fix configuration update
-            # if ! n8n::update_config; then
-            #     log::warn "Failed to update Vrooli configuration"
-            #     log::info "n8n is installed but may need manual configuration in Vrooli"
-            # fi
+            if ! n8n::update_config; then
+                log::warn "Failed to update Vrooli configuration"
+                log::info "n8n is installed but may need manual configuration in Vrooli"
+            fi
             
             # Clear rollback context on success
             ROLLBACK_ACTIONS=()
@@ -917,6 +923,72 @@ n8n::status() {
 }
 
 #######################################
+# Show n8n information
+#######################################
+n8n::info() {
+    cat << EOF
+=== n8n Resource Information ===
+
+ID: n8n
+Category: automation
+Display Name: n8n
+Description: Workflow automation platform
+
+Service Details:
+- Container Name: $N8N_CONTAINER_NAME
+- Service Port: $N8N_PORT
+- Service URL: $N8N_BASE_URL
+- Webhook URL: ${WEBHOOK_URL:-$N8N_BASE_URL}
+- Docker Image: $N8N_IMAGE
+- Data Directory: $N8N_DATA_DIR
+
+Endpoints:
+- Health Check: $N8N_BASE_URL/healthz
+- Web UI: $N8N_BASE_URL
+- REST API: $N8N_BASE_URL/rest
+- Webhooks: ${WEBHOOK_URL:-$N8N_BASE_URL}/webhook
+- Webhook Test: ${WEBHOOK_URL:-$N8N_BASE_URL}/webhook-test
+
+Configuration:
+- Authentication: ${BASIC_AUTH:-yes}
+- Database: ${DATABASE_TYPE:-sqlite}
+- Tunnel Mode: ${TUNNEL_ENABLED:-no}
+
+n8n Features:
+- Visual workflow builder
+- 400+ integrations
+- Webhook triggers
+- Schedule triggers
+- Custom code nodes
+- Error handling
+- Version control
+- Team collaboration
+- API access
+- Custom node creation
+
+Example Usage:
+# Access the web UI
+Open $N8N_BASE_URL in your browser
+
+# Create a webhook workflow
+1. Create a new workflow
+2. Add a Webhook node as trigger
+3. Use the webhook URL: ${WEBHOOK_URL:-$N8N_BASE_URL}/webhook/<path>
+
+# Test a webhook
+curl -X POST ${WEBHOOK_URL:-$N8N_BASE_URL}/webhook-test/your-path \\
+  -H "Content-Type: application/json" \\
+  -d '{"message": "Hello n8n!"}'
+
+# Access REST API (requires authentication)
+curl -u $AUTH_USERNAME:<password> \\
+  $N8N_BASE_URL/rest/workflows
+
+For more information, visit: https://docs.n8n.io
+EOF
+}
+
+#######################################
 # Main execution function
 #######################################
 n8n::main() {
@@ -946,6 +1018,9 @@ n8n::main() {
             ;;
         "logs")
             n8n::logs
+            ;;
+        "info")
+            n8n::info
             ;;
         *)
             log::error "Unknown action: $ACTION"
