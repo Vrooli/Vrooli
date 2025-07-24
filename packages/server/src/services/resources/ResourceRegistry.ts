@@ -1,6 +1,6 @@
 import { EventEmitter } from "events";
 import { logger } from "../../events/logger.js";
-import type { IResource, ResourceInfo, ResourceEventData } from "./types.js";
+import type { IResource, PublicResourceInfo, ResourceEventData } from "./types.js";
 import { ResourceEvent , ResourceCategory, DiscoveryStatus} from "./types.js";
 import type { ResourcesConfig } from "./resourcesConfig.js";
 import { loadResourcesConfig } from "./resourcesConfig.js";
@@ -31,6 +31,9 @@ export class ResourceRegistry extends EventEmitter {
     
     /** Discovery interval timer */
     private discoveryInterval?: NodeJS.Timeout;
+    
+    /** Track event cleanup functions for each resource */
+    private eventCleanupMap = new Map<string, Array<() => void>>();
     
     private constructor() {
         super();
@@ -132,17 +135,34 @@ export class ResourceRegistry extends EventEmitter {
             this.resources.set(id, resource);
             
             // Subscribe to resource events
-            // All resources should extend LocalResourceProvider which is an EventEmitter
+            // All resources should extend ResourceProvider which is an EventEmitter
             if (resource instanceof EventEmitter) {
-                resource.on(ResourceEvent.Discovered, (data: ResourceEventData) => {
+                const cleanupFunctions: Array<() => void> = [];
+                
+                // Create event handlers
+                const discoveredHandler = (data: ResourceEventData) => {
                     this.emit(ResourceEvent.Discovered, data);
-                });
-                resource.on(ResourceEvent.Lost, (data: ResourceEventData) => {
+                };
+                const lostHandler = (data: ResourceEventData) => {
                     this.emit(ResourceEvent.Lost, data);
-                });
-                resource.on(ResourceEvent.HealthChanged, (data: ResourceEventData) => {
+                };
+                const healthChangedHandler = (data: ResourceEventData) => {
                     this.emit(ResourceEvent.HealthChanged, data);
-                });
+                };
+                
+                // Add listeners
+                resource.on(ResourceEvent.Discovered, discoveredHandler);
+                resource.on(ResourceEvent.Lost, lostHandler);
+                resource.on(ResourceEvent.HealthChanged, healthChangedHandler);
+                
+                // Store cleanup functions
+                cleanupFunctions.push(
+                    () => resource.removeListener(ResourceEvent.Discovered, discoveredHandler),
+                    () => resource.removeListener(ResourceEvent.Lost, lostHandler),
+                    () => resource.removeListener(ResourceEvent.HealthChanged, healthChangedHandler),
+                );
+                
+                this.eventCleanupMap.set(id, cleanupFunctions);
             } else {
                 logger.warn(`[ResourceRegistry] Resource ${id} does not extend EventEmitter`);
             }
@@ -240,7 +260,7 @@ export class ResourceRegistry extends EventEmitter {
      * Get resources by status
      */
     getResourcesByStatus(status: DiscoveryStatus): IResource[] {
-        return this.getAllResources().filter(r => r.getInfo().status === status);
+        return this.getAllResources().filter(r => r.getPublicInfo().status === status);
     }
     
     /**
@@ -250,12 +270,12 @@ export class ResourceRegistry extends EventEmitter {
         total: number;
         supported: number;
         available: number;
-        byCategory: Record<ResourceCategory, ResourceInfo[]>;
+        byCategory: Record<ResourceCategory, PublicResourceInfo[]>;
     } {
         const resources = this.getAllResources();
-        const infos = resources.map(r => r.getInfo());
+        const infos = resources.map(r => r.getPublicInfo());
         
-        const byCategory: Record<string, ResourceInfo[]> = {};
+        const byCategory: Record<string, PublicResourceInfo[]> = {};
         for (const category of Object.values(ResourceCategory)) {
             byCategory[category] = infos.filter(i => i.category === category);
         }
@@ -264,7 +284,7 @@ export class ResourceRegistry extends EventEmitter {
             total: this.resourceClasses.size,
             supported: resources.filter(r => r.isSupported).length,
             available: infos.filter(i => i.status === DiscoveryStatus.Available).length,
-            byCategory: byCategory as Record<ResourceCategory, ResourceInfo[]>,
+            byCategory: byCategory as Record<ResourceCategory, PublicResourceInfo[]>,
         };
     }
     
@@ -273,7 +293,7 @@ export class ResourceRegistry extends EventEmitter {
      */
     isResourceAvailable(id: string): boolean {
         const resource = this.resources.get(id);
-        return resource?.getInfo().status === DiscoveryStatus.Available || false;
+        return resource?.getPublicInfo().status === DiscoveryStatus.Available || false;
     }
     
     /**
@@ -281,10 +301,10 @@ export class ResourceRegistry extends EventEmitter {
      * This is designed to be used by health check endpoints
      */
     getHealthCheck(): ResourceSystemHealthCheck {
-        // Collect all resource information
-        const resourceInfoMap = new Map<string, ResourceInfo>();
+        // Collect all resource information (use public info for health checks)
+        const resourceInfoMap = new Map<string, PublicResourceInfo>();
         for (const [id, resource] of Array.from(this.resources)) {
-            resourceInfoMap.set(id, resource.getInfo());
+            resourceInfoMap.set(id, resource.getPublicInfo());
         }
         
         // Determine which resources are enabled in config
@@ -307,6 +327,51 @@ export class ResourceRegistry extends EventEmitter {
     }
     
     /**
+     * Unregister a specific resource
+     * This properly cleans up event listeners and shuts down the resource
+     */
+    async unregisterResource(id: string): Promise<void> {
+        const resource = this.resources.get(id);
+        if (!resource) {
+            logger.warn(`[ResourceRegistry] Attempt to unregister non-existent resource: ${id}`);
+            return;
+        }
+        
+        logger.info(`[ResourceRegistry] Unregistering resource: ${id}`);
+        
+        // Clean up event listeners
+        this.cleanupResourceEvents(id);
+        
+        // Shutdown the resource
+        try {
+            await resource.shutdown();
+        } catch (error) {
+            logger.error(`[ResourceRegistry] Error shutting down resource ${id}:`, error);
+        }
+        
+        // Remove from maps
+        this.resources.delete(id);
+        this.resourceClasses.delete(id);
+    }
+    
+    /**
+     * Clean up a specific resource's event listeners
+     */
+    private cleanupResourceEvents(resourceId: string): void {
+        const cleanupFunctions = this.eventCleanupMap.get(resourceId);
+        if (cleanupFunctions) {
+            for (const cleanup of cleanupFunctions) {
+                try {
+                    cleanup();
+                } catch (error) {
+                    logger.error(`[ResourceRegistry] Error cleaning up events for ${resourceId}:`, error);
+                }
+            }
+            this.eventCleanupMap.delete(resourceId);
+        }
+    }
+    
+    /**
      * Shutdown the registry and all resources
      */
     async shutdown(): Promise<void> {
@@ -316,6 +381,11 @@ export class ResourceRegistry extends EventEmitter {
         if (this.discoveryInterval) {
             clearInterval(this.discoveryInterval);
             this.discoveryInterval = undefined;
+        }
+        
+        // Clean up all event listeners before shutting down resources
+        for (const resourceId of Array.from(this.eventCleanupMap.keys())) {
+            this.cleanupResourceEvents(resourceId);
         }
         
         // Shutdown all resources
@@ -328,6 +398,7 @@ export class ResourceRegistry extends EventEmitter {
         
         // Clear resources
         this.resources.clear();
+        this.eventCleanupMap.clear();
         this.initialized = false;
         
         // Remove all event listeners

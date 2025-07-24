@@ -2,7 +2,8 @@ import { EventEmitter } from "events";
 import { logger } from "../../events/logger.js";
 import type { 
     IResource, 
-    ResourceInfo, 
+    PublicResourceInfo,
+    InternalResourceInfo, 
     ResourceCategory,
     HealthCheckResult,
     ResourceInitOptions,
@@ -174,9 +175,9 @@ export abstract class ResourceProvider<TConfig extends BaseResourceConfig = Base
     }
     
     /**
-     * Get current resource information
+     * Get public resource information (safe to expose externally)
      */
-    getInfo(): ResourceInfo {
+    getPublicInfo(): PublicResourceInfo {
         return {
             id: this.id,
             category: this.category,
@@ -185,8 +186,19 @@ export abstract class ResourceProvider<TConfig extends BaseResourceConfig = Base
             status: this._status,
             health: this._health,
             lastHealthCheck: this._lastHealthCheck,
-            config: this.config,
             metadata: this.getMetadata(),
+        };
+    }
+    
+    /**
+     * Get internal resource information including sensitive configuration
+     * @internal WARNING: Contains sensitive data including API keys, passwords, and tokens.
+     * Only use this method internally for resource operations that require configuration access.
+     */
+    getInternalInfo(): InternalResourceInfo {
+        return {
+            ...this.getPublicInfo(),
+            config: this.config,
         };
     }
     

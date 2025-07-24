@@ -60,9 +60,9 @@ export interface BaseResourceConfig {
 }
 
 /**
- * Information about a resource's current state
+ * Public information about a resource's current state (safe to expose)
  */
-export interface ResourceInfo {
+export interface PublicResourceInfo {
     id: string;
     category: ResourceCategory;
     displayName: string;
@@ -70,8 +70,15 @@ export interface ResourceInfo {
     status: DiscoveryStatus;
     health: ResourceHealth;
     lastHealthCheck?: Date;
-    config?: BaseResourceConfig;
     metadata?: Record<string, any>;
+}
+
+/**
+ * Internal information about a resource's current state (includes sensitive config)
+ * @internal WARNING: Contains sensitive configuration data including API keys
+ */
+export interface InternalResourceInfo extends PublicResourceInfo {
+    config?: BaseResourceConfig;
 }
 
 /**
@@ -122,8 +129,11 @@ export interface IResource {
     /** Discover if this resource is running locally */
     discover(): Promise<boolean>;
     
-    /** Get current resource information */
-    getInfo(): ResourceInfo;
+    /** Get public resource information (safe to expose) */
+    getPublicInfo(): PublicResourceInfo;
+    
+    /** Get internal resource information (includes sensitive config) */
+    getInternalInfo(): InternalResourceInfo;
     
     /** Cleanup and shutdown the resource */
     shutdown(): Promise<void>;

@@ -1,5 +1,5 @@
 import { ResourceCategory, DiscoveryStatus, ResourceHealth } from "./types.js";
-import type { ResourceInfo } from "./types.js";
+import type { PublicResourceInfo } from "./types.js";
 import { 
     SUPPORTED_RESOURCES, 
     getTotalSupportedResourceCount,
@@ -120,7 +120,7 @@ export function calculateSystemHealth(
  * Build a comprehensive health check from resource information
  */
 export function buildHealthCheck(
-    registeredResources: Map<string, ResourceInfo>,
+    registeredResources: Map<string, PublicResourceInfo>,
     enabledResourceIds: Set<string>,
 ): ResourceSystemHealthCheck {
     const timestamp = new Date();
