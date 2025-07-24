@@ -313,6 +313,7 @@ main() {
         echo "Next steps:"
         echo "1. Verify agents in database:"
         echo "   docker compose exec db psql -U postgres -d vrooli -c \"SELECT handle, name FROM users WHERE \\\"isBot\\\" = true ORDER BY \\\"createdAt\\\" DESC LIMIT 10;\""
+        echo "   (Note: If you get permission errors, try: sudo docker compose exec ... or newgrp docker)"
         echo ""
         echo "2. Test agent activation by creating a swarm"
         echo "3. Monitor agent behaviors in the logs"

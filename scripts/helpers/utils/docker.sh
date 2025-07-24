@@ -27,9 +27,51 @@ docker::run() {
     docker::_execute_with_permissions "docker" "$@"
 }
 
-# Docker-compose command wrapper
+# Helper to determine which compose command to use
+docker::_get_compose_command() {
+    # Check if we've already determined the command
+    if [[ -n "${DOCKER_COMPOSE_CMD:-}" ]]; then
+        echo "$DOCKER_COMPOSE_CMD"
+        return 0
+    fi
+    
+    # Try plugin version first (preferred)
+    if docker::run compose version >/dev/null 2>&1; then
+        export DOCKER_COMPOSE_CMD="docker compose"
+        echo "docker compose"
+        return 0
+    fi
+    
+    # Fall back to standalone
+    if system::is_command "docker-compose"; then
+        export DOCKER_COMPOSE_CMD="docker-compose"
+        echo "docker-compose"
+        return 0
+    fi
+    
+    # Neither found
+    return 1
+}
+
+# Docker-compose command wrapper with automatic version detection
 docker::compose() {
-    docker::_execute_with_permissions "docker-compose" "$@"
+    local compose_cmd
+    if ! compose_cmd=$(docker::_get_compose_command); then
+        log::error "No Docker Compose version found"
+        return 1
+    fi
+    
+    # Handle plugin vs standalone invocation
+    if [[ "$compose_cmd" == "docker compose" ]]; then
+        docker::_execute_with_permissions "docker" "compose" "$@"
+    else
+        docker::_execute_with_permissions "docker-compose" "$@"
+    fi
+}
+
+# Clear cached compose version (useful for testing)
+docker::_reset_compose_detection() {
+    unset DOCKER_COMPOSE_CMD
 }
 
 # Generic installation helper
@@ -175,20 +217,23 @@ docker::_do_install_docker_compose() {
 }
 
 docker::setup_docker_compose() {
-    # Check if Docker Compose is already available (standalone version)
-    if system::is_command "docker-compose"; then
-        log::info "Detected: $(docker-compose --version)"
-        return 0
-    fi
-    
-    # Also check for newer 'docker compose' plugin syntax
-    if system::is_command "docker" && docker::run compose version >/dev/null 2>&1; then
-        log::info "Detected: $(docker::run compose version)"
+    # Check what version is available using our detection helper
+    local compose_cmd
+    if compose_cmd=$(docker::_get_compose_command); then
+        if [[ "$compose_cmd" == "docker compose" ]]; then
+            log::info "Detected Docker Compose plugin: $(docker::run compose version 2>&1 | head -1)"
+        else
+            log::info "Detected Docker Compose standalone: $(docker-compose --version)"
+        fi
         return 0
     fi
     
     # Neither version found, try to install standalone version
+    log::info "No Docker Compose found, installing standalone version..."
     docker::_install_if_missing "docker-compose" docker::_do_install_docker_compose "Docker Compose"
+    
+    # Reset detection cache after installation
+    docker::_reset_compose_detection
 }
 
 docker::manage_docker_group() {
@@ -433,14 +478,24 @@ docker::build_images() {
     log::header "Building Docker images"
     local compose_file=$(docker::get_compose_file)
     cd "$var_ROOT_DIR" || { log::error "Failed to change directory to project root"; exit "$ERROR_BUILD_FAILED"; }
-    if system::is_command "docker compose"; then
-        docker::compose -f "$compose_file" build --no-cache --progress=plain
-    elif system::is_command "docker-compose"; then
-        docker::compose -f "$compose_file" build --no-cache
-    else
+    
+    # Check if compose is available
+    if ! docker::_get_compose_command >/dev/null 2>&1; then
         log::error "No Docker Compose available to build images"
         exit "$ERROR_BUILD_FAILED"
     fi
+    
+    # Build with appropriate arguments based on version
+    # The wrapper handles version detection, we just need to handle version-specific args
+    local compose_cmd=$(docker::_get_compose_command)
+    if [[ "$compose_cmd" == "docker compose" ]]; then
+        # Plugin version supports --progress flag
+        docker::compose -f "$compose_file" build --no-cache --progress=plain
+    else
+        # Standalone version doesn't support --progress
+        docker::compose -f "$compose_file" build --no-cache
+    fi
+    
     log::success "Docker images built successfully"
 }
 

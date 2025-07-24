@@ -54,7 +54,7 @@ dockerOnly::start_development_docker_only() {
     fi
 
     log::success "✅ Docker only development environment started successfully."
-    log::info "You can view logs with 'docker::compose logs -f' or 'docker-compose logs -f'."
+    log::info "You can view logs with 'docker::compose logs -f' from this script's context."
 }
 
 # If this script is run directly, invoke its main function.
