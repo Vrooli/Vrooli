@@ -4,47 +4,120 @@ set -euo pipefail
 UTILS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck disable=SC1091
-source "${UTILS_DIR}/env.sh"
-# shellcheck disable=SC1091
-source "${UTILS_DIR}/exit_codes.sh"
-# shellcheck disable=SC1091
-source "${UTILS_DIR}/flow.sh"
-# shellcheck disable=SC1091
-source "${UTILS_DIR}/log.sh"
-# shellcheck disable=SC1091
-source "${UTILS_DIR}/system.sh"
-# shellcheck disable=SC1091
-source "${UTILS_DIR}/var.sh"
+for util in env exit_codes flow log system var; do source "${UTILS_DIR}/${util}.sh"; done
 
-docker::install() {
-    # Check if Docker is already installed FIRST
-    if system::is_command "docker"; then
-        log::info "Detected: $(docker --version)"
-        return 0
+# Generic command wrapper that handles permission issues automatically
+docker::_execute_with_permissions() {
+    local cmd="$1"
+    shift
+    if [[ -n "${DOCKER_CMD:-}" ]]; then
+        if [[ "$DOCKER_CMD" == "sg docker -c" ]]; then
+            sg docker -c "$cmd $*"
+        else
+            # shellcheck disable=SC2086
+            $DOCKER_CMD "$cmd" "$@"
+        fi
+    else
+        "$cmd" "$@"
     fi
+}
 
-    # Docker is not installed, check if we can install it
-    if ! flow::can_run_sudo "Docker installation"; then
-        log::error "Docker is not installed and sudo is not available for installation"
-        return 1
-    fi
+# Docker command wrapper
+docker::run() {
+    docker::_execute_with_permissions "docker" "$@"
+}
 
-    log::info "Docker is not installed. Installing Docker..."
+# Docker-compose command wrapper
+docker::compose() {
+    docker::_execute_with_permissions "docker-compose" "$@"
+}
+
+# Generic installation helper
+docker::_install_if_missing() {
+    local cmd="$1" install_func="$2" name="$3"
+    system::is_command "$cmd" && { log::info "$name: $($cmd --version 2>&1)"; return 0; }
+    flow::can_run_sudo "$name installation" || { log::error "$name needs sudo to install"; return 1; }
+    log::info "Installing $name..."
+    $install_func && system::is_command "$cmd" && log::success "$name installed" || { log::error "$name install failed"; return 1; }
+}
+
+# Docker installation function
+docker::_do_install_docker() {
     curl -fsSL https://get.docker.com -o get-docker.sh
     trap 'rm -f get-docker.sh' EXIT
     sudo sh get-docker.sh
-    # Check if Docker installation failed
-    if ! system::is_command "docker"; then
-        log::error "Docker installation failed."
-        return 1
+}
+
+docker::install() {
+    docker::_install_if_missing "docker" docker::_do_install_docker "Docker"
+}
+
+# Check if Docker is running
+docker::_is_running() {
+    system::is_command "docker" && docker version >/dev/null 2>&1
+}
+
+# Try alternative access methods when docker group is not active in session
+docker::_try_alternative_access() {
+    log::info "Docker group detected but not active in session. Attempting to run with group privileges..."
+    
+    # Try running docker with sg (switch group) which doesn't require a new shell
+    if command -v sg >/dev/null 2>&1; then
+        if sg docker -c "docker version" >/dev/null 2>&1; then
+            log::success "Can access Docker using sg command"
+            export DOCKER_CMD="sg docker -c"
+            return 0
+        fi
+    fi
+    
+    # If sg didn't work, try using sudo to run docker commands
+    if flow::can_run_sudo "Docker access"; then
+        if sudo docker version >/dev/null 2>&1; then
+            log::info "Using sudo for Docker access"
+            export DOCKER_CMD="sudo"
+            return 0
+        fi
+    fi
+    
+    return 1
+}
+
+# Diagnose Docker permission issues
+docker::_diagnose_permission_issue() {
+    local current_user="${SUDO_USER:-$USER}"
+    
+    # Check if user is in docker group (system-wide)
+    if groups "$current_user" 2>/dev/null | grep -q docker; then
+        # User IS in docker group but session doesn't have it active
+        if ! groups | grep -q docker; then
+            log::error "Docker permission issue: You're in the docker group but it's not active in this session"
+            log::warning "Quick fix: Run 'newgrp docker' to activate it now"
+            log::info "Or open a new terminal for permanent activation"
+        else
+            log::error "Docker permission denied despite being in docker group"
+            log::info "Try: sudo chmod 666 /var/run/docker.sock (temporary fix)"
+        fi
+    else
+        # User is NOT in docker group at all
+        log::error "Docker permission denied: You're not in the docker group"
+        log::error "Fix: sudo usermod -aG docker $current_user"
+        log::error "Then: newgrp docker (or open new terminal)"
     fi
 }
 
 docker::start() {
-    # First check if Docker is already running
-    if system::is_command "docker" && docker version >/dev/null 2>&1; then
+    # First check if Docker is already running with current permissions
+    if docker::_is_running; then
         log::info "Docker is already running"
         return 0
+    fi
+    
+    # Check if we have docker group but it's not active
+    local current_user="${SUDO_USER:-$USER}"
+    if groups "$current_user" 2>/dev/null | grep -q docker && ! groups | grep -q docker; then
+        if docker::_try_alternative_access; then
+            return 0
+        fi
     fi
 
     # Docker is not running, check if we can start it
@@ -64,10 +137,8 @@ docker::start() {
     # Verify Docker is now running
     if ! docker version >/dev/null 2>&1; then
         # Check if it's a permission issue
-        if [[ -S /var/run/docker.sock ]] && ! groups | grep -q docker; then
-            log::error "Docker appears to be running but you don't have permission to access it"
-            log::error "You are not in the docker group. Run: sudo usermod -aG docker $USER"
-            log::error "Then log out and back in, or run: newgrp docker"
+        if [[ -S /var/run/docker.sock ]]; then
+            docker::_diagnose_permission_issue
         else
             log::error "Failed to start Docker or Docker is not running. If you are in Windows Subsystem for Linux (WSL), please start Docker Desktop and try again."
         fi
@@ -88,24 +159,19 @@ docker::restart() {
 }
 
 docker::kill_all() {
-    # If docker is not running
-    if ! system::is_command "docker"; then
-        log::warning "Docker is not running"
-        return
-    fi
+    system::is_command "docker" || return
+    local containers=$(docker ps -q)
+    [[ -n "$containers" ]] && docker kill $containers || log::warning "No running containers"
+}
 
-    # If there are no running containers, do nothing
-    if [ -z "$(docker ps -q)" ]; then
-        log::warning "No running containers found"
-        return
-    fi
-
-    # Kill all running containers
-    docker kill $(docker ps -q)
+# Docker Compose installation function
+docker::_do_install_docker_compose() {
+    sudo curl -L "https://github.com/docker/compose/releases/download/v2.15.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod a+rx /usr/local/bin/docker-compose
 }
 
 docker::setup_docker_compose() {
-    # Check if Docker Compose is already available FIRST
+    # Check if Docker Compose is already available (standalone version)
     if system::is_command "docker-compose"; then
         log::info "Detected: $(docker-compose --version)"
         return 0
@@ -116,143 +182,66 @@ docker::setup_docker_compose() {
         log::info "Detected: $(docker compose version)"
         return 0
     fi
-
-    # Docker Compose is not installed, check if we can install it
-    if ! flow::can_run_sudo "Docker Compose installation"; then
-        log::error "Docker Compose is not installed and sudo is not available for installation"
-        return 1
-    fi
-
-    log::info "Docker Compose is not installed. Installing Docker Compose..."
-    sudo curl -L "https://github.com/docker/compose/releases/download/v2.15.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    sudo chmod a+rx /usr/local/bin/docker-compose
-    # Check if Docker Compose installation failed
-    if ! system::is_command "docker-compose"; then
-        log::error "Docker Compose installation failed."
-        return 1
-    fi
+    
+    # Neither version found, try to install standalone version
+    docker::_install_if_missing "docker-compose" docker::_do_install_docker_compose "Docker Compose"
 }
 
 docker::manage_docker_group() {
-    # Determine the actual user (handle sudo case)
-    local actual_user
-    if [[ -n "${SUDO_USER:-}" ]] && [[ "$SUDO_USER" != "root" ]]; then
-        # Running under sudo, use the real user
-        actual_user="$SUDO_USER"
-    else
-        # Not under sudo, use current user
-        actual_user="$USER"
-    fi
+    local actual_user="${SUDO_USER:-$USER}"
     
-    # Check if the actual user is already in docker group
+    # Check if user is already in docker group
     if groups "$actual_user" 2>/dev/null | grep -q docker; then
         log::info "User '$actual_user' is already in docker group"
+        ! groups | grep -q docker && log::warning "Run 'newgrp docker' to activate in current session"
         return 0
     fi
     
-    # User is not in docker group
     log::warning "User '$actual_user' is not in the docker group"
     
-    # Check if we can add user to docker group
+    # Check sudo availability
     if ! flow::can_run_sudo "Add user to docker group"; then
-        log::warning "Cannot add user to docker group without sudo privileges"
-        log::warning "To fix this manually, run: sudo usermod -aG docker $actual_user"
-        log::warning "Then log out and back in, or run: newgrp docker"
-        return 0  # Don't fail setup, just warn
+        log::warning "Manual fix: sudo usermod -aG docker $actual_user && newgrp docker"
+        return 0
     fi
     
-    # Ask user if they want to be added to docker group
-    if ! flow::is_yes "$YES"; then
-        log::info "Adding user to docker group requires logout/login to take effect."
-        if ! flow::confirm "Add '$actual_user' to docker group?"; then
-            log::warning "Skipping docker group addition. You may need sudo to run Docker commands."
-            return 0
-        fi
+    # Confirm with user
+    if ! flow::is_yes "$YES" && ! flow::confirm "Add '$actual_user' to docker group?"; then
+        log::warning "Skipping docker group addition"
+        return 0
     fi
     
     # Add user to docker group
-    log::info "Adding user '$actual_user' to docker group..."
     if sudo usermod -aG docker "$actual_user"; then
-        log::success "User '$actual_user' added to docker group"
-        log::warning "IMPORTANT: You need to log out and back in for this to take effect"
-        log::info "Alternatively, run: newgrp docker"
-        log::info "Or restart your terminal session"
-        
-        # Note: newgrp won't work in this context when running with sudo
-        if [[ -z "${SUDO_USER:-}" ]]; then
-            # Only try newgrp if not running under sudo
-            if command -v newgrp >/dev/null 2>&1; then
-                log::info "Attempting to activate docker group in current session..."
-                # This won't work in a script context, but we try anyway
-                newgrp docker 2>/dev/null || true
-            fi
-        fi
+        log::success "Added '$actual_user' to docker group. Run 'newgrp docker' or restart terminal"
     else
-        log::error "Failed to add user '$actual_user' to docker group"
+        log::error "Failed to add user to docker group"
         return 1
     fi
 }
 
 docker::diagnose() {
     log::header "Docker Diagnostics"
+    system::is_command "docker" || { log::error "Docker not installed"; return 1; }
+    log::info "Version: $(docker --version 2>&1)"
     
-    # Check if Docker is installed
-    if system::is_command "docker"; then
-        log::info "Docker installation: FOUND"
-        log::info "Docker version: $(docker --version 2>/dev/null || echo 'Unable to get version')"
-    else
-        log::error "Docker installation: NOT FOUND"
-        return 1
-    fi
-    
-    # Check Docker daemon status
-    log::info "Checking Docker daemon status..."
     if docker version >/dev/null 2>&1; then
-        log::success "Docker daemon: RUNNING"
+        log::success "Daemon: RUNNING"
     else
-        log::error "Docker daemon: NOT RUNNING or NOT ACCESSIBLE"
-        
-        # Try to get more info
-        if command -v systemctl >/dev/null 2>&1; then
-            log::info "Docker service status:"
-            systemctl status docker --no-pager 2>&1 | head -20 || true
-        fi
+        log::error "Daemon: NOT ACCESSIBLE"
+        command -v systemctl >/dev/null 2>&1 && systemctl status docker --no-pager 2>&1 | head -10
     fi
     
-    # Check Docker socket
-    if [[ -S /var/run/docker.sock ]]; then
-        log::info "Docker socket: EXISTS"
-        log::info "Docker socket permissions: $(ls -l /var/run/docker.sock)"
-    else
-        log::warning "Docker socket: NOT FOUND at /var/run/docker.sock"
-    fi
-    
-    # Check user groups
-    log::info "Current user groups: $(groups)"
-    if groups | grep -q docker; then
-        log::success "User is in docker group"
-    else
-        log::warning "User is NOT in docker group (may need: sudo usermod -aG docker $USER)"
-    fi
+    [[ -S /var/run/docker.sock ]] && log::info "Socket: $(ls -l /var/run/docker.sock)" || log::warning "Socket: NOT FOUND"
+    groups | grep -q docker && log::success "In docker group" || log::warning "NOT in docker group"
 }
 
 docker::check_internet_access() {
-    log::header "Checking Docker internet access..."
-    if docker run --rm busybox ping -c 1 google.com &>/dev/null; then
-        log::success "Docker internet access: OK"
-    else
-        log::warning "Docker internet access: FAILED"
-        return 1
-    fi
+    docker run --rm busybox ping -c 1 google.com &>/dev/null
 }
 
 docker::show_daemon() {
-    if [ -f /etc/docker/daemon.json ]; then
-        log::info "Current /etc/docker/daemon.json:"
-        cat /etc/docker/daemon.json
-    else
-        log::warning "/etc/docker/daemon.json does not exist."
-    fi
+    [[ -f /etc/docker/daemon.json ]] && cat /etc/docker/daemon.json || log::warning "No daemon.json"
 }
 
 docker::update_daemon() {
@@ -330,77 +319,37 @@ docker::define_config_files() {
     SERVICE_OVERRIDE_FILE="${SERVICE_OVERRIDE_DIR}/slice.conf"
 }
 
-docker::update_slice_file() {
-    # We want the slice file to contain a [Slice] section with CPUQuota and MemoryMax.
-    if [[ ! -f "$SLICE_FILE" ]]; then
-        cat <<EOF > "$SLICE_FILE"
-[Slice]
-CPUQuota=${CPU_QUOTA}
-MemoryMax=${MEM_LIMIT}
-EOF
+# Generic systemd config updater
+docker::_update_systemd_config() {
+    local file="$1" section="$2"; shift 2
+    local directives=("$@")
+    
+    if [[ ! -f "$file" ]]; then
+        { echo "[$section]"; printf '%s\n' "${directives[@]}"; } > "$file"
         changed=true
-    else
-        # Ensure the [Slice] header exists.
-        if ! grep -q "^\[Slice\]" "$SLICE_FILE"; then
-            sed -i "1i[Slice]" "$SLICE_FILE"
-            changed=true
-        fi
-        # Update or add CPUQuota setting.
-        if grep -q '^CPUQuota=' "$SLICE_FILE"; then
-            old_cpu=$(grep '^CPUQuota=' "$SLICE_FILE" | head -n 1 | cut -d= -f2-)
-            if [[ "$old_cpu" != "$CPU_QUOTA" ]]; then
-                sed -i "s/^CPUQuota=.*/CPUQuota=${CPU_QUOTA}/" "$SLICE_FILE"
-                changed=true
-            fi
-        else
-            sed -i "/^\[Slice\]/a CPUQuota=${CPU_QUOTA}" "$SLICE_FILE"
-            changed=true
-        fi
-
-        # Update or add MemoryMax setting.
-        if grep -q '^MemoryMax=' "$SLICE_FILE"; then
-            old_mem=$(grep '^MemoryMax=' "$SLICE_FILE" | head -n 1 | cut -d= -f2-)
-            if [[ "$old_mem" != "$MEM_LIMIT" ]]; then
-                sed -i "s/^MemoryMax=.*/MemoryMax=${MEM_LIMIT}/" "$SLICE_FILE"
-                changed=true
-            fi
-        else
-            sed -i "/^\[Slice\]/a MemoryMax=${MEM_LIMIT}" "$SLICE_FILE"
-            changed=true
-        fi
+        return
     fi
+    
+    grep -q "^\[$section\]" "$file" || { sed -i "1i[$section]" "$file"; changed=true; }
+    
+    for directive in "${directives[@]}"; do
+        local key="${directive%%=*}" value="${directive#*=}"
+        if grep -q "^$key=" "$file"; then
+            local old_value=$(grep "^$key=" "$file" | head -n 1 | cut -d= -f2-)
+            [[ "$old_value" != "$value" ]] && { sed -i "s/^$key=.*/$directive/" "$file"; changed=true; }
+        else
+            sed -i "/^\[$section\]/a $directive" "$file"; changed=true
+        fi
+    done
+}
+
+docker::update_slice_file() {
+    docker::_update_systemd_config "$SLICE_FILE" "Slice" "CPUQuota=${CPU_QUOTA}" "MemoryMax=${MEM_LIMIT}"
 }
 
 docker::update_service_override_file() {
-    # Make sure the directory exists.
     mkdir -p "$SERVICE_OVERRIDE_DIR"
-
-    # The override file should assign docker.service to the docker.slice.
-    if [[ ! -f "$SERVICE_OVERRIDE_FILE" ]]; then
-        cat <<EOF > "$SERVICE_OVERRIDE_FILE"
-[Service]
-Slice=docker.slice
-EOF
-        changed=true
-    else
-        # Ensure the [Service] header exists.
-        if ! grep -q "^\[Service\]" "$SERVICE_OVERRIDE_FILE"; then
-        sed -i "1i[Service]" "$SERVICE_OVERRIDE_FILE"
-        changed=true
-        fi
-
-        # Check and update the Slice directive.
-        if grep -q '^Slice=' "$SERVICE_OVERRIDE_FILE"; then
-            old_slice=$(grep '^Slice=' "$SERVICE_OVERRIDE_FILE" | head -n 1 | cut -d= -f2-)
-            if [[ "$old_slice" != "docker.slice" ]]; then
-                sed -i "s/^Slice=.*/Slice=docker.slice/" "$SERVICE_OVERRIDE_FILE"
-                changed=true
-            fi
-        else
-            sed -i "/^\[Service\]/a Slice=docker.slice" "$SERVICE_OVERRIDE_FILE"
-            changed=true
-        fi
-    fi
+    docker::_update_systemd_config "$SERVICE_OVERRIDE_FILE" "Service" "Slice=docker.slice"
 }
 
 # Sets up a dedicated systemd slice for the Docker daemon
@@ -473,61 +422,21 @@ docker::build_images() {
 
 docker::pull_base_images() {
     log::header "Pulling Docker base images"
-    local base_images=()
-    if env::in_production; then
-        base_images=(
-            "redis:7.4.0-alpine"
-            "pgvector/pgvector:pg15"
-            "steelcityamir/safe-content-ai:1.1.0"
-            # add production-only base images here
-        )
-    else
-        base_images=(
-            "redis:7.4.0-alpine"
-            "pgvector/pgvector:pg15"
-            "steelcityamir/safe-content-ai:1.1.0"
-            # add development-only base images here
-        )
-    fi
-    for img in "${base_images[@]}"; do
-        docker pull "$img"
-    done
+    local base_images=("redis:7.4.0-alpine" "pgvector/pgvector:pg15" "steelcityamir/safe-content-ai:1.1.0")
+    for img in "${base_images[@]}"; do docker pull "$img"; done
     log::success "Docker base images pulled successfully"
 }
 
 docker::collect_images() {
-    local images=()
-     if env::in_production; then
-        images=(
-            "ui:prod"
-            "server:prod"
-            "jobs:prod"
-            "redis:7.4.0-alpine"
-            "pgvector/pgvector:pg15"
-        )
-    else
-        images=(
-            "ui:dev"
-            "server:dev"
-            "jobs:dev"
-            "redis:7.4.0-alpine"
-            "pgvector/pgvector:pg15"
-        )
-    fi
-
+    local tag=$(env::in_production && echo "prod" || echo "dev")
+    local images=("ui:$tag" "server:$tag" "jobs:$tag" "redis:7.4.0-alpine" "pgvector/pgvector:pg15")
     local available_images=()
+    
     for img in "${images[@]}"; do
-        if docker image inspect "$img" >/dev/null 2>&1; then
-            available_images+=("$img")
-        else
-            log::warning "Image $img not found, skipping"
-        fi
+        docker image inspect "$img" >/dev/null 2>&1 && available_images+=("$img") || log::warning "Image $img not found"
     done
-    if [[ ${#available_images[@]} -eq 0 ]]; then
-        log::error "No Docker images available to save"
-        exit "$ERROR_BUILD_FAILED"
-    fi
-
+    
+    [[ ${#available_images[@]} -eq 0 ]] && { log::error "No Docker images available"; exit "$ERROR_BUILD_FAILED"; }
     echo "${available_images[@]}"
 }
 
@@ -577,13 +486,8 @@ docker::load_images_from_tar() {
 
 # Docker login. Required for sending images to Docker Hub.
 docker::login_to_dockerhub() {
-    log::header "Logging into Docker Hub..."
-    if [ -z "${DOCKERHUB_USERNAME:-}" ] || [ -z "${DOCKERHUB_TOKEN:-}" ]; then
-        log::error "DOCKERHUB_USERNAME and DOCKERHUB_TOKEN must be set."
-        exit "$ERROR_DOCKER_LOGIN_FAILED"
-    fi
+    [[ -z "${DOCKERHUB_USERNAME:-}" || -z "${DOCKERHUB_TOKEN:-}" ]] && { log::error "DOCKERHUB_USERNAME and DOCKERHUB_TOKEN required"; exit "$ERROR_DOCKER_LOGIN_FAILED"; }
     echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
-    log::success "Successfully logged into Docker Hub."
 }
 
 # Tags and pushes Docker images to Docker Hub. Required for deploying to K8s, 
