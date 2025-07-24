@@ -33,7 +33,7 @@
         "name": "Docker PS",
         "x": 310,
         "y": 100,
-        "wires": [["format-docker-success"], ["format-docker-error"], ["format-docker-error"]]
+        "wires": [["format-docker-success"], ["format-docker-error"], []]
     },
     {
         "id": "format-docker-success",

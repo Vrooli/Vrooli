@@ -1,5 +1,8 @@
 #!/bin/bash
+set -e
 # Enhanced entrypoint for Node-RED with host system access
+
+echo "Starting Node-RED with enhanced entrypoint..."
 
 # Set up PATH to include host directories
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/host/usr/bin:/host/bin:$PATH"
@@ -32,8 +35,26 @@ if [[ "$(id -u)" = "0" ]]; then
     # Running as root, fix permissions
     chown -R node-red:node-red /data 2>/dev/null || true
     
-    # Drop to node-red user
-    exec su-exec node-red "$0" "$@"
+    # Fix Docker socket access if socket exists
+    if [[ -S "/var/run/docker.sock" ]]; then
+        # Get the group ID of the docker socket
+        DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)
+        
+        # Create/update docker group with correct GID
+        if ! getent group docker >/dev/null 2>&1; then
+            groupadd -g "$DOCKER_GID" docker
+        else
+            groupmod -g "$DOCKER_GID" docker 2>/dev/null || true
+        fi
+        
+        # Add node-red user to docker group
+        usermod -a -G docker node-red
+        
+        echo "Added node-red user to docker group (GID: $DOCKER_GID)"
+    fi
+    
+    # Drop to node-red user and re-run this script
+    exec runuser -u node-red -- "$0" "$@"
 fi
 
 # Create required directories if they don't exist
@@ -46,6 +67,9 @@ fi
 
 # Set default flow file if not specified
 export NODE_RED_FLOW_FILE="${NODE_RED_FLOW_FILE:-flows.json}"
+
+# Ensure PATH includes host directories for Node-RED process
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/host/usr/bin:/host/bin:$PATH"
 
 # Start Node-RED with the original npm start command
 cd /usr/src/node-red

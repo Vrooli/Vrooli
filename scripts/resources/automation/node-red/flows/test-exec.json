@@ -48,7 +48,7 @@
         "name": "Execute Command",
         "x": 550,
         "y": 80,
-        "wires": [["format-success"], ["format-error"], ["format-error"]]
+        "wires": [["format-success"], ["format-error"], []]
     },
     {
         "id": "format-success",

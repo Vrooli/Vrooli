@@ -24,7 +24,9 @@ RUN apk add --no-cache \
     gzip \
     bzip2 \
     xz \
-    wget
+    wget \
+    util-linux \
+    shadow
 
 # Create directories for host access
 RUN mkdir -p /host/bin /host/usr/bin /workspace /data/flows /data/nodes
@@ -44,11 +46,11 @@ RUN chmod +x /usr/src/node-red/docker-entrypoint.sh
 # Set working directory
 WORKDIR /usr/src/node-red
 
-# Switch back to node-red user
-USER node-red
-
-# Use custom entrypoint
+# Use custom entrypoint (runs as root, then drops to node-red user)
 ENTRYPOINT ["/usr/src/node-red/docker-entrypoint.sh"]
+
+# Default command to start Node-RED
+CMD []
 
 # Expose port
 EXPOSE 1880
