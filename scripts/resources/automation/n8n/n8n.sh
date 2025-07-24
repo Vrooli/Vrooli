@@ -7,7 +7,7 @@ set -euo pipefail
 DESCRIPTION="Install and manage n8n workflow automation platform using Docker"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/.."
+RESOURCES_DIR="${SCRIPT_DIR}/../.."
 
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/common.sh"
@@ -20,6 +20,10 @@ readonly N8N_BASE_URL="http://localhost:${N8N_PORT}"
 readonly N8N_CONTAINER_NAME="n8n"
 readonly N8N_DATA_DIR="${HOME}/.n8n"
 readonly N8N_IMAGE="docker.n8n.io/n8nio/n8n:latest"
+
+# Custom image configuration
+readonly N8N_CUSTOM_IMAGE="${N8N_CUSTOM_IMAGE:-n8n-vrooli:latest}"
+readonly N8N_USE_CUSTOM_IMAGE="${N8N_USE_CUSTOM_IMAGE:-no}"
 
 # Database configuration
 readonly N8N_DB_TYPE="${N8N_DB_TYPE:-sqlite}"
@@ -91,6 +95,13 @@ n8n::parse_arguments() {
         --options "yes|no" \
         --default "no"
     
+    args::register \
+        --name "build-image" \
+        --desc "Build custom n8n image with host access" \
+        --type "value" \
+        --options "yes|no" \
+        --default "no"
+    
     if args::is_asking_for_help "$@"; then
         n8n::usage
         exit 0
@@ -107,6 +118,7 @@ n8n::parse_arguments() {
     export AUTH_PASSWORD=$(args::get "password")
     export DATABASE_TYPE=$(args::get "database")
     export TUNNEL_ENABLED=$(args::get "tunnel")
+    export BUILD_IMAGE=$(args::get "build-image")
 }
 
 #######################################
@@ -121,6 +133,7 @@ n8n::usage() {
     echo "  $0 --action install --username admin --password secret  # Custom credentials"
     echo "  $0 --action install --database postgres          # Use PostgreSQL instead of SQLite"
     echo "  $0 --action install --tunnel yes                 # Enable webhook tunnel (dev only)"
+    echo "  $0 --action install --build-image yes            # Build custom image with host access"
     echo "  $0 --action status                               # Check n8n status"
     echo "  $0 --action logs                                 # View n8n logs"
     echo "  $0 --action reset-password                       # Reset admin password"
@@ -204,6 +217,29 @@ n8n::generate_password() {
     else
         # Fallback to timestamp-based password
         echo "n8n$(date +%s)$RANDOM" | sha256sum | cut -c1-16
+    fi
+}
+
+#######################################
+# Build custom n8n Docker image
+#######################################
+n8n::build_custom_image() {
+    log::info "Building custom n8n image with host access..."
+    
+    # Ensure files exist
+    if [[ ! -f "$SCRIPT_DIR/Dockerfile" ]] || [[ ! -f "$SCRIPT_DIR/docker-entrypoint.sh" ]]; then
+        log::error "Required files missing in $SCRIPT_DIR"
+        log::info "Please ensure Dockerfile and docker-entrypoint.sh exist"
+        return 1
+    fi
+    
+    # Build image
+    if docker build -t "$N8N_CUSTOM_IMAGE" "$SCRIPT_DIR"; then
+        log::success "Custom n8n image built successfully"
+        return 0
+    else
+        log::error "Failed to build custom image"
+        return 1
     fi
 }
 
@@ -321,6 +357,27 @@ n8n::build_docker_command() {
     docker_cmd+=" -v ${N8N_DATA_DIR}:/home/node/.n8n"
     docker_cmd+=" --restart unless-stopped"
     
+    # Add volume mounts for host access
+    # Mount only if directories exist on host
+    if [[ -d /usr/bin ]]; then
+        docker_cmd+=" -v /usr/bin:/host/usr/bin:ro"
+    fi
+    if [[ -d /bin ]]; then
+        docker_cmd+=" -v /bin:/host/bin:ro"
+    fi
+    if [[ -d /usr/local/bin ]]; then
+        docker_cmd+=" -v /usr/local/bin:/host/usr/local/bin:ro"
+    fi
+    
+    # User home and workspace
+    docker_cmd+=" -v $HOME:/host/home:rw"
+    docker_cmd+=" -v $HOME/Vrooli:/workspace:rw"
+    
+    # Docker socket for container control
+    if [[ -S /var/run/docker.sock ]]; then
+        docker_cmd+=" -v /var/run/docker.sock:/var/run/docker.sock:rw"
+    fi
+    
     # Environment variables
     docker_cmd+=" -e GENERIC_TIMEZONE=$(timedatectl show -p Timezone --value 2>/dev/null || echo 'UTC')"
     docker_cmd+=" -e TZ=$(timedatectl show -p Timezone --value 2>/dev/null || echo 'UTC')"
@@ -361,8 +418,15 @@ n8n::build_docker_command() {
     docker_cmd+=" -e EXECUTIONS_DATA_SAVE_ON_PROGRESS=true"
     docker_cmd+=" -e EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS=true"
     
+    # Use custom image if available
+    local image_to_use="$N8N_IMAGE"
+    if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${N8N_CUSTOM_IMAGE}$"; then
+        image_to_use="$N8N_CUSTOM_IMAGE"
+        log::info "Using custom n8n image: $N8N_CUSTOM_IMAGE"
+    fi
+    
     # Image and command
-    docker_cmd+=" $N8N_IMAGE"
+    docker_cmd+=" $image_to_use"
     
     # Add tunnel flag if enabled (development only)
     if [[ "$TUNNEL_ENABLED" == "yes" ]]; then
@@ -466,6 +530,17 @@ n8n::install() {
         log::error "Port validation failed for n8n"
         log::info "You can set a custom port with: export N8N_CUSTOM_PORT=<port>"
         return 1
+    fi
+    
+    # Build custom image if requested
+    if [[ "$BUILD_IMAGE" == "yes" ]]; then
+        if ! n8n::build_custom_image; then
+            resources::handle_error \
+                "Failed to build custom n8n image" \
+                "system" \
+                "Check Docker logs and Dockerfile"
+            return 1
+        fi
     fi
     
     # Generate password if needed
