@@ -286,7 +286,7 @@ docker::diagnose() {
 }
 
 docker::check_internet_access() {
-    docker::run --rm busybox ping -c 1 google.com &>/dev/null
+    docker::run run --rm busybox ping -c 1 google.com &>/dev/null
 }
 
 docker::show_daemon() {
