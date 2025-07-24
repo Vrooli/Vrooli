@@ -45,7 +45,7 @@ n8n::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|reset-password|logs|info" \
+        --options "install|uninstall|start|stop|restart|status|reset-password|logs|info|execute|api-setup|save-api-key" \
         --default "install"
     
     args::register \
@@ -59,6 +59,24 @@ n8n::parse_arguments() {
     args::register \
         --name "webhook-url" \
         --desc "External webhook URL (default: auto-detect)" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "workflow-id" \
+        --desc "Workflow ID for execution" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "api-key" \
+        --desc "n8n API key to save" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "data" \
+        --desc "JSON data to pass to workflow (for webhook workflows)" \
         --type "value" \
         --default ""
     
@@ -113,6 +131,9 @@ n8n::parse_arguments() {
     export FORCE=$(args::get "force")
     export YES=$(args::get "yes")
     export WEBHOOK_URL=$(args::get "webhook-url")
+    export WORKFLOW_ID=$(args::get "workflow-id")
+    export API_KEY=$(args::get "api-key")
+    export WORKFLOW_DATA=$(args::get "data")
     export BASIC_AUTH=$(args::get "basic-auth")
     export AUTH_USERNAME=$(args::get "username")
     export AUTH_PASSWORD=$(args::get "password")
@@ -413,6 +434,8 @@ n8n::build_docker_command() {
     docker_cmd+=" -e N8N_DIAGNOSTICS_ENABLED=false"
     docker_cmd+=" -e N8N_TEMPLATES_ENABLED=true"
     docker_cmd+=" -e N8N_PERSONALIZATION_ENABLED=false"
+    docker_cmd+=" -e N8N_RUNNERS_ENABLED=true"
+    docker_cmd+=" -e N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true"
     docker_cmd+=" -e EXECUTIONS_DATA_SAVE_ON_ERROR=all"
     docker_cmd+=" -e EXECUTIONS_DATA_SAVE_ON_SUCCESS=all"
     docker_cmd+=" -e EXECUTIONS_DATA_SAVE_ON_PROGRESS=true"
@@ -1064,6 +1087,289 @@ EOF
 }
 
 #######################################
+# Execute workflow via API
+#######################################
+n8n::execute() {
+    local workflow_id="${WORKFLOW_ID:-}"
+    
+    log::header "🚀 n8n Workflow Execution"
+    
+    # Check if workflow ID is provided
+    if [[ -z "$workflow_id" ]]; then
+        log::error "Workflow ID is required"
+        echo ""
+        echo "Usage: $0 --action execute --workflow-id YOUR_WORKFLOW_ID"
+        echo ""
+        echo "To find workflow IDs:"
+        echo "  docker exec $N8N_CONTAINER_NAME n8n list:workflow"
+        return 1
+    fi
+    
+    # Check for API key - first from env, then from config
+    local api_key="${N8N_API_KEY:-}"
+    
+    # If not in env, try to load from resources config
+    if [[ -z "$api_key" ]]; then
+        local config_file="${HOME}/.vrooli/resources.local.json"
+        if [[ -f "$config_file" ]]; then
+            api_key=$(jq -r '.services.automation.n8n.apiKey // empty' "$config_file" 2>/dev/null)
+        fi
+    fi
+    
+    if [[ -z "$api_key" ]]; then
+        log::warn "No API key found"
+        echo ""
+        n8n::show_api_setup_instructions
+        return 1
+    fi
+    
+    # First, get workflow details to check if it has a webhook
+    log::info "Fetching workflow details: $workflow_id"
+    
+    local workflow_details
+    workflow_details=$(curl -s -H "X-N8N-API-KEY: $api_key" \
+        "${N8N_BASE_URL}/api/v1/workflows/${workflow_id}" 2>&1)
+    
+    # Check if workflow exists
+    if echo "$workflow_details" | grep -q '"message".*not found'; then
+        log::error "Workflow not found"
+        echo ""
+        echo "Available workflows:"
+        docker exec "$N8N_CONTAINER_NAME" n8n list:workflow
+        return 1
+    fi
+    
+    # Check if workflow has a webhook node
+    local webhook_path
+    webhook_path=$(echo "$workflow_details" | jq -r '.nodes[]? | select(.type == "n8n-nodes-base.webhook") | .parameters.path // empty' 2>/dev/null | head -1)
+    
+    if [[ -n "$webhook_path" ]]; then
+        # Workflow has webhook - check if it's active
+        local is_active
+        is_active=$(echo "$workflow_details" | jq -r '.active' 2>/dev/null)
+        
+        if [[ "$is_active" != "true" ]]; then
+            log::warn "Webhook workflow is not active. Activating it..."
+            
+            # Activate the workflow
+            local activate_response
+            activate_response=$(curl -s -X POST \
+                -H "X-N8N-API-KEY: $api_key" \
+                -H "Content-Type: application/json" \
+                -d '{}' \
+                "${N8N_BASE_URL}/api/v1/workflows/${workflow_id}/activate" 2>&1)
+            
+            if echo "$activate_response" | grep -q '"active":true'; then
+                log::success "✅ Workflow activated"
+            else
+                log::error "Failed to activate workflow"
+                echo "Response: $activate_response"
+                return 1
+            fi
+        fi
+        
+        # Execute via webhook
+        log::info "Executing webhook workflow at path: /$webhook_path"
+        
+        # Get webhook method from node parameters
+        local webhook_method
+        webhook_method=$(echo "$workflow_details" | jq -r '.nodes[]? | select(.type == "n8n-nodes-base.webhook") | .parameters.method // empty' 2>/dev/null | head -1)
+        webhook_method="${webhook_method:-GET}"
+        
+        local data="${WORKFLOW_DATA:-{}}"
+        local response
+        local http_code
+        
+        if [[ "$webhook_method" == "GET" ]] || [[ -z "$webhook_method" ]]; then
+            # For GET requests, append data as query parameters if provided
+            local query_string=""
+            if [[ "$data" != "{}" ]]; then
+                query_string="?data=$(echo "$data" | jq -c . | sed 's/ /%20/g')"
+            fi
+            response=$(curl -s -w "\n__HTTP_CODE__:%{http_code}" -X GET \
+                "${N8N_BASE_URL}/webhook/${webhook_path}${query_string}" 2>&1)
+        else
+            # For POST/PUT/etc, send data in body
+            response=$(curl -s -w "\n__HTTP_CODE__:%{http_code}" -X "$webhook_method" \
+                -H "Content-Type: application/json" \
+                -d "$data" \
+                "${N8N_BASE_URL}/webhook/${webhook_path}" 2>&1)
+        fi
+        
+        # Extract HTTP code
+        http_code=$(echo "$response" | grep "__HTTP_CODE__:" | cut -d':' -f2)
+        response=$(echo "$response" | grep -v "__HTTP_CODE__:")
+        
+        if [[ "$http_code" == "200" ]] || [[ "$http_code" == "201" ]]; then
+            log::success "✅ Webhook workflow executed successfully"
+            if [[ -n "$response" ]] && [[ "$response" != "{}" ]] && [[ "$response" != "null" ]]; then
+                echo ""
+                echo "Response:"
+                # Try to parse as JSON, fallback to raw output
+                if echo "$response" | jq empty 2>/dev/null; then
+                    echo "$response" | jq '.' 2>/dev/null
+                else
+                    echo "$response"
+                fi
+            fi
+        else
+            log::error "Webhook execution failed (HTTP $http_code)"
+            echo "Response: $response"
+            return 1
+        fi
+    else
+        # No webhook - workflow has manual trigger only
+        log::error "This workflow uses a Manual Trigger and cannot be executed via API"
+        echo ""
+        echo "n8n's public API does not support executing manual trigger workflows."
+        echo ""
+        echo "Options:"
+        echo "  1. Replace the Manual Trigger with a Webhook node in your workflow"
+        echo "  2. Use the n8n web interface to test manual workflows"
+        echo "  3. Use the n8n CLI (currently broken in v1.93.0+)"
+        echo ""
+        echo "To create an API-executable workflow:"
+        echo "  - Add a Webhook node as the trigger"
+        echo "  - Set a unique path (e.g., 'my-workflow')"
+        echo "  - Save and activate the workflow"
+        echo "  - Execute with: $0 --action execute --workflow-id $workflow_id"
+        return 1
+    fi
+}
+
+#######################################
+# Show API setup instructions
+#######################################
+n8n::show_api_setup_instructions() {
+    local auth_user="${N8N_BASIC_AUTH_USER:-admin}"
+    local auth_pass
+    
+    # Try to get password from running container
+    if docker ps --format "{{.Names}}" | grep -q "^${N8N_CONTAINER_NAME}$"; then
+        auth_pass=$(docker exec "$N8N_CONTAINER_NAME" env | grep N8N_BASIC_AUTH_PASSWORD | cut -d'=' -f2)
+    fi
+    
+    cat << EOF
+=== n8n API Setup Instructions ===
+
+The n8n CLI execute command has a known bug in versions 1.93.0+.
+You need to use the REST API instead. Here's how:
+
+1. Access n8n Web Interface:
+   URL: $N8N_BASE_URL
+   Username: $auth_user
+   Password: ${auth_pass:-[check container logs or env]}
+
+2. Create API Key:
+   - Go to Settings → n8n API
+   - Click "Create an API key"
+   - Set a label (e.g., "CLI Access")
+   - Set expiration (optional)
+   - Copy the API key (shown only once!)
+
+3. Save API Key (Choose One):
+   Option A - Save to configuration file (recommended):
+     $0 --action save-api-key --api-key YOUR_API_KEY
+   
+   Option B - Set environment variable (temporary):
+     export N8N_API_KEY="your-api-key-here"
+
+4. Execute Workflows:
+   $0 --action execute --workflow-id YOUR_WORKFLOW_ID
+
+Alternative: Direct API Call:
+   curl -X POST -H "X-N8N-API-KEY: \$N8N_API_KEY" \\
+        -H "Content-Type: application/json" \\
+        ${N8N_BASE_URL}/api/v1/workflows/WORKFLOW_ID/execute
+
+Note: This is a workaround for GitHub issue #15567.
+The standard CLI command 'n8n execute --id' is broken in current versions.
+EOF
+}
+
+#######################################
+# API setup helper
+#######################################
+n8n::api_setup() {
+    log::header "🔑 n8n API Setup Guide"
+    n8n::show_api_setup_instructions
+}
+
+#######################################
+# Save API key to configuration
+#######################################
+n8n::save_api_key() {
+    local api_key="${API_KEY:-}"
+    
+    log::header "💾 Save n8n API Key"
+    
+    # Check if API key is provided
+    if [[ -z "$api_key" ]]; then
+        log::error "API key is required"
+        echo ""
+        echo "Usage: $0 --action save-api-key --api-key YOUR_API_KEY"
+        echo ""
+        echo "To create an API key:"
+        echo "  1. Access n8n at $N8N_BASE_URL"
+        echo "  2. Go to Settings → n8n API"
+        echo "  3. Create and copy your API key"
+        return 1
+    fi
+    
+    # Ensure config directory exists
+    local config_dir="${HOME}/.vrooli"
+    mkdir -p "$config_dir"
+    
+    # Load existing config or create new
+    local config_file="${config_dir}/resources.local.json"
+    local config
+    
+    if [[ -f "$config_file" ]]; then
+        # Backup existing config
+        cp "$config_file" "${config_file}.backup" 2>/dev/null || true
+        config=$(cat "$config_file")
+    else
+        # Create default config structure
+        config='{
+  "version": "1.0.0",
+  "enabled": true,
+  "services": {
+    "ai": {},
+    "automation": {},
+    "storage": {},
+    "agents": {}
+  }
+}'
+    fi
+    
+    # Update config with API key
+    local updated_config
+    updated_config=$(echo "$config" | jq --arg key "$api_key" '
+        .services.automation.n8n = (.services.automation.n8n // {}) |
+        .services.automation.n8n.apiKey = $key |
+        .services.automation.n8n.enabled = true |
+        .services.automation.n8n.baseUrl = "http://localhost:5678" |
+        .services.automation.n8n.healthCheck = {
+            "intervalMs": 60000,
+            "timeoutMs": 5000
+        }
+    ')
+    
+    # Write updated config
+    echo "$updated_config" | jq '.' > "$config_file"
+    
+    # Set secure permissions
+    chmod 600 "$config_file"
+    
+    log::success "✅ API key saved to $config_file"
+    echo ""
+    echo "You can now execute workflows without setting N8N_API_KEY:"
+    echo "  $0 --action execute --workflow-id YOUR_WORKFLOW_ID"
+    echo ""
+    echo "The API key will be loaded automatically from the configuration."
+}
+
+#######################################
 # Main execution function
 #######################################
 n8n::main() {
@@ -1096,6 +1402,15 @@ n8n::main() {
             ;;
         "info")
             n8n::info
+            ;;
+        "execute")
+            n8n::execute
+            ;;
+        "api-setup")
+            n8n::api_setup
+            ;;
+        "save-api-key")
+            n8n::save_api_key
             ;;
         *)
             log::error "Unknown action: $ACTION"
