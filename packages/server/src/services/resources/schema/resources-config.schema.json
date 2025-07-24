@@ -1,0 +1,435 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/resources-config.json",
+  "title": "Vrooli Resources Configuration",
+  "description": "Configuration schema for Vrooli local resource management",
+  "type": "object",
+  "required": ["version", "enabled"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of the configuration schema"
+    },
+    "enabled": {
+      "type": "boolean",
+      "description": "Whether resource discovery and management is enabled globally"
+    },
+    "services": {
+      "type": "object",
+      "description": "Service configurations organized by category",
+      "properties": {
+        "ai": {
+          "$ref": "#/$defs/serviceCategory",
+          "description": "AI and machine learning services"
+        },
+        "automation": {
+          "$ref": "#/$defs/serviceCategory",
+          "description": "Workflow automation services"
+        },
+        "agents": {
+          "$ref": "#/$defs/serviceCategory",
+          "description": "Browser and agent automation services"
+        },
+        "storage": {
+          "$ref": "#/$defs/serviceCategory",
+          "description": "Data storage and file system services"
+        }
+      },
+      "additionalProperties": false
+    },
+    "security": {
+      "type": "object",
+      "description": "Security configuration for resource access",
+      "properties": {
+        "network": {
+          "type": "object",
+          "properties": {
+            "allowedHosts": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "hostname"
+              },
+              "description": "List of allowed hostnames for resource connections",
+              "default": ["localhost", "127.0.0.1"]
+            },
+            "allowCustomHosts": {
+              "type": "boolean",
+              "description": "Whether to allow connections to hosts not in allowedHosts",
+              "default": false
+            },
+            "requireTLS": {
+              "type": "boolean",
+              "description": "Whether to require TLS for all resource connections",
+              "default": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "authentication": {
+          "type": "object",
+          "properties": {
+            "keyPrefix": {
+              "type": "string",
+              "pattern": "^[A-Z_]+$",
+              "description": "Prefix for environment variable keys containing credentials",
+              "default": "VROOLI_RESOURCE_"
+            },
+            "keyRotationIntervalDays": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365,
+              "description": "How often to rotate authentication keys (in days)",
+              "default": 90
+            }
+          },
+          "additionalProperties": false
+        },
+        "validation": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether to enable strict validation of resource configurations",
+              "default": true
+            },
+            "strictMode": {
+              "type": "boolean",
+              "description": "Whether to fail on validation warnings (not just errors)",
+              "default": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "rateLimit": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether to enable rate limiting for resource requests",
+              "default": false
+            },
+            "requestsPerMinute": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000,
+              "description": "Maximum requests per minute per resource",
+              "default": 100
+            },
+            "burstSize": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "description": "Maximum burst size for rate limiting",
+              "default": 10
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "monitoring": {
+      "type": "object",
+      "description": "Monitoring and observability configuration",
+      "properties": {
+        "metrics": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether to collect metrics from resources",
+              "default": true
+            },
+            "interval": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 3600000,
+              "description": "Metrics collection interval in milliseconds",
+              "default": 60000
+            },
+            "exportFormat": {
+              "type": "string",
+              "enum": ["prometheus", "opentelemetry", "json"],
+              "description": "Format for exporting metrics",
+              "default": "prometheus"
+            }
+          },
+          "additionalProperties": false
+        },
+        "logging": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether to enable structured logging for resources",
+              "default": true
+            },
+            "logLevel": {
+              "type": "string",
+              "enum": ["error", "warn", "info", "debug"],
+              "description": "Minimum log level to capture",
+              "default": "info"
+            },
+            "retentionDays": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365,
+              "description": "How long to retain log files (in days)",
+              "default": 30
+            },
+            "structured": {
+              "type": "boolean",
+              "description": "Whether to use structured (JSON) logging",
+              "default": true
+            }
+          },
+          "additionalProperties": false
+        },
+        "alerts": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether to enable alerting for resource issues",
+              "default": false
+            },
+            "channels": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["email", "webhook", "slack"],
+                    "description": "Type of alert channel"
+                  },
+                  "endpoint": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "Endpoint URL for webhook or Slack alerts"
+                  },
+                  "severity": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high", "critical"],
+                    "description": "Minimum severity level for this channel",
+                    "default": "high"
+                  }
+                },
+                "required": ["type"],
+                "additionalProperties": false
+              },
+              "description": "Alert notification channels"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "_documentation": {
+      "type": "object",
+      "description": "Documentation and metadata (ignored during processing)",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "serviceCategory": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z][a-zA-Z0-9_-]*$": {
+          "$ref": "#/$defs/serviceConfig"
+        }
+      },
+      "additionalProperties": false
+    },
+    "serviceConfig": {
+      "type": "object",
+      "required": ["enabled"],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether this service is enabled for discovery and management"
+        },
+        "baseUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://",
+          "description": "Base URL for connecting to the service"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Human-readable name for the service"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Description of the service functionality"
+        },
+        "version": {
+          "type": "string",
+          "description": "Version of the service being used"
+        },
+        "healthCheck": {
+          "type": "object",
+          "properties": {
+            "intervalMs": {
+              "type": "integer",
+              "minimum": 5000,
+              "maximum": 3600000,
+              "description": "Health check interval in milliseconds",
+              "default": 60000
+            },
+            "timeoutMs": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 30000,
+              "description": "Health check timeout in milliseconds",
+              "default": 5000
+            },
+            "retries": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10,
+              "description": "Number of retries for failed health checks",
+              "default": 3
+            },
+            "endpoint": {
+              "type": "string",
+              "description": "Custom health check endpoint path",
+              "pattern": "^/"
+            }
+          },
+          "additionalProperties": false
+        },
+        "authentication": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["none", "basic", "bearer", "apikey", "oauth2"],
+              "description": "Type of authentication to use",
+              "default": "none"
+            },
+            "username": {
+              "type": "string",
+              "description": "Username for basic authentication (or environment variable)"
+            },
+            "password": {
+              "type": "string",
+              "description": "Password for basic authentication (or environment variable)"
+            },
+            "token": {
+              "type": "string",
+              "description": "Bearer token or API key (or environment variable)"
+            },
+            "header": {
+              "type": "string",
+              "description": "Custom header name for API key authentication",
+              "default": "X-API-Key"
+            }
+          },
+          "additionalProperties": false
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "maxConcurrentRequests": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "description": "Maximum concurrent requests to this service",
+              "default": 10
+            },
+            "requestTimeoutMs": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 300000,
+              "description": "Request timeout in milliseconds",
+              "default": 30000
+            },
+            "maxRetries": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10,
+              "description": "Maximum retries for failed requests",
+              "default": 3
+            }
+          },
+          "additionalProperties": false
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Service-specific metadata and configuration",
+          "properties": {
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              },
+              "description": "Tags for categorizing and filtering services"
+            },
+            "priority": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "Priority for service selection (higher = preferred)",
+              "default": 50
+            },
+            "environment": {
+              "type": "string",
+              "enum": ["development", "staging", "production"],
+              "description": "Environment this service configuration is for",
+              "default": "development"
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "authentication": {
+                "properties": {
+                  "type": { "const": "basic" }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "authentication": {
+                "required": ["username", "password"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "authentication": {
+                "properties": {
+                  "type": { "enum": ["bearer", "apikey"] }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "authentication": {
+                "required": ["token"]
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}
