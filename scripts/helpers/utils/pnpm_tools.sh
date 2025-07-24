@@ -141,17 +141,33 @@ pnpm_tools::setup() {
     log::header "🔧 Enabling Corepack and installing dependencies..."
     pnpm_tools::ensure_pnpm
 
-    # Fix ownership of existing node_modules directories if running with sudo
+    # Fix ownership of existing directories if running with sudo
     if [[ -n "${SUDO_USER:-}" ]]; then
-        log::info "Fixing ownership of existing node_modules directories..."
-        # Find all node_modules directories and change ownership to the actual user
-        # Using find with -exec to handle any number of directories efficiently
+        log::info "Fixing ownership of existing project directories..."
+        
+        # Fix node_modules directories
+        log::info "  - Fixing node_modules directories..."
         find "$var_ROOT_DIR" -type d -name "node_modules" -exec chown -R "${SUDO_USER}:${SUDO_USER}" {} + 2>/dev/null || true
         
-        # Also fix ownership of the data directory if it exists
+        # Fix dist directories (build outputs)
+        log::info "  - Fixing dist directories..."
+        find "$var_ROOT_DIR/packages" -type d -name "dist" ! -path "*/node_modules/*" -exec chown -R "${SUDO_USER}:${SUDO_USER}" {} + 2>/dev/null || true
+        
+        # Fix test-dist directories (test build outputs)
+        log::info "  - Fixing test-dist directories..."
+        find "$var_ROOT_DIR/packages" -type d -name "test-dist" ! -path "*/node_modules/*" -exec chown -R "${SUDO_USER}:${SUDO_USER}" {} + 2>/dev/null || true
+        
+        # Fix .tsbuildinfo files (TypeScript build cache)
+        log::info "  - Fixing TypeScript build info files..."
+        find "$var_ROOT_DIR/packages" -type f -name ".tsbuildinfo" -exec chown "${SUDO_USER}:${SUDO_USER}" {} + 2>/dev/null || true
+        
+        # Fix the data directory if it exists
         if [[ -d "$var_DATA_DIR" ]]; then
+            log::info "  - Fixing data directory..."
             chown -R "${SUDO_USER}:${SUDO_USER}" "$var_DATA_DIR" 2>/dev/null || true
         fi
+        
+        log::success "Ownership fixes complete"
     fi
 
     log::info "Installing dependencies via pnpm..."
