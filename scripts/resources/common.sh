@@ -49,9 +49,28 @@ resources::is_service_running() {
     local port="$1"
     ports::validate_port "$port"
     
+    # Method 1: Try lsof (original method)
     local pids
-    pids=$(ports::get_listening_pids "$port" 2>/dev/null) || return 1
-    [[ -n "$pids" ]]
+    pids=$(ports::get_listening_pids "$port" 2>/dev/null)
+    if [[ -n "$pids" ]]; then
+        return 0
+    fi
+    
+    # Method 2: Use netstat as fallback
+    if system::is_command "netstat"; then
+        if netstat -tlnp 2>/dev/null | grep -q ":${port} "; then
+            return 0
+        fi
+    fi
+    
+    # Method 3: Use ss as fallback
+    if system::is_command "ss"; then
+        if ss -tlnp 2>/dev/null | grep -q ":${port} "; then
+            return 0
+        fi
+    fi
+    
+    return 1
 }
 
 #######################################
@@ -92,6 +111,7 @@ resources::get_default_port() {
 # Arguments:
 #   $1 - resource name
 #   $2 - requested port (optional)
+#   $3 - force flag (optional, defaults to "no")
 # Returns:
 #   0 if port is safe, 1 if conflicts exist
 # Outputs:
@@ -100,6 +120,7 @@ resources::get_default_port() {
 resources::validate_port() {
     local resource="$1"
     local requested_port="${2:-}"
+    local force_flag="${3:-no}"
     
     # Use requested port or fall back to default
     local port="${requested_port:-$(resources::get_default_port "$resource")}"
@@ -121,13 +142,34 @@ resources::validate_port() {
             log::info "Process(es) using port $port: $pids"
         fi
         
+        # Check if it's the same service already running (for --force scenarios)
+        local process_name=""
+        if [[ -n "$pids" ]]; then
+            # Get the process name for the first PID
+            process_name=$(ps -p "$pids" -o comm= 2>/dev/null | head -n1 | tr -d ' ')
+        fi
+        
+        # Allow if it's the same service and force is enabled
+        if [[ "$resource" == "$process_name" ]] && [[ "$force_flag" == "yes" ]]; then
+            log::info "Port is used by same service ($resource) and --force is enabled, proceeding"
+            echo "$port"
+            return 0
+        fi
+        
+        # Special case for ollama service
+        if [[ "$resource" == "ollama" ]] && [[ "$process_name" == "ollama" ]] && [[ "$force_flag" == "yes" ]]; then
+            log::info "Port is used by existing Ollama service and --force is enabled, proceeding"
+            echo "$port"
+            return 0
+        fi
+        
         # Suggest alternative
         local category=""
         case "$resource" in
             ollama|localai) category="AI" ;;
             n8n|node-red) category="automation" ;;
             minio|ipfs) category="storage" ;;
-            puppeteer|playwright) category="agents" ;;
+            browserless) category="agents" ;;
         esac
         
         log::info "Consider using a different port for $resource ($category service)"
@@ -310,18 +352,22 @@ resources::update_config() {
     # Create base configuration
     local resource_config
     if system::is_command "jq"; then
-        # Use jq to merge configurations if available
-        resource_config=$(jq -n \
-            --arg baseUrl "$base_url" \
-            --argjson additional "$additional_config" \
-            '{
-                enabled: true,
-                baseUrl: $baseUrl,
-                healthCheck: {
-                    intervalMs: 60000,
-                    timeoutMs: 5000
-                }
-            } + $additional')
+        # Create base config first, then merge with additional config
+        local base_config="{\"enabled\": true, \"baseUrl\": \"$base_url\", \"healthCheck\": {\"intervalMs\": 60000, \"timeoutMs\": 5000}}"
+        
+        # Try to merge configurations safely
+        if [[ "$additional_config" != "{}" ]] && [[ -n "$additional_config" ]]; then
+            # Use echo and pipe to avoid shell expansion issues
+            resource_config=$(echo "$base_config" | jq --arg additional "$additional_config" '. + ($additional | fromjson)' 2>/dev/null)
+            
+            # If merge fails, just use base config
+            if [[ $? -ne 0 ]] || [[ -z "$resource_config" ]]; then
+                log::warn "Failed to merge additional configuration, using base config only"
+                resource_config="$base_config"
+            fi
+        else
+            resource_config="$base_config"
+        fi
     else
         # Fallback to basic JSON
         resource_config="{\"enabled\": true, \"baseUrl\": \"$base_url\", \"healthCheck\": {\"intervalMs\": 60000, \"timeoutMs\": 5000}}"

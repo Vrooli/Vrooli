@@ -27,8 +27,8 @@ HELPERS_DIR="$RESOURCES_DIR/../helpers"
     [ "$output" = "11434" ]
 }
 
-@test "resources::get_default_port returns correct port for puppeteer" {
-    output=$(bash -c "source '$RESOURCES_DIR/common.sh' && resources::get_default_port 'puppeteer'")
+@test "resources::get_default_port returns correct port for browserless" {
+    output=$(bash -c "source '$RESOURCES_DIR/common.sh' && resources::get_default_port 'browserless'")
     [ "$output" = "4110" ]
 }
 
@@ -119,12 +119,12 @@ HELPERS_DIR="$RESOURCES_DIR/../helpers"
         source '$RESOURCES_DIR/port-registry.sh'
         source '$RESOURCES_DIR/common.sh'
         echo \"OLLAMA:\${DEFAULT_PORTS[ollama]}\"
-        echo \"PUPPETEER:\${DEFAULT_PORTS[puppeteer]}\"
+        echo \"BROWSERLESS:\${DEFAULT_PORTS[browserless]}\"
         echo \"N8N:\${DEFAULT_PORTS[n8n]}\"
     ")
     
     [[ "$output" =~ "OLLAMA:11434" ]]
-    [[ "$output" =~ "PUPPETEER:4110" ]]
+    [[ "$output" =~ "BROWSERLESS:4110" ]]
     [[ "$output" =~ "N8N:5678" ]]
 }
 
@@ -139,7 +139,7 @@ source "$2/port-registry.sh"
 source "$2/common.sh"
 
 # Test validation of a Vrooli-conflicting port
-if ! resources::validate_port "puppeteer" "3000" 2>&1 >/dev/null; then
+if ! resources::validate_port "browserless" "3000" 2>&1 >/dev/null; then
     echo "CONFLICT_DETECTED"
 fi
 EOF
