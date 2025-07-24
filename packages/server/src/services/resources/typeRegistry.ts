@@ -454,9 +454,18 @@ export interface AIMetadata extends BaseMetadata {
  */
 export interface AutomationMetadata extends BaseMetadata {
     workflowCount?: number;
+    activeWorkflowCount?: number;
     executionCount?: number;
     supportedTriggers: string[];
-    supportedActions: string[];
+    supportedActions?: string[];
+    integrationCount?: number;
+    nodeVersion?: string;
+    platform?: string;
+    executionMode?: string;
+    communityNodesEnabled?: boolean;
+    templatesEnabled?: boolean;
+    authRequired?: boolean;
+    webhookUrl?: string;
 }
 
 /**

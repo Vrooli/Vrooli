@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 import { logger } from "../../events/logger.js";
 import { HTTPClient, type AuthConfig } from "../http/httpClient.js";
-import { CircuitBreaker, CircuitBreakerFactory } from "./circuitBreaker.js";
+import { type CircuitBreaker, CircuitBreakerFactory } from "./circuitBreaker.js";
 import type { GetConfig, GetResourceMetadata, ResourceId } from "./typeRegistry.js";
 import type {
     HealthCheckResult,
@@ -9,13 +9,13 @@ import type {
     ResourceCategory,
     ResourceInitOptions,
     TypedInternalResourceInfo,
-    TypedPublicResourceInfo
+    TypedPublicResourceInfo,
 } from "./types.js";
 import {
     DiscoveryStatus,
     ResourceEvent,
     ResourceHealth,
-    type DeploymentType
+    type DeploymentType,
 } from "./types.js";
 
 // Constants

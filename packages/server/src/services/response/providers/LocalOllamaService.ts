@@ -7,6 +7,9 @@ import { AIService, type ResponseStreamOptions, type ServiceStreamEvent, type Ge
 import { generateContextFromMessages } from "../contextGeneration.js";
 import { hasHarmfulContent, hasPromptInjection } from "../messageValidation.js";
 import { withStreamTimeout } from "../streamTimeout.js";
+// Type-safe imports for resource system integration (optional)
+import type { ResourceRegistry } from "../../resources/ResourceRegistry.js";
+import { ResourceHealth, DiscoveryStatus } from "../../resources/types.js";
 
 /**
  * COST CALCULATION DOCUMENTATION
@@ -34,27 +37,52 @@ const MAX_INPUT_LENGTH = 100000; // 100KB limit for local models
 // Using 0.1 cents per million tokens (very low but non-zero)
 const NOMINAL_COST_CENTS_PER_MILLION = 0.1; // $0.001 per 1M tokens
 const NOMINAL_COST_CREDITS = 1000; // 0.001 cents = 1,000 credits
+const BASIC_HEALTH_CHECK_TIMEOUT_MS = 5000; // 5 second timeout for basic health checks
+
+/**
+ * Options for LocalOllamaService configuration
+ */
+export interface LocalOllamaServiceOptions {
+    baseUrl?: string;
+    defaultModel?: string;
+    resourceRegistry?: ResourceRegistry; // Optional dependency injection
+}
 
 /**
  * LocalOllamaService - Service for communicating with local Ollama instances
+ * Enhanced with optional resource system integration for better health checking
  */
 export class LocalOllamaService extends AIService<string, ThirdPartyModelInfo> {
     private readonly baseUrl: string;
     private availableModels: Map<string, any> = new Map();
     private lastModelRefresh = 0;
     private readonly REFRESH_INTERVAL = MODEL_REFRESH_INTERVAL_MS;
+    private resourceRegistry?: ResourceRegistry;
 
     __id: LlmServiceId = LlmServiceId.LocalOllama;
     featureFlags = { supportsStatefulConversations: false };
     defaultModel = "llama3.1:8b";
 
-    constructor(options?: { baseUrl?: string; defaultModel?: string }) {
+    constructor(options?: LocalOllamaServiceOptions) {
         super();
         this.baseUrl = options?.baseUrl ?? process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
         this.defaultModel = options?.defaultModel ?? "llama3.1:8b";
+        this.resourceRegistry = options?.resourceRegistry;
         
         // Log configuration (no API key needed for local Ollama)
-        logger.info(`[LocalOllamaService] Initialized with base URL: ${this.baseUrl}`);
+        logger.info(`[LocalOllamaService] Initialized with base URL: ${this.baseUrl}`, {
+            hasResourceIntegration: !!this.resourceRegistry,
+        });
+    }
+
+    /**
+     * Updates the ResourceRegistry after initialization.
+     * This allows late-binding of the ResourceRegistry when it becomes available
+     * after the AI services have already been initialized.
+     */
+    public setResourceRegistry(resourceRegistry: ResourceRegistry): void {
+        this.resourceRegistry = resourceRegistry;
+        logger.info("[LocalOllamaService] ResourceRegistry updated - enhanced health checking now available");
     }
 
     /**
@@ -356,9 +384,51 @@ export class LocalOllamaService extends AIService<string, ThirdPartyModelInfo> {
 
     /**
      * Checks if the LocalOllama service is healthy and available.
+     * Enhanced with optional resource system integration for more sophisticated health checking.
      * @returns true if the service is healthy and can accept requests, false otherwise
      */
     async isHealthy(): Promise<boolean> {
+        try {
+            // Enhanced health checking: try resource system first if available
+            if (this.resourceRegistry) {
+                try {
+                    const ollamaResource = this.resourceRegistry.getResource("ollama");
+                    
+                    if (ollamaResource) {
+                        const resourceInfo = ollamaResource.getPublicInfo();
+                        const isResourceHealthy = resourceInfo.health === ResourceHealth.Healthy && 
+                                                resourceInfo.status === DiscoveryStatus.Available;
+                        
+                        if (isResourceHealthy) {
+                            logger.debug("[LocalOllamaService] Resource system reports Ollama as healthy");
+                            return true;
+                        } else {
+                            logger.warn(`[LocalOllamaService] Resource system reports Ollama as unhealthy: ${resourceInfo.health}/${resourceInfo.status}`);
+                            return false;
+                        }
+                    } else {
+                        logger.debug("[LocalOllamaService] Ollama resource not found in registry, falling back to basic health check");
+                    }
+                } catch (resourceError) {
+                    logger.debug("[LocalOllamaService] Resource system health check failed, falling back to basic check", resourceError);
+                }
+            }
+
+            // Fallback to basic health checking if resource system unavailable or failed
+            logger.debug("[LocalOllamaService] Performing basic health check");
+            
+            return await this.performBasicHealthCheck();
+        } catch (error) {
+            logger.error(`[LocalOllamaService] Health check error: ${error}`);
+            return false;
+        }
+    }
+
+    /**
+     * Performs basic health check by calling Ollama API directly
+     * @private
+     */
+    private async performBasicHealthCheck(): Promise<boolean> {
         try {
             // Attempt to fetch the tags endpoint which should be available if Ollama is running
             const response = await fetch(`${this.baseUrl}/api/tags`, {
@@ -367,12 +437,12 @@ export class LocalOllamaService extends AIService<string, ThirdPartyModelInfo> {
                     "Content-Type": "application/json",
                 },
                 // Add a timeout to prevent hanging
-                signal: AbortSignal.timeout(5000), // 5 second timeout
+                signal: AbortSignal.timeout(BASIC_HEALTH_CHECK_TIMEOUT_MS), // 5 second timeout
             });
 
             // Check if the response is successful
             if (!response.ok) {
-                logger.warn(`[LocalOllamaService] Health check failed: HTTP ${response.status}`);
+                logger.warn(`[LocalOllamaService] Basic health check failed: HTTP ${response.status}`);
                 return false;
             }
 
@@ -383,13 +453,14 @@ export class LocalOllamaService extends AIService<string, ThirdPartyModelInfo> {
             const hasModels = data.models && Array.isArray(data.models) && data.models.length > 0;
             
             if (!hasModels) {
-                logger.warn("[LocalOllamaService] Health check: No models available");
+                logger.warn("[LocalOllamaService] Basic health check: No models available");
                 return false;
             }
 
+            logger.debug("[LocalOllamaService] Basic health check passed");
             return true;
         } catch (error) {
-            logger.error(`[LocalOllamaService] Health check error: ${error}`);
+            logger.error("[LocalOllamaService] Basic health check failed:", error);
             return false;
         }
     }

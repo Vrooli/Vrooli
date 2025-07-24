@@ -82,7 +82,7 @@ export class CircuitBreaker {
                 fn(),
                 new Promise<never>((_, reject) => {
                     setTimeout(() => reject(new Error("Half-open timeout")), this.config.halfOpenTimeout);
-                })
+                }),
             ]);
         }
         return fn();

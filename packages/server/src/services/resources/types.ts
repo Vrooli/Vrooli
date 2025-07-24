@@ -277,6 +277,10 @@ export interface IAutomationResource extends IResource {
     getCapabilities(): string[];
     /** Check if service can execute a specific routine */
     canExecuteRoutine(routineId: string): Promise<boolean>;
+    /** List available workflows/routines */
+    listWorkflows(): Promise<string[]>;
+    /** Get count of active workflows */
+    getActiveWorkflowCount(): Promise<number>;
 }
 
 /**

@@ -219,7 +219,7 @@ export class ResourceRegistry extends EventEmitter {
         if (plan.circularDependencies.length > 0) {
             logger.info("[ResourceRegistry] Initializing resources with circular dependencies");
             const circularPromises = plan.circularDependencies.map(resourceId => 
-                this.instantiateResource(resourceId)
+                this.instantiateResource(resourceId),
             );
             await Promise.allSettled(circularPromises);
         }
