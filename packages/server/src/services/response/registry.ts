@@ -379,4 +379,31 @@ export class AIServiceRegistry {
             }, cooldownPeriod);
         }
     }
+
+    /**
+     * Updates AI services with a ResourceRegistry instance after it becomes available.
+     * This enables enhanced health checking and monitoring capabilities for services that support it.
+     * @param resourceRegistry The ResourceRegistry instance to inject into compatible services
+     */
+    public updateServicesWithResourceRegistry(resourceRegistry: any): void {
+        logger.info("[AIServiceRegistry] Updating services with ResourceRegistry");
+        
+        // Services that support ResourceRegistry integration
+        const servicesToUpdate = [
+            LlmServiceId.LocalOllama,
+            LlmServiceId.CloudflareGateway,
+            LlmServiceId.OpenRouter,
+        ];
+        
+        // Update each service that supports ResourceRegistry
+        for (const serviceId of servicesToUpdate) {
+            const service = serviceInstances[serviceId];
+            if (service && "setResourceRegistry" in service && typeof service.setResourceRegistry === "function") {
+                service.setResourceRegistry(resourceRegistry);
+                logger.info(`[AIServiceRegistry] Successfully updated ${serviceId} with ResourceRegistry`);
+            }
+        }
+        
+        // Note: ClaudeCode service is intentionally excluded as it's a special case
+    }
 }

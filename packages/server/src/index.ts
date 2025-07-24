@@ -70,6 +70,11 @@ async function main() {
         const resourceRegistry = ResourceRegistry.getInstance();
         await resourceRegistry.initialize();
         logger.info("✅ Resource Registry initialized successfully");
+        
+        // Update AI services with ResourceRegistry for enhanced health checking
+        const { AIServiceRegistry } = await import("./services/response/registry.js");
+        AIServiceRegistry.get().updateServicesWithResourceRegistry(resourceRegistry);
+        logger.info("✅ AI services updated with ResourceRegistry");
     } catch (resourceError) {
         logger.error("⚠️ Resource Registry initialization failed. Local resources won't be available.", { error: resourceError });
         // Non-critical - server can run without local resources

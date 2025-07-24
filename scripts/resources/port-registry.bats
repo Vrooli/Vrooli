@@ -29,8 +29,8 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/port-registry.sh"
     [ "$(ports::get_resource_port "ollama")" = "11434" ]
 }
 
-@test "ports::get_resource_port returns correct port for puppeteer" {
-    [ "$(ports::get_resource_port "puppeteer")" = "4110" ]
+@test "ports::get_resource_port returns correct port for browserless" {
+    [ "$(ports::get_resource_port "browserless")" = "4110" ]
 }
 
 @test "ports::get_resource_port returns correct port for n8n" {

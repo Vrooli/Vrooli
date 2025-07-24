@@ -18,11 +18,11 @@ declare -A AVAILABLE_RESOURCES=(
     ["ai"]="ollama localai llamacpp"
     ["automation"]="n8n nodered"
     ["storage"]="minio ipfs"
-    ["agents"]="puppeteer playwright"
+    ["agents"]="browserless"
 )
 
 # All available resources as a flat list
-ALL_RESOURCES="ollama localai llamacpp n8n nodered minio ipfs puppeteer playwright"
+ALL_RESOURCES="ollama localai llamacpp n8n nodered minio ipfs browserless"
 
 #######################################
 # Parse command line arguments
@@ -64,6 +64,13 @@ resources::parse_arguments() {
         --options "yes|no" \
         --default "no"
     
+    args::register \
+        --name "auto-configure" \
+        --desc "Automatically configure discovered resources" \
+        --type "value" \
+        --options "yes|no" \
+        --default "no"
+    
     if args::is_asking_for_help "$@"; then
         resources::usage
         exit 0
@@ -76,6 +83,7 @@ resources::parse_arguments() {
     export CATEGORY=$(args::get "category")
     export FORCE=$(args::get "force")
     export YES=$(args::get "yes")
+    export AUTO_CONFIGURE=$(args::get "auto-configure")
 }
 
 #######################################
@@ -91,6 +99,7 @@ resources::usage() {
     echo "  $0 --action status --resources ollama,n8n             # Check status of specific resources"
     echo "  $0 --action list                                      # List available resources"
     echo "  $0 --action discover                                  # Discover running resources"
+    echo "  $0 --action discover --auto-configure yes             # Discover and configure resources"
     echo
     echo "Resource Categories:"
     for category in "${!AVAILABLE_RESOURCES[@]}"; do
@@ -183,7 +192,7 @@ resources::get_script_path() {
     local resource="$1"
     local category
     category=$(resources::get_category "$resource")
-    echo "${RESOURCES_DIR}/${category}/${resource}.sh"
+    echo "${RESOURCES_DIR}/${category}/${resource}/manage.sh"
 }
 
 #######################################
@@ -259,6 +268,7 @@ resources::discover_running() {
     log::header "🔍 Discovering Running Resources"
     
     local found_any=false
+    local discovered_resources=()
     
     for resource in $ALL_RESOURCES; do
         local port
@@ -267,6 +277,7 @@ resources::discover_running() {
         if resources::is_service_running "$port"; then
             log::success "✅ $resource is running on port $port"
             found_any=true
+            discovered_resources+=("$resource")
             
             # Check if it responds to HTTP
             local base_url="http://localhost:$port"
@@ -280,11 +291,71 @@ resources::discover_running() {
     
     if ! $found_any; then
         log::info "No known resources detected running"
+        return 0
     fi
     
-    echo
-    log::info "To configure discovered resources for Vrooli, run:"
-    log::info "  $0 --action install --resources <resource-name>"
+    # Auto-configure if requested
+    if [[ "$AUTO_CONFIGURE" == "yes" ]]; then
+        echo
+        log::header "🔧 Auto-configuring discovered resources"
+        
+        for resource in "${discovered_resources[@]}"; do
+            log::info "Configuring $resource..."
+            
+            # Check if already configured
+            local category
+            category=$(resources::get_category "$resource")
+            local port
+            port=$(resources::get_default_port "$resource")
+            local base_url="http://localhost:$port"
+            
+            # Use the resource's manage script to update configuration only
+            local script_path
+            script_path=$(resources::get_script_path "$resource")
+            
+            if [[ -f "$script_path" ]]; then
+                # Call the script with a special action to just update config
+                # Most scripts have an update_config function
+                log::info "Updating configuration for $resource..."
+                
+                # For now, directly update config since not all scripts may support config-only action
+                if resources::script_exists "$resource"; then
+                    # Update the configuration using the common function
+                    local additional_config="{}"
+                    
+                    # Resource-specific configurations
+                    case "$resource" in
+                        "ollama")
+                            additional_config='{"models":{"defaultModel":"llama3.1:8b","supportsFunctionCalling":true},"api":{"version":"v1","modelsEndpoint":"/api/tags","chatEndpoint":"/api/chat","generateEndpoint":"/api/generate"}}'
+                            ;;
+                        "n8n")
+                            additional_config='{"api":{"version":"v1","workflowsEndpoint":"/api/v1/workflows","executionsEndpoint":"/api/v1/executions","credentialsEndpoint":"/api/v1/credentials"}}'
+                            ;;
+                    esac
+                    
+                    if resources::update_config "$category" "$resource" "$base_url" "$additional_config"; then
+                        log::success "✅ $resource configured successfully"
+                    else
+                        log::warn "⚠️  Failed to configure $resource"
+                    fi
+                else
+                    log::warn "⚠️  No script found for $resource, skipping configuration"
+                fi
+            else
+                log::warn "⚠️  Script not found for $resource: $script_path"
+            fi
+        done
+        
+        echo
+        log::success "✅ Auto-configuration complete"
+        log::info "Configured resources are now available in ~/.vrooli/resources.local.json"
+    else
+        echo
+        log::info "To configure discovered resources for Vrooli, run:"
+        log::info "  $0 --action install --resources <resource-name>"
+        log::info "Or to auto-configure all discovered resources:"
+        log::info "  $0 --action discover --auto-configure yes"
+    fi
 }
 
 #######################################

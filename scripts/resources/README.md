@@ -29,8 +29,8 @@ scripts/resources/
 │   ├── minio.sh           # MinIO object storage (planned)
 │   └── ipfs.sh            # IPFS distributed storage (planned)
 └── agents/                # Browser automation agents
-    ├── puppeteer.sh       # Puppeteer setup (planned)
-    └── playwright.sh      # Playwright setup (planned)
+    └── browserless/       # Browser automation service
+        └── manage.sh      # Browserless Chrome-as-a-Service
 ```
 
 ## 🚀 Quick Start
@@ -97,8 +97,7 @@ You can also use the resource manager directly:
 ### Agent Resources (`agents`)
 | Resource | Status | Description | Default Port |
 |----------|--------|-------------|--------------|
-| `puppeteer` | 🚧 Planned | Headless Chrome automation | 3000 |
-| `playwright` | 🚧 Planned | Cross-browser automation | 3001 |
+| `browserless` | ✅ Implemented | Browser automation service (Chrome-as-a-Service) | 4110 |
 
 ## 🔧 Resource Categories
 
