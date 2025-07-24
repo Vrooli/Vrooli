@@ -15,7 +15,7 @@ source "${RESOURCES_DIR}/common.sh"
 source "${RESOURCES_DIR}/../helpers/utils/args.sh"
 
 # Puppeteer configuration
-readonly PUPPETEER_PORT="3000"
+readonly PUPPETEER_PORT="${PUPPETEER_CUSTOM_PORT:-$(resources::get_default_port "puppeteer")}"
 readonly PUPPETEER_BASE_URL="http://localhost:${PUPPETEER_PORT}"
 readonly PUPPETEER_CONTAINER_NAME="puppeteer"
 readonly PUPPETEER_DATA_DIR="${HOME}/.puppeteer"
@@ -35,7 +35,7 @@ puppeteer::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs" \
+        --options "install|uninstall|start|stop|restart|status|logs|info" \
         --default "install"
     
     args::register \
@@ -320,6 +320,13 @@ puppeteer::install() {
         return 1
     fi
     
+    # Validate port assignment
+    if ! resources::validate_port "puppeteer" "$PUPPETEER_PORT"; then
+        log::error "Port validation failed for Puppeteer"
+        log::info "You can set a custom port with: export PUPPETEER_CUSTOM_PORT=<port>"
+        return 1
+    fi
+    
     # Create directories
     if ! puppeteer::create_directories; then
         resources::handle_error \
@@ -589,6 +596,70 @@ puppeteer::status() {
 }
 
 #######################################
+# Show Puppeteer information
+#######################################
+puppeteer::info() {
+    cat << EOF
+=== Puppeteer Resource Information ===
+
+ID: puppeteer
+Category: agents
+Display Name: Puppeteer
+Description: Browser automation powered by Chrome/Chromium
+
+Service Details:
+- Container Name: $PUPPETEER_CONTAINER_NAME
+- Service Port: $PUPPETEER_PORT
+- Service URL: $PUPPETEER_BASE_URL
+- Docker Image: $PUPPETEER_IMAGE
+- Data Directory: $PUPPETEER_DATA_DIR
+
+Endpoints:
+- Status Check: $PUPPETEER_BASE_URL/pressure
+- Screenshot: POST $PUPPETEER_BASE_URL/screenshot
+- PDF: POST $PUPPETEER_BASE_URL/pdf
+- Content: POST $PUPPETEER_BASE_URL/content
+- Function: POST $PUPPETEER_BASE_URL/function
+- Scrape: POST $PUPPETEER_BASE_URL/scrape
+
+Configuration:
+- Max Browsers: ${MAX_BROWSERS:-5}
+- Headless Mode: ${HEADLESS:-yes}
+- Timeout: ${TIMEOUT:-30000}ms
+
+Puppeteer Features:
+- High-performance browser automation
+- Screenshot generation
+- PDF generation
+- Web scraping
+- JavaScript execution
+- Form automation
+- Performance monitoring
+- Network interception
+
+Example Usage:
+# Take a screenshot
+curl -X POST $PUPPETEER_BASE_URL/screenshot \\
+  -H "Content-Type: application/json" \\
+  -d '{"url": "https://example.com"}' \\
+  --output screenshot.png
+
+# Generate PDF
+curl -X POST $PUPPETEER_BASE_URL/pdf \\
+  -H "Content-Type: application/json" \\
+  -d '{"url": "https://example.com"}' \\
+  --output document.pdf
+
+# Scrape webpage
+curl -X POST $PUPPETEER_BASE_URL/content \\
+  -H "Content-Type: application/json" \\
+  -d '{"url": "https://example.com"}'
+
+For more information, visit: https://www.browserless.io/docs/
+EOF
+}
+
+#######################################
 # Main execution function
 #######################################
 puppeteer::main() {
@@ -615,6 +686,9 @@ puppeteer::main() {
             ;;
         "logs")
             puppeteer::logs
+            ;;
+        "info")
+            puppeteer::info
             ;;
         *)
             log::error "Unknown action: $ACTION"
