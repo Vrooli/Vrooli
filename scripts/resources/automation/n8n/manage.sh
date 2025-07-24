@@ -1231,6 +1231,9 @@ n8n::execute() {
         echo "To create an API-executable workflow:"
         echo "  - Add a Webhook node as the trigger"
         echo "  - Set a unique path (e.g., 'my-workflow')"
+        echo "  - In Webhook settings, set:"
+        echo "    • Respond: 'When Last Node Finishes'"
+        echo "    • Response Data: 'Last Node' (to get workflow output)"
         echo "  - Save and activate the workflow"
         echo "  - Execute with: $0 --action execute --workflow-id $workflow_id"
         return 1

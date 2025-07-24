@@ -112,6 +112,9 @@ This setup prioritizes functionality over isolation. It's designed for developme
 The manage.sh script now intelligently handles different workflow types:
 
 1. **Webhook Workflows**: Automatically detects webhook path and HTTP method, activates if needed, and executes via webhook URL
+   - **Important**: For synchronous execution results, configure your webhook with:
+     - Respond: "When Last Node Finishes"
+     - Response Data: "Last Node"
 2. **Manual Trigger Workflows**: Provides clear explanation that these cannot be executed via API and suggests alternatives
 3. **Data Passing**: Supports passing JSON data to webhook workflows via the `--data` parameter
 
@@ -299,12 +302,16 @@ Here's a complete example demonstrating programmatic workflow creation and execu
   "active": false,
   "nodes": [
     {
-      "parameters": {},
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
+      "parameters": {
+        "path": "notify",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
       "position": [0, 0],
-      "id": "manual-trigger",
-      "name": "Manual Trigger"
+      "id": "webhook-trigger",
+      "name": "Webhook"
     },
     {
       "parameters": {
@@ -318,7 +325,7 @@ Here's a complete example demonstrating programmatic workflow creation and execu
     }
   ],
   "connections": {
-    "Manual Trigger": {
+    "Webhook": {
       "main": [[{
         "node": "Create Notification File",
         "type": "main",
