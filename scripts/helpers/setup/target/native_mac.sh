@@ -8,6 +8,8 @@ SETUP_TARGET_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${SETUP_TARGET_DIR}/../../utils/log.sh"
 # shellcheck disable=SC1091
 source "${SETUP_TARGET_DIR}/../../utils/system.sh"
+# shellcheck disable=SC1091
+source "${SETUP_TARGET_DIR}/../../utils/docker.sh"
 
 native_mac::brew_install() {
     if ! system::is_command "brew"; then
@@ -23,7 +25,7 @@ native_mac::gnu_tools_install() {
 }
 
 native_mac::docker_compose_infra() {
-    docker-compose up -d
+    docker::compose up -d
 }
 
 native_mac::setup_native_mac() {

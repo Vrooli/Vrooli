@@ -14,6 +14,8 @@ source "${DEVELOP_TARGET_DIR}/../../utils/var.sh"
 source "${DEVELOP_TARGET_DIR}/../../utils/env.sh"
 # shellcheck disable=SC1091
 source "${DEVELOP_TARGET_DIR}/../../utils/exit_codes.sh"
+# shellcheck disable=SC1091
+source "${DEVELOP_TARGET_DIR}/../../utils/docker.sh"
 
 dockerOnly::start_development_docker_only() {
     local detached=${DETACHED:-No}
@@ -32,7 +34,7 @@ dockerOnly::start_development_docker_only() {
     dockerOnly::cleanup() {
         log::info "🔧 Cleaning up development environment at $var_ROOT_DIR..."
         cd "$var_ROOT_DIR"
-        docker-compose down
+        docker::compose down
         cd "$ORIGINAL_DIR"
         exit "$EXIT_USER_INTERRUPT"
     }
@@ -46,13 +48,13 @@ dockerOnly::start_development_docker_only() {
     export $(grep -v '^#' "$var_ENV_DEV_FILE" | grep -v '^$' | xargs)
     
     if flow::is_yes "$detached"; then
-        docker-compose up -d
+        docker::compose up -d
     else
-        docker-compose up
+        docker::compose up
     fi
 
     log::success "✅ Docker only development environment started successfully."
-    log::info "You can view logs with 'docker-compose logs -f'."
+    log::info "You can view logs with 'docker::compose logs -f' or 'docker-compose logs -f'."
 }
 
 # If this script is run directly, invoke its main function.

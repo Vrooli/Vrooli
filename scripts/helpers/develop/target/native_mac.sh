@@ -15,6 +15,8 @@ source "${DEVELOP_TARGET_DIR}/../../utils/system.sh"
 source "${DEVELOP_TARGET_DIR}/../../utils/var.sh"
 # shellcheck disable=SC1091
 source "${DEVELOP_TARGET_DIR}/../../utils/exit_codes.sh"
+# shellcheck disable=SC1091
+source "${DEVELOP_TARGET_DIR}/../../utils/docker.sh"
 
 nativeMac::brew_install() {
     if ! system::is_command "brew"; then
@@ -44,7 +46,7 @@ nativeMac::gnu_tools_install() {
 }
 
 nativeMac::docker_compose_infra() {
-    docker-compose up -d postgres redis
+    docker::compose up -d postgres redis
 }
 
 nativeMac::setup_native_mac() {
@@ -62,7 +64,7 @@ nativeMac::start_development_native_mac() {
     nativeMac::cleanup() {
         log::info "🔧 Cleaning up development environment at $var_ROOT_DIR..."
         cd "$var_ROOT_DIR"
-        docker-compose down
+        docker::compose down
         cd "$ORIGINAL_DIR"
         exit "$EXIT_USER_INTERRUPT"
     }
@@ -71,14 +73,14 @@ nativeMac::start_development_native_mac() {
     fi
 
     log::info "Starting database containers (Postgres and Redis)..."
-    docker-compose up -d postgres redis
+    docker::compose up -d postgres redis
     
     # Wait for containers to be healthy before continuing
     log::info "Waiting for database containers to be healthy..."
     local max_attempts=30
     local attempt=0
     while [ $attempt -lt $max_attempts ]; do
-        if docker ps | grep "postgres" | grep -q "healthy" && docker ps | grep "redis" | grep -q "healthy"; then
+        if docker::run ps | grep "postgres" | grep -q "healthy" && docker::run ps | grep "redis" | grep -q "healthy"; then
             log::info "Database containers are healthy!"
             break
         fi

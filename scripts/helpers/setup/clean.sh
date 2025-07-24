@@ -12,6 +12,8 @@ source "${SETUP_DIR}/../utils/log.sh"
 source "${SETUP_DIR}/../utils/system.sh"
 # shellcheck disable=SC1091
 source "${SETUP_DIR}/../utils/var.sh"
+# shellcheck disable=SC1091
+source "${SETUP_DIR}/../utils/docker.sh"
 
 # Clear node_modules at the root and in all project subdirectories without descending into them
 clean::clear_node_modules() {
@@ -52,10 +54,9 @@ clean::prune_docker() {
     if flow::is_yes "$YES"; then
         force_flag="--force"
     fi
-    local docker_command="docker system prune --all --volumes $force_flag"
 
-    # Execute the command
-    if $docker_command; then
+    # Execute the command using docker wrapper
+    if docker::run system prune --all --volumes $force_flag; then
         log::success "Docker system prune completed."
     else
         log::error "Docker system prune failed."

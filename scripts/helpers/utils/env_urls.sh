@@ -2,6 +2,13 @@
 # Utility functions for generating service URLs based on deployment mode
 set -euo pipefail
 
+# Get the directory of this script
+ENV_URLS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# Source docker utilities for container commands
+# shellcheck disable=SC1091
+source "${ENV_URLS_DIR}/docker.sh"
+
 # Generate Redis URL based on deployment mode
 env_urls::generate_redis_url() {
     local mode="$1"  # "docker" or "native"
@@ -40,10 +47,10 @@ env_urls::extract_docker_compose_env() {
     # Try to get from docker-compose config
     if [ -n "$service" ]; then
         # Look for service-specific environment variable
-        value=$(docker-compose config 2>/dev/null | grep -A 50 "^\\s*${service}:" | grep -E "^\\s*${var_name}:" | head -1 | cut -d: -f2- | xargs || echo "")
+        value=$(docker::compose config 2>/dev/null | grep -A 50 "^\\s*${service}:" | grep -E "^\\s*${var_name}:" | head -1 | cut -d: -f2- | xargs || echo "")
     else
         # Look for any occurrence of the variable
-        value=$(docker-compose config 2>/dev/null | grep -E "^\\s*${var_name}:" | head -1 | cut -d: -f2- | xargs || echo "")
+        value=$(docker::compose config 2>/dev/null | grep -E "^\\s*${var_name}:" | head -1 | cut -d: -f2- | xargs || echo "")
     fi
     
     # If not found in docker-compose config, try environment
@@ -79,10 +86,10 @@ env_urls::setup_native_environment() {
     redis_password=$(env_urls::extract_docker_compose_env "REDIS_PASSWORD" "redis" "${REDIS_PASSWORD:-redispassword}")
     
     # Discover actual Redis port from running container
-    redis_port=$(docker ps --format "{{.Ports}}" | grep "127.0.0.1.*->6379" | head -1 | grep -o "127.0.0.1:[0-9]*" | cut -d: -f2 || echo "")
+    redis_port=$(docker::run ps --format "{{.Ports}}" | grep "127.0.0.1.*->6379" | head -1 | grep -o "127.0.0.1:[0-9]*" | cut -d: -f2 || echo "")
     if [ -z "$redis_port" ]; then
         # Try alternative format
-        redis_port=$(docker ps --format "{{.Ports}}" | grep "0.0.0.0.*->6379" | head -1 | grep -o "0.0.0.0:[0-9]*" | cut -d: -f2 || echo "")
+        redis_port=$(docker::run ps --format "{{.Ports}}" | grep "0.0.0.0.*->6379" | head -1 | grep -o "0.0.0.0:[0-9]*" | cut -d: -f2 || echo "")
     fi
     if [ -z "$redis_port" ]; then
         # Fallback to configured port if discovery fails
@@ -95,10 +102,10 @@ env_urls::setup_native_environment() {
     db_name=$(env_urls::extract_docker_compose_env "DB_NAME" "" "${DB_NAME:-vrooli}")
     
     # Discover actual PostgreSQL port from running container
-    db_port=$(docker ps --format "{{.Ports}}" | grep "127.0.0.1.*->5432" | head -1 | grep -o "127.0.0.1:[0-9]*" | cut -d: -f2 || echo "")
+    db_port=$(docker::run ps --format "{{.Ports}}" | grep "127.0.0.1.*->5432" | head -1 | grep -o "127.0.0.1:[0-9]*" | cut -d: -f2 || echo "")
     if [ -z "$db_port" ]; then
         # Try alternative format
-        db_port=$(docker ps --format "{{.Ports}}" | grep "0.0.0.0.*->5432" | head -1 | grep -o "0.0.0.0:[0-9]*" | cut -d: -f2 || echo "")
+        db_port=$(docker::run ps --format "{{.Ports}}" | grep "0.0.0.0.*->5432" | head -1 | grep -o "0.0.0.0:[0-9]*" | cut -d: -f2 || echo "")
     fi
     if [ -z "$db_port" ]; then
         # Fallback to configured port if discovery fails
@@ -176,12 +183,12 @@ env_urls::validate_native_environment() {
     local all_good=true
     
     # Check that containers are running
-    if ! docker ps | grep "redis" | grep -q "healthy"; then
+    if ! docker::run ps | grep "redis" | grep -q "healthy"; then
         echo "ERROR: Redis container not running or unhealthy" >&2
         all_good=false
     fi
     
-    if ! docker ps | grep "postgres" | grep -q "healthy"; then
+    if ! docker::run ps | grep "postgres" | grep -q "healthy"; then
         echo "ERROR: PostgreSQL container not running or unhealthy" >&2
         all_good=false
     fi

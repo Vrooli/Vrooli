@@ -54,7 +54,7 @@ docker::install() {
 
 # Check if Docker is running
 docker::_is_running() {
-    system::is_command "docker" && docker version >/dev/null 2>&1
+    system::is_command "docker" && docker::run version >/dev/null 2>&1
 }
 
 # Try alternative access methods when docker group is not active in session
@@ -63,6 +63,7 @@ docker::_try_alternative_access() {
     
     # Try running docker with sg (switch group) which doesn't require a new shell
     if command -v sg >/dev/null 2>&1; then
+        # Note: We can't use docker::run here because we're testing sg itself
         if sg docker -c "docker version" >/dev/null 2>&1; then
             log::success "Can access Docker using sg command"
             export DOCKER_CMD="sg docker -c"
@@ -72,6 +73,7 @@ docker::_try_alternative_access() {
     
     # If sg didn't work, try using sudo to run docker commands
     if flow::can_run_sudo "Docker access"; then
+        # Note: We can't use docker::run here because we're testing sudo itself
         if sudo docker version >/dev/null 2>&1; then
             log::info "Using sudo for Docker access"
             export DOCKER_CMD="sudo"
@@ -95,7 +97,8 @@ docker::_diagnose_permission_issue() {
             log::info "Or open a new terminal for permanent activation"
         else
             log::error "Docker permission denied despite being in docker group"
-            log::info "Try: sudo chmod 666 /var/run/docker.sock (temporary fix)"
+            log::info "Try restarting Docker service: sudo systemctl restart docker"
+            log::info "Or check socket ownership: ls -l /var/run/docker.sock"
         fi
     else
         # User is NOT in docker group at all
@@ -135,7 +138,7 @@ docker::start() {
     sleep 2
     
     # Verify Docker is now running
-    if ! docker version >/dev/null 2>&1; then
+    if ! docker::run version >/dev/null 2>&1; then
         # Check if it's a permission issue
         if [[ -S /var/run/docker.sock ]]; then
             docker::_diagnose_permission_issue
@@ -160,8 +163,9 @@ docker::restart() {
 
 docker::kill_all() {
     system::is_command "docker" || return
-    local containers=$(docker ps -q)
-    [[ -n "$containers" ]] && docker kill $containers || log::warning "No running containers"
+    local containers=$(docker::run ps -q)
+    # shellcheck disable=SC2086
+    [[ -n "$containers" ]] && docker::run kill $containers || log::warning "No running containers"
 }
 
 # Docker Compose installation function
@@ -178,8 +182,8 @@ docker::setup_docker_compose() {
     fi
     
     # Also check for newer 'docker compose' plugin syntax
-    if system::is_command "docker" && docker compose version >/dev/null 2>&1; then
-        log::info "Detected: $(docker compose version)"
+    if system::is_command "docker" && docker::run compose version >/dev/null 2>&1; then
+        log::info "Detected: $(docker::run compose version)"
         return 0
     fi
     
@@ -223,9 +227,9 @@ docker::manage_docker_group() {
 docker::diagnose() {
     log::header "Docker Diagnostics"
     system::is_command "docker" || { log::error "Docker not installed"; return 1; }
-    log::info "Version: $(docker --version 2>&1)"
+    log::info "Version: $(docker::run --version 2>&1)"
     
-    if docker version >/dev/null 2>&1; then
+    if docker::run version >/dev/null 2>&1; then
         log::success "Daemon: RUNNING"
     else
         log::error "Daemon: NOT ACCESSIBLE"
@@ -237,7 +241,7 @@ docker::diagnose() {
 }
 
 docker::check_internet_access() {
-    docker run --rm busybox ping -c 1 google.com &>/dev/null
+    docker::run --rm busybox ping -c 1 google.com &>/dev/null
 }
 
 docker::show_daemon() {
@@ -250,23 +254,34 @@ docker::update_daemon() {
         return
     fi
 
-    log::info "Updating /etc/docker/daemon.json to use Google DNS (8.8.8.8)..."
-
-    # Check if /etc/docker/daemon.json exists
-    if [ -f /etc/docker/daemon.json ]; then
-        # Backup existing file
-        sudo cp /etc/docker/daemon.json /etc/docker/daemon.json.backup
-        log::info "Backup created at /etc/docker/daemon.json.backup"
+    log::info "Updating Docker daemon DNS configuration..."
+    
+    local daemon_file="/etc/docker/daemon.json"
+    local dns_servers='["8.8.8.8", "8.8.4.4"]'
+    
+    # Create backup if file exists
+    [[ -f "$daemon_file" ]] && sudo cp "$daemon_file" "${daemon_file}.backup"
+    
+    if [[ -f "$daemon_file" ]]; then
+        # Merge DNS into existing config using jq
+        if ! sudo jq --argjson dns "$dns_servers" '. + {dns: $dns}' "$daemon_file" | sudo tee "${daemon_file}.tmp" >/dev/null 2>&1; then
+            log::error "Failed to update daemon.json (invalid JSON?)"
+            return 1
+        fi
+    else
+        # Create new file with DNS only
+        echo "{\"dns\": $dns_servers}" | sudo tee "${daemon_file}.tmp" >/dev/null
     fi
-
-    # Write new config
-    sudo bash -c 'cat > /etc/docker/daemon.json' <<EOF
-{
-  "dns": ["8.8.8.8"]
-}
-EOF
-
-    log::info "/etc/docker/daemon.json updated."
+    
+    # Validate JSON before replacing
+    if jq empty "${daemon_file}.tmp" 2>/dev/null; then
+        sudo mv "${daemon_file}.tmp" "$daemon_file"
+        log::success "Docker daemon DNS updated (preserved existing config)"
+    else
+        log::error "Invalid JSON generated, keeping original"
+        sudo rm -f "${daemon_file}.tmp"
+        return 1
+    fi
 }
 
 docker::setup_internet_access() {
@@ -299,15 +314,24 @@ docker::setup_internet_access() {
 }
 
 docker::calculate_resource_limits() {
-    # Get total number of CPU cores and calculate CPU quota.
-    N=$(nproc)
-    # Calculate quota: (N - 0.5) * 100. This value is later appended with '%' .
-    QUOTA=$(echo "($N - 0.5) * 100" | bc)
-    CPU_QUOTA="${QUOTA}%" 
+    # Check if bc is available
+    if ! system::is_command "bc"; then
+        log::warning "bc not found, using fallback resource calculations"
+        # Fallback: use awk for calculations
+        N=$(nproc)
+        CPU_QUOTA=$(awk -v n="$N" 'BEGIN {printf "%d%%", (n - 0.5) * 100}')
+        MEM_LIMIT=$(free -m | awk '/^Mem:/{printf "%dM", int($2 * 0.8)}')
+    else
+        # Get total number of CPU cores and calculate CPU quota.
+        N=$(nproc)
+        # Calculate quota: (N - 0.5) * 100. This value is later appended with '%' .
+        QUOTA=$(echo "($N - 0.5) * 100" | bc)
+        CPU_QUOTA="${QUOTA}%" 
 
-    # Get total memory (in MB) and calculate 80% of it.
-    TOTAL_MEM=$(free -m | awk '/^Mem:/{print $2}')
-    MEM_LIMIT=$(echo "$TOTAL_MEM * 0.8" | bc | cut -d. -f1)M
+        # Get total memory (in MB) and calculate 80% of it.
+        TOTAL_MEM=$(free -m | awk '/^Mem:/{print $2}')
+        MEM_LIMIT=$(echo "$TOTAL_MEM * 0.8" | bc | cut -d. -f1)M
+    fi
 }
 
 docker::define_config_files() {
@@ -410,9 +434,9 @@ docker::build_images() {
     local compose_file=$(docker::get_compose_file)
     cd "$var_ROOT_DIR" || { log::error "Failed to change directory to project root"; exit "$ERROR_BUILD_FAILED"; }
     if system::is_command "docker compose"; then
-        docker compose -f "$compose_file" build --no-cache --progress=plain
+        docker::compose -f "$compose_file" build --no-cache --progress=plain
     elif system::is_command "docker-compose"; then
-        docker-compose -f "$compose_file" build --no-cache
+        docker::compose -f "$compose_file" build --no-cache
     else
         log::error "No Docker Compose available to build images"
         exit "$ERROR_BUILD_FAILED"
@@ -423,7 +447,7 @@ docker::build_images() {
 docker::pull_base_images() {
     log::header "Pulling Docker base images"
     local base_images=("redis:7.4.0-alpine" "pgvector/pgvector:pg15" "steelcityamir/safe-content-ai:1.1.0")
-    for img in "${base_images[@]}"; do docker pull "$img"; done
+    for img in "${base_images[@]}"; do docker::run pull "$img"; done
     log::success "Docker base images pulled successfully"
 }
 
@@ -433,7 +457,7 @@ docker::collect_images() {
     local available_images=()
     
     for img in "${images[@]}"; do
-        docker image inspect "$img" >/dev/null 2>&1 && available_images+=("$img") || log::warning "Image $img not found"
+        docker::run image inspect "$img" >/dev/null 2>&1 && available_images+=("$img") || log::warning "Image $img not found"
     done
     
     [[ ${#available_images[@]} -eq 0 ]] && { log::error "No Docker images available"; exit "$ERROR_BUILD_FAILED"; }
@@ -456,7 +480,7 @@ docker::save_images() {
         return 1 # Or return an error code
     fi
 
-    docker save -o "$images_tar" "${images[@]}"
+    docker::run save -o "$images_tar" "${images[@]}"
     log::success "Docker images saved to $images_tar"
 }
 
@@ -475,7 +499,7 @@ docker::load_images_from_tar() {
     fi
 
     log::info "Loading Docker images from ${tar_path}..."
-    if docker load -i "$tar_path"; then
+    if docker::run load -i "$tar_path"; then
         log::success "Successfully loaded Docker images from ${tar_path}."
         return 0
     else
@@ -487,7 +511,7 @@ docker::load_images_from_tar() {
 # Docker login. Required for sending images to Docker Hub.
 docker::login_to_dockerhub() {
     [[ -z "${DOCKERHUB_USERNAME:-}" || -z "${DOCKERHUB_TOKEN:-}" ]] && { log::error "DOCKERHUB_USERNAME and DOCKERHUB_TOKEN required"; exit "$ERROR_DOCKER_LOGIN_FAILED"; }
-    echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
+    echo "${DOCKERHUB_TOKEN}" | docker::run login -u "${DOCKERHUB_USERNAME}" --password-stdin
 }
 
 # Tags and pushes Docker images to Docker Hub. Required for deploying to K8s, 
@@ -526,13 +550,13 @@ docker::tag_and_push_images() {
         # Tag with specific version
         version_tag="${DOCKERHUB_USERNAME}/vrooli-${service}:${current_version}"
         log::info "Tagging image ${image_name} as ${version_tag}"
-        if ! docker tag "${image_name}" "${version_tag}"; then
+        if ! docker::run tag "${image_name}" "${version_tag}"; then
             log::error "Failed to tag image ${image_name} with version ${current_version}. Does the local image exist?"
             continue 
         fi
     
         log::info "Pushing image ${version_tag} to Docker Hub..."
-        if ! docker push "${version_tag}"; then
+        if ! docker::run push "${version_tag}"; then
             log::error "Failed to push image ${version_tag}."
         else
             log::success "Successfully pushed ${version_tag}"
@@ -541,12 +565,12 @@ docker::tag_and_push_images() {
         # Tag with floating tag (dev/prod)
         local floating_tag_full="${DOCKERHUB_USERNAME}/vrooli-${service}:${floating_tag}"
         log::info "Tagging image ${image_name} as ${floating_tag_full}"
-        if ! docker tag "${image_name}" "${floating_tag_full}"; then
+        if ! docker::run tag "${image_name}" "${floating_tag_full}"; then
             log::error "Failed to tag image ${image_name} with floating tag ${floating_tag}."
             # This failure is less critical than the versioned tag, so don't continue here necessarily
         else
             log::info "Pushing image ${floating_tag_full} to Docker Hub..."
-            if ! docker push "${floating_tag_full}"; then
+            if ! docker::run push "${floating_tag_full}"; then
                 log::error "Failed to push image ${floating_tag_full}."
             else
                 log::success "Successfully pushed ${floating_tag_full}"

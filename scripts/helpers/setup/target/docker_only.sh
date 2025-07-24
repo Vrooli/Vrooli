@@ -8,6 +8,8 @@ SETUP_TARGET_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${SETUP_TARGET_DIR}/../../utils/log.sh"
 # shellcheck disable=SC1091
 source "${SETUP_TARGET_DIR}/../../utils/pnpm_tools.sh"
+# shellcheck disable=SC1091
+source "${SETUP_TARGET_DIR}/../../utils/docker.sh"
 
 docker_only::setup_docker_only() {
     log::header "Setting up Docker only development/production..."
@@ -15,7 +17,7 @@ docker_only::setup_docker_only() {
     pnpm_tools::setup
 
     log::info "Building Docker images for all services..."
-    docker-compose build
+    docker::compose build
 
     log::success "✅ Docker images built successfully."
 }

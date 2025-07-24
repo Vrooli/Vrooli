@@ -30,10 +30,10 @@ deploy::deploy_docker() {
     return 1
   }
 
-  docker-compose -f "$compose_file" down
+  docker::compose -f "$compose_file" down
   docker::kill_all
   log::info "Starting Docker containers in detached mode"
-  docker-compose -f "$compose_file" up -d --remove-orphans
+  docker::compose -f "$compose_file" up -d --remove-orphans
 
   # Return to original directory
   popd >/dev/null
