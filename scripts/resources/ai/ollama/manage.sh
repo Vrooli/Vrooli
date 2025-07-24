@@ -7,7 +7,7 @@ set -euo pipefail
 DESCRIPTION="Install and manage Ollama AI resource"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/.."
+RESOURCES_DIR="${SCRIPT_DIR}/../.."
 
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/common.sh"
