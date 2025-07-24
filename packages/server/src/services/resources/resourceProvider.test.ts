@@ -2,28 +2,28 @@
  * Tests for ResourceProvider base class functionality
  */
 
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ResourceProvider } from "../ResourceProvider.js";
-import { CircuitBreaker } from "../circuitBreaker.js";
-import { ResourceCategory, DeploymentType, ResourceHealth, DiscoveryStatus, ResourceEvent } from "../types.js";
-import type { HealthCheckResult, ResourceInitOptions } from "../types.js";
 import type { AIMetadata } from "../typeRegistry.js";
+import type { HealthCheckResult, ResourceInitOptions } from "../types.js";
+import { DeploymentType, DiscoveryStatus, ResourceCategory, ResourceEvent, ResourceHealth } from "../types.js";
 
 // Mock HTTPClient
-jest.mock("../http/httpClient.js", () => ({
+vi.mock("../http/httpClient.js", () => ({
     HTTPClient: {
-        forResources: jest.fn(() => ({
-            makeRequest: jest.fn(),
+        forResources: vi.fn(() => ({
+            makeRequest: vi.fn(),
         })),
     },
 }));
 
 // Mock logger
-jest.mock("../../events/logger.js", () => ({
+vi.mock("../../events/logger.js", () => ({
     logger: {
-        debug: jest.fn(),
-        info: jest.fn(),
-        warn: jest.fn(),
-        error: jest.fn(),
+        debug: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
     },
 }));
 
@@ -98,6 +98,11 @@ class TestResourceProvider extends ResourceProvider<"ollama"> {
     public async restartHealthMonitoringPublic() {
         return this.restartHealthMonitoring();
     }
+
+    // Expose protected property for testing
+    public get isInitializedPublic() {
+        return this.isInitialized;
+    }
 }
 
 describe("ResourceProvider", () => {
@@ -114,7 +119,7 @@ describe("ResourceProvider", () => {
                 timeoutMs: 5000,
             },
         };
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     afterEach(async () => {
@@ -130,7 +135,7 @@ describe("ResourceProvider", () => {
 
             await provider.initialize(options);
 
-            expect(provider.isInitialized).toBe(true);
+            expect(provider.isInitializedPublic).toBe(true);
             const info = provider.getPublicInfo();
             expect(info.status).toBe(DiscoveryStatus.Available);
         });
@@ -163,7 +168,7 @@ describe("ResourceProvider", () => {
 
         it("should handle initialization failure", async () => {
             provider.setDiscoveryResult(false);
-            
+
             const options: ResourceInitOptions<"ollama"> = {
                 config: mockConfig,
                 globalConfig: {} as any,
@@ -202,9 +207,9 @@ describe("ResourceProvider", () => {
         });
 
         it("should emit discovery events", async () => {
-            const discoveredHandler = jest.fn();
-            const lostHandler = jest.fn();
-            
+            const discoveredHandler = vi.fn();
+            const lostHandler = vi.fn();
+
             provider.on(ResourceEvent.Discovered, discoveredHandler);
             provider.on(ResourceEvent.Lost, lostHandler);
 
@@ -222,7 +227,7 @@ describe("ResourceProvider", () => {
         it("should use circuit breaker for discovery", async () => {
             // Force multiple discovery failures to trigger circuit breaker
             provider.setDiscoveryResult(false);
-            
+
             // Trigger enough failures to open circuit
             for (let i = 0; i < 5; i++) {
                 await provider.discover();
@@ -259,7 +264,7 @@ describe("ResourceProvider", () => {
         });
 
         it("should emit health change events", async () => {
-            const healthChangedHandler = jest.fn();
+            const healthChangedHandler = vi.fn();
             provider.on(ResourceEvent.HealthChanged, healthChangedHandler);
 
             // Change from unknown to healthy
@@ -445,7 +450,7 @@ describe("ResourceProvider", () => {
             const info = provider.getPublicInfo();
             expect(info.status).toBe(DiscoveryStatus.NotFound);
             expect(info.health).toBe(ResourceHealth.Unknown);
-            expect(provider.isInitialized).toBe(false);
+            expect(provider.isInitializedPublic).toBe(false);
         });
     });
 });

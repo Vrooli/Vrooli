@@ -1,9 +1,10 @@
 /**
- * Tests for Resource Dependency Management
+ * Tests for ResourceDependencyManager
  */
 
-import { ResourceDependencyManager, COMMON_DEPENDENCIES } from "../resourceDependency.js";
-import type { ResourceDependency } from "../resourceDependency.js";
+import { beforeEach, describe, expect, it } from "vitest";
+import type { ResourceDependency } from "./resourceDependency.js";
+import { COMMON_DEPENDENCIES, ResourceDependencyManager } from "./resourceDependency.js";
 
 describe("ResourceDependencyManager", () => {
     let manager: ResourceDependencyManager;
@@ -14,8 +15,8 @@ describe("ResourceDependencyManager", () => {
 
     describe("Basic registration", () => {
         it("should register resources without dependencies", () => {
-            manager.registerResource("ollama", 100);
-            
+            manager.registerResource("ollama" as any, 100);
+
             const summary = manager.getSummary();
             expect(summary.totalResources).toBe(1);
             expect(summary.resourcesWithDependencies).toBe(0);
@@ -23,23 +24,23 @@ describe("ResourceDependencyManager", () => {
 
         it("should register resource dependencies", () => {
             const dependency: ResourceDependency = {
-                resourceId: "automation-service",
-                dependsOn: ["ollama"],
+                resourceId: "automation-service" as any,
+                dependsOn: ["ollama" as any],
                 priority: 50,
             };
 
             manager.registerResourceDependency(dependency);
-            
-            const info = manager.getDependencyInfo("automation-service");
+
+            const info = manager.getDependencyInfo("automation-service" as any);
             expect(info).toBeDefined();
-            expect(info?.dependsOn).toEqual(["ollama"]);
+            expect(info?.dependsOn).toEqual(["ollama" as any]);
             expect(info?.priority).toBe(50);
         });
 
         it("should prevent self-dependencies", () => {
             const dependency: ResourceDependency = {
-                resourceId: "ollama",
-                dependsOn: ["ollama"], // Self-dependency
+                resourceId: "ollama" as any,
+                dependsOn: ["ollama" as any], // Self-dependency
                 priority: 100,
             };
 
@@ -50,11 +51,11 @@ describe("ResourceDependencyManager", () => {
 
     describe("Initialization planning", () => {
         it("should create single phase for independent resources", () => {
-            manager.registerResource("ollama", 100);
-            manager.registerResource("localai", 90);
-            manager.registerResource("minio", 80);
+            manager.registerResource("ollama" as any, 100);
+            manager.registerResource("localai" as any, 90);
+            manager.registerResource("minio" as any, 80);
 
-            const enabledResources = new Set(["ollama", "localai", "minio"]);
+            const enabledResources = new Set(["ollama", "localai", "minio"]) as any;
             const plan = manager.createInitializationPlan(enabledResources);
 
             expect(plan.phases).toHaveLength(1);
@@ -69,54 +70,54 @@ describe("ResourceDependencyManager", () => {
         });
 
         it("should create multiple phases for dependent resources", () => {
-            manager.registerResource("minio", 200); // Storage first
-            manager.registerResource("ollama", 100); // AI second
-            
+            manager.registerResource("minio" as any, 200); // Storage first
+            manager.registerResource("ollama" as any, 100); // AI second
+
             manager.registerResourceDependency({
-                resourceId: "automation-service",
-                dependsOn: ["ollama", "minio"],
+                resourceId: "automation-service" as any,
+                dependsOn: ["ollama" as any, "minio" as any],
                 priority: 50,
             });
 
-            const enabledResources = new Set(["minio", "ollama", "automation-service"]);
+            const enabledResources = new Set(["minio", "ollama", "automation-service"]) as any;
             const plan = manager.createInitializationPlan(enabledResources);
 
             expect(plan.phases).toHaveLength(2);
-            
+
             // Phase 1: Independent resources (sorted by priority)
             expect(plan.phases[0]).toContain("minio");
             expect(plan.phases[0]).toContain("ollama");
-            
+
             // Phase 2: Dependent resource
             expect(plan.phases[1]).toContain("automation-service");
         });
 
         it("should handle complex dependency chains", () => {
             // Storage layer
-            manager.registerResource("minio", 300);
-            
+            manager.registerResource("minio" as any, 300);
+
             // AI layer depends on storage
             manager.registerResourceDependency({
-                resourceId: "ollama",
-                dependsOn: ["minio"],
+                resourceId: "ollama" as any,
+                dependsOn: ["minio" as any],
                 priority: 200,
             });
-            
+
             // Automation depends on AI
             manager.registerResourceDependency({
-                resourceId: "n8n",
-                dependsOn: ["ollama"],
+                resourceId: "n8n" as any,
+                dependsOn: ["ollama" as any],
                 priority: 100,
             });
-            
+
             // Agent depends on automation and AI
             manager.registerResourceDependency({
-                resourceId: "puppeteer",
-                dependsOn: ["n8n", "ollama"],
+                resourceId: "puppeteer" as any,
+                dependsOn: ["n8n" as any, "ollama" as any],
                 priority: 50,
             });
 
-            const enabledResources = new Set(["minio", "ollama", "n8n", "puppeteer"]);
+            const enabledResources = new Set(["minio", "ollama", "n8n", "puppeteer"]) as any;
             const plan = manager.createInitializationPlan(enabledResources);
 
             expect(plan.phases).toHaveLength(4);
@@ -128,24 +129,24 @@ describe("ResourceDependencyManager", () => {
 
         it("should detect circular dependencies", () => {
             manager.registerResourceDependency({
-                resourceId: "serviceA",
-                dependsOn: ["serviceB"],
-                priority: 100,
-            });
-            
-            manager.registerResourceDependency({
-                resourceId: "serviceB",
-                dependsOn: ["serviceC"],
-                priority: 100,
-            });
-            
-            manager.registerResourceDependency({
-                resourceId: "serviceC",
-                dependsOn: ["serviceA"], // Creates cycle
+                resourceId: "serviceA" as any,
+                dependsOn: ["serviceB" as any],
                 priority: 100,
             });
 
-            const enabledResources = new Set(["serviceA", "serviceB", "serviceC"]);
+            manager.registerResourceDependency({
+                resourceId: "serviceB" as any,
+                dependsOn: ["serviceC" as any],
+                priority: 100,
+            });
+
+            manager.registerResourceDependency({
+                resourceId: "serviceC" as any,
+                dependsOn: ["serviceA" as any], // Creates cycle
+                priority: 100,
+            });
+
+            const enabledResources = new Set(["serviceA", "serviceB", "serviceC"]) as any;
             const plan = manager.createInitializationPlan(enabledResources);
 
             expect(plan.circularDependencies.length).toBeGreaterThan(0);
@@ -153,12 +154,12 @@ describe("ResourceDependencyManager", () => {
 
         it("should handle missing dependencies", () => {
             manager.registerResourceDependency({
-                resourceId: "automation-service",
-                dependsOn: ["ollama", "missing-service"], // missing-service is not registered
+                resourceId: "automation-service" as any,
+                dependsOn: ["ollama" as any, "missing-service" as any], // missing-service is not registered
                 priority: 50,
             });
 
-            const enabledResources = new Set(["automation-service"]);
+            const enabledResources = new Set(["automation-service"]) as any;
             const plan = manager.createInitializationPlan(enabledResources);
 
             expect(plan.missingDependencies).toHaveLength(1);
@@ -168,13 +169,13 @@ describe("ResourceDependencyManager", () => {
 
         it("should handle optional dependencies", () => {
             manager.registerResourceDependency({
-                resourceId: "automation-service",
-                dependsOn: ["ollama", "optional-service"],
+                resourceId: "automation-service" as any,
+                dependsOn: ["ollama" as any, "optional-service" as any],
                 priority: 50,
                 optional: true,
             });
 
-            const enabledResources = new Set(["automation-service"]);
+            const enabledResources = new Set(["automation-service"]) as any;
             const plan = manager.createInitializationPlan(enabledResources);
 
             // Should not report missing dependencies for optional deps
@@ -185,68 +186,68 @@ describe("ResourceDependencyManager", () => {
 
     describe("Dependency queries", () => {
         beforeEach(() => {
-            manager.registerResource("minio", 200);
-            manager.registerResource("ollama", 100);
-            
+            manager.registerResource("minio" as any, 200);
+            manager.registerResource("ollama" as any, 100);
+
             manager.registerResourceDependency({
-                resourceId: "automation-service",
-                dependsOn: ["ollama"],
+                resourceId: "automation-service" as any,
+                dependsOn: ["ollama" as any],
                 priority: 50,
             });
-            
+
             manager.registerResourceDependency({
-                resourceId: "agent-service",
-                dependsOn: ["automation-service", "ollama"],
+                resourceId: "agent-service" as any,
+                dependsOn: ["automation-service" as any, "ollama" as any],
                 priority: 25,
             });
         });
 
         it("should find dependent resources", () => {
-            const dependents = manager.getDependentResources("ollama");
+            const dependents = manager.getDependentResources("ollama" as any);
             expect(dependents).toContain("automation-service");
             expect(dependents).toContain("agent-service");
         });
 
         it("should check safe shutdown conditions", () => {
-            const currentlyRunning = new Set(["minio", "ollama", "automation-service", "agent-service"]);
-            
+            const currentlyRunning = new Set(["minio", "ollama", "automation-service", "agent-service"]) as any;
+
             // Can't safely shut down ollama because others depend on it
-            expect(manager.canSafelyShutdown("ollama", currentlyRunning)).toBe(false);
-            
+            expect(manager.canSafelyShutdown("ollama" as any, currentlyRunning)).toBe(false);
+
             // Can safely shut down agent-service (nothing depends on it)
-            expect(manager.canSafelyShutdown("agent-service", currentlyRunning)).toBe(true);
-            
+            expect(manager.canSafelyShutdown("agent-service" as any, currentlyRunning)).toBe(true);
+
             // Can safely shut down minio (nothing depends on it)
-            expect(manager.canSafelyShutdown("minio", currentlyRunning)).toBe(true);
+            expect(manager.canSafelyShutdown("minio" as any, currentlyRunning)).toBe(true);
         });
 
         it("should allow shutdown when dependents are not running", () => {
-            const currentlyRunning = new Set(["minio", "ollama"]);
+            const currentlyRunning = new Set(["minio", "ollama"]) as any;
             // automation-service and agent-service are not running
-            
-            expect(manager.canSafelyShutdown("ollama", currentlyRunning)).toBe(true);
+
+            expect(manager.canSafelyShutdown("ollama" as any, currentlyRunning)).toBe(true);
         });
     });
 
     describe("Summary and statistics", () => {
         it("should provide accurate summary", () => {
-            manager.registerResource("service1", 100); // No dependencies
-            manager.registerResource("service2", 90);  // No dependencies
-            
+            manager.registerResource("service1" as any, 100); // No dependencies
+            manager.registerResource("service2" as any, 90);  // No dependencies
+
             manager.registerResourceDependency({
-                resourceId: "service3",
-                dependsOn: ["service1"],
+                resourceId: "service3" as any,
+                dependsOn: ["service1" as any],
                 priority: 80,
             });
-            
+
             manager.registerResourceDependency({
-                resourceId: "service4",
-                dependsOn: ["service1", "service2", "service3"],
+                resourceId: "service4" as any,
+                dependsOn: ["service1" as any, "service2" as any, "service3" as any],
                 priority: 70,
             });
 
             const summary = manager.getSummary();
-            
+
             expect(summary.totalResources).toBe(4);
             expect(summary.resourcesWithDependencies).toBe(2); // service3 and service4
             expect(summary.maxDependencies).toBe(3); // service4 has 3 dependencies
@@ -260,29 +261,29 @@ describe("ResourceDependencyManager", () => {
             expect(COMMON_DEPENDENCIES.automation).toBeDefined();
             expect(COMMON_DEPENDENCIES.agents).toBeDefined();
             expect(COMMON_DEPENDENCIES.storage).toBeDefined();
-            
+
             expect(COMMON_DEPENDENCIES.storage.priority).toBeGreaterThan(
-                COMMON_DEPENDENCIES.ai.priority ?? 0
+                COMMON_DEPENDENCIES.ai.priority ?? 0,
             );
         });
     });
 
     describe("Clear and reset", () => {
         it("should clear all dependencies", () => {
-            manager.registerResource("service1", 100);
+            manager.registerResource("service1" as any, 100);
             manager.registerResourceDependency({
-                resourceId: "service2",
-                dependsOn: ["service1"],
+                resourceId: "service2" as any,
+                dependsOn: ["service1" as any],
                 priority: 50,
             });
 
             expect(manager.getSummary().totalResources).toBe(2);
 
             manager.clear();
-            
+
             expect(manager.getSummary().totalResources).toBe(0);
-            expect(manager.getDependencyInfo("service1")).toBeUndefined();
-            expect(manager.getDependencyInfo("service2")).toBeUndefined();
+            expect(manager.getDependencyInfo("service1" as any)).toBeUndefined();
+            expect(manager.getDependencyInfo("service2" as any)).toBeUndefined();
         });
     });
 });

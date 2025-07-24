@@ -19,7 +19,8 @@ import {
 } from "./types.js";
 
 // Constants
-const DEFAULT_FETCH_TIMEOUT_MS = 5000;
+const _DEFAULT_FETCH_TIMEOUT_MS = 5000;
+const MAX_CONSECUTIVE_HEALTH_FAILURES = 5;
 
 /**
  * Abstract base class for all resource providers with full type safety
@@ -38,14 +39,14 @@ export abstract class ResourceProvider<
     protected healthCheckInterval?: NodeJS.Timeout;
     protected isInitialized = false;
     protected httpClient?: HTTPClient;
-    
+
     // Circuit breakers for resilience
     protected discoveryCircuitBreaker?: CircuitBreaker;
     protected healthCheckCircuitBreaker?: CircuitBreaker;
-    
+
     // Error tracking for health monitoring
     private consecutiveHealthFailures = 0;
-    private maxConsecutiveFailures = 5;
+    private maxConsecutiveFailures = MAX_CONSECUTIVE_HEALTH_FAILURES;
 
     constructor() {
         super();
@@ -76,7 +77,7 @@ export abstract class ResourceProvider<
 
         // Initialize HTTP client with resource profile
         this.httpClient = HTTPClient.forResources();
-        
+
         // Initialize circuit breakers for resilience
         this.discoveryCircuitBreaker = CircuitBreakerFactory.forResourceDiscovery(this.id);
         this.healthCheckCircuitBreaker = CircuitBreakerFactory.forHealthCheck(this.id);
@@ -158,12 +159,12 @@ export abstract class ResourceProvider<
         } catch (error) {
             logger.error(`[${this.id}] Discovery failed`, error);
             this._status = DiscoveryStatus.NotFound;
-            
+
             // If this was a circuit breaker error, don't mark as permanently failed
             if (error instanceof Error && error.message.includes("Circuit breaker is OPEN")) {
                 logger.debug(`[${this.id}] Discovery temporarily blocked by circuit breaker`);
             }
-            
+
             return false;
         }
     }
@@ -206,12 +207,12 @@ export abstract class ResourceProvider<
                 this.consecutiveHealthFailures = 0;
             } else {
                 this.consecutiveHealthFailures++;
-                
+
                 // Stop health monitoring if too many consecutive failures
                 if (this.consecutiveHealthFailures >= this.maxConsecutiveFailures) {
                     logger.warn(`[${this.id}] Too many consecutive health failures (${this.consecutiveHealthFailures}), stopping health monitoring temporarily`);
                     this.stopHealthMonitoring();
-                    
+
                     // Mark resource as lost if it was previously available
                     if (this._status === DiscoveryStatus.Available) {
                         this._status = DiscoveryStatus.NotFound;
@@ -233,7 +234,7 @@ export abstract class ResourceProvider<
                     previousHealth,
                     currentHealth: this._health,
                     timestamp: new Date(),
-                    details: { 
+                    details: {
                         consecutiveFailures: this.consecutiveHealthFailures,
                         circuitBreakerState: this.healthCheckCircuitBreaker?.getStats().state,
                     },
@@ -248,10 +249,10 @@ export abstract class ResourceProvider<
 
             // Handle circuit breaker errors more gracefully
             const isCircuitBreakerError = error instanceof Error && error.message.includes("Circuit breaker is OPEN");
-            
+
             return {
                 healthy: false,
-                message: isCircuitBreakerError 
+                message: isCircuitBreakerError
                     ? "Health check blocked by circuit breaker due to repeated failures"
                     : error instanceof Error ? error.message : "Health check failed",
                 timestamp: new Date(),
@@ -317,7 +318,7 @@ export abstract class ResourceProvider<
                 await this.healthCheck();
             } catch (error) {
                 logger.error(`[${this.id}] Periodic health check failed`, error);
-                
+
                 // If health monitoring should be stopped due to consecutive failures,
                 // the healthCheck method itself will handle that
             }
@@ -338,11 +339,11 @@ export abstract class ResourceProvider<
 
         logger.info(`[${this.id}] Restarting health monitoring after failure period`);
         this.consecutiveHealthFailures = 0;
-        
+
         // Reset circuit breakers
         this.healthCheckCircuitBreaker?.forceReset();
         this.discoveryCircuitBreaker?.forceReset();
-        
+
         this.startHealthMonitoring();
     }
 

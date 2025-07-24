@@ -1,30 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Puppeteer Browser Automation Service Setup and Management
-# This script handles installation, configuration, and management of Puppeteer using Docker
+# Browserless Chrome Service Setup and Management
+# This script handles installation, configuration, and management of Browserless.io using Docker
 
-DESCRIPTION="Install and manage Puppeteer browser automation service using Docker"
+DESCRIPTION="Install and manage Browserless headless Chrome service using Docker"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/.."
+RESOURCES_DIR="${SCRIPT_DIR}/../.."
 
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/../helpers/utils/args.sh"
 
-# Puppeteer configuration
-readonly PUPPETEER_PORT="${PUPPETEER_CUSTOM_PORT:-$(resources::get_default_port "puppeteer")}"
-readonly PUPPETEER_BASE_URL="http://localhost:${PUPPETEER_PORT}"
-readonly PUPPETEER_CONTAINER_NAME="puppeteer"
-readonly PUPPETEER_DATA_DIR="${HOME}/.puppeteer"
-readonly PUPPETEER_IMAGE="ghcr.io/browserless/chromium:latest"
+# Browserless configuration
+readonly BROWSERLESS_PORT="${BROWSERLESS_CUSTOM_PORT:-$(resources::get_default_port "browserless")}"
+readonly BROWSERLESS_BASE_URL="http://localhost:${BROWSERLESS_PORT}"
+readonly BROWSERLESS_CONTAINER_NAME="browserless"
+readonly BROWSERLESS_DATA_DIR="${HOME}/.browserless"
+readonly BROWSERLESS_IMAGE="ghcr.io/browserless/chrome:latest"
 
 #######################################
 # Parse command line arguments
 #######################################
-puppeteer::parse_arguments() {
+browserless::parse_arguments() {
     args::reset
     
     args::register_help
@@ -41,7 +41,7 @@ puppeteer::parse_arguments() {
     args::register \
         --name "force" \
         --flag "f" \
-        --desc "Force action even if Puppeteer appears to be already installed/running" \
+        --desc "Force action even if Browserless appears to be already installed/running" \
         --type "value" \
         --options "yes|no" \
         --default "no"
@@ -66,7 +66,7 @@ puppeteer::parse_arguments() {
         --default "30000"
     
     if args::is_asking_for_help "$@"; then
-        puppeteer::usage
+        browserless::usage
         exit 0
     fi
     
@@ -83,23 +83,23 @@ puppeteer::parse_arguments() {
 #######################################
 # Display usage information
 #######################################
-puppeteer::usage() {
+browserless::usage() {
     args::usage "$DESCRIPTION"
     echo
     echo "Examples:"
-    echo "  $0 --action install                              # Install Puppeteer with default settings"
+    echo "  $0 --action install                              # Install Browserless with default settings"
     echo "  $0 --action install --max-browsers 10           # Install with 10 max browsers"
     echo "  $0 --action install --headless no                # Install with headed browsers"
-    echo "  $0 --action status                               # Check Puppeteer status"
-    echo "  $0 --action logs                                 # View Puppeteer logs"
-    echo "  $0 --action uninstall                           # Remove Puppeteer"
+    echo "  $0 --action status                               # Check Browserless status"
+    echo "  $0 --action logs                                 # View Browserless logs"
+    echo "  $0 --action uninstall                           # Remove Browserless"
 }
 
 #######################################
 # Check if Docker is installed
 # Returns: 0 if installed, 1 otherwise
 #######################################
-puppeteer::check_docker() {
+browserless::check_docker() {
     if ! system::is_command "docker"; then
         log::error "Docker is not installed"
         log::info "Please install Docker first: https://docs.docker.com/get-docker/"
@@ -125,32 +125,32 @@ puppeteer::check_docker() {
 }
 
 #######################################
-# Check if Puppeteer container exists
+# Check if Browserless container exists
 # Returns: 0 if exists, 1 otherwise
 #######################################
-puppeteer::container_exists() {
-    docker ps -a --format '{{.Names}}' | grep -q "^${PUPPETEER_CONTAINER_NAME}$"
+browserless::container_exists() {
+    docker ps -a --format '{{.Names}}' | grep -q "^${BROWSERLESS_CONTAINER_NAME}$"
 }
 
 #######################################
-# Check if Puppeteer is running
+# Check if Browserless is running
 # Returns: 0 if running, 1 otherwise
 #######################################
-puppeteer::is_running() {
-    docker ps --format '{{.Names}}' | grep -q "^${PUPPETEER_CONTAINER_NAME}$"
+browserless::is_running() {
+    docker ps --format '{{.Names}}' | grep -q "^${BROWSERLESS_CONTAINER_NAME}$"
 }
 
 #######################################
-# Check if Puppeteer API is responsive
+# Check if Browserless API is responsive
 # Returns: 0 if responsive, 1 otherwise
 #######################################
-puppeteer::is_healthy() {
+browserless::is_healthy() {
     if system::is_command "curl"; then
         # Try multiple times as the service takes time to initialize
         local attempts=0
         while [ $attempts -lt 5 ]; do
             # Browserless uses /pressure endpoint instead of /health
-            if curl -f -s --max-time 5 "$PUPPETEER_BASE_URL/pressure" >/dev/null 2>&1; then
+            if curl -f -s --max-time 5 "$BROWSERLESS_BASE_URL/pressure" >/dev/null 2>&1; then
                 return 0
             fi
             attempts=$((attempts + 1))
@@ -161,34 +161,34 @@ puppeteer::is_healthy() {
 }
 
 #######################################
-# Create Puppeteer data directory
+# Create Browserless data directory
 #######################################
-puppeteer::create_directories() {
-    log::info "Creating Puppeteer data directory..."
+browserless::create_directories() {
+    log::info "Creating Browserless data directory..."
     
-    mkdir -p "$PUPPETEER_DATA_DIR" || {
-        log::error "Failed to create Puppeteer data directory"
+    mkdir -p "$BROWSERLESS_DATA_DIR" || {
+        log::error "Failed to create Browserless data directory"
         return 1
     }
     
     # Add rollback action
     resources::add_rollback_action \
-        "Remove Puppeteer data directory" \
-        "rm -rf $PUPPETEER_DATA_DIR 2>/dev/null || true" \
+        "Remove Browserless data directory" \
+        "rm -rf $BROWSERLESS_DATA_DIR 2>/dev/null || true" \
         10
     
-    log::success "Puppeteer directories created"
+    log::success "Browserless directories created"
     return 0
 }
 
 #######################################
-# Create Docker network for Puppeteer
+# Create Docker network for Browserless
 #######################################
-puppeteer::create_network() {
-    local network_name="puppeteer-network"
+browserless::create_network() {
+    local network_name="browserless-network"
     
     if ! docker network ls | grep -q "$network_name"; then
-        log::info "Creating Docker network for Puppeteer..."
+        log::info "Creating Docker network for Browserless..."
         
         if docker network create "$network_name" >/dev/null 2>&1; then
             log::success "Docker network created"
@@ -205,14 +205,14 @@ puppeteer::create_network() {
 }
 
 #######################################
-# Build Puppeteer Docker command
+# Build Browserless Docker command
 #######################################
-puppeteer::build_docker_command() {
+browserless::build_docker_command() {
     local docker_cmd="docker run -d"
-    docker_cmd+=" --name $PUPPETEER_CONTAINER_NAME"
-    docker_cmd+=" --network puppeteer-network"
-    docker_cmd+=" -p ${PUPPETEER_PORT}:3000"
-    docker_cmd+=" -v ${PUPPETEER_DATA_DIR}:/workspace"
+    docker_cmd+=" --name $BROWSERLESS_CONTAINER_NAME"
+    docker_cmd+=" --network browserless-network"
+    docker_cmd+=" -p ${BROWSERLESS_PORT}:3000"
+    docker_cmd+=" -v ${BROWSERLESS_DATA_DIR}:/workspace"
     docker_cmd+=" --restart unless-stopped"
     docker_cmd+=" --shm-size=2gb"
     
@@ -229,33 +229,33 @@ puppeteer::build_docker_command() {
     docker_cmd+=" --security-opt seccomp=unconfined"
     
     # Image
-    docker_cmd+=" $PUPPETEER_IMAGE"
+    docker_cmd+=" $BROWSERLESS_IMAGE"
     
     echo "$docker_cmd"
 }
 
 #######################################
-# Start Puppeteer container
+# Start Browserless container
 #######################################
-puppeteer::start_container() {
-    log::info "Starting Puppeteer container..."
+browserless::start_container() {
+    log::info "Starting Browserless container..."
     
     # Build and execute Docker command
     local docker_cmd
-    docker_cmd=$(puppeteer::build_docker_command)
+    docker_cmd=$(browserless::build_docker_command)
     
     if eval "$docker_cmd" >/dev/null 2>&1; then
-        log::success "Puppeteer container started"
+        log::success "Browserless container started"
         
         # Add rollback action
         resources::add_rollback_action \
-            "Stop and remove Puppeteer container" \
-            "docker stop $PUPPETEER_CONTAINER_NAME 2>/dev/null; docker rm $PUPPETEER_CONTAINER_NAME 2>/dev/null || true" \
+            "Stop and remove Browserless container" \
+            "docker stop $BROWSERLESS_CONTAINER_NAME 2>/dev/null; docker rm $BROWSERLESS_CONTAINER_NAME 2>/dev/null || true" \
             25
         
         return 0
     else
-        log::error "Failed to start Puppeteer container"
+        log::error "Failed to start Browserless container"
         return 1
     fi
 }
@@ -263,7 +263,7 @@ puppeteer::start_container() {
 #######################################
 # Update Vrooli configuration
 #######################################
-puppeteer::update_config() {
+browserless::update_config() {
     # Create JSON with proper escaping
     local additional_config
     additional_config=$(cat <<EOF
@@ -289,73 +289,73 @@ puppeteer::update_config() {
         "scrapeEndpoint": "/scrape"
     },
     "container": {
-        "name": "$PUPPETEER_CONTAINER_NAME",
-        "image": "$PUPPETEER_IMAGE"
+        "name": "$BROWSERLESS_CONTAINER_NAME",
+        "image": "$BROWSERLESS_IMAGE"
     }
 }
 EOF
 )
     
-    resources::update_config "agents" "puppeteer" "$PUPPETEER_BASE_URL" "$additional_config"
+    resources::update_config "agents" "browserless" "$BROWSERLESS_BASE_URL" "$additional_config"
 }
 
 #######################################
-# Complete Puppeteer installation
+# Complete Browserless installation
 #######################################
-puppeteer::install() {
-    log::header "🎭 Installing Puppeteer Browser Automation (Docker)"
+browserless::install() {
+    log::header "🎭 Installing Browserless Browser Automation (Docker)"
     
     # Start rollback context
-    resources::start_rollback_context "install_puppeteer_docker"
+    resources::start_rollback_context "install_browserless_docker"
     
     # Check if already installed
-    if puppeteer::container_exists && puppeteer::is_running && [[ "$FORCE" != "yes" ]]; then
-        log::info "Puppeteer is already installed and running"
+    if browserless::container_exists && browserless::is_running && [[ "$FORCE" != "yes" ]]; then
+        log::info "Browserless is already installed and running"
         log::info "Use --force yes to reinstall"
         return 0
     fi
     
     # Check Docker
-    if ! puppeteer::check_docker; then
+    if ! browserless::check_docker; then
         return 1
     fi
     
     # Validate port assignment
-    if ! resources::validate_port "puppeteer" "$PUPPETEER_PORT"; then
-        log::error "Port validation failed for Puppeteer"
-        log::info "You can set a custom port with: export PUPPETEER_CUSTOM_PORT=<port>"
+    if ! resources::validate_port "browserless" "$BROWSERLESS_PORT"; then
+        log::error "Port validation failed for Browserless"
+        log::info "You can set a custom port with: export BROWSERLESS_CUSTOM_PORT=<port>"
         return 1
     fi
     
     # Create directories
-    if ! puppeteer::create_directories; then
+    if ! browserless::create_directories; then
         resources::handle_error \
-            "Failed to create Puppeteer directories" \
+            "Failed to create Browserless directories" \
             "system" \
             "Check directory permissions"
         return 1
     fi
     
     # Create Docker network
-    puppeteer::create_network
+    browserless::create_network
     
-    # Start Puppeteer container
-    if ! puppeteer::start_container; then
+    # Start Browserless container
+    if ! browserless::start_container; then
         resources::handle_error \
-            "Failed to start Puppeteer container" \
+            "Failed to start Browserless container" \
             "system" \
-            "Check Docker logs: docker logs $PUPPETEER_CONTAINER_NAME"
+            "Check Docker logs: docker logs $BROWSERLESS_CONTAINER_NAME"
         return 1
     fi
     
     # Wait for service to be ready
-    log::info "Waiting for Puppeteer to start..."
+    log::info "Waiting for Browserless to start..."
     
     # Wait for container to be running and port to be available
     local wait_time=0
     local max_wait=60
     while [ $wait_time -lt $max_wait ]; do
-        if puppeteer::is_running && ss -tlnp 2>/dev/null | grep -q ":$PUPPETEER_PORT"; then
+        if browserless::is_running && ss -tlnp 2>/dev/null | grep -q ":$BROWSERLESS_PORT"; then
             log::info "Container is running and port is bound"
             break
         fi
@@ -367,32 +367,32 @@ puppeteer::install() {
     
     if [ $wait_time -ge $max_wait ]; then
         resources::handle_error \
-            "Puppeteer failed to start within timeout" \
+            "Browserless failed to start within timeout" \
             "system" \
             "Check container logs for errors"
         return 1
     fi
     
-    # Give Puppeteer time to initialize
-    log::info "Waiting for Puppeteer to complete initialization..."
+    # Give Browserless time to initialize
+    log::info "Waiting for Browserless to complete initialization..."
     sleep 10
     
-    if puppeteer::is_healthy; then
-        log::success "✅ Puppeteer is running and healthy on port $PUPPETEER_PORT"
+    if browserless::is_healthy; then
+        log::success "✅ Browserless is running and healthy on port $BROWSERLESS_PORT"
         
         # Display access information
         echo
-        log::header "🌐 Puppeteer Access Information"
-        log::info "URL: $PUPPETEER_BASE_URL"
-        log::info "Status Check: $PUPPETEER_BASE_URL/pressure"
+        log::header "🌐 Browserless Access Information"
+        log::info "URL: $BROWSERLESS_BASE_URL"
+        log::info "Status Check: $BROWSERLESS_BASE_URL/pressure"
         log::info "Max Browsers: $MAX_BROWSERS"
         log::info "Headless Mode: $HEADLESS"
         log::info "Timeout: ${TIMEOUT}ms"
         
         # Update Vrooli configuration
-        if ! puppeteer::update_config; then
+        if ! browserless::update_config; then
             log::warn "Failed to update Vrooli configuration"
-            log::info "Puppeteer is installed but may need manual configuration in Vrooli"
+            log::info "Browserless is installed but may need manual configuration in Vrooli"
         fi
         
         # Clear rollback context on success
@@ -401,102 +401,102 @@ puppeteer::install() {
         
         echo
         log::header "🎯 Next Steps"
-        log::info "1. Access Puppeteer at: $PUPPETEER_BASE_URL"
+        log::info "1. Access Browserless at: $BROWSERLESS_BASE_URL"
         log::info "2. Use the API endpoints for browser automation"
         log::info "3. Check the docs: https://www.browserless.io/docs/"
         
         return 0
     else
-        log::warn "Puppeteer started but health check failed"
-        log::info "Check logs: docker logs $PUPPETEER_CONTAINER_NAME"
+        log::warn "Browserless started but health check failed"
+        log::info "Check logs: docker logs $BROWSERLESS_CONTAINER_NAME"
         return 0
     fi
 }
 
 #######################################
-# Stop Puppeteer
+# Stop Browserless
 #######################################
-puppeteer::stop() {
-    if ! puppeteer::is_running; then
-        log::info "Puppeteer is not running"
+browserless::stop() {
+    if ! browserless::is_running; then
+        log::info "Browserless is not running"
         return 0
     fi
     
-    log::info "Stopping Puppeteer..."
+    log::info "Stopping Browserless..."
     
-    if docker stop "$PUPPETEER_CONTAINER_NAME" >/dev/null 2>&1; then
-        log::success "Puppeteer stopped"
+    if docker stop "$BROWSERLESS_CONTAINER_NAME" >/dev/null 2>&1; then
+        log::success "Browserless stopped"
     else
-        log::error "Failed to stop Puppeteer"
+        log::error "Failed to stop Browserless"
         return 1
     fi
 }
 
 #######################################
-# Start Puppeteer
+# Start Browserless
 #######################################
-puppeteer::start() {
-    if puppeteer::is_running && [[ "$FORCE" != "yes" ]]; then
-        log::info "Puppeteer is already running on port $PUPPETEER_PORT"
+browserless::start() {
+    if browserless::is_running && [[ "$FORCE" != "yes" ]]; then
+        log::info "Browserless is already running on port $BROWSERLESS_PORT"
         return 0
     fi
     
-    log::info "Starting Puppeteer..."
+    log::info "Starting Browserless..."
     
     # Check if container exists
-    if ! puppeteer::container_exists; then
-        log::error "Puppeteer container does not exist. Run install first."
+    if ! browserless::container_exists; then
+        log::error "Browserless container does not exist. Run install first."
         return 1
     fi
     
-    # Start Puppeteer container
-    if docker start "$PUPPETEER_CONTAINER_NAME" >/dev/null 2>&1; then
-        log::success "Puppeteer started"
+    # Start Browserless container
+    if docker start "$BROWSERLESS_CONTAINER_NAME" >/dev/null 2>&1; then
+        log::success "Browserless started"
         
         # Wait for service to be ready
-        if resources::wait_for_service "Puppeteer" "$PUPPETEER_PORT" 30; then
-            log::success "✅ Puppeteer is running on port $PUPPETEER_PORT"
-            log::info "Access Puppeteer at: $PUPPETEER_BASE_URL"
+        if resources::wait_for_service "Browserless" "$BROWSERLESS_PORT" 30; then
+            log::success "✅ Browserless is running on port $BROWSERLESS_PORT"
+            log::info "Access Browserless at: $BROWSERLESS_BASE_URL"
         else
-            log::warn "Puppeteer started but may not be fully ready yet"
+            log::warn "Browserless started but may not be fully ready yet"
         fi
     else
-        log::error "Failed to start Puppeteer"
+        log::error "Failed to start Browserless"
         return 1
     fi
 }
 
 #######################################
-# Restart Puppeteer
+# Restart Browserless
 #######################################
-puppeteer::restart() {
-    log::info "Restarting Puppeteer..."
-    puppeteer::stop
+browserless::restart() {
+    log::info "Restarting Browserless..."
+    browserless::stop
     sleep 2
-    puppeteer::start
+    browserless::start
 }
 
 #######################################
-# Show Puppeteer logs
+# Show Browserless logs
 #######################################
-puppeteer::logs() {
-    if ! puppeteer::container_exists; then
-        log::error "Puppeteer container does not exist"
+browserless::logs() {
+    if ! browserless::container_exists; then
+        log::error "Browserless container does not exist"
         return 1
     fi
     
-    log::info "Showing Puppeteer logs (Ctrl+C to exit)..."
-    docker logs -f "$PUPPETEER_CONTAINER_NAME"
+    log::info "Showing Browserless logs (Ctrl+C to exit)..."
+    docker logs -f "$BROWSERLESS_CONTAINER_NAME"
 }
 
 #######################################
-# Uninstall Puppeteer
+# Uninstall Browserless
 #######################################
-puppeteer::uninstall() {
-    log::header "🗑️  Uninstalling Puppeteer"
+browserless::uninstall() {
+    log::header "🗑️  Uninstalling Browserless"
     
     if ! flow::is_yes "$YES"; then
-        log::warn "This will remove Puppeteer and all browser data"
+        log::warn "This will remove Browserless and all browser data"
         read -p "Are you sure you want to continue? (y/N): " -r
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             log::info "Uninstall cancelled"
@@ -504,45 +504,45 @@ puppeteer::uninstall() {
         fi
     fi
     
-    # Stop and remove Puppeteer container
-    if puppeteer::container_exists; then
-        log::info "Removing Puppeteer container..."
-        docker stop "$PUPPETEER_CONTAINER_NAME" 2>/dev/null || true
-        docker rm "$PUPPETEER_CONTAINER_NAME" 2>/dev/null || true
-        log::success "Puppeteer container removed"
+    # Stop and remove Browserless container
+    if browserless::container_exists; then
+        log::info "Removing Browserless container..."
+        docker stop "$BROWSERLESS_CONTAINER_NAME" 2>/dev/null || true
+        docker rm "$BROWSERLESS_CONTAINER_NAME" 2>/dev/null || true
+        log::success "Browserless container removed"
     fi
     
     # Remove Docker network
-    if docker network ls | grep -q "puppeteer-network"; then
+    if docker network ls | grep -q "browserless-network"; then
         log::info "Removing Docker network..."
-        docker network rm "puppeteer-network" 2>/dev/null || true
+        docker network rm "browserless-network" 2>/dev/null || true
     fi
     
     # Backup data before removal
-    if [[ -d "$PUPPETEER_DATA_DIR" ]]; then
-        local backup_dir="$HOME/puppeteer-backup-$(date +%Y%m%d-%H%M%S)"
-        log::info "Backing up Puppeteer data to: $backup_dir"
-        cp -r "$PUPPETEER_DATA_DIR" "$backup_dir" 2>/dev/null || true
+    if [[ -d "$BROWSERLESS_DATA_DIR" ]]; then
+        local backup_dir="$HOME/browserless-backup-$(date +%Y%m%d-%H%M%S)"
+        log::info "Backing up Browserless data to: $backup_dir"
+        cp -r "$BROWSERLESS_DATA_DIR" "$backup_dir" 2>/dev/null || true
     fi
     
     # Remove data directory
-    read -p "Remove Puppeteer data directory? (y/N): " -r
+    read -p "Remove Browserless data directory? (y/N): " -r
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        rm -rf "$PUPPETEER_DATA_DIR" 2>/dev/null || true
+        rm -rf "$BROWSERLESS_DATA_DIR" 2>/dev/null || true
         log::info "Data directory removed"
     fi
     
     # Remove from Vrooli config
-    resources::remove_config "agents" "puppeteer"
+    resources::remove_config "agents" "browserless"
     
-    log::success "✅ Puppeteer uninstalled successfully"
+    log::success "✅ Browserless uninstalled successfully"
 }
 
 #######################################
-# Show Puppeteer status
+# Show Browserless status
 #######################################
-puppeteer::status() {
-    log::header "📊 Puppeteer Status"
+browserless::status() {
+    log::header "📊 Browserless Status"
     
     # Check Docker
     if ! system::is_command "docker"; then
@@ -556,29 +556,29 @@ puppeteer::status() {
     fi
     
     # Check container status
-    if puppeteer::container_exists; then
-        if puppeteer::is_running; then
-            log::success "✅ Puppeteer container is running"
+    if browserless::container_exists; then
+        if browserless::is_running; then
+            log::success "✅ Browserless container is running"
             
             # Get container stats
             local stats
-            stats=$(docker stats "$PUPPETEER_CONTAINER_NAME" --no-stream --format "CPU: {{.CPUPerc}} | Memory: {{.MemUsage}}" 2>/dev/null || echo "")
+            stats=$(docker stats "$BROWSERLESS_CONTAINER_NAME" --no-stream --format "CPU: {{.CPUPerc}} | Memory: {{.MemUsage}}" 2>/dev/null || echo "")
             if [[ -n "$stats" ]]; then
                 log::info "Resource usage: $stats"
             fi
             
             # Check health
-            if puppeteer::is_healthy; then
-                log::success "✅ Puppeteer API is healthy"
+            if browserless::is_healthy; then
+                log::success "✅ Browserless API is healthy"
             else
-                log::warn "⚠️  Puppeteer API health check failed"
+                log::warn "⚠️  Browserless API health check failed"
             fi
             
             # Additional details
             echo
-            log::info "Puppeteer Details:"
-            log::info "  Web UI: $PUPPETEER_BASE_URL"
-            log::info "  Container: $PUPPETEER_CONTAINER_NAME"
+            log::info "Browserless Details:"
+            log::info "  Web UI: $BROWSERLESS_BASE_URL"
+            log::info "  Container: $BROWSERLESS_CONTAINER_NAME"
             log::info "  Max Browsers: $MAX_BROWSERS"
             log::info "  Headless Mode: $HEADLESS"
             
@@ -586,48 +586,48 @@ puppeteer::status() {
             echo
             log::info "View logs: $0 --action logs"
         else
-            log::warn "⚠️  Puppeteer container exists but is not running"
+            log::warn "⚠️  Browserless container exists but is not running"
             log::info "Start with: $0 --action start"
         fi
     else
-        log::error "❌ Puppeteer is not installed"
+        log::error "❌ Browserless is not installed"
         log::info "Install with: $0 --action install"
     fi
 }
 
 #######################################
-# Show Puppeteer information
+# Show Browserless information
 #######################################
-puppeteer::info() {
+browserless::info() {
     cat << EOF
-=== Puppeteer Resource Information ===
+=== Browserless Resource Information ===
 
-ID: puppeteer
+ID: browserless
 Category: agents
-Display Name: Puppeteer
+Display Name: Browserless
 Description: Browser automation powered by Chrome/Chromium
 
 Service Details:
-- Container Name: $PUPPETEER_CONTAINER_NAME
-- Service Port: $PUPPETEER_PORT
-- Service URL: $PUPPETEER_BASE_URL
-- Docker Image: $PUPPETEER_IMAGE
-- Data Directory: $PUPPETEER_DATA_DIR
+- Container Name: $BROWSERLESS_CONTAINER_NAME
+- Service Port: $BROWSERLESS_PORT
+- Service URL: $BROWSERLESS_BASE_URL
+- Docker Image: $BROWSERLESS_IMAGE
+- Data Directory: $BROWSERLESS_DATA_DIR
 
 Endpoints:
-- Status Check: $PUPPETEER_BASE_URL/pressure
-- Screenshot: POST $PUPPETEER_BASE_URL/screenshot
-- PDF: POST $PUPPETEER_BASE_URL/pdf
-- Content: POST $PUPPETEER_BASE_URL/content
-- Function: POST $PUPPETEER_BASE_URL/function
-- Scrape: POST $PUPPETEER_BASE_URL/scrape
+- Status Check: $BROWSERLESS_BASE_URL/pressure
+- Screenshot: POST $BROWSERLESS_BASE_URL/screenshot
+- PDF: POST $BROWSERLESS_BASE_URL/pdf
+- Content: POST $BROWSERLESS_BASE_URL/content
+- Function: POST $BROWSERLESS_BASE_URL/function
+- Scrape: POST $BROWSERLESS_BASE_URL/scrape
 
 Configuration:
 - Max Browsers: ${MAX_BROWSERS:-5}
 - Headless Mode: ${HEADLESS:-yes}
 - Timeout: ${TIMEOUT:-30000}ms
 
-Puppeteer Features:
+Browserless Features:
 - High-performance browser automation
 - Screenshot generation
 - PDF generation
@@ -639,19 +639,19 @@ Puppeteer Features:
 
 Example Usage:
 # Take a screenshot
-curl -X POST $PUPPETEER_BASE_URL/screenshot \\
+curl -X POST $BROWSERLESS_BASE_URL/screenshot \\
   -H "Content-Type: application/json" \\
   -d '{"url": "https://example.com"}' \\
   --output screenshot.png
 
 # Generate PDF
-curl -X POST $PUPPETEER_BASE_URL/pdf \\
+curl -X POST $BROWSERLESS_BASE_URL/pdf \\
   -H "Content-Type: application/json" \\
   -d '{"url": "https://example.com"}' \\
   --output document.pdf
 
 # Scrape webpage
-curl -X POST $PUPPETEER_BASE_URL/content \\
+curl -X POST $BROWSERLESS_BASE_URL/content \\
   -H "Content-Type: application/json" \\
   -d '{"url": "https://example.com"}'
 
@@ -662,37 +662,37 @@ EOF
 #######################################
 # Main execution function
 #######################################
-puppeteer::main() {
-    puppeteer::parse_arguments "$@"
+browserless::main() {
+    browserless::parse_arguments "$@"
     
     case "$ACTION" in
         "install")
-            puppeteer::install
+            browserless::install
             ;;
         "uninstall")
-            puppeteer::uninstall
+            browserless::uninstall
             ;;
         "start")
-            puppeteer::start
+            browserless::start
             ;;
         "stop")
-            puppeteer::stop
+            browserless::stop
             ;;
         "restart")
-            puppeteer::restart
+            browserless::restart
             ;;
         "status")
-            puppeteer::status
+            browserless::status
             ;;
         "logs")
-            puppeteer::logs
+            browserless::logs
             ;;
         "info")
-            puppeteer::info
+            browserless::info
             ;;
         *)
             log::error "Unknown action: $ACTION"
-            puppeteer::usage
+            browserless::usage
             exit 1
             ;;
     esac
@@ -700,5 +700,5 @@ puppeteer::main() {
 
 # Execute main function if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    puppeteer::main "$@"
+    browserless::main "$@"
 fi

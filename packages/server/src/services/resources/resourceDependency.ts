@@ -58,7 +58,7 @@ export class ResourceDependencyManager {
     /**
      * Register a resource without dependencies
      */
-    registerResource(resourceId: ResourceId, priority: number = 0): void {
+    registerResource(resourceId: ResourceId, priority = 0): void {
         if (!this.dependencies.has(resourceId)) {
             this.registerResourceDependency({
                 resourceId,
@@ -88,7 +88,7 @@ export class ResourceDependencyManager {
         const missingDependencies: Array<{ resourceId: ResourceId; missingDeps: ResourceId[] }> = [];
         for (const [resourceId, dependency] of enabledDependencies) {
             const missingDeps = dependency.dependsOn.filter(dep => 
-                !enabledResources.has(dep) && !dependency.optional
+                !enabledResources.has(dep) && !dependency.optional,
             );
             if (missingDeps.length > 0) {
                 missingDependencies.push({ resourceId, missingDeps });
@@ -153,7 +153,7 @@ export class ResourceDependencyManager {
      */
     private createInitializationPhases(
         dependencies: Map<ResourceId, ResourceDependency>,
-        circularDeps: ResourceId[]
+        circularDeps: ResourceId[],
     ): ResourceId[][] {
         const phases: ResourceId[][] = [];
         const remaining = new Set(dependencies.keys());
@@ -176,7 +176,7 @@ export class ResourceDependencyManager {
                 const canInitialize = dependency.dependsOn.every(dep => 
                     initialized.has(dep) || 
                     dependency.optional ||
-                    circularDeps.includes(dep)
+                    circularDeps.includes(dep),
                 );
 
                 if (canInitialize) {

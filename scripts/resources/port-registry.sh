@@ -34,8 +34,7 @@ declare -g -A RESOURCE_PORTS=(
     ["ipfs"]="9001"            # Distributed storage (changed from 5001)
     
     # Agent Services (41xx range - safely above Vrooli range)
-    ["puppeteer"]="4110"       # Browser automation (changed from 3000)
-    ["playwright"]="4111"      # Cross-browser automation (changed from 3002)
+    ["browserless"]="4110"     # Browserless.io Chrome service
     
     # Future services can use:
     # - 11xxx for AI services
