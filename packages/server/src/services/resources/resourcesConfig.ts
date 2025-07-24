@@ -10,6 +10,7 @@ import type {
     ResourceId,
     StorageResourceId,
 } from "./typeRegistry.js";
+import { isResourceInCategory } from "./typeRegistry.js";
 import { ResourceCategory } from "./types.js";
 
 /**
@@ -303,29 +304,22 @@ export function getTypedServiceConfig<TId extends ResourceId>(
  * Helper function to get resource category from resource ID
  */
 function getResourceCategory(resourceId: ResourceId): keyof NonNullable<TypedResourcesConfig["services"]> {
-    // Import the category mappings from typeRegistry
-    import("./typeRegistry.js").then(({ isResourceInCategory }) => {
-        if (isResourceInCategory(resourceId, ResourceCategory.AI)) return "ai";
-        if (isResourceInCategory(resourceId, ResourceCategory.Automation)) return "automation";
-        if (isResourceInCategory(resourceId, ResourceCategory.Agents)) return "agents";
-        if (isResourceInCategory(resourceId, ResourceCategory.Storage)) return "storage";
-    });
-
-    // Static fallback for now - in real implementation this would use the typeRegistry
-    if (["ollama", "localai", "llamacpp", "vllm", "tgi", "onnx", "whisper", "comfyui", "stablediffusion", "cloudflare", "openrouter"].includes(resourceId)) {
+    // Use static import for proper category mapping
+    if (isResourceInCategory(resourceId, ResourceCategory.AI)) {
         return "ai";
     }
-    if (["n8n", "nodered", "windmill", "automatisch", "activepieces", "huginn", "kestra", "beehive", "airflow", "temporal"].includes(resourceId)) {
+    if (isResourceInCategory(resourceId, ResourceCategory.Automation)) {
         return "automation";
     }
-    if (["puppeteer", "playwright", "selenium", "browserless"].includes(resourceId)) {
+    if (isResourceInCategory(resourceId, ResourceCategory.Agents)) {
         return "agents";
     }
-    if (["minio", "seaweedfs", "glusterfs", "ipfs", "rclone"].includes(resourceId)) {
+    if (isResourceInCategory(resourceId, ResourceCategory.Storage)) {
         return "storage";
     }
 
-    throw new Error(`Unknown resource ID: ${resourceId}`);
+    // This should never happen if typeRegistry is properly maintained
+    throw new Error(`Unknown resource ID: ${resourceId}. Ensure it's defined in typeRegistry.ts`);
 }
 
 /**

@@ -1,6 +1,7 @@
 import { EventEmitter } from "events";
 import { logger } from "../../events/logger.js";
 import { HTTPClient, type AuthConfig } from "../http/httpClient.js";
+import { CircuitBreaker, CircuitBreakerFactory } from "./circuitBreaker.js";
 import type { GetConfig, GetResourceMetadata, ResourceId } from "./typeRegistry.js";
 import type {
     HealthCheckResult,
@@ -37,6 +38,14 @@ export abstract class ResourceProvider<
     protected healthCheckInterval?: NodeJS.Timeout;
     protected isInitialized = false;
     protected httpClient?: HTTPClient;
+    
+    // Circuit breakers for resilience
+    protected discoveryCircuitBreaker?: CircuitBreaker;
+    protected healthCheckCircuitBreaker?: CircuitBreaker;
+    
+    // Error tracking for health monitoring
+    private consecutiveHealthFailures = 0;
+    private maxConsecutiveFailures = 5;
 
     constructor() {
         super();
@@ -67,6 +76,10 @@ export abstract class ResourceProvider<
 
         // Initialize HTTP client with resource profile
         this.httpClient = HTTPClient.forResources();
+        
+        // Initialize circuit breakers for resilience
+        this.discoveryCircuitBreaker = CircuitBreakerFactory.forResourceDiscovery(this.id);
+        this.healthCheckCircuitBreaker = CircuitBreakerFactory.forHealthCheck(this.id);
 
         // Set initial status based on enabled state
         if (!this.config?.enabled) {
@@ -106,11 +119,20 @@ export abstract class ResourceProvider<
             return false;
         }
 
+        if (!this.discoveryCircuitBreaker?.isCallAllowed()) {
+            logger.debug(`[${this.id}] Discovery blocked by circuit breaker`);
+            // Don't change status if circuit breaker is blocking
+            return this._status === DiscoveryStatus.Available;
+        }
+
         const previousStatus = this._status;
         this._status = DiscoveryStatus.Discovering;
 
         try {
-            const found = await this.performDiscovery();
+            // Use circuit breaker to protect against repeated failures
+            const found = await this.discoveryCircuitBreaker!.execute(async () => {
+                return await this.performDiscovery();
+            });
 
             const wasAvailable = previousStatus === DiscoveryStatus.Available;
             this._status = found ? DiscoveryStatus.Available : DiscoveryStatus.NotFound;
@@ -122,18 +144,26 @@ export abstract class ResourceProvider<
                     category: this.category,
                     timestamp: new Date(),
                 });
+                logger.info(`[${this.id}] Resource discovered and available`);
             } else if (wasAvailable && !found) {
                 this.emit(ResourceEvent.Lost, {
                     resourceId: this.id,
                     category: this.category,
                     timestamp: new Date(),
                 });
+                logger.warn(`[${this.id}] Resource lost and no longer available`);
             }
 
             return found;
         } catch (error) {
             logger.error(`[${this.id}] Discovery failed`, error);
             this._status = DiscoveryStatus.NotFound;
+            
+            // If this was a circuit breaker error, don't mark as permanently failed
+            if (error instanceof Error && error.message.includes("Circuit breaker is OPEN")) {
+                logger.debug(`[${this.id}] Discovery temporarily blocked by circuit breaker`);
+            }
+            
             return false;
         }
     }
@@ -145,7 +175,16 @@ export abstract class ResourceProvider<
         if (this._status !== DiscoveryStatus.Available) {
             return {
                 healthy: false,
-                message: "Resource not available",
+                message: "Resource not available for health check",
+                timestamp: new Date(),
+            };
+        }
+
+        if (!this.healthCheckCircuitBreaker?.isCallAllowed()) {
+            logger.debug(`[${this.id}] Health check blocked by circuit breaker`);
+            return {
+                healthy: false,
+                message: "Health check temporarily blocked by circuit breaker",
                 timestamp: new Date(),
             };
         }
@@ -154,10 +193,37 @@ export abstract class ResourceProvider<
         this._health = ResourceHealth.Checking;
 
         try {
-            const result = await this.performHealthCheck();
+            // Use circuit breaker to protect against repeated health check failures
+            const result = await this.healthCheckCircuitBreaker!.execute(async () => {
+                return await this.performHealthCheck();
+            });
 
             this._health = result.healthy ? ResourceHealth.Healthy : ResourceHealth.Unhealthy;
             this._lastHealthCheck = new Date();
+
+            // Track consecutive failures
+            if (result.healthy) {
+                this.consecutiveHealthFailures = 0;
+            } else {
+                this.consecutiveHealthFailures++;
+                
+                // Stop health monitoring if too many consecutive failures
+                if (this.consecutiveHealthFailures >= this.maxConsecutiveFailures) {
+                    logger.warn(`[${this.id}] Too many consecutive health failures (${this.consecutiveHealthFailures}), stopping health monitoring temporarily`);
+                    this.stopHealthMonitoring();
+                    
+                    // Mark resource as lost if it was previously available
+                    if (this._status === DiscoveryStatus.Available) {
+                        this._status = DiscoveryStatus.NotFound;
+                        this.emit(ResourceEvent.Lost, {
+                            resourceId: this.id,
+                            category: this.category,
+                            timestamp: new Date(),
+                            details: { reason: "Too many consecutive health failures" },
+                        });
+                    }
+                }
+            }
 
             // Emit event if health changed
             if (previousHealth !== this._health) {
@@ -167,18 +233,32 @@ export abstract class ResourceProvider<
                     previousHealth,
                     currentHealth: this._health,
                     timestamp: new Date(),
+                    details: { 
+                        consecutiveFailures: this.consecutiveHealthFailures,
+                        circuitBreakerState: this.healthCheckCircuitBreaker?.getStats().state,
+                    },
                 });
             }
 
             return result;
         } catch (error) {
-            logger.error(`[${this.id}] Health check failed`, error);
+            this.consecutiveHealthFailures++;
+            logger.error(`[${this.id}] Health check failed (${this.consecutiveHealthFailures} consecutive failures)`, error);
             this._health = ResourceHealth.Unhealthy;
 
+            // Handle circuit breaker errors more gracefully
+            const isCircuitBreakerError = error instanceof Error && error.message.includes("Circuit breaker is OPEN");
+            
             return {
                 healthy: false,
-                message: error instanceof Error ? error.message : "Health check failed",
+                message: isCircuitBreakerError 
+                    ? "Health check blocked by circuit breaker due to repeated failures"
+                    : error instanceof Error ? error.message : "Health check failed",
                 timestamp: new Date(),
+                details: {
+                    consecutiveFailures: this.consecutiveHealthFailures,
+                    circuitBreakerBlocked: isCircuitBreakerError,
+                },
             };
         }
     }
@@ -231,16 +311,39 @@ export abstract class ResourceProvider<
         // Clear any existing interval
         this.stopHealthMonitoring();
 
-        // Start new interval
+        // Start new interval with improved error handling
         this.healthCheckInterval = setInterval(async () => {
             try {
                 await this.healthCheck();
             } catch (error) {
                 logger.error(`[${this.id}] Periodic health check failed`, error);
+                
+                // If health monitoring should be stopped due to consecutive failures,
+                // the healthCheck method itself will handle that
             }
         }, this.config.healthCheck.intervalMs);
 
         logger.debug(`[${this.id}] Started health monitoring, interval: ${this.config.healthCheck.intervalMs}ms`);
+    }
+
+    /**
+     * Restart health monitoring after a failure period
+     * This method can be called externally to resume monitoring
+     */
+    public restartHealthMonitoring(): void {
+        if (this._status !== DiscoveryStatus.Available) {
+            logger.debug(`[${this.id}] Cannot restart health monitoring - resource not available`);
+            return;
+        }
+
+        logger.info(`[${this.id}] Restarting health monitoring after failure period`);
+        this.consecutiveHealthFailures = 0;
+        
+        // Reset circuit breakers
+        this.healthCheckCircuitBreaker?.forceReset();
+        this.discoveryCircuitBreaker?.forceReset();
+        
+        this.startHealthMonitoring();
     }
 
     /**
@@ -263,6 +366,17 @@ export abstract class ResourceProvider<
         // Stop health monitoring
         this.stopHealthMonitoring();
 
+        // Reset circuit breakers to prevent any pending operations
+        this.discoveryCircuitBreaker?.forceReset();
+        this.healthCheckCircuitBreaker?.forceReset();
+
+        // Clean up HTTP client resources (though HTTPClient doesn't need explicit cleanup,
+        // this is good practice for future extensions)
+        this.httpClient = undefined;
+
+        // Reset error tracking
+        this.consecutiveHealthFailures = 0;
+
         // Reset state
         this._status = DiscoveryStatus.NotFound;
         this._health = ResourceHealth.Unknown;
@@ -270,6 +384,8 @@ export abstract class ResourceProvider<
 
         // Remove all event listeners
         this.removeAllListeners();
+
+        logger.debug(`[${this.id}] Resource shutdown completed`);
     }
 
 
