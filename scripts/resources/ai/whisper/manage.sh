@@ -55,7 +55,7 @@ whisper::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|transcribe|models|info" \
+        --options "install|uninstall|start|stop|restart|status|logs|transcribe|models|info|test" \
         --default "install"
     
     args::register \
@@ -158,7 +158,11 @@ whisper::is_running() {
 # Returns: 0 if responsive, 1 otherwise
 #######################################
 whisper::is_healthy() {
-    resources::check_http_health "$WHISPER_BASE_URL" "/health"
+    # The Whisper API doesn't have a /health endpoint, so we check the root
+    # which returns a 307 redirect to /docs when healthy
+    local response_code
+    response_code=$(curl -s -o /dev/null -w "%{http_code}" "$WHISPER_BASE_URL/")
+    [[ "$response_code" == "307" ]] || [[ "$response_code" == "200" ]]
 }
 
 #######################################
@@ -353,13 +357,12 @@ whisper::transcribe() {
     log::info "Transcribing file: $AUDIO_FILE"
     log::info "Model: $MODEL_SIZE, Task: $TASK"
     
-    # Prepare curl command
+    # Prepare curl command - output must be query parameter
     local curl_cmd=(
         curl -X POST
-        "${WHISPER_BASE_URL}/asr"
+        "${WHISPER_BASE_URL}/asr?output=json"
         -F "audio_file=@${AUDIO_FILE}"
         -F "task=${TASK}"
-        -F "output=json"
     )
     
     # Add language if specified
@@ -427,6 +430,78 @@ whisper::install() {
     if ! resources::ensure_docker; then
         log::error "Docker is required but not available"
         return 1
+    fi
+    
+    # Install ffmpeg if not present
+    if ! system::is_command "ffmpeg"; then
+        log::info "Installing ffmpeg for audio format conversion..."
+        local pm
+        pm=$(system::detect_pm)
+        
+        case "$pm" in
+            "apt-get")
+                if sudo apt-get update && sudo apt-get install -y ffmpeg; then
+                    log::success "ffmpeg installed successfully"
+                else
+                    log::warn "Failed to install ffmpeg. Audio format conversion may be limited."
+                fi
+                ;;
+            "dnf"|"yum")
+                if sudo "$pm" install -y ffmpeg; then
+                    log::success "ffmpeg installed successfully"
+                else
+                    log::warn "Failed to install ffmpeg. Audio format conversion may be limited."
+                fi
+                ;;
+            "pacman")
+                if sudo pacman -S --noconfirm ffmpeg; then
+                    log::success "ffmpeg installed successfully"
+                else
+                    log::warn "Failed to install ffmpeg. Audio format conversion may be limited."
+                fi
+                ;;
+            *)
+                log::warn "Unable to auto-install ffmpeg on this system (package manager: $pm). Please install manually for full audio format support."
+                ;;
+        esac
+    else
+        log::info "ffmpeg is already installed"
+    fi
+    
+    # Install espeak if not present (useful for testing)
+    if ! system::is_command "espeak"; then
+        log::info "Installing espeak for text-to-speech testing..."
+        local pm
+        pm=$(system::detect_pm)
+        
+        case "$pm" in
+            "apt-get")
+                if sudo apt-get install -y espeak; then
+                    log::success "espeak installed successfully"
+                else
+                    log::warn "Failed to install espeak. Text-to-speech testing will be limited."
+                fi
+                ;;
+            "dnf"|"yum")
+                if sudo "$pm" install -y espeak; then
+                    log::success "espeak installed successfully"
+                else
+                    log::warn "Failed to install espeak. Text-to-speech testing will be limited."
+                fi
+                ;;
+            "pacman")
+                if sudo pacman -S --noconfirm espeak; then
+                    log::success "espeak installed successfully"
+                else
+                    log::warn "Failed to install espeak. Text-to-speech testing will be limited."
+                fi
+                ;;
+            *)
+                log::info "Unable to auto-install espeak on this system. Install manually for text-to-speech testing."
+                ;;
+        esac
+    else
+        log::info "espeak is already installed"
     fi
     
     # Validate model size
@@ -612,7 +687,7 @@ whisper::status() {
             log::info "API Endpoints:"
             log::info "  Base URL: $WHISPER_BASE_URL"
             log::info "  Transcription: $WHISPER_BASE_URL/asr"
-            log::info "  Health: $WHISPER_BASE_URL/health"
+            log::info "  API Docs: $WHISPER_BASE_URL/docs"
             
             echo
             log::info "Configuration:"
@@ -714,13 +789,125 @@ $0 --action transcribe --file spanish.mp3 --language es
 $0 --action transcribe --file foreign.mp3 --task translate
 
 # Use API directly
-curl -X POST $WHISPER_BASE_URL/asr \\
+curl -X POST "$WHISPER_BASE_URL/asr?output=json" \\
   -F "audio_file=@audio.mp3" \\
-  -F "task=transcribe" \\
-  -F "output=json"
+  -F "task=transcribe"
 
 For more information, visit: https://github.com/openai/whisper
 EOF
+}
+
+#######################################
+# Run test transcription
+#######################################
+whisper::test() {
+    log::header "🧪 Testing Whisper Transcription"
+    
+    # Check if Whisper is running
+    if ! whisper::is_healthy; then
+        log::error "Whisper is not running. Start it with: $0 --action start"
+        return 1
+    fi
+    
+    # Check if espeak is available
+    if ! system::is_command "espeak"; then
+        log::warn "espeak not found. Installing it..."
+        local pm
+        pm=$(system::detect_pm)
+        
+        case "$pm" in
+            "apt-get")
+                sudo apt-get update && sudo apt-get install -y espeak || {
+                    log::error "Failed to install espeak"
+                    return 1
+                }
+                ;;
+            *)
+                log::error "Please install espeak manually to run tests"
+                return 1
+                ;;
+        esac
+    fi
+    
+    # Create test directory
+    local test_dir="/tmp/whisper-test-$$"
+    mkdir -p "$test_dir"
+    
+    log::info "Creating test audio files..."
+    
+    # Create various test files
+    echo "Hello, this is a test of the Whisper speech recognition system." | \
+        espeak --stdout > "$test_dir/test1.wav" 2>/dev/null
+    
+    echo "The quick brown fox jumps over the lazy dog." | \
+        espeak --stdout -s 150 > "$test_dir/test2.wav" 2>/dev/null
+    
+    echo "Testing numbers: one two three four five six seven eight nine ten." | \
+        espeak --stdout > "$test_dir/test3.wav" 2>/dev/null
+    
+    # Test each file
+    local test_files=("test1.wav" "test2.wav" "test3.wav")
+    local all_passed=true
+    
+    for test_file in "${test_files[@]}"; do
+        local full_path="$test_dir/$test_file"
+        
+        echo
+        log::info "Testing transcription of: $test_file"
+        log::info "Expected content varies slightly from espeak pronunciation"
+        
+        # Run transcription
+        local result
+        # Temporarily set AUDIO_FILE for the transcribe function
+        local original_audio_file="$AUDIO_FILE"
+        export AUDIO_FILE="$full_path"
+        
+        if result=$(whisper::transcribe 2>/dev/null); then
+            # Extract just the text field
+            local transcribed_text
+            transcribed_text=$(echo "$result" | jq -r '.text' 2>/dev/null || echo "$result")
+            
+            log::success "✅ Transcription successful"
+            log::info "Result: $transcribed_text"
+        else
+            log::error "❌ Transcription failed for $test_file"
+            all_passed=false
+        fi
+        
+        # Restore original AUDIO_FILE
+        export AUDIO_FILE="$original_audio_file"
+    done
+    
+    # Test API directly
+    echo
+    log::info "Testing direct API access..."
+    local api_response
+    api_response=$(curl -s -X POST "${WHISPER_BASE_URL}/asr?output=json" \
+        -F "audio_file=@$test_dir/test1.wav" \
+        -F "task=transcribe" 2>/dev/null)
+    
+    if [[ -n "$api_response" ]] && echo "$api_response" | jq . >/dev/null 2>&1; then
+        log::success "✅ Direct API access working"
+    else
+        log::error "❌ Direct API access failed"
+        all_passed=false
+    fi
+    
+    # Cleanup
+    rm -rf "$test_dir"
+    
+    # Summary
+    echo
+    if $all_passed; then
+        log::success "✅ All tests passed! Whisper is working correctly."
+    else
+        log::error "❌ Some tests failed. Check the logs above."
+        return 1
+    fi
+    
+    echo
+    log::info "You can now transcribe your own audio files with:"
+    log::info "  $0 --action transcribe --file <your-audio-file>"
 }
 
 #######################################
@@ -761,6 +948,9 @@ whisper::main() {
             ;;
         "info")
             whisper::info
+            ;;
+        "test")
+            whisper::test
             ;;
         *)
             log::error "Unknown action: $ACTION"

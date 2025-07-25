@@ -48,23 +48,20 @@ Whisper is OpenAI's automatic speech recognition (ASR) system that provides robu
 
 ```bash
 # Basic transcription
-curl -X POST http://localhost:8090/asr \
+curl -X POST "http://localhost:8090/asr?output=json" \
   -F "audio_file=@audio.mp3" \
-  -F "task=transcribe" \
-  -F "output=json"
+  -F "task=transcribe"
 
 # With language specification
-curl -X POST http://localhost:8090/asr \
+curl -X POST "http://localhost:8090/asr?output=json" \
   -F "audio_file=@spanish.mp3" \
   -F "language=es" \
-  -F "task=transcribe" \
-  -F "output=json"
+  -F "task=transcribe"
 
 # Translation to English
-curl -X POST http://localhost:8090/asr \
+curl -X POST "http://localhost:8090/asr?output=json" \
   -F "audio_file=@foreign.mp3" \
-  -F "task=translate" \
-  -F "output=json"
+  -F "task=translate"
 ```
 
 ### Response Format
