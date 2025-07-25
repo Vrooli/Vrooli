@@ -22,7 +22,7 @@
     "disableSourceOfProjectReferenceRedirect": true,
     "assumeChangesOnlyAffectDirectDependencies": true,
     "preserveWatchOutput": true,
-    "maxNodeModuleJsDepth": 1,
+    "maxNodeModuleJsDepth": 5,
     "disableReferencedProjectLoad": false,
     "disableSolutionSearching": false,
     
