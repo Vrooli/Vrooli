@@ -645,7 +645,12 @@ huginn::import() {
             puts 'Successfully imported agents'
           end
           
-          File.delete('/tmp/import.json')
+          # Try to delete the file, but don't fail if we can't
+          begin
+            File.delete('/tmp/import.json')
+          rescue => e
+            # Ignore permission errors on cleanup
+          end
           exit 0
         rescue => e
           puts 'Import failed: ' + e.message
