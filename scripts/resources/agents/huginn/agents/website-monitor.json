@@ -1,0 +1,58 @@
+{
+  "name": "Website Change Monitor",
+  "description": "Monitor a website for changes and send notifications",
+  "agents": [
+    {
+      "type": "Agents::WebsiteAgent",
+      "name": "Example Website Monitor",
+      "disabled": false,
+      "guid": "website_monitor_001",
+      "options": {
+        "expected_update_period_in_days": "1",
+        "url": "https://example.com",
+        "type": "html",
+        "mode": "on_change",
+        "extract": {
+          "title": {
+            "css": "title",
+            "value": "string(.)"
+          },
+          "content": {
+            "css": "body",
+            "value": "string(.)"
+          },
+          "last_checked": {
+            "value": "now()"
+          }
+        },
+        "user_agent": "Huginn - https://github.com/huginn/huginn",
+        "headers": {
+          "Accept": "text/html"
+        }
+      },
+      "schedule": "every_30m",
+      "keep_events_for": 604800
+    },
+    {
+      "type": "Agents::EmailDigestAgent",
+      "name": "Website Change Digest",
+      "disabled": false,
+      "guid": "website_digest_001",
+      "options": {
+        "subject": "Website Changes Detected",
+        "headline": "The following changes were detected:",
+        "expected_receive_period_in_days": "1",
+        "message": "{{title}} changed at {{last_checked}}"
+      },
+      "schedule": "6pm",
+      "sources": ["website_monitor_001"],
+      "keep_events_for": 604800
+    }
+  ],
+  "links": [
+    {
+      "source": "website_monitor_001",
+      "receiver": "website_digest_001"
+    }
+  ]
+}

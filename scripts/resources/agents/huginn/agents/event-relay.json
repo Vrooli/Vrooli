@@ -1,0 +1,129 @@
+{
+  "name": "Event Relay System",
+  "description": "Demonstrate inter-agent communication and event processing",
+  "agents": [
+    {
+      "type": "Agents::WebhookAgent",
+      "name": "Webhook Receiver",
+      "disabled": false,
+      "guid": "webhook_receiver_001",
+      "options": {
+        "secret": "your_webhook_secret_here",
+        "expected_receive_period_in_days": "1",
+        "payload_path": ".",
+        "response": "Event received successfully"
+      },
+      "keep_events_for": 86400
+    },
+    {
+      "type": "Agents::EventFormattingAgent",
+      "name": "Event Normalizer",
+      "disabled": false,
+      "guid": "event_normalizer_001",
+      "options": {
+        "instructions": {
+          "event_type": "{{type | default: 'unknown'}}",
+          "source": "{{source | default: 'webhook'}}",
+          "timestamp": "{{timestamp | default: now()}}",
+          "data": "{{data | default: .}}",
+          "priority": "{{priority | default: 'normal'}}"
+        },
+        "mode": "merge",
+        "expected_receive_period_in_days": "1"
+      },
+      "sources": ["webhook_receiver_001"],
+      "keep_events_for": 86400
+    },
+    {
+      "type": "Agents::TriggerAgent",
+      "name": "Priority Router",
+      "disabled": false,
+      "guid": "priority_router_001",
+      "options": {
+        "expected_receive_period_in_days": "1",
+        "keep_event": "true",
+        "rules": [
+          {
+            "type": "field==value",
+            "value": "high",
+            "path": "$.priority"
+          }
+        ]
+      },
+      "sources": ["event_normalizer_001"],
+      "keep_events_for": 86400
+    },
+    {
+      "type": "Agents::DataOutputAgent",
+      "name": "Event Logger",
+      "disabled": false,
+      "guid": "event_logger_001",
+      "options": {
+        "expected_receive_period_in_days": "1",
+        "secrets": ["log_api_key"],
+        "data_key": "events",
+        "events_to_show": 50
+      },
+      "sources": ["event_normalizer_001"],
+      "keep_events_for": 604800
+    },
+    {
+      "type": "Agents::PostAgent",
+      "name": "High Priority Notifier",
+      "disabled": false,
+      "guid": "priority_notifier_001",
+      "options": {
+        "post_url": "https://your-notification-service.com/alert",
+        "expected_receive_period_in_days": "1",
+        "content_type": "json",
+        "method": "post",
+        "payload": {
+          "alert_type": "high_priority_event",
+          "event_data": "{{data}}",
+          "timestamp": "{{timestamp}}",
+          "source": "Huginn Event Relay"
+        },
+        "headers": {
+          "Authorization": "Bearer YOUR_API_TOKEN"
+        }
+      },
+      "sources": ["priority_router_001"],
+      "keep_events_for": 86400
+    },
+    {
+      "type": "Agents::DigestAgent",
+      "name": "Event Summary",
+      "disabled": false,
+      "guid": "event_summary_001",
+      "options": {
+        "expected_receive_period_in_days": "1",
+        "message": "Event Type: {{event_type}}\nSource: {{source}}\nTimestamp: {{timestamp}}\nPriority: {{priority}}\n---"
+      },
+      "schedule": "midnight",
+      "sources": ["event_normalizer_001"],
+      "keep_events_for": 604800
+    }
+  ],
+  "links": [
+    {
+      "source": "webhook_receiver_001",
+      "receiver": "event_normalizer_001"
+    },
+    {
+      "source": "event_normalizer_001",
+      "receiver": "priority_router_001"
+    },
+    {
+      "source": "event_normalizer_001",
+      "receiver": "event_logger_001"
+    },
+    {
+      "source": "event_normalizer_001",
+      "receiver": "event_summary_001"
+    },
+    {
+      "source": "priority_router_001",
+      "receiver": "priority_notifier_001"
+    }
+  ]
+}

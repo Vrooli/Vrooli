@@ -1,0 +1,168 @@
+{
+  "name": "Intelligence Hub",
+  "description": "Aggregate and analyze information from multiple sources",
+  "guid": "intelligence_hub_scenario",
+  "tag_fg_color": "#ffffff",
+  "tag_bg_color": "#f0ad4e",
+  "agents": [
+    {
+      "type": "Agents::RssAgent",
+      "name": "Tech News Aggregator",
+      "disabled": false,
+      "guid": "tech_news_001",
+      "options": {
+        "expected_update_period_in_days": "1",
+        "clean": true,
+        "url": "https://feeds.arstechnica.com/arstechnica/technology-lab"
+      },
+      "schedule": "every_30m",
+      "keep_events_for": 259200
+    },
+    {
+      "type": "Agents::RssAgent",
+      "name": "Research Papers Feed",
+      "disabled": false,
+      "guid": "research_feed_001",
+      "options": {
+        "expected_update_period_in_days": "2",
+        "clean": true,
+        "url": "https://arxiv.org/rss/cs.AI"
+      },
+      "schedule": "every_2h",
+      "keep_events_for": 604800
+    },
+    {
+      "type": "Agents::TwitterSearchAgent",
+      "name": "Industry Trends Monitor",
+      "disabled": false,
+      "guid": "twitter_trends_001",
+      "options": {
+        "queries": ["#AI", "#MachineLearning", "#Automation"],
+        "expected_update_period_in_days": "1",
+        "consumer_key": "YOUR_CONSUMER_KEY",
+        "consumer_secret": "YOUR_CONSUMER_SECRET",
+        "access_token": "YOUR_ACCESS_TOKEN",
+        "access_token_secret": "YOUR_ACCESS_TOKEN_SECRET"
+      },
+      "schedule": "every_30m",
+      "keep_events_for": 86400
+    },
+    {
+      "type": "Agents::SentimentAgent",
+      "name": "Sentiment Analyzer",
+      "disabled": false,
+      "guid": "sentiment_001",
+      "options": {
+        "content_field": "{{text}}{{title}}{{description}}",
+        "expected_receive_period_in_days": "1"
+      },
+      "sources": ["tech_news_001", "twitter_trends_001"],
+      "keep_events_for": 259200
+    },
+    {
+      "type": "Agents::JavaScriptAgent",
+      "name": "Topic Classifier",
+      "disabled": false,
+      "guid": "topic_classifier_001",
+      "options": {
+        "expected_receive_period_in_days": "1",
+        "language": "JavaScript",
+        "code": "// Classify content into topics\nconst content = (event.title || '') + ' ' + (event.description || '') + ' ' + (event.text || '');\nconst contentLower = content.toLowerCase();\n\n// Define topic keywords\nconst topics = {\n  'artificial_intelligence': ['ai', 'artificial intelligence', 'machine learning', 'deep learning', 'neural network'],\n  'cybersecurity': ['security', 'breach', 'vulnerability', 'cyber', 'hack', 'malware'],\n  'cloud_computing': ['cloud', 'aws', 'azure', 'gcp', 'kubernetes', 'docker'],\n  'blockchain': ['blockchain', 'crypto', 'bitcoin', 'ethereum', 'defi'],\n  'quantum': ['quantum', 'qubit', 'quantum computing'],\n  'robotics': ['robot', 'robotics', 'automation', 'autonomous']\n};\n\n// Find matching topics\nconst matchedTopics = [];\nfor (const [topic, keywords] of Object.entries(topics)) {\n  if (keywords.some(keyword => contentLower.includes(keyword))) {\n    matchedTopics.push(topic);\n  }\n}\n\n// Determine primary topic\nconst primaryTopic = matchedTopics[0] || 'general';\n\n// Extract entities (simple version)\nconst entities = [];\nconst entityPatterns = [\n  /(?:Google|Microsoft|Apple|Amazon|Facebook|Meta|OpenAI|IBM)/gi,\n  /(?:CEO|CTO|President) ([A-Z][a-z]+ [A-Z][a-z]+)/g\n];\n\nentityPatterns.forEach(pattern => {\n  const matches = content.match(pattern);\n  if (matches) entities.push(...matches);\n});\n\n// Calculate relevance score\nlet relevanceScore = 0;\nif (event.sentiment) relevanceScore += Math.abs(event.sentiment) * 10;\nif (matchedTopics.length > 0) relevanceScore += matchedTopics.length * 20;\nif (entities.length > 0) relevanceScore += entities.length * 5;\n\n// Create classified event\ncreateEvent({\n  ...event,\n  primary_topic: primaryTopic,\n  all_topics: matchedTopics,\n  entities: [...new Set(entities)],\n  relevance_score: relevanceScore,\n  classified_at: new Date().toISOString()\n});"
+      },
+      "sources": ["sentiment_001", "research_feed_001"],
+      "keep_events_for": 259200
+    },
+    {
+      "type": "Agents::PeakDetectorAgent",
+      "name": "Trend Detector",
+      "disabled": false,
+      "guid": "trend_detector_001",
+      "options": {
+        "expected_receive_period_in_days": "1",
+        "group_by_path": "$.primary_topic",
+        "value_path": "$.relevance_score",
+        "window_duration_in_days": "3",
+        "min_events": "10",
+        "std_multiple": "2"
+      },
+      "sources": ["topic_classifier_001"],
+      "keep_events_for": 259200
+    },
+    {
+      "type": "Agents::DataOutputAgent",
+      "name": "Intelligence Dashboard",
+      "disabled": false,
+      "guid": "dashboard_001",
+      "options": {
+        "expected_receive_period_in_days": "1",
+        "secrets": ["dashboard_api_key"],
+        "data_key": "intelligence_feed",
+        "events_to_show": 100,
+        "template": {
+          "title": "Intelligence Hub Dashboard",
+          "description": "Real-time intelligence from multiple sources",
+          "last_updated": "{{now}}"
+        }
+      },
+      "sources": ["topic_classifier_001", "trend_detector_001"],
+      "keep_events_for": 604800
+    },
+    {
+      "type": "Agents::DigestEmailAgent",
+      "name": "Weekly Intelligence Brief",
+      "disabled": false,
+      "guid": "weekly_brief_001",
+      "options": {
+        "subject": "Weekly Intelligence Brief - {{date}}",
+        "headline": "Key Insights and Trends",
+        "expected_receive_period_in_days": "7",
+        "message": "Topic: {{primary_topic}}\nTitle: {{title}}\nSentiment: {{sentiment}}\nRelevance: {{relevance_score}}\nEntities: {{entities}}\n\n{{description}}\n\n---",
+        "groups": {
+          "Trending Topics": "trend_detector_001",
+          "Top Stories": "topic_classifier_001"
+        }
+      },
+      "schedule": "monday at 9am",
+      "sources": ["topic_classifier_001", "trend_detector_001"],
+      "keep_events_for": 2592000
+    }
+  ],
+  "links": [
+    {
+      "source": "tech_news_001",
+      "receiver": "sentiment_001"
+    },
+    {
+      "source": "twitter_trends_001",
+      "receiver": "sentiment_001"
+    },
+    {
+      "source": "sentiment_001",
+      "receiver": "topic_classifier_001"
+    },
+    {
+      "source": "research_feed_001",
+      "receiver": "topic_classifier_001"
+    },
+    {
+      "source": "topic_classifier_001",
+      "receiver": "trend_detector_001"
+    },
+    {
+      "source": "topic_classifier_001",
+      "receiver": "dashboard_001"
+    },
+    {
+      "source": "trend_detector_001",
+      "receiver": "dashboard_001"
+    },
+    {
+      "source": "topic_classifier_001",
+      "receiver": "weekly_brief_001"
+    },
+    {
+      "source": "trend_detector_001",
+      "receiver": "weekly_brief_001"
+    }
+  ]
+}

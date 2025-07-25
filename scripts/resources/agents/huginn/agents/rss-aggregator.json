@@ -1,0 +1,92 @@
+{
+  "name": "RSS News Aggregator",
+  "description": "Aggregate multiple RSS feeds with keyword filtering",
+  "agents": [
+    {
+      "type": "Agents::RssAgent",
+      "name": "Tech News RSS",
+      "disabled": false,
+      "guid": "rss_tech_001",
+      "options": {
+        "expected_update_period_in_days": "1",
+        "clean": true,
+        "url": "https://news.ycombinator.com/rss",
+        "headers": {
+          "User-Agent": "Huginn - https://github.com/huginn/huginn"
+        }
+      },
+      "schedule": "every_30m",
+      "keep_events_for": 259200
+    },
+    {
+      "type": "Agents::TriggerAgent",
+      "name": "Keyword Filter",
+      "disabled": false,
+      "guid": "filter_keywords_001",
+      "options": {
+        "expected_receive_period_in_days": "1",
+        "keep_event": "true",
+        "rules": [
+          {
+            "type": "regex",
+            "value": "(?i)(artificial intelligence|machine learning|AI|ML|automation|robot)",
+            "path": "$.title"
+          }
+        ],
+        "message": "Matched article: {{title}}"
+      },
+      "sources": ["rss_tech_001"],
+      "keep_events_for": 259200
+    },
+    {
+      "type": "Agents::EventFormattingAgent",
+      "name": "Format Article",
+      "disabled": false,
+      "guid": "format_article_001",
+      "options": {
+        "instructions": {
+          "title": "{{title}}",
+          "link": "{{url}}",
+          "summary": "{{description | truncate: 200}}",
+          "published": "{{pubDate}}",
+          "source": "Hacker News",
+          "keywords_matched": true
+        },
+        "mode": "clean",
+        "expected_receive_period_in_days": "1"
+      },
+      "sources": ["filter_keywords_001"],
+      "keep_events_for": 259200
+    },
+    {
+      "type": "Agents::PeakDetectorAgent",
+      "name": "Trending Detector",
+      "disabled": false,
+      "guid": "trending_001",
+      "options": {
+        "expected_receive_period_in_days": "1",
+        "group_by_path": "$.source",
+        "value_path": "$.title",
+        "window_duration_in_days": "1",
+        "min_events": "5",
+        "std_multiple": "2"
+      },
+      "sources": ["format_article_001"],
+      "keep_events_for": 86400
+    }
+  ],
+  "links": [
+    {
+      "source": "rss_tech_001",
+      "receiver": "filter_keywords_001"
+    },
+    {
+      "source": "filter_keywords_001",
+      "receiver": "format_article_001"
+    },
+    {
+      "source": "format_article_001",
+      "receiver": "trending_001"
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: huginn-postgres
+    environment:
+      POSTGRES_DB: huginn
+      POSTGRES_USER: huginn
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-huginn_secure_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - huginn-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U huginn"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  huginn:
+    image: huginn/huginn:latest
+    container_name: huginn
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${HUGINN_PORT:-4111}:3000"
+    environment:
+      # Database Configuration
+      DATABASE_ADAPTER: postgresql
+      DATABASE_HOST: postgres
+      DATABASE_NAME: huginn
+      DATABASE_USERNAME: huginn
+      DATABASE_PASSWORD: ${DB_PASSWORD:-huginn_secure_password}
+      
+      # Huginn Configuration
+      APP_SECRET_TOKEN: ${APP_SECRET_TOKEN:-generate_me}
+      INVITATION_CODE: ${INVITATION_CODE:-vrooli-huginn}
+      DOMAIN: ${DOMAIN:-localhost:4111}
+      
+      # Admin Account - Using secure defaults, not from .env
+      # Credentials will be managed via Vrooli resource config
+      SEED_EMAIL: ${HUGINN_ADMIN_EMAIL:-admin@huginn.local}
+      SEED_USERNAME: ${HUGINN_ADMIN_USERNAME:-admin}
+      SEED_PASSWORD: ${HUGINN_ADMIN_PASSWORD:-vrooli_huginn_secure_2025}
+      
+      # Optional Configuration
+      SMTP_DOMAIN: ${SMTP_DOMAIN:-}
+      SMTP_USER_NAME: ${SMTP_USER_NAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_SERVER: ${SMTP_SERVER:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_AUTHENTICATION: ${SMTP_AUTHENTICATION:-plain}
+      SMTP_ENABLE_STARTTLS_AUTO: ${SMTP_ENABLE_STARTTLS_AUTO:-true}
+      
+      # Performance
+      DELAYED_JOB_WORKER_PROCESSES: ${WORKER_PROCESSES:-2}
+      
+    volumes:
+      - huginn_uploads:/app/public/system
+    networks:
+      - huginn-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  huginn-network:
+    name: huginn-network
+    driver: bridge
+
+volumes:
+  postgres_data:
+    name: huginn_postgres_data
+  huginn_uploads:
+    name: huginn_uploads
