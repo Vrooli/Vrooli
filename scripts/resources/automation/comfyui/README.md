@@ -194,9 +194,21 @@ Create automated image generation workflows in n8n:
 
 Requirements:
 - NVIDIA drivers installed
-- Docker NVIDIA Container Toolkit
+- NVIDIA Container Runtime (automatically installed if missing)
 
-The script automatically detects NVIDIA GPUs and configures Docker accordingly.
+The script automatically detects NVIDIA GPUs and handles Container Runtime setup:
+
+**Automatic Setup:**
+- Detects if NVIDIA Container Runtime is missing
+- Offers automatic installation for Ubuntu/Debian, CentOS/RHEL/Fedora, and Arch Linux
+- Configures Docker daemon automatically
+- Validates installation with runtime tests
+
+**Manual Setup Option:**
+If automatic installation isn't suitable, the script provides comprehensive manual installation instructions for your specific operating system.
+
+**Fallback to CPU Mode:**
+If NVIDIA setup fails or is declined, ComfyUI can automatically fall back to CPU mode.
 
 ### AMD GPU
 
@@ -245,6 +257,16 @@ If no GPU is detected or you explicitly choose CPU mode:
    # Log out and back in
    ```
 
+### NVIDIA Runtime Validation
+
+```bash
+# Validate NVIDIA setup manually
+./scripts/resources/automation/comfyui/manage.sh --action validate-nvidia
+
+# Test NVIDIA runtime directly
+docker run --rm --gpus all nvidia/cuda:11.8-base-ubuntu20.04 nvidia-smi
+```
+
 ### Logs and Debugging
 
 ```bash
@@ -256,6 +278,9 @@ docker ps -a | grep comfyui
 
 # Access container shell
 docker exec -it comfyui /bin/bash
+
+# Validate NVIDIA runtime setup
+./scripts/resources/automation/comfyui/manage.sh --action validate-nvidia
 ```
 
 ## Model Resources
@@ -290,6 +315,11 @@ export COMFYUI_CUSTOM_IMAGE=my-comfyui:latest
 - `COMFYUI_GPU_TYPE` - Force GPU type (auto/nvidia/amd/cpu)
 - `COMFYUI_VRAM_LIMIT` - Limit VRAM usage in GB
 - `COMFYUI_CUSTOM_IMAGE` - Use custom Docker image
+- `COMFYUI_NVIDIA_CHOICE` - Non-interactive NVIDIA runtime choice (1-4)
+  - 1: Auto-install NVIDIA Container Runtime
+  - 2: Show manual installation instructions  
+  - 3: Continue with CPU mode instead
+  - 4: Cancel installation
 
 ## Security Considerations
 
