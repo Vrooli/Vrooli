@@ -388,6 +388,35 @@ docker::define_config_files() {
     SERVICE_OVERRIDE_FILE="${SERVICE_OVERRIDE_DIR}/slice.conf"
 }
 
+# Check if systemd config would need updating (without writing)
+docker::_check_systemd_config_needs_update() {
+    local file="$1" section="$2"; shift 2
+    local directives=("$@")
+    
+    # If file doesn't exist, we need to create it
+    if [[ ! -f "$file" ]]; then
+        return 0  # needs update
+    fi
+    
+    # Check if section exists
+    if ! grep -q "^\[$section\]" "$file"; then
+        return 0  # needs update
+    fi
+    
+    # Check each directive
+    for directive in "${directives[@]}"; do
+        local key="${directive%%=*}" value="${directive#*=}"
+        if grep -q "^$key=" "$file"; then
+            local old_value=$(grep "^$key=" "$file" | head -n 1 | cut -d= -f2-)
+            [[ "$old_value" != "$value" ]] && return 0  # needs update
+        else
+            return 0  # needs update (directive missing)
+        fi
+    done
+    
+    return 1  # no updates needed
+}
+
 # Generic systemd config updater
 docker::_update_systemd_config() {
     local file="$1" section="$2"; shift 2
@@ -417,7 +446,10 @@ docker::update_slice_file() {
 }
 
 docker::update_service_override_file() {
-    mkdir -p "$SERVICE_OVERRIDE_DIR"
+    # Only create directory if it doesn't exist
+    if [[ ! -d "$SERVICE_OVERRIDE_DIR" ]]; then
+        mkdir -p "$SERVICE_OVERRIDE_DIR"
+    fi
     docker::_update_systemd_config "$SERVICE_OVERRIDE_FILE" "Service" "Slice=docker.slice"
 }
 
@@ -431,16 +463,45 @@ docker::update_service_override_file() {
 # and the docker.service override will be in
 # /etc/systemd/system/docker.service.d/slice.conf.
 docker::configure_resource_limits() {
-    if ! flow::can_run_sudo "Docker resource limits configuration"; then
-        log::warning "Skipping Docker resource limits setup due to sudo mode"
-        return
-    fi
+    log::header "Checking Docker resource limits"
 
-    log::header "Setting up Docker resource limits"
-
-    changed=false
+    # Calculate limits and define config files (no sudo needed)
     docker::calculate_resource_limits
     docker::define_config_files
+
+    # Check if any changes are needed (read-only operations)
+    local needs_update=false
+    
+    # Check slice file
+    if docker::_check_systemd_config_needs_update "$SLICE_FILE" "Slice" "CPUQuota=${CPU_QUOTA}" "MemoryMax=${MEM_LIMIT}"; then
+        needs_update=true
+    fi
+    
+    # Check service override file (also check if directory needs to be created)
+    if [[ ! -d "$SERVICE_OVERRIDE_DIR" ]] || docker::_check_systemd_config_needs_update "$SERVICE_OVERRIDE_FILE" "Service" "Slice=docker.slice"; then
+        needs_update=true
+    fi
+    
+    # If no updates needed, we're done
+    if [[ "$needs_update" = false ]]; then
+        log::info "Docker resource limits are already configured correctly. No action needed."
+        return 0
+    fi
+    
+    # Updates are needed - now check for sudo
+    if ! flow::can_run_sudo "Docker resource limits configuration"; then
+        log::warning "Docker resource limits need updating but sudo is not available"
+        log::info "The following changes would be made:"
+        log::info "  - Set CPU quota to ${CPU_QUOTA}"
+        log::info "  - Set memory limit to ${MEM_LIMIT}"
+        log::info "To apply these changes manually, run with sudo or use --sudo-mode error"
+        return 1
+    fi
+
+    # We have sudo and changes are needed - proceed with updates
+    log::info "Updating Docker resource limits"
+    
+    changed=false
     docker::update_slice_file
     docker::update_service_override_file
 
@@ -451,6 +512,7 @@ docker::configure_resource_limits() {
         systemctl restart docker.service
         log::success "Docker resource limits set up successfully."
     else
+        # This shouldn't happen since we already checked for changes
         log::info "Docker slice configuration unchanged. No action taken."
     fi
 }
