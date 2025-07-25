@@ -183,4 +183,72 @@ pnpm_tools::setup() {
         source "${SETUP_DIR}/../setup/vrooli_cli.sh"
         vrooli_cli::setup
     fi
+
+    # Fix hardcoded configuration paths
+    pnpm_tools::fix_config_paths
+}
+
+# Function to fix hardcoded paths in configuration files
+pnpm_tools::fix_config_paths() {
+    log::header "🔧 Fixing hardcoded configuration paths..."
+    
+    # Get the actual project root (handle symlinks)
+    local project_root
+    project_root=$(cd "$var_ROOT_DIR" && pwd -P)
+    
+    # Fix VS Code settings if they exist
+    local vscode_settings="$project_root/.vscode/settings.json"
+    if [[ -f "$vscode_settings" ]]; then
+        log::info "Updating VS Code settings paths..."
+        
+        # Ensure jq is installed for JSON manipulation
+        system::check_and_install "jq"
+        
+        if command -v jq >/dev/null 2>&1; then
+            # Create backup
+            cp "$vscode_settings" "${vscode_settings}.backup" 2>/dev/null || true
+            
+            # Update any hardcoded paths to use the current project root
+            # This handles paths like /root/Programming/Vrooli or /root/Vrooli
+            jq --arg root "$project_root" '
+                if ."yaml.schemas" then
+                    ."yaml.schemas" |= with_entries(
+                        .value |= gsub("/root/[^/]+/Vrooli"; $root)
+                    )
+                else . end
+            ' "$vscode_settings" > "${vscode_settings}.tmp" && \
+            mv "${vscode_settings}.tmp" "$vscode_settings"
+            
+            # Fix ownership if running with sudo
+            if [[ -n "${SUDO_USER:-}" ]]; then
+                chown "${SUDO_USER}:${SUDO_USER}" "$vscode_settings" 2>/dev/null || true
+            fi
+            
+            log::success "VS Code settings updated"
+        fi
+    fi
+    
+    # Fix integration test paths
+    local integration_setup="$project_root/packages/integration/src/setup/global-setup.ts"
+    if [[ -f "$integration_setup" ]]; then
+        log::info "Updating integration test paths..."
+        
+        # Use sed to update PROJECT_DIR
+        # This is safer than parsing TypeScript with jq
+        sed -i.backup "s|process\.env\.PROJECT_DIR = \"/root/Vrooli\"|process.env.PROJECT_DIR = \"$project_root\"|g" "$integration_setup"
+        
+        # Fix ownership if running with sudo
+        if [[ -n "${SUDO_USER:-}" ]]; then
+            chown "${SUDO_USER}:${SUDO_USER}" "$integration_setup" 2>/dev/null || true
+        fi
+        
+        log::success "Integration test paths updated"
+    fi
+    
+    # Clear TypeScript caches after path updates
+    log::info "Clearing TypeScript caches..."
+    find "$project_root" -name ".tsbuildinfo" -type f -delete 2>/dev/null || true
+    find "$project_root" -path "*/node_modules/.cache" -type d -exec rm -rf {} + 2>/dev/null || true
+    
+    log::success "Configuration paths fixed"
 }

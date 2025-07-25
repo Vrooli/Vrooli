@@ -1,41 +1,41 @@
 {
-    "editor.formatOnSave": true,
-    "editor.codeActionsOnSave": {
-        "source.organizeImports": "explicit",
-        "source.fixAll.eslint": "explicit"
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit",
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.run": "onSave",
+  "eslint.workingDirectories": [
+    {
+      "directory": "./packages/ui",
+      "changeProcessCWD": true
     },
-    "eslint.run": "onSave",
-    "eslint.workingDirectories": [
-        {
-            "directory": "./packages/ui",
-            "changeProcessCWD": true
-        },
-        {
-            "directory": "./packages/jobs",
-            "changeProcessCWD": true
-        },
-        {
-            "directory": "./packages/server",
-            "changeProcessCWD": true
-        },
-        {
-            "directory": "./packages/shared",
-            "changeProcessCWD": true
-        },
-        {
-            "directory": "./packages/integration",
-            "changeProcessCWD": true
-        },
-    ],
-    "[javascript]": {
-        "editor.defaultFormatter": "vscode.typescript-language-features"
+    {
+      "directory": "./packages/jobs",
+      "changeProcessCWD": true
     },
-    "[javascriptreact]": {
-        "editor.defaultFormatter": "vscode.typescript-language-features"
+    {
+      "directory": "./packages/server",
+      "changeProcessCWD": true
     },
-    "yaml.schemas": {
-        "https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json": "file:///root/Programming/Vrooli/docker-compose-prod.yml"
+    {
+      "directory": "./packages/shared",
+      "changeProcessCWD": true
     },
-    "eslint.lintTask.enable": true,
-    "typescript.tsdk": "node_modules/typescript/lib"
+    {
+      "directory": "./packages/integration",
+      "changeProcessCWD": true
+    }
+  ],
+  "[javascript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json": "file:///home/matthalloran8/Vrooli/docker-compose-prod.yml"
+  },
+  "eslint.lintTask.enable": true,
+  "typescript.tsdk": "node_modules/typescript/lib"
 }

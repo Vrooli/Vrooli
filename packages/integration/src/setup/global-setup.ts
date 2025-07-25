@@ -32,7 +32,7 @@ export async function setup() {
         process.env.NODE_ENV = "test";
         process.env.JWT_PRIV = privateKey;
         process.env.JWT_PUB = publicKey;
-        process.env.PROJECT_DIR = "/root/Vrooli";
+        process.env.PROJECT_DIR = "/home/matthalloran8/Vrooli";
         process.env.VITE_SERVER_LOCATION = "local";
         process.env.SITE_EMAIL_USERNAME = "test@example.com";
         process.env.SITE_EMAIL_ALIAS = "noreply@example.com";
