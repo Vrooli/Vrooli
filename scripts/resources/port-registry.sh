@@ -28,6 +28,7 @@ declare -g -A RESOURCE_PORTS=(
     
     # Automation Services (56xx range)
     ["n8n"]="5678"             # Workflow automation
+    ["comfyui"]="5679"         # AI-powered image generation workflows
     ["node-red"]="5680"        # Flow-based automation (changed from 1880)
     
     # Storage Services (9xxx range)
@@ -36,6 +37,7 @@ declare -g -A RESOURCE_PORTS=(
     
     # Agent Services (41xx range - safely above Vrooli range)
     ["browserless"]="4110"     # Browserless.io Chrome service
+    ["huginn"]="4111"          # Agent-based monitoring and automation
     
     # Future services can use:
     # - 11xxx for AI services

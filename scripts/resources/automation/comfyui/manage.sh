@@ -145,6 +145,7 @@ comfyui::usage() {
     echo "  $0 --action gpu-info                             # Display GPU information"
     echo "  $0 --action validate-nvidia                      # Validate NVIDIA runtime setup"
     echo "  $0 --action uninstall                            # Remove ComfyUI"
+    echo "  $0 --action cleanup-help                         # Show manual cleanup instructions"
 }
 
 #######################################
@@ -1731,6 +1732,34 @@ comfyui::status() {
 }
 
 #######################################
+# Manual cleanup instructions
+#######################################
+comfyui::cleanup_help() {
+    log::header "🧹 Manual ComfyUI Cleanup Instructions"
+    
+    log::info "If uninstall fails due to Docker permissions, run these commands manually:"
+    echo
+    log::info "1. Stop and remove the container:"
+    echo "   sudo docker stop comfyui"
+    echo "   sudo docker rm comfyui"
+    echo
+    log::info "2. Verify the container is removed:"
+    echo "   sudo docker ps -a | grep comfyui"
+    echo
+    log::info "3. Check if port $COMFYUI_PORT is free:"
+    echo "   sudo netstat -tlnp | grep :$COMFYUI_PORT"
+    echo
+    log::info "4. Remove data directory (optional - contains models):"
+    echo "   rm -rf $COMFYUI_DATA_DIR"
+    echo
+    log::info "5. Fix Docker permissions for future use:"
+    echo "   sudo usermod -aG docker $USER"
+    echo "   newgrp docker"
+    echo
+    log::warn "After running these commands, log out and back in for group changes to take effect"
+}
+
+#######################################
 # Check if ComfyUI is ready to use
 #######################################
 comfyui::check_ready() {
@@ -2199,12 +2228,78 @@ comfyui::uninstall() {
         fi
     fi
     
+    # Set up Docker permissions (same as install does)
+    if ! docker::run version >/dev/null 2>&1; then
+        log::info "Setting up Docker access..."
+        docker::manage_docker_group
+        
+        # Verify we can now access Docker
+        if ! docker::run version >/dev/null 2>&1; then
+            log::error "Cannot access Docker. Please ensure Docker is running and you have permissions."
+            log::info "Try: sudo usermod -aG docker $USER && newgrp docker"
+            return 1
+        fi
+    fi
+    
     # Stop and remove container
-    if comfyui::container_exists; then
-        log::info "Removing ComfyUI container..."
-        docker::run stop "$COMFYUI_CONTAINER_NAME" 2>/dev/null || true
-        docker::run rm "$COMFYUI_CONTAINER_NAME" 2>/dev/null || true
-        log::success "ComfyUI container removed"
+    log::info "Checking for ComfyUI container..."
+    
+    # Try to remove container regardless of existence check (which might fail due to permissions)
+    local stop_result
+    local rm_result
+    
+    # Attempt to stop container
+    if stop_result=$(docker::run stop "$COMFYUI_CONTAINER_NAME" 2>&1); then
+        log::info "Container stopped successfully"
+    else
+        if [[ "$stop_result" == *"No such container"* ]]; then
+            log::info "No container to stop"
+        elif [[ "$stop_result" == *"permission denied"* ]]; then
+            log::error "Permission denied - cannot access Docker"
+            log::info "Try: sudo usermod -aG docker $USER && newgrp docker"
+            return 1
+        else
+            log::warn "Container may already be stopped"
+        fi
+    fi
+    
+    # Attempt to remove container
+    if rm_result=$(docker::run rm "$COMFYUI_CONTAINER_NAME" 2>&1); then
+        log::success "Container removed successfully"
+    else
+        if [[ "$rm_result" == *"No such container"* ]]; then
+            log::info "No container to remove"
+        elif [[ "$rm_result" == *"permission denied"* ]]; then
+            log::error "Permission denied - cannot remove container"
+            return 1
+        else
+            log::warn "Container removal issue: $rm_result"
+        fi
+    fi
+    
+    # Track what was actually removed
+    local container_removed=false
+    local config_removed=false
+    local data_removed=false
+    
+    # Check if container was actually removed
+    if ! comfyui::container_exists; then
+        container_removed=true
+    fi
+    
+    # Verify port is free
+    if resources::is_service_running "$COMFYUI_PORT"; then
+        log::warn "⚠️  Port $COMFYUI_PORT is still in use!"
+        if [[ "$container_removed" == "false" ]]; then
+            log::error "Container removal failed - ComfyUI may still be running"
+            log::info "Manual cleanup required:"
+            log::info "  docker stop comfyui && docker rm comfyui"
+            log::info "Or with sudo:"
+            log::info "  sudo docker stop comfyui && sudo docker rm comfyui"
+            return 1
+        fi
+    else
+        container_removed=true
     fi
     
     # Ask about data removal
@@ -2224,15 +2319,45 @@ comfyui::uninstall() {
             log::info "Removing ComfyUI data directory..."
             rm -rf "$COMFYUI_DATA_DIR" 2>/dev/null || true
             log::info "Data directory removed"
+            data_removed=true
         else
             log::info "Data directory preserved at: $COMFYUI_DATA_DIR"
         fi
     fi
     
     # Remove from Vrooli config
-    resources::remove_config "automation" "comfyui"
+    if resources::remove_config "automation" "comfyui"; then
+        config_removed=true
+    fi
     
-    log::success "✅ ComfyUI uninstalled successfully"
+    # Final status report
+    echo
+    log::header "📊 Uninstall Summary"
+    
+    if [[ "$container_removed" == "true" ]]; then
+        log::success "✅ Container removed"
+    else
+        log::error "❌ Container removal failed"
+    fi
+    
+    if [[ "$config_removed" == "true" ]]; then
+        log::success "✅ Configuration removed"
+    else
+        log::warn "⚠️  Configuration removal skipped"
+    fi
+    
+    if [[ "$data_removed" == "true" ]]; then
+        log::success "✅ Data directory removed"
+    else
+        log::info "ℹ️  Data directory preserved"
+    fi
+    
+    if [[ "$container_removed" == "true" ]] && [[ "$config_removed" == "true" ]]; then
+        log::success "✅ ComfyUI uninstalled successfully"
+    else
+        log::warn "⚠️  ComfyUI partially uninstalled - manual cleanup may be required"
+        return 1
+    fi
 }
 
 #######################################
@@ -2323,6 +2448,9 @@ comfyui::main() {
             ;;
         "check-ready")
             comfyui::check_ready
+            ;;
+        "cleanup-help")
+            comfyui::cleanup_help
             ;;
         *)
             log::error "Unknown action: $ACTION"
