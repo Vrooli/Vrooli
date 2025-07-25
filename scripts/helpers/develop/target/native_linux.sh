@@ -21,8 +21,16 @@ nativeLinux::start_development_native_linux() {
 
     nativeLinux::cleanup() {
         log::info "🔧 Cleaning up development environment at $var_ROOT_DIR..."
-        cd "$var_ROOT_DIR"
-        docker::compose down
+        
+        # Use instance manager for cleanup if available
+        if command -v instance::shutdown_target >/dev/null 2>&1; then
+            instance::shutdown_target "native-linux"
+        else
+            # Fallback to traditional cleanup
+            cd "$var_ROOT_DIR"
+            docker::compose down
+        fi
+        
         cd "$ORIGINAL_DIR"
         exit "$EXIT_USER_INTERRUPT"
     }
@@ -30,6 +38,15 @@ nativeLinux::start_development_native_linux() {
         trap nativeLinux::cleanup SIGINT SIGTERM
     fi
 
+    # Ensure environment variables are loaded for docker-compose
+    # The main setup script should have already called env::load_secrets()
+    # but we need to make sure the environment is available in this process
+    if [[ -f "${DEVELOP_TARGET_DIR}/../../utils/env.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "${DEVELOP_TARGET_DIR}/../../utils/env.sh"
+        env::load_env_file
+    fi
+    
     log::info "Starting database containers (Postgres and Redis)..."
     docker::compose up -d postgres redis
     
@@ -38,13 +55,36 @@ nativeLinux::start_development_native_linux() {
     local max_attempts=30
     local attempt=0
     while [ $attempt -lt $max_attempts ]; do
-        if docker::run ps | grep "postgres" | grep -q "healthy" && docker::run ps | grep "redis" | grep -q "healthy"; then
+        # Check health status more reliably
+        # Get the full status field by extracting everything after the container name
+        local postgres_status=$(docker::run ps --format "table {{.Names}}\t{{.Status}}" | grep -E "^postgres" | sed 's/^postgres[[:space:]]*//')
+        local redis_status=$(docker::run ps --format "table {{.Names}}\t{{.Status}}" | grep -E "^redis" | sed 's/^redis[[:space:]]*//')
+        
+        # Debug output
+        log::debug "Postgres status: $postgres_status"
+        log::debug "Redis status: $redis_status"
+        
+        # Check if both containers are healthy (status contains "healthy")
+        if [[ "$postgres_status" == *"healthy"* ]] && [[ "$redis_status" == *"healthy"* ]]; then
             log::info "Database containers are healthy!"
             break
         fi
+        
+        # Check for unhealthy or restarting containers
+        if [[ "$postgres_status" == *"unhealthy"* ]] || [[ "$redis_status" == *"unhealthy"* ]]; then
+            log::warning "One or more containers are unhealthy. Postgres: $postgres_status, Redis: $redis_status"
+        fi
+        
+        if [[ "$postgres_status" == *"Restarting"* ]] || [[ "$redis_status" == *"Restarting"* ]]; then
+            log::warning "One or more containers are restarting. This may indicate a configuration issue."
+        fi
+        
         attempt=$((attempt + 1))
         if [ $attempt -eq $max_attempts ]; then
             log::error "Database containers failed to become healthy after $max_attempts attempts"
+            log::error "Final status - Postgres: $postgres_status, Redis: $redis_status"
+            log::info "You can check container logs with: docker logs postgres"
+            log::info "And: docker logs redis"
             return 1
         fi
         sleep 2

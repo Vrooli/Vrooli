@@ -211,7 +211,7 @@ services:
       - "127.0.0.1:${PORT_REDIS:-6379}:${PORT_REDIS:-6379}"
     command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/package/redis/start.sh"
     healthcheck:
-      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
+      test: [ "CMD", "/bin/sh", "${PROJECT_DIR:-/srv/app}/scripts/package/redis/healthcheck.sh" ]
       interval: 10s
       timeout: 5s
       retries: 5

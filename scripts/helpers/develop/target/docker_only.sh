@@ -33,8 +33,16 @@ dockerOnly::start_development_docker_only() {
 
     dockerOnly::cleanup() {
         log::info "🔧 Cleaning up development environment at $var_ROOT_DIR..."
-        cd "$var_ROOT_DIR"
-        docker::compose down
+        
+        # Use instance manager for cleanup if available
+        if command -v instance::shutdown_target >/dev/null 2>&1; then
+            instance::shutdown_target "docker"
+        else
+            # Fallback to traditional cleanup
+            cd "$var_ROOT_DIR"
+            docker::compose down
+        fi
+        
         cd "$ORIGINAL_DIR"
         exit "$EXIT_USER_INTERRUPT"
     }
@@ -44,8 +52,8 @@ dockerOnly::start_development_docker_only() {
     log::info "Starting all services in detached mode (Postgres, Redis, server, jobs, UI)..."
     
     # Docker Compose needs to see the environment variables
-    # Export all variables from the environment file for docker-compose
-    export $(grep -v '^#' "$var_ENV_DEV_FILE" | grep -v '^$' | xargs)
+    # Load environment file properly to ensure all variables are available
+    env::load_env_file
     
     if flow::is_yes "$detached"; then
         docker::compose up -d

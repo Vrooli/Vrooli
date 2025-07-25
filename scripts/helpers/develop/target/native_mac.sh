@@ -63,8 +63,16 @@ nativeMac::start_development_native_mac() {
 
     nativeMac::cleanup() {
         log::info "🔧 Cleaning up development environment at $var_ROOT_DIR..."
-        cd "$var_ROOT_DIR"
-        docker::compose down
+        
+        # Use instance manager for cleanup if available
+        if command -v instance::shutdown_target >/dev/null 2>&1; then
+            instance::shutdown_target "native-mac"
+        else
+            # Fallback to traditional cleanup
+            cd "$var_ROOT_DIR"
+            docker::compose down
+        fi
+        
         cd "$ORIGINAL_DIR"
         exit "$EXIT_USER_INTERRUPT"
     }

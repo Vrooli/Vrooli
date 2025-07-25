@@ -224,20 +224,50 @@ system::check_and_install() {
 system::update() {
     log::header "🔄 Updating system package lists"
     if system::is_command "apt-get"; then
-        # If we can sudo, prefix apt commands; otherwise run as current user
+        # Check if we have permission to update package lists
         local update_cmd="apt-get"
-        if flow::can_run_sudo "system package list update (apt-get update)"; then
-            update_cmd="sudo apt-get"
-        else
-            log::info "No sudo available, running apt-get update as current user"
+        local can_update=true
+        
+        # Check if we need elevated permissions by testing write access to apt directories
+        if [[ ! -w /var/lib/apt/lists ]]; then
+            # We need elevated permissions
+            # Save current SUDO_MODE to restore later
+            local saved_sudo_mode="${SUDO_MODE:-}"
+            # Temporarily set SUDO_MODE to skip to avoid error exit
+            export SUDO_MODE="skip"
+            
+            if flow::can_run_sudo "system package list update (apt-get update)"; then
+                update_cmd="sudo apt-get"
+                can_update=true
+            else
+                # Can't run sudo and can't update without it
+                can_update=false
+            fi
+            
+            # Restore original SUDO_MODE
+            export SUDO_MODE="$saved_sudo_mode"
         fi
-        $update_cmd update
-        log::success "apt-get update complete"
+        
+        if [[ "$can_update" == "true" ]]; then
+            if $update_cmd update; then
+                log::success "apt-get update complete"
+            else
+                log::warning "apt-get update failed, but continuing anyway"
+            fi
+        else
+            log::warning "⚠️  Skipping package list update - insufficient permissions"
+            log::warning "   To update package lists, run: sudo apt-get update"
+            log::warning "   Or run setup with: sudo ./scripts/main/setup.sh"
+            log::info "Continuing with potentially outdated package information..."
+        fi
     elif system::is_command "brew"; then
-        brew update
-        log::success "Homebrew update complete"
+        if brew update; then
+            log::success "Homebrew update complete"
+        else
+            log::warning "Homebrew update failed, but continuing anyway"
+        fi
     else
-        log::error "No supported package manager found for update"
+        log::warning "No supported package manager found for update - skipping"
     fi
 }
 
@@ -245,20 +275,50 @@ system::update() {
 system::upgrade() {
     log::header "⬆️ Upgrading system packages"
     if system::is_command "apt-get"; then
-        # If we can sudo, prefix apt commands; otherwise run as current user
+        # Check if we have permission to upgrade packages
         local upgrade_cmd="apt-get"
-        if flow::can_run_sudo "system package upgrade (apt-get upgrade)"; then
-            upgrade_cmd="sudo apt-get"
-        else
-            log::info "No sudo available, running apt-get upgrade as current user"
+        local can_upgrade=true
+        
+        # Check if we need elevated permissions
+        if [[ ! -w /var/lib/dpkg ]]; then
+            # We need elevated permissions
+            # Save current SUDO_MODE to restore later
+            local saved_sudo_mode="${SUDO_MODE:-}"
+            # Temporarily set SUDO_MODE to skip to avoid error exit
+            export SUDO_MODE="skip"
+            
+            if flow::can_run_sudo "system package upgrade (apt-get upgrade)"; then
+                upgrade_cmd="sudo apt-get"
+                can_upgrade=true
+            else
+                # Can't run sudo and can't upgrade without it
+                can_upgrade=false
+            fi
+            
+            # Restore original SUDO_MODE
+            export SUDO_MODE="$saved_sudo_mode"
         fi
-        $upgrade_cmd -y upgrade
-        log::success "apt-get upgrade complete"
+        
+        if [[ "$can_upgrade" == "true" ]]; then
+            if $upgrade_cmd -y upgrade; then
+                log::success "apt-get upgrade complete"
+            else
+                log::warning "apt-get upgrade failed, but continuing anyway"
+            fi
+        else
+            log::warning "⚠️  Skipping package upgrade - insufficient permissions"
+            log::warning "   To upgrade packages, run: sudo apt-get upgrade"
+            log::warning "   Or run setup with: sudo ./scripts/main/setup.sh"
+            log::info "Continuing with current package versions..."
+        fi
     elif system::is_command "brew"; then
-        brew upgrade
-        log::success "Homebrew upgrade complete"
+        if brew upgrade; then
+            log::success "Homebrew upgrade complete"
+        else
+            log::warning "Homebrew upgrade failed, but continuing anyway"
+        fi
     else
-        log::error "No supported package manager found for upgrade"
+        log::warning "No supported package manager found for upgrade - skipping"
     fi
 } 
 

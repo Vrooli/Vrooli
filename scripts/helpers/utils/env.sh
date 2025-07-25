@@ -26,8 +26,12 @@ env::prod_file_exists() {
 
 # Load secrets from an environment file
 env::load_env_file() {
+    # Use ENVIRONMENT or NODE_ENV to determine which file to load
+    # Default to development if neither is set
+    local env_to_check="${NODE_ENV:-${ENVIRONMENT:-development}}"
+    
     ENV_FILE="$var_ENV_PROD_FILE"
-    if env::in_development "$NODE_ENV"; then
+    if env::in_development "$env_to_check"; then
         ENV_FILE="$var_ENV_DEV_FILE"
     fi
 
@@ -286,9 +290,10 @@ env::load_secrets() {
     fi
 
     # Determine the correct .env file to source
+    local env_to_check="${NODE_ENV:-${ENVIRONMENT:-development}}"
     local env_file_to_source="$var_ENV_PROD_FILE"
     local is_production="true"
-    if env::in_development "$NODE_ENV"; then
+    if env::in_development "$env_to_check"; then
         env_file_to_source="$var_ENV_DEV_FILE"
         is_production="false"
     fi
