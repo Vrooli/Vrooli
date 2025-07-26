@@ -1,0 +1,56 @@
+{
+  "name": "Webhook Integration Example",
+  "description": "Example webhook configuration for receiving external data and processing it",
+  "webhook_config": {
+    "path": "f/webhooks/data_processor",
+    "method": "POST",
+    "authentication": "none",
+    "expected_payload": {
+      "type": "object",
+      "properties": {
+        "event_type": {
+          "type": "string",
+          "enum": ["user_signup", "order_placed", "payment_processed"]
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "user_id": {"type": "string"},
+            "email": {"type": "string", "format": "email"},
+            "amount": {"type": "number"},
+            "timestamp": {"type": "string", "format": "date-time"}
+          },
+          "required": ["user_id", "timestamp"]
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "required": ["event_type", "data"]
+    }
+  },
+  "script_content": {
+    "language": "typescript",
+    "code": "/**\n * Webhook Handler for External Events\n * \n * This script processes incoming webhook data from external systems\n * and performs actions based on the event type.\n */\n\ninterface WebhookPayload {\n  event_type: 'user_signup' | 'order_placed' | 'payment_processed';\n  data: {\n    user_id: string;\n    email?: string;\n    amount?: number;\n    timestamp: string;\n  };\n  metadata?: Record<string, any>;\n}\n\nexport async function main(payload: WebhookPayload) {\n  // Validate payload\n  if (!payload.event_type || !payload.data) {\n    throw new Error('Invalid webhook payload: missing event_type or data');\n  }\n\n  // Log the received event\n  console.log(`Received webhook: ${payload.event_type} for user ${payload.data.user_id}`);\n\n  // Process based on event type\n  switch (payload.event_type) {\n    case 'user_signup':\n      return await processUserSignup(payload.data);\n    \n    case 'order_placed':\n      return await processOrderPlaced(payload.data);\n    \n    case 'payment_processed':\n      return await processPaymentProcessed(payload.data);\n    \n    default:\n      throw new Error(`Unknown event type: ${payload.event_type}`);\n  }\n}\n\nasync function processUserSignup(data: any) {\n  // Send welcome email, create user record, etc.\n  console.log(`Processing user signup for: ${data.email}`);\n  \n  // Example: Call another Windmill script or external API\n  // await fetch('/api/users', { method: 'POST', body: JSON.stringify(data) });\n  \n  return {\n    status: 'success',\n    action: 'user_signup_processed',\n    user_id: data.user_id,\n    message: 'Welcome email sent and user profile created'\n  };\n}\n\nasync function processOrderPlaced(data: any) {\n  // Process order, update inventory, send notifications\n  console.log(`Processing order for user: ${data.user_id}, amount: ${data.amount}`);\n  \n  return {\n    status: 'success',\n    action: 'order_processed',\n    user_id: data.user_id,\n    order_amount: data.amount,\n    message: 'Order processed and inventory updated'\n  };\n}\n\nasync function processPaymentProcessed(data: any) {\n  // Handle payment confirmation, send receipts\n  console.log(`Processing payment for user: ${data.user_id}, amount: ${data.amount}`);\n  \n  return {\n    status: 'success',\n    action: 'payment_confirmed',\n    user_id: data.user_id,\n    payment_amount: data.amount,\n    message: 'Payment confirmed and receipt sent'\n  };\n}"
+  },
+  "usage_examples": {
+    "curl_example": "curl -X POST http://localhost:5681/api/w/your-workspace/jobs/run/f/webhooks/data_processor \\\n  -H 'Content-Type: application/json' \\\n  -d '{\n    \"event_type\": \"user_signup\",\n    \"data\": {\n      \"user_id\": \"user_123\",\n      \"email\": \"john@example.com\",\n      \"timestamp\": \"2025-01-26T12:00:00Z\"\n    },\n    \"metadata\": {\n      \"source\": \"web_app\",\n      \"version\": \"1.0\"\n    }\n  }'",
+    "javascript_example": "// Send webhook from JavaScript application\nconst payload = {\n  event_type: 'order_placed',\n  data: {\n    user_id: 'user_456',\n    email: 'jane@example.com',\n    amount: 99.99,\n    timestamp: new Date().toISOString()\n  },\n  metadata: {\n    order_id: 'order_789',\n    product_ids: ['prod_1', 'prod_2']\n  }\n};\n\nfetch('http://localhost:5681/api/w/your-workspace/jobs/run/f/webhooks/data_processor', {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/json'\n  },\n  body: JSON.stringify(payload)\n}).then(response => response.json())\n  .then(result => console.log('Webhook processed:', result));"
+  },
+  "setup_instructions": [
+    "1. Create a new script in Windmill with path 'f/webhooks/data_processor'",
+    "2. Copy the TypeScript code into the script editor",
+    "3. Deploy the script to make it available via webhook",
+    "4. Use the webhook URL: http://localhost:5681/api/w/{workspace}/jobs/run/f/webhooks/data_processor",
+    "5. Send POST requests with JSON payloads matching the expected schema",
+    "6. Monitor execution in the Windmill jobs interface"
+  ],
+  "security_considerations": [
+    "Consider adding authentication for production webhooks",
+    "Validate and sanitize all incoming data",
+    "Implement rate limiting to prevent abuse",
+    "Use HTTPS in production environments",
+    "Log webhook events for audit purposes"
+  ]
+}
