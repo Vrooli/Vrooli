@@ -16,6 +16,8 @@ source "${RESOURCES_DIR}/../helpers/utils/flow.sh"
 source "${RESOURCES_DIR}/../helpers/utils/ports.sh"
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/../helpers/utils/system.sh"
+# shellcheck disable=SC1091
+source "${RESOURCES_DIR}/../helpers/utils/docker.sh"
 
 # Resource configuration paths
 readonly VROOLI_CONFIG_DIR="${HOME}/.vrooli"
@@ -166,10 +168,10 @@ resources::validate_port() {
         # Suggest alternative
         local category=""
         case "$resource" in
-            ollama|localai) category="AI" ;;
-            n8n|node-red) category="automation" ;;
+            ollama|whisper) category="AI" ;;
+            n8n|node-red|comfyui) category="automation" ;;
             minio|ipfs) category="storage" ;;
-            browserless) category="agents" ;;
+            browserless|claude-code|huginn) category="agents" ;;
         esac
         
         log::info "Consider using a different port for $resource ($category service)"
@@ -510,6 +512,43 @@ resources::remove_config() {
 }
 
 #######################################
+# Get list of enabled resources from configuration
+# Returns:
+#   Space-separated list of enabled resource names
+#######################################
+resources::get_enabled_from_config() {
+    if [[ ! -f "$VROOLI_RESOURCES_CONFIG" ]]; then
+        # Config doesn't exist, return empty
+        echo ""
+        return 0
+    fi
+    
+    if ! system::is_command "jq"; then
+        log::warn "jq not available, cannot parse resource configuration" >&2
+        echo ""
+        return 0
+    fi
+    
+    # Extract all resources where enabled=true
+    local enabled_resources
+    enabled_resources=$(jq -r '
+        .services | to_entries | map(
+            .value | to_entries | map(
+                select(.value.enabled == true) | .key
+            )
+        ) | flatten | join(" ")
+    ' "$VROOLI_RESOURCES_CONFIG" 2>/dev/null)
+    
+    if [[ $? -ne 0 ]]; then
+        log::warn "Failed to parse resource configuration" >&2
+        echo ""
+        return 0
+    fi
+    
+    echo "$enabled_resources"
+}
+
+#######################################
 # Initialize an empty resources configuration (legacy fallback)
 #######################################
 resources::init_config_legacy() {
@@ -697,6 +736,35 @@ resources::binary_exists() {
 #   $2 - port
 #   $3 - service name (optional)
 #######################################
+#######################################
+# Ensure Docker is available and running
+# Returns: 0 if Docker is ready, 1 otherwise
+#######################################
+resources::ensure_docker() {
+    # Check if Docker is installed
+    if ! system::is_command "docker"; then
+        log::error "Docker is not installed"
+        log::info "Please install Docker first: https://docs.docker.com/get-docker/"
+        return 1
+    fi
+    
+    # Try to start Docker if needed
+    if ! docker::start; then
+        log::error "Failed to start Docker"
+        return 1
+    fi
+    
+    # Verify Docker is accessible
+    if ! docker::run version >/dev/null 2>&1; then
+        log::error "Docker is not accessible"
+        docker::_diagnose_permission_issue
+        return 1
+    fi
+    
+    log::success "Docker is ready"
+    return 0
+}
+
 resources::print_status() {
     local resource_name="$1"
     local port="$2"

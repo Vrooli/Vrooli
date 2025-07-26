@@ -93,7 +93,7 @@ You can also use the resource manager directly:
 ### Storage Resources (`storage`)
 | Resource | Status | Description | Default Port |
 |----------|--------|-------------|--------------|
-| `minio` | 🚧 Planned | S3-compatible object storage | 9000 |
+| `minio` | ✅ Available | S3-compatible object storage | 9000 |
 | `ipfs` | 🚧 Planned | Distributed file storage | 5001 |
 
 ### Agent Resources (`agents`)

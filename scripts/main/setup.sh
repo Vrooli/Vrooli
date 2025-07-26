@@ -60,9 +60,9 @@ setup::parse_arguments() {
     args::register \
         --name "resources" \
         --flag "r" \
-        --desc "Local resources to install (comma-separated, or 'all', 'ai-only', 'none')" \
+        --desc "Local resources to install (comma-separated, or 'all', 'ai-only', 'enabled', 'none')" \
         --type "value" \
-        --default "none"
+        --default "enabled"
 
     if args::is_asking_for_help "$@"; then
         args::usage "$DESCRIPTION"
@@ -82,6 +82,12 @@ setup::parse_arguments() {
     export LOCATION=$(args::get "location")
     export ENVIRONMENT=$(args::get "environment")
     export RESOURCES=$(args::get "resources")
+    
+    # CI environments should not install resources by default
+    if flow::is_yes "$IS_CI" && [[ "$RESOURCES" == "enabled" ]]; then
+        log::info "CI environment detected, changing resources default from 'enabled' to 'none'"
+        export RESOURCES="none"
+    fi
 }
 
 setup::main() {
@@ -104,6 +110,9 @@ setup::main() {
 
     # Setup tools
     common_deps::check_and_install
+    
+    # Initialize .vrooli configuration files
+    config::init
     
     # Configure git to ignore file permission changes
     # This prevents shell scripts from showing as modified when only permissions change

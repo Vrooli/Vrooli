@@ -17,21 +17,9 @@
           "timeoutMs": 5000
         }
       },
-      "vllm": {
-        "enabled": false,
-        "baseUrl": "http://localhost:8000",
-        "expectedModels": [
-          "meta-llama/Llama-2-7b-hf"
-        ],
-        "healthCheck": {
-          "endpoint": "/health",
-          "intervalMs": 300000,
-          "timeoutMs": 5000
-        }
-      },
       "whisper": {
         "enabled": true,
-        "baseUrl": "http://localhost:9000",
+        "baseUrl": "http://localhost:8090",
         "model": "base",
         "healthCheck": {
           "endpoint": "/health",
@@ -124,21 +112,6 @@
           "timeoutMs": 5000
         }
       },
-      "automatisch": {
-        "enabled": false,
-        "baseUrl": "http://localhost:3000",
-        "apiKey": "${AUTOMATISCH_API_KEY}",
-        "capabilities": [
-          "workflow",
-          "webhook"
-        ],
-        "healthCheck": {
-          "endpoint": "/api/v1/users/me",
-          "intervalMs": 300000,
-          "timeoutMs": 5000,
-          "requiresAuth": true
-        }
-      },
       "activepieces": {
         "enabled": false,
         "baseUrl": "http://localhost:8080",
@@ -155,9 +128,10 @@
         }
       },
       "huginn": {
-        "enabled": true,
-        "baseUrl": "http://localhost:3000",
-        "apiKey": "${HUGINN_API_KEY}",
+        "enabled": false,
+        "baseUrl": "http://localhost:4111",
+        "username": "${HUGINN_ADMIN_USERNAME}",
+        "password": "${HUGINN_ADMIN_PASSWORD}",
         "capabilities": [
           "agent",
           "event",
@@ -165,35 +139,6 @@
         ],
         "healthCheck": {
           "endpoint": "/",
-          "intervalMs": 300000,
-          "timeoutMs": 5000
-        }
-      },
-      "kestra": {
-        "enabled": false,
-        "baseUrl": "http://localhost:8080",
-        "apiKey": "${KESTRA_API_KEY}",
-        "capabilities": [
-          "workflow",
-          "schedule",
-          "data-pipeline"
-        ],
-        "healthCheck": {
-          "endpoint": "/api/v1/configs",
-          "intervalMs": 300000,
-          "timeoutMs": 5000
-        }
-      },
-      "beehive": {
-        "enabled": false,
-        "baseUrl": "http://localhost:8181",
-        "capabilities": [
-          "event",
-          "chain",
-          "filter"
-        ],
-        "healthCheck": {
-          "endpoint": "/api/info",
           "intervalMs": 300000,
           "timeoutMs": 5000
         }
@@ -229,9 +174,9 @@
     },
     "agents": {
       "browserless": {
-        "enabled": true,
+        "enabled": false,
         "mode": "service",
-        "baseUrl": "http://localhost:3000",
+        "baseUrl": "http://localhost:4110",
         "token": "${BROWSERLESS_TOKEN}",
         "healthCheck": {
           "endpoint": "/pressure",
@@ -281,54 +226,6 @@
           "timeoutMs": 5000
         }
       }
-    }
-  },
-  "discovery": {
-    "enabled": true,
-    "strategy": "automatic",
-    "methods": {
-      "portScanning": {
-        "enabled": true,
-        "scanIntervalMs": 3600000,
-        "ports": {
-          "ollama": 11434,
-          "vllm": 8000,
-          "comfyui": 8188,
-          "n8n": 5678,
-          "node-red": 1880,
-          "windmill": 8000,
-          "automatisch": 3000,
-          "activepieces": 8080,
-          "huginn": 3000,
-          "kestra": 8080,
-          "beehive": 8181,
-          "airflow": 8080,
-          "temporal": 7233,
-          "browserless": 3000,
-          "minio": 9000,
-          "ipfs": 5001,
-          "rclone": 5572
-        }
-      },
-      "dockerIntegration": {
-        "enabled": true,
-        "socketPath": "/var/run/docker.sock",
-        "labelPrefix": "com.vrooli.resource"
-      },
-      "processScanning": {
-        "enabled": false,
-        "patterns": [
-          "ollama",
-          "n8n",
-          "minio",
-          "windmill",
-          "comfyui"
-        ]
-      }
-    },
-    "notifications": {
-      "onDiscovery": true,
-      "onLoss": true
     }
   },
   "security": {

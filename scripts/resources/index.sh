@@ -8,6 +8,9 @@ DESCRIPTION="Manages local development resources (AI, automation, storage, agent
 
 RESOURCES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
+# Handle Ctrl+C and other signals gracefully
+trap 'echo ""; log::info "Resource installation interrupted by user. Exiting..."; exit 130' INT TERM
+
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
@@ -15,14 +18,14 @@ source "${RESOURCES_DIR}/../helpers/utils/args.sh"
 
 # Available resources organized by category
 declare -A AVAILABLE_RESOURCES=(
-    ["ai"]="ollama whisper localai llamacpp"
+    ["ai"]="ollama whisper"
     ["automation"]="n8n comfyui node-red"
     ["storage"]="minio ipfs"
     ["agents"]="browserless claude-code huginn"
 )
 
 # All available resources as a flat list
-ALL_RESOURCES="ollama whisper localai llamacpp n8n comfyui node-red minio ipfs browserless claude-code huginn"
+ALL_RESOURCES="ollama whisper n8n comfyui node-red minio ipfs browserless claude-code huginn"
 
 #######################################
 # Parse command line arguments
@@ -144,7 +147,7 @@ resources::resolve_list() {
             fi
             resolved=$(resources::get_enabled_from_config)
             if [[ -z "$resolved" ]]; then
-                log::info "No enabled resources found in configuration"
+                log::info "No enabled resources found in configuration" >&2
             fi
             ;;
         *)
@@ -392,6 +395,11 @@ resources::main() {
     resource_list=$(resources::resolve_list)
     
     if [[ -z "$resource_list" ]]; then
+        # Special handling for "enabled" when no resources are enabled
+        if [[ "$RESOURCES_INPUT" == "enabled" ]]; then
+            log::info "No resources to process (none are enabled in configuration)"
+            exit 0
+        fi
         log::error "No resources specified"
         log::info "Use --resources to specify resources, or --action list to see available options"
         exit 1
