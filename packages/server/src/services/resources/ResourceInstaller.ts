@@ -5,7 +5,7 @@ import { EventEmitter } from "events";
 import { logger } from "../../events/logger.js";
 import type { ResourceRegistry } from "./ResourceRegistry.js";
 import type { ResourceId } from "./typeRegistry.js";
-import { ResourceCategory } from "./types.js";
+import { ResourceCategory, type PublicResourceInfo, DiscoveryStatus, ResourceHealth } from "./types.js";
 
 /**
  * Result of a resource installation operation
@@ -302,7 +302,7 @@ export class ResourceInstaller extends EventEmitter {
             const scriptResult = await this.executeResourceScript(resourceId, "status");
             
             // Get information from registry if available
-            let registryInfo = null;
+            let registryInfo: PublicResourceInfo | null = null;
             if (this.registry) {
                 const resource = this.registry.getResource(resourceId);
                 if (resource) {
@@ -312,8 +312,8 @@ export class ResourceInstaller extends EventEmitter {
             
             return {
                 installed: scriptResult.success,
-                running: registryInfo?.status === "Available" || false,
-                healthy: registryInfo?.health === "Healthy" || false,
+                running: registryInfo?.status === DiscoveryStatus.Available || false,
+                healthy: registryInfo?.health === ResourceHealth.Healthy || false,
                 details: {
                     script: scriptResult,
                     registry: registryInfo,

@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { type BotCreateInput, type BotUpdateInput, generatePublicId, getTranslation, MaxObjects, type ProfileUpdateInput, UserSortBy, userValidation } from "@vrooli/shared";
 import { noNull } from "../../builders/noNull.js";
+import { seedId } from "../../builders/seedIdHelper.js";
 import { DbProvider } from "../../db/provider.js";
 import { CacheService } from "../../redisConn.js";
 import { EmbeddingService } from "../../services/embedding.js";
@@ -57,13 +58,13 @@ export const UserModel: UserModelLogic = ({
                 return { ...maps };
             },
             // Create only applies for bots normally, but seeding and tests might create non-bot users
-            create: async ({ additionalData, data, idsCreateToConnect, isSeeding: _isSeeding, preMap, userData }) => {
+            create: async ({ additionalData, adminFlags, data, idsCreateToConnect, preMap, userData }) => {
                 const preData = preMap[__typename] as UserPre;
+                const isSeeding = adminFlags?.isSeeding ?? false;
                 const adminId = await DbProvider.getAdminId();
                 const isUser = userData.id === adminId && additionalData?.isBot !== true;
-                const commonData = {
-                    id: BigInt(data.id),
-                    publicId: generatePublicId(),
+                const commonDataBase = {
+                    id: seedId(data.id, isSeeding),
                     bannerImage: typeof data.bannerImage === "string" ? data.bannerImage : null,
                     handle: data.handle ?? null,
                     isPrivate: noNull(data.isPrivate),
@@ -73,6 +74,10 @@ export const UserModel: UserModelLogic = ({
                 };
                 if (!isUser) {
                     const botData = data as BotCreateInput;
+                    const commonData = {
+                        ...commonDataBase,
+                        publicId: isSeeding ? (botData.publicId ?? generatePublicId()) : generatePublicId(),
+                    };
                     return {
                         ...commonData,
                         // Cast to unknown first to satisfy Prisma's InputJsonValue type requirement
@@ -84,6 +89,10 @@ export const UserModel: UserModelLogic = ({
                     };
                 }
                 const profileData = data as (ProfileUpdateInput & { id: string });
+                const commonData = {
+                    ...commonDataBase,
+                    publicId: generatePublicId(), // Always generate new publicId for user profiles
+                };
                 return {
                     ...commonData,
                     isBot: false,

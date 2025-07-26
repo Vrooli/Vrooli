@@ -16,13 +16,13 @@ source "${RESOURCES_DIR}/../helpers/utils/args.sh"
 # Available resources organized by category
 declare -A AVAILABLE_RESOURCES=(
     ["ai"]="ollama whisper localai llamacpp"
-    ["automation"]="n8n nodered"
+    ["automation"]="n8n comfyui node-red"
     ["storage"]="minio ipfs"
-    ["agents"]="browserless claude-code"
+    ["agents"]="browserless claude-code huginn"
 )
 
 # All available resources as a flat list
-ALL_RESOURCES="ollama whisper localai llamacpp n8n nodered minio ipfs browserless claude-code"
+ALL_RESOURCES="ollama whisper localai llamacpp n8n comfyui node-red minio ipfs browserless claude-code huginn"
 
 #######################################
 # Parse command line arguments
@@ -44,7 +44,7 @@ resources::parse_arguments() {
     args::register \
         --name "resources" \
         --flag "r" \
-        --desc "Resources to manage (comma-separated, or 'all', 'ai-only', 'none')" \
+        --desc "Resources to manage (comma-separated, or 'all', 'ai-only', 'enabled', 'none')" \
         --type "value" \
         --default "none"
     
@@ -93,7 +93,8 @@ resources::usage() {
     args::usage "$DESCRIPTION"
     echo
     echo "Examples:"
-    echo "  $0 --action install --resources ollama                # Install Ollama"
+    echo "  $0 --action install --resources enabled               # Install resources marked as enabled in config"
+    echo "  $0 --action install --resources ollama                # Install specific resource"
     echo "  $0 --action install --resources ai-only               # Install all AI resources"
     echo "  $0 --action install --resources all                   # Install all resources"
     echo "  $0 --action status --resources ollama,n8n             # Check status of specific resources"
@@ -133,6 +134,18 @@ resources::resolve_list() {
             ;;
         "none"|"")
             resolved=""
+            ;;
+        "enabled")
+            # Get enabled resources from configuration
+            # Need to source common.sh if not already sourced
+            if ! declare -f resources::get_enabled_from_config >/dev/null 2>&1; then
+                # shellcheck disable=SC1091
+                source "$SCRIPT_DIR/common.sh"
+            fi
+            resolved=$(resources::get_enabled_from_config)
+            if [[ -z "$resolved" ]]; then
+                log::info "No enabled resources found in configuration"
+            fi
             ;;
         *)
             # Parse comma-separated list

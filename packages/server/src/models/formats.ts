@@ -597,7 +597,6 @@ export const ResourceFormat: Formatter<ResourceModelInfo> = {
             ownedByTeam: "Team",
             ownedByUser: "User",
         },
-        forks: "Resource",
         issues: "Issue",
         parent: "ResourceVersion",
         bookmarkedBy: "User",
@@ -624,7 +623,6 @@ export const ResourceFormat: Formatter<ResourceModelInfo> = {
     },
     joinMap: { tags: "tag", bookmarkedBy: "user" },
     countFields: {
-        forksCount: true,
         issuesCount: true,
         pullRequestsCount: true,
         transfersCount: true,

@@ -427,6 +427,20 @@ export interface AIMetadata extends BaseMetadata {
 }
 
 /**
+ * Ollama-specific metadata extending base AI metadata
+ */
+export interface OllamaMetadata extends AIMetadata {
+    totalModels: number;
+    baseUrl?: string;
+    modelSizes: Array<{
+        name: string;
+        sizeBytes: number;
+        family?: string;
+        parameterSize?: string;
+    }>;
+}
+
+/**
  * Automation-specific metadata
  */
 export interface AutomationMetadata extends BaseMetadata {
@@ -452,6 +466,11 @@ export interface AgentMetadata extends BaseMetadata {
     activeInstances: number;
     maxInstances: number;
     supportedBrowsers: string[];
+    queuedInstances?: number;
+    stats?: Record<string, any>;
+    pressure?: Record<string, any>;
+    timeout?: number;
+    baseUrl?: string;
 }
 
 /**
@@ -502,6 +521,15 @@ export interface CategoryMetadataMap {
 }
 
 /**
+ * Maps specific resource IDs to their custom metadata types
+ * This allows providers to extend beyond their category's base metadata
+ */
+export interface ProviderMetadataMap {
+    "ollama": OllamaMetadata;
+    // Other providers use their category's default metadata type
+}
+
+/**
  * Maps resource categories to their interface types
  */
 export interface CategoryInterfaceMap {
@@ -529,9 +557,12 @@ export type GetResourceConfig<TId extends ResourceId> =
 
 /**
  * Extract metadata type from resource ID
+ * Checks for provider-specific metadata first, then falls back to category metadata
  */
 export type GetResourceMetadata<TId extends ResourceId> = 
-    CategoryMetadataMap[GetResourceCategory<TId>];
+    TId extends keyof ProviderMetadataMap 
+        ? ProviderMetadataMap[TId]
+        : CategoryMetadataMap[GetResourceCategory<TId>];
 
 /**
  * Extract interface type from resource ID

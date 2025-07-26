@@ -12,7 +12,7 @@ import { ResourceProvider } from "../ResourceProvider.js";
 import { RegisterResource } from "../ResourceRegistry.js";
 import { ResourceCategory, DeploymentType, ResourceHealth, DiscoveryStatus, ResourceEvent } from "../types.js";
 import type { HealthCheckResult, IAIResource, ResourceEventData } from "../types.js";
-import type { OllamaConfig, AIMetadata } from "../typeRegistry.js";
+import type { OllamaConfig, OllamaMetadata } from "../typeRegistry.js";
 import { logger } from "../../../events/logger.js";
 
 /**
@@ -374,7 +374,7 @@ export class OllamaResource extends ResourceProvider<"ollama", OllamaConfig> imp
     /**
      * Provide enhanced metadata about the resource
      */
-    protected getMetadata(): AIMetadata {
+    protected getMetadata(): OllamaMetadata {
         const modelList = Array.from(this.models.keys());
         
         return {
