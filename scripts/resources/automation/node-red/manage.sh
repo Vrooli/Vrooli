@@ -5,964 +5,242 @@
 
 set -euo pipefail
 
+# Handle Ctrl+C gracefully
+trap 'node_red::show_interrupt_message; exit 130' INT TERM
+
 # Get the directory of this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESOURCES_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Source common functions
 source "$RESOURCES_DIR/common.sh"
+# shellcheck disable=SC1091
+source "${RESOURCES_DIR}/../helpers/utils/args.sh"
 
-# Resource metadata
-RESOURCE_NAME="node-red"
-RESOURCE_CATEGORY="automation"
-RESOURCE_DESC="Flow-based programming for event-driven applications"
-RESOURCE_PORT="${NODE_RED_PORT:-1880}"
+# Source configuration
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/config/defaults.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/config/messages.sh"
 
-# Configuration
-CONTAINER_NAME="node-red"
-IMAGE_NAME="node-red-vrooli:latest"
-VOLUME_NAME="node-red-data"
-NETWORK_NAME="vrooli-network"
+# Export configuration
+node_red::export_config
 
-# Default settings
-DEFAULT_FLOW_FILE="flows.json"
-DEFAULT_SECRET=$(openssl rand -hex 32 2>/dev/null || echo "default-insecure-secret")
+# Source all library modules
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/common.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/docker.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/install.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/status.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/api.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/testing.sh"
 
-# Function to display usage information
-show_usage() {
-    cat << EOF
-Node-RED Management Script
-
-Usage: $0 --action ACTION [options]
-
-Actions:
-  install              Install Node-RED with Docker
-  uninstall            Remove Node-RED and all data
-  start                Start Node-RED container
-  stop                 Stop Node-RED container
-  restart              Restart Node-RED container
-  status               Show Node-RED status and health
-  logs                 View Node-RED logs
-  
-  flow-list            List all flows with details
-  flow-export          Export flows to JSON file
-  flow-import          Import flows from JSON file
-  flow-execute         Execute a flow via HTTP endpoint
-  flow-enable          Enable a specific flow
-  flow-disable         Disable a specific flow
-  
-  test                 Run validation test suite
-  validate-host        Test host command execution
-  validate-docker      Test Docker socket access
-  benchmark            Run performance benchmarks
-  metrics              Show resource usage metrics
-
-Options:
-  --build-image        Build custom Docker image (yes/no, default: yes)
-  --force              Force action without confirmation
-  --flow-file          Path to flow file for import
-  --flow-id            Flow ID for flow operations
-  --endpoint           HTTP endpoint for flow execution
-  --data               JSON data for flow execution
-  --output             Output file for export operations
-  --follow             Follow logs in real-time
-  --lines              Number of log lines to show (default: 100)
-
-Examples:
-  # Install with custom image
-  $0 --action install --build-image yes
-
-  # Import flows from file
-  $0 --action flow-import --flow-file ./my-flows.json
-
-  # Execute test flow
-  $0 --action flow-execute --endpoint /test/exec --data '{"command":"ls"}'
-
-  # Export all flows
-  $0 --action flow-export --output ./backup-flows.json
-
-EOF
-}
-
+#######################################
 # Parse command line arguments
-parse_args() {
-    # Initialize variables
-    ACTION=""
-    BUILD_IMAGE="yes"
-    FORCE="no"
-    FLOW_FILE=""
-    FLOW_ID=""
-    ENDPOINT=""
-    DATA=""
-    OUTPUT=""
-    FOLLOW="no"
-    LOG_LINES="100"
-
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --action)
-                ACTION="$2"
-                shift 2
-                ;;
-            --build-image)
-                BUILD_IMAGE="$2"
-                shift 2
-                ;;
-            --force)
-                FORCE="yes"
-                shift
-                ;;
-            --flow-file)
-                FLOW_FILE="$2"
-                shift 2
-                ;;
-            --flow-id)
-                FLOW_ID="$2"
-                shift 2
-                ;;
-            --endpoint)
-                ENDPOINT="$2"
-                shift 2
-                ;;
-            --data)
-                DATA="$2"
-                shift 2
-                ;;
-            --output)
-                OUTPUT="$2"
-                shift 2
-                ;;
-            --follow)
-                FOLLOW="yes"
-                shift
-                ;;
-            --lines)
-                LOG_LINES="$2"
-                shift 2
-                ;;
-            --help|-h)
-                show_usage
-                exit 0
-                ;;
-            *)
-                log::error "Unknown option: $1"
-                show_usage
-                exit 1
-                ;;
-        esac
-    done
-
-    # Validate required arguments
-    if [[ -z "$ACTION" ]]; then
-        log::error "Action is required"
-        show_usage
-        exit 1
+#######################################
+node_red::parse_arguments() {
+    args::reset
+    
+    args::register_help
+    args::register_yes
+    
+    args::register \
+        --name "action" \
+        --flag "a" \
+        --desc "Action to perform" \
+        --type "value" \
+        --options "install|uninstall|start|stop|restart|status|logs|flow-list|flow-export|flow-import|flow-execute|flow-enable|flow-disable|test|validate-host|validate-docker|benchmark|metrics|info|health|monitor|stress-test|verify" \
+        --default "install"
+    
+    args::register \
+        --name "force" \
+        --flag "f" \
+        --desc "Force action even if Node-RED appears to be already installed/running" \
+        --type "value" \
+        --options "yes|no" \
+        --default "no"
+    
+    args::register \
+        --name "build-image" \
+        --desc "Build custom Docker image" \
+        --type "value" \
+        --options "yes|no" \
+        --default "yes"
+    
+    args::register \
+        --name "flow-file" \
+        --desc "Path to flow file for import" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "flow-id" \
+        --desc "Flow ID for flow operations" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "endpoint" \
+        --desc "HTTP endpoint for flow execution" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "data" \
+        --desc "JSON data for flow execution" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "output" \
+        --desc "Output file for export operations" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "follow" \
+        --desc "Follow logs in real-time" \
+        --type "value" \
+        --options "yes|no" \
+        --default "no"
+    
+    args::register \
+        --name "lines" \
+        --desc "Number of log lines to show" \
+        --type "value" \
+        --default "100"
+    
+    args::register \
+        --name "interval" \
+        --desc "Monitoring interval in seconds" \
+        --type "value" \
+        --default "5"
+    
+    args::register \
+        --name "duration" \
+        --desc "Test duration in seconds" \
+        --type "value" \
+        --default "60"
+    
+    args::register \
+        --name "backup-path" \
+        --desc "Path to backup directory for restore operations" \
+        --type "value" \
+        --default ""
+    
+    if args::is_asking_for_help "$@"; then
+        node_red::usage
+        exit 0
     fi
+    
+    args::parse "$@"
+    
+    export ACTION=$(args::get "action")
+    export YES=$(args::get "yes")
+    export FORCE=$(args::get "force")
+    export BUILD_IMAGE=$(args::get "build-image")
+    export FLOW_FILE=$(args::get "flow-file")
+    export FLOW_ID=$(args::get "flow-id")
+    export ENDPOINT=$(args::get "endpoint")
+    export DATA=$(args::get "data")
+    export OUTPUT=$(args::get "output")
+    export FOLLOW=$(args::get "follow")
+    export LOG_LINES=$(args::get "lines")
+    export INTERVAL=$(args::get "interval")
+    export DURATION=$(args::get "duration")
+    export BACKUP_PATH=$(args::get "backup-path")
 }
 
-# Check if Node-RED is installed
-is_installed() {
-    docker container inspect "$CONTAINER_NAME" >/dev/null 2>&1
-}
-
-# Check if Node-RED is running
-is_running() {
-    local state=$(docker container inspect -f '{{.State.Running}}' "$CONTAINER_NAME" 2>/dev/null || echo "false")
-    [[ "$state" == "true" ]]
-}
-
-# Wait for Node-RED to be ready
-wait_for_ready() {
-    local max_attempts=30
-    local attempt=0
-    
-    log::info "Waiting for Node-RED to be ready..."
-    
-    while [[ $attempt -lt $max_attempts ]]; do
-        if curl -s -f "http://localhost:$RESOURCE_PORT" >/dev/null 2>&1; then
-            log::success "Node-RED is ready!"
-            return 0
-        fi
-        
-        attempt=$((attempt + 1))
-        sleep 2
-    done
-    
-    log::error "Node-RED failed to start after $max_attempts attempts"
-    return 1
-}
-
-# Build custom Docker image
-build_custom_image() {
-    log::info "Building custom Node-RED image..."
-    
-    # Create Dockerfile if it doesn't exist
-    if [[ ! -f "$SCRIPT_DIR/Dockerfile" ]]; then
-        log::error "Dockerfile not found at $SCRIPT_DIR/Dockerfile"
-        return 1
-    fi
-    
-    # Build the image
-    if docker build -t "$IMAGE_NAME" "$SCRIPT_DIR"; then
-        log::success "Custom image built successfully"
-        return 0
-    else
-        log::error "Failed to build custom image"
-        return 1
-    fi
-}
-
-# Install Node-RED
-install_node_red() {
-    if is_installed; then
-        log::warning "Node-RED is already installed"
-        if [[ "$FORCE" != "yes" ]]; then
-            read -p "Do you want to reinstall? (y/N) " -n 1 -r
-            echo
-            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-                log::info "Installation cancelled"
-                return 0
-            fi
-        fi
-        uninstall_node_red
-    fi
-    
-    log::info "Installing Node-RED..."
-    
-    # Create network if it doesn't exist
-    if ! docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
-        log::info "Creating Docker network: $NETWORK_NAME"
-        docker network create "$NETWORK_NAME"
-    fi
-    
-    # Build custom image if requested
-    if [[ "$BUILD_IMAGE" == "yes" ]]; then
-        build_custom_image || return 1
-        local image_to_use="$IMAGE_NAME"
-    else
-        local image_to_use="nodered/node-red:latest"
-    fi
-    
-    # Create volume
-    log::info "Creating data volume: $VOLUME_NAME"
-    docker volume create "$VOLUME_NAME"
-    
-    # Create settings.js if it doesn't exist
-    if [[ ! -f "$SCRIPT_DIR/settings.js" ]]; then
-        log::info "Creating default settings.js"
-        create_default_settings
-    fi
-    
-    # Run container
-    log::info "Starting Node-RED container..."
-    docker run -d \
-        --name "$CONTAINER_NAME" \
-        --restart unless-stopped \
-        --network "$NETWORK_NAME" \
-        -p "$RESOURCE_PORT:1880" \
-        -v "$VOLUME_NAME:/data" \
-        -v "$SCRIPT_DIR/flows:/data/flows" \
-        -v "$SCRIPT_DIR/settings.js:/data/settings.js:ro" \
-        -v /var/run/docker.sock:/var/run/docker.sock:ro \
-        -v "$HOME/Vrooli:/workspace:rw" \
-        -v /usr/bin:/host/usr/bin:ro \
-        -v /bin:/host/bin:ro \
-        -e NODE_RED_FLOW_FILE="$DEFAULT_FLOW_FILE" \
-        -e NODE_RED_CREDENTIAL_SECRET="$DEFAULT_SECRET" \
-        -e TZ="${TZ:-UTC}" \
-        --health-cmd="curl -f http://localhost:1880 || exit 1" \
-        --health-interval=30s \
-        --health-timeout=5s \
-        --health-retries=3 \
-        "$image_to_use"
-    
-    # Wait for Node-RED to be ready
-    if wait_for_ready; then
-        log::success "Node-RED installed successfully!"
-        log::info "Access Node-RED at: http://localhost:$RESOURCE_PORT"
-        
-        # Update resource configuration
-        update_resource_config
-        
-        # Import test flows if they exist
-        if [[ -d "$SCRIPT_DIR/flows" ]] && ls "$SCRIPT_DIR/flows"/*.json >/dev/null 2>&1; then
-            log::info "Importing example flows..."
-            for flow in "$SCRIPT_DIR/flows"/*.json; do
-                import_flow "$flow" || log::warning "Failed to import $(basename "$flow")"
-            done
-        fi
-        
-        return 0
-    else
-        log::error "Node-RED installation failed"
-        return 1
-    fi
-}
-
-# Uninstall Node-RED
-uninstall_node_red() {
-    if ! is_installed; then
-        log::warning "Node-RED is not installed"
-        return 0
-    fi
-    
-    if [[ "$FORCE" != "yes" ]]; then
-        log::warning "This will remove Node-RED and all its data!"
-        read -p "Are you sure? (y/N) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            log::info "Uninstall cancelled"
-            return 0
-        fi
-    fi
-    
-    log::info "Uninstalling Node-RED..."
-    
-    # Stop container
-    if is_running; then
-        docker stop "$CONTAINER_NAME"
-    fi
-    
-    # Remove container
-    docker rm "$CONTAINER_NAME"
-    
-    # Remove volume
-    if docker volume inspect "$VOLUME_NAME" >/dev/null 2>&1; then
-        docker volume rm "$VOLUME_NAME"
-    fi
-    
-    # Remove custom image if it exists
-    if docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
-        docker rmi "$IMAGE_NAME"
-    fi
-    
-    # Remove from resource configuration
-    remove_resource_config
-    
-    log::success "Node-RED uninstalled successfully"
-}
-
-# Start Node-RED
-start_node_red() {
-    if ! is_installed; then
-        log::error "Node-RED is not installed"
-        return 1
-    fi
-    
-    if is_running; then
-        log::warning "Node-RED is already running"
-        return 0
-    fi
-    
-    log::info "Starting Node-RED..."
-    docker start "$CONTAINER_NAME"
-    
-    if wait_for_ready; then
-        log::success "Node-RED started successfully"
-        return 0
-    else
-        return 1
-    fi
-}
-
-# Stop Node-RED
-stop_node_red() {
-    if ! is_installed; then
-        log::error "Node-RED is not installed"
-        return 1
-    fi
-    
-    if ! is_running; then
-        log::warning "Node-RED is not running"
-        return 0
-    fi
-    
-    log::info "Stopping Node-RED..."
-    docker stop "$CONTAINER_NAME"
-    log::success "Node-RED stopped"
-}
-
-# Restart Node-RED
-restart_node_red() {
-    log::info "Restarting Node-RED..."
-    stop_node_red
-    start_node_red
-}
-
-# Show Node-RED status
-show_status() {
-    echo "Node-RED Status:"
-    echo "================"
-    
-    if ! is_installed; then
-        echo "Status: Not installed"
-        return 0
-    fi
-    
-    if is_running; then
-        echo "Status: Running"
-        echo "URL: http://localhost:$RESOURCE_PORT"
-        
-        # Container info
-        local container_info=$(docker container inspect "$CONTAINER_NAME" 2>/dev/null)
-        if [[ -n "$container_info" ]]; then
-            echo
-            echo "Container Information:"
-            echo "- Name: $CONTAINER_NAME"
-            echo "- Image: $(echo "$container_info" | jq -r '.[0].Config.Image')"
-            echo "- Created: $(echo "$container_info" | jq -r '.[0].Created' | cut -d'T' -f1)"
-            echo "- Uptime: $(docker ps -f name="$CONTAINER_NAME" --format "table {{.Status}}" | tail -n 1)"
-        fi
-        
-        # Resource usage
-        echo
-        echo "Resource Usage:"
-        docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}" "$CONTAINER_NAME"
-        
-        # Health check
-        echo
-        local health=$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER_NAME" 2>/dev/null || echo "unknown")
-        echo "Health: $health"
-        
-        # Flow information
-        echo
-        echo "Flow Information:"
-        local flow_count=$(docker exec "$CONTAINER_NAME" ls /data/*.json 2>/dev/null | wc -l || echo "0")
-        echo "- Flow files: $flow_count"
-        
-    else
-        echo "Status: Stopped"
-    fi
-}
-
-# View logs
-view_logs() {
-    if ! is_installed; then
-        log::error "Node-RED is not installed"
-        return 1
-    fi
-    
-    if [[ "$FOLLOW" == "yes" ]]; then
-        docker logs -f "$CONTAINER_NAME"
-    else
-        docker logs --tail "$LOG_LINES" "$CONTAINER_NAME"
-    fi
-}
-
-# List flows
-list_flows() {
-    if ! is_running; then
-        log::error "Node-RED is not running"
-        return 1
-    fi
-    
-    log::info "Fetching flow information..."
-    
-    # Get flows via admin API
-    local response=$(curl -s "http://localhost:$RESOURCE_PORT/flows" 2>/dev/null)
-    
-    if [[ -z "$response" ]]; then
-        log::error "Failed to fetch flows"
-        return 1
-    fi
-    
-    # Parse and display flows
-    echo "$response" | jq -r '.[] | select(.type == "tab") | "ID: \(.id)\nName: \(.label)\nDisabled: \(.disabled // false)\n"' 2>/dev/null || {
-        log::warning "No flows found or invalid response"
-        echo "$response"
-    }
-}
-
-# Export flows
-export_flows() {
-    if ! is_running; then
-        log::error "Node-RED is not running"
-        return 1
-    fi
-    
-    local output_file="${OUTPUT:-./node-red-flows-export-$(date +%Y%m%d-%H%M%S).json}"
-    
-    log::info "Exporting flows to: $output_file"
-    
-    # Get flows via admin API
-    if curl -s "http://localhost:$RESOURCE_PORT/flows" > "$output_file" 2>/dev/null; then
-        # Pretty print the JSON
-        jq . "$output_file" > "$output_file.tmp" && mv "$output_file.tmp" "$output_file"
-        log::success "Flows exported successfully to: $output_file"
-        
-        # Show summary
-        local flow_count=$(jq '[.[] | select(.type == "tab")] | length' "$output_file" 2>/dev/null || echo "0")
-        local node_count=$(jq 'length' "$output_file" 2>/dev/null || echo "0")
-        echo "Exported $flow_count flows with $node_count total nodes"
-    else
-        log::error "Failed to export flows"
-        return 1
-    fi
-}
-
-# Import flows
-import_flow() {
-    local flow_file="${1:-$FLOW_FILE}"
-    
-    if [[ -z "$flow_file" ]]; then
-        log::error "Flow file is required"
-        return 1
-    fi
-    
-    if [[ ! -f "$flow_file" ]]; then
-        log::error "Flow file not found: $flow_file"
-        return 1
-    fi
-    
-    if ! is_running; then
-        log::error "Node-RED is not running"
-        return 1
-    fi
-    
-    log::info "Importing flows from: $flow_file"
-    
-    # Validate JSON
-    if ! jq . "$flow_file" >/dev/null 2>&1; then
-        log::error "Invalid JSON in flow file"
-        return 1
-    fi
-    
-    # Import via admin API
-    if curl -s -X POST -H "Content-Type: application/json" \
-        -d "@$flow_file" \
-        "http://localhost:$RESOURCE_PORT/flows" >/dev/null 2>&1; then
-        log::success "Flows imported successfully"
-        
-        # Reload Node-RED to apply changes
-        curl -s -X POST "http://localhost:$RESOURCE_PORT/flows" \
-            -H "Content-Type: application/json" \
-            -H "Node-RED-Deployment-Type: reload" \
-            -d "@$flow_file" >/dev/null 2>&1
-        
-        return 0
-    else
-        log::error "Failed to import flows"
-        return 1
-    fi
-}
-
-# Execute flow via HTTP endpoint
-execute_flow() {
-    if ! is_running; then
-        log::error "Node-RED is not running"
-        return 1
-    fi
-    
-    if [[ -z "$ENDPOINT" ]]; then
-        log::error "Endpoint is required for flow execution"
-        return 1
-    fi
-    
-    local url="http://localhost:$RESOURCE_PORT$ENDPOINT"
-    local method="POST"
-    local curl_opts="-s"
-    
-    log::info "Executing flow at: $url"
-    
-    # Build curl command
-    local curl_cmd="curl $curl_opts -X $method"
-    
-    if [[ -n "$DATA" ]]; then
-        curl_cmd="$curl_cmd -H 'Content-Type: application/json' -d '$DATA'"
-    fi
-    
-    curl_cmd="$curl_cmd '$url'"
-    
-    # Execute
-    local response=$(eval "$curl_cmd" 2>&1)
-    local exit_code=$?
-    
-    if [[ $exit_code -eq 0 ]]; then
-        log::success "Flow executed successfully"
-        if [[ -n "$response" ]]; then
-            echo "Response:"
-            echo "$response" | jq . 2>/dev/null || echo "$response"
-        fi
-        return 0
-    else
-        log::error "Flow execution failed"
-        [[ -n "$response" ]] && echo "$response"
-        return 1
-    fi
-}
-
-# Run test suite
-run_tests() {
-    log::info "Running Node-RED validation test suite..."
-    
-    local tests_passed=0
-    local tests_failed=0
-    
-    # Test 1: Container running
-    echo -n "Testing container status... "
-    if is_running; then
-        echo "✓ PASSED"
-        ((tests_passed++))
-    else
-        echo "✗ FAILED"
-        ((tests_failed++))
-    fi
-    
-    # Test 2: HTTP endpoint accessible
-    echo -n "Testing HTTP endpoint... "
-    if curl -s -f "http://localhost:$RESOURCE_PORT" >/dev/null 2>&1; then
-        echo "✓ PASSED"
-        ((tests_passed++))
-    else
-        echo "✗ FAILED"
-        ((tests_failed++))
-    fi
-    
-    # Test 3: Admin API accessible
-    echo -n "Testing admin API... "
-    if curl -s "http://localhost:$RESOURCE_PORT/flows" >/dev/null 2>&1; then
-        echo "✓ PASSED"
-        ((tests_passed++))
-    else
-        echo "✗ FAILED"
-        ((tests_failed++))
-    fi
-    
-    # Test 4: Docker socket access
-    echo -n "Testing Docker access... "
-    if docker exec "$CONTAINER_NAME" docker ps >/dev/null 2>&1; then
-        echo "✓ PASSED"
-        ((tests_passed++))
-    else
-        echo "✗ FAILED (Docker access not available)"
-        ((tests_failed++))
-    fi
-    
-    # Test 5: Workspace access
-    echo -n "Testing workspace access... "
-    if docker exec "$CONTAINER_NAME" ls /workspace >/dev/null 2>&1; then
-        echo "✓ PASSED"
-        ((tests_passed++))
-    else
-        echo "✗ FAILED"
-        ((tests_failed++))
-    fi
-    
-    # Test 6: Host command execution
-    echo -n "Testing host command execution... "
-    if docker exec "$CONTAINER_NAME" /bin/sh -c "which ls" >/dev/null 2>&1; then
-        echo "✓ PASSED"
-        ((tests_passed++))
-    else
-        echo "✗ FAILED"
-        ((tests_failed++))
-    fi
-    
-    # Test 7: Flow persistence
-    echo -n "Testing flow persistence... "
-    if docker exec "$CONTAINER_NAME" ls /data/flows.json >/dev/null 2>&1; then
-        echo "✓ PASSED"
-        ((tests_passed++))
-    else
-        echo "✗ FAILED (No flows file found)"
-        ((tests_failed++))
-    fi
-    
-    echo
-    echo "Test Summary:"
-    echo "============="
-    echo "Passed: $tests_passed"
-    echo "Failed: $tests_failed"
-    echo "Total: $((tests_passed + tests_failed))"
-    
-    if [[ $tests_failed -eq 0 ]]; then
-        log::success "All tests passed!"
-        return 0
-    else
-        log::error "Some tests failed"
-        return 1
-    fi
-}
-
-# Validate host access
-validate_host_access() {
-    if ! is_running; then
-        log::error "Node-RED is not running"
-        return 1
-    fi
-    
-    log::info "Validating host command execution..."
-    
-    # Test basic commands
-    local commands=("ls" "pwd" "date" "echo" "cat")
-    local passed=0
-    local failed=0
-    
-    for cmd in "${commands[@]}"; do
-        echo -n "Testing '$cmd'... "
-        if docker exec "$CONTAINER_NAME" "$cmd" --version >/dev/null 2>&1 || 
-           docker exec "$CONTAINER_NAME" "$cmd" >/dev/null 2>&1; then
-            echo "✓"
-            ((passed++))
-        else
-            echo "✗"
-            ((failed++))
-        fi
-    done
-    
-    # Test workspace access
-    echo -n "Testing workspace write access... "
-    if docker exec "$CONTAINER_NAME" touch /workspace/node-red-test-file 2>/dev/null &&
-       docker exec "$CONTAINER_NAME" rm /workspace/node-red-test-file 2>/dev/null; then
-        echo "✓"
-        ((passed++))
-    else
-        echo "✗"
-        ((failed++))
-    fi
-    
-    echo
-    echo "Host Access Summary: $passed passed, $failed failed"
-    
-    [[ $failed -eq 0 ]]
-}
-
-# Validate Docker access
-validate_docker_access() {
-    if ! is_running; then
-        log::error "Node-RED is not running"
-        return 1
-    fi
-    
-    log::info "Validating Docker socket access..."
-    
-    # Test Docker commands
-    echo -n "Testing 'docker ps'... "
-    if docker exec "$CONTAINER_NAME" docker ps >/dev/null 2>&1; then
-        echo "✓"
-        
-        # Test specific container operations
-        echo -n "Testing container inspection... "
-        if docker exec "$CONTAINER_NAME" docker inspect "$CONTAINER_NAME" >/dev/null 2>&1; then
-            echo "✓"
-        else
-            echo "✗"
-        fi
-        
-        return 0
-    else
-        echo "✗"
-        log::warning "Docker socket access not available"
-        log::info "This is expected if Docker socket was not mounted"
-        return 1
-    fi
-}
-
-# Show metrics
-show_metrics() {
-    if ! is_running; then
-        log::error "Node-RED is not running"
-        return 1
-    fi
-    
-    log::info "Node-RED Resource Metrics"
-    echo "========================="
-    
-    # Container stats
-    docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}" "$CONTAINER_NAME"
-    
-    # Flow metrics
-    echo
-    echo "Flow Metrics:"
-    local flow_count=$(docker exec "$CONTAINER_NAME" find /data -name "*.json" -type f 2>/dev/null | wc -l || echo "0")
-    echo "- Flow files: $flow_count"
-    
-    # Disk usage
-    local disk_usage=$(docker exec "$CONTAINER_NAME" du -sh /data 2>/dev/null | cut -f1 || echo "unknown")
-    echo "- Data directory size: $disk_usage"
-    
-    # Node.js metrics
-    echo
-    echo "Node.js Process:"
-    docker exec "$CONTAINER_NAME" ps aux | grep node-red | grep -v grep || echo "Process information not available"
-}
-
-# Create default settings.js
-create_default_settings() {
-    cat > "$SCRIPT_DIR/settings.js" << 'EOF'
-module.exports = {
-    // Flow file settings
-    flowFile: 'flows.json',
-    flowFilePretty: true,
-    
-    // User directory
-    userDir: '/data/',
-    
-    // Node-RED settings
-    uiPort: process.env.PORT || 1880,
-    
-    // Logging
-    logging: {
-        console: {
-            level: "info",
-            metrics: false,
-            audit: false
-        }
-    },
-    
-    // Editor theme
-    editorTheme: {
-        theme: "dark",
-        projects: {
-            enabled: false
-        }
-    },
-    
-    // Function node settings
-    functionGlobalContext: {
-        // Add global libraries here
-        // os: require('os'),
-    },
-    
-    // Allow external npm modules in function nodes
-    functionExternalModules: true,
-    
-    // Debug settings
-    debugMaxLength: 1000,
-    
-    // Exec node settings
-    execMaxBufferSize: 10000000, // 10MB
-    
-    // HTTP request timeout
-    httpRequestTimeout: 120000, // 2 minutes
-}
-EOF
-}
-
-# Update resource configuration
-update_resource_config() {
-    local config_file="$HOME/.vrooli/resources.local.json"
-    
-    # Create config directory if it doesn't exist
-    mkdir -p "$(dirname "$config_file")"
-    
-    # Create or update configuration
-    if [[ -f "$config_file" ]]; then
-        # Update existing config
-        local tmp_file=$(mktemp)
-        jq --arg url "http://localhost:$RESOURCE_PORT" \
-           '.services.automation."node-red" = {
-                "enabled": true,
-                "baseUrl": $url,
-                "adminUrl": ($url + "/admin"),
-                "healthCheck": {
-                    "endpoint": "/",
-                    "intervalMs": 60000,
-                    "timeoutMs": 5000
-                },
-                "flows": {
-                    "directory": "/data/flows",
-                    "autoBackup": true,
-                    "backupInterval": "1h"
-                }
-            }' "$config_file" > "$tmp_file" && mv "$tmp_file" "$config_file"
-    else
-        # Create new config
-        cat > "$config_file" << EOF
-{
-    "version": "1.0.0",
-    "enabled": true,
-    "services": {
-        "automation": {
-            "node-red": {
-                "enabled": true,
-                "baseUrl": "http://localhost:$RESOURCE_PORT",
-                "adminUrl": "http://localhost:$RESOURCE_PORT/admin",
-                "healthCheck": {
-                    "endpoint": "/",
-                    "intervalMs": 60000,
-                    "timeoutMs": 5000
-                },
-                "flows": {
-                    "directory": "/data/flows",
-                    "autoBackup": true,
-                    "backupInterval": "1h"
-                }
-            }
-        }
-    }
-}
-EOF
-    fi
-    
-    # Set appropriate permissions
-    chmod 600 "$config_file"
-}
-
-# Remove resource configuration
-remove_resource_config() {
-    local config_file="$HOME/.vrooli/resources.local.json"
-    
-    if [[ -f "$config_file" ]]; then
-        # Remove node-red configuration
-        local tmp_file=$(mktemp)
-        jq 'del(.services.automation."node-red")' "$config_file" > "$tmp_file" && mv "$tmp_file" "$config_file"
-    fi
-}
-
-# Main execution
+#######################################
+# Main execution function
+#######################################
 main() {
-    parse_args "$@"
+    node_red::parse_arguments "$@"
     
     case "$ACTION" in
         install)
-            install_node_red
+            node_red::install
             ;;
         uninstall)
-            uninstall_node_red
+            node_red::uninstall
             ;;
         start)
-            start_node_red
+            node_red::start
             ;;
         stop)
-            stop_node_red
+            node_red::stop
             ;;
         restart)
-            restart_node_red
+            node_red::restart
             ;;
         status)
-            show_status
+            node_red::show_status
             ;;
         logs)
-            view_logs
+            node_red::view_logs
+            ;;
+        info)
+            node_red::show_info
+            ;;
+        health)
+            node_red::health_check
+            ;;
+        monitor)
+            node_red::monitor "$INTERVAL"
             ;;
         flow-list)
-            list_flows
+            node_red::list_flows
             ;;
         flow-export)
-            export_flows
+            node_red::export_flows
             ;;
         flow-import)
-            import_flow
+            node_red::import_flow
             ;;
         flow-execute)
-            execute_flow
+            node_red::execute_flow
+            ;;
+        flow-enable)
+            node_red::enable_flow "$FLOW_ID"
+            ;;
+        flow-disable)
+            node_red::disable_flow "$FLOW_ID"
             ;;
         test)
-            run_tests
+            node_red::run_tests
             ;;
         validate-host)
-            validate_host_access
+            node_red::validate_host_access
             ;;
         validate-docker)
-            validate_docker_access
+            node_red::validate_docker_access
+            ;;
+        benchmark)
+            node_red::benchmark
+            ;;
+        stress-test)
+            node_red::stress_test "$DURATION"
             ;;
         metrics)
-            show_metrics
+            node_red::show_metrics
+            ;;
+        verify)
+            node_red::verify_installation
+            ;;
+        backup)
+            node_red::backup
+            ;;
+        restore)
+            node_red::restore "$BACKUP_PATH"
             ;;
         *)
             log::error "Unknown action: $ACTION"
-            show_usage
+            node_red::usage
             exit 1
             ;;
     esac

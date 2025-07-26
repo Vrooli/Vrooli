@@ -1,0 +1,189 @@
+[
+    {
+        "id": "main-flow",
+        "type": "tab",
+        "label": "Complex Test Flow",
+        "disabled": false,
+        "info": "A comprehensive test flow with multiple node types"
+    },
+    {
+        "id": "inject-1",
+        "type": "inject",
+        "z": "main-flow",
+        "name": "Start Trigger",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{\"command\": \"start\"}",
+        "payloadType": "json",
+        "x": 130,
+        "y": 80,
+        "wires": [
+            [
+                "function-1"
+            ]
+        ]
+    },
+    {
+        "id": "function-1",
+        "type": "function",
+        "z": "main-flow",
+        "name": "Process Command",
+        "func": "if (msg.payload.command === 'start') {\n    msg.payload = {\n        status: 'processing',\n        timestamp: new Date().toISOString()\n    };\n    return msg;\n}\nreturn null;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 320,
+        "y": 80,
+        "wires": [
+            [
+                "http-request-1"
+            ]
+        ]
+    },
+    {
+        "id": "http-request-1",
+        "type": "http request",
+        "z": "main-flow",
+        "name": "API Call",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://localhost:1880/api/test",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "senderr": false,
+        "x": 500,
+        "y": 80,
+        "wires": [
+            [
+                "switch-1"
+            ]
+        ]
+    },
+    {
+        "id": "switch-1",
+        "type": "switch",
+        "z": "main-flow",
+        "name": "Route Response",
+        "property": "statusCode",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "200",
+                "vt": "num"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 2,
+        "x": 680,
+        "y": 80,
+        "wires": [
+            [
+                "debug-success"
+            ],
+            [
+                "debug-error"
+            ]
+        ]
+    },
+    {
+        "id": "debug-success",
+        "type": "debug",
+        "z": "main-flow",
+        "name": "Success Log",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 870,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "debug-error",
+        "type": "debug",
+        "z": "main-flow",
+        "name": "Error Log",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 860,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "http-in-webhook",
+        "type": "http in",
+        "z": "main-flow",
+        "name": "Webhook Endpoint",
+        "url": "/webhook/test",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 130,
+        "y": 180,
+        "wires": [
+            [
+                "function-webhook"
+            ]
+        ]
+    },
+    {
+        "id": "function-webhook",
+        "type": "function",
+        "z": "main-flow",
+        "name": "Process Webhook",
+        "func": "msg.payload = {\n    received: msg.payload,\n    processed: true,\n    timestamp: new Date().toISOString()\n};\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 350,
+        "y": 180,
+        "wires": [
+            [
+                "http-response-webhook"
+            ]
+        ]
+    },
+    {
+        "id": "http-response-webhook",
+        "type": "http response",
+        "z": "main-flow",
+        "name": "Webhook Response",
+        "statusCode": "200",
+        "headers": {
+            "content-type": "application/json"
+        },
+        "x": 570,
+        "y": 180,
+        "wires": []
+    }
+]

@@ -1,0 +1,94 @@
+{
+    "version": "3.0.2",
+    "git": {
+        "total": 4652,
+        "sha": "36f3bd85"
+    },
+    "build": {
+        "version": "3.0.2",
+        "built": "2023-07-09T12:23:18.000Z"
+    },
+    "userDir": "/data",
+    "flowFile": "flows.json",
+    "flowFilePretty": true,
+    "credentialSecret": "********",
+    "httpNodeAuth": false,
+    "httpAdminAuth": false,
+    "httpStaticAuth": false,
+    "uiPort": 1880,
+    "tcpNodeInputPortMin": 1024,
+    "tcpNodeInputPortMax": 65535,
+    "exportNodeSettings": false,
+    "context": {
+        "default": "memory",
+        "stores": [
+            "memory"
+        ]
+    },
+    "functionGlobalContext": {},
+    "functionTimeout": 0,
+    "functionExternalModules": true,
+    "debugMaxLength": 1000,
+    "mqttReconnectTime": 15000,
+    "serialReconnectTime": 15000,
+    "socketReconnectTime": 10000,
+    "socketTimeout": 120000,
+    "httpRequestTimeout": 120000,
+    "httpResponseTimeout": 0,
+    "httpMaxRedirects": 21,
+    "editorTheme": {
+        "theme": "dark",
+        "projects": {
+            "enabled": false
+        },
+        "header": {
+            "title": "Node-RED (Vrooli)",
+            "image": "/absolute/path/to/header/image"
+        },
+        "deployButton": {
+            "type": "simple",
+            "icon": "red/images/deploy-full-o.svg"
+        },
+        "menu": {
+            "menu-item-keyboard-shortcuts": false,
+            "menu-item-help": {
+                "label": "Node-RED Website",
+                "url": "http://nodered.org/docs"
+            }
+        },
+        "userMenu": false,
+        "login": {
+            "image": "/absolute/path/to/login/page/big/image"
+        },
+        "logout": {
+            "redirect": "http://example.com"
+        },
+        "palette": {
+            "editable": true,
+            "catalogues": [
+                "https://catalogue.nodered.org/catalogue.json"
+            ],
+            "theme": [
+                {
+                    "category": "subflows",
+                    "type": "subflow",
+                    "color": "#da7b46"
+                }
+            ]
+        },
+        "projects": {
+            "enabled": false,
+            "workflow": {
+                "mode": "manual"
+            }
+        },
+        "tours": false
+    },
+    "logging": {
+        "console": {
+            "level": "info",
+            "metrics": false,
+            "audit": false
+        }
+    }
+}

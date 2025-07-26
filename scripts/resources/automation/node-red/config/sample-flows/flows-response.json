@@ -1,0 +1,14 @@
+[
+    {
+        "id": "flow1",
+        "type": "tab",
+        "label": "Test Flow 1",
+        "disabled": false
+    },
+    {
+        "id": "node1",
+        "type": "inject",
+        "name": "Test Inject",
+        "z": "flow1"
+    }
+]
