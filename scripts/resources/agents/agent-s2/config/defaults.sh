@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+# Agent S2 Configuration Defaults
+# All configuration constants and default values
+
+#######################################
+# Export configuration constants
+# Idempotent - safe to call multiple times
+#######################################
+agents2::export_config() {
+    # Service configuration (only set if not already defined)
+    if [[ -z "${AGENTS2_PORT:-}" ]]; then
+        readonly AGENTS2_PORT="${AGENTS2_CUSTOM_PORT:-$(resources::get_default_port "agent-s2")}"
+    fi
+    if [[ -z "${AGENTS2_BASE_URL:-}" ]]; then
+        readonly AGENTS2_BASE_URL="http://localhost:${AGENTS2_PORT}"
+    fi
+    if [[ -z "${AGENTS2_VNC_PORT:-}" ]]; then
+        readonly AGENTS2_VNC_PORT="${AGENTS2_CUSTOM_VNC_PORT:-5900}"
+    fi
+    if [[ -z "${AGENTS2_VNC_URL:-}" ]]; then
+        readonly AGENTS2_VNC_URL="vnc://localhost:${AGENTS2_VNC_PORT}"
+    fi
+    if [[ -z "${AGENTS2_CONTAINER_NAME:-}" ]]; then
+        readonly AGENTS2_CONTAINER_NAME="agent-s2"
+    fi
+    if [[ -z "${AGENTS2_DATA_DIR:-}" ]]; then
+        readonly AGENTS2_DATA_DIR="${HOME}/.agent-s2"
+    fi
+    if [[ -z "${AGENTS2_IMAGE_NAME:-}" ]]; then
+        readonly AGENTS2_IMAGE_NAME="agent-s2:latest"
+    fi
+
+    # LLM configuration (only set if not already defined)
+    if [[ -z "${AGENTS2_LLM_PROVIDER:-}" ]]; then
+        readonly AGENTS2_LLM_PROVIDER="${LLM_PROVIDER:-openai}"
+    fi
+    if [[ -z "${AGENTS2_LLM_MODEL:-}" ]]; then
+        readonly AGENTS2_LLM_MODEL="${LLM_MODEL:-gpt-4}"
+    fi
+    if [[ -z "${AGENTS2_API_KEY:-}" ]]; then
+        readonly AGENTS2_API_KEY="${OPENAI_API_KEY:-}"
+    fi
+
+    # Display configuration (only set if not already defined)
+    if [[ -z "${AGENTS2_DISPLAY:-}" ]]; then
+        readonly AGENTS2_DISPLAY=":99"
+    fi
+    if [[ -z "${AGENTS2_SCREEN_RESOLUTION:-}" ]]; then
+        readonly AGENTS2_SCREEN_RESOLUTION="1920x1080x24"
+    fi
+    if [[ -z "${AGENTS2_VNC_PASSWORD:-}" ]]; then
+        readonly AGENTS2_VNC_PASSWORD="${VNC_PASSWORD:-agents2vnc}"
+    fi
+    if [[ -z "${AGENTS2_ENABLE_HOST_DISPLAY:-}" ]]; then
+        readonly AGENTS2_ENABLE_HOST_DISPLAY="${ENABLE_HOST_DISPLAY:-no}"
+    fi
+
+    # Network configuration (only set if not already defined)
+    if [[ -z "${AGENTS2_NETWORK_NAME:-}" ]]; then
+        readonly AGENTS2_NETWORK_NAME="agent-s2-network"
+    fi
+
+    # Security configuration (only set if not already defined)
+    if [[ -z "${AGENTS2_SECURITY_OPT:-}" ]]; then
+        readonly AGENTS2_SECURITY_OPT="seccomp=unconfined"
+    fi
+    if [[ -z "${AGENTS2_USER:-}" ]]; then
+        readonly AGENTS2_USER="agents2"
+    fi
+    if [[ -z "${AGENTS2_USER_ID:-}" ]]; then
+        readonly AGENTS2_USER_ID="1000"
+    fi
+    if [[ -z "${AGENTS2_GROUP_ID:-}" ]]; then
+        readonly AGENTS2_GROUP_ID="1000"
+    fi
+
+    # Health check configuration (only set if not already defined)
+    if [[ -z "${AGENTS2_HEALTH_CHECK_INTERVAL:-}" ]]; then
+        readonly AGENTS2_HEALTH_CHECK_INTERVAL=30
+    fi
+    if [[ -z "${AGENTS2_HEALTH_CHECK_TIMEOUT:-}" ]]; then
+        readonly AGENTS2_HEALTH_CHECK_TIMEOUT=10
+    fi
+    if [[ -z "${AGENTS2_HEALTH_CHECK_RETRIES:-}" ]]; then
+        readonly AGENTS2_HEALTH_CHECK_RETRIES=3
+    fi
+    if [[ -z "${AGENTS2_API_TIMEOUT:-}" ]]; then
+        readonly AGENTS2_API_TIMEOUT=10
+    fi
+
+    # Wait timeouts (only set if not already defined)
+    if [[ -z "${AGENTS2_STARTUP_MAX_WAIT:-}" ]]; then
+        readonly AGENTS2_STARTUP_MAX_WAIT=120
+    fi
+    if [[ -z "${AGENTS2_STARTUP_WAIT_INTERVAL:-}" ]]; then
+        readonly AGENTS2_STARTUP_WAIT_INTERVAL=5
+    fi
+    if [[ -z "${AGENTS2_INITIALIZATION_WAIT:-}" ]]; then
+        readonly AGENTS2_INITIALIZATION_WAIT=15
+    fi
+
+    # Resource limits (only set if not already defined)
+    if [[ -z "${AGENTS2_MEMORY_LIMIT:-}" ]]; then
+        readonly AGENTS2_MEMORY_LIMIT="4g"
+    fi
+    if [[ -z "${AGENTS2_CPU_LIMIT:-}" ]]; then
+        readonly AGENTS2_CPU_LIMIT="2.0"
+    fi
+    if [[ -z "${AGENTS2_SHM_SIZE:-}" ]]; then
+        readonly AGENTS2_SHM_SIZE="2gb"
+    fi
+
+    # Export for global access
+    export AGENTS2_PORT AGENTS2_BASE_URL AGENTS2_VNC_PORT AGENTS2_VNC_URL
+    export AGENTS2_CONTAINER_NAME AGENTS2_DATA_DIR AGENTS2_IMAGE_NAME
+    export AGENTS2_LLM_PROVIDER AGENTS2_LLM_MODEL AGENTS2_API_KEY
+    export AGENTS2_DISPLAY AGENTS2_SCREEN_RESOLUTION AGENTS2_VNC_PASSWORD
+    export AGENTS2_ENABLE_HOST_DISPLAY AGENTS2_NETWORK_NAME
+    export AGENTS2_SECURITY_OPT AGENTS2_USER AGENTS2_USER_ID AGENTS2_GROUP_ID
+    export AGENTS2_HEALTH_CHECK_INTERVAL AGENTS2_HEALTH_CHECK_TIMEOUT
+    export AGENTS2_HEALTH_CHECK_RETRIES AGENTS2_API_TIMEOUT
+    export AGENTS2_STARTUP_MAX_WAIT AGENTS2_STARTUP_WAIT_INTERVAL
+    export AGENTS2_INITIALIZATION_WAIT
+    export AGENTS2_MEMORY_LIMIT AGENTS2_CPU_LIMIT AGENTS2_SHM_SIZE
+}
