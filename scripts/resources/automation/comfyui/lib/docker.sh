@@ -27,7 +27,7 @@ comfyui::start_container() {
             log::info "Configuring container for NVIDIA GPU..."
             
             # Check if NVIDIA runtime is available
-            if docker::run info 2>/dev/null | grep -q nvidia; then
+            if docker::run info 2>/dev/null | grep -E "(Runtimes:.*nvidia|Default Runtime: nvidia)" >/dev/null; then
                 docker_args+=("--gpus" "all")
                 
                 # Add NVIDIA-specific environment variables

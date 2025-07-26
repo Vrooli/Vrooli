@@ -13,6 +13,8 @@ source "${COMFYUI_SCRIPT_DIR}/config/defaults.sh"
 RESOURCES_DIR="${COMFYUI_SCRIPT_DIR}/../.."
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/common.sh"
+# shellcheck disable=SC1091
+source "${RESOURCES_DIR}/../helpers/utils/args.sh"
 
 # Global variables for script state
 declare -g ACTION=""
@@ -27,115 +29,89 @@ declare -g PROMPT_ID=""
 # Parse command line arguments
 #######################################
 comfyui::parse_arguments() {
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --action|-a)
-                ACTION="$2"
-                shift 2
-                ;;
-            --force|-f)
-                FORCE="${2:-yes}"
-                [[ "$FORCE" != "yes" && "$FORCE" != "no" ]] && FORCE="no"
-                shift 2
-                ;;
-            --yes|-y)
-                YES="${2:-yes}"
-                [[ "$YES" != "yes" && "$YES" != "no" ]] && YES="no"
-                shift 2
-                ;;
-            --gpu)
-                GPU_TYPE="$2"
-                shift 2
-                ;;
-            --workflow)
-                WORKFLOW_PATH="$2"
-                shift 2
-                ;;
-            --output)
-                OUTPUT_DIR="$2"
-                shift 2
-                ;;
-            --prompt-id)
-                PROMPT_ID="$2"
-                shift 2
-                ;;
-            --help|-h)
-                ACTION="help"
-                shift
-                ;;
-            *)
-                log::error "Unknown argument: $1"
-                comfyui::usage
-                exit 1
-                ;;
-        esac
-    done
+    args::reset
     
-    # Set default action if not specified
-    ACTION="${ACTION:-help}"
+    args::register_help
+    args::register_yes
+    
+    args::register \
+        --name "action" \
+        --flag "a" \
+        --desc "Action to perform" \
+        --type "value" \
+        --options "install|uninstall|start|stop|restart|status|logs|info|download-models|list-models|execute-workflow|import-workflow|gpu-info|validate-nvidia|check-ready|cleanup-help" \
+        --default "install"
+    
+    args::register \
+        --name "force" \
+        --flag "f" \
+        --desc "Force action even if already done" \
+        --type "value" \
+        --options "yes|no" \
+        --default "no"
+    
+    args::register \
+        --name "gpu" \
+        --desc "GPU type" \
+        --type "value" \
+        --options "auto|nvidia|amd|cpu" \
+        --default "auto"
+    
+    args::register \
+        --name "workflow" \
+        --desc "Path to workflow file (for execute/import)" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "output" \
+        --desc "Output directory for generated images" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "prompt-id" \
+        --desc "Prompt ID for workflow execution" \
+        --type "value" \
+        --default ""
+    
+    if args::is_asking_for_help "$@"; then
+        args::usage "$DESCRIPTION"
+        echo
+        echo "Examples:"
+        echo "  # Install with automatic GPU detection"
+        echo "  $0 --action install"
+        echo
+        echo "  # Install with specific GPU type"
+        echo "  $0 --action install --gpu nvidia"
+        echo
+        echo "  # Execute a workflow"
+        echo "  $0 --action execute-workflow --workflow my-workflow.json"
+        echo
+        echo "Environment Variables:"
+        echo "  COMFYUI_CUSTOM_PORT      Override default port (default: 5679)"
+        echo "  COMFYUI_GPU_TYPE         Force GPU type (auto/nvidia/amd/cpu)"
+        echo "  COMFYUI_CUSTOM_IMAGE     Use custom Docker image"
+        echo "  COMFYUI_VRAM_LIMIT       Limit VRAM usage in GB"
+        echo "  COMFYUI_NVIDIA_CHOICE    Non-interactive NVIDIA choice (1-4)"
+        echo
+        exit 0
+    fi
+    
+    args::parse "$@"
+    
+    export ACTION=$(args::get "action")
+    export YES=$(args::get "yes")
+    export FORCE=$(args::get "force")
+    export GPU_TYPE=$(args::get "gpu")
+    export WORKFLOW_PATH=$(args::get "workflow")
+    export OUTPUT_DIR=$(args::get "output")
+    export PROMPT_ID=$(args::get "prompt-id")
     
     # Apply environment variable overrides
-    GPU_TYPE="${COMFYUI_GPU_TYPE:-${GPU_TYPE:-auto}}"
+    GPU_TYPE="${COMFYUI_GPU_TYPE:-${GPU_TYPE}}"
 }
 
-#######################################
-# Display usage information
-#######################################
-comfyui::usage() {
-    cat << EOF
-Usage: $0 [OPTIONS]
-
-ComfyUI Resource Management Script
-
-OPTIONS:
-    --action, -a <action>     Action to perform (required)
-                             Available actions:
-                               install    - Install ComfyUI
-                               uninstall  - Remove ComfyUI
-                               start      - Start ComfyUI service
-                               stop       - Stop ComfyUI service
-                               restart    - Restart ComfyUI service
-                               status     - Check ComfyUI status
-                               logs       - View ComfyUI logs
-                               info       - Display resource information
-                               download-models - Download default models
-                               list-models - List installed models
-                               execute-workflow - Execute a workflow
-                               import-workflow - Import a workflow file
-                               gpu-info   - Display GPU information
-                               validate-nvidia - Validate NVIDIA setup
-                               check-ready - Check if ComfyUI is ready
-                               cleanup-help - Show cleanup instructions
-    
-    --force, -f [yes|no]     Force action even if already done (default: no)
-    --yes, -y [yes|no]       Skip confirmation prompts (default: no)
-    --gpu <type>             GPU type: auto|nvidia|amd|cpu (default: auto)
-    --workflow <path>        Path to workflow file (for execute/import)
-    --output <dir>           Output directory for generated images
-    --help, -h               Display this help message
-
-ENVIRONMENT VARIABLES:
-    COMFYUI_CUSTOM_PORT      Override default port (default: 5679)
-    COMFYUI_GPU_TYPE         Force GPU type (auto/nvidia/amd/cpu)
-    COMFYUI_CUSTOM_IMAGE     Use custom Docker image
-    COMFYUI_VRAM_LIMIT       Limit VRAM usage in GB
-    COMFYUI_NVIDIA_CHOICE    Non-interactive NVIDIA choice (1-4)
-
-EXAMPLES:
-    # Install with automatic GPU detection
-    $0 --action install
-    
-    # Install with specific GPU type
-    $0 --action install --gpu nvidia
-    
-    # Execute a workflow
-    $0 --action execute-workflow --workflow my-workflow.json
-    
-    # Check GPU information
-    $0 --action gpu-info
-
-EOF
-}
 
 #######################################
 # Check if ComfyUI container exists

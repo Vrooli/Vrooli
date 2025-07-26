@@ -498,11 +498,9 @@ comfyui::handle_nvidia_requirements() {
                 *) log::error "Invalid COMFYUI_NVIDIA_CHOICE: $COMFYUI_NVIDIA_CHOICE"; return 1 ;;
             esac
         else
-            # Default to CPU mode in non-interactive
-            log::warn "Non-interactive mode: Falling back to CPU mode"
-            log::info "Set COMFYUI_NVIDIA_CHOICE=1 to auto-install NVIDIA runtime"
-            GPU_TYPE="cpu"
-            return 0
+            # Auto-install NVIDIA runtime when GPU detected in non-interactive mode
+            log::info "Non-interactive mode: Auto-installing NVIDIA Container Runtime"
+            comfyui::install_nvidia_runtime && return 0 || return 1
         fi
     fi
     

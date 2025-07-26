@@ -91,7 +91,8 @@ comfyui::main() {
             comfyui::cleanup_help
             ;;
         "help")
-            comfyui::usage
+            # Show help using the args system
+            comfyui::parse_arguments --help
             ;;
         "extended-help")
             comfyui::show_extended_help
@@ -110,8 +111,8 @@ comfyui::main() {
             ;;
         *)
             log::error "Unknown action: $ACTION"
-            comfyui::usage
-            exit 1
+            # Show help using the args system
+            comfyui::parse_arguments --help
             ;;
     esac
 }

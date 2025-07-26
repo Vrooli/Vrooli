@@ -113,7 +113,7 @@ comfyui::install() {
     OPERATION_ID=""
     
     # Step 6: Download models (non-critical)
-    if [[ "$SKIP_MODELS" != "yes" ]]; then
+    if [[ "${SKIP_MODELS:-no}" != "yes" ]]; then
         log::info "Downloading default models..."
         if ! comfyui::download_default_models; then
             log::warn "Model download failed, but ComfyUI is installed"

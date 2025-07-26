@@ -8,7 +8,7 @@ readonly COMFYUI_CATEGORY="automation"
 
 # Container configuration
 readonly COMFYUI_CONTAINER_NAME="comfyui"
-readonly COMFYUI_DEFAULT_IMAGE="ai-dock/comfyui:latest"
+readonly COMFYUI_DEFAULT_IMAGE="ghcr.io/ai-dock/comfyui:latest"
 readonly COMFYUI_DATA_DIR="${HOME}/.comfyui"
 
 # Port configuration
