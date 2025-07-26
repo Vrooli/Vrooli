@@ -2,6 +2,32 @@
 
 n8n is a workflow automation platform that allows you to connect various services and automate tasks. This resource provides automated installation, configuration, and management of n8n for the Vrooli project with enhanced host system access.
 
+## Directory Structure
+
+```
+n8n/
+├── manage.sh              # Main management script
+├── config/                # Configuration files
+│   ├── defaults.sh        # Default settings and constants
+│   └── messages.sh        # User messages and help text
+├── lib/                   # Modular script components
+│   ├── api.sh             # API and workflow execution
+│   ├── common.sh          # Shared utilities
+│   ├── database.sh        # PostgreSQL management
+│   ├── docker.sh          # Docker operations
+│   ├── install.sh         # Installation logic
+│   ├── password.sh        # Authentication management
+│   └── status.sh          # Status and monitoring
+├── docker/                # Docker-related files
+│   ├── Dockerfile         # Custom n8n image definition
+│   └── docker-entrypoint.sh # Custom entrypoint script
+├── examples/              # Example workflows
+│   ├── example-notification-workflow.json
+│   └── webhook-workflow.json
+└── README.md              # This file
+
+```
+
 ## Overview
 
 - **Category**: Automation
