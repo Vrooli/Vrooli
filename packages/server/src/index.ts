@@ -16,7 +16,9 @@ import { setupErrorReporting } from "./services/errorReporting.js";
 import { setupHealthCheck } from "./services/health.js";
 import { setupMCP } from "./services/mcp/index.js";
 import { setupMetrics } from "./services/metrics.js";
-import { ResourceRegistry } from "./services/resources/ResourceRegistry.js";
+// Import resources module to ensure providers are registered
+import "./services/resources/index.js";
+import { ResourceRegistry } from "./services/resources/index.js";
 import { setupStripe } from "./services/stripe.js";
 import { SocketService } from "./sockets/io.js";
 import { chatSocketRoomHandlers } from "./sockets/rooms/chat.js";
