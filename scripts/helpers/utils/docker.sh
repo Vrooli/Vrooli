@@ -517,6 +517,85 @@ docker::configure_resource_limits() {
     fi
 }
 
+# Configure Docker daemon for GPU runtime support
+docker::configure_gpu_runtime() {
+    # Check if NVIDIA container runtime is installed
+    if ! system::is_command "nvidia-container-runtime"; then
+        log::info "NVIDIA Container Runtime not installed, skipping GPU configuration"
+        return 0
+    fi
+    
+    # Check if NVIDIA GPU is present
+    if ! system::has_nvidia_gpu; then
+        log::info "No NVIDIA GPU detected, skipping GPU configuration"
+        return 0
+    fi
+    
+    log::info "Checking Docker daemon GPU configuration..."
+    
+    local daemon_file="/etc/docker/daemon.json"
+    local needs_update=false
+    
+    # Check if daemon.json exists and already has correct GPU configuration
+    if [[ -f "$daemon_file" ]]; then
+        # Check if default-runtime is nvidia and nvidia runtime is configured
+        local has_nvidia_default=$(jq -r '."default-runtime" // ""' "$daemon_file" 2>/dev/null)
+        local has_nvidia_runtime=$(jq -r '.runtimes.nvidia // ""' "$daemon_file" 2>/dev/null)
+        
+        if [[ "$has_nvidia_default" == "nvidia" && -n "$has_nvidia_runtime" ]]; then
+            log::info "Docker daemon already configured for GPU support. No changes needed."
+            return 0
+        else
+            needs_update=true
+        fi
+    else
+        needs_update=true
+    fi
+    
+    # Only proceed if update is needed
+    if [[ "$needs_update" == "true" ]]; then
+        log::info "Configuring Docker daemon for NVIDIA GPU support..."
+        
+        local gpu_config='{
+            "default-runtime": "nvidia",
+            "runtimes": {
+                "nvidia": {
+                    "path": "nvidia-container-runtime",
+                    "runtimeArgs": []
+                }
+            }
+        }'
+        
+        # Create backup if file exists
+        [[ -f "$daemon_file" ]] && flow::maybe_run_sudo cp "$daemon_file" "${daemon_file}.backup"
+        
+        if [[ -f "$daemon_file" ]]; then
+            # Merge GPU config into existing config using jq
+            if ! echo "$gpu_config" | flow::maybe_run_sudo jq -s '.[0] * .[1]' "$daemon_file" - | flow::maybe_run_sudo tee "${daemon_file}.tmp" >/dev/null 2>&1; then
+                log::error "Failed to update daemon.json for GPU support"
+                return 1
+            fi
+        else
+            # Create new file with GPU config only
+            echo "$gpu_config" | flow::maybe_run_sudo tee "${daemon_file}.tmp" >/dev/null
+        fi
+        
+        # Validate JSON before replacing
+        if jq empty "${daemon_file}.tmp" 2>/dev/null; then
+            flow::maybe_run_sudo mv "${daemon_file}.tmp" "$daemon_file"
+            log::success "Docker daemon configured for GPU support"
+            
+            # Restart Docker daemon to apply changes
+            log::info "Restarting Docker daemon to apply GPU configuration..."
+            docker::restart
+        else
+            log::error "Invalid JSON generated for GPU config, keeping original"
+            flow::maybe_run_sudo rm -f "${daemon_file}.tmp"
+            return 1
+        fi
+    fi
+}
+
 docker::setup() {
     docker::install
     docker::manage_docker_group
@@ -525,6 +604,7 @@ docker::setup() {
     if ! flow::is_yes "${IS_CI:-}"; then
         docker::setup_internet_access
         docker::configure_resource_limits
+        docker::configure_gpu_runtime
     fi
 }
 

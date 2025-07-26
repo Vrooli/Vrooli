@@ -54,6 +54,8 @@ declare -ga PROCESS_PATTERNS=(
     "concurrently.*SERVER,JOBS,UI"
     "pnpm.*filter.*@vrooli"
     "bash.*package.*start.sh"
+    "node.*--inspect.*dist/index\.js"
+    "node.*--experimental-modules.*dist/index\.js"
 )
 
 # ==============================================================================

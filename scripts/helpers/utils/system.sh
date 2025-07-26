@@ -431,3 +431,106 @@ system::canonicalize() {
     echo "$canonical"
   fi
 }
+
+# Check if NVIDIA GPU is present
+system::has_nvidia_gpu() {
+    # Check if nvidia-smi exists and can detect GPU
+    if system::is_command "nvidia-smi"; then
+        nvidia-smi >/dev/null 2>&1 && return 0
+    fi
+    
+    # Fallback: check lspci for NVIDIA devices
+    if system::is_command "lspci"; then
+        lspci | grep -i nvidia >/dev/null 2>&1 && return 0
+    fi
+    
+    return 1
+}
+
+# Install NVIDIA Container Runtime
+system::install_nvidia_container_runtime() {
+    # Check if already installed
+    if system::is_command "nvidia-container-runtime"; then
+        log::info "NVIDIA Container Runtime already installed"
+        return 0
+    fi
+    
+    # Check sudo availability once before attempting installation
+    if ! flow::can_run_sudo "NVIDIA Container Runtime installation"; then
+        log::warning "NVIDIA Container Runtime needs to be installed but sudo is not available"
+        log::info "The following changes would be made:"
+        log::info "  - Add NVIDIA container toolkit repository"
+        log::info "  - Install nvidia-container-toolkit package"
+        log::info "  - Configure Docker daemon for GPU support"
+        log::info "To install NVIDIA Container Runtime, run with sudo or use --sudo-mode error"
+        return 1
+    fi
+    
+    local distro
+    distro=$(system::detect_pm)
+    
+    case "$distro" in
+        apt-get)
+            system::install_nvidia_runtime_apt "$distro"
+            ;;
+        dnf|yum)
+            system::install_nvidia_runtime_yum "$distro"
+            ;;
+        pacman)
+            system::install_nvidia_runtime_pacman
+            ;;
+        *)
+            log::warn "Unsupported package manager for NVIDIA Container Runtime: $distro"
+            return 1
+            ;;
+    esac
+}
+
+# Install NVIDIA runtime on Ubuntu/Debian
+system::install_nvidia_runtime_apt() {
+    local distro="$1"
+    log::info "Installing NVIDIA Container Runtime for Ubuntu/Debian..."
+    
+    # Set up the repository (sudo availability already verified by caller)
+    log::info "Adding NVIDIA container toolkit repository..."
+    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \
+        sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+    
+    curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+        sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+        sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+    
+    # Update and install
+    log::info "Updating package lists and installing nvidia-container-toolkit..."
+    sudo apt-get update -qq
+    sudo apt-get install -y nvidia-container-toolkit
+    
+    log::success "NVIDIA Container Runtime installed successfully"
+}
+
+# Install NVIDIA runtime on CentOS/RHEL/Fedora  
+system::install_nvidia_runtime_yum() {
+    local distro="$1"
+    log::info "Installing NVIDIA Container Runtime for CentOS/RHEL/Fedora..."
+    
+    # Set up the repository (sudo availability already verified by caller)
+    log::info "Adding NVIDIA container toolkit repository..."
+    curl -s -L https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo | \
+        sudo tee /etc/yum.repos.d/nvidia-container-toolkit.repo
+    
+    # Install
+    log::info "Installing nvidia-container-toolkit package..."
+    sudo "$distro" install -y nvidia-container-toolkit
+    
+    log::success "NVIDIA Container Runtime installed successfully"
+}
+
+# Install NVIDIA runtime on Arch Linux
+system::install_nvidia_runtime_pacman() {
+    log::info "Installing NVIDIA Container Runtime for Arch Linux..."
+    
+    # Install from AUR (requires manual intervention)
+    log::warn "Arch Linux requires manual AUR installation of nvidia-container-toolkit"
+    log::info "Please install manually: yay -S nvidia-container-toolkit"
+    return 1
+}

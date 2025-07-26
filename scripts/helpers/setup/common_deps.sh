@@ -41,8 +41,27 @@ common_deps::check_and_install() {
     # Install Helm CLI for Kubernetes package management
     helm::check_and_install
 
+    # Install NVIDIA container runtime if NVIDIA GPU detected
+    common_deps::setup_nvidia_runtime
+
     log::success "✅ Common dependencies checked/installed."
     return 0
+}
+
+# Setup NVIDIA container runtime if GPU detected
+common_deps::setup_nvidia_runtime() {
+    # Check if NVIDIA GPU is present
+    if system::has_nvidia_gpu; then
+        log::info "NVIDIA GPU detected, installing container runtime..."
+        
+        if system::install_nvidia_container_runtime; then
+            log::success "✅ NVIDIA Container Runtime installed"
+        else
+            log::warn "Failed to install NVIDIA Container Runtime (GPU support may be limited)"
+        fi
+    else
+        log::info "No NVIDIA GPU detected, skipping container runtime installation"
+    fi
 }
 
 # If this script is run directly, invoke its main function.

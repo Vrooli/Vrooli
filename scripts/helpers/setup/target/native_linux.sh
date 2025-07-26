@@ -19,6 +19,19 @@ native_linux::setup_native_linux() {
     
     # Setup local resources if requested
     if [[ -n "${RESOURCES:-}" && "$RESOURCES" != "none" ]]; then
+        # Handle special case for "enabled" option
+        if [[ "$RESOURCES" == "enabled" ]]; then
+            # Check if this is a first run (no config exists)
+            if [[ ! -f "$HOME/.vrooli/resources.local.json" ]]; then
+                log::info "First run detected - will install recommended resources"
+                # For first run, install essential AI resource
+                RESOURCES="ollama"
+            else
+                # Config exists, so resources::get_enabled_from_config will handle it
+                log::info "Installing resources marked as enabled in configuration"
+            fi
+        fi
+        
         log::header "🔧 Setting up local resources: $RESOURCES"
         
         local resources_script="${SETUP_TARGET_DIR}/../../../resources/index.sh"
