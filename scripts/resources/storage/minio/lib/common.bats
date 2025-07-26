@@ -32,10 +32,10 @@ HELPERS_DIR="$RESOURCES_DIR/../helpers"
 # Function Definition Tests
 # ============================================================================
 
-@test "sourcing common.sh defines minio::common::is_installed function" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::common::is_installed"
+@test "sourcing common.sh defines minio::common::container_exists function" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::common::container_exists"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "minio::common::is_installed" ]]
+    [[ "$output" =~ "minio::common::container_exists" ]]
 }
 
 @test "sourcing common.sh defines minio::common::is_running function" {
@@ -44,16 +44,16 @@ HELPERS_DIR="$RESOURCES_DIR/../helpers"
     [[ "$output" =~ "minio::common::is_running" ]]
 }
 
-@test "sourcing common.sh defines minio::common::ensure_directories function" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::common::ensure_directories"
+@test "sourcing common.sh defines minio::common::create_directories function" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::common::create_directories"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "minio::common::ensure_directories" ]]
+    [[ "$output" =~ "minio::common::create_directories" ]]
 }
 
-@test "sourcing common.sh defines minio::common::get_credentials function" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::common::get_credentials"
+@test "sourcing common.sh defines minio::common::generate_credentials function" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::common::generate_credentials"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "minio::common::get_credentials" ]]
+    [[ "$output" =~ "minio::common::generate_credentials" ]]
 }
 
 @test "sourcing common.sh defines minio::common::show_logs function" {
@@ -66,8 +66,8 @@ HELPERS_DIR="$RESOURCES_DIR/../helpers"
 # Function Structure Tests (without execution)
 # ============================================================================
 
-@test "minio::common::is_installed checks docker container existence" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::common::is_installed | grep -q 'docker'"
+@test "minio::common::container_exists checks docker container existence" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::common::container_exists | grep -q 'docker'"
     [ "$status" -eq 0 ]
 }
 
@@ -76,18 +76,18 @@ HELPERS_DIR="$RESOURCES_DIR/../helpers"
     [ "$status" -eq 0 ]
 }
 
-@test "minio::common::ensure_directories creates data directory" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::common::ensure_directories | grep -q 'data'"
+@test "minio::common::create_directories creates data directory" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::common::create_directories | grep -q 'data'"
     [ "$status" -eq 0 ]
 }
 
-@test "minio::common::ensure_directories sets proper permissions" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::common::ensure_directories | grep -q 'chmod'"
+@test "minio::common::create_directories sets proper permissions" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::common::create_directories | grep -q 'chmod'"
     [ "$status" -eq 0 ]
 }
 
-@test "minio::common::get_credentials reads from credentials file" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::common::get_credentials | grep -q 'credentials'"
+@test "minio::common::generate_credentials handles credentials file" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::common::generate_credentials | grep -q 'credentials'"
     [ "$status" -eq 0 ]
 }
 

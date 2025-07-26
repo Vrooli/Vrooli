@@ -22,10 +22,10 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/buckets.sh"
 # Function Definition Tests
 # ============================================================================
 
-@test "sourcing buckets.sh defines minio::buckets::initialize_defaults function" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::buckets::initialize_defaults"
+@test "sourcing buckets.sh defines minio::buckets::init_defaults function" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::buckets::init_defaults"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "minio::buckets::initialize_defaults" ]]
+    [[ "$output" =~ "minio::buckets::init_defaults" ]]
 }
 
 @test "sourcing buckets.sh defines minio::buckets::create_custom function" {
@@ -56,8 +56,8 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/buckets.sh"
 # Function Structure Tests (without execution)
 # ============================================================================
 
-@test "minio::buckets::initialize_defaults creates default buckets" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::buckets::initialize_defaults | grep -q 'bucket'"
+@test "minio::buckets::init_defaults creates default buckets" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::buckets::init_defaults | grep -q 'bucket'"
     [ "$status" -eq 0 ]
 }
 

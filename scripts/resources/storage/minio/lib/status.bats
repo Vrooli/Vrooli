@@ -28,10 +28,10 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/status.sh"
     [[ "$output" =~ "minio::status::check" ]]
 }
 
-@test "sourcing status.sh defines minio::status::show_info function" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::status::show_info"
+@test "sourcing status.sh defines minio::status::show_resources function" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::status::show_resources"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "minio::status::show_info" ]]
+    [[ "$output" =~ "minio::status::show_resources" ]]
 }
 
 @test "sourcing status.sh defines minio::status::show_credentials function" {
@@ -56,13 +56,13 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/status.sh"
 # Function Structure Tests (without execution)
 # ============================================================================
 
-@test "minio::status::check verifies installation" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::status::check | grep -q 'installed'"
+@test "minio::status::check verifies container exists" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::status::check | grep -q 'container_exists'"
     [ "$status" -eq 0 ]
 }
 
-@test "minio::status::show_info displays URLs" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::status::show_info | grep -q 'URL'"
+@test "minio::status::show_resources displays container stats" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::status::show_resources | grep -q 'stats'"
     [ "$status" -eq 0 ]
 }
 
@@ -72,7 +72,7 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/status.sh"
 }
 
 @test "minio::status::diagnose checks multiple components" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::status::diagnose | grep -q 'Status'"
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::status::diagnose | grep -q 'Checking'"
     [ "$status" -eq 0 ]
 }
 

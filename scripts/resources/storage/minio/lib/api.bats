@@ -22,10 +22,10 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/api.sh"
 # Function Definition Tests
 # ============================================================================
 
-@test "sourcing api.sh defines minio::api::health_check function" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::api::health_check"
+@test "sourcing api.sh defines minio::api::test function" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::api::test"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "minio::api::health_check" ]]
+    [[ "$output" =~ "minio::api::test" ]]
 }
 
 @test "sourcing api.sh defines minio::api::list_buckets function" {
@@ -40,10 +40,10 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/api.sh"
     [[ "$output" =~ "minio::api::create_bucket" ]]
 }
 
-@test "sourcing api.sh defines minio::api::bucket_exists function" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::api::bucket_exists"
+@test "sourcing api.sh defines minio::api::get_bucket_size function" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::api::get_bucket_size"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "minio::api::bucket_exists" ]]
+    [[ "$output" =~ "minio::api::get_bucket_size" ]]
 }
 
 @test "sourcing api.sh defines minio::api::set_bucket_policy function" {
@@ -68,8 +68,8 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/api.sh"
 # Function Structure Tests (without execution)
 # ============================================================================
 
-@test "minio::api::health_check uses health endpoint" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::api::health_check | grep -q 'health'"
+@test "minio::api::test performs health check" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::api::test | grep -q 'API.*test'"
     [ "$status" -eq 0 ]
 }
 

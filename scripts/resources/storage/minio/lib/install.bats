@@ -34,16 +34,16 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/install.sh"
     [[ "$output" =~ "minio::uninstall" ]]
 }
 
-@test "sourcing install.sh defines minio::install::generate_credentials function" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::install::generate_credentials"
+@test "sourcing install.sh defines minio::install::pre_checks function" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::install::pre_checks"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "minio::install::generate_credentials" ]]
+    [[ "$output" =~ "minio::install::pre_checks" ]]
 }
 
-@test "sourcing install.sh defines minio::install::save_credentials function" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::install::save_credentials"
+@test "sourcing install.sh defines minio::install::update_vrooli_config function" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::install::update_vrooli_config"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "minio::install::save_credentials" ]]
+    [[ "$output" =~ "minio::install::update_vrooli_config" ]]
 }
 
 @test "sourcing install.sh defines minio::install::reset_credentials function" {
@@ -67,8 +67,8 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/install.sh"
     [ "$status" -eq 0 ]
 }
 
-@test "minio::install creates directories" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::install | grep -q 'directories'"
+@test "minio::install creates container" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::install | grep -q 'create_container'"
     [ "$status" -eq 0 ]
 }
 
@@ -82,13 +82,13 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/install.sh"
     [ "$status" -eq 0 ]
 }
 
-@test "minio::install::generate_credentials uses openssl" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::install::generate_credentials | grep -q 'openssl'"
+@test "minio::install::reset_credentials uses openssl" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::install::reset_credentials | grep -q 'openssl'"
     [ "$status" -eq 0 ]
 }
 
-@test "minio::install::save_credentials sets proper permissions" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::install::save_credentials | grep -q 'chmod'"
+@test "minio::install::reset_credentials sets proper permissions" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::install::reset_credentials | grep -q 'chmod'"
     [ "$status" -eq 0 ]
 }
 

@@ -59,10 +59,10 @@ MINIO_DIR="$BATS_TEST_DIRNAME/.."
     [[ "$output" =~ "minio::docker::remove" ]]
 }
 
-@test "sourcing docker.sh defines minio::docker::wait_for_ready function" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::docker::wait_for_ready"
+@test "sourcing docker.sh defines minio::docker::exec function" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::docker::exec"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "minio::docker::wait_for_ready" ]]
+    [[ "$output" =~ "minio::docker::exec" ]]
 }
 
 # ============================================================================
@@ -89,7 +89,7 @@ MINIO_DIR="$BATS_TEST_DIRNAME/.."
     [ "$status" -eq 0 ]
 }
 
-@test "minio::docker::wait_for_ready checks health endpoint" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::docker::wait_for_ready | grep -q 'curl'"
+@test "minio::docker::exec runs commands in container" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::docker::exec | grep -q 'docker exec'"
     [ "$status" -eq 0 ]
 }
