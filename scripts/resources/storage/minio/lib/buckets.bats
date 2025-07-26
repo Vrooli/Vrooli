@@ -71,8 +71,8 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/buckets.sh"
     [ "$status" -eq 0 ]
 }
 
-@test "minio::buckets::show_stats uses mc du command" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::buckets::show_stats | grep -q 'mc.*du'"
+@test "minio::buckets::show_stats uses get_bucket_size" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::buckets::show_stats | grep -q 'get_bucket_size'"
     [ "$status" -eq 0 ]
 }
 

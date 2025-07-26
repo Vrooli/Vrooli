@@ -21,11 +21,7 @@
         "types": [
             "vitest/globals"
         ],
-        "skipLibCheck": true,
-        "paths": {
-            "@prisma/client": ["../../node_modules/.prisma/client"],
-            "@prisma/client/*": ["../../node_modules/.prisma/client/*"]
-        }
+        "skipLibCheck": true
     },
     "include": [
         "src"

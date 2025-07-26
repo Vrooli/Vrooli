@@ -74,8 +74,8 @@ MINIO_DIR="$BATS_TEST_DIRNAME/.."
     [ "$status" -eq 0 ]
 }
 
-@test "minio::docker::create_container uses docker run" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::docker::create_container | grep -q 'docker run'"
+@test "minio::docker::create_container uses docker run command" {
+    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::docker::create_container | grep -q '\"docker\".*\"run\"'"
     [ "$status" -eq 0 ]
 }
 

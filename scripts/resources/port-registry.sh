@@ -23,7 +23,6 @@ declare -g -A VROOLI_PORTS=(
 declare -g -A RESOURCE_PORTS=(
     # AI Services (11xxx range)
     ["ollama"]="11434"         # LLM inference engine
-    ["localai"]="11435"        # Alternative AI service (changed from 8080)
     ["whisper"]="8090"         # Speech-to-text service
     
     # Automation Services (56xx range)
@@ -37,6 +36,7 @@ declare -g -A RESOURCE_PORTS=(
     
     # Agent Services (41xx range - safely above Vrooli range)
     ["browserless"]="4110"     # Browserless.io Chrome service
+    ["claude-code"]="4112"     # Claude Code agent service
     ["huginn"]="4111"          # Agent-based monitoring and automation
     
     # Future services can use:
