@@ -7,7 +7,10 @@
       "ollama": {
         "enabled": true,
         "baseUrl": "http://localhost:11434",
-        "expectedModels": ["llama3.1:8b", "codellama:13b"],
+        "expectedModels": [
+          "llama3.1:8b",
+          "codellama:13b"
+        ],
         "healthCheck": {
           "endpoint": "/api/tags",
           "intervalMs": 300000,
@@ -17,7 +20,10 @@
       "localai": {
         "enabled": false,
         "baseUrl": "http://localhost:8080",
-        "expectedModels": ["gpt4all", "whisper"],
+        "expectedModels": [
+          "gpt4all",
+          "whisper"
+        ],
         "healthCheck": {
           "endpoint": "/v1/models",
           "intervalMs": 300000,
@@ -27,7 +33,9 @@
       "llamacpp": {
         "enabled": false,
         "baseUrl": "http://localhost:8080",
-        "expectedModels": ["llama-2-7b.gguf"],
+        "expectedModels": [
+          "llama-2-7b.gguf"
+        ],
         "healthCheck": {
           "endpoint": "/health",
           "intervalMs": 300000,
@@ -37,7 +45,9 @@
       "vllm": {
         "enabled": false,
         "baseUrl": "http://localhost:8000",
-        "expectedModels": ["meta-llama/Llama-2-7b-hf"],
+        "expectedModels": [
+          "meta-llama/Llama-2-7b-hf"
+        ],
         "healthCheck": {
           "endpoint": "/health",
           "intervalMs": 300000,
@@ -47,7 +57,9 @@
       "tgi": {
         "enabled": false,
         "baseUrl": "http://localhost:8080",
-        "expectedModels": ["meta-llama/Llama-2-7b-hf"],
+        "expectedModels": [
+          "meta-llama/Llama-2-7b-hf"
+        ],
         "healthCheck": {
           "endpoint": "/health",
           "intervalMs": 300000,
@@ -55,7 +67,7 @@
         }
       },
       "whisper": {
-        "enabled": false,
+        "enabled": true,
         "baseUrl": "http://localhost:9000",
         "model": "base",
         "healthCheck": {
@@ -65,7 +77,7 @@
         }
       },
       "comfyui": {
-        "enabled": false,
+        "enabled": true,
         "baseUrl": "http://localhost:8188",
         "healthCheck": {
           "endpoint": "/system_stats",
@@ -83,7 +95,7 @@
         }
       },
       "cloudflare": {
-        "enabled": false,
+        "enabled": true,
         "baseUrl": "https://gateway.ai.cloudflare.com",
         "accountId": "${CLOUDFLARE_ACCOUNT_ID}",
         "apiKey": "${CLOUDFLARE_API_KEY}",
@@ -95,7 +107,7 @@
         }
       },
       "openrouter": {
-        "enabled": false,
+        "enabled": true,
         "baseUrl": "https://openrouter.ai/api/v1",
         "apiKey": "${OPENROUTER_API_KEY}",
         "siteUrl": "https://vrooli.com",
@@ -109,10 +121,14 @@
     },
     "automation": {
       "n8n": {
-        "enabled": false,
+        "enabled": true,
         "baseUrl": "http://localhost:5678",
         "apiKey": "${N8N_API_KEY}",
-        "capabilities": ["workflow", "webhook", "schedule"],
+        "capabilities": [
+          "workflow",
+          "webhook",
+          "schedule"
+        ],
         "routineMapping": {
           "enabled": false,
           "prefix": "n8n://",
@@ -125,11 +141,14 @@
           "requiresAuth": true
         }
       },
-      "nodered": {
-        "enabled": false,
+      "node-red": {
+        "enabled": true,
         "baseUrl": "http://localhost:1880",
         "apiKey": "${NODERED_API_KEY}",
-        "capabilities": ["flow", "dashboard"],
+        "capabilities": [
+          "flow",
+          "dashboard"
+        ],
         "healthCheck": {
           "endpoint": "/flows",
           "intervalMs": 300000,
@@ -140,7 +159,11 @@
         "enabled": false,
         "baseUrl": "http://localhost:8000",
         "apiKey": "${WINDMILL_API_KEY}",
-        "capabilities": ["workflow", "script", "schedule"],
+        "capabilities": [
+          "workflow",
+          "script",
+          "schedule"
+        ],
         "healthCheck": {
           "endpoint": "/api/version",
           "intervalMs": 300000,
@@ -151,7 +174,10 @@
         "enabled": false,
         "baseUrl": "http://localhost:3000",
         "apiKey": "${AUTOMATISCH_API_KEY}",
-        "capabilities": ["workflow", "webhook"],
+        "capabilities": [
+          "workflow",
+          "webhook"
+        ],
         "healthCheck": {
           "endpoint": "/api/v1/users/me",
           "intervalMs": 300000,
@@ -163,7 +189,11 @@
         "enabled": false,
         "baseUrl": "http://localhost:8080",
         "apiKey": "${ACTIVEPIECES_API_KEY}",
-        "capabilities": ["workflow", "webhook", "schedule"],
+        "capabilities": [
+          "workflow",
+          "webhook",
+          "schedule"
+        ],
         "healthCheck": {
           "endpoint": "/api/v1/flags",
           "intervalMs": 300000,
@@ -171,10 +201,14 @@
         }
       },
       "huginn": {
-        "enabled": false,
+        "enabled": true,
         "baseUrl": "http://localhost:3000",
         "apiKey": "${HUGINN_API_KEY}",
-        "capabilities": ["agent", "event", "schedule"],
+        "capabilities": [
+          "agent",
+          "event",
+          "schedule"
+        ],
         "healthCheck": {
           "endpoint": "/",
           "intervalMs": 300000,
@@ -185,7 +219,11 @@
         "enabled": false,
         "baseUrl": "http://localhost:8080",
         "apiKey": "${KESTRA_API_KEY}",
-        "capabilities": ["workflow", "schedule", "data-pipeline"],
+        "capabilities": [
+          "workflow",
+          "schedule",
+          "data-pipeline"
+        ],
         "healthCheck": {
           "endpoint": "/api/v1/configs",
           "intervalMs": 300000,
@@ -195,7 +233,11 @@
       "beehive": {
         "enabled": false,
         "baseUrl": "http://localhost:8181",
-        "capabilities": ["event", "chain", "filter"],
+        "capabilities": [
+          "event",
+          "chain",
+          "filter"
+        ],
         "healthCheck": {
           "endpoint": "/api/info",
           "intervalMs": 300000,
@@ -206,7 +248,11 @@
         "enabled": false,
         "baseUrl": "http://localhost:8080",
         "apiKey": "${AIRFLOW_API_KEY}",
-        "capabilities": ["workflow", "schedule", "data-pipeline"],
+        "capabilities": [
+          "workflow",
+          "schedule",
+          "data-pipeline"
+        ],
         "healthCheck": {
           "endpoint": "/api/v1/health",
           "intervalMs": 300000,
@@ -216,7 +262,10 @@
       "temporal": {
         "enabled": false,
         "baseUrl": "http://localhost:7233",
-        "capabilities": ["workflow", "durable-execution"],
+        "capabilities": [
+          "workflow",
+          "durable-execution"
+        ],
         "healthCheck": {
           "endpoint": "/",
           "intervalMs": 300000,
@@ -225,45 +274,8 @@
       }
     },
     "agents": {
-      "puppeteer": {
-        "enabled": false,
-        "mode": "standalone",
-        "executable": "chromium",
-        "headless": true,
-        "constraints": {
-          "maxInstances": 3,
-          "maxMemoryMb": 512,
-          "timeoutMs": 30000
-        },
-        "sandbox": {
-          "enabled": true,
-          "args": ["--no-sandbox", "--disable-setuid-sandbox"],
-          "userDataDir": "./data/puppeteer"
-        }
-      },
-      "playwright": {
-        "enabled": false,
-        "mode": "standalone",
-        "browsers": ["chromium", "firefox"],
-        "headless": true,
-        "constraints": {
-          "maxInstances": 3,
-          "maxMemoryMb": 512,
-          "timeoutMs": 30000
-        }
-      },
-      "selenium": {
-        "enabled": false,
-        "mode": "service",
-        "baseUrl": "http://localhost:4444",
-        "healthCheck": {
-          "endpoint": "/wd/hub/status",
-          "intervalMs": 60000,
-          "timeoutMs": 5000
-        }
-      },
       "browserless": {
-        "enabled": false,
+        "enabled": true,
         "mode": "service",
         "baseUrl": "http://localhost:3000",
         "token": "${BROWSERLESS_TOKEN}",
@@ -304,7 +316,9 @@
       },
       "glusterfs": {
         "enabled": false,
-        "endpoints": ["localhost:24007"],
+        "endpoints": [
+          "localhost:24007"
+        ],
         "volume": "vrooli-volume",
         "healthCheck": {
           "intervalMs": 300000,
@@ -324,7 +338,10 @@
       "rclone": {
         "enabled": false,
         "apiUrl": "http://localhost:5572",
-        "remotes": ["local", "s3"],
+        "remotes": [
+          "local",
+          "s3"
+        ],
         "healthCheck": {
           "endpoint": "/core/version",
           "intervalMs": 300000,
@@ -348,7 +365,7 @@
           "tgi": 8080,
           "comfyui": 8188,
           "n8n": 5678,
-          "nodered": 1880,
+          "node-red": 1880,
           "windmill": 8000,
           "automatisch": 3000,
           "activepieces": 8080,
@@ -357,7 +374,6 @@
           "beehive": 8181,
           "airflow": 8080,
           "temporal": 7233,
-          "selenium": 4444,
           "browserless": 3000,
           "minio": 9000,
           "seaweedfs": 9333,
@@ -372,7 +388,13 @@
       },
       "processScanning": {
         "enabled": false,
-        "patterns": ["ollama", "n8n", "minio", "windmill", "comfyui"]
+        "patterns": [
+          "ollama",
+          "n8n",
+          "minio",
+          "windmill",
+          "comfyui"
+        ]
       }
     },
     "notifications": {
@@ -382,7 +404,11 @@
   },
   "security": {
     "network": {
-      "allowedHosts": ["localhost", "127.0.0.1", "host.docker.internal"],
+      "allowedHosts": [
+        "localhost",
+        "127.0.0.1",
+        "host.docker.internal"
+      ],
       "allowCustomHosts": false,
       "enforceHttps": false
     },

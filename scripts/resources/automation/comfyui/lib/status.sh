@@ -8,6 +8,13 @@
 comfyui::status() {
     log::header "📊 ComfyUI Status"
     
+    # Show access URL prominently if running
+    if comfyui::is_running; then
+        echo
+        log::success "🌐 Access ComfyUI at: http://localhost:$COMFYUI_DIRECT_PORT"
+        echo
+    fi
+    
     # Container status
     echo
     log::info "=== Container Status ==="
@@ -143,7 +150,8 @@ comfyui::status() {
         if comfyui::is_running; then
             echo "  • View logs: $0 --action logs"
             echo "  • Stop service: $0 --action stop"
-            echo "  • Access UI: http://localhost:$port"
+            echo "  • Access ComfyUI: http://localhost:$COMFYUI_DIRECT_PORT"
+            echo "  • Access AI-Dock Portal: http://localhost:$port"
         else
             echo "  • Start service: $0 --action start"
         fi
@@ -191,9 +199,9 @@ comfyui::info() {
     # Access information
     log::info "=== Access Information ==="
     local port="${COMFYUI_CUSTOM_PORT:-$COMFYUI_DEFAULT_PORT}"
-    echo "  Web UI: http://localhost:$port"
-    echo "  API Base: http://localhost:$port"
-    echo "  Direct Port: http://localhost:$COMFYUI_DIRECT_PORT"
+    echo "  ComfyUI Interface: http://localhost:$COMFYUI_DIRECT_PORT"
+    echo "  AI-Dock Portal: http://localhost:$port"
+    echo "  API Endpoint: http://localhost:$COMFYUI_DIRECT_PORT"
     echo
     
     # API endpoints

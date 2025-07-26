@@ -136,7 +136,7 @@ comfyui::is_docker_nvidia_configured() {
     fi
     
     # Method 3: Try to run a test container
-    if docker::run run --rm --gpus all nvidia/cuda:11.8-base-ubuntu20.04 nvidia-smi >/dev/null 2>&1; then
+    if docker::run run --rm --gpus all nvidia/cuda:12.1.0-base-ubuntu20.04 nvidia-smi >/dev/null 2>&1; then
         return 0
     fi
     
@@ -158,7 +158,7 @@ comfyui::test_nvidia_runtime() {
     # Try a simple GPU test
     log::info "Running NVIDIA GPU test container..."
     
-    if docker::run run --rm --gpus all nvidia/cuda:11.8-base-ubuntu20.04 nvidia-smi; then
+    if docker::run run --rm --gpus all nvidia/cuda:12.1.0-base-ubuntu20.04 nvidia-smi; then
         log::success "✅ NVIDIA GPU is accessible in Docker"
         return 0
     else
@@ -166,7 +166,7 @@ comfyui::test_nvidia_runtime() {
         
         # Try alternative test
         log::info "Trying alternative GPU test..."
-        if docker::run run --rm --runtime=nvidia nvidia/cuda:11.8-base-ubuntu20.04 nvidia-smi 2>/dev/null; then
+        if docker::run run --rm --runtime=nvidia nvidia/cuda:12.1.0-base-ubuntu20.04 nvidia-smi 2>/dev/null; then
             log::success "✅ NVIDIA GPU accessible with --runtime=nvidia flag"
             log::warn "Note: You may need to use --runtime=nvidia instead of --gpus all"
             return 0
@@ -471,7 +471,7 @@ comfyui::show_manual_installation_guide() {
     echo "   sudo systemctl restart docker"
     echo
     echo "6. Verify installation:"
-    echo "   docker run --rm --gpus all nvidia/cuda:11.8-base-ubuntu20.04 nvidia-smi"
+    echo "   docker run --rm --gpus all nvidia/cuda:12.1.0-base-ubuntu20.04 nvidia-smi"
     echo
     log::info "After manual installation, run this script again to continue ComfyUI setup."
 }
@@ -666,7 +666,7 @@ comfyui::show_troubleshooting_guide() {
     echo "   sudo systemctl status docker"
     echo
     echo "3. Test GPU in Docker:"
-    echo "   docker run --rm --gpus all nvidia/cuda:11.8-base-ubuntu20.04 nvidia-smi"
+    echo "   docker run --rm --gpus all nvidia/cuda:12.1.0-base-ubuntu20.04 nvidia-smi"
     echo
     echo "4. Check Docker runtime configuration:"
     echo "   docker info | grep -i nvidia"

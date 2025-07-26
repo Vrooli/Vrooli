@@ -7,6 +7,7 @@
 #######################################
 comfyui::start_container() {
     log::info "Starting ComfyUI container..."
+    log::debug "GPU_TYPE at start of start_container: ${GPU_TYPE:-not set}"
     
     local port="${COMFYUI_CUSTOM_PORT:-$COMFYUI_DEFAULT_PORT}"
     local image="${COMFYUI_CUSTOM_IMAGE:-$COMFYUI_DEFAULT_IMAGE}"
@@ -22,7 +23,8 @@ comfyui::start_container() {
     )
     
     # Add GPU support based on detected/specified type
-    case "$GPU_TYPE" in
+    log::debug "GPU_TYPE value: '${GPU_TYPE}'"
+    case "${GPU_TYPE}" in
         nvidia)
             log::info "Configuring container for NVIDIA GPU..."
             
@@ -56,8 +58,12 @@ comfyui::start_container() {
                 "-e" "PYTORCH_HIP_ALLOC_CONF=max_split_size_mb=512"
             )
             ;;
-        cpu|*)
+        cpu)
             log::info "Configuring container for CPU mode..."
+            docker_args+=("-e" "CUDA_VISIBLE_DEVICES=")
+            ;;
+        *)
+            log::warn "Unknown GPU type: '${GPU_TYPE}', defaulting to CPU mode"
             docker_args+=("-e" "CUDA_VISIBLE_DEVICES=")
             ;;
     esac

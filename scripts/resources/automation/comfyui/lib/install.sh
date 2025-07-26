@@ -52,10 +52,16 @@ comfyui::install() {
     
     # Use specified GPU type or auto-detect
     if [[ -z "$GPU_TYPE" ]] || [[ "$GPU_TYPE" == "auto" ]]; then
-        GPU_TYPE=$(comfyui::detect_gpu)
+        GPU_TYPE=$(comfyui::detect_gpu_silent)
+        log::info "Auto-detected GPU type: $GPU_TYPE"
+        # Show detailed GPU info
+        comfyui::detect_gpu >/dev/null
     else
         log::info "Using specified GPU type: $GPU_TYPE"
     fi
+    
+    # Export GPU_TYPE so it's available to all functions
+    export GPU_TYPE
     
     # Handle NVIDIA-specific requirements
     if [[ "$GPU_TYPE" == "nvidia" ]]; then
