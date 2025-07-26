@@ -113,9 +113,9 @@ mock_docker() {
         case "$DOCKER_MOCK_MODE" in
             "success")
                 case "$1" in
-                    "container"|"inspect")
-                        if [[ "$3" == "$CONTAINER_NAME" ]]; then
-                            echo '{"State": {"Running": true}}'
+                    "container")
+                        if [[ "$2" == "inspect" && "$3" == "-f" && "$4" == "{{.State.Running}}" && "$5" == "$CONTAINER_NAME" ]]; then
+                            echo "true"
                         fi
                         ;;
                     "ps") echo "CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS" ;;
@@ -138,15 +138,15 @@ mock_docker() {
                 ;;
             "not_installed")
                 case "$1" in
-                    "container"|"inspect") return 1 ;;
+                    "container") return 1 ;;
                     *) return 0 ;;
                 esac
                 ;;
             "not_running")
                 case "$1" in
-                    "container"|"inspect")
-                        if [[ "$3" == "$CONTAINER_NAME" ]]; then
-                            echo '{"State": {"Running": false}}'
+                    "container")
+                        if [[ "$2" == "inspect" && "$3" == "-f" && "$4" == "{{.State.Running}}" && "$5" == "$CONTAINER_NAME" ]]; then
+                            echo "false"
                         fi
                         ;;
                     *) return 0 ;;
@@ -168,7 +168,7 @@ mock_curl() {
         case "$CURL_MOCK_MODE" in
             "success")
                 if [[ "$*" =~ "flows" ]]; then
-                    cat "$BATS_TEST_DIRNAME/sample-flows/flows-response.json" 2>/dev/null || echo '[]'
+                    cat "$TEST_FIXTURES_DIR/sample-flows/flows-response.json" 2>/dev/null || echo '[]'
                 elif [[ "$*" =~ "settings" ]]; then
                     echo '{"version": "3.0.0", "userDir": "/data"}'
                 else
@@ -197,7 +197,20 @@ mock_jq() {
                 case "$1" in
                     ".") cat ;;
                     "length") echo "3" ;;
-                    *) echo "mock jq output" ;;
+                    "-r")
+                        # Handle different jq queries
+                        if [[ "$*" =~ "version" ]]; then
+                            echo "3.0.2"
+                        elif [[ "$*" =~ "flows" ]]; then
+                            cat "$TEST_FIXTURES_DIR/sample-flows/flows-response.json" 2>/dev/null || echo '[]'
+                        else
+                            echo "mock jq output"
+                        fi
+                        ;;
+                    *)
+                        # Default behavior - pass through the input
+                        cat
+                        ;;
                 esac
                 ;;
             "failure")
@@ -208,50 +221,13 @@ mock_jq() {
     export -f jq
 }
 
+# Test fixtures location
+export TEST_FIXTURES_DIR="$NODE_RED_ROOT_DIR/test-fixtures/fixtures"
+
 # Create test fixtures
 create_test_fixtures() {
-    # Create directories if they don't exist
-    mkdir -p "$BATS_TEST_DIRNAME/sample-flows"
-    mkdir -p "$BATS_TEST_DIRNAME/mock-responses"
-    
-    # Sample flow file (only create if it doesn't exist)
-    if [[ ! -f "$BATS_TEST_DIRNAME/sample-flows/flows-response.json" ]]; then
-        cat > "$BATS_TEST_DIRNAME/sample-flows/flows-response.json" << 'EOF'
-[
-    {
-        "id": "flow1",
-        "type": "tab",
-        "label": "Test Flow 1",
-        "disabled": false
-    },
-    {
-        "id": "node1",
-        "type": "inject",
-        "name": "Test Inject",
-        "z": "flow1"
-    }
-]
-EOF
-    fi
-
-    # Sample settings file (only create if it doesn't exist)
-    if [[ ! -f "$BATS_TEST_DIRNAME/test-settings.js" ]]; then
-        cat > "$BATS_TEST_DIRNAME/test-settings.js" << 'EOF'
-module.exports = {
-    flowFile: 'flows.json',
-    userDir: '/data/',
-    uiPort: 1880
-};
-EOF
-    fi
-
-    # Mock responses (only create if they don't exist)
-    if [[ ! -f "$BATS_TEST_DIRNAME/mock-responses/health.json" ]]; then
-        echo '{"status": "ok"}' > "$BATS_TEST_DIRNAME/mock-responses/health.json"
-    fi
-    if [[ ! -f "$BATS_TEST_DIRNAME/mock-responses/settings.json" ]]; then
-        echo '{"version": "3.0.0"}' > "$BATS_TEST_DIRNAME/mock-responses/settings.json"
-    fi
+    # No longer create fixture copies - use centralized location directly
+    true
 }
 
 # Test assertions

@@ -87,6 +87,9 @@ EOF
 @test "node_red::export_flows creates export file with default name" {
     mock_docker "success"
     
+    # Set OUTPUT to test directory to avoid creating files in current directory
+    export OUTPUT="$NODE_RED_TEST_DIR/test-export.json"
+    
     curl() {
         if [[ "$*" =~ "/flows" ]]; then
             echo '[{"id": "flow1", "type": "tab", "label": "Test Flow"}]'
@@ -97,7 +100,7 @@ EOF
     run node_red::export_flows
     assert_success
     assert_output_contains "Flows exported successfully"
-    assert_output_contains "node-red-flows-export-"
+    assert_file_exists "$NODE_RED_TEST_DIR/test-export.json"
 }
 
 @test "node_red::export_flows uses custom output file" {
