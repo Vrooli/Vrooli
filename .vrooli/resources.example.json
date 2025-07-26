@@ -17,46 +17,9 @@
           "timeoutMs": 5000
         }
       },
-      "localai": {
-        "enabled": false,
-        "baseUrl": "http://localhost:8080",
-        "expectedModels": [
-          "gpt4all",
-          "whisper"
-        ],
-        "healthCheck": {
-          "endpoint": "/v1/models",
-          "intervalMs": 300000,
-          "timeoutMs": 5000
-        }
-      },
-      "llamacpp": {
-        "enabled": false,
-        "baseUrl": "http://localhost:8080",
-        "expectedModels": [
-          "llama-2-7b.gguf"
-        ],
-        "healthCheck": {
-          "endpoint": "/health",
-          "intervalMs": 300000,
-          "timeoutMs": 5000
-        }
-      },
       "vllm": {
         "enabled": false,
         "baseUrl": "http://localhost:8000",
-        "expectedModels": [
-          "meta-llama/Llama-2-7b-hf"
-        ],
-        "healthCheck": {
-          "endpoint": "/health",
-          "intervalMs": 300000,
-          "timeoutMs": 5000
-        }
-      },
-      "tgi": {
-        "enabled": false,
-        "baseUrl": "http://localhost:8080",
         "expectedModels": [
           "meta-llama/Llama-2-7b-hf"
         ],
@@ -81,15 +44,6 @@
         "baseUrl": "http://localhost:8188",
         "healthCheck": {
           "endpoint": "/system_stats",
-          "intervalMs": 300000,
-          "timeoutMs": 5000
-        }
-      },
-      "stablediffusion": {
-        "enabled": false,
-        "baseUrl": "http://localhost:7860",
-        "healthCheck": {
-          "endpoint": "/internal/sysinfo",
           "intervalMs": 300000,
           "timeoutMs": 5000
         }
@@ -304,27 +258,6 @@
           "timeoutMs": 5000
         }
       },
-      "seaweedfs": {
-        "enabled": false,
-        "masterUrl": "http://localhost:9333",
-        "volumeUrl": "http://localhost:8080",
-        "healthCheck": {
-          "endpoint": "/cluster/status",
-          "intervalMs": 300000,
-          "timeoutMs": 5000
-        }
-      },
-      "glusterfs": {
-        "enabled": false,
-        "endpoints": [
-          "localhost:24007"
-        ],
-        "volume": "vrooli-volume",
-        "healthCheck": {
-          "intervalMs": 300000,
-          "timeoutMs": 5000
-        }
-      },
       "ipfs": {
         "enabled": false,
         "apiUrl": "http://localhost:5001",
@@ -359,10 +292,7 @@
         "scanIntervalMs": 3600000,
         "ports": {
           "ollama": 11434,
-          "localai": 8080,
-          "llamacpp": 8080,
           "vllm": 8000,
-          "tgi": 8080,
           "comfyui": 8188,
           "n8n": 5678,
           "node-red": 1880,
@@ -376,7 +306,6 @@
           "temporal": 7233,
           "browserless": 3000,
           "minio": 9000,
-          "seaweedfs": 9333,
           "ipfs": 5001,
           "rclone": 5572
         }

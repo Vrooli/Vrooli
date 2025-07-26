@@ -1,19 +1,38 @@
 import { type ConfigManager } from "../utils/config.js";
-import { SqliteStorage } from "./storage/SqliteStorage.js";
+import { StorageFactory, type ExtendedHistoryStorage } from "./storage/StorageFactory.js";
 import { generatePK } from "@vrooli/shared";
-import type { HistoryEntry, HistorySearchQuery, HistoryStats, HistoryStorage } from "./types.js";
+import type { HistoryEntry, HistorySearchQuery, HistoryStats } from "./types.js";
 import { CLI_LIMITS, DAYS_90_MS } from "../utils/constants.js";
 
 export class HistoryManager {
-    private storage: HistoryStorage;
+    private storage: ExtendedHistoryStorage;
     private currentEntry?: Partial<HistoryEntry>;
     private readonly sensitiveKeys = ["password", "token", "secret", "key", "auth"];
+    private storagePromise: Promise<ExtendedHistoryStorage>;
     
     constructor(
         private config: ConfigManager,
         _storageType: "sqlite" | "json" = "sqlite",
     ) {
-        this.storage = new SqliteStorage(config);
+        // Create storage asynchronously
+        this.storagePromise = StorageFactory.create(config).then(storage => {
+            this.storage = storage;
+            return storage;
+        });
+        
+        // For immediate use in sync contexts (e.g., exit handlers), create a sync fallback
+        this.storage = StorageFactory.createSync(config);
+    }
+    
+    /**
+     * Ensures storage is initialized before use
+     */
+    private async ensureStorage(): Promise<ExtendedHistoryStorage> {
+        if (this.storagePromise) {
+            this.storage = await this.storagePromise;
+            this.storagePromise = null as unknown as Promise<ExtendedHistoryStorage>; // Clear to avoid repeated awaits
+        }
+        return this.storage;
     }
     
     async startCommand(command: string, args: string[], options: Record<string, unknown>): Promise<void> {
@@ -50,7 +69,8 @@ export class HistoryManager {
         // Add completion metadata
         this.addCompletionMetadata();
         
-        await this.storage.add(this.currentEntry as HistoryEntry);
+        const storage = await this.ensureStorage();
+        await storage.add(this.currentEntry as HistoryEntry);
         this.currentEntry = undefined;
     }
 
@@ -72,10 +92,9 @@ export class HistoryManager {
         this.addCompletionMetadata();
         
         try {
-            // Use synchronous SQLite call for exit handlers
-            const storage = this.storage as SqliteStorage;
-            if (storage.addSync) {
-                storage.addSync(this.currentEntry as HistoryEntry);
+            // Use synchronous call for exit handlers
+            if (this.storage.addSync) {
+                this.storage.addSync(this.currentEntry as HistoryEntry);
             }
         } catch (error) {
             // Ignore errors during exit
@@ -95,27 +114,33 @@ export class HistoryManager {
     }
     
     async get(id: string): Promise<HistoryEntry | null> {
-        return this.storage.get(id);
+        const storage = await this.ensureStorage();
+        return storage.get(id);
     }
     
     async search(query: HistorySearchQuery = {}): Promise<HistoryEntry[]> {
-        return this.storage.search(query);
+        const storage = await this.ensureStorage();
+        return storage.search(query);
     }
     
     async getStats(): Promise<HistoryStats> {
-        return this.storage.getStats();
+        const storage = await this.ensureStorage();
+        return storage.getStats();
     }
     
     async clear(): Promise<void> {
-        return this.storage.clear();
+        const storage = await this.ensureStorage();
+        return storage.clear();
     }
     
     async delete(id: string): Promise<void> {
-        return this.storage.delete(id);
+        const storage = await this.ensureStorage();
+        return storage.delete(id);
     }
     
     async export(format: "json" | "csv" | "script"): Promise<string> {
-        return this.storage.export(format);
+        const storage = await this.ensureStorage();
+        return storage.export(format);
     }
     
     private isHistoryDisabled(options: Record<string, unknown>): boolean {

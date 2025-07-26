@@ -14,6 +14,19 @@ cd packages/cli
 npm link
 ```
 
+### Command History Storage
+
+The CLI uses a flexible storage system for command history:
+
+- **SQLite Storage** (default): High-performance database storage for unlimited history
+- **JSON Storage** (fallback): Automatic fallback when SQLite bindings are unavailable, limited to 10,000 entries
+
+If you see a message about SQLite bindings not found, you can either:
+1. Continue using JSON storage (works perfectly for most users)
+2. Build SQLite bindings: `pnpm rebuild better-sqlite3`
+
+Note: The CLI will always work regardless of which storage backend is used.
+
 ## Usage
 
 ### Authentication
@@ -152,3 +165,49 @@ vrooli auth login
 # Import validated routines
 vrooli routine import-dir ./dist/routines/ --fail-fast
 ```
+
+### Command History
+
+The CLI automatically tracks command history for easy reuse:
+
+```bash
+# View command history
+vrooli history list
+
+# Search history
+vrooli history search "routine import"
+
+# View history statistics
+vrooli history stats
+
+# Export history
+vrooli history export --format json > history-backup.json
+```
+
+History is stored in `~/.vrooli/history.json` (JSON storage) or `~/.vrooli/history.db` (SQLite storage).
+
+## Troubleshooting
+
+### "Could not locate the bindings file" Error
+
+This error indicates that native SQLite bindings aren't built. The CLI will automatically fall back to JSON storage, which works perfectly for most use cases. If you want to use SQLite storage:
+
+```bash
+# Rebuild native modules
+pnpm rebuild better-sqlite3
+```
+
+### Build Issues
+
+If the CLI isn't reflecting your changes:
+
+```bash
+# Clean and rebuild
+cd packages/cli
+rimraf dist
+pnpm run build
+```
+
+### Import Assertion Warnings
+
+You may see warnings about deprecated import assertions. These are harmless and will be addressed in a future update. They don't affect CLI functionality.
