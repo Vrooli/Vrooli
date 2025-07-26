@@ -1,0 +1,975 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Handle Ctrl+C gracefully
+trap 'echo ""; log::info "Browserless installation interrupted by user. Exiting..."; exit 130' INT TERM
+
+# Browserless Chrome Service Setup and Management
+# This script handles installation, configuration, and management of Browserless.io using Docker
+
+DESCRIPTION="Install and manage Browserless headless Chrome service using Docker"
+
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+RESOURCES_DIR="${SCRIPT_DIR}/../.."
+
+# shellcheck disable=SC1091
+source "${RESOURCES_DIR}/common.sh"
+# shellcheck disable=SC1091
+source "${RESOURCES_DIR}/../helpers/utils/args.sh"
+
+# Browserless configuration
+readonly BROWSERLESS_PORT="${BROWSERLESS_CUSTOM_PORT:-$(resources::get_default_port "browserless")}"
+readonly BROWSERLESS_BASE_URL="http://localhost:${BROWSERLESS_PORT}"
+readonly BROWSERLESS_CONTAINER_NAME="browserless"
+readonly BROWSERLESS_DATA_DIR="${HOME}/.browserless"
+readonly BROWSERLESS_IMAGE="ghcr.io/browserless/chrome:latest"
+
+#######################################
+# Parse command line arguments
+#######################################
+browserless::parse_arguments() {
+    args::reset
+    
+    args::register_help
+    args::register_yes
+    
+    args::register \
+        --name "action" \
+        --flag "a" \
+        --desc "Action to perform" \
+        --type "value" \
+        --options "install|uninstall|start|stop|restart|status|logs|info|usage" \
+        --default "install"
+    
+    args::register \
+        --name "force" \
+        --flag "f" \
+        --desc "Force action even if Browserless appears to be already installed/running" \
+        --type "value" \
+        --options "yes|no" \
+        --default "no"
+    
+    args::register \
+        --name "max-browsers" \
+        --desc "Maximum concurrent browser instances" \
+        --type "value" \
+        --default "5"
+    
+    args::register \
+        --name "headless" \
+        --desc "Run browsers in headless mode" \
+        --type "value" \
+        --options "yes|no" \
+        --default "yes"
+    
+    args::register \
+        --name "timeout" \
+        --desc "Browser timeout in milliseconds" \
+        --type "value" \
+        --default "30000"
+    
+    args::register \
+        --name "usage-type" \
+        --desc "Type of usage example to run" \
+        --type "value" \
+        --options "screenshot|pdf|scrape|pressure|all|help" \
+        --default "help"
+    
+    args::register \
+        --name "url" \
+        --desc "URL to use for usage examples" \
+        --type "value" \
+        --default "https://example.com"
+    
+    args::register \
+        --name "output" \
+        --desc "Output file for usage examples" \
+        --type "value" \
+        --default ""
+    
+    if args::is_asking_for_help "$@"; then
+        browserless::usage
+        exit 0
+    fi
+    
+    args::parse "$@"
+    
+    export ACTION=$(args::get "action")
+    export FORCE=$(args::get "force")
+    export YES=$(args::get "yes")
+    export MAX_BROWSERS=$(args::get "max-browsers")
+    export HEADLESS=$(args::get "headless")
+    export TIMEOUT=$(args::get "timeout")
+    export USAGE_TYPE=$(args::get "usage-type")
+    export URL=$(args::get "url")
+    export OUTPUT=$(args::get "output")
+}
+
+#######################################
+# Display usage information
+#######################################
+browserless::usage() {
+    args::usage "$DESCRIPTION"
+    echo
+    echo "Examples:"
+    echo "  $0 --action install                              # Install Browserless with default settings"
+    echo "  $0 --action install --max-browsers 10           # Install with 10 max browsers"
+    echo "  $0 --action install --headless no                # Install with headed browsers"
+    echo "  $0 --action status                               # Check Browserless status"
+    echo "  $0 --action logs                                 # View Browserless logs"
+    echo "  $0 --action usage                                # Show usage examples"
+    echo "  $0 --action usage --usage-type screenshot        # Test screenshot API"
+    echo "  $0 --action usage --usage-type all              # Run all usage examples"
+    echo "  $0 --action uninstall                           # Remove Browserless"
+}
+
+#######################################
+# Check if Docker is installed
+# Returns: 0 if installed, 1 otherwise
+#######################################
+browserless::check_docker() {
+    if ! system::is_command "docker"; then
+        log::error "Docker is not installed"
+        log::info "Please install Docker first: https://docs.docker.com/get-docker/"
+        return 1
+    fi
+    
+    # Check if Docker daemon is running
+    if ! docker info >/dev/null 2>&1; then
+        log::error "Docker daemon is not running"
+        log::info "Start Docker with: sudo systemctl start docker"
+        return 1
+    fi
+    
+    # Check if user has permissions
+    if ! docker ps >/dev/null 2>&1; then
+        log::error "Current user doesn't have Docker permissions"
+        log::info "Add user to docker group: sudo usermod -aG docker $USER"
+        log::info "Then log out and back in for changes to take effect"
+        return 1
+    fi
+    
+    return 0
+}
+
+#######################################
+# Check if Browserless container exists
+# Returns: 0 if exists, 1 otherwise
+#######################################
+browserless::container_exists() {
+    docker ps -a --format '{{.Names}}' | grep -q "^${BROWSERLESS_CONTAINER_NAME}$"
+}
+
+#######################################
+# Check if Browserless is running
+# Returns: 0 if running, 1 otherwise
+#######################################
+browserless::is_running() {
+    docker ps --format '{{.Names}}' | grep -q "^${BROWSERLESS_CONTAINER_NAME}$"
+}
+
+#######################################
+# Check if Browserless API is responsive
+# Returns: 0 if responsive, 1 otherwise
+#######################################
+browserless::is_healthy() {
+    if system::is_command "curl"; then
+        # Try multiple times as the service takes time to initialize
+        local attempts=0
+        while [ $attempts -lt 5 ]; do
+            # Browserless uses /pressure endpoint instead of /health
+            if curl -f -s --max-time 5 "$BROWSERLESS_BASE_URL/pressure" >/dev/null 2>&1; then
+                return 0
+            fi
+            attempts=$((attempts + 1))
+            sleep 2
+        done
+    fi
+    return 1
+}
+
+#######################################
+# Create Browserless data directory
+#######################################
+browserless::create_directories() {
+    log::info "Creating Browserless data directory..."
+    
+    mkdir -p "$BROWSERLESS_DATA_DIR" || {
+        log::error "Failed to create Browserless data directory"
+        return 1
+    }
+    
+    # Add rollback action
+    resources::add_rollback_action \
+        "Remove Browserless data directory" \
+        "rm -rf $BROWSERLESS_DATA_DIR 2>/dev/null || true" \
+        10
+    
+    log::success "Browserless directories created"
+    return 0
+}
+
+#######################################
+# Create Docker network for Browserless
+#######################################
+browserless::create_network() {
+    local network_name="browserless-network"
+    
+    if ! docker network ls | grep -q "$network_name"; then
+        log::info "Creating Docker network for Browserless..."
+        
+        if docker network create "$network_name" >/dev/null 2>&1; then
+            log::success "Docker network created"
+            
+            # Add rollback action
+            resources::add_rollback_action \
+                "Remove Docker network" \
+                "docker network rm $network_name 2>/dev/null || true" \
+                5
+        else
+            log::warn "Failed to create Docker network (may already exist)"
+        fi
+    fi
+}
+
+#######################################
+# Build Browserless Docker command
+#######################################
+browserless::build_docker_command() {
+    local docker_cmd="docker run -d"
+    docker_cmd+=" --name $BROWSERLESS_CONTAINER_NAME"
+    docker_cmd+=" --network browserless-network"
+    docker_cmd+=" -p ${BROWSERLESS_PORT}:3000"
+    docker_cmd+=" -v ${BROWSERLESS_DATA_DIR}:/workspace"
+    docker_cmd+=" --restart unless-stopped"
+    docker_cmd+=" --shm-size=2gb"
+    
+    # Environment variables (using new variable names)
+    docker_cmd+=" -e CONCURRENT=$MAX_BROWSERS"
+    docker_cmd+=" -e TIMEOUT=$TIMEOUT"
+    docker_cmd+=" -e ENABLE_DEBUGGER=false"
+    
+    # Note: DEFAULT_BLOCK_ADS, DEFAULT_STEALTH, KEEP_ALIVE, and DEFAULT_HEADLESS 
+    # are deprecated. Headless mode is controlled via launch args in the API calls.
+    
+    # Security settings
+    docker_cmd+=" --cap-add=SYS_ADMIN"
+    docker_cmd+=" --security-opt seccomp=unconfined"
+    
+    # Image
+    docker_cmd+=" $BROWSERLESS_IMAGE"
+    
+    echo "$docker_cmd"
+}
+
+#######################################
+# Start Browserless container
+#######################################
+browserless::start_container() {
+    log::info "Starting Browserless container..."
+    
+    # Build and execute Docker command
+    local docker_cmd
+    docker_cmd=$(browserless::build_docker_command)
+    
+    if eval "$docker_cmd" >/dev/null 2>&1; then
+        log::success "Browserless container started"
+        
+        # Add rollback action
+        resources::add_rollback_action \
+            "Stop and remove Browserless container" \
+            "docker stop $BROWSERLESS_CONTAINER_NAME 2>/dev/null; docker rm $BROWSERLESS_CONTAINER_NAME 2>/dev/null || true" \
+            25
+        
+        return 0
+    else
+        log::error "Failed to start Browserless container"
+        return 1
+    fi
+}
+
+#######################################
+# Update Vrooli configuration
+#######################################
+browserless::update_config() {
+    # Create JSON with proper escaping
+    local additional_config
+    additional_config=$(cat <<EOF
+{
+    "features": {
+        "screenshots": true,
+        "pdf": true,
+        "scraping": true,
+        "automation": true
+    },
+    "browser": {
+        "maxConcurrency": "$MAX_BROWSERS",
+        "headless": $([[ "$HEADLESS" == "yes" ]] && echo "true" || echo "false"),
+        "timeout": "$TIMEOUT"
+    },
+    "api": {
+        "version": "v1",
+        "statusEndpoint": "/pressure",
+        "screenshotEndpoint": "/screenshot",
+        "pdfEndpoint": "/pdf",
+        "contentEndpoint": "/content",
+        "functionEndpoint": "/function",
+        "scrapeEndpoint": "/scrape"
+    },
+    "container": {
+        "name": "$BROWSERLESS_CONTAINER_NAME",
+        "image": "$BROWSERLESS_IMAGE"
+    }
+}
+EOF
+)
+    
+    resources::update_config "agents" "browserless" "$BROWSERLESS_BASE_URL" "$additional_config"
+}
+
+#######################################
+# Complete Browserless installation
+#######################################
+browserless::install() {
+    log::header "🎭 Installing Browserless Browser Automation (Docker)"
+    
+    # Start rollback context
+    resources::start_rollback_context "install_browserless_docker"
+    
+    # Check if already installed
+    if browserless::container_exists && browserless::is_running && [[ "$FORCE" != "yes" ]]; then
+        log::info "Browserless is already installed and running"
+        log::info "Use --force yes to reinstall"
+        return 0
+    fi
+    
+    # Check Docker
+    if ! browserless::check_docker; then
+        return 1
+    fi
+    
+    # Validate port assignment
+    if ! resources::validate_port "browserless" "$BROWSERLESS_PORT"; then
+        log::error "Port validation failed for Browserless"
+        log::info "You can set a custom port with: export BROWSERLESS_CUSTOM_PORT=<port>"
+        return 1
+    fi
+    
+    # Create directories
+    if ! browserless::create_directories; then
+        resources::handle_error \
+            "Failed to create Browserless directories" \
+            "system" \
+            "Check directory permissions"
+        return 1
+    fi
+    
+    # Create Docker network
+    browserless::create_network
+    
+    # Start Browserless container
+    if ! browserless::start_container; then
+        resources::handle_error \
+            "Failed to start Browserless container" \
+            "system" \
+            "Check Docker logs: docker logs $BROWSERLESS_CONTAINER_NAME"
+        return 1
+    fi
+    
+    # Wait for service to be ready
+    log::info "Waiting for Browserless to start..."
+    
+    # Wait for container to be running and port to be available
+    local wait_time=0
+    local max_wait=60
+    while [ $wait_time -lt $max_wait ]; do
+        if browserless::is_running && ss -tlnp 2>/dev/null | grep -q ":$BROWSERLESS_PORT"; then
+            log::info "Container is running and port is bound"
+            break
+        fi
+        sleep 2
+        wait_time=$((wait_time + 2))
+        echo -n "."
+    done
+    echo
+    
+    if [ $wait_time -ge $max_wait ]; then
+        resources::handle_error \
+            "Browserless failed to start within timeout" \
+            "system" \
+            "Check container logs for errors"
+        return 1
+    fi
+    
+    # Give Browserless time to initialize
+    log::info "Waiting for Browserless to complete initialization..."
+    sleep 10
+    
+    if browserless::is_healthy; then
+        log::success "✅ Browserless is running and healthy on port $BROWSERLESS_PORT"
+        
+        # Display access information
+        echo
+        log::header "🌐 Browserless Access Information"
+        log::info "URL: $BROWSERLESS_BASE_URL"
+        log::info "Status Check: $BROWSERLESS_BASE_URL/pressure"
+        log::info "Max Browsers: $MAX_BROWSERS"
+        log::info "Headless Mode: $HEADLESS"
+        log::info "Timeout: ${TIMEOUT}ms"
+        
+        # Update Vrooli configuration
+        if ! browserless::update_config; then
+            log::warn "Failed to update Vrooli configuration"
+            log::info "Browserless is installed but may need manual configuration in Vrooli"
+        fi
+        
+        # Clear rollback context on success
+        ROLLBACK_ACTIONS=()
+        OPERATION_ID=""
+        
+        echo
+        log::header "🎯 Next Steps"
+        log::info "1. Access Browserless at: $BROWSERLESS_BASE_URL"
+        log::info "2. Use the API endpoints for browser automation"
+        log::info "3. Check the docs: https://www.browserless.io/docs/"
+        
+        return 0
+    else
+        log::warn "Browserless started but health check failed"
+        log::info "Check logs: docker logs $BROWSERLESS_CONTAINER_NAME"
+        return 0
+    fi
+}
+
+#######################################
+# Stop Browserless
+#######################################
+browserless::stop() {
+    if ! browserless::is_running; then
+        log::info "Browserless is not running"
+        return 0
+    fi
+    
+    log::info "Stopping Browserless..."
+    
+    if docker stop "$BROWSERLESS_CONTAINER_NAME" >/dev/null 2>&1; then
+        log::success "Browserless stopped"
+    else
+        log::error "Failed to stop Browserless"
+        return 1
+    fi
+}
+
+#######################################
+# Start Browserless
+#######################################
+browserless::start() {
+    if browserless::is_running && [[ "$FORCE" != "yes" ]]; then
+        log::info "Browserless is already running on port $BROWSERLESS_PORT"
+        return 0
+    fi
+    
+    log::info "Starting Browserless..."
+    
+    # Check if container exists
+    if ! browserless::container_exists; then
+        log::error "Browserless container does not exist. Run install first."
+        return 1
+    fi
+    
+    # Start Browserless container
+    if docker start "$BROWSERLESS_CONTAINER_NAME" >/dev/null 2>&1; then
+        log::success "Browserless started"
+        
+        # Wait for service to be ready
+        if resources::wait_for_service "Browserless" "$BROWSERLESS_PORT" 30; then
+            log::success "✅ Browserless is running on port $BROWSERLESS_PORT"
+            log::info "Access Browserless at: $BROWSERLESS_BASE_URL"
+        else
+            log::warn "Browserless started but may not be fully ready yet"
+        fi
+    else
+        log::error "Failed to start Browserless"
+        return 1
+    fi
+}
+
+#######################################
+# Restart Browserless
+#######################################
+browserless::restart() {
+    log::info "Restarting Browserless..."
+    browserless::stop
+    sleep 2
+    browserless::start
+}
+
+#######################################
+# Show Browserless logs
+#######################################
+browserless::logs() {
+    if ! browserless::container_exists; then
+        log::error "Browserless container does not exist"
+        return 1
+    fi
+    
+    log::info "Showing Browserless logs (Ctrl+C to exit)..."
+    docker logs -f "$BROWSERLESS_CONTAINER_NAME"
+}
+
+#######################################
+# Uninstall Browserless
+#######################################
+browserless::uninstall() {
+    log::header "🗑️  Uninstalling Browserless"
+    
+    if ! flow::is_yes "$YES"; then
+        log::warn "This will remove Browserless and all browser data"
+        read -p "Are you sure you want to continue? (y/N): " -r
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            log::info "Uninstall cancelled"
+            return 0
+        fi
+    fi
+    
+    # Stop and remove Browserless container
+    if browserless::container_exists; then
+        log::info "Removing Browserless container..."
+        docker stop "$BROWSERLESS_CONTAINER_NAME" 2>/dev/null || true
+        docker rm "$BROWSERLESS_CONTAINER_NAME" 2>/dev/null || true
+        log::success "Browserless container removed"
+    fi
+    
+    # Remove Docker network
+    if docker network ls | grep -q "browserless-network"; then
+        log::info "Removing Docker network..."
+        docker network rm "browserless-network" 2>/dev/null || true
+    fi
+    
+    # Backup data before removal
+    if [[ -d "$BROWSERLESS_DATA_DIR" ]]; then
+        local backup_dir="$HOME/browserless-backup-$(date +%Y%m%d-%H%M%S)"
+        log::info "Backing up Browserless data to: $backup_dir"
+        cp -r "$BROWSERLESS_DATA_DIR" "$backup_dir" 2>/dev/null || true
+    fi
+    
+    # Remove data directory
+    read -p "Remove Browserless data directory? (y/N): " -r
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        rm -rf "$BROWSERLESS_DATA_DIR" 2>/dev/null || true
+        log::info "Data directory removed"
+    fi
+    
+    # Remove from Vrooli config
+    resources::remove_config "agents" "browserless"
+    
+    log::success "✅ Browserless uninstalled successfully"
+}
+
+#######################################
+# Show Browserless status
+#######################################
+browserless::status() {
+    log::header "📊 Browserless Status"
+    
+    # Check Docker
+    if ! system::is_command "docker"; then
+        log::error "Docker is not installed"
+        return 1
+    fi
+    
+    if ! docker info >/dev/null 2>&1; then
+        log::error "Docker daemon is not running"
+        return 1
+    fi
+    
+    # Check container status
+    if browserless::container_exists; then
+        if browserless::is_running; then
+            log::success "✅ Browserless container is running"
+            
+            # Get container stats
+            local stats
+            stats=$(docker stats "$BROWSERLESS_CONTAINER_NAME" --no-stream --format "CPU: {{.CPUPerc}} | Memory: {{.MemUsage}}" 2>/dev/null || echo "")
+            if [[ -n "$stats" ]]; then
+                log::info "Resource usage: $stats"
+            fi
+            
+            # Check health
+            if browserless::is_healthy; then
+                log::success "✅ Browserless API is healthy"
+            else
+                log::warn "⚠️  Browserless API health check failed"
+            fi
+            
+            # Additional details
+            echo
+            log::info "Browserless Details:"
+            log::info "  Web UI: $BROWSERLESS_BASE_URL"
+            log::info "  Container: $BROWSERLESS_CONTAINER_NAME"
+            log::info "  Max Browsers: $MAX_BROWSERS"
+            log::info "  Headless Mode: $HEADLESS"
+            
+            # Show logs command
+            echo
+            log::info "View logs: $0 --action logs"
+        else
+            log::warn "⚠️  Browserless container exists but is not running"
+            log::info "Start with: $0 --action start"
+        fi
+    else
+        log::error "❌ Browserless is not installed"
+        log::info "Install with: $0 --action install"
+    fi
+}
+
+#######################################
+# Show Browserless information
+#######################################
+browserless::info() {
+    cat << EOF
+=== Browserless Resource Information ===
+
+ID: browserless
+Category: agents
+Display Name: Browserless
+Description: Browser automation powered by Chrome/Chromium
+
+Service Details:
+- Container Name: $BROWSERLESS_CONTAINER_NAME
+- Service Port: $BROWSERLESS_PORT
+- Service URL: $BROWSERLESS_BASE_URL
+- Docker Image: $BROWSERLESS_IMAGE
+- Data Directory: $BROWSERLESS_DATA_DIR
+
+Endpoints:
+- Status Check: $BROWSERLESS_BASE_URL/pressure
+- Screenshot: POST $BROWSERLESS_BASE_URL/chrome/screenshot
+- PDF: POST $BROWSERLESS_BASE_URL/chrome/pdf
+- Content: POST $BROWSERLESS_BASE_URL/chrome/content
+- Function: POST $BROWSERLESS_BASE_URL/chrome/function
+- Scrape: POST $BROWSERLESS_BASE_URL/chrome/scrape
+
+Configuration:
+- Max Browsers: ${MAX_BROWSERS:-5}
+- Headless Mode: ${HEADLESS:-yes}
+- Timeout: ${TIMEOUT:-30000}ms
+
+Browserless Features:
+- High-performance browser automation
+- Screenshot generation
+- PDF generation
+- Web scraping
+- JavaScript execution
+- Form automation
+- Performance monitoring
+- Network interception
+
+Example Usage:
+# Take a screenshot
+curl -X POST $BROWSERLESS_BASE_URL/chrome/screenshot \\
+  -H "Content-Type: application/json" \\
+  -d '{"url": "https://example.com"}' \\
+  --output screenshot.png
+
+# Generate PDF
+curl -X POST $BROWSERLESS_BASE_URL/chrome/pdf \\
+  -H "Content-Type: application/json" \\
+  -d '{"url": "https://example.com"}' \\
+  --output document.pdf
+
+# Scrape webpage
+curl -X POST $BROWSERLESS_BASE_URL/chrome/content \\
+  -H "Content-Type: application/json" \\
+  -d '{"url": "https://example.com"}'
+
+For more information, visit: https://www.browserless.io/docs/
+EOF
+}
+
+#######################################
+# Show usage examples help
+#######################################
+browserless::usage_help() {
+    log::header "🎭 Browserless Usage Examples"
+    echo
+    echo "Available usage examples:"
+    echo "  $0 --action usage --usage-type screenshot [url] [output]  # Test screenshot API"
+    echo "  $0 --action usage --usage-type pdf [url] [output]         # Test PDF generation"
+    echo "  $0 --action usage --usage-type scrape [url]               # Test web scraping"
+    echo "  $0 --action usage --usage-type pressure                   # Check pool status"
+    echo "  $0 --action usage --usage-type all [url]                  # Run all examples"
+    echo
+    echo "Examples:"
+    echo "  $0 --action usage --usage-type screenshot --url https://github.com --output screenshot.png"
+    echo "  $0 --action usage --usage-type pdf --url https://wikipedia.org --output wiki.pdf"
+    echo "  $0 --action usage --usage-type all --url https://example.com"
+}
+
+#######################################
+# Test screenshot API
+#######################################
+browserless::usage_screenshot() {
+    log::header "📸 Testing Browserless Screenshot API"
+    
+    if ! browserless::is_healthy; then
+        log::error "Browserless is not running or healthy"
+        return 1
+    fi
+    
+    local test_url="${URL:-https://example.com}"
+    local output_file="${OUTPUT:-screenshot_test.png}"
+    
+    log::info "Taking screenshot of: $test_url"
+    log::info "Output file: $output_file"
+    
+    if curl -X POST "$BROWSERLESS_BASE_URL/chrome/screenshot" \
+        -H "Content-Type: application/json" \
+        -d "{\"url\": \"$test_url\", \"options\": {\"fullPage\": true}}" \
+        --output "$output_file" \
+        --silent \
+        --show-error; then
+        
+        log::success "✓ Screenshot saved to: $output_file"
+        if [[ -f "$output_file" ]]; then
+            log::info "File size: $(du -h "$output_file" | cut -f1)"
+        fi
+    else
+        log::error "Failed to take screenshot"
+        return 1
+    fi
+}
+
+#######################################
+# Test PDF generation
+#######################################
+browserless::usage_pdf() {
+    log::header "📄 Testing Browserless PDF API"
+    
+    if ! browserless::is_healthy; then
+        log::error "Browserless is not running or healthy"
+        return 1
+    fi
+    
+    local test_url="${URL:-https://example.com}"
+    local output_file="${OUTPUT:-document_test.pdf}"
+    
+    log::info "Generating PDF from: $test_url"
+    log::info "Output file: $output_file"
+    
+    if curl -X POST "$BROWSERLESS_BASE_URL/chrome/pdf" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"url\": \"$test_url\",
+            \"options\": {
+                \"format\": \"A4\",
+                \"printBackground\": true,
+                \"margin\": {
+                    \"top\": \"1cm\",
+                    \"bottom\": \"1cm\",
+                    \"left\": \"1cm\",
+                    \"right\": \"1cm\"
+                }
+            }
+        }" \
+        --output "$output_file" \
+        --silent \
+        --show-error; then
+        
+        log::success "✓ PDF saved to: $output_file"
+        if [[ -f "$output_file" ]]; then
+            log::info "File size: $(du -h "$output_file" | cut -f1)"
+        fi
+    else
+        log::error "Failed to generate PDF"
+        return 1
+    fi
+}
+
+#######################################
+# Test web scraping
+#######################################
+browserless::usage_scrape() {
+    log::header "🕷️ Testing Browserless Content Scraping"
+    
+    if ! browserless::is_healthy; then
+        log::error "Browserless is not running or healthy"
+        return 1
+    fi
+    
+    local test_url="${URL:-https://example.com}"
+    
+    log::info "Scraping content from: $test_url"
+    
+    local response
+    response=$(curl -X POST "$BROWSERLESS_BASE_URL/chrome/content" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"url\": \"$test_url\"
+        }" \
+        --silent \
+        --show-error 2>&1)
+    
+    if [[ $? -eq 0 ]]; then
+        log::success "✓ Content scraped successfully"
+        echo
+        log::info "Response preview (first 500 chars):"
+        echo "$response" | head -c 500
+        echo
+        echo "..."
+        
+        # Save full response to file
+        local output_file="${OUTPUT:-scrape_test.html}"
+        echo "$response" > "$output_file"
+        log::info "Full response saved to: $output_file"
+    else
+        log::error "Failed to scrape content: $response"
+        return 1
+    fi
+}
+
+#######################################
+# Check browser pool status
+#######################################
+browserless::usage_pressure() {
+    log::header "📊 Checking Browserless Pool Status"
+    
+    if ! browserless::is_healthy; then
+        log::error "Browserless is not running or healthy"
+        return 1
+    fi
+    
+    local response
+    response=$(curl -X GET "$BROWSERLESS_BASE_URL/pressure" \
+        --silent \
+        --show-error 2>&1)
+    
+    if [[ $? -eq 0 ]]; then
+        log::success "✓ Pool status retrieved"
+        echo
+        log::info "Current pressure metrics:"
+        echo "$response" | jq . 2>/dev/null || echo "$response"
+        
+        # Parse and display key metrics
+        if command -v jq &> /dev/null; then
+            local running=$(echo "$response" | jq -r '.running // 0')
+            local queued=$(echo "$response" | jq -r '.queued // 0')
+            local maxConcurrent=$(echo "$response" | jq -r '.maxConcurrent // "N/A"')
+            
+            echo
+            log::info "Summary:"
+            log::info "  Running browsers: $running"
+            log::info "  Queued requests: $queued"
+            log::info "  Max concurrent: $maxConcurrent"
+        fi
+    else
+        log::error "Failed to get pool status: $response"
+        return 1
+    fi
+}
+
+#######################################
+# Run all usage examples
+#######################################
+browserless::usage_all() {
+    log::header "🎭 Running All Browserless Usage Examples"
+    
+    if ! browserless::is_healthy; then
+        log::error "Browserless is not healthy. Please check the service."
+        return 1
+    fi
+    
+    # Create test output directory
+    local test_dir="browserless_test_$(date +%Y%m%d_%H%M%S)"
+    mkdir -p "$test_dir"
+    cd "$test_dir" || return 1
+    
+    log::info "Test outputs will be saved in: $(pwd)"
+    echo
+    
+    # Run each test
+    browserless::usage_pressure
+    echo
+    sleep 2
+    
+    URL="$URL" OUTPUT="screenshot.png" browserless::usage_screenshot
+    echo
+    sleep 2
+    
+    URL="$URL" OUTPUT="document.pdf" browserless::usage_pdf
+    echo
+    sleep 2
+    
+    URL="$URL" OUTPUT="scrape.html" browserless::usage_scrape
+    echo
+    
+    log::success "✅ All tests completed. Results saved in: $(pwd)"
+    cd ..
+}
+
+#######################################
+# Main execution function
+#######################################
+browserless::main() {
+    browserless::parse_arguments "$@"
+    
+    case "$ACTION" in
+        "install")
+            browserless::install
+            ;;
+        "uninstall")
+            browserless::uninstall
+            ;;
+        "start")
+            browserless::start
+            ;;
+        "stop")
+            browserless::stop
+            ;;
+        "restart")
+            browserless::restart
+            ;;
+        "status")
+            browserless::status
+            ;;
+        "logs")
+            browserless::logs
+            ;;
+        "info")
+            browserless::info
+            ;;
+        "usage")
+            # Handle usage examples
+            case "$USAGE_TYPE" in
+                "screenshot")
+                    browserless::usage_screenshot
+                    ;;
+                "pdf")
+                    browserless::usage_pdf
+                    ;;
+                "scrape")
+                    browserless::usage_scrape
+                    ;;
+                "pressure")
+                    browserless::usage_pressure
+                    ;;
+                "all")
+                    browserless::usage_all
+                    ;;
+                "help"|*)
+                    browserless::usage_help
+                    ;;
+            esac
+            ;;
+        *)
+            log::error "Unknown action: $ACTION"
+            browserless::usage
+            exit 1
+            ;;
+    esac
+}
+
+# Execute main function if script is run directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    browserless::main "$@"
+fi
