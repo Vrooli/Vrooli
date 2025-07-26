@@ -88,17 +88,23 @@ windmill::parse_arguments() {
     args::register \
         --name "no-lsp" \
         --desc "Disable Language Server Protocol support" \
-        --type "flag"
+        --type "value" \
+        --options "yes|no" \
+        --default "no"
     
     args::register \
         --name "enable-multiplayer" \
         --desc "Enable multiplayer support (Enterprise Edition)" \
-        --type "flag"
+        --type "value" \
+        --options "yes|no" \
+        --default "no"
     
     args::register \
         --name "no-native-worker" \
         --desc "Disable native worker (for system commands)" \
-        --type "flag"
+        --type "value" \
+        --options "yes|no" \
+        --default "no"
     
     args::register \
         --name "memory-limit" \
@@ -127,7 +133,9 @@ windmill::parse_arguments() {
     args::register \
         --name "follow" \
         --desc "Follow log output (for logs action)" \
-        --type "flag"
+        --type "value" \
+        --options "yes|no" \
+        --default "no"
     
     args::register \
         --name "backup-path" \
