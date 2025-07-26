@@ -12,6 +12,7 @@
 browserless::test_screenshot() {
     local test_url="${1:-${URL:-https://example.com}}"
     local output_file="${2:-${OUTPUT:-screenshot_test.png}}"
+    local temp_file="/tmp/browserless_screenshot_$$"
     
     log::header "${MSG_USAGE_SCREENSHOT}"
     
@@ -23,23 +24,123 @@ browserless::test_screenshot() {
     log::info "Taking screenshot of: $test_url"
     log::info "Output file: $output_file"
     
-    if curl -X POST "$BROWSERLESS_BASE_URL/chrome/screenshot" \
+    # First save to temp file and capture HTTP status
+    local http_status
+    http_status=$(curl -X POST "$BROWSERLESS_BASE_URL/chrome/screenshot" \
         -H "Content-Type: application/json" \
         -d "{\"url\": \"$test_url\", \"options\": {\"fullPage\": true}}" \
-        --output "$output_file" \
+        --output "$temp_file" \
+        --write-out "%{http_code}" \
         --silent \
         --show-error \
-        --max-time 60; then
-        
-        log::success "✓ Screenshot saved to: $output_file"
-        if [[ -f "$output_file" ]]; then
-            log::info "File size: $(du -h "$output_file" | cut -f1)"
-        fi
-        return 0
-    else
-        log::error "Failed to take screenshot"
+        --max-time 60)
+    
+    local curl_exit_code=$?
+    
+    # Check curl succeeded
+    if [[ $curl_exit_code -ne 0 ]]; then
+        log::error "Failed to connect to browserless service (exit code: $curl_exit_code)"
+        rm -f "$temp_file"
         return 1
     fi
+    
+    # Check HTTP status
+    if [[ "$http_status" != "200" ]]; then
+        log::error "Screenshot request failed with HTTP status: $http_status"
+        if [[ -f "$temp_file" ]]; then
+            log::debug "Error response: $(head -c 200 "$temp_file" 2>/dev/null || echo 'No response body')"
+            rm -f "$temp_file"
+        fi
+        return 1
+    fi
+    
+    # Validate file exists and has content
+    if [[ ! -f "$temp_file" ]] || [[ ! -s "$temp_file" ]]; then
+        log::error "No screenshot data received"
+        rm -f "$temp_file"
+        return 1
+    fi
+    
+    # Check if it's actually an image using file command
+    if command -v file &> /dev/null; then
+        local file_type
+        file_type=$(file -b --mime-type "$temp_file" 2>/dev/null || echo "unknown")
+        if [[ "$file_type" != image/* ]]; then
+            log::error "Response is not an image (detected: $file_type)"
+            log::debug "Response preview: $(head -c 100 "$temp_file" 2>/dev/null || echo 'Cannot read file')"
+            rm -f "$temp_file"
+            return 1
+        fi
+    fi
+    
+    # Check minimum file size (real screenshots should be at least a few KB)
+    local file_size
+    file_size=$(stat -f%z "$temp_file" 2>/dev/null || stat -c%s "$temp_file" 2>/dev/null || echo "0")
+    if [[ "$file_size" -lt 1024 ]]; then
+        log::error "Screenshot file too small ($file_size bytes) - likely an error message"
+        log::debug "Content: $(cat "$temp_file" 2>/dev/null || echo 'Cannot read file')"
+        rm -f "$temp_file"
+        return 1
+    fi
+    
+    # All checks passed, move to final location
+    if mv "$temp_file" "$output_file"; then
+        log::success "✓ Screenshot saved to: $output_file"
+        log::info "File size: $(du -h "$output_file" | cut -f1)"
+        log::info "Validated as: $(file -b --mime-type "$output_file" 2>/dev/null || echo 'image file')"
+        return 0
+    else
+        log::error "Failed to save screenshot to: $output_file"
+        rm -f "$temp_file"
+        return 1
+    fi
+}
+
+#######################################
+# Safe screenshot capture for AI analysis
+# Ensures output is valid before allowing reads
+# Arguments:
+#   $1 - URL to screenshot
+#   $2 - Output filename
+# Returns: 0 if successful and safe to read, 1 if failed
+#######################################
+browserless::safe_screenshot() {
+    local url="${1:?URL required}"
+    local output="${2:?Output filename required}"
+    
+    # Use the validated screenshot function
+    if ! browserless::test_screenshot "$url" "$output"; then
+        log::error "Screenshot capture failed for: $url"
+        return 1
+    fi
+    
+    # Double-check the file is safe to read
+    if [[ ! -f "$output" ]]; then
+        log::error "Screenshot file not created: $output"
+        return 1
+    fi
+    
+    local file_size
+    file_size=$(stat -f%z "$output" 2>/dev/null || stat -c%s "$output" 2>/dev/null || echo "0")
+    if [[ "$file_size" -lt 1024 ]]; then
+        log::error "Screenshot file suspiciously small - removing for safety"
+        rm -f "$output"
+        return 1
+    fi
+    
+    # Final validation - ensure it's an image
+    if command -v file &> /dev/null; then
+        local mime_type
+        mime_type=$(file -b --mime-type "$output" 2>/dev/null || echo "unknown")
+        if [[ "$mime_type" != image/* ]]; then
+            log::error "File is not an image (mime: $mime_type) - removing for safety"
+            rm -f "$output"
+            return 1
+        fi
+    fi
+    
+    log::success "Screenshot validated and safe to read: $output"
+    return 0
 }
 
 #######################################

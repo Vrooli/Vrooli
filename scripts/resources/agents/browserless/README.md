@@ -122,7 +122,7 @@ These examples help you:
 ### Core Endpoints
 
 #### Screenshot - `/chrome/screenshot`
-Capture screenshots of web pages:
+Capture screenshots of web pages with built-in validation:
 ```bash
 curl -X POST http://localhost:4110/chrome/screenshot \
   -H "Content-Type: application/json" \
@@ -134,6 +134,18 @@ curl -X POST http://localhost:4110/chrome/screenshot \
     }
   }' \
   --output screenshot.png
+```
+
+**Important**: The Browserless resource includes enhanced screenshot validation to prevent issues with AI tools:
+- Validates HTTP response codes (only accepts 200 OK)
+- Checks file size (minimum 1KB) to reject error text responses
+- Verifies MIME type to ensure actual image content
+- Automatically cleans up invalid files
+
+For AI/automation use cases, use the safe screenshot wrapper:
+```bash
+# Safe screenshot capture with validation
+./manage.sh --action usage --usage-type screenshot --url https://example.com --output safe.png
 ```
 
 #### PDF Generation - `/chrome/pdf`
@@ -345,6 +357,41 @@ Browserless is automatically configured in `~/.vrooli/resources.local.json`:
 }
 ```
 
+## AI/Automation Safety Features
+
+The Browserless resource includes special safety features designed for AI and automation tools that may attempt to read screenshot files:
+
+### Screenshot Validation
+When capturing screenshots, the service performs multiple validation checks:
+
+1. **HTTP Status Validation**: Only accepts successful (200 OK) responses
+2. **File Size Check**: Rejects files smaller than 1KB (typical of error messages)
+3. **MIME Type Verification**: Ensures the output is actually an image file
+4. **Automatic Cleanup**: Removes invalid files to prevent accidental reads
+
+### Safe Screenshot Function
+For AI tools that need to read screenshots, use the `browserless::safe_screenshot` function:
+
+```bash
+# From scripts or automation
+source /path/to/browserless/lib/api.sh
+browserless::safe_screenshot "http://localhost:8080" "/tmp/screenshot.png"
+if [[ $? -eq 0 ]]; then
+    # Safe to read the screenshot file
+    echo "Screenshot captured and validated"
+else
+    echo "Screenshot failed validation - file not created"
+fi
+```
+
+### Why This Matters
+When Browserless fails to capture a page (e.g., 404, 500 errors), it may return error text instead of an image. Without validation:
+- A `.png` file might contain "Not Found" or HTML error text
+- AI tools attempting to read such files as images can experience context corruption
+- This can break automation workflows and cause unexpected behavior
+
+The validation ensures that only genuine image files are saved, preventing these issues.
+
 ## Troubleshooting
 
 ### Common Issues
@@ -383,6 +430,24 @@ curl -X POST http://localhost:4110/chrome/screenshot \
     "waitUntil": "networkidle0",
     "timeout": 60000
   }'
+```
+
+#### Screenshot Validation Failures
+If screenshots are failing validation:
+```bash
+# Check the actual error
+./manage.sh --action usage --usage-type screenshot --url https://your-site.com
+
+# Common validation failures:
+# - "HTTP status: 500" - Target site returned server error
+# - "HTTP status: 404" - Page not found
+# - "too small" - Response was error text, not an image
+# - "not an image" - Server returned HTML/text instead of image
+
+# For Docker networking issues (can't reach host services):
+# Use Docker bridge IP instead of localhost
+ip route | grep docker0  # Usually 172.17.0.1
+./manage.sh --action usage --usage-type screenshot --url http://172.17.0.1:8080
 ```
 
 ### Performance Optimization
