@@ -62,7 +62,7 @@
         }
     },
     "prisma": {
-        "schema": "./dist/db/schema.prisma",
+        "schema": "./src/db/schema.prisma",
         "seed": "./dist/db/seeds/init.js"
     },
     "scripts": {
@@ -76,7 +76,9 @@
         "test-coverage": "cd ../shared && pnpm run build:test && cd ../server && NODE_OPTIONS='--max-old-space-size=8192' node --no-warnings $(which vitest) run -c vitest.config.ts --coverage",
         "test-coverage:single": "cd ../shared && pnpm run build:test && cd ../server && VITEST_CONFIG=single NODE_OPTIONS='--max-old-space-size=8192' node --no-warnings $(which vitest) run -c vitest.config.single.ts --coverage",
         "test-coverage:parallel": "cd ../shared && pnpm run build:test && cd ../server && VITEST_CONFIG=parallel NODE_OPTIONS='--max-old-space-size=8192' node --no-warnings $(which vitest) run -c vitest.config.parallel.ts --coverage",
-        "lint": "eslint src --cache --cache-location .eslintcache --fix",
+        "lint": "eslint src --ignore-pattern '**/__test/**' --ignore-pattern '**/*.test.ts' --ignore-pattern '**/*.spec.ts' --ignore-pattern '**/*.test.hybrid.ts' --cache --cache-location .eslintcache --fix",
+        "lint:test": "eslint 'src/**/*.test.ts' --config .eslintrc.test.cjs --cache --cache-location .eslintcache.test --fix",
+        "lint:all": "pnpm run lint && pnpm run lint:test",
         "build": "rimraf dist && cross-env NODE_ENV=production swc src -d dist --source-maps --ignore \"**/*.test.ts,**/*.test.js,**/*.test.tsx,**/*.test.jsx,**/*.test.cjs,**/*.d.ts,**/__test/**\" && pnpm run post-build && pnpm run build:types",
         "build:types": "tsc --emitDeclarationOnly --declaration --declarationMap",
         "build:test": "rimraf test-dist && cross-env NODE_ENV=test swc src -d test-dist --source-maps && pnpm run post-build:test",
@@ -91,6 +93,10 @@
         "start-development": "cross-env NODE_OPTIONS=--max-old-space-size=4096 nodemon dist/index.js",
         "start-production": "node --experimental-modules --experimental-specifier-resolution=node dist/index.js",
         "type-check": "cross-env NODE_OPTIONS='--max-old-space-size=4096 --no-deprecation' tsc --noEmit",
+        "type-check:test": "cross-env NODE_OPTIONS='--max-old-space-size=4096 --no-deprecation' tsc --noEmit -p tsconfig.test.json",
+        "type-check:all": "pnpm run type-check && pnpm run type-check:test",
+        "validate": "pnpm run lint && pnpm run type-check",
+        "validate:all": "pnpm run lint:all && pnpm run type-check:all",
         "prisma:generate": "prisma generate",
         "prisma:migrate": "prisma migrate deploy"
     },
