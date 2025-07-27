@@ -56,7 +56,7 @@ windmill::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|info|scale-workers|restart-workers|api-setup|save-api-key|backup|restore|list-apps|prepare-app" \
+        --options "install|uninstall|start|stop|restart|status|logs|info|scale-workers|restart-workers|api-setup|save-api-key|backup|restore|list-apps|prepare-app|deploy-app|check-app-api" \
         --default "install"
     
     args::register \
@@ -153,9 +153,15 @@ windmill::parse_arguments() {
     
     args::register \
         --name "app-name" \
-        --desc "Name of the app to prepare (for prepare-app action)" \
+        --desc "Name of the app to prepare/deploy" \
         --type "value" \
         --default ""
+    
+    args::register \
+        --name "workspace" \
+        --desc "Workspace to deploy app to (default: demo)" \
+        --type "value" \
+        --default "demo"
     
     args::register \
         --name "output-dir" \
@@ -187,6 +193,8 @@ windmill::parse_arguments() {
     export BACKUP_PATH=$(args::get "backup-path")
     export APP_NAME=$(args::get "app-name")
     export OUTPUT_DIR=$(args::get "output-dir")
+    export WORKSPACE=$(args::get "workspace")
+    export API_KEY=$(args::get "api-key")
 }
 
 #######################################
@@ -249,6 +257,12 @@ windmill::main() {
             ;;
         "prepare-app")
             windmill::prepare_app "$APP_NAME" "$OUTPUT_DIR"
+            ;;
+        "deploy-app")
+            windmill::deploy_app "$APP_NAME" "$WORKSPACE"
+            ;;
+        "check-app-api")
+            windmill::check_app_api
             ;;
         *)
             log::error "Unknown action: $ACTION"

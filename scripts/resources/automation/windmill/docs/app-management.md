@@ -4,7 +4,14 @@ This document describes the app management functionality added to the Windmill r
 
 ## Current Status
 
-As of this implementation, Windmill does **not** provide a programmatic API for creating apps. Apps must be created through the Windmill UI's visual app builder. However, we've implemented tools to help prepare and manage app definitions for future automation.
+Windmill provides a programmatic API for creating apps with the following endpoints:
+- `POST /api/w/{workspace}/apps/create` - Create a new app
+- `POST /api/w/{workspace}/apps/create_raw` - Create app with raw JS/CSS
+- `GET /api/w/{workspace}/apps/list` - List all apps
+- `GET /api/w/{workspace}/apps/get/p/{path}` - Get app by path
+- `GET /api/w/{workspace}/apps/exists/{path}` - Check if app exists
+
+**Note**: Some Windmill versions have a workspace foreign key constraint issue that may prevent app creation via API. In such cases, manual import through the UI is still required.
 
 ## Implemented Features
 
@@ -28,16 +35,24 @@ This command:
 - Generates detailed import instructions
 - Creates files in `~/windmill-apps/` by default
 
-### 3. App Deployment Tool
+### 3. Deploy App via API
 
 ```bash
-./tools/app-deployer.sh check-api
+./manage.sh --action deploy-app --app-name admin-dashboard --workspace demo
 ```
 
-A future-ready tool that:
-- Checks for app management API endpoints
-- Prepares apps for deployment
-- Provides templates for when API becomes available
+This command:
+- Converts the app definition to Windmill's expected format
+- Deploys the app via the API
+- Reports success or provides guidance if constraints prevent deployment
+
+### 4. Check App API Status
+
+```bash
+./manage.sh --action check-app-api
+```
+
+Verifies that app management API endpoints are available and working.
 
 ## App Examples
 
@@ -80,20 +95,22 @@ Since programmatic app creation isn't available yet, the workflow is:
    - Manually recreate the app using the JSON as reference
    - Or check if an import feature has been added
 
-## Future Automation
+## API Usage
 
-When Windmill adds app management API, the prepared infrastructure will enable:
+The app management API is now available:
 
 ```bash
-# Future command (not yet available)
-./manage.sh --action deploy-app --app-name admin-dashboard --workspace my-workspace
+# Deploy an app to a workspace
+./manage.sh --action deploy-app --app-name admin-dashboard --workspace demo
+
+# Check API availability
+./manage.sh --action check-app-api
 ```
 
-The groundwork includes:
-- Structured app definitions
-- Deployment helper scripts
-- API endpoint detection
-- Ready-to-use automation tools
+The implementation includes:
+- Automatic format conversion from our examples to Windmill's structure
+- Error handling for workspace constraint issues
+- Fallback guidance for manual import when needed
 
 ## Technical Details
 
@@ -133,9 +150,9 @@ Check these resources for app API availability:
 
 This implementation enables AI agents to:
 1. Understand available app templates
-2. Prepare apps for deployment
-3. Generate import instructions
-4. Check for API availability
-5. Be ready for future automation
+2. Deploy apps programmatically via API
+3. Handle deployment errors gracefully
+4. Fall back to manual import instructions when needed
+5. Check API availability and constraints
 
-While full programmatic deployment isn't possible yet, the infrastructure is in place for when Windmill adds this capability.
+The app creation API is functional, though some versions may have constraints that require manual intervention.

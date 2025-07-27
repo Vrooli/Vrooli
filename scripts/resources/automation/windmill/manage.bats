@@ -76,3 +76,53 @@ teardown() {
     [[ "$output" =~ "install" ]]
     [[ "$output" =~ "status" ]]
 }
+
+@test "windmill list-apps shows available examples" {
+    run "${BATS_TEST_DIRNAME}/manage.sh" --action list-apps
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Available Windmill App Examples" ]]
+}
+
+@test "windmill examples directory structure exists" {
+    [ -d "${BATS_TEST_DIRNAME}/examples/apps" ]
+    [ -d "${BATS_TEST_DIRNAME}/examples/scripts" ]
+    [ -d "${BATS_TEST_DIRNAME}/examples/flows" ]
+    [ -f "${BATS_TEST_DIRNAME}/examples/apps/admin-dashboard.json" ]
+    [ -f "${BATS_TEST_DIRNAME}/examples/apps/data-entry-form.json" ]
+    [ -f "${BATS_TEST_DIRNAME}/examples/apps/monitoring-dashboard.json" ]
+}
+
+@test "windmill app examples have valid JSON structure" {
+    if command -v jq >/dev/null 2>&1; then
+        run jq '.' "${BATS_TEST_DIRNAME}/examples/apps/admin-dashboard.json"
+        [ "$status" -eq 0 ]
+        
+        run jq '.name' "${BATS_TEST_DIRNAME}/examples/apps/admin-dashboard.json"
+        [ "$status" -eq 0 ]
+        [[ "$output" =~ "User Management Dashboard" ]]
+    else
+        skip "jq not available"
+    fi
+}
+
+@test "windmill prepare-app creates output files" {
+    local temp_dir="/tmp/windmill-test-$$"
+    mkdir -p "$temp_dir"
+    
+    run "${BATS_TEST_DIRNAME}/manage.sh" --action prepare-app --app-name admin-dashboard --output-dir "$temp_dir"
+    [ "$status" -eq 0 ]
+    
+    [ -f "$temp_dir/admin-dashboard.json" ]
+    [ -f "$temp_dir/admin-dashboard-instructions.md" ]
+    
+    rm -rf "$temp_dir"
+}
+
+@test "windmill manage script supports app management actions" {
+    run "${BATS_TEST_DIRNAME}/manage.sh" --help
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "list-apps" ]]
+    [[ "$output" =~ "prepare-app" ]]
+    [[ "$output" =~ "deploy-app" ]]
+    [[ "$output" =~ "check-app-api" ]]
+}

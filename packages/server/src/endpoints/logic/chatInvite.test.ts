@@ -46,14 +46,13 @@ describe("EndpointsChatInvite", () => {
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
     });
 
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.userAuth(DbProvider.get());
-    });
 
         // Seed chats using database fixtures
         chat1 = await seedTestChat(DbProvider.get(), {

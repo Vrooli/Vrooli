@@ -211,6 +211,31 @@ App (Customer Dashboard)
       └── Script: Send Notification
 ```
 
+### Programmatic App Management
+
+Windmill provides API endpoints for programmatic app creation and management:
+
+```bash
+# List available app examples
+./manage.sh --action list-apps
+
+# Prepare app for manual import (includes JSON and instructions)
+./manage.sh --action prepare-app --app-name admin-dashboard
+
+# Deploy app via API (recommended)
+./manage.sh --action deploy-app --app-name admin-dashboard --workspace demo
+
+# Check API availability
+./manage.sh --action check-app-api
+```
+
+**Available App Examples**:
+- `admin-dashboard`: User management interface with metrics
+- `data-entry-form`: Multi-step onboarding form with validation  
+- `monitoring-dashboard`: Real-time system monitoring
+
+**Note**: Some Windmill versions may have workspace constraint issues that prevent API deployment. If this occurs, the script will provide guidance for manual import through the UI.
+
 ## Usage
 
 ### Web Interface

@@ -42,18 +42,13 @@ describe("EndpointsMemberInvite", () => {
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
     });
 
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.minimal(DbProvider.get());
-    });
-            }
-        } catch (error) {
-            // If database is not initialized, skip cleanup
-        }
 
         // Create teams for member invites
         team1 = await DbProvider.get().team.create({

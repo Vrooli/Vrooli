@@ -1,5 +1,5 @@
 import { type FindByIdInput, type MeetingInviteCreateInput, type MeetingInviteSearchInput, type MeetingInviteUpdateInput } from "@vrooli/shared";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
@@ -15,7 +15,6 @@ import { meetingInvite } from "./meetingInvite.js";
 // Import database fixtures for seeding
 import { MeetingDbFactory } from "../../__test/fixtures/db/meetingFixtures.js";
 import { seedMeetingInvites } from "../../__test/fixtures/db/meetingInviteFixtures.js";
-import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
 import { meetingInviteTestDataFactory } from "@vrooli/shared";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
@@ -41,18 +40,17 @@ describe("EndpointsMeetingInvite", () => {
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","session"],
+            tables: ["user", "user_auth", "email", "session"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
     });
 
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.minimal(DbProvider.get());
-    });
 
         // Create teams for meetings
         team1 = await DbProvider.get().team.create({
