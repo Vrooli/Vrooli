@@ -1,13 +1,13 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
-import { AccountStatus, generatePublicId, nanoid, LATEST_CONFIG_VERSION } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
+import { AccountStatus, generatePublicId, nanoid } from "@vrooli/shared";
+import { botConfigFixtures } from "@vrooli/shared/test-fixtures/config";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
-import { botConfigFixtures } from "../../../../../shared/src/__test/fixtures/config/botConfigFixtures.js";
 
 interface UserRelationConfig extends RelationConfig {
     withAuth?: boolean;
@@ -224,7 +224,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.userCreateInput>): Prisma.userCreateInput {
         const uniqueHandle = `user_${nanoid()}`;
-        
+
         return {
             id: this.generateId(),
             publicId: generatePublicId(),
@@ -240,7 +240,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
 
     protected generateCompleteData(overrides?: Partial<Prisma.userCreateInput>): Prisma.userCreateInput {
         const uniqueHandle = `complete_${nanoid()}`;
-        
+
         return {
             id: this.generateId(),
             publicId: generatePublicId(),
@@ -349,7 +349,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
      */
     async createBot(overrides?: Partial<Prisma.userCreateInput>): Promise<Prisma.User> {
         const botHandle = `bot_${nanoid()}`;
-        
+
         const data: Prisma.userCreateInput = {
             ...this.generateMinimalData(),
             handle: botHandle,
@@ -358,7 +358,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
             botSettings: botConfigFixtures.complete,
             ...overrides,
         };
-        
+
         return await this.createMinimal(data);
     }
 
@@ -459,14 +459,14 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                     publicId: generatePublicId(),
                     teamId: team.teamId,
                     isAdmin: team.role === "Owner" || team.role === "Admin",
-                    permissions: team.role === "Owner" ? JSON.stringify({ 
-                        canInvite: true, 
-                        canEdit: true, 
+                    permissions: team.role === "Owner" ? JSON.stringify({
+                        canInvite: true,
+                        canEdit: true,
                         canDelete: true,
-                        canManageRoles: true, 
-                    }) : team.role === "Admin" ? JSON.stringify({ 
-                        canInvite: true, 
-                        canEdit: true, 
+                        canManageRoles: true,
+                    }) : team.role === "Admin" ? JSON.stringify({
+                        canInvite: true,
+                        canEdit: true,
                     }) : "{}",
                 })),
             };
@@ -493,11 +493,11 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
 
     protected async checkModelConstraints(record: Prisma.User): Promise<string[]> {
         const violations: string[] = [];
-        
+
         // Check handle uniqueness
         if (record.handle) {
             const duplicate = await this.prisma.user.findFirst({
-                where: { 
+                where: {
                     handle: record.handle,
                     id: { not: record.id },
                 },
@@ -521,7 +521,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
         const emails = await this.prisma.email.findMany({
             where: { userId: record.id },
         });
-        
+
         if (emails.length > 0 && !emails.some(e => e.verifiedAt !== null)) {
             violations.push("User should have at least one verified email");
         }
@@ -552,11 +552,11 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
         includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
-        const shouldDelete = (relation: string) => 
+        const shouldDelete = (relation: string) =>
             !includeOnly || includeOnly.includes(relation);
 
         // Delete in order of dependencies
-        
+
         // Delete views
         if (shouldDelete("views") && record.views?.length) {
             await tx.view.deleteMany({
@@ -682,7 +682,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
 }
 
 // Export factory creator function
-export const createUserDbFactory = (prisma: PrismaClient) => 
+export const createUserDbFactory = (prisma: PrismaClient) =>
     new UserDbFactory(prisma);
 
 // Export the class for type usage

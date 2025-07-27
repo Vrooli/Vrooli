@@ -158,9 +158,9 @@ resources::resolve_list() {
                 if [[ " $ALL_RESOURCES " =~ " $resource " ]]; then
                     resolved="$resolved $resource"
                 else
-                    log::error "Unknown resource: $resource"
-                    log::info "Available resources: $ALL_RESOURCES"
-                    exit 1
+                    log::warn "Unknown resource: $resource (skipping)" >&2
+                    log::info "Available resources: $ALL_RESOURCES" >&2
+                    # Don't exit, just skip the unknown resource
                 fi
             done
             ;;
@@ -238,14 +238,35 @@ resources::execute_action() {
     script_path=$(resources::get_script_path "$resource")
     
     if ! resources::script_exists "$resource"; then
-        log::error "Resource script not found: $script_path"
-        return 1
+        log::warn "⚠️  Resource script not found: $script_path"
+        log::info "   Skipping $resource (resource not implemented or moved)"
+        return 2  # Special return code for missing scripts
     fi
     
     log::header "🔧 $resource: $action"
     
     # Execute the resource script with the action
-    bash "$script_path" --action "$action" --force "$FORCE" --yes "$YES"
+    # Don't let script failures propagate with 'set -e'
+    local exit_code=0
+    bash "$script_path" --action "$action" --force "$FORCE" --yes "$YES" || exit_code=$?
+    
+    if [[ $exit_code -ne 0 ]]; then
+        log::warn "⚠️  Resource $resource failed with exit code $exit_code"
+        # Check for common failure patterns and provide helpful messages
+        case "$exit_code" in
+            1)
+                log::info "   This is often due to port conflicts, permission issues, or missing dependencies"
+                ;;
+            2)
+                log::info "   This typically indicates a configuration or validation error"
+                ;;
+            *)
+                log::info "   Check the output above for specific error details"
+                ;;
+        esac
+    fi
+    
+    return $exit_code
 }
 
 #######################################
@@ -278,6 +299,81 @@ resources::list_available() {
 }
 
 #######################################
+# Check Claude Code MCP integration status
+#######################################
+resources::check_mcp_integration() {
+    echo
+    log::header "🔗 Claude Code MCP Integration Status"
+    
+    local claude_code_script="${RESOURCES_DIR}/agents/claude-code/manage.sh"
+    
+    if [[ ! -f "$claude_code_script" ]]; then
+        log::info "Claude Code resource not available"
+        log::info "Install with: $0 --action install --resources claude-code"
+        return 0
+    fi
+    
+    # Check Claude Code installation status
+    if bash "$claude_code_script" --action status >/dev/null 2>&1; then
+        log::success "✅ Claude Code is installed"
+        
+        # Check MCP registration status
+        local mcp_status
+        if mcp_status=$(bash "$claude_code_script" --action mcp-status --format json 2>/dev/null); then
+            # Parse JSON status (simple approach)
+            if echo "$mcp_status" | grep -q '"registered":true'; then
+                log::success "✅ Vrooli MCP server is registered with Claude Code"
+                local scopes
+                scopes=$(echo "$mcp_status" | grep -o '"scopes":\[[^]]*\]' | sed 's/"scopes":\[//' | sed 's/\]//' | tr ',' ' ' | tr -d '"')
+                log::info "   Registered scopes: $scopes"
+                log::info "🎯 You can use @vrooli in Claude Code to access Vrooli tools"
+            else
+                log::warn "⚠️  Vrooli MCP server is not registered"
+                log::info "   Register with: $claude_code_script --action register-mcp"
+            fi
+            
+            # Check if Vrooli server is detected
+            if echo "$mcp_status" | grep -q '"detected":true'; then
+                log::success "✅ Vrooli server is accessible for MCP"
+            else
+                log::warn "⚠️  Vrooli server not detected or not running"
+                log::info "   Ensure Vrooli is running with MCP enabled"
+            fi
+        else
+            log::warn "⚠️  Could not check MCP status"
+            log::info "   Check manually with: $claude_code_script --action mcp-status"
+        fi
+    else
+        log::info "Claude Code is available but not installed"
+        log::info "Install with: $claude_code_script --action install"
+    fi
+}
+
+#######################################
+# Get the health check endpoint for a resource
+# Arguments:
+#   $1 - resource name
+# Outputs: health endpoint path
+#######################################
+resources::get_health_endpoint() {
+    local resource="$1"
+    case "$resource" in
+        "agent-s2") echo "/health" ;;
+        "browserless") echo "/pressure" ;;
+        "ollama") echo "/api/tags" ;;
+        "comfyui") echo "/system_stats" ;;
+        "n8n") echo "/api/v1/info" ;;
+        "huginn") echo "/" ;;
+        "whisper") echo "/health" ;;
+        "node-red") echo "/flows" ;;
+        "windmill") echo "/api/version" ;;
+        "minio") echo "" ;;  # MinIO doesn't have a simple health endpoint
+        "ipfs") echo "/api/v0/id" ;;
+        *) echo "" ;;  # Return empty for unknown resources
+    esac
+}
+
+#######################################
 # Discover running resources
 #######################################
 resources::discover_running() {
@@ -295,9 +391,11 @@ resources::discover_running() {
             found_any=true
             discovered_resources+=("$resource")
             
-            # Check if it responds to HTTP
+            # Check if it responds to HTTP with resource-specific health endpoint
             local base_url="http://localhost:$port"
-            if resources::check_http_health "$base_url"; then
+            local health_endpoint
+            health_endpoint=$(resources::get_health_endpoint "$resource")
+            if resources::check_http_health "$base_url" "$health_endpoint"; then
                 log::info "   HTTP health check: ✅ Healthy"
             else
                 log::warn "   HTTP health check: ⚠️  No response"
@@ -372,6 +470,9 @@ resources::discover_running() {
         log::info "Or to auto-configure all discovered resources:"
         log::info "  $0 --action discover --auto-configure yes"
     fi
+    
+    # Check Claude Code MCP integration status
+    resources::check_mcp_integration
 }
 
 #######################################
@@ -400,9 +501,15 @@ resources::main() {
             log::info "No resources to process (none are enabled in configuration)"
             exit 0
         fi
-        log::error "No resources specified"
+        # Special handling for "none" - just exit successfully
+        if [[ "$RESOURCES_INPUT" == "none" ]]; then
+            log::info "No resources to process (--resources none specified)"
+            exit 0
+        fi
+        log::warn "No valid resources found to process"
         log::info "Use --resources to specify resources, or --action list to see available options"
-        exit 1
+        # Don't exit with error code - this allows main setup to continue
+        exit 0
     fi
     
     log::header "🚀 Resource Management"
@@ -410,19 +517,38 @@ resources::main() {
     log::info "Resources: $resource_list"
     echo
     
-    local overall_success=true
     local processed_count=0
     local success_count=0
+    local warning_count=0
+    local skipped_count=0
+    local failed_resources=()
+    local skipped_resources=()
     
     for resource in $resource_list; do
         processed_count=$((processed_count + 1))
         
-        if resources::execute_action "$resource" "$ACTION"; then
-            success_count=$((success_count + 1))
-        else
-            overall_success=false
-            log::error "Failed to $ACTION $resource"
-        fi
+        local result_code
+        resources::execute_action "$resource" "$ACTION"
+        result_code=$?
+        
+        case "$result_code" in
+            0)
+                success_count=$((success_count + 1))
+                log::success "✅ $resource: $ACTION completed successfully"
+                ;;
+            2)
+                # Missing script - treat as skipped
+                skipped_count=$((skipped_count + 1))
+                skipped_resources+=("$resource")
+                log::info "⏭️  $resource: Skipped (not implemented)"
+                ;;
+            *)
+                # Other failures - treat as warnings but continue
+                warning_count=$((warning_count + 1))
+                failed_resources+=("$resource")
+                log::warn "⚠️  $resource: $ACTION failed but continuing with other resources"
+                ;;
+        esac
         
         # Add spacing between resources
         if [[ $processed_count -lt $(echo "$resource_list" | wc -w) ]]; then
@@ -435,11 +561,32 @@ resources::main() {
     log::info "Processed: $processed_count resources"
     log::info "Successful: $success_count resources"
     
-    if $overall_success; then
+    if [[ $skipped_count -gt 0 ]]; then
+        log::info "Skipped: $skipped_count resources (${skipped_resources[*]})"
+    fi
+    
+    if [[ $warning_count -gt 0 ]]; then
+        log::warn "Failed: $warning_count resources (${failed_resources[*]})"
+    fi
+    
+    # Determine overall status
+    if [[ $success_count -eq $processed_count ]]; then
         log::success "✅ All operations completed successfully"
+    elif [[ $success_count -gt 0 ]]; then
+        log::success "✅ Partial success: $success_count/$processed_count resources completed successfully"
+        if [[ $warning_count -gt 0 ]]; then
+            log::info "💡 Some resources failed but the main setup can continue"
+            log::info "   Failed resources can be installed individually later if needed"
+        fi
+        # Don't exit with error code for partial success
     else
-        log::error "❌ Some operations failed"
-        exit 1
+        log::warn "⚠️  No resources were successfully $ACTION"
+        if [[ $skipped_count -eq $processed_count ]]; then
+            log::info "💡 All resources were skipped (not implemented), this may be expected"
+        else
+            log::info "💡 You may need to address the issues above and retry"
+        fi
+        # Don't exit with error code even for no successes, let the main setup continue
     fi
     
     # Show next steps for install action

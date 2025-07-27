@@ -6,7 +6,7 @@
  * are properly rate limited based on tier, user, and event type.
  */
 
-import { nanoid } from "@vrooli/shared";
+import { generatePK, nanoid } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type Logger } from "winston";
 import { getEventBus } from "./eventBus.js";
@@ -140,7 +140,7 @@ describe("EventBusRateLimiter", () => {
                 id: nanoid(),
                 type: "step/completed",
                 timestamp: new Date(),
-                data: { runId: "test-run", routineId: "test-routine", stepId: "step-123", success: true },
+                data: { runId: generatePK().toString(), routineId: generatePK().toString(), stepId: generatePK().toString(), success: true },
                 metadata: { deliveryGuarantee: "fire-and-forget", priority: "low" },
             };
 
@@ -157,7 +157,7 @@ describe("EventBusRateLimiter", () => {
                 id: nanoid(),
                 type: "routine/started",
                 timestamp: new Date(),
-                data: { runId: "test-run", routineId: "routine-123" },
+                data: { runId: generatePK().toString(), routineId: generatePK().toString() },
                 metadata: { deliveryGuarantee: "fire-and-forget", priority: "medium" },
             };
 
@@ -202,7 +202,7 @@ describe("EventBusRateLimiter", () => {
                 metadata: {
                     deliveryGuarantee: "fire-and-forget",
                     priority: "medium",
-                    userId: "user-123",
+                    userId: generatePK().toString(),
                 },
             };
 
@@ -228,7 +228,7 @@ describe("EventBusRateLimiter", () => {
                 metadata: {
                     deliveryGuarantee: "fire-and-forget",
                     priority: "medium",
-                    userId: "user-123",
+                    userId: generatePK().toString(),
                 },
             };
 
@@ -247,14 +247,15 @@ describe("EventBusRateLimiter", () => {
                     data: expect.objectContaining({
                         originalEventId: event.id,
                         originalEventType: event.type,
-                        userId: "user-123",
+                        userId: generatePK().toString(),
                     }),
                 }),
             );
         });
 
         it("should provide rate limit status", async () => {
-            const status = await getEventBus().getRateLimitStatus("user-123", "tool/called");
+            const userId = generatePK().toString();
+            const status = await getEventBus().getRateLimitStatus(userId, "tool/called");
 
             expect(status).toHaveProperty("global");
             expect(status.global).toHaveProperty("allowed");
@@ -280,7 +281,7 @@ describe("EventBusRateLimiter", () => {
                 metadata: {
                     deliveryGuarantee: "fire-and-forget",
                     priority: "medium",
-                    userId: "user-456",
+                    userId: generatePK().toString(),
                 },
             };
 
@@ -306,7 +307,7 @@ describe("EventBusRateLimiter", () => {
                 id: nanoid(),
                 type: "routine/started",
                 timestamp: new Date(),
-                data: { runId: "test-run", routineId: "routine-123" },
+                data: { runId: generatePK().toString(), routineId: generatePK().toString() },
                 metadata: { deliveryGuarantee: "fire-and-forget", priority: "medium" },
             };
 
@@ -343,11 +344,11 @@ describe("Event Bus Rate Limiter Integration", () => {
             id: nanoid(),
             type: "tool/called",
             timestamp: new Date(),
-            data: { chatId: "test-chat", toolCallId: "test-call", toolName: "openai_completion", parameters: { model: "gpt-4", tokens: 1000 }, callerBotId: "test-bot" },
+            data: { chatId: generatePK().toString(), toolCallId: generatePK().toString(), toolName: "openai_completion", parameters: { model: "gpt-4", tokens: 1000 }, callerBotId: generatePK().toString() },
             metadata: {
                 deliveryGuarantee: "reliable",
                 priority: "high",
-                userId: "user-123",
+                userId: generatePK().toString(),
             },
         };
 

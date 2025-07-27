@@ -5,6 +5,7 @@
  * Critical for all event-driven communication in the system.
  */
 
+import { generatePK } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventPublisher, aggregateProgression, aggregateReasons } from "./publisher.js";
 import type { BotEventResponse } from "./types.js";
@@ -59,6 +60,8 @@ describe("EventPublisher", () => {
 
     describe("emit", () => {
         it("should emit simple event successfully", async () => {
+            const eventId = generatePK().toString();
+
             // Setup mocks
             mockGetEventBehavior.mockReturnValue({
                 mode: EventMode.PASSIVE,
@@ -68,7 +71,7 @@ describe("EventPublisher", () => {
 
             mockEventBus.publish.mockResolvedValue({
                 success: true,
-                eventId: "event-123",
+                eventId,
                 progression: "continue",
                 wasBlocking: false,
                 responses: [],
@@ -80,12 +83,15 @@ describe("EventPublisher", () => {
             );
 
             expect(result.proceed).toBe(true);
-            expect(result.eventId).toBe("event-123");
+            expect(result.eventId).toBe(eventId);
             expect(result.wasBlocking).toBe(false);
             expect(result.reason).toBeUndefined();
         });
 
         it("should handle blocked event", async () => {
+            const eventId = generatePK().toString();
+            const botId = generatePK().toString();
+
             mockGetEventBehavior.mockReturnValue({
                 mode: EventMode.APPROVAL,
                 interceptable: true,
@@ -94,11 +100,11 @@ describe("EventPublisher", () => {
 
             mockEventBus.publish.mockResolvedValue({
                 success: true,
-                eventId: "event-456",
+                eventId,
                 progression: "block",
                 wasBlocking: true,
                 responses: [{
-                    responderId: "bot-123",
+                    responderId: botId,
                     response: {
                         progression: "block",
                         reason: "Security concern detected",
@@ -113,12 +119,15 @@ describe("EventPublisher", () => {
             );
 
             expect(result.proceed).toBe(false);
-            expect(result.eventId).toBe("event-456");
+            expect(result.eventId).toBe(eventId);
             expect(result.wasBlocking).toBe(true);
             expect(result.reason).toBe("Security concern detected");
         });
 
         it("should use custom metadata", async () => {
+            const eventId = generatePK().toString();
+            const userId = generatePK().toString();
+
             mockGetEventBehavior.mockReturnValue({
                 mode: EventMode.INTERCEPTABLE,
                 interceptable: true,
@@ -126,7 +135,7 @@ describe("EventPublisher", () => {
 
             mockEventBus.publish.mockResolvedValue({
                 success: true,
-                eventId: "event-789",
+                eventId,
                 progression: "continue",
                 wasBlocking: false,
             });
@@ -134,7 +143,7 @@ describe("EventPublisher", () => {
             await EventPublisher.emit(
                 "user/action",
                 { action: "login" },
-                { userId: "user-123", priority: "high" },
+                { userId, priority: "high" },
             );
 
             expect(mockEventBus.publish).toHaveBeenCalledWith({
@@ -142,7 +151,7 @@ describe("EventPublisher", () => {
                 data: { action: "login" },
                 metadata: {
                     priority: "high", // Custom priority
-                    userId: "user-123",
+                    userId,
                 },
                 progression: {
                     state: "continue",
@@ -212,7 +221,7 @@ describe("EventPublisher", () => {
                 wasBlocking: true,
                 responses: [
                     {
-                        responderId: "bot-1",
+                        responderId: generatePK().toString(),
                         response: {
                             progression: "block",
                             reason: "Security violation",
@@ -220,7 +229,7 @@ describe("EventPublisher", () => {
                         timestamp: new Date(),
                     },
                     {
-                        responderId: "bot-2",
+                        responderId: generatePK().toString(),
                         response: {
                             progression: "block",
                             reason: "Policy violation",
@@ -576,7 +585,7 @@ describe("EventPublisher", () => {
                 responses: [
                     null, // Invalid response
                     {
-                        responderId: "bot-1",
+                        responderId: generatePK().toString(),
                         response: {
                             progression: "block",
                             reason: "Valid reason",

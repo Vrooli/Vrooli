@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SubscriptionManager } from "./SubscriptionManager.js";
+import { generatePK } from "@vrooli/shared";
 import type {
     EventHandler,
     EventSubscriptionId,
@@ -27,7 +28,7 @@ describe("SubscriptionManager", () => {
         mockHandler = vi.fn();
 
         sampleEvent = {
-            id: "event-123",
+            id: generatePK().toString(),
             type: "test/event",
             data: { message: "test" },
             timestamp: new Date(),

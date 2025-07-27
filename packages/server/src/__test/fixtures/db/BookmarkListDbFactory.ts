@@ -1,15 +1,15 @@
+/* eslint-disable no-magic-numbers */
+import { type bookmark_list, type Prisma, type PrismaClient } from "@prisma/client";
 import { nanoid } from "@vrooli/shared";
-import { type bookmark_list } from "@prisma/client";
-import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
 
 interface BookmarkListRelationConfig extends RelationConfig {
-    withUser?: boolean | string;
+    withUser?: boolean | bigint;
     withBookmarks?: boolean | number;
 }
 
@@ -80,7 +80,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
                 invalidTypes: {
                     id: "not-a-bigint",
                     label: 123, // Should be string
-                    userId: true, // Should be string
+                    userId: true, // Should be bigint
                 },
                 missingLabel: {
                     id: this.generateId(),
@@ -175,7 +175,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.bookmark_listCreateInput>): Prisma.bookmark_listCreateInput {
         const uniqueLabel = `List_${nanoid()}`;
-        
+
         return {
             id: this.generateId(),
             label: uniqueLabel,
@@ -186,7 +186,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
 
     protected generateCompleteData(overrides?: Partial<Prisma.bookmark_listCreateInput>): Prisma.bookmark_listCreateInput {
         const uniqueLabel = `Complete_List_${nanoid()}`;
-        
+
         return {
             id: this.generateId(),
             label: uniqueLabel,
@@ -271,14 +271,14 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a list with a specific number of bookmarks
      */
-    async createWithBookmarks(userId: string | bigint, label: string, bookmarkCount: number) {
+    async createWithBookmarks(userId: bigint, label: string, bookmarkCount: number) {
         const bookmarks = Array.from({ length: bookmarkCount }, () => ({
             id: this.generateId(),
             resourceId: this.generateId(),
         }));
 
         return await this.createMinimal({
-            user: { connect: { id: typeof userId === "string" ? BigInt(userId) : userId } },
+            user: { connect: { id: userId } },
             label,
             bookmarks: {
                 create: bookmarks,
@@ -289,40 +289,40 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create multiple lists for a user
      */
-    async createUserLists(userId: string | bigint, count = 3) {
-        const lists = [];
-        
+    async createUserLists(userId: bigint, count = 3) {
+        const lists: bookmark_list[] = [];
+
         for (let i = 0; i < count; i++) {
             const list = await this.createMinimal({
-                user: { connect: { id: typeof userId === "string" ? BigInt(userId) : userId } },
+                user: { connect: { id: userId } },
                 label: `List ${i + 1}`,
             });
             lists.push(list);
         }
-        
+
         return lists;
     }
 
     /**
      * Create predefined list templates
      */
-    async createReadingList(userId: string | bigint) {
+    async createReadingList(userId: bigint) {
         return await this.createMinimal({
-            user: { connect: { id: typeof userId === "string" ? BigInt(userId) : userId } },
+            user: { connect: { id: userId } },
             label: "📚 Reading List",
         });
     }
 
-    async createFavoritesList(userId: string | bigint) {
+    async createFavoritesList(userId: bigint) {
         return await this.createMinimal({
-            user: { connect: { id: typeof userId === "string" ? BigInt(userId) : userId } },
+            user: { connect: { id: userId } },
             label: "⭐ Favorites",
         });
     }
 
-    async createWatchLaterList(userId: string | bigint) {
+    async createWatchLaterList(userId: bigint) {
         return await this.createMinimal({
-            user: { connect: { id: typeof userId === "string" ? BigInt(userId) : userId } },
+            user: { connect: { id: userId } },
             label: "⏰ Watch Later",
         });
     }
@@ -351,13 +351,13 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.bookmark_listCreateInput,
         config: BookmarkListRelationConfig,
-        tx: any,
+        _tx: any,
     ): Promise<Prisma.bookmark_listCreateInput> {
         const data = { ...baseData };
 
         // Handle user relationship
         if (config.withUser) {
-            const userId = typeof config.withUser === "string" ? BigInt(config.withUser) : this.generateId();
+            const userId = typeof config.withUser === "boolean" ? this.generateId() : config.withUser;
             data.user = { connect: { id: userId } };
         }
 
@@ -377,7 +377,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
 
     protected async checkModelConstraints(record: any): Promise<string[]> {
         const violations: string[] = [];
-        
+
         // Check label length
         if (record.label && record.label.length > 128) {
             violations.push("Label exceeds maximum length of 128 characters");
@@ -392,7 +392,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
                     id: { not: record.id },
                 },
             });
-            
+
             if (duplicate) {
                 violations.push("User already has a list with this label");
             }
@@ -420,7 +420,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
         includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
-        const shouldDelete = (relation: string) => 
+        const shouldDelete = (relation: string) =>
             !includeOnly || includeOnly.includes(relation);
 
         // Delete bookmarks in this list
@@ -434,23 +434,23 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     /**
      * Check if a user already has a list with a given label
      */
-    async hasListWithLabel(userId: string | bigint, label: string): Promise<boolean> {
+    async hasListWithLabel(userId: bigint, label: string): Promise<boolean> {
         const list = await this.prisma.bookmark_list.findFirst({
             where: {
-                userId: typeof userId === "string" ? BigInt(userId) : userId,
+                userId,
                 label,
             },
         });
-        
+
         return list !== null;
     }
 
     /**
      * Get all lists for a user
      */
-    async getUserLists(userId: string | bigint, includeBookmarks = false) {
+    async getUserLists(userId: bigint, includeBookmarks = false) {
         return await this.prisma.bookmark_list.findMany({
-            where: { userId: typeof userId === "string" ? BigInt(userId) : userId },
+            where: { userId },
             include: {
                 bookmarks: includeBookmarks,
                 _count: {
@@ -466,11 +466,11 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     /**
      * Add a bookmark to a list
      */
-    async addBookmarkToList(listId: string | bigint, bookmarkData: Partial<Prisma.bookmarkUncheckedCreateInput>) {
+    async addBookmarkToList(listId: bigint, bookmarkData: Partial<Prisma.bookmarkUncheckedCreateInput>) {
         return await this.prisma.bookmark.create({
             data: {
                 id: this.generateId(),
-                listId: typeof listId === "string" ? BigInt(listId) : listId,
+                listId,
                 ...bookmarkData,
             },
         });
@@ -479,23 +479,23 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     /**
      * Move bookmarks between lists
      */
-    async moveBookmarks(fromListId: string | bigint, toListId: string | bigint, bookmarkIds: (string | bigint)[]): Promise<number> {
+    async moveBookmarks(fromListId: bigint, toListId: bigint, bookmarkIds: bigint[]): Promise<number> {
         const result = await this.prisma.bookmark.updateMany({
             where: {
-                id: { in: bookmarkIds.map(id => typeof id === "string" ? BigInt(id) : id) },
-                listId: typeof fromListId === "string" ? BigInt(fromListId) : fromListId,
+                id: { in: bookmarkIds },
+                listId: fromListId,
             },
             data: {
-                listId: typeof toListId === "string" ? BigInt(toListId) : toListId,
+                listId: toListId,
             },
         });
-        
+
         return result.count;
     }
 }
 
 // Export factory creator function
-export const createBookmarkListDbFactory = (prisma: PrismaClient) => 
+export const createBookmarkListDbFactory = (prisma: PrismaClient) =>
     new BookmarkListDbFactory(prisma);
 
 // Export the class for type usage

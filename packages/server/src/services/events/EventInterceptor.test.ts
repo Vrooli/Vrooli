@@ -18,6 +18,7 @@ import type {
     TierExecutionRequest,
     RoutineExecutionInput,
 } from "@vrooli/shared";
+import { generatePK } from "@vrooli/shared";
 import type { 
     ILockService, 
     ISwarmContextManager, 
@@ -82,8 +83,9 @@ describe("EventInterceptor", () => {
     let mockStepExecutor: any;
 
     // Sample test data
+    const botId = generatePK().toString();
     const sampleBot: BotParticipant = {
-        id: "bot-123",
+        id: botId,
         name: "Test Bot",
         role: "participant",
         config: {
@@ -102,7 +104,7 @@ describe("EventInterceptor", () => {
                         },
                         action: {
                             type: "routine",
-                            routineId: "routine-123",
+                            routineId: generatePK().toString(),
                             label: "Process Message",
                             inputMap: { message: "event.data.message" },
                         },
@@ -113,15 +115,19 @@ describe("EventInterceptor", () => {
         },
     };
 
+    const eventId = generatePK().toString();
+    const chatId = generatePK().toString();
+    const swarmId = generatePK().toString();
+    
     const sampleEvent: ServiceEvent = {
-        id: "event-123",
+        id: eventId,
         type: "chat/message",
         timestamp: new Date(),
-        data: { message: "Hello world", chatId: "chat-456" },
+        data: { message: "Hello world", chatId },
     };
 
     const sampleSwarmState: SwarmState = {
-        id: "swarm-123",
+        id: swarmId,
         name: "Test Swarm",
         participants: [sampleBot],
         goals: [],
@@ -144,7 +150,7 @@ describe("EventInterceptor", () => {
         // Setup context manager mock
         mockContextManager = {
             allocateResources: vi.fn().mockResolvedValue({
-                id: "allocation-123",
+                id: generatePK().toString(),
                 limits: {
                     maxCredits: "1000",
                     maxDurationMs: 300000,
@@ -215,9 +221,19 @@ describe("EventInterceptor", () => {
         vi.mocked(aggregateReasons).mockReturnValue("Aggregated reasons");
 
         // Setup extractChatId mock
-        vi.mocked(extractChatId).mockReturnValue("chat-456");
+        vi.mocked(extractChatId).mockReturnValue(chatId);
 
-        eventInterceptor = new EventInterceptor(mockLockService, mockContextManager);
+        // Mock RoutineExecutor factory
+        const mockRoutineExecutorFactory = vi.fn().mockResolvedValue({
+            start: vi.fn().mockResolvedValue(undefined),
+            stop: vi.fn().mockResolvedValue({ success: true }),
+            getState: vi.fn().mockReturnValue("READY"),
+            getStateMachine: vi.fn().mockReturnValue({
+                stop: vi.fn().mockResolvedValue({ success: true }),
+            }),
+        });
+
+        eventInterceptor = new EventInterceptor(mockLockService, mockContextManager, mockRoutineExecutorFactory);
     });
 
     afterEach(async () => {
@@ -432,7 +448,7 @@ describe("EventInterceptor", () => {
                         behaviors: [
                             {
                                 trigger: { topic: "chat/message" },
-                                action: { type: "routine", routineId: "routine-123" },
+                                action: { type: "routine", routineId: generatePK().toString() },
                             },
                         ],
                     },
@@ -634,7 +650,7 @@ describe("EventInterceptor", () => {
                                 trigger: { topic: "chat/message" },
                                 action: {
                                     type: "routine",
-                                    routineId: "routine-123",
+                                    routineId: generatePK().toString(),
                                     label: "Process Message",
                                     inputMap: { message: "event.data.message" },
                                 },
@@ -809,7 +825,7 @@ describe("EventInterceptor", () => {
             await eventInterceptor.checkInterception(sampleEvent, sampleSwarmState);
 
             expect(mockContextManager.allocateResources).toHaveBeenCalledWith(
-                "chat-456",
+                chatId,
                 expect.objectContaining({
                     consumerType: "run",
                     limits: expect.objectContaining({
@@ -864,7 +880,7 @@ describe("EventInterceptor", () => {
         it("should track multiple bots correctly", () => {
             const bot2: BotParticipant = {
                 ...sampleBot,
-                id: "bot-456",
+                id: generatePK().toString(),
                 name: "Second Bot",
             };
 
@@ -909,10 +925,22 @@ describe("EventInterceptor", () => {
         });
 
         it("should handle execution cleanup errors", async () => {
-            mockRoutineExecutor.getStateMachine().stop.mockRejectedValue(new Error("Stop failed"));
-
-            await eventInterceptor.checkInterception(sampleEvent, sampleSwarmState);
-            await eventInterceptor.stopAllActiveExecutions();
+            // Setup the factory to return an executor with a failing stop method
+            const failingStateMachine = {
+                stop: vi.fn().mockRejectedValue(new Error("Stop failed")),
+            };
+            const mockRoutineExecutorFactory = vi.fn().mockResolvedValue({
+                start: vi.fn().mockResolvedValue(undefined),
+                stop: vi.fn().mockResolvedValue({ success: true }),
+                getState: vi.fn().mockReturnValue("READY"),
+                getStateMachine: vi.fn().mockReturnValue(failingStateMachine),
+            });
+            
+            // Create new interceptor with failing factory
+            const testInterceptor = new EventInterceptor(mockLockService, mockContextManager, mockRoutineExecutorFactory);
+            
+            await testInterceptor.checkInterception(sampleEvent, sampleSwarmState);
+            await testInterceptor.stopAllActiveExecutions();
 
             expect(logger.error).toHaveBeenCalledWith(
                 "Failed to stop execution",

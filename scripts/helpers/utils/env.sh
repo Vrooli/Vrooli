@@ -403,7 +403,7 @@ env::construct_derived_secrets() {
             ;;
     esac
     
-    export DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${db_host}:${PORT_DB:-5432}"
+    export DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${db_host}:${PORT_DB:-5432}/${DB_NAME}"
     export REDIS_URL="redis://:${REDIS_PASSWORD}@${redis_host}:${PORT_REDIS:-6379}"
     export WORKER_ID=0 # This is fine for single-node deployments, but should be set to the pod ordinal for multi-node deployments.
 }

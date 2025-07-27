@@ -5,9 +5,9 @@
  * their permissions and authentication status. Uses real configurations
  * instead of mocked ModelMap.
  */
-import { expect, describe, it, beforeEach, afterEach, beforeAll } from "vitest";
-import { ApiKeyPermission, type ModelType, VisibilityType } from "@vrooli/shared";
+import { type ModelType, VisibilityType } from "@vrooli/shared";
 import { type Request } from "express";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 // Delay imports that use ModelMap to avoid initialization issues
 let getVisibilityFunc: typeof import("./visibilityBuilder.js").getVisibilityFunc;
@@ -16,12 +16,12 @@ let useVisibility: typeof import("./visibilityBuilder.js").useVisibility;
 let useVisibilityMapper: typeof import("./visibilityBuilder.js").useVisibilityMapper;
 
 // Import database fixtures for seeding
-import { seedTestUsers } from "../__test/fixtures/db/userFixtures.js";
 import { seedTestTeams } from "../__test/fixtures/db/teamFixtures.js";
+import { seedTestUsers } from "../__test/fixtures/db/userFixtures.js";
 import { cleanupGroups } from "../__test/helpers/testCleanupHelpers.js";
 import { DbProvider } from "../db/provider.js";
 // Import session helpers for proper RequestService integration
-import { mockAuthenticatedSession, mockLoggedOutSession, mockApiSession, mockReadPublicPermissions, mockReadPrivatePermissions } from "../__test/session.js";
+import { mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockReadPublicPermissions } from "../__test/session.js";
 
 // Test visibility function factories
 function createTestVisibilityFunc(result: any = { isDeleted: false }) {
@@ -48,33 +48,36 @@ function createTestModelRegistry(configs: Record<ModelType, any>) {
     };
 }
 
+// Global beforeAll to import functions for all test blocks
+beforeAll(async () => {
+    // Import after setup has run to ensure ModelMap is initialized
+    const visibilityModule = await import("./visibilityBuilder.js");
+
+    getVisibilityFunc = visibilityModule.getVisibilityFunc;
+    visibilityBuilderPrisma = visibilityModule.visibilityBuilderPrisma;
+    useVisibility = visibilityModule.useVisibility;
+    useVisibilityMapper = visibilityModule.useVisibilityMapper;
+});
+
 describe("visibility tests with real data", () => {
-    beforeAll(async () => {
-        // Import after setup has run to ensure ModelMap is initialized
-        const visibilityModule = await import("./visibilityBuilder.js");
-        getVisibilityFunc = visibilityModule.getVisibilityFunc;
-        visibilityBuilderPrisma = visibilityModule.visibilityBuilderPrisma;
-        useVisibility = visibilityModule.useVisibility;
-        useVisibilityMapper = visibilityModule.useVisibilityMapper;
-    });
 
     beforeEach(async () => {
         // Create test users and teams for real permission testing
         const userSeedResult = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
         testUsers = userSeedResult.records;
-        
-        const teamSeedResult = await seedTestTeams(DbProvider.get(), 1, { 
+
+        const teamSeedResult = await seedTestTeams(DbProvider.get(), 1, {
             withCreator: true,
-            creatorId: testUsers[0].id, 
+            creatorId: testUsers[0].id,
         });
         testTeams = teamSeedResult.records;
     });
-    
+
     afterEach(async () => {
         // Clean up database
         await cleanupGroups.userAuth(DbProvider.get());
     });
-    
+
     // Helper functions
     const getTestUserId = () => testUsers[0]?.id;
     const getTestUserData = () => ({ id: getTestUserId(), languages: ["en"] });
@@ -153,7 +156,7 @@ describe("visibilityBuilderPrisma", () => {
     describe("permission-based visibility determination", () => {
         it("sets max visibility to Public for logged-out users", async () => {
             const mockFunc = createTestVisibilityFunc({ isDeleted: false });
-            
+
             // Test with logged-out session
             const { req } = await mockLoggedOutSession();
             const result = visibilityBuilderPrisma({
@@ -171,14 +174,14 @@ describe("visibilityBuilderPrisma", () => {
             const { req } = await mockAuthenticatedSession({
                 id: testUsers[0]?.id,
             });
-            
+
             const result = visibilityBuilderPrisma({
                 objectType: "User",
                 searchInput: mockSearchInput,
                 req,
                 visibility: VisibilityType.OwnOrPublic,
             });
-            
+
             expect(result.visibilityUsed).toBe(VisibilityType.OwnOrPublic);
             expect(result.query).toBeDefined();
         });
@@ -194,14 +197,14 @@ describe("visibilityBuilderPrisma", () => {
                     handle: "test-user",
                 },
             );
-            
+
             const result = visibilityBuilderPrisma({
                 objectType: "User",
                 searchInput: mockSearchInput,
                 req,
                 visibility: VisibilityType.Public,
             });
-            
+
             expect(result.visibilityUsed).toBe(VisibilityType.Public);
             expect(result.query).toBeDefined();
         });
@@ -217,14 +220,14 @@ describe("visibilityBuilderPrisma", () => {
                     handle: "test-user",
                 },
             );
-            
+
             const result = visibilityBuilderPrisma({
                 objectType: "User",
                 searchInput: mockSearchInput,
                 req,
                 visibility: VisibilityType.OwnOrPublic,
             });
-            
+
             expect(result.visibilityUsed).toBe(VisibilityType.OwnOrPublic);
             expect(result.query).toBeDefined();
         });
@@ -240,14 +243,14 @@ describe("visibilityBuilderPrisma", () => {
                     handle: "test-user",
                 },
             );
-            
+
             const result = visibilityBuilderPrisma({
                 objectType: "User",
                 searchInput: mockSearchInput,
                 req,
                 visibility: VisibilityType.Public,
             });
-            
+
             expect(result.visibilityUsed).toBe(VisibilityType.Public);
             expect(result.query).toBeDefined();
         });
@@ -259,16 +262,16 @@ describe("visibilityBuilderPrisma", () => {
             const { req } = await mockAuthenticatedSession({
                 id: testUsers[0]?.id,
             });
-            
+
             const input = { visibility: VisibilityType.Public };
-            
+
             const result = visibilityBuilderPrisma({
                 objectType: "User",
                 searchInput: input,
                 req,
                 visibility: VisibilityType.Public,
             });
-            
+
             expect(result.visibilityUsed).toBe(VisibilityType.Public);
             expect(result.query).toBeDefined();
         });
@@ -276,16 +279,16 @@ describe("visibilityBuilderPrisma", () => {
         it("clamps to max allowed when requested exceeds permissions", async () => {
             // Create logged-out session (only allows Public)
             const { req } = await mockLoggedOutSession();
-            
+
             const input = { visibility: VisibilityType.OwnOrPublic };
-            
+
             const result = visibilityBuilderPrisma({
                 objectType: "User",
                 searchInput: input,
                 req,
                 visibility: VisibilityType.OwnOrPublic, // Requesting higher than allowed
             });
-            
+
             // Should clamp down to Public for logged-out users
             expect(result.visibilityUsed).toBe(VisibilityType.Public);
             expect(result.query).toBeDefined();
@@ -296,15 +299,15 @@ describe("visibilityBuilderPrisma", () => {
             const { req } = await mockAuthenticatedSession({
                 id: testUsers[0]?.id,
             });
-            
+
             const input = {};
-            
+
             const result = visibilityBuilderPrisma({
                 objectType: "User",
                 searchInput: input,
                 req,
             });
-            
+
             // Should default to max allowed (OwnOrPublic for authenticated users)
             expect(result.visibilityUsed).toBe(VisibilityType.OwnOrPublic);
             expect(result.query).toBeDefined();
@@ -317,16 +320,16 @@ describe("visibilityBuilderPrisma", () => {
             const { req } = await mockAuthenticatedSession({
                 id: testUsers[0]?.id,
             });
-            
+
             const input = { visibility: VisibilityType.Own };
-            
+
             const result = visibilityBuilderPrisma({
                 objectType: "User",
                 searchInput: input,
                 req,
                 visibility: VisibilityType.Own,
             });
-            
+
             // Should fall back to Public when Own function doesn't exist
             expect(result.visibilityUsed).toBe(VisibilityType.Public);
             expect(result.query).toBeDefined();
@@ -337,9 +340,9 @@ describe("visibilityBuilderPrisma", () => {
             const { req } = await mockAuthenticatedSession({
                 id: testUsers[0]?.id,
             });
-            
+
             const input = { visibility: VisibilityType.OwnPrivate };
-            
+
             expect(() => visibilityBuilderPrisma({
                 objectType: "NonExistentModel" as ModelType,
                 searchInput: input,
@@ -353,9 +356,9 @@ describe("visibilityBuilderPrisma", () => {
             const { req } = await mockAuthenticatedSession({
                 id: testUsers[0]?.id,
             });
-            
+
             const input = { visibility: VisibilityType.Public };
-            
+
             expect(() => visibilityBuilderPrisma({
                 objectType: "NonExistentModel" as ModelType,
                 searchInput: input,
@@ -371,14 +374,14 @@ describe("visibilityBuilderPrisma", () => {
             const { req } = await mockAuthenticatedSession({
                 id: testUsers[0]?.id,
             });
-            
+
             const result = visibilityBuilderPrisma({
                 objectType: "User",
                 searchInput: mockSearchInput,
                 req,
                 visibility: VisibilityType.Public,
             });
-            
+
             // The visibility function should be called with proper userId context
             expect(result.visibilityUsed).toBe(VisibilityType.Public);
             expect(result.query).toBeDefined();
@@ -387,53 +390,54 @@ describe("visibilityBuilderPrisma", () => {
         it("uses DUMMY_ID for logged-out users", async () => {
             // Create logged-out session
             const { req } = await mockLoggedOutSession();
-            
+
             const result = visibilityBuilderPrisma({
                 objectType: "User",
                 searchInput: mockSearchInput,
                 req,
                 visibility: VisibilityType.Public,
             });
-            
+
             // Should work with logged-out session
             expect(result.visibilityUsed).toBe(VisibilityType.Public);
             expect(result.query).toBeDefined();
         });
     });
-    
+
     describe("useVisibility", () => {
-    it("executes visibility function with provided data", () => {
-        const mockResult = { isDeleted: false };
-        const visibilityData = {
-            userId: "test-user",
-            userData: { id: "user123", name: "Test User" },
-        };
-        
-        const result = useVisibility("User", VisibilityType.Public, visibilityData);
-        
-        expect(typeof result).toBe("object");
+        it("executes visibility function with provided data", () => {
+            const mockResult = { isDeleted: false };
+            const visibilityData = {
+                userId: "test-user",
+                userData: { id: "user123", name: "Test User" },
+            };
+
+            const result = useVisibility("User", VisibilityType.Public, visibilityData);
+
+            expect(typeof result).toBe("object");
+        });
+
+        it("returns null when function not found and throwIfNotFound is false", () => {
+            const visibilityData = {
+                userId: "test-user",
+                userData: { id: "user123", name: "Test User" },
+            };
+
+            const result = useVisibility("User", VisibilityType.Public, visibilityData, false);
+
+            expect(result).toBe(null);
+        });
+
+        it("throws error when function not found and throwIfNotFound is true", () => {
+            const visibilityData = {
+                userId: "test-user",
+                userData: { id: "user123", name: "Test User" },
+            };
+
+            expect(() => useVisibility("UnknownType", VisibilityType.Public, visibilityData, true)).toThrow("0780");
+        });
     });
 
-    it("returns null when function not found and throwIfNotFound is false", () => {
-        const visibilityData = {
-            userId: "test-user",
-            userData: { id: "user123", name: "Test User" },
-        };
-        
-        const result = useVisibility("User", VisibilityType.Public, visibilityData, false);
-        
-        expect(result).toBe(null);
-    });
-
-    it("throws error when function not found and throwIfNotFound is true", () => {
-        const visibilityData = {
-            userId: "test-user",
-            userData: { id: "user123", name: "Test User" },
-        };
-        
-        expect(() => useVisibility("UnknownType", VisibilityType.Public, visibilityData, true)).toThrow("0780");
-    });
-    
     describe("useVisibilityMapper", () => {
         it("maps visibility functions for multiple object types", () => {
             const visibilityData = {
@@ -443,14 +447,14 @@ describe("visibilityBuilderPrisma", () => {
                     { __typename: "Team", id: "team1", handle: "team1" },
                 ],
             };
-            
+
             const forMapper = {
                 User: "isUserPublic",
                 Team: "isTeamPublic",
             };
-            
+
             const result = useVisibilityMapper(VisibilityType.Public, visibilityData, forMapper);
-            
+
             expect(Array.isArray(result)).toBe(true);
         });
 
@@ -462,13 +466,13 @@ describe("visibilityBuilderPrisma", () => {
                     { __typename: "UnknownType", id: "unknown1", data: "test" },
                 ],
             };
-            
+
             const forMapper = {
                 User: "isUserPublic",
             };
-            
+
             const result = useVisibilityMapper(VisibilityType.Public, visibilityData, forMapper);
-            
+
             expect(Array.isArray(result)).toBe(true);
         });
 
@@ -479,7 +483,7 @@ describe("visibilityBuilderPrisma", () => {
                     { __typename: "User", id: "user1", name: "User 1" },
                 ],
             };
-            
+
             expect(() => useVisibilityMapper(VisibilityType.Public, visibilityData, {}, true)).toThrow("0780");
         });
 
@@ -490,12 +494,13 @@ describe("visibilityBuilderPrisma", () => {
                     { __typename: "UnknownType", id: "unknown1", data: "test" },
                 ],
             };
-            
+
             const result = useVisibilityMapper(VisibilityType.Public, visibilityData, {});
-            
+
             expect(Array.isArray(result)).toBe(true);
         });
-    
+    });
+
     describe("Migration Benefits", () => {
         it("demonstrates real visibility logic testing", () => {
             // Test shows we can verify actual visibility behavior
@@ -503,15 +508,15 @@ describe("visibilityBuilderPrisma", () => {
                 userId: "test-user",
                 userData: { id: "user123" },
             };
-            
+
             const privateData = {
                 userId: "test-user",
                 userData: { id: "user123" },
             };
-            
+
             const publicResult = useVisibility("User", VisibilityType.Public, publicData);
             const privateResult = useVisibility("User", VisibilityType.Private, privateData);
-            
+
             // Real logic produces different results based on visibility type
             expect(typeof publicResult).toBe("object");
             expect(typeof privateResult).toBe("object");
@@ -523,15 +528,15 @@ describe("visibilityBuilderPrisma", () => {
                 userId: "public-user",
                 userData: { id: "public-user", isPublic: true },
             };
-            
+
             const privateUserData = {
                 userId: "private-user",
                 userData: { id: "private-user", isPublic: false },
             };
-            
+
             const publicResult = useVisibility("User", VisibilityType.Public, publicUserData);
             const privateResult = useVisibility("User", VisibilityType.Public, privateUserData);
-            
+
             // Same logic, different behavior based on user context
             expect(typeof publicResult).toBe("object");
             expect(typeof privateResult).toBe("object");

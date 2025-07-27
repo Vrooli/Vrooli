@@ -40,12 +40,64 @@ native_linux::setup_native_linux() {
                 --action install \
                 --resources "$RESOURCES" \
                 --yes "${YES:-no}"
+                
+            # Auto-register Vrooli MCP server with Claude Code if both are available
+            native_linux::setup_mcp_integration
         else
             log::error "Resource setup script not found: $resources_script"
             log::info "Skipping resource setup"
         fi
     else
         log::info "No local resources requested (use --resources to specify)"
+    fi
+}
+
+#######################################
+# Setup MCP integration between Vrooli and Claude Code
+#######################################
+native_linux::setup_mcp_integration() {
+    # Check if Claude Code was installed during resource setup
+    local claude_code_script="${SETUP_TARGET_DIR}/../../../resources/agents/claude-code/manage.sh"
+    
+    if [[ ! -f "$claude_code_script" ]]; then
+        # No Claude Code management script found, skip MCP integration
+        return 0
+    fi
+    
+    log::info "🔗 Checking for MCP integration opportunities..."
+    
+    # Check if Claude Code is installed
+    if ! bash "$claude_code_script" --action status >/dev/null 2>&1; then
+        log::info "Claude Code not installed, skipping MCP auto-registration"
+        return 0
+    fi
+    
+    # Wait a moment for any services to start up after resource installation
+    sleep 2
+    
+    # Check if Vrooli server is running (for local development)
+    local vrooli_health_check="http://localhost:3000/mcp/health"
+    if command -v curl >/dev/null 2>&1; then
+        if curl -f -s --max-time 5 "$vrooli_health_check" >/dev/null 2>&1; then
+            log::info "Vrooli server detected, attempting MCP auto-registration..."
+            
+            # Attempt auto-registration with user scope (good for development)
+            if bash "$claude_code_script" --action register-mcp --scope user --yes "${YES:-no}" 2>/dev/null; then
+                log::success "✅ Vrooli MCP server registered with Claude Code!"
+                log::info "🎯 You can now use @vrooli in Claude Code to access Vrooli tools"
+            else
+                log::info "MCP auto-registration was attempted but may have failed"
+                log::info "You can manually register with: $claude_code_script --action register-mcp"
+            fi
+        else
+            log::info "Vrooli server not running yet, skipping MCP auto-registration"
+            log::info "After starting Vrooli, you can register MCP with:"
+            log::info "  $claude_code_script --action register-mcp"
+        fi
+    else
+        log::info "curl not available, skipping MCP health check"
+        log::info "You can manually register MCP with:"
+        log::info "  $claude_code_script --action register-mcp"
     fi
 }
 

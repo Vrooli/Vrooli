@@ -10,10 +10,12 @@ import cliProgress from "cli-progress";
 import { UI } from "../utils/constants.js";
 import type { 
     Resource,
-    ResourceSearchInput,
-    ResourceSearchResult,
+    ResourceVersionSearchInput,
+    ResourceVersionSearchResult,
     ResourceVersionTranslation,
+    ResourceSubType,
 } from "@vrooli/shared";
+import { endpointsResource, ResourceType } from "@vrooli/shared";
 
 // Interface definitions for routine operations
 interface RoutineTranslation {
@@ -221,7 +223,10 @@ export class RoutineCommands {
 
             // Import to server
             spinner.text = "Uploading to server...";
-            const response = await this.client.post<Resource>("/api/resource", routineData);
+            const response = await this.client.requestWithEndpoint<Resource>(
+                endpointsResource.createOne,
+                routineData,
+            );
 
             spinner.succeed("Routine imported successfully");
 
@@ -347,7 +352,10 @@ export class RoutineCommands {
         const spinner = ora("Fetching routine...").start();
 
         try {
-            const routine = await this.client.get<Resource>(`/api/routine/${routineId}`);
+            const routine = await this.client.requestWithEndpoint<Resource>(
+                endpointsResource.findOne,
+                { publicId: routineId },
+            );
             spinner.succeed("Routine fetched");
 
             // Determine output path
@@ -373,10 +381,11 @@ export class RoutineCommands {
         mine?: boolean;
     }): Promise<void> {
         try {
-            const params: ResourceSearchInput = {
+            const params: ResourceVersionSearchInput = {
                 take: parseInt(options.limit || "10"),
-                // Filter for Resource type "Routine" by resourceType, not by subtype
-                // to include all routine subtypes
+                isLatest: true,
+                // Filter for resources that have "Routine" as their root type
+                rootResourceType: ResourceType.Routine,
             };
 
             if (options.search) {
@@ -388,7 +397,10 @@ export class RoutineCommands {
                 params.createdById = "me";
             }
 
-            const response = await this.client.get<ResourceSearchResult>("/api/routines", { params });
+            const response = await this.client.requestWithEndpoint<ResourceVersionSearchResult>(
+                endpointsResource.findMany,
+                params,
+            );
 
             if (this.config.isJsonOutput() || options.format === "json") {
                 console.log(JSON.stringify(response));
@@ -426,7 +438,10 @@ export class RoutineCommands {
         const spinner = ora("Fetching routine...").start();
 
         try {
-            const routine = await this.client.get<Resource>(`/api/routine/${routineId}`);
+            const routine = await this.client.requestWithEndpoint<Resource>(
+                endpointsResource.findOne,
+                { publicId: routineId },
+            );
             spinner.succeed("Routine fetched");
 
             if (this.config.isJsonOutput()) {
@@ -612,7 +627,10 @@ export class RoutineCommands {
         }
 
         if (!dryRun) {
-            const result = await this.client.post("/api/resource", routineData);
+            const result = await this.client.requestWithEndpoint(
+                endpointsResource.createOne,
+                routineData,
+            );
             return { success: true, routine: result };
         }
         
@@ -741,7 +759,10 @@ export class RoutineCommands {
                     for (const { stepIndex, id } of subroutineIds) {
                         try {
                             // Try to fetch the subroutine
-                            await this.client.get(`/api/routine/${id}`);
+                            await this.client.requestWithEndpoint(
+                                endpointsResource.findOne,
+                                { publicId: id },
+                            );
                             console.log(chalk.gray(`    ✓ Step ${stepIndex + 1}: Subroutine '${id}' exists`));
                         } catch (error) {
                             errors.push(`Step ${stepIndex + 1}: Subroutine '${id}' not found in database`);
@@ -783,7 +804,10 @@ export class RoutineCommands {
                     
                     for (const { activityId, subroutineId } of activityIds) {
                         try {
-                            await this.client.get(`/api/routine/${subroutineId}`);
+                            await this.client.requestWithEndpoint(
+                                endpointsResource.findOne,
+                                { publicId: subroutineId },
+                            );
                             console.log(chalk.gray(`    ✓ Activity '${activityId}': Subroutine '${subroutineId}' exists`));
                         } catch (error) {
                             errors.push(`Activity '${activityId}': Subroutine '${subroutineId}' not found in database`);
@@ -842,10 +866,10 @@ export class RoutineCommands {
                 },
             };
 
-            const response = await this.client.request<ResourceSearchResult>("resource_findMany", {
-                input: searchInput,
-                fieldName: "resources",
-            });
+            const response = await this.client.requestWithEndpoint<ResourceVersionSearchResult>(
+                endpointsResource.findMany,
+                searchInput,
+            );
 
             if (!response.edges || response.edges.length === 0) {
                 spinner.info(`No routines found for "${query}"`);
@@ -904,17 +928,16 @@ export class RoutineCommands {
         const spinner = ora("Discovering available routines...").start();
 
         try {
-            const response = await this.client.request<ResourceSearchResult>("resource_findMany", {
-                input: {
+            const response = await this.client.requestWithEndpoint<ResourceVersionSearchResult>(
+                endpointsResource.findMany,
+                {
                     take: 100,
-                    where: {
-                        ...(options.type && { resourceSubType: { equals: options.type } }),
-                        isComplete: { equals: true },
-                        isPrivate: { equals: false },
-                    },
+                    isLatest: true,
+                    rootResourceType: ResourceType.Routine,
+                    ...(options.type && { resourceSubType: options.type as ResourceSubType }),
+                    isCompleteWithRoot: true,
                 },
-                fieldName: "resources",
-            });
+            );
 
             if (!response.edges || response.edges.length === 0) {
                 spinner.info("No routines found");

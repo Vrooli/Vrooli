@@ -181,7 +181,9 @@ function parseRRule(rrule: InstanceType<typeof RRule>, startTime: Date, endTime:
     endDate?: Date;
     duration: number;
 } | null {
-    if (!rrule || !rrule.options.freq) return null;
+    if (!rrule || rrule.options?.freq === undefined || rrule.options?.freq === null) {
+        return null;
+    }
 
     const duration = endTime ? Math.floor((endTime.getTime() - startTime.getTime()) / MINUTES_1_MS) : DEFAULT_EVENT_DURATION_MINUTES; // Duration in minutes
 
@@ -209,8 +211,6 @@ function parseRRule(rrule: InstanceType<typeof RRule>, startTime: Date, endTime:
         interval: rrule.options.interval || 1,
         duration,
     } as ReturnType<typeof parseRRule>;
-
-    if (!recurrence) return null;
 
     // Handle day of week for weekly recurrence
     if (recurrenceType === ScheduleRecurrenceType.Weekly && rrule.options.byweekday) {

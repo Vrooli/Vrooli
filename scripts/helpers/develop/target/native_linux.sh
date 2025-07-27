@@ -22,14 +22,21 @@ nativeLinux::start_development_native_linux() {
     nativeLinux::cleanup() {
         log::info "🔧 Cleaning up development environment at $var_ROOT_DIR..."
         
+        # Temporarily disable unbound variable checking during cleanup
+        # This prevents "ui_pid: unbound variable" errors from external scripts
+        set +u
+        
         # Use instance manager for cleanup if available
         if command -v instance::shutdown_target >/dev/null 2>&1; then
-            instance::shutdown_target "native-linux"
+            instance::shutdown_target "native-linux" 2>&1 | grep -v "unbound variable" || true
         else
             # Fallback to traditional cleanup
             cd "$var_ROOT_DIR"
-            docker::compose down
+            docker::compose down 2>&1 | grep -v "unbound variable" || true
         fi
+        
+        # Re-enable strict mode
+        set -u
         
         cd "$ORIGINAL_DIR"
         exit "$EXIT_USER_INTERRUPT"

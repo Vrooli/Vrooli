@@ -409,9 +409,10 @@ export class EventBusMonitor {
         });
 
         // Keep only last hour
-        this.throughputHistory = this.throughputHistory.filter(d => d.timestamp > HOURS_1_S);
-        this.latencyHistory = this.latencyHistory.filter(d => d.timestamp > HOURS_1_S);
-        this.errorHistory = this.errorHistory.filter(d => d.timestamp > HOURS_1_S);
+        const oneHourAgo = now - (HOURS_1_S * 1000); // Convert seconds to milliseconds
+        this.throughputHistory = this.throughputHistory.filter(d => d.timestamp > oneHourAgo);
+        this.latencyHistory = this.latencyHistory.filter(d => d.timestamp > oneHourAgo);
+        this.errorHistory = this.errorHistory.filter(d => d.timestamp > oneHourAgo);
     }
 
     /**

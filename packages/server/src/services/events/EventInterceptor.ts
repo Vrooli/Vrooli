@@ -9,7 +9,7 @@ import type { BehaviourSpec, BotParticipant, EmitAction, InvokeAction, RoutineAc
 import { logger } from "../../events/logger.js";
 import type { ISwarmContextManager } from "../execution/shared/SwarmContextManager.js";
 import { SwarmStateAccessor } from "../execution/shared/SwarmStateAccessor.js";
-import { RoutineExecutor } from "../execution/tier2/routineExecutor.js";
+import type { RoutineExecutor } from "../execution/tier2/routineExecutor.js";
 import { StepExecutor } from "../execution/tier3/stepExecutor.js";
 import { DefaultDecisionMaker } from "./BotPriority.js";
 import { aggregateProgression, aggregateReasons } from "./publisher.js";
@@ -24,6 +24,17 @@ import {
     type ProgressionControl,
     type ServiceEvent,
 } from "./types.js";
+
+/**
+ * Factory function for creating RoutineExecutor instances
+ */
+type RoutineExecutorFactory = (
+    contextManager: ISwarmContextManager,
+    stepExecutor: StepExecutor,
+    contextId: string,
+    runContextManager: any,
+    botId: string
+) => Promise<RoutineExecutor>;
 
 /**
  * Bot interceptor registration
@@ -63,6 +74,7 @@ export class EventInterceptor {
     constructor(
         private lockService: ILockService,
         private contextManager: ISwarmContextManager,
+        private routineExecutorFactory: RoutineExecutorFactory,
     ) {
         // Add any other initialization logic here
     }
@@ -621,8 +633,8 @@ export class EventInterceptor {
             // Create step executor
             const stepExecutor = new StepExecutor();
 
-            // Create RoutineExecutor using the existing context manager
-            const routineExecutor = new RoutineExecutor(
+            // Create RoutineExecutor using the factory function
+            const routineExecutor = await this.routineExecutorFactory(
                 this.contextManager, // Use existing context manager
                 stepExecutor,
                 contextId,

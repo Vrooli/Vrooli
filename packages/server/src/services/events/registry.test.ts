@@ -1,4 +1,4 @@
-import { EventTypes } from "@vrooli/shared";
+import { EventTypes, generatePK } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { logger } from "../../events/logger.js";
 import {
@@ -30,42 +30,7 @@ vi.mock("../../events/logger.js", () => ({
     },
 }));
 
-// Mock EventTypes from shared package
-vi.mock("@vrooli/shared", () => ({
-    EventTypes: {
-        CHAT: {
-            MESSAGE: "chat/message",
-            CANCELLATION_REQUESTED: "chat/cancellation_requested",
-        },
-        SECURITY: {
-            EMERGENCY_STOP: "security/emergency_stop",
-        },
-        RUN: {
-            DECISION_REQUESTED: "run/decision_requested",
-            STARTED: "run/started",
-            COMPLETED: "run/completed",
-            FAILED: "run/failed",
-        },
-        RESOURCE: {
-            LIMIT_EXCEEDED: "resource/limit_exceeded",
-        },
-        TOOL: {
-            EXECUTION_STARTED: "tool/execution/started",
-            APPROVAL_REQUESTED: "tool/approval/requested",
-        },
-        SYSTEM: {
-            SHUTDOWN: "system/shutdown",
-        },
-        USER: {
-            LOGIN: "user/login",
-        },
-        BOT: {
-            STREAM: "bot/test/stream",
-        },
-    },
-    SECONDS_5_MS: 5000,
-    MINUTES_5_MS: 300000,
-}));
+// Don't mock @vrooli/shared - it's our own package
 
 describe("EventRegistry", () => {
     beforeEach(() => {
@@ -91,7 +56,7 @@ describe("EventRegistry", () => {
         });
 
         it("should return pattern match for wildcard patterns", () => {
-            const behavior = getEventBehavior("chat/message");
+            const behavior = getEventBehavior(EventTypes.CHAT.MESSAGE_ADDED);
 
             expect(behavior.mode).toBe(EventMode.PASSIVE);
             expect(behavior.interceptable).toBe(true);
@@ -100,7 +65,7 @@ describe("EventRegistry", () => {
 
         it("should return most specific pattern match", () => {
             // "tool/approval/*" should be more specific than "tool/*"
-            const behavior = getEventBehavior("tool/approval/requested");
+            const behavior = getEventBehavior(EventTypes.TOOL.APPROVAL_REQUIRED);
 
             expect(behavior.mode).toBe(EventMode.APPROVAL);
             expect(behavior.defaultPriority).toBe("critical");
@@ -127,7 +92,7 @@ describe("EventRegistry", () => {
         });
 
         it("should handle stream events correctly", () => {
-            const streamBehavior = getEventBehavior("bot/test/stream");
+            const streamBehavior = getEventBehavior(EventTypes.CHAT.RESPONSE_STREAM_CHUNK);
 
             expect(streamBehavior.mode).toBe(EventMode.PASSIVE);
             expect(streamBehavior.interceptable).toBe(false);
@@ -135,14 +100,14 @@ describe("EventRegistry", () => {
         });
 
         it("should handle security events with high priority", () => {
-            const securityBehavior = getEventBehavior("security/breach");
+            const securityBehavior = getEventBehavior(EventTypes.SECURITY.THREAT_DETECTED);
 
             expect(securityBehavior.mode).toBe(EventMode.INTERCEPTABLE);
             expect(securityBehavior.defaultPriority).toBe("critical");
         });
 
         it("should handle system events with critical priority", () => {
-            const systemBehavior = getEventBehavior("system/alert");
+            const systemBehavior = getEventBehavior(EventTypes.SYSTEM.ERROR);
 
             expect(systemBehavior.mode).toBe(EventMode.INTERCEPTABLE);
             expect(systemBehavior.defaultPriority).toBe("critical");
@@ -152,20 +117,20 @@ describe("EventRegistry", () => {
     describe("pattern specificity calculation", () => {
         it("should prioritize exact matches over wildcards", () => {
             // Register a specific override
-            registerEventBehavior("chat/message", {
+            registerEventBehavior(EventTypes.CHAT.MESSAGE_ADDED, {
                 mode: EventMode.APPROVAL,
                 interceptable: true,
                 defaultPriority: "high",
             });
 
-            const behavior = getEventBehavior("chat/message");
+            const behavior = getEventBehavior(EventTypes.CHAT.MESSAGE_ADDED);
             expect(behavior.mode).toBe(EventMode.APPROVAL);
             expect(behavior.defaultPriority).toBe("high");
         });
 
         it("should prioritize more specific patterns", () => {
             // "tool/execution/*" should beat "tool/*"
-            const behavior = getEventBehavior("tool/execution/complex");
+            const behavior = getEventBehavior(EventTypes.TOOL.EXECUTION_REQUESTED);
 
             expect(behavior.mode).toBe(EventMode.INTERCEPTABLE);
             expect(behavior.defaultPriority).toBe("high");
@@ -319,13 +284,13 @@ describe("EventRegistry", () => {
         it("should check if event requires approval", () => {
             expect(requiresApproval("test/approval1")).toBe(true);
             expect(requiresApproval("test/approval2")).toBe(true);
-            expect(requiresApproval("tool/approval/requested")).toBe(true);
-            expect(requiresApproval("chat/message")).toBe(false);
+            expect(requiresApproval(EventTypes.TOOL.APPROVAL_REQUIRED)).toBe(true);
+            expect(requiresApproval(EventTypes.CHAT.MESSAGE_ADDED)).toBe(false);
         });
 
         it("should check if event type is registered", () => {
-            expect(isEventTypeRegistered("chat/message")).toBe(true);
-            expect(isEventTypeRegistered("tool/approval/test")).toBe(true);
+            expect(isEventTypeRegistered(EventTypes.CHAT.MESSAGE_ADDED)).toBe(true);
+            expect(isEventTypeRegistered(EventTypes.TOOL.APPROVAL_REQUIRED)).toBe(true);
             expect(isEventTypeRegistered("completely/unknown")).toBe(true); // Matches default
             expect(isEventTypeRegistered("")).toBe(false);
         });
@@ -396,7 +361,8 @@ describe("EventRegistry", () => {
         });
 
         it("should track event emissions", () => {
-            EventUsageValidator.trackEmission("test/event", "event-123");
+            const eventId = generatePK().toString();
+            EventUsageValidator.trackEmission("test/event", eventId);
 
             const stats = EventUsageValidator.getStats();
             expect(stats.pendingEvents).toBe(1);
@@ -404,8 +370,9 @@ describe("EventRegistry", () => {
         });
 
         it("should mark progression as checked", () => {
-            EventUsageValidator.trackEmission("test/event", "event-123");
-            EventUsageValidator.markProgressionChecked("event-123");
+            const eventId = generatePK().toString();
+            EventUsageValidator.trackEmission("test/event", eventId);
+            EventUsageValidator.markProgressionChecked(eventId);
 
             const stats = EventUsageValidator.getStats();
             expect(stats.pendingEvents).toBe(0);
@@ -413,7 +380,8 @@ describe("EventRegistry", () => {
         });
 
         it("should detect violations for unchecked events", async () => {
-            EventUsageValidator.trackEmission("test/event", "event-123");
+            const eventId = generatePK().toString();
+            EventUsageValidator.trackEmission("test/event", eventId);
 
             // Wait for events to become stale
             await new Promise(resolve => setTimeout(resolve, 10));
@@ -424,7 +392,8 @@ describe("EventRegistry", () => {
         });
 
         it("should detect critical violations for blocking events", async () => {
-            EventUsageValidator.trackEmission("test/blocking", "event-123", true);
+            const eventId = generatePK().toString();
+            EventUsageValidator.trackEmission("test/blocking", eventId, true);
 
             await new Promise(resolve => setTimeout(resolve, 10));
 
@@ -435,7 +404,8 @@ describe("EventRegistry", () => {
 
         it("should detect violations for approval events", async () => {
             configureEventApproval("test/approval", { requireUserApproval: true });
-            EventUsageValidator.trackEmission("test/approval", "event-123");
+            const eventId = generatePK().toString();
+            EventUsageValidator.trackEmission("test/approval", eventId);
 
             await new Promise(resolve => setTimeout(resolve, 10));
 
@@ -446,7 +416,8 @@ describe("EventRegistry", () => {
 
         it("should handle warnings configuration", () => {
             EventUsageValidator.setWarningsEnabled(false);
-            EventUsageValidator.trackEmission("test/event", "event-123");
+            const eventId = generatePK().toString();
+            EventUsageValidator.trackEmission("test/event", eventId);
 
             const violations = EventUsageValidator.checkViolations(0);
             expect(violations.length).toBe(0); // No warnings when disabled
@@ -455,9 +426,11 @@ describe("EventRegistry", () => {
         });
 
         it("should provide detailed statistics", () => {
-            EventUsageValidator.trackEmission("test/event1", "event-1");
-            EventUsageValidator.trackEmission("test/event2", "event-2", true);
-            EventUsageValidator.markProgressionChecked("event-1");
+            const event1Id = generatePK().toString();
+            const event2Id = generatePK().toString();
+            EventUsageValidator.trackEmission("test/event1", event1Id);
+            EventUsageValidator.trackEmission("test/event2", event2Id, true);
+            EventUsageValidator.markProgressionChecked(event1Id);
 
             const violations = EventUsageValidator.checkViolations(0);
 
@@ -470,7 +443,8 @@ describe("EventRegistry", () => {
         });
 
         it("should reset all tracking data", () => {
-            EventUsageValidator.trackEmission("test/event", "event-123");
+            const eventId = generatePK().toString();
+            EventUsageValidator.trackEmission("test/event", eventId);
             EventUsageValidator.checkViolations(0);
 
             EventUsageValidator.reset();
@@ -482,7 +456,8 @@ describe("EventRegistry", () => {
         });
 
         it("should get all violations", () => {
-            EventUsageValidator.trackEmission("test/event", "event-123");
+            const eventId = generatePK().toString();
+            EventUsageValidator.trackEmission("test/event", eventId);
             EventUsageValidator.checkViolations(0);
 
             const violations = EventUsageValidator.getViolations();
@@ -542,7 +517,8 @@ describe("EventRegistry", () => {
 
             class TestClass {
                 async testMethod() {
-                    EventUsageValidator.trackEmission("test/event", "event-123");
+                    const eventId = generatePK().toString();
+                    EventUsageValidator.trackEmission("test/event", eventId);
                     return "result";
                 }
             }
@@ -620,7 +596,8 @@ describe("EventRegistry", () => {
             EventUsageValidator.reset();
             EventUsageValidator.setWarningsEnabled(false); // Explicitly disable for this test
 
-            EventUsageValidator.trackEmission("test/event", "event-123");
+            const eventId = generatePK().toString();
+            EventUsageValidator.trackEmission("test/event", eventId);
             const violations = EventUsageValidator.checkViolations(0);
 
             // Should not create warnings when disabled via env var

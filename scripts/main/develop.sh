@@ -20,6 +20,8 @@ source "${MAIN_DIR}/../helpers/utils/exit_codes.sh"
 source "${MAIN_DIR}/../helpers/develop/index.sh"
 # shellcheck disable=SC1091
 source "${MAIN_DIR}/../helpers/develop/port_manager.sh"
+# shellcheck disable=SC1091
+source "${MAIN_DIR}/../helpers/develop/instance_manager.sh"
 
 develop::parse_arguments() {
     args::reset
@@ -31,6 +33,31 @@ develop::parse_arguments() {
     args::register_environment
     args::register_target
     args::register_detached
+
+    # Register instance management arguments
+    args::register \
+        --name "skip-instance-check" \
+        --flag "" \
+        --desc "Skip checking for running instances" \
+        --type "value" \
+        --options "yes|no" \
+        --default "no"
+    
+    args::register \
+        --name "instance-action" \
+        --flag "" \
+        --desc "Pre-select instance conflict action" \
+        --type "value" \
+        --options "stop|keep|force" \
+        --default ""
+    
+    args::register \
+        --name "clean-instances" \
+        --flag "" \
+        --desc "Stop all Vrooli instances and exit" \
+        --type "value" \
+        --options "yes|no" \
+        --default "no"
 
     if args::is_asking_for_help "$@"; then
         args::usage "$DESCRIPTION"
@@ -46,10 +73,37 @@ develop::parse_arguments() {
     export LOCATION=$(args::get "location")
     export ENVIRONMENT=$(args::get "environment")
     export DETACHED=$(args::get "detached")
+export SKIP_INSTANCE_CHECK=$(args::get "skip-instance-check")
+    export INSTANCE_ACTION=$(args::get "instance-action")
+    export CLEAN_INSTANCES=$(args::get "clean-instances")
 }
 
 develop::main() {
     develop::parse_arguments "$@"
+
+    # Export parsed arguments so they survive the subshell
+    export TARGET SUDO_MODE YES LOCATION ENVIRONMENT DETACHED SKIP_INSTANCE_CHECK INSTANCE_ACTION CLEAN_INSTANCES
+    
+    # Handle --clean-instances flag
+    if flow::is_yes "$CLEAN_INSTANCES"; then
+        log::header "🧹 Cleaning up Vrooli instances"
+        instance::detect_all
+        instance::display_status
+        
+        if [[ "$INSTANCE_STATE" != "none" ]]; then
+            log::info "Stopping all Vrooli instances..."
+            if instance::shutdown_all; then
+                log::success "All instances stopped successfully"
+            else
+                log::error "Failed to stop some instances"
+                exit 1
+            fi
+        else
+            log::info "No instances to clean up"
+        fi
+        exit 0
+    fi
+    
     # Validate target and canonicalize
     if ! canonical=$(match_target "$TARGET"); then
         args::usage "$DESCRIPTION"

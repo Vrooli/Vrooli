@@ -47,7 +47,11 @@ export class MockFile {
     async arrayBuffer(): Promise<ArrayBuffer> {
         const text = await this.text();
         const encoder = new TextEncoder();
-        return encoder.encode(text).buffer;
+        const uint8Array = encoder.encode(text);
+        // Create a new ArrayBuffer and copy the data to ensure we return ArrayBuffer, not ArrayBufferLike
+        const arrayBuffer = new ArrayBuffer(uint8Array.length);
+        new Uint8Array(arrayBuffer).set(uint8Array);
+        return arrayBuffer;
     }
 
     // Add stream method stub
@@ -91,7 +95,11 @@ export class MockBlob {
     async arrayBuffer(): Promise<ArrayBuffer> {
         const text = await this.text();
         const encoder = new TextEncoder();
-        return encoder.encode(text).buffer;
+        const uint8Array = encoder.encode(text);
+        // Create a new ArrayBuffer and copy the data to ensure we return ArrayBuffer, not ArrayBufferLike
+        const arrayBuffer = new ArrayBuffer(uint8Array.length);
+        new Uint8Array(arrayBuffer).set(uint8Array);
+        return arrayBuffer;
     }
 }
 

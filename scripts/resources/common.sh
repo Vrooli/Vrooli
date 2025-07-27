@@ -111,6 +111,55 @@ resources::get_default_port() {
 }
 
 #######################################
+# Get the health check endpoint for a resource
+# Arguments:
+#   $1 - resource name
+# Outputs:
+#   The health check endpoint path
+#######################################
+resources::get_health_endpoint() {
+    local resource="$1"
+    
+    # Resource-specific health endpoints
+    case "$resource" in
+        "ollama")
+            echo "/api/tags"
+            ;;
+        "browserless")
+            echo "/pressure"
+            ;;
+        "agent-s2")
+            echo "/health"
+            ;;
+        "n8n")
+            echo "/api/v1/info"
+            ;;
+        "node-red")
+            echo "/flows"
+            ;;
+        "windmill")
+            echo "/api/version"
+            ;;
+        "huginn")
+            echo "/users/sign_in"
+            ;;
+        "comfyui")
+            echo "/history"
+            ;;
+        "whisper")
+            echo "/health"
+            ;;
+        "minio")
+            echo "/minio/health/live"
+            ;;
+        *)
+            # Default endpoint for unknown resources
+            echo ""
+            ;;
+    esac
+}
+
+#######################################
 # Validate and get safe port for resource
 # Arguments:
 #   $1 - resource name

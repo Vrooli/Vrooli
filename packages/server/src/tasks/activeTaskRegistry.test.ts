@@ -12,7 +12,7 @@ interface MockActiveTaskRecord {
 
 interface MockRegistry {
     count(): number;
-    getOrderedActiveRecords(): MockActiveTaskRecord[];
+    getOrderedRecords(): MockActiveTaskRecord[];
     remove(id: string): void;
 }
 
@@ -35,7 +35,7 @@ describe("activeTaskRegistry", () => {
         const records: MockActiveTaskRecord[] = [];
         mockRegistry = {
             count: () => records.length,
-            getOrderedActiveRecords: () => [...records].sort((a, b) => a.startTime - b.startTime),
+            getOrderedRecords: () => [...records].sort((a, b) => a.startTime - b.startTime),
             remove: (id: string) => {
                 const index = records.findIndex(r => r.id === id);
                 if (index !== -1) {

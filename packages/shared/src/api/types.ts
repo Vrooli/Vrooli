@@ -343,6 +343,7 @@ export type BotCreateInput = BaseTranslatableCreateInput<UserTranslationCreateIn
     isPrivate: Scalars["Boolean"];
     name: Scalars["String"];
     profileImage?: InputMaybe<Scalars["Upload"]>;
+    publicId?: InputMaybe<Scalars["String"]>;
 };
 
 export type BotUpdateInput = BaseTranslatableUpdateInput<UserTranslationCreateInput, UserTranslationUpdateInput> & {
