@@ -31,6 +31,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl net-tools procps \
     # Required for pyautogui
     python3-xlib scrot gnome-screenshot \
+    # Demo GUI applications for testing and automation examples
+    xterm mousepad gedit firefox-esr gnome-calculator \
     # Clean up
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean

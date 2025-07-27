@@ -167,7 +167,14 @@ resources::validate_port() {
             return 0
         fi
         
-        # Suggest alternative
+        # Check if it's the same service already running (allow existing services)
+        if [[ "$resource" == "$process_name" ]]; then
+            log::info "Port is already used by the same service ($resource), assuming it's correctly configured"
+            echo "$port"
+            return 0
+        fi
+        
+        # Be more tolerant of port conflicts - suggest alternatives but don't fail hard
         local category=""
         case "$resource" in
             ollama|whisper) category="AI" ;;
@@ -176,8 +183,14 @@ resources::validate_port() {
             browserless|claude-code|huginn) category="agents" ;;
         esac
         
-        log::info "Consider using a different port for $resource ($category service)"
-        return 1
+        log::info "💡 Port conflict detected but continuing setup"
+        log::info "   The $resource service may need manual configuration or a different port"
+        log::info "   Consider setting a custom port: export ${resource^^}_CUSTOM_PORT=<alternative-port>"
+        log::info "   Or stop the conflicting process and retry: sudo lsof -ti:$port | xargs sudo kill"
+        
+        # Return the port anyway but with warning status
+        echo "$port"
+        return 2  # Warning status - port has conflict but we'll continue
     fi
     
     echo "$port"
