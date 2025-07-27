@@ -39,6 +39,8 @@ source "${SCRIPT_DIR}/lib/workers.sh"
 source "${SCRIPT_DIR}/lib/status.sh"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib/install.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/apps.sh"
 
 #######################################
 # Parse command line arguments
@@ -54,7 +56,7 @@ windmill::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|info|scale-workers|restart-workers|api-setup|save-api-key|backup|restore" \
+        --options "install|uninstall|start|stop|restart|status|logs|info|scale-workers|restart-workers|api-setup|save-api-key|backup|restore|list-apps|prepare-app" \
         --default "install"
     
     args::register \
@@ -149,6 +151,18 @@ windmill::parse_arguments() {
         --type "value" \
         --default "${WINDMILL_BACKUP_DIR}"
     
+    args::register \
+        --name "app-name" \
+        --desc "Name of the app to prepare (for prepare-app action)" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "output-dir" \
+        --desc "Output directory for prepared app files" \
+        --type "value" \
+        --default "${HOME}/windmill-apps"
+    
     if args::is_asking_for_help "$@"; then
         windmill::usage
         exit 0
@@ -171,6 +185,8 @@ windmill::parse_arguments() {
     export SERVICE_NAME=$(args::get "service")
     export FOLLOW_LOGS=$(args::get "follow")
     export BACKUP_PATH=$(args::get "backup-path")
+    export APP_NAME=$(args::get "app-name")
+    export OUTPUT_DIR=$(args::get "output-dir")
 }
 
 #######################################
@@ -227,6 +243,12 @@ windmill::main() {
             ;;
         "restore")
             windmill::restore "$BACKUP_PATH"
+            ;;
+        "list-apps")
+            windmill::list_apps
+            ;;
+        "prepare-app")
+            windmill::prepare_app "$APP_NAME" "$OUTPUT_DIR"
             ;;
         *)
             log::error "Unknown action: $ACTION"

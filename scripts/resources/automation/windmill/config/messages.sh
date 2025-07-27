@@ -17,6 +17,8 @@ windmill::usage() {
     echo "  $0 --action logs                                 # View service logs"
     echo "  $0 --action scale-workers 10                    # Scale to 10 worker containers"
     echo "  $0 --action restart-workers                     # Restart all worker containers"
+    echo "  $0 --action list-apps                            # List available app examples"
+    echo "  $0 --action prepare-app --app-name admin-dashboard  # Prepare app for import"
     echo "  $0 --action uninstall                           # Remove Windmill completely"
 }
 
