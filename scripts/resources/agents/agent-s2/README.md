@@ -75,6 +75,34 @@ curl -X POST http://localhost:4113/execute \
 ./scripts/resources/agents/agent-s2/manage.sh --action usage --usage-type automation
 ```
 
+## 📝 Example Files Explained
+
+### screenshot-demo.sh
+A simple bash script demonstrating screenshot capture:
+- Checks Agent S2 health status
+- Takes a full-screen screenshot via REST API
+- Extracts and saves the base64-encoded image
+- Shows examples of region-based and JPEG screenshots
+
+**Key concepts demonstrated:**
+- Health checking pattern
+- REST API interaction
+- Base64 image handling
+- Error handling
+
+### basic-automation.py
+A comprehensive Python script showing all major capabilities:
+- Health monitoring and status reporting
+- Individual actions (mouse move, click, type)
+- Complex multi-step automation sequences
+- Proper error handling
+
+**Key concepts demonstrated:**
+- Python SDK pattern for Agent S2
+- Sequential automation steps
+- Async task execution
+- Integration best practices
+
 ## 🔌 API Reference
 
 ### Health Check
@@ -280,6 +308,68 @@ For applications requiring more shared memory:
 docker update agent-s2 --shm-size 4gb
 ```
 
+## 🎯 How Agent S2 Differs from Other Automation Services
+
+### Comparison Table
+
+| Feature | Agent S2 | n8n | Node-RED | Browserless | Huginn |
+|---------|----------|-----|----------|-------------|---------|
+| **Primary Focus** | GUI automation & screenshots | Workflow automation | IoT/Flow programming | Web browser automation | Web scraping & monitoring |
+| **Interface Type** | Desktop GUI (any app) | Web services/APIs | Hardware/APIs | Web pages only | Web pages/APIs |
+| **Programming Model** | Task-based API | Visual workflows | Flow-based nodes | Browser scripting | Event-based agents |
+| **AI Integration** | Built-in LLM planning | Via HTTP nodes | Custom nodes | None built-in | None built-in |
+| **Execution Model** | Direct GUI control | Webhook/scheduled | Event-driven | Page automation | Periodic/triggered |
+
+### Key Differentiators
+
+1. **Desktop Application Control**
+   - Agent S2: Can control ANY desktop application (Excel, Photoshop, games, etc.)
+   - Others: Limited to web/API interactions
+
+2. **Visual Computer Use**
+   - Agent S2: Takes screenshots, analyzes screen content, makes decisions
+   - Others: Work with structured data/APIs
+
+3. **Human-like Interaction**
+   - Agent S2: Simulates mouse movements, typing, clicking like a human
+   - Others: Direct API calls or DOM manipulation
+
+### Use Cases
+
+**Agent S2:**
+- Automating legacy desktop software
+- GUI testing for applications
+- Visual data extraction from any app
+- Game automation
+- Accessibility testing
+
+**n8n/Node-RED:**
+- API integrations
+- Data pipeline automation
+- Business process automation
+- IoT device control
+
+**Browserless:**
+- Web scraping
+- PDF generation
+- Website testing
+- Headless browser tasks
+
+### Architecture Differences
+
+```
+Agent S2:                          n8n/Node-RED:
+┌─────────────────┐               ┌─────────────────┐
+│   X11 Display   │               │   Web Server    │
+├─────────────────┤               ├─────────────────┤
+│  GUI Automation │               │ Workflow Engine │
+├─────────────────┤               ├─────────────────┤
+│   REST API      │               │   REST API      │
+├─────────────────┤               ├─────────────────┤
+│ Screenshot/OCR  │               │ Node Executor   │
+└─────────────────┘               └─────────────────┘
+```
+
 ## 🔗 Integration Examples
 
 ### With n8n Workflows
@@ -302,6 +392,11 @@ Use Agent S2 screenshots as input for image generation workflows.
 
 ### With Browserless
 Combine Agent S2 for desktop automation with Browserless for web automation.
+
+### Combined Workflows
+1. **Agent S2 + n8n**: n8n workflow triggers Agent S2 to interact with desktop app, then processes the screenshot data
+2. **Agent S2 + Browserless**: Agent S2 handles desktop apps while Browserless handles web automation in the same workflow
+3. **Agent S2 + ComfyUI**: Agent S2 captures game screenshots, ComfyUI processes them for AI art generation
 
 ## 📚 Additional Resources
 
