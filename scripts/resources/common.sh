@@ -20,7 +20,9 @@ source "${RESOURCES_DIR}/../helpers/utils/system.sh"
 source "${RESOURCES_DIR}/../helpers/utils/docker.sh"
 
 # Resource configuration paths
-readonly VROOLI_CONFIG_DIR="${HOME}/.vrooli"
+# Use the project's .vrooli directory, not the home directory
+VROOLI_PROJECT_ROOT=$(cd "${RESOURCES_DIR}/../.." && pwd)
+readonly VROOLI_CONFIG_DIR="${VROOLI_PROJECT_ROOT}/.vrooli"
 readonly VROOLI_RESOURCES_CONFIG="${VROOLI_CONFIG_DIR}/resources.local.json"
 
 # Configuration manager script path

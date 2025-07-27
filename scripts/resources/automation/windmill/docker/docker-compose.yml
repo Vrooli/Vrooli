@@ -25,7 +25,7 @@ services:
   # Windmill Server (Frontend + API)
   windmill-server:
     image: ${WINDMILL_IMAGE:-ghcr.io/windmill-labs/windmill:main}
-    container_name: "${WINDMILL_PROJECT_NAME:-windmill-vrooli}-server"
+    container_name: "${WINDMILL_PROJECT_NAME:-windmill-vrooli}-app"
     restart: unless-stopped
     ports:
       - "${WINDMILL_SERVER_PORT:-5681}:8000"

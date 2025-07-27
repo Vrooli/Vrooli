@@ -203,7 +203,7 @@ windmill::is_running() {
     fi
     
     # Check if server container is running
-    windmill::compose_cmd ps --services --filter "status=running" | grep -q "windmill-server"
+    windmill::compose_cmd ps --services --filter "status=running" | grep -q "windmill-app"
 }
 
 #######################################

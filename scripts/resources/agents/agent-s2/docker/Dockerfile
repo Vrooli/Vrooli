@@ -15,7 +15,11 @@ RUN pip install --user --no-cache-dir \
     uvicorn \
     httpx \
     pillow \
-    numpy
+    numpy \
+    openai \
+    anthropic \
+    requests \
+    aiofiles
 
 # === RUNTIME STAGE ===
 FROM python:3.11-slim as runtime
@@ -37,7 +41,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Networking and utilities
     curl net-tools procps \
     # Required for pyautogui
-    python3-xlib scrot \
+    python3-xlib scrot gnome-screenshot \
     # Clean up
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
@@ -82,6 +86,13 @@ ENV DISPLAY=:99
 ENV AGENTS2_USER=agents2
 ENV HOME=/home/agents2
 ENV XDG_RUNTIME_DIR=/tmp/runtime-agents2
+
+# AI Configuration environment variables
+ENV AGENTS2_LLM_PROVIDER=anthropic
+ENV AGENTS2_LLM_MODEL=claude-3-7-sonnet-20250219
+ENV AGENTS2_ENABLE_AI=true
+ENV AGENTS2_ENABLE_SEARCH=false
+ENV AGENTS2_TIMEOUT=300
 
 # Create runtime directory
 RUN mkdir -p /tmp/runtime-agents2 && chmod 700 /tmp/runtime-agents2

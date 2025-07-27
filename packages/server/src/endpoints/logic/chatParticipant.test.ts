@@ -1,4 +1,4 @@
-import { type ChatParticipantSearchInput, type ChatParticipantUpdateInput, type FindByIdInput, type User, type Chat, type ChatParticipant } from "@vrooli/shared";
+import { type Chat, type ChatParticipant, type ChatParticipantSearchInput, type ChatParticipantUpdateInput, type FindByIdInput, type User } from "@vrooli/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
@@ -36,18 +36,21 @@ describe("EndpointsChatParticipant", () => {
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","session"],
+            tables: ["user", "user_auth", "email", "session"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
     });
 
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.minimal(DbProvider.get());
-    });
+
+        // Seed test users first
+        const userSeedResult = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
+        testUsers = userSeedResult.records;
 
         // Create test chats using database fixtures
         chat1 = await seedTestChat(DbProvider.get(), {

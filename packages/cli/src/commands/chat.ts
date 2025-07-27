@@ -20,6 +20,9 @@ import {
     type TaskContextInfoInput,
     type ChatMessageCreateWithTaskInfoInput,
     type VisibilityType,
+    endpointsUser,
+    endpointsChat,
+    endpointsChatMessage,
 } from "@vrooli/shared";
 import { InteractiveChatEngine, type InteractiveChatOptions } from "../utils/chatEngine.js";
 import { TIMEOUTS, UI } from "../utils/constants.js";
@@ -137,7 +140,10 @@ export class ChatCommands {
             };
 
             try {
-                const result = await this.client.post<UserSearchResult>("/users", searchInput);
+                const result = await this.client.requestWithEndpoint<UserSearchResult>(
+                    endpointsUser.findMany,
+                    searchInput,
+                );
                 spinner.succeed(`Found ${result.edges.length} bots`);
 
                 if (this.config.isJsonOutput() || options.format === "json") {
@@ -190,7 +196,10 @@ export class ChatCommands {
             };
 
             try {
-                const result = await this.client.post<Chat>("/chat", chatInput);
+                const result = await this.client.requestWithEndpoint<Chat>(
+                    endpointsChat.createOne,
+                    chatInput,
+                );
                 spinner.succeed("Chat created successfully");
 
                 if (this.config.isJsonOutput()) {
@@ -241,7 +250,10 @@ export class ChatCommands {
             };
 
             try {
-                const result = await this.client.post<ChatSearchResult>("/chats", searchInput);
+                const result = await this.client.requestWithEndpoint<ChatSearchResult>(
+                    endpointsChat.findMany,
+                    searchInput,
+                );
                 spinner.succeed(`Found ${result.edges.length} chats`);
 
                 if (this.config.isJsonOutput() || options.format === "json") {
@@ -280,7 +292,10 @@ export class ChatCommands {
             };
 
             try {
-                const result = await this.client.post<ChatMessageSearchResult>("/chatMessages", searchInput);
+                const result = await this.client.requestWithEndpoint<ChatMessageSearchResult>(
+                    endpointsChatMessage.findMany,
+                    searchInput,
+                );
                 spinner.succeed(`Found ${result.edges.length} messages`);
 
                 if (this.config.isJsonOutput() || options.format === "json") {
@@ -344,7 +359,10 @@ export class ChatCommands {
             };
 
             try {
-                const result = await this.client.post<ChatMessage>("/chatMessage", messageInput);
+                const result = await this.client.requestWithEndpoint<ChatMessage>(
+                    endpointsChatMessage.createOne,
+                    messageInput,
+                );
                 spinner.succeed("Message sent");
 
                 if (this.config.isJsonOutput()) {
@@ -473,7 +491,10 @@ export class ChatCommands {
                 };
 
                 try {
-                    const result = await this.client.post<Chat>("/chat", createInput);
+                    const result = await this.client.requestWithEndpoint<Chat>(
+                        endpointsChat.createOne,
+                        createInput,
+                    );
                     chatId = result.id;
                     console.log(chalk.green("✓ Created new chat: " + chatId));
                 } catch (error) {

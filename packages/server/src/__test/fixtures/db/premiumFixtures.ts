@@ -1,5 +1,6 @@
-import { generatePK } from "@vrooli/shared";
+/* eslint-disable no-magic-numbers */
 import { type Prisma } from "@prisma/client";
+import { DAYS_1_MS, generatePK, generatePublicId } from "@vrooli/shared";
 
 /**
  * Database fixtures for Premium data - used for embedding in User/Team models
@@ -91,10 +92,10 @@ export class PremiumDbFactory {
      * Create premium data with specific expiration
      */
     static createWithExpiration(daysFromNow: number, overrides?: Partial<typeof minimalPremiumDb>) {
-        const expiresAt = daysFromNow === 0 
+        const expiresAt = daysFromNow === 0
             ? null // No expiration
             : new Date(Date.now() + daysFromNow * 24 * 60 * 60 * 1000).toISOString();
-        
+
         return {
             ...minimalPremiumDb,
             expiresAt,
@@ -147,7 +148,7 @@ export class PremiumDbFactory {
             credits,
             customPlan: planName,
             enabledAt: new Date().toISOString(),
-            expiresAt: expirationDays 
+            expiresAt: expirationDays
                 ? new Date(Date.now() + expirationDays * 24 * 60 * 60 * 1000).toISOString()
                 : null,
         };
@@ -163,15 +164,14 @@ export class PremiumDbFactory {
  * Helper to create a user with premium
  */
 export function createUserWithPremium(
-    prisma: any,
     userOverrides?: Partial<Prisma.userCreateInput>,
     premiumData = minimalPremiumDb,
 ): Prisma.userCreateInput {
     return {
         id: generatePK(),
-        publicId: generatePK(),
+        publicId: generatePublicId(),
         name: "Premium User",
-        handle: `premium_user_${generatePK().slice(-6)}`,
+        handle: `premium_user_${generatePK().toString().slice(-6)}`,
         status: "Unlocked",
         isBot: false,
         isBotDepictingPerson: false,
@@ -186,12 +186,12 @@ export function createUserWithPremium(
  */
 export function createTeamWithPremium(
     prisma: any,
-    teamOverrides?: Partial<Prisma.TeamCreateInput>,
+    teamOverrides?: Partial<Prisma.teamCreateInput>,
     premiumData = minimalPremiumDb,
-): Prisma.TeamCreateInput {
+): Prisma.teamCreateInput {
     return {
         id: generatePK(),
-        publicId: generatePK(),
+        publicId: generatePublicId(),
         createdBy: { connect: { id: generatePK() } }, // Will be overridden when used
         premium: premiumData,
         ...teamOverrides,
@@ -208,7 +208,7 @@ export async function addPremiumToEntity(
     premiumData = minimalPremiumDb,
 ) {
     const model = entityType === "user" ? prisma.user : prisma.team;
-    
+
     return model.update({
         where: { id: entityId },
         data: { premium: premiumData },
@@ -221,7 +221,7 @@ export async function addPremiumToEntity(
 export function isPremiumActive(premium: typeof minimalPremiumDb | null): boolean {
     if (!premium) return false;
     if (!premium.expiresAt) return true; // Lifetime premium
-    
+
     const expirationDate = new Date(premium.expiresAt);
     return expirationDate > new Date();
 }
@@ -231,15 +231,15 @@ export function isPremiumActive(premium: typeof minimalPremiumDb | null): boolea
  */
 export function getRemainingPremiumDays(premium: typeof minimalPremiumDb | null): number {
     if (!premium || !premium.expiresAt) return -1; // -1 means lifetime or no premium
-    
+
     const expirationDate = new Date(premium.expiresAt);
     const now = new Date();
-    
+
     if (expirationDate <= now) return 0;
-    
+
     const diffTime = expirationDate.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+    const diffDays = Math.ceil(diffTime / DAYS_1_MS);
+
     return diffDays;
 }
 
@@ -264,21 +264,21 @@ export const premiumScenarios = {
     activeMonthly: PremiumDbFactory.createWithExpiration(30),
     activeYearly: PremiumDbFactory.createWithExpiration(365),
     activeLifetime: PremiumDbFactory.createWithExpiration(0),
-    
+
     // Trial states
     trialActive: PremiumDbFactory.createTrial(7),
     trialExpiringSoon: PremiumDbFactory.createTrial(1),
-    
+
     // Credit states
     highCredits: PremiumDbFactory.createWithCredits(10000),
     lowCredits: PremiumDbFactory.createWithCredits(10),
     noCredits: PremiumDbFactory.createWithCredits(0),
-    
+
     // Custom plans
     enterprise: PremiumDbFactory.createCustomPlan("enterprise", 50000, 365),
     startup: PremiumDbFactory.createCustomPlan("startup", 5000, 180),
     educational: PremiumDbFactory.createCustomPlan("educational", 2000, 365),
-    
+
     // Expired states
     recentlyExpired: {
         ...expiredPremiumDb,

@@ -24,8 +24,7 @@ source "${SCRIPT_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/config/messages.sh"
 
-# Export configuration
-agents2::export_config
+# Export messages (config will be exported after parsing arguments)
 agents2::export_messages
 
 # Source all library modules
@@ -69,15 +68,30 @@ agents2::parse_arguments() {
     
     args::register \
         --name "llm-provider" \
-        --desc "LLM provider for Agent S2 (openai, anthropic, etc.)" \
+        --desc "LLM provider for Agent S2 (openai, anthropic, ollama)" \
         --type "value" \
-        --default "openai"
+        --options "openai|anthropic|ollama" \
+        --default "anthropic"
     
     args::register \
         --name "llm-model" \
         --desc "LLM model to use" \
         --type "value" \
-        --default "gpt-4"
+        --default "claude-3-7-sonnet-20250219"
+    
+    args::register \
+        --name "enable-ai" \
+        --desc "Enable AI capabilities (vs core automation only)" \
+        --type "value" \
+        --options "yes|no" \
+        --default "yes"
+    
+    args::register \
+        --name "enable-search" \
+        --desc "Enable web search integration (requires Perplexica)" \
+        --type "value" \
+        --options "yes|no" \
+        --default "no"
     
     args::register \
         --name "vnc-password" \
@@ -111,8 +125,12 @@ agents2::parse_arguments() {
     export YES=$(args::get "yes")
     export LLM_PROVIDER=$(args::get "llm-provider")
     export LLM_MODEL=$(args::get "llm-model")
+    export ARGS_LLM_PROVIDER=$(args::get "llm-provider")
+    export ARGS_LLM_MODEL=$(args::get "llm-model")
     export VNC_PASSWORD=$(args::get "vnc-password")
     export ENABLE_HOST_DISPLAY=$(args::get "enable-host-display")
+    export ENABLE_AI=$(args::get "enable-ai")
+    export ARGS_ENABLE_AI=$(args::get "enable-ai")
     export USAGE_TYPE=$(args::get "usage-type")
 }
 
@@ -147,6 +165,9 @@ agents2::usage() {
 #######################################
 agents2::main() {
     agents2::parse_arguments "$@"
+    
+    # Export configuration after parsing arguments
+    agents2::export_config
     
     case "$ACTION" in
         "install")

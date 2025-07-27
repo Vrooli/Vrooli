@@ -19,13 +19,13 @@ source "${RESOURCES_DIR}/../helpers/utils/args.sh"
 # Available resources organized by category
 declare -A AVAILABLE_RESOURCES=(
     ["ai"]="ollama whisper"
-    ["automation"]="n8n comfyui node-red"
+    ["automation"]="n8n comfyui node-red windmill"
     ["storage"]="minio ipfs"
-    ["agents"]="browserless claude-code huginn"
+    ["agents"]="browserless claude-code huginn agent-s2"
 )
 
 # All available resources as a flat list
-ALL_RESOURCES="ollama whisper n8n comfyui node-red minio ipfs browserless claude-code huginn"
+ALL_RESOURCES="ollama whisper n8n comfyui node-red windmill minio ipfs browserless claude-code huginn agent-s2"
 
 #######################################
 # Parse command line arguments

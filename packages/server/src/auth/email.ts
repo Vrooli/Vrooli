@@ -1,4 +1,4 @@
-import pkg, { type Prisma, type PrismaPromise, type credit_account, type email, type phone, type plan, type session, type user, type user_auth } from "@prisma/client";
+import { type Prisma, type PrismaPromise, type credit_account, type email, type phone, type plan, type session, type user, type user_auth, AccountStatus as PrismaAccountStatus } from "@prisma/client";
 import { AUTH_PROVIDERS, DAYS_2_MS, LINKS, MINUTES_15_MS, type Session, type TranslationKeyError, generatePK } from "@vrooli/shared";
 import { type Request } from "express";
 import { DbProvider } from "../db/provider.js";
@@ -13,8 +13,6 @@ import { randomString, validateCode } from "./codes.js";
 import { REFRESH_TOKEN_EXPIRATION_MS } from "./jwt.js";
 import { RequestService } from "./request.js";
 import { SessionService } from "./session.js";
-
-const { AccountStatus } = pkg;
 
 export const EMAIL_VERIFICATION_TIMEOUT = DAYS_2_MS;
 const HASHING_ROUNDS = 8;
@@ -117,7 +115,7 @@ export class PasswordAuthService {
         return getBcryptService().hashSync(password, HASHING_ROUNDS);
     }
 
-    static statusToError(status: typeof AccountStatus[keyof typeof AccountStatus]): TranslationKeyError | null {
+    static statusToError(status: PrismaAccountStatus): TranslationKeyError | null {
         if (status === "HardLocked") return "HardLockout";
         if (status === "SoftLocked") return "SoftLockout";
         if (status === "Deleted") return "AccountDeleted";
@@ -293,12 +291,12 @@ export class PasswordAuthService {
         }
         // Otherwise, increment log in fail counter and update account status
         else {
-            let new_status: typeof AccountStatus[keyof typeof AccountStatus] = AccountStatus.Unlocked;
+            let new_status: PrismaAccountStatus = PrismaAccountStatus.Unlocked;
             const log_in_attempts = user.logInAttempts + 1;
             if (log_in_attempts > LOGIN_ATTEMPTS_TO_HARD_LOCKOUT) {
-                new_status = AccountStatus.HardLocked;
+                new_status = PrismaAccountStatus.HardLocked;
             } else if (log_in_attempts > LOGIN_ATTEMPTS_TO_SOFT_LOCKOUT) {
-                new_status = AccountStatus.SoftLocked;
+                new_status = PrismaAccountStatus.SoftLocked;
             }
             await DbProvider.get().user.update({
                 where: { id: BigInt(user.id) },

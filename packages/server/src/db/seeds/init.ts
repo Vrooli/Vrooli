@@ -4,7 +4,7 @@
  * 
  * AI_CHECK: TYPE_SAFETY=server-type-safety-maintenance-phase2 | LAST: 2025-07-04 - Added Promise<void> return type annotation to init function
  */
-import pkg, { type Prisma, CreditEntryType, CreditSourceSystem } from "@prisma/client";
+import { type PrismaClient, type Prisma, CreditEntryType, CreditSourceSystem } from "@prisma/client";
 import { API_CREDITS_PREMIUM, AUTH_PROVIDERS, DEFAULT_LANGUAGE, generatePK, generatePublicId, SEEDED_PUBLIC_IDS, SEEDED_TAGS, STANDARD_RESOURCE_QUOTAS, TeamConfig } from "@vrooli/shared";
 import { readManyHelper } from "../../actions/reads.js";
 import { PasswordAuthService } from "../../auth/email.js";
@@ -15,8 +15,6 @@ import { CacheService } from "../../redisConn.js";
 import { RunProcessSelect } from "../../tasks/run/process.js";
 import { data as resourceData } from "./data/resources.js";
 import { data as tags } from "./data/tags.js";
-
-const { PrismaClient } = pkg;
 
 const vrooliHandle = "vrooli";
 let adminId: bigint;

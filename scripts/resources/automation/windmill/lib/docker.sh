@@ -138,7 +138,7 @@ windmill::restart_service() {
     
     case "$service" in
         "server")
-            container_name="windmill-server"
+            container_name="windmill-app"
             ;;
         "worker"|"workers")
             windmill::restart_workers
@@ -192,7 +192,7 @@ windmill::show_logs() {
     
     case "$service" in
         "server")
-            compose_args+=("windmill-server")
+            compose_args+=("windmill-app")
             ;;
         "worker"|"workers")
             compose_args+=("windmill-worker" "windmill-worker-native")

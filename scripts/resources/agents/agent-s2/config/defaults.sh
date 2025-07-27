@@ -32,13 +32,45 @@ agents2::export_config() {
 
     # LLM configuration (only set if not already defined)
     if [[ -z "${AGENTS2_LLM_PROVIDER:-}" ]]; then
-        readonly AGENTS2_LLM_PROVIDER="${LLM_PROVIDER:-openai}"
+        readonly AGENTS2_LLM_PROVIDER="${LLM_PROVIDER:-${ARGS_LLM_PROVIDER:-anthropic}}"
     fi
     if [[ -z "${AGENTS2_LLM_MODEL:-}" ]]; then
-        readonly AGENTS2_LLM_MODEL="${LLM_MODEL:-gpt-4}"
+        # Set model defaults based on provider
+        local default_model
+        case "${AGENTS2_LLM_PROVIDER}" in
+            "ollama")
+                default_model="llama2:7b"
+                ;;
+            "openai")
+                default_model="gpt-4o"
+                ;;
+            "anthropic")
+                default_model="claude-3-7-sonnet-20250219"
+                ;;
+            *)
+                default_model="claude-3-7-sonnet-20250219"
+                ;;
+        esac
+        readonly AGENTS2_LLM_MODEL="${LLM_MODEL:-${ARGS_LLM_MODEL:-$default_model}}"
     fi
-    if [[ -z "${AGENTS2_API_KEY:-}" ]]; then
-        readonly AGENTS2_API_KEY="${OPENAI_API_KEY:-}"
+    if [[ -z "${AGENTS2_OPENAI_API_KEY:-}" ]]; then
+        readonly AGENTS2_OPENAI_API_KEY="${OPENAI_API_KEY:-}"
+    fi
+    if [[ -z "${AGENTS2_ANTHROPIC_API_KEY:-}" ]]; then
+        readonly AGENTS2_ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
+    fi
+    if [[ -z "${AGENTS2_OLLAMA_BASE_URL:-}" ]]; then
+        readonly AGENTS2_OLLAMA_BASE_URL="${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
+    fi
+    if [[ -z "${AGENTS2_ENABLE_AI:-}" ]]; then
+        local enable_ai="false"
+        [[ "${ENABLE_AI:-${ARGS_ENABLE_AI:-yes}}" == "yes" ]] && enable_ai="true"
+        readonly AGENTS2_ENABLE_AI="$enable_ai"
+    fi
+    if [[ -z "${AGENTS2_ENABLE_SEARCH:-}" ]]; then
+        local enable_search="false"
+        [[ "${ENABLE_SEARCH:-${ARGS_ENABLE_SEARCH:-no}}" == "yes" ]] && enable_search="true"
+        readonly AGENTS2_ENABLE_SEARCH="$enable_search"
     fi
 
     # Display configuration (only set if not already defined)
@@ -114,6 +146,7 @@ agents2::export_config() {
     export AGENTS2_PORT AGENTS2_BASE_URL AGENTS2_VNC_PORT AGENTS2_VNC_URL
     export AGENTS2_CONTAINER_NAME AGENTS2_DATA_DIR AGENTS2_IMAGE_NAME
     export AGENTS2_LLM_PROVIDER AGENTS2_LLM_MODEL AGENTS2_API_KEY
+    export AGENTS2_OPENAI_API_KEY AGENTS2_ANTHROPIC_API_KEY AGENTS2_OLLAMA_BASE_URL
     export AGENTS2_DISPLAY AGENTS2_SCREEN_RESOLUTION AGENTS2_VNC_PASSWORD
     export AGENTS2_ENABLE_HOST_DISPLAY AGENTS2_NETWORK_NAME
     export AGENTS2_SECURITY_OPT AGENTS2_USER AGENTS2_USER_ID AGENTS2_GROUP_ID

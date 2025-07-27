@@ -117,7 +117,7 @@ windmill::show_detailed_service_status() {
     fi
     
     # Get service information
-    local services=("windmill-server" "windmill-worker" "windmill-db")
+    local services=("windmill-app" "windmill-worker" "windmill-db")
     
     # Add optional services if enabled
     if [[ "$DISABLE_NATIVE_WORKER" != "true" ]]; then
@@ -150,7 +150,7 @@ windmill::show_detailed_service_status() {
             
             # Check health based on service type
             case "$service" in
-                "windmill-server")
+                "windmill-app")
                     if resources::check_http_health "$WINDMILL_BASE_URL" "/api/version"; then
                         health="healthy"
                     else

@@ -90,11 +90,16 @@ agents2::docker_start() {
         --name "$AGENTS2_CONTAINER_NAME"
         --restart unless-stopped
         --network "$AGENTS2_NETWORK_NAME"
+        --add-host=host.docker.internal:host-gateway
         -p "${AGENTS2_PORT}:4113"
         -p "${AGENTS2_VNC_PORT}:5900"
-        -e "AGENTS2_API_KEY=$AGENTS2_API_KEY"
+        -e "OPENAI_API_KEY=$AGENTS2_OPENAI_API_KEY"
+        -e "ANTHROPIC_API_KEY=$AGENTS2_ANTHROPIC_API_KEY"
         -e "AGENTS2_LLM_PROVIDER=$AGENTS2_LLM_PROVIDER"
         -e "AGENTS2_LLM_MODEL=$AGENTS2_LLM_MODEL"
+        -e "AGENTS2_OLLAMA_BASE_URL=$AGENTS2_OLLAMA_BASE_URL"
+        -e "AGENTS2_ENABLE_AI=$AGENTS2_ENABLE_AI"
+        -e "AGENTS2_ENABLE_SEARCH=$AGENTS2_ENABLE_SEARCH"
         -e "DISPLAY=$AGENTS2_DISPLAY"
         -v "${AGENTS2_DATA_DIR}/logs:/var/log/supervisor:rw"
         -v "${AGENTS2_DATA_DIR}/cache:/home/agents2/.cache:rw"

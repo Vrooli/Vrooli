@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { ApiKeyPermission, COOKIE, DAYS_1_MS, DAYS_30_MS, SECONDS_1_MS, type SessionUser, generatePK } from "@vrooli/shared";
+import { ApiKeyPermission, COOKIE, DAYS_1_MS, DAYS_30_MS, SECONDS_1_MS, type SessionUser, generatePK, generatePublicId } from "@vrooli/shared";
 import { generateKeyPairSync } from "crypto";
 import { type Response } from "express";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -16,8 +16,8 @@ describe("AuthTokensService", () => {
     let loggerInfoSpy: any;
 
     beforeAll(async () => {
-        loggerErrorSpy = vi.spyOn(logger, "error").mockImplementation(() => { });
-        loggerInfoSpy = vi.spyOn(logger, "info").mockImplementation(() => { });
+        loggerErrorSpy = vi.spyOn(logger, "error").mockImplementation(() => logger);
+        loggerInfoSpy = vi.spyOn(logger, "info").mockImplementation(() => logger);
     });
 
     afterAll(async () => {
@@ -82,7 +82,7 @@ describe("AuthTokensService", () => {
                         {
                             id: generatePK().toString(),
                         },
-                    ] as SessionUser[],
+                    ] as unknown as SessionUser[],
                 };
                 expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
             }));
@@ -96,7 +96,7 @@ describe("AuthTokensService", () => {
                                 id: generatePK().toString(),
                             },
                         },
-                    ] as SessionUser[],
+                    ] as unknown as SessionUser[],
                 };
                 expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
             }));
@@ -112,7 +112,7 @@ describe("AuthTokensService", () => {
                                 lastRefreshAt,
                             },
                         },
-                    ] as SessionUser[],
+                    ] as unknown as SessionUser[],
                 };
                 // We deliberately don't create a session for this test
                 expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
@@ -122,7 +122,7 @@ describe("AuthTokensService", () => {
                 const testUser = await DbProvider.get().user.create({
                     data: {
                         id: generatePK(),
-                        publicId: generatePK().toString(),
+                        publicId: generatePublicId(),
                         name: "Test User",
                         theme: "light",
                     },
@@ -145,7 +145,7 @@ describe("AuthTokensService", () => {
                                 lastRefreshAt,
                             },
                         },
-                    ] as SessionUser[],
+                    ] as unknown as SessionUser[],
                 };
                 await DbProvider.get().session.create({
                     data: {
@@ -164,7 +164,7 @@ describe("AuthTokensService", () => {
                 const testUser = await DbProvider.get().user.create({
                     data: {
                         id: generatePK(),
-                        publicId: generatePK().toString(),
+                        publicId: generatePublicId(),
                         name: "Test User",
                         theme: "light",
                     },
@@ -187,7 +187,7 @@ describe("AuthTokensService", () => {
                                 lastRefreshAt,
                             },
                         },
-                    ] as SessionUser[],
+                    ] as unknown as SessionUser[],
                 };
                 await DbProvider.get().session.create({
                     data: {
@@ -206,7 +206,7 @@ describe("AuthTokensService", () => {
                 const testUser = await DbProvider.get().user.create({
                     data: {
                         id: generatePK(),
-                        publicId: generatePK().toString(),
+                        publicId: generatePublicId(),
                         name: "Test User",
                         theme: "light",
                     },
@@ -229,7 +229,7 @@ describe("AuthTokensService", () => {
                                 lastRefreshAt,
                             },
                         },
-                    ] as SessionUser[],
+                    ] as unknown as SessionUser[],
                 };
                 await DbProvider.get().session.create({
                     data: {
@@ -250,7 +250,7 @@ describe("AuthTokensService", () => {
                 const testUser = await DbProvider.get().user.create({
                     data: {
                         id: generatePK(),
-                        publicId: generatePK().toString(),
+                        publicId: generatePublicId(),
                         name: "Test User",
                         theme: "light",
                     },
@@ -273,7 +273,7 @@ describe("AuthTokensService", () => {
                                 lastRefreshAt,
                             },
                         },
-                    ] as SessionUser[],
+                    ] as unknown as SessionUser[],
                 };
                 await DbProvider.get().session.create({
                     data: {
@@ -453,7 +453,7 @@ describe("AuthTokensService", () => {
             const testUser = await DbProvider.get().user.create({
                 data: {
                     id: generatePK(),
-                    publicId: generatePK().toString(),
+                    publicId: generatePublicId(),
                     name: "Test User",
                     theme: "light",
                 },
@@ -473,7 +473,7 @@ describe("AuthTokensService", () => {
             // Create session for this test
             await DbProvider.get().session.create({
                 data: {
-                    id: sessionId,
+                    id: sessionId as any,
                     expires_at: new Date(Date.now() + DAYS_30_MS),
                     last_refresh_at: lastRefreshAt,
                     revokedAt: null, // Not revoked
@@ -573,7 +573,7 @@ describe("AuthTokensService", () => {
             const testUser = await DbProvider.get().user.create({
                 data: {
                     id: generatePK(),
-                    publicId: generatePK().toString(),
+                    publicId: generatePublicId(),
                     name: "Test User",
                     theme: "light",
                 },
@@ -602,7 +602,7 @@ describe("AuthTokensService", () => {
                             lastRefreshAt: lastRefreshAt.toISOString(),
                         },
                     },
-                ] as SessionUser[],
+                ] as unknown as SessionUser[],
             };
 
             const token = JsonWebToken.get().sign(payload);
@@ -610,7 +610,7 @@ describe("AuthTokensService", () => {
             // Inject session data
             await DbProvider.get().session.create({
                 data: {
-                    id: sessionId,
+                    id: sessionId as any,
                     expires_at: new Date(Date.now() + DAYS_30_MS), // Not expired
                     last_refresh_at: lastRefreshAt, // Matches payload
                     revokedAt: null, // Not revoked
@@ -657,7 +657,7 @@ describe("AuthTokensService", () => {
             const testUser = await DbProvider.get().user.create({
                 data: {
                     id: generatePK(),
-                    publicId: generatePK().toString(),
+                    publicId: generatePublicId(),
                     name: "Test User",
                     theme: "light",
                 },
@@ -689,7 +689,7 @@ describe("AuthTokensService", () => {
                             lastRefreshAt,
                         },
                     },
-                ] as SessionUser[],
+                ] as unknown as SessionUser[],
             };
 
             const token = JsonWebToken.get().sign(payload);
@@ -702,7 +702,7 @@ describe("AuthTokensService", () => {
             // Inject session data
             await DbProvider.get().session.create({
                 data: {
-                    id: sessionId,
+                    id: sessionId as any,
                     expires_at: new Date(Date.now() + DAYS_30_MS), // Add future expiration date
                     last_refresh_at: new Date(lastRefreshAt),
                     revokedAt: new Date(), // Can't refresh a revoked session

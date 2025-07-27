@@ -1,17 +1,15 @@
-import { type ChatCreateInput, type ChatSearchInput, type ChatUpdateInput, type FindByIdInput, generatePK, generatePublicId, SEEDED_PUBLIC_IDS } from "@vrooli/shared";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { type ChatCreateInput, type ChatSearchInput, type FindByIdInput, generatePK, SEEDED_PUBLIC_IDS } from "@vrooli/shared";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { seedTestChat } from "../../__test/fixtures/db/chatFixtures.js";
+import { UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
-import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
+import { loggedInUserNoPremiumData, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { chat_createOne } from "../generated/chat_createOne.js";
 import { chat_findMany } from "../generated/chat_findMany.js";
 import { chat_findOne } from "../generated/chat_findOne.js";
-import { chat_updateOne } from "../generated/chat_updateOne.js";
 import { chat } from "./chat.js";
-import { seedTestChat } from "../../__test/fixtures/db/chatFixtures.js";
-import { UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
 import { chatTestDataFactory } from "@vrooli/shared";
 // Import new cleanup helpers
@@ -28,7 +26,7 @@ describe("EndpointsChat", () => {
     beforeEach(async () => {
         // Clean up tables used in tests - chat tests need chat system cleanup
         await cleanupGroups.chat(DbProvider.get());
-        
+
         // Create admin user that some tests expect
         const prisma = DbProvider.get();
         await prisma.user.create({
@@ -44,6 +42,9 @@ describe("EndpointsChat", () => {
     });
 
     afterEach(async () => {
+        // Perform cleanup using dependency-ordered cleanup helpers
+        await cleanupGroups.chat(DbProvider.get());
+
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
             tables: ["chat", "chat_message", "chat_participants", "chat_invite", "user"],
@@ -165,7 +166,7 @@ describe("EndpointsChat", () => {
             const testUser2 = await DbProvider.get().user.create({
                 data: UserDbFactory.createWithAuth({
                     id: generatePK(),
-                    name: "Test User 2", 
+                    name: "Test User 2",
                     handle: "test-user-2-" + Math.floor(Math.random() * 1000),
                 }),
             });

@@ -21,9 +21,7 @@ fi
 # Take a screenshot
 echo
 echo "Taking screenshot..."
-RESPONSE=$(curl -s -X POST "$API_URL/screenshot" \
-    -H "Content-Type: application/json" \
-    -d '{"format": "png", "quality": 95}')
+RESPONSE=$(curl -s -X POST "$API_URL/screenshot?format=png&quality=95")
 
 if [ $? -eq 0 ]; then
     echo "✅ Screenshot captured successfully"
@@ -50,11 +48,7 @@ fi
 echo
 echo "Other examples:"
 echo "  # Take screenshot of specific region"
-echo "  curl -X POST $API_URL/screenshot \\"
-echo "    -H 'Content-Type: application/json' \\"
-echo "    -d '{\"format\": \"png\", \"region\": [100, 100, 800, 600]}'"
+echo "  curl -X POST '$API_URL/screenshot?format=png&region=100,100,800,600'"
 echo
 echo "  # Save as JPEG with quality setting"
-echo "  curl -X POST $API_URL/screenshot \\"
-echo "    -H 'Content-Type: application/json' \\"
-echo "    -d '{\"format\": \"jpeg\", \"quality\": 85}'"
+echo "  curl -X POST '$API_URL/screenshot?format=jpeg&quality=85'"

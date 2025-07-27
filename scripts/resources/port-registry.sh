@@ -28,7 +28,8 @@ declare -g -A RESOURCE_PORTS=(
     # Automation Services (56xx range)
     ["n8n"]="5678"             # Workflow automation
     ["comfyui"]="5679"         # AI-powered image generation workflows
-    ["node-red"]="5680"        # Flow-based automation (changed from 1880)
+    ["node-red"]="1880"        # Flow-based automation (Node-RED default port)
+    ["windmill"]="5681"        # Developer-centric workflow automation
     
     # Storage Services (9xxx range)
     ["minio"]="9000"           # Object storage (S3 compatible)
@@ -38,6 +39,7 @@ declare -g -A RESOURCE_PORTS=(
     ["browserless"]="4110"     # Browserless.io Chrome service
     ["claude-code"]="4112"     # Claude Code agent service
     ["huginn"]="4111"          # Agent-based monitoring and automation
+    ["agent-s2"]="4113"        # Agent S2 autonomous computer interaction
     
     # Future services can use:
     # - 11xxx for AI services

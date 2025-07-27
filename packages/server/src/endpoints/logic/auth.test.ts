@@ -80,9 +80,12 @@ describe("EndpointsAuth", () => {
     });
 
     afterEach(async () => {
+        // Perform cleanup using dependency-ordered cleanup helpers
+        await cleanupGroups.userAuth(DbProvider.get());
+
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user", "user_auth", "email", "phone", "push_device", "session"],
+            tables: ["user", "user_auth", "email", "phone", "push_device", "session", "wallet"],
             logOrphans: true,
         });
         if (orphans.length > 0) {

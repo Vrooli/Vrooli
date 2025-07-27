@@ -1,9 +1,10 @@
 import { bookmarkListTestDataFactory, type BookmarkListCreateInput, type BookmarkListSearchInput, type BookmarkListUpdateInput, type FindByIdInput } from "@vrooli/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { expectCustomErrorAsync } from "../../__test/errorTestUtils.js";
 import { BookmarkListDbFactory } from "../../__test/fixtures/db/bookmarkFixtures.js";
-import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
-import { expectCustomError, expectCustomErrorAsync } from "../../__test/errorTestUtils.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
@@ -15,8 +16,6 @@ import { bookmarkList_findMany } from "../generated/bookmarkList_findMany.js";
 import { bookmarkList_findOne } from "../generated/bookmarkList_findOne.js";
 import { bookmarkList_updateOne } from "../generated/bookmarkList_updateOne.js";
 import { bookmarkList } from "./bookmarkList.js";
-import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
-import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsBookmarkList", () => {
     let testUsers: any[];
@@ -32,18 +31,17 @@ describe("EndpointsBookmarkList", () => {
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","session"],
+            tables: ["user", "user_auth", "email", "session"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
     });
 
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.minimal(DbProvider.get());
-    });
 
         // Seed bookmark lists using database fixtures
         listUser1 = await DbProvider.get().bookmark_list.create({
@@ -150,7 +148,7 @@ describe("EndpointsBookmarkList", () => {
             await expectCustomErrorAsync(
                 bookmarkList.findMany({ input }, { req, res }, bookmarkList_findMany),
                 "InternalError",
-                "0782"
+                "0782",
             );
         });
 
@@ -162,7 +160,7 @@ describe("EndpointsBookmarkList", () => {
             await expectCustomErrorAsync(
                 bookmarkList.findMany({ input }, { req, res }, bookmarkList_findMany),
                 "InternalError",
-                "0782"
+                "0782",
             );
         });
     });

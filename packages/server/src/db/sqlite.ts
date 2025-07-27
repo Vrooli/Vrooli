@@ -1,8 +1,6 @@
-import pkg from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { logger } from "../events/logger.js";
 import { type DatabaseService } from "./provider.js";
-
-const { PrismaClient } = pkg;
 
 const debug = process.env.NODE_ENV === "development";
 

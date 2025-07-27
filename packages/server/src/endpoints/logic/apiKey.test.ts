@@ -1,15 +1,15 @@
-import { type ApiKeyCreateInput, type ApiKeyUpdateInput, type ApiKeyValidateInput, type FindByIdInput, ApiKeyPermission, generatePK } from "@vrooli/shared";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi, test } from "vitest";
-import { loggedInUserNoPremiumData, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
-import { assertRequiresAuth, AUTH_SCENARIOS } from "../../__test/authTestUtils.js";
+import { type ApiKeyCreateInput, type ApiKeyUpdateInput, type ApiKeyValidateInput, ApiKeyPermission, generatePK } from "@vrooli/shared";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { assertRequiresAuth } from "../../__test/authTestUtils.js";
 import { expectCustomErrorAsync } from "../../__test/errorTestUtils.js";
+import { loggedInUserNoPremiumData, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { CacheService } from "../../redisConn.js";
 import { apiKey_createOne } from "../generated/apiKey_createOne.js";
 import { apiKey_updateOne } from "../generated/apiKey_updateOne.js";
-import { apiKey_validate } from "../generated/apiKey_validate.js";
+import { apiKey_validateOne } from "../generated/apiKey_validateOne.js";
 import { apiKey } from "./apiKey.js";
 // Import database fixtures for seeding
 import { ApiKeyDbFactory } from "../../__test/fixtures/db/apiKeyFixtures.js";
@@ -55,7 +55,7 @@ describe("EndpointsApiKey", () => {
     const createTestData = async () => {
         // Create test users
         const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
-        
+
         // Create test API keys
         const apiKeyFactory = new ApiKeyDbFactory();
         const apiKeys = [
@@ -74,7 +74,7 @@ describe("EndpointsApiKey", () => {
                 },
             }),
         ];
-        
+
         return { testUsers, apiKeys };
     };
 
@@ -97,7 +97,7 @@ describe("EndpointsApiKey", () => {
                     ...loggedInUserNoPremiumData(),
                     id: testUsers.records[0].id,
                 });
-                
+
                 const input: ApiKeyCreateInput = apiKeyTestDataFactory.createMinimal({
                     name: "Test API Key",
                     permissions: [ApiKeyPermission.ReadPublic, ApiKeyPermission.ReadPrivate],
@@ -105,9 +105,9 @@ describe("EndpointsApiKey", () => {
                     creditsLimitSoft: 800,
                     stopAtLimit: true,
                 });
-                
+
                 const result = await apiKey.createOne({ input }, { req, res }, apiKey_createOne);
-                
+
                 expect(result).not.toBeNull();
                 expect(result.name).toBe(input.name);
                 expect(result.permissions).toEqual(input.permissions);
@@ -123,13 +123,13 @@ describe("EndpointsApiKey", () => {
                     ...loggedInUserNoPremiumData(),
                     id: testUsers.records[0].id,
                 });
-                
+
                 // Test missing name
                 const invalidInput = {
                     permissions: [ApiKeyPermission.ReadPublic],
                     // name is missing
                 } as ApiKeyCreateInput;
-                
+
                 // Validation errors throw standard errors
                 await expect(apiKey.createOne({ input: invalidInput }, { req, res }, apiKey_createOne))
                     .rejects.toThrow(Error);
@@ -142,15 +142,15 @@ describe("EndpointsApiKey", () => {
             it("validates correct API key", async () => {
                 const { testUsers, apiKeys } = await createTestData();
                 const { req, res } = await mockLoggedOutSession(); // validate doesn't require authentication
-                
+
                 const input: ApiKeyValidateInput = {
                     id: apiKeys[0].id,
                     secret: apiKeys[0].keyPartial, // This would be the full key in real usage
                 };
-                
+
                 // Note: This test might fail in real execution due to key encryption
                 // but it validates the endpoint structure and input validation
-                const result = await apiKey.validate({ input }, { req, res }, apiKey_validate);
+                const result = await apiKey.validate({ input }, { req, res }, apiKey_validateOne);
                 expect(result).toBeDefined();
             });
         });
@@ -158,14 +158,14 @@ describe("EndpointsApiKey", () => {
         describe("invalid", () => {
             it("rejects invalid API key", async () => {
                 const { req, res } = await mockLoggedOutSession();
-                
+
                 const input: ApiKeyValidateInput = {
                     id: generatePK(),
                     secret: "invalid-secret",
                 };
-                
+
                 await expectCustomErrorAsync(
-                    apiKey.validate({ input }, { req, res }, apiKey_validate),
+                    apiKey.validate({ input }, { req, res }, apiKey_validateOne),
                     "InvalidCredentials",
                     "0904",
                 );
@@ -173,7 +173,7 @@ describe("EndpointsApiKey", () => {
 
             it("rejects invalid input format", async () => {
                 const { req, res } = await mockLoggedOutSession();
-                
+
                 const invalidInputs = [
                     { id: "", secret: "valid-secret" },
                     { id: "valid-id", secret: "" },
@@ -186,7 +186,7 @@ describe("EndpointsApiKey", () => {
                         apiKey.validate(
                             { input: invalidInput as any },
                             { req, res },
-                            apiKey_validate,
+                            apiKey_validateOne,
                         ),
                         "InvalidArgs",
                         "0900",
@@ -215,15 +215,15 @@ describe("EndpointsApiKey", () => {
                     ...loggedInUserNoPremiumData(),
                     id: testUsers.records[0].id,
                 });
-                
+
                 const input: ApiKeyUpdateInput = {
                     id: apiKeys[0].id,
                     name: "Updated API Key Name",
                     creditsLimitHard: 2000,
                 };
-                
+
                 const result = await apiKey.updateOne({ input }, { req, res }, apiKey_updateOne);
-                
+
                 expect(result).not.toBeNull();
                 expect(result.id).toBe(input.id);
                 expect(result.name).toBe(input.name);
@@ -238,12 +238,12 @@ describe("EndpointsApiKey", () => {
                     ...loggedInUserNoPremiumData(),
                     id: testUsers.records[1].id, // Different user
                 });
-                
+
                 const input: ApiKeyUpdateInput = {
                     id: apiKeys[0].id, // Owned by testUsers.records[0]
                     name: "Updated API Key Name",
                 };
-                
+
                 await expectCustomErrorAsync(
                     apiKey.updateOne({ input }, { req, res }, apiKey_updateOne),
                     "Unauthorized",
@@ -271,14 +271,14 @@ describe("API Key Security", () => {
             // Use the real ApiKeyEncryptionService
             const key1 = ApiKeyEncryptionService.generateSiteKey();
             const key2 = ApiKeyEncryptionService.generateSiteKey();
-            
+
             // Keys should be different
             expect(key1).not.toBe(key2);
-            
+
             // Keys should be properly formatted (base64url)
             expect(key1).toMatch(/^[A-Za-z0-9_-]+$/);
             expect(key2).toMatch(/^[A-Za-z0-9_-]+$/);
-            
+
             // Keys should be of reasonable length
             expect(key1.length).toBeGreaterThan(20);
             expect(key2.length).toBeGreaterThan(20);
@@ -288,18 +288,18 @@ describe("API Key Security", () => {
     describe("Key Hashing", () => {
         it("should hash keys with bcrypt", async () => {
             const plainKey = "test-plain-key";
-            
+
             // Use the real ApiKeyEncryptionService static methods
             const hash1 = await ApiKeyEncryptionService.hashSiteKey(plainKey);
             const hash2 = await ApiKeyEncryptionService.hashSiteKey(plainKey);
-            
+
             // Hashes should be different due to salt
             expect(hash1).not.toBe(hash2);
-            
+
             // Both should verify against the original
             expect(await ApiKeyEncryptionService.verifySiteKey(plainKey, hash1)).toBe(true);
             expect(await ApiKeyEncryptionService.verifySiteKey(plainKey, hash2)).toBe(true);
-            
+
             // Wrong key should not verify
             expect(await ApiKeyEncryptionService.verifySiteKey("wrong-key", hash1)).toBe(false);
         });

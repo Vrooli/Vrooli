@@ -1,0 +1,267 @@
+# Agent S2 Examples
+
+This directory contains comprehensive examples demonstrating Agent S2's automation capabilities, organized by complexity and AI requirements.
+
+## 📁 Directory Structure
+
+### 🔧 **core/** - Fundamental Automation
+Core automation examples using direct API calls (no AI required):
+- **screenshot.py** - Screenshot capture with various formats and regions
+- **mouse_control.py** - Precise mouse movement, clicking, and patterns
+- **keyboard_input.py** - Text input, shortcuts, and special keys
+- **automation_sequences.py** - Complex multi-step workflows
+- **screenshot-demo.sh** - Simple bash script example
+
+**Perfect for:** Learning the basics, testing connectivity, deterministic automation
+
+### 🧠 **ai/** - Intelligent Automation
+AI-driven examples using local Ollama models or cloud APIs:
+- **natural_language_tasks.py** - Natural language command interpretation
+- **visual_reasoning.py** - Screen understanding and visual analysis
+- **autonomous_planning.py** - Goal-driven planning and execution
+
+**Perfect for:** Complex workflows, adaptive behavior, creative problem solving
+
+### 📄 **basic-automation.py** - Comprehensive Demo
+Combined demonstration showing both core and AI capabilities with capability detection and mode selection.
+
+## 🚀 Quick Start
+
+### 1. Test Core Automation (Always Available)
+```bash
+cd core/
+python screenshot.py        # Test basic functionality
+python mouse_control.py     # Test mouse automation
+python keyboard_input.py    # Test keyboard automation
+```
+
+### 2. Enable AI Features (Requires Setup)
+```bash
+# Install Ollama (recommended for local AI)
+curl -fsSL https://ollama.ai/install.sh | sh
+ollama pull llama2:7b
+
+# Configure Agent S2 for AI
+../manage.sh --action install \
+  --llm-provider ollama \
+  --llm-model llama2:7b \
+  --enable-ai yes
+
+# Test AI features
+cd ai/
+python natural_language_tasks.py
+```
+
+### 3. Watch Automation in Action
+Connect to VNC to see automation happening:
+- **URL:** `vnc://localhost:5900`
+- **Password:** `agents2vnc`
+
+## 🎯 Choosing the Right Examples
+
+### Start Here: Core Automation
+If you're new to Agent S2 or want to understand the fundamentals:
+```bash
+core/screenshot.py          # Learn API patterns
+core/mouse_control.py       # Understand precision control
+core/automation_sequences.py # See complex workflows
+```
+
+### Advanced: AI-Driven Automation  
+When you want intelligent, adaptive behavior:
+```bash
+ai/natural_language_tasks.py   # Natural language control
+ai/visual_reasoning.py         # Visual understanding
+ai/autonomous_planning.py      # Goal-oriented automation
+```
+
+### Complete Demo: Combined Capabilities
+For a comprehensive overview:
+```bash
+python basic-automation.py     # Detects capabilities and shows both modes
+```
+
+## 📋 Prerequisites
+
+### Core Automation (Always Works)
+- Agent S2 container running
+- Ports 4113 (API) and 5900 (VNC) accessible
+- Python 3.6+ with requests library
+
+### AI Features (Optional)
+Choose one:
+
+**Option A: Local Ollama (Recommended)**
+```bash
+# Install Ollama
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Download a model
+ollama pull llama2:7b        # Good balance of speed/capability
+ollama pull mistral:7b       # Alternative option
+ollama pull codellama:7b     # Good for technical tasks
+```
+
+**Option B: Cloud APIs**
+```bash
+# Anthropic Claude
+export ANTHROPIC_API_KEY="your_key_here"
+
+# OpenAI GPT-4  
+export OPENAI_API_KEY="your_key_here"
+```
+
+## 🏗️ Architecture Demonstrated
+
+These examples show Agent S2's layered architecture:
+
+```
+┌─────────────────────────────────────────┐
+│             AI Layer                    │ ← ai/ examples
+│   Natural Language + Visual Reasoning  │
+├─────────────────────────────────────────┤
+│          Core Automation               │ ← core/ examples  
+│     Mouse + Keyboard + Screenshots     │
+├─────────────────────────────────────────┤
+│           X11 Display                  │
+│        VNC + Virtual Desktop           │
+└─────────────────────────────────────────┘
+```
+
+**Key Insight:** AI orchestrates core automation - it doesn't replace it!
+
+## 🔄 Learning Path
+
+### Beginner Path
+1. **Start with health check:** `curl http://localhost:4113/health`
+2. **Basic screenshot:** `core/screenshot.py`
+3. **Mouse control:** `core/mouse_control.py`
+4. **Simple sequences:** `core/automation_sequences.py`
+5. **Combined demo:** `basic-automation.py`
+
+### Advanced Path
+1. **Enable AI:** Set up Ollama or API keys
+2. **Natural language:** `ai/natural_language_tasks.py`
+3. **Visual reasoning:** `ai/visual_reasoning.py`
+4. **Autonomous planning:** `ai/autonomous_planning.py`
+5. **Custom integration:** Build your own workflows
+
+## 🛠️ Configuration Examples
+
+### Core Automation Only
+```bash
+../manage.sh --action install --enable-ai no
+```
+
+### AI with Ollama (Local)
+```bash
+../manage.sh --action install \
+  --llm-provider ollama \
+  --llm-model llama2:7b \
+  --enable-ai yes
+```
+
+### AI with Anthropic Claude
+```bash
+export ANTHROPIC_API_KEY="your_key"
+../manage.sh --action install \
+  --llm-provider anthropic \
+  --llm-model claude-3-7-sonnet-20250219 \
+  --enable-ai yes
+```
+
+### AI with OpenAI
+```bash
+export OPENAI_API_KEY="your_key"
+../manage.sh --action install \
+  --llm-provider openai \
+  --llm-model gpt-4o \
+  --enable-ai yes
+```
+
+## 🔍 API Endpoints Reference
+
+### Core Automation Endpoints
+- `GET /health` - Service health and capabilities
+- `GET /capabilities` - Detailed capability information
+- `POST /screenshot` - Capture screen images
+- `POST /execute` - Execute automation tasks
+- `GET /mouse/position` - Get current mouse position
+
+### AI-Driven Endpoints  
+- `POST /execute/ai` - Natural language command execution
+- `POST /plan` - Create multi-step plans for goals
+- `POST /analyze-screen` - AI visual analysis of screen content
+
+## 🧪 Testing Your Setup
+
+### Quick Health Check
+```bash
+curl http://localhost:4113/health
+```
+
+### Core Automation Test
+```bash
+curl -X POST http://localhost:4113/screenshot \
+  -H "Content-Type: application/json" \
+  -d '{"format": "png"}'
+```
+
+### AI Feature Test
+```bash
+curl -X POST http://localhost:4113/execute/ai \
+  -H "Content-Type: application/json" \
+  -d '{"command": "take a screenshot"}'
+```
+
+## 🛡️ Security Considerations
+
+- Examples run in isolated Docker container
+- No access to host filesystem by default
+- VNC access is password-protected
+- AI models can run locally with Ollama (no data sent to cloud)
+
+## 🤝 Integration Ideas
+
+These examples can be integrated with other Vrooli services:
+
+- **n8n:** Trigger automation from business workflows
+- **Node-RED:** IoT device triggers for desktop automation
+- **Browserless:** Combine web and desktop automation
+- **ComfyUI:** Process screenshots for AI image generation
+
+## 📚 Further Reading
+
+- [Agent S2 Main README](../README.md) - Full documentation
+- [Core Examples README](core/README.md) - Core automation details
+- [AI Examples README](ai/README.md) - AI-driven automation details
+- [Agent S2 Official Docs](https://www.simular.ai/agent-s) - Upstream documentation
+
+## 🆘 Troubleshooting
+
+### Service Issues
+```bash
+../manage.sh --action status    # Check service health
+../manage.sh --action logs      # View container logs
+../manage.sh --action restart   # Restart service
+```
+
+### AI Not Working
+```bash
+# Check AI status in health endpoint
+curl http://localhost:4113/health | jq .ai_status
+
+# For Ollama users
+curl http://localhost:11434/api/version
+ollama list  # Check installed models
+```
+
+### VNC Connection Problems
+- Verify port 5900 is accessible
+- Try different VNC clients
+- Check VNC password is `agents2vnc`
+- Restart container if needed
+
+---
+
+**Ready to automate?** Start with `core/screenshot.py` to test your setup, then explore the other examples based on your needs!

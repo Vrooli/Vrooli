@@ -33,7 +33,7 @@ async function main() {
         program
             .name("vrooli")
             .description("Vrooli CLI - Manage your Vrooli instance from the command line")
-            .version("1.0.0")
+            .version("2.0.2")
             .option("-p, --profile <profile>", "Use a specific profile", "default")
             .option("-d, --debug", "Enable debug output")
             .option("--json", "Output in JSON format")

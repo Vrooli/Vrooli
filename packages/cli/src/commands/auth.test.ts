@@ -111,7 +111,7 @@ describe("AuthCommands", () => {
 
             await program.parseAsync(["node", "cli", "auth", "login", "-e", "test@example.com", "-p", "password123"]);
 
-            expect(vi.mocked(client.post)).toHaveBeenCalledWith("/auth/login", {
+            expect(vi.mocked(client.post)).toHaveBeenCalledWith("/auth/email/login", {
                 email: "test@example.com",
                 password: "password123",
             });
@@ -130,7 +130,7 @@ describe("AuthCommands", () => {
             await program.parseAsync(["node", "cli", "auth", "login"]);
 
             expect(vi.mocked(inquirer.prompt)).toHaveBeenCalledTimes(2);
-            expect(vi.mocked(client.post)).toHaveBeenCalledWith("/auth/login", {
+            expect(vi.mocked(client.post)).toHaveBeenCalledWith("/auth/email/login", {
                 email: "prompt@example.com",
                 password: "promptpass",
             });
@@ -257,7 +257,7 @@ describe("AuthCommands", () => {
 
             await program.parseAsync(["node", "cli", "auth", "status"]);
 
-            expect(vi.mocked(client.get)).toHaveBeenCalledWith("/auth/me");
+            expect(vi.mocked(client.get)).toHaveBeenCalledWith("/profile");
             expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("✓ Authenticated"));
             expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("User: Test User"));
             expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Handle: testuser"));
@@ -335,7 +335,7 @@ describe("AuthCommands", () => {
 
             await program.parseAsync(["node", "cli", "auth", "whoami"]);
 
-            expect(vi.mocked(client.get)).toHaveBeenCalledWith("/auth/me");
+            expect(vi.mocked(client.get)).toHaveBeenCalledWith("/profile");
             expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("User Information:"));
             expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("ID: user-123"));
             expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Handle: testuser"));

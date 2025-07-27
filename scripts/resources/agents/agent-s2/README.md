@@ -4,34 +4,116 @@ Agent S2 is an open-source framework for autonomous computer interaction, enabli
 
 ## 🚀 Features
 
-- **Screenshot Capture**: Full screen or region-based screenshots
+### 🧠 AI-Powered Capabilities
+- **Natural Language Commands**: Execute tasks using human language ("take a screenshot and analyze what's on screen")
+- **Intelligent Planning**: AI breaks down complex goals into actionable steps
+- **Screen Understanding**: AI can analyze and reason about screen content
+- **Autonomous Decision Making**: AI agent can adapt to different applications and contexts
+- **LLM Integration**: Support for OpenAI GPT-4, Anthropic Claude, and other providers
+
+### ⚙️ Core Automation
+- **Screenshot Capture**: Full screen or region-based screenshots  
 - **GUI Automation**: Mouse control, keyboard input, and complex workflows
-- **Multi-Step Planning**: Break down complex tasks into executable steps
+- **Multi-Step Sequences**: Execute pre-programmed automation workflows
 - **Virtual Display**: Secure X11 virtual display with VNC access
-- **RESTful API**: Clean HTTP interface for all operations
-- **LLM Integration**: Support for OpenAI, Anthropic, and other providers
+- **RESTful API**: Clean HTTP interface for both AI and core automation operations
 - **Docker Security**: Sandboxed execution with non-root user
 
 ## 📋 Prerequisites
 
 - Docker installed and running
 - Port 4113 (API) and 5900 (VNC) available
-- API key for your preferred LLM provider (OpenAI, Anthropic, etc.)
+- **For AI Features**: API key for your preferred LLM provider (OpenAI, Anthropic, etc.)
+
+## 🤖 AI-Driven vs Core Automation
+
+Agent S2 operates with two complementary layers:
+
+### 🧠 AI Layer (Intelligence & Planning)
+- **Requires**: Valid API key for OpenAI or Anthropic
+- **Capabilities**: Natural language understanding, intelligent planning, screen analysis
+- **Use Case**: "Open Chrome and search for cats" or "Organize my desktop files"
+- **How it works**: AI interprets commands and uses core automation functions to execute them
+
+### ⚙️ Core Automation Layer (Execution & Control)
+- **Requires**: No API key needed - always available
+- **Capabilities**: Direct GUI control (click, type, move mouse, screenshots)
+- **Use Case**: Precise, deterministic automation with specific coordinates
+- **Reliability**: Foundation layer that AI uses for all physical interactions
+
+The AI layer intelligently orchestrates core automation functions to achieve complex goals.
+
+### 🏗️ Architecture: How AI Uses Core Automation
+
+```
+User: "Take a screenshot and click the Chrome icon"
+                    ↓
+┌─────────────────────────────────────────────────┐
+│              AI Layer (Intelligence)             │
+├─────────────────────────────────────────────────┤
+│ 1. Understand natural language command           │
+│ 2. Plan sequence of actions:                    │
+│    - Take screenshot to see screen              │
+│    - Analyze screenshot to find Chrome icon     │
+│    - Calculate Chrome icon coordinates          │
+│    - Click at those coordinates                 │
+└────────────────┬────────────────────────────────┘
+                 ↓ Calls Core Functions
+┌─────────────────────────────────────────────────┐
+│         Core Automation Layer (Execution)        │
+├─────────────────────────────────────────────────┤
+│ • execute_screenshot() → PyAutoGUI screenshot    │
+│ • analyze_image() → Process screenshot           │
+│ • execute_click(x,y) → PyAutoGUI click          │
+└─────────────────────────────────────────────────┘
+                 ↓
+            Screen Action Performed
+```
+
+**Key Point**: AI doesn't replace core automation - it orchestrates it intelligently!
 
 ## 🔧 Installation
 
 ```bash
-# Install Agent S2 with default settings
-./scripts/resources/agents/agent-s2/manage.sh --action install
-
-# Install with specific LLM provider
+# Install with AI enabled (default - requires API key)
 ./scripts/resources/agents/agent-s2/manage.sh --action install \
   --llm-provider anthropic \
-  --llm-model claude-3-opus-20240229
+  --llm-model claude-3-7-sonnet-20250219
 
-# Install with custom VNC password
+# Install with OpenAI instead
 ./scripts/resources/agents/agent-s2/manage.sh --action install \
+  --llm-provider openai \
+  --llm-model gpt-4o
+
+# Install with core automation only (no AI features)
+./scripts/resources/agents/agent-s2/manage.sh --action install \
+  --enable-ai no
+
+# Install with web search enabled (requires Perplexica)
+./scripts/resources/agents/agent-s2/manage.sh --action install \
+  --enable-search yes
+
+# Install with custom settings
+./scripts/resources/agents/agent-s2/manage.sh --action install \
+  --llm-provider anthropic \
+  --llm-model claude-3-7-sonnet-20250219 \
+  --enable-ai yes \
+  --enable-search no \
   --vnc-password mysecurepassword
+```
+
+### Environment Variables
+Set these before installation to configure AI providers:
+
+```bash
+# For Anthropic Claude (recommended)
+export ANTHROPIC_API_KEY="your_anthropic_api_key_here"
+
+# For OpenAI GPT-4
+export OPENAI_API_KEY="your_openai_api_key_here"
+
+# Optional: Disable AI if no keys available
+export AGENTS2_ENABLE_AI=false
 ```
 
 ## 🎯 Quick Start
@@ -47,16 +129,50 @@ Connect to the VNC server to watch Agent S2 in action:
 - **Password**: `agents2vnc` (or your custom password)
 
 ### 3. Test the API
+
+#### Basic Health Check
 ```bash
-# Health check
+# Check service and AI status
 curl http://localhost:4113/health
 
+# Check capabilities
+curl http://localhost:4113/capabilities
+```
+
+#### AI-Driven Commands (if AI enabled)
+```bash
+# Execute natural language command
+curl -X POST http://localhost:4113/execute/ai \
+  -H "Content-Type: application/json" \
+  -d '{
+    "command": "take a screenshot and move mouse to center",
+    "context": "testing AI capabilities"
+  }'
+
+# Generate a plan
+curl -X POST http://localhost:4113/plan \
+  -H "Content-Type: application/json" \
+  -d '{
+    "goal": "organize desktop workspace",
+    "constraints": ["do not delete files"]
+  }'
+
+# Analyze screen content
+curl -X POST http://localhost:4113/analyze-screen \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "What applications are currently visible?"
+  }'
+```
+
+#### Core Automation (always available)
+```bash
 # Take a screenshot
 curl -X POST http://localhost:4113/screenshot \
   -H "Content-Type: application/json" \
   -d '{"format": "png"}'
 
-# Execute automation
+# Execute direct automation
 curl -X POST http://localhost:4113/execute \
   -H "Content-Type: application/json" \
   -d '{
@@ -91,17 +207,27 @@ A simple bash script demonstrating screenshot capture:
 - Error handling
 
 ### basic-automation.py
-A comprehensive Python script showing all major capabilities:
+A comprehensive Python script demonstrating both AI and core automation capabilities:
+
+**AI-Driven Examples:**
+- Natural language command execution ("take a screenshot and move mouse to center")
+- AI planning and goal achievement ("organize desktop workspace")
+- Intelligent screen analysis ("what applications are currently visible?")
+- Shows how AI uses core automation functions to execute commands
+
+**Core Automation Examples:**
 - Health monitoring and status reporting
-- Individual actions (mouse move, click, type)
+- Direct actions (mouse move, click, type)
 - Complex multi-step automation sequences
-- Proper error handling
+- Precise coordinate-based control
 
 **Key concepts demonstrated:**
-- Python SDK pattern for Agent S2
-- Sequential automation steps
-- Async task execution
-- Integration best practices
+- AI Layer → Core Automation Layer architecture
+- How AI commands translate to core function calls
+- Graceful fallback when AI unavailable
+- Python SDK pattern for both AI and direct automation
+- Interactive demonstration with mode selection
+- Comprehensive error handling and status reporting
 
 ## 🔌 API Reference
 
@@ -147,6 +273,64 @@ GET /tasks/{task_id}
 GET /mouse/position
 ```
 
+## 🧠 AI API Endpoints
+
+### Execute AI Command
+```http
+POST /execute/ai
+{
+  "command": "Natural language instruction",
+  "context": "Optional context for the command",
+  "async_execution": false
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:4113/execute/ai \
+  -H "Content-Type: application/json" \
+  -d '{
+    "command": "open a text editor and write hello world",
+    "context": "demonstration"
+  }'
+```
+
+### Generate AI Plan
+```http
+POST /plan
+{
+  "goal": "High-level goal to achieve",
+  "constraints": ["list", "of", "constraints"]
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:4113/plan \
+  -H "Content-Type: application/json" \
+  -d '{
+    "goal": "organize my desktop files by type",
+    "constraints": ["do not delete anything", "keep downloads folder visible"]
+  }'
+```
+
+### Analyze Screen
+```http
+POST /analyze-screen
+{
+  "question": "What do you want to know about the screen?"
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:4113/analyze-screen \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "What applications are currently running?"
+  }'
+```
+
 ## 🐍 Python SDK Example
 
 ```python
@@ -182,7 +366,7 @@ class AgentS2Client:
         return self.execute("type_text", {"text": text, "interval": interval})
     
     def execute(self, task_type, parameters):
-        """Execute a task"""
+        """Execute a core automation task"""
         data = {
             "task_type": task_type,
             "parameters": parameters
@@ -190,10 +374,66 @@ class AgentS2Client:
         response = requests.post(f"{self.base_url}/execute", json=data)
         response.raise_for_status()
         return response.json()
+    
+    # AI Methods
+    def ai_command(self, command, context=None, async_execution=False):
+        """Execute natural language command using AI"""
+        data = {
+            "command": command,
+            "context": context,
+            "async_execution": async_execution
+        }
+        response = requests.post(f"{self.base_url}/execute/ai", json=data)
+        response.raise_for_status()
+        return response.json()
+    
+    def ai_plan(self, goal, constraints=None):
+        """Generate AI plan for achieving a goal"""
+        data = {
+            "goal": goal,
+            "constraints": constraints or []
+        }
+        response = requests.post(f"{self.base_url}/plan", json=data)
+        response.raise_for_status()
+        return response.json()
+    
+    def ai_analyze_screen(self, question=None):
+        """Analyze screen content using AI"""
+        data = {"question": question} if question else {}
+        response = requests.post(f"{self.base_url}/analyze-screen", json=data)
+        response.raise_for_status()
+        return response.json()
+    
+    def get_capabilities(self):
+        """Get service capabilities"""
+        response = requests.get(f"{self.base_url}/capabilities")
+        response.raise_for_status()
+        return response.json()
 
-# Usage
+# Usage Examples
 agent = AgentS2Client()
 
+# Check what's available
+caps = agent.get_capabilities()
+ai_available = caps.get("ai_status", {}).get("initialized", False)
+
+if ai_available:
+    print("🧠 AI Mode Available - Using intelligent automation")
+    
+    # AI-driven examples
+    result = agent.ai_command("take a screenshot and move mouse to center")
+    print(f"AI Command Result: {result}")
+    
+    plan = agent.ai_plan("organize desktop files", ["don't delete anything"])
+    print(f"AI Plan: {plan}")
+    
+    analysis = agent.ai_analyze_screen("What applications are visible?")
+    print(f"Screen Analysis: {analysis}")
+    
+else:
+    print("⚙️ Core Automation Mode - Direct control available")
+
+# Core automation functions (always available)
 # Take screenshot
 img = agent.screenshot()
 img.save("desktop.png")
@@ -204,7 +444,7 @@ agent.click(500, 300)
 # Type text
 agent.type_text("Hello from Agent S2!")
 
-# Complex automation
+# Complex automation sequence
 agent.execute("automation_sequence", {
     "steps": [
         {"type": "mouse_move", "parameters": {"x": 100, "y": 100}},
@@ -337,7 +577,7 @@ docker update agent-s2 --shm-size 4gb
 ### Use Cases
 
 **Agent S2:**
-- Automating legacy desktop software
+- Automating traditional desktop software
 - GUI testing for applications
 - Visual data extraction from any app
 - Game automation
@@ -354,6 +594,35 @@ docker update agent-s2 --shm-size 4gb
 - PDF generation
 - Website testing
 - Headless browser tasks
+
+### 🔄 How AI Commands Translate to Core Functions
+
+When you send an AI command, here's what happens internally:
+
+```python
+# What you send:
+{
+    "command": "take a screenshot and move mouse to center"
+}
+
+# What the AI layer does:
+1. Parse command → identifies "screenshot" and "move mouse"
+2. Plans execution sequence
+3. Calls core functions:
+   - await execute_screenshot({})
+   - screen_width, screen_height = pyautogui.size()
+   - await execute_mouse_move({"x": width//2, "y": height//2})
+
+# What gets returned:
+{
+    "command": "take a screenshot and move mouse to center",
+    "actions_taken": [
+        {"action": "screenshot", "status": "completed"},
+        {"action": "mouse_move", "parameters": {"x": 960, "y": 540}, "status": "completed"}
+    ],
+    "core_functions_used": 2
+}
+```
 
 ### Architecture Differences
 
