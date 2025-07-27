@@ -1,6 +1,6 @@
-import { type FindVersionInput, type ScheduleCreateInput, type ScheduleSearchInput, type ScheduleUpdateInput } from "@vrooli/shared";
 import { ScheduleRecurrenceType } from "@prisma/client";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { type FindVersionInput, type ScheduleCreateInput, type ScheduleSearchInput, type ScheduleUpdateInput } from "@vrooli/shared";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
@@ -13,7 +13,7 @@ import { schedule_findOne } from "../generated/schedule_findOne.js";
 import { schedule_updateOne } from "../generated/schedule_updateOne.js";
 import { schedule } from "./schedule.js";
 // Import database fixtures for seeding
-import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
+import { UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
 import { scheduleTestDataFactory } from "@vrooli/shared";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
@@ -54,21 +54,23 @@ describe("EndpointsSchedule", () => {
     });
 
     afterEach(async () => {
+        // Perform cleanup using dependency-ordered cleanup helpers
+        await cleanupGroups.userAuth(DbProvider.get());
+
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","phone","push_device","session"],
+            tables: ["user", "user_auth", "email", "phone", "push_device", "session"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
-            console.warn('Test cleanup incomplete:', orphans);
+            console.warn("Test cleanup incomplete:", orphans);
         }
     });
 
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.userAuth(DbProvider.get());
-    });
-        
+
         // Create teams and meetings for schedule testing
         teamUser1 = await DbProvider.get().team.create({
             data: {
@@ -192,7 +194,7 @@ describe("EndpointsSchedule", () => {
         await prisma.team.deleteMany();
         await prisma.user_auth.deleteMany();
         await prisma.user.deleteMany();
-        
+
         // Clear Redis cache
         await CacheService.get().flushAll();
 

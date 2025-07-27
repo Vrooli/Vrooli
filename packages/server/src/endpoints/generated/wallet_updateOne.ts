@@ -4,5 +4,5 @@ export const wallet_updateOne = {
     "publicAddress": true,
     "stakingAddress": true,
     "verifiedAt": true,
-    "__cacheKey": "-456739071"
+    "__cacheKey": "-456739071",
 };

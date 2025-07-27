@@ -10,7 +10,7 @@ export const member_findMany = {
             "permissions": true,
             "you": {
                 "canDelete": true,
-                "canUpdate": true
+                "canUpdate": true,
             },
             "team": {
                 "id": true,
@@ -34,18 +34,18 @@ export const member_findMany = {
                     "translations": {
                         "id": true,
                         "language": true,
-                        "description": true
+                        "description": true,
                     },
                     "you": {
                         "isOwn": true,
-                        "isBookmarked": true
-                    }
+                        "isBookmarked": true,
+                    },
                 },
                 "translations": {
                     "id": true,
                     "language": true,
                     "bio": true,
-                    "name": true
+                    "name": true,
                 },
                 "you": {
                     "canAddMembers": true,
@@ -61,9 +61,9 @@ export const member_findMany = {
                         "createdAt": true,
                         "updatedAt": true,
                         "isAdmin": true,
-                        "permissions": true
-                    }
-                }
+                        "permissions": true,
+                    },
+                },
             },
             "user": {
                 "id": true,
@@ -83,19 +83,19 @@ export const member_findMany = {
                     "canReport": true,
                     "canUpdate": true,
                     "isBookmarked": true,
-                    "isViewed": true
+                    "isViewed": true,
                 },
                 "translations": {
                     "id": true,
                     "language": true,
-                    "bio": true
-                }
-            }
-        }
+                    "bio": true,
+                },
+            },
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "-173183830"
+    "__cacheKey": "-173183830",
 };

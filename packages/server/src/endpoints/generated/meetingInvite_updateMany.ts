@@ -6,7 +6,7 @@ export const meetingInvite_updateMany = {
     "status": true,
     "you": {
         "canDelete": true,
-        "canUpdate": true
+        "canUpdate": true,
     },
     "meeting": {
         "id": true,
@@ -34,16 +34,16 @@ export const meetingInvite_updateMany = {
                     "createdAt": true,
                     "updatedAt": true,
                     "isAdmin": true,
-                    "permissions": true
-                }
-            }
+                    "permissions": true,
+                },
+            },
         },
         "attendeesCount": true,
         "invitesCount": true,
         "you": {
             "canDelete": true,
             "canInvite": true,
-            "canUpdate": true
+            "canUpdate": true,
         },
         "attendees": {
             "id": true,
@@ -54,7 +54,7 @@ export const meetingInvite_updateMany = {
             "isBot": true,
             "isBotDepictingPerson": true,
             "name": true,
-            "profileImage": true
+            "profileImage": true,
         },
         "schedule": {
             "id": true,
@@ -68,7 +68,7 @@ export const meetingInvite_updateMany = {
                 "id": true,
                 "originalStartTime": true,
                 "newStartTime": true,
-                "newEndTime": true
+                "newEndTime": true,
             },
             "recurrences": {
                 "id": true,
@@ -77,7 +77,7 @@ export const meetingInvite_updateMany = {
                 "dayOfWeek": true,
                 "dayOfMonth": true,
                 "month": true,
-                "endDate": true
+                "endDate": true,
             },
             "runs": {
                 "id": true,
@@ -104,7 +104,7 @@ export const meetingInvite_updateMany = {
                     "root": {
                         "id": true,
                         "isInternal": true,
-                        "isPrivate": true
+                        "isPrivate": true,
                     },
                     "resourceSubType": true,
                     "translations": {
@@ -113,10 +113,10 @@ export const meetingInvite_updateMany = {
                         "description": true,
                         "details": true,
                         "instructions": true,
-                        "name": true
+                        "name": true,
                     },
                     "versionIndex": true,
-                    "versionLabel": true
+                    "versionLabel": true,
                 },
                 "team": {
                     "id": true,
@@ -137,9 +137,9 @@ export const meetingInvite_updateMany = {
                             "createdAt": true,
                             "updatedAt": true,
                             "isAdmin": true,
-                            "permissions": true
-                        }
-                    }
+                            "permissions": true,
+                        },
+                    },
                 },
                 "user": {
                     "id": true,
@@ -150,23 +150,23 @@ export const meetingInvite_updateMany = {
                     "isBot": true,
                     "isBotDepictingPerson": true,
                     "name": true,
-                    "profileImage": true
+                    "profileImage": true,
                 },
                 "you": {
                     "canDelete": true,
                     "canUpdate": true,
-                    "canRead": true
+                    "canRead": true,
                 },
-                "lastStep": true
-            }
+                "lastStep": true,
+            },
         },
         "translations": {
             "id": true,
             "language": true,
             "description": true,
             "link": true,
-            "name": true
-        }
+            "name": true,
+        },
     },
-    "__cacheKey": "-1681688442"
+    "__cacheKey": "-1681688442",
 };

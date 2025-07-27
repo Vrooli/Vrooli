@@ -7,7 +7,7 @@ export const member_updateOne = {
     "permissions": true,
     "you": {
         "canDelete": true,
-        "canUpdate": true
+        "canUpdate": true,
     },
     "team": {
         "id": true,
@@ -31,18 +31,18 @@ export const member_updateOne = {
             "translations": {
                 "id": true,
                 "language": true,
-                "description": true
+                "description": true,
             },
             "you": {
                 "isOwn": true,
-                "isBookmarked": true
-            }
+                "isBookmarked": true,
+            },
         },
         "translations": {
             "id": true,
             "language": true,
             "bio": true,
-            "name": true
+            "name": true,
         },
         "you": {
             "canAddMembers": true,
@@ -58,8 +58,8 @@ export const member_updateOne = {
                 "createdAt": true,
                 "updatedAt": true,
                 "isAdmin": true,
-                "permissions": true
-            }
+                "permissions": true,
+            },
         },
         "config": true,
         "members": {
@@ -71,7 +71,7 @@ export const member_updateOne = {
             "permissions": true,
             "you": {
                 "canDelete": true,
-                "canUpdate": true
+                "canUpdate": true,
             },
             "user": {
                 "id": true,
@@ -91,15 +91,15 @@ export const member_updateOne = {
                     "canReport": true,
                     "canUpdate": true,
                     "isBookmarked": true,
-                    "isViewed": true
+                    "isViewed": true,
                 },
                 "translations": {
                     "id": true,
                     "language": true,
-                    "bio": true
-                }
-            }
-        }
+                    "bio": true,
+                },
+            },
+        },
     },
     "user": {
         "id": true,
@@ -119,14 +119,14 @@ export const member_updateOne = {
             "canReport": true,
             "canUpdate": true,
             "isBookmarked": true,
-            "isViewed": true
+            "isViewed": true,
         },
         "botSettings": true,
         "translations": {
             "id": true,
             "language": true,
-            "bio": true
-        }
+            "bio": true,
+        },
     },
-    "__cacheKey": "506515097"
+    "__cacheKey": "506515097",
 };

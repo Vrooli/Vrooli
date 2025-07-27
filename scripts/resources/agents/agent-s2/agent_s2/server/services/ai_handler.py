@@ -4,6 +4,7 @@ import os
 import logging
 import json
 import subprocess
+import time
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
@@ -265,9 +266,22 @@ Example parameters: {{"x": 100, "y": 200}}, {{"text": "hello"}}, {{"key": "Enter
         try:
             # Take initial screenshot for AI analysis
             screenshot = self.screenshot_service.capture()
+            
+            # Also save screenshot to file for user reference
+            screenshot_filename = f"/tmp/agent-s2-screenshot-{int(time.time())}.png"
+            try:
+                self.screenshot_service.capture_to_file(screenshot_filename, format="png")
+                screenshot_saved = True
+                screenshot_path = screenshot_filename
+            except Exception as e:
+                logger.warning(f"Failed to save screenshot to file: {e}")
+                screenshot_saved = False
+                screenshot_path = None
+            
             actions_taken.append({
                 "action": "screenshot",
-                "result": "Captured current screen state"
+                "result": f"Captured current screen state{f' → Saved to {screenshot_path}' if screenshot_saved else ''}",
+                "screenshot_path": screenshot_path if screenshot_saved else None
             })
             
             # Create AI prompt for command execution
@@ -312,6 +326,19 @@ Current screen state captured. Provide specific automation actions to execute th
             
             # Execute the actions
             executed_actions = []
+            
+            # Check if this command is about saving a screenshot
+            is_screenshot_save_command = any(word in command.lower() for word in ["save", "capture", "screenshot"])
+            custom_filename = None
+            if "save" in command.lower() and "as" in command.lower():
+                # Try to extract filename from command like "save it as desktop_capture.png"
+                import re
+                filename_match = re.search(r'save.*?as\s+([^\s\.]+(?:\.[a-z]+)?)', command.lower())
+                if filename_match:
+                    custom_filename = filename_match.group(1)
+                    if not custom_filename.endswith(('.png', '.jpg', '.jpeg')):
+                        custom_filename += '.png'
+            
             for action in ai_actions:
                 try:
                     if action.get("type") == "click":
@@ -356,6 +383,30 @@ Current screen state captured. Provide specific automation actions to execute th
                             "result": action.get("description", f"Waited {duration}s"),
                             "status": "success"
                         })
+                        
+                    elif action.get("type") == "screenshot" or (action.get("type") in ["capture", "save"] and is_screenshot_save_command):
+                        # Take an additional screenshot and save with custom name if specified
+                        if custom_filename:
+                            save_path = f"/tmp/{custom_filename}"
+                        else:
+                            save_path = f"/tmp/agent-s2-user-screenshot-{int(time.time())}.png"
+                        
+                        try:
+                            self.screenshot_service.capture_to_file(save_path, format="png")
+                            executed_actions.append({
+                                "action": "screenshot_save",
+                                "parameters": {"filename": save_path},
+                                "result": f"Screenshot saved to {save_path}",
+                                "status": "success",
+                                "screenshot_path": save_path
+                            })
+                        except Exception as save_error:
+                            executed_actions.append({
+                                "action": "screenshot_save",
+                                "parameters": {"filename": save_path},
+                                "result": f"Failed to save screenshot: {save_error}",
+                                "status": "failed"
+                            })
                         
                 except Exception as action_error:
                     executed_actions.append({

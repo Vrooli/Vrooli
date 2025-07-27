@@ -8,12 +8,12 @@ export const reputationHistory_findMany = {
             "amount": true,
             "event": true,
             "objectId1": true,
-            "objectId2": true
-        }
+            "objectId2": true,
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "846815209"
+    "__cacheKey": "846815209",
 };

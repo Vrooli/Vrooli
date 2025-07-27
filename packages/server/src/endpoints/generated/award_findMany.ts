@@ -9,12 +9,12 @@ export const award_findMany = {
             "category": true,
             "progress": true,
             "title": true,
-            "description": true
-        }
+            "description": true,
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "-1248180091"
+    "__cacheKey": "-1248180091",
 };

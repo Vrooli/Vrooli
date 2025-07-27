@@ -18,18 +18,18 @@ export const reminder_findMany = {
                 "description": true,
                 "dueDate": true,
                 "index": true,
-                "isComplete": true
+                "isComplete": true,
             },
             "reminderList": {
                 "id": true,
                 "createdAt": true,
-                "updatedAt": true
-            }
-        }
+                "updatedAt": true,
+            },
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "1292331446"
+    "__cacheKey": "1292331446",
 };

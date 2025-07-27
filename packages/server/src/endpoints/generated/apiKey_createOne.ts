@@ -7,5 +7,5 @@ export const apiKey_createOne = {
     "name": true,
     "stopAtLimit": true,
     "key": true,
-    "__cacheKey": "850848244"
+    "__cacheKey": "850848244",
 };

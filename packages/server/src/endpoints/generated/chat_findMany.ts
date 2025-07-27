@@ -29,14 +29,14 @@ export const chat_findMany = {
                         "canReport": true,
                         "canUpdate": true,
                         "isBookmarked": true,
-                        "isViewed": true
+                        "isViewed": true,
                     },
                     "translations": {
                         "id": true,
                         "language": true,
-                        "bio": true
-                    }
-                }
+                        "bio": true,
+                    },
+                },
             },
             "team": {
                 "id": true,
@@ -57,28 +57,28 @@ export const chat_findMany = {
                         "createdAt": true,
                         "updatedAt": true,
                         "isAdmin": true,
-                        "permissions": true
-                    }
-                }
+                        "permissions": true,
+                    },
+                },
             },
             "participantsCount": true,
             "invitesCount": true,
             "you": {
                 "canDelete": true,
                 "canInvite": true,
-                "canUpdate": true
+                "canUpdate": true,
             },
             "translations": {
                 "id": true,
                 "language": true,
                 "description": true,
-                "name": true
-            }
-        }
+                "name": true,
+            },
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "932711821"
+    "__cacheKey": "932711821",
 };

@@ -13,11 +13,11 @@ export const chatInvite_updateOne = {
         "isBot": true,
         "isBotDepictingPerson": true,
         "name": true,
-        "profileImage": true
+        "profileImage": true,
     },
     "you": {
         "canDelete": true,
-        "canUpdate": true
+        "canUpdate": true,
     },
     "chat": {
         "id": true,
@@ -47,14 +47,14 @@ export const chatInvite_updateOne = {
                     "canReport": true,
                     "canUpdate": true,
                     "isBookmarked": true,
-                    "isViewed": true
+                    "isViewed": true,
                 },
                 "translations": {
                     "id": true,
                     "language": true,
-                    "bio": true
-                }
-            }
+                    "bio": true,
+                },
+            },
         },
         "team": {
             "id": true,
@@ -75,23 +75,23 @@ export const chatInvite_updateOne = {
                     "createdAt": true,
                     "updatedAt": true,
                     "isAdmin": true,
-                    "permissions": true
-                }
-            }
+                    "permissions": true,
+                },
+            },
         },
         "participantsCount": true,
         "invitesCount": true,
         "you": {
             "canDelete": true,
             "canInvite": true,
-            "canUpdate": true
+            "canUpdate": true,
         },
         "translations": {
             "id": true,
             "language": true,
             "description": true,
-            "name": true
-        }
+            "name": true,
+        },
     },
-    "__cacheKey": "1714839352"
+    "__cacheKey": "1714839352",
 };

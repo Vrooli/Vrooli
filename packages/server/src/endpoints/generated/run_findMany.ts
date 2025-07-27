@@ -26,7 +26,7 @@ export const run_findMany = {
                 "root": {
                     "id": true,
                     "isInternal": true,
-                    "isPrivate": true
+                    "isPrivate": true,
                 },
                 "resourceSubType": true,
                 "translations": {
@@ -35,10 +35,10 @@ export const run_findMany = {
                     "description": true,
                     "details": true,
                     "instructions": true,
-                    "name": true
+                    "name": true,
                 },
                 "versionIndex": true,
-                "versionLabel": true
+                "versionLabel": true,
             },
             "team": {
                 "id": true,
@@ -59,9 +59,9 @@ export const run_findMany = {
                         "createdAt": true,
                         "updatedAt": true,
                         "isAdmin": true,
-                        "permissions": true
-                    }
-                }
+                        "permissions": true,
+                    },
+                },
             },
             "user": {
                 "id": true,
@@ -72,19 +72,19 @@ export const run_findMany = {
                 "isBot": true,
                 "isBotDepictingPerson": true,
                 "name": true,
-                "profileImage": true
+                "profileImage": true,
             },
             "you": {
                 "canDelete": true,
                 "canUpdate": true,
-                "canRead": true
+                "canRead": true,
             },
-            "lastStep": true
-        }
+            "lastStep": true,
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "-1114935905"
+    "__cacheKey": "-1114935905",
 };

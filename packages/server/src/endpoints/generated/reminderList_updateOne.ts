@@ -19,8 +19,8 @@ export const reminderList_updateOne = {
             "description": true,
             "dueDate": true,
             "index": true,
-            "isComplete": true
-        }
+            "isComplete": true,
+        },
     },
-    "__cacheKey": "1007576451"
+    "__cacheKey": "1007576451",
 };

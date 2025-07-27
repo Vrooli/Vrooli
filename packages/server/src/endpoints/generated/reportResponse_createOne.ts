@@ -19,12 +19,12 @@ export const reportResponse_createOne = {
             "canDelete": true,
             "canRespond": true,
             "canUpdate": true,
-            "isOwn": true
-        }
+            "isOwn": true,
+        },
     },
     "you": {
         "canDelete": true,
-        "canUpdate": true
+        "canUpdate": true,
     },
-    "__cacheKey": "-59472665"
+    "__cacheKey": "-59472665",
 };

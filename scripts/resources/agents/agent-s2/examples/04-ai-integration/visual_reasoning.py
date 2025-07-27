@@ -92,7 +92,7 @@ def visual_element_interaction():
         input(f"\nPress Enter to execute: '{task['command']}'")
         
         response = requests.post(
-            f"{API_BASE_URL}/execute/ai",
+            f"{API_BASE_URL}/ai/command",
             json={
                 "command": task["command"],
                 "context": task["context"]
@@ -133,7 +133,7 @@ def icon_and_symbol_recognition():
         input(f"\nPress Enter to find icon: '{task['command']}'")
         
         response = requests.post(
-            f"{API_BASE_URL}/execute/ai",
+            f"{API_BASE_URL}/ai/command",
             json={
                 "command": task["command"],
                 "context": task["context"]
@@ -177,7 +177,7 @@ def spatial_reasoning_demo():
         input(f"\nPress Enter for spatial task: '{task['command']}'")
         
         response = requests.post(
-            f"{API_BASE_URL}/execute/ai",
+            f"{API_BASE_URL}/ai/command",
             json={
                 "command": task["command"],
                 "context": task["context"]
@@ -226,7 +226,7 @@ def dynamic_scene_adaptation():
         input(f"\nPress Enter to adapt: '{cmd['command']}'")
         
         response = requests.post(
-            f"{API_BASE_URL}/execute/ai",
+            f"{API_BASE_URL}/ai/command",
             json={
                 "command": cmd["command"],
                 "context": cmd["context"]
@@ -263,7 +263,7 @@ def visual_search_and_find():
         
         # Then interact with it
         response = requests.post(
-            f"{API_BASE_URL}/execute/ai",
+            f"{API_BASE_URL}/ai/command",
             json={
                 "command": f"Click on {target} if you found it",
                 "context": "Based on your visual analysis"
@@ -292,7 +292,7 @@ def screenshot_comparison_demo():
     # Make some changes
     print("\n🎯 Making automated changes...")
     requests.post(
-        f"{API_BASE_URL}/execute/ai",
+        f"{API_BASE_URL}/ai/command",
         json={
             "command": "Move the mouse around and click somewhere randomly",
             "context": "Create some visual changes"
@@ -312,7 +312,7 @@ def screenshot_comparison_demo():
     
     # Act on differences
     response = requests.post(
-        f"{API_BASE_URL}/execute/ai",
+        f"{API_BASE_URL}/ai/command",
         json={
             "command": "Click on the area that changed the most",
             "context": "Based on the screenshot comparison"
@@ -354,7 +354,7 @@ def pattern_recognition_demo():
         
         # AI continues the pattern
         response = requests.post(
-            f"{API_BASE_URL}/execute/ai",
+            f"{API_BASE_URL}/ai/command",
             json={
                 "command": pattern["command"],
                 "context": pattern["context"]

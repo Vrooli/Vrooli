@@ -6,11 +6,11 @@ export const tag_findOne = {
     "translations": {
         "id": true,
         "language": true,
-        "description": true
+        "description": true,
     },
     "you": {
         "isOwn": true,
-        "isBookmarked": true
+        "isBookmarked": true,
     },
-    "__cacheKey": "1280968376"
+    "__cacheKey": "1280968376",
 };

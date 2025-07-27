@@ -22,18 +22,18 @@ export const reportResponse_findMany = {
                     "canDelete": true,
                     "canRespond": true,
                     "canUpdate": true,
-                    "isOwn": true
-                }
+                    "isOwn": true,
+                },
             },
             "you": {
                 "canDelete": true,
-                "canUpdate": true
-            }
-        }
+                "canUpdate": true,
+            },
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "-662885085"
+    "__cacheKey": "-662885085",
 };

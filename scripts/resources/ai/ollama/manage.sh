@@ -792,11 +792,27 @@ ollama::install() {
     fi
     
     # Validate port assignment
-    if ! resources::validate_port "ollama" "$OLLAMA_PORT" "$FORCE"; then
-        log::error "Port validation failed for Ollama"
-        log::info "You can set a custom port with: export OLLAMA_CUSTOM_PORT=<port>"
-        return 1
-    fi
+    local port_validation_result
+    resources::validate_port "ollama" "$OLLAMA_PORT" "$FORCE"
+    port_validation_result=$?
+    
+    case "$port_validation_result" in
+        0)
+            log::info "Port $OLLAMA_PORT validated successfully for Ollama"
+            ;;
+        1)
+            log::error "Port validation failed for Ollama - critical conflict"
+            log::info "You can set a custom port with: export OLLAMA_CUSTOM_PORT=<port>"
+            return 1
+            ;;
+        2)
+            log::warn "Port validation returned warnings for Ollama, but continuing"
+            log::info "Installation may succeed if the existing service is compatible"
+            ;;
+        *)
+            log::warn "Unexpected port validation result: $port_validation_result"
+            ;;
+    esac
     
     # Check network connectivity
     if ! curl -s --max-time 5 https://ollama.com > /dev/null; then

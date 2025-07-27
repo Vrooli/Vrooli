@@ -9,15 +9,15 @@ export const auth_walletComplete = {
             "id": true,
             "languages": true,
             "name": true,
-            "theme": true
-        }
+            "theme": true,
+        },
     },
     "wallet": {
         "id": true,
         "name": true,
         "publicAddress": true,
         "stakingAddress": true,
-        "verifiedAt": true
+        "verifiedAt": true,
     },
-    "__cacheKey": "2062394276"
+    "__cacheKey": "2062394276",
 };

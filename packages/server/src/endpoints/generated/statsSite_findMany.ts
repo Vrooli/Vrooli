@@ -17,12 +17,12 @@ export const statsSite_findMany = {
             "runsStarted": true,
             "runsCompleted": true,
             "runCompletionTimeAverage": true,
-            "runContextSwitchesAverage": true
-        }
+            "runContextSwitchesAverage": true,
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "409202733"
+    "__cacheKey": "409202733",
 };

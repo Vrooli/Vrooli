@@ -25,9 +25,9 @@ export const memberInvite_createOne = {
                 "createdAt": true,
                 "updatedAt": true,
                 "isAdmin": true,
-                "permissions": true
-            }
-        }
+                "permissions": true,
+            },
+        },
     },
     "user": {
         "id": true,
@@ -38,11 +38,11 @@ export const memberInvite_createOne = {
         "isBot": true,
         "isBotDepictingPerson": true,
         "name": true,
-        "profileImage": true
+        "profileImage": true,
     },
     "you": {
         "canDelete": true,
-        "canUpdate": true
+        "canUpdate": true,
     },
-    "__cacheKey": "-1114681364"
+    "__cacheKey": "-1114681364",
 };

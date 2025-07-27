@@ -11,12 +11,12 @@ export const statsTeam_findMany = {
             "runsStarted": true,
             "runsCompleted": true,
             "runCompletionTimeAverage": true,
-            "runContextSwitchesAverage": true
-        }
+            "runContextSwitchesAverage": true,
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "-555724487"
+    "__cacheKey": "-555724487",
 };

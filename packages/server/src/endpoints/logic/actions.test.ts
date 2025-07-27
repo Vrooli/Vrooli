@@ -1,10 +1,9 @@
-import { type CopyInput, type DeleteAccountInput, type DeleteAllInput, type DeleteManyInput, type DeleteOneInput, DeleteType, generatePK, type Count } from "@vrooli/shared";
+import { CopyType, DeleteType, generatePK, generatePublicId, type CopyInput, type DeleteAccountInput, type DeleteAllInput, type DeleteManyInput, type DeleteOneInput } from "@vrooli/shared";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { mockAuthenticatedSession, mockLoggedOutSession, mockApiSession, mockWritePrivatePermissions, mockWriteAuthPermissions } from "../../__test/session.js";
-import { assertRequiresAuth, assertRequiresApiKeyWritePermissions } from "../../__test/authTestUtils.js";
+import { assertRequiresApiKeyWritePermissions, assertRequiresAuth } from "../../__test/authTestUtils.js";
 import { expectCustomErrorAsync } from "../../__test/errorTestUtils.js";
+import { mockApiSession, mockAuthenticatedSession, mockWriteAuthPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
-import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { CacheService } from "../../redisConn.js";
 import { actions_copy } from "../generated/actions_copy.js";
@@ -13,14 +12,14 @@ import { actions_deleteAll } from "../generated/actions_deleteAll.js";
 import { actions_deleteOne } from "../generated/actions_deleteOne.js";
 import { actions } from "./actions.js";
 // Import database fixtures
-import { seedTestUsers, UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
-import { TeamDbFactory } from "../../__test/fixtures/db/teamFixtures.js";
+import { AUTH_PROVIDERS } from "@vrooli/shared";
 import { createResourceDbFactory } from "../../__test/fixtures/db/index.js";
 import { createRunDbFactory } from "../../__test/fixtures/db/RunDbFactory.js";
-import { PasswordAuthService } from "../../auth/email.js";
-import { AUTH_PROVIDERS } from "@vrooli/shared";
+import { TeamDbFactory } from "../../__test/fixtures/db/teamFixtures.js";
+import { seedTestUsers, UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
+import { PasswordAuthService } from "../../auth/email.js";
 
 describe("EndpointsActions", () => {
     beforeAll(async () => {
@@ -31,9 +30,12 @@ describe("EndpointsActions", () => {
     });
 
     afterEach(async () => {
+        // Perform cleanup using dependency-ordered cleanup helpers
+        await cleanupGroups.userAuth(DbProvider.get());
+
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","phone","push_device","session"],
+            tables: ["user", "user_auth", "email", "phone", "push_device", "session"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
@@ -58,7 +60,7 @@ describe("EndpointsActions", () => {
             it("not logged in", async () => {
                 await assertRequiresAuth(
                     actions.copy,
-                    { objectType: DeleteType.Note, id: generatePK() },
+                    { objectType: CopyType.Resource, id: generatePK().toString(), intendToPullRequest: false },
                     actions_copy,
                 );
             });
@@ -66,7 +68,7 @@ describe("EndpointsActions", () => {
             it("API key - no write permissions", async () => {
                 await assertRequiresApiKeyWritePermissions(
                     actions.copy,
-                    { objectType: DeleteType.Note, id: generatePK() },
+                    { objectType: CopyType.Resource, id: generatePK().toString(), intendToPullRequest: false },
                     actions_copy,
                 );
             });
@@ -75,12 +77,12 @@ describe("EndpointsActions", () => {
         describe("valid", () => {
             it("copies own note", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create factory instance for note resources
                 const resourceFactory = createResourceDbFactory(DbProvider.get());
-                
+
                 // Create a note to copy
-                const { resource: originalNote, versions } = await resourceFactory.createWithVersions(1, {
+                const { resource: originalNote, versions: _versions } = await resourceFactory.createWithVersions(1, {
                     resourceType: "Note",
                     ownedByUser: { connect: { id: testUser[0].id } },
                     isPrivate: false,
@@ -91,36 +93,37 @@ describe("EndpointsActions", () => {
                 });
 
                 const input: CopyInput = {
-                    objectType: DeleteType.Note,
+                    objectType: CopyType.Resource,
                     id: originalNote.id.toString(),
+                    intendToPullRequest: false,
                 };
 
                 const result = await actions.copy({ input }, { req, res }, actions_copy);
 
                 expect(result).toBeDefined();
                 expect(result.__typename).toBe("CopyResult");
-                expect(result.note).toBeDefined();
-                expect(result.note?.id).not.toBe(originalNote.id.toString());
-                expect(result.note?.isPrivate).toBe(originalNote.isPrivate);
-                
+                expect(result.resourceVersion).toBeDefined();
+                expect(result.resourceVersion?.id).not.toBe(originalNote.id.toString());
+                expect(result.resourceVersion?.isPrivate).toBe(originalNote.isPrivate);
+
                 // Verify copy was created in database
                 const copiedNote = await DbProvider.get().resource.findUnique({
-                    where: { id: BigInt(result.note!.id) },
+                    where: { id: BigInt(result.resourceVersion!.id) },
                     include: { versions: true },
                 });
                 expect(copiedNote).toBeDefined();
                 expect(copiedNote?.resourceType).toBe("Note");
-                expect(copiedNote?.versions[0].name).toContain("Copy of");
+                expect(copiedNote?.versions[0].versionLabel).toContain("Copy of");
             });
 
             it("copies own project", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create factory instance for project resources
                 const resourceFactory = createResourceDbFactory(DbProvider.get());
-                
+
                 // Create a project to copy
-                const { resource: originalProject, versions } = await resourceFactory.createWithVersions(1, {
+                const { resource: originalProject, versions: _versions } = await resourceFactory.createWithVersions(1, {
                     resourceType: "Project",
                     ownedByUser: { connect: { id: testUser[0].id } },
                     isPrivate: false,
@@ -131,31 +134,32 @@ describe("EndpointsActions", () => {
                 });
 
                 const input: CopyInput = {
-                    objectType: DeleteType.Project,
+                    objectType: CopyType.Resource,
                     id: originalProject.id.toString(),
+                    intendToPullRequest: false,
                 };
 
                 const result = await actions.copy({ input }, { req, res }, actions_copy);
 
                 expect(result).toBeDefined();
                 expect(result.__typename).toBe("CopyResult");
-                expect(result.project).toBeDefined();
-                expect(result.project?.id).not.toBe(originalProject.id.toString());
-                expect(result.project?.resourceType).toBe("Project");
+                expect(result.resourceVersion).toBeDefined();
+                expect(result.resourceVersion?.id).not.toBe(originalProject.id.toString());
+                expect(result.resourceVersion?.id).not.toBe(originalProject.id.toString());
             });
 
             it("copies team project as team member", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create team with user as member
-                const teamFactory = new TeamDbFactory(DbProvider.get());
+                const teamFactory = new TeamDbFactory();
                 const team = await teamFactory.createMinimal({
                     ownedByUser: { connect: { id: testUser[0].id } },
                 });
 
                 // Create team project
                 const resourceFactory = createResourceDbFactory(DbProvider.get());
-                const { resource: teamProject, versions } = await resourceFactory.createWithVersions(1, {
+                const { resource: teamProject, versions: _versions } = await resourceFactory.createWithVersions(1, {
                     resourceType: "Project",
                     ownedByUser: { connect: { id: testUser[0].id } },
                     ownedByTeam: { connect: { id: team.id } },
@@ -167,25 +171,26 @@ describe("EndpointsActions", () => {
                 });
 
                 const input: CopyInput = {
-                    objectType: DeleteType.Project,
+                    objectType: CopyType.Resource,
                     id: teamProject.id.toString(),
+                    intendToPullRequest: false,
                 };
 
                 const result = await actions.copy({ input }, { req, res }, actions_copy);
 
                 expect(result).toBeDefined();
-                expect(result.project).toBeDefined();
-                expect(result.project?.id).not.toBe(teamProject.id.toString());
+                expect(result.resourceVersion).toBeDefined();
+                expect(result.resourceVersion?.id).not.toBe(teamProject.id.toString());
             });
         });
 
         describe("invalid", () => {
             it("cannot copy private object from another user", async () => {
                 const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
-                
+
                 // Create factory instance for note resources
                 const resourceFactory = createResourceDbFactory(DbProvider.get());
-                
+
                 // Create private note by user 1
                 const { resource: privateNote } = await resourceFactory.createWithVersions(1, {
                     resourceType: "Note",
@@ -199,8 +204,9 @@ describe("EndpointsActions", () => {
                 });
 
                 const input: CopyInput = {
-                    objectType: DeleteType.Note,
+                    objectType: CopyType.Resource,
                     id: privateNote.id.toString(),
+                    intendToPullRequest: false,
                 };
 
                 await expectCustomErrorAsync(
@@ -217,8 +223,9 @@ describe("EndpointsActions", () => {
                 });
 
                 const input: CopyInput = {
-                    objectType: DeleteType.Note,
-                    id: generatePK(),
+                    objectType: CopyType.Resource,
+                    id: generatePK().toString(),
+                    intendToPullRequest: false,
                 };
 
                 await expectCustomErrorAsync(
@@ -235,7 +242,7 @@ describe("EndpointsActions", () => {
             it("not logged in", async () => {
                 await assertRequiresAuth(
                     actions.deleteOne,
-                    { objectType: DeleteType.Note, id: generatePK() },
+                    { objectType: DeleteType.Resource, id: generatePK().toString() },
                     actions_deleteOne,
                 );
             });
@@ -243,7 +250,7 @@ describe("EndpointsActions", () => {
             it("API key - no write permissions", async () => {
                 await assertRequiresApiKeyWritePermissions(
                     actions.deleteOne,
-                    { objectType: DeleteType.Note, id: generatePK() },
+                    { objectType: DeleteType.Resource, id: generatePK().toString() },
                     actions_deleteOne,
                 );
             });
@@ -252,7 +259,7 @@ describe("EndpointsActions", () => {
         describe("valid", () => {
             it("deletes own note", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create a note to delete
                 const resourceFactory = createResourceDbFactory(DbProvider.get());
                 const { resource: note } = await resourceFactory.createWithVersions(1, {
@@ -265,7 +272,7 @@ describe("EndpointsActions", () => {
                 });
 
                 const input: DeleteOneInput = {
-                    objectType: DeleteType.Note,
+                    objectType: DeleteType.Resource,
                     id: note.id.toString(),
                 };
 
@@ -284,9 +291,9 @@ describe("EndpointsActions", () => {
 
             it("deletes team project as team owner", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create team with user as owner
-                const teamFactory = new TeamDbFactory(DbProvider.get());
+                const teamFactory = new TeamDbFactory();
                 const team = await teamFactory.createMinimal({
                     ownedByUser: { connect: { id: testUser[0].id } },
                 });
@@ -304,7 +311,7 @@ describe("EndpointsActions", () => {
                 });
 
                 const input: DeleteOneInput = {
-                    objectType: DeleteType.Project,
+                    objectType: DeleteType.Resource,
                     id: project.id.toString(),
                 };
 
@@ -317,7 +324,7 @@ describe("EndpointsActions", () => {
         describe("invalid", () => {
             it("cannot delete another user's object", async () => {
                 const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
-                
+
                 // Create note by user 1
                 const resourceFactory = createResourceDbFactory(DbProvider.get());
                 const { resource: note } = await resourceFactory.createWithVersions(1, {
@@ -331,7 +338,7 @@ describe("EndpointsActions", () => {
                 });
 
                 const input: DeleteOneInput = {
-                    objectType: DeleteType.Note,
+                    objectType: DeleteType.Resource,
                     id: note.id.toString(),
                 };
 
@@ -344,17 +351,18 @@ describe("EndpointsActions", () => {
 
             it("cannot delete team object without permission", async () => {
                 const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
-                
+
                 // Create team with user 1 as owner, user 2 as member without delete permission
-                const teamFactory = new TeamDbFactory(DbProvider.get());
+                const teamFactory = new TeamDbFactory();
                 const team = await teamFactory.createMinimal({
                     ownedByUser: { connect: { id: testUsers[0].id } },
                 });
-                
+
                 // Add user 2 as member without delete permission
-                await DbProvider.get().team_member.create({
+                await DbProvider.get().member.create({
                     data: {
                         id: generatePK(),
+                        publicId: generatePublicId(),
                         teamId: team.id,
                         userId: testUsers[1].id,
                         permissions: "[\"viewChildObjects\"]", // No delete permission
@@ -375,7 +383,7 @@ describe("EndpointsActions", () => {
                 });
 
                 const input: DeleteOneInput = {
-                    objectType: DeleteType.Project,
+                    objectType: DeleteType.Resource,
                     id: project.id.toString(),
                 };
 
@@ -410,7 +418,7 @@ describe("EndpointsActions", () => {
         describe("valid", () => {
             it("deletes multiple own notes", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create multiple notes
                 const resourceFactory = createResourceDbFactory(DbProvider.get());
                 const notes = await Promise.all([
@@ -449,7 +457,7 @@ describe("EndpointsActions", () => {
 
             it("deletes only authorized objects", async () => {
                 const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
-                
+
                 // Create notes by different users
                 const resourceFactory = createResourceDbFactory(DbProvider.get());
                 const notes = await Promise.all([
@@ -490,7 +498,7 @@ describe("EndpointsActions", () => {
         describe("invalid", () => {
             it("returns 0 when no objects can be deleted", async () => {
                 const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
-                
+
                 // Create notes by user 1
                 const resourceFactory = createResourceDbFactory(DbProvider.get());
                 const notes = await Promise.all([
@@ -552,12 +560,12 @@ describe("EndpointsActions", () => {
         describe("valid", () => {
             it("deletes all Run for user", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create resource and runs
                 const resourceFactory = createResourceDbFactory(DbProvider.get());
                 const runFactory = createRunDbFactory(DbProvider.get());
-                
-                const { resource: project, versions } = await resourceFactory.createWithVersions(1, {
+
+                const { resource: _project, versions: _versions } = await resourceFactory.createWithVersions(1, {
                     resourceType: "Project",
                     ownedByUser: { connect: { id: testUser[0].id } },
                 });
@@ -610,17 +618,17 @@ describe("EndpointsActions", () => {
 
             it("deletes multiple object types", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create run projects and routines
                 const resourceFactory = createResourceDbFactory(DbProvider.get());
                 const runFactory = createRunDbFactory(DbProvider.get());
-                
-                const { resource: project, versions: projectVersions } = await resourceFactory.createWithVersions(1, {
+
+                const { resource: _project, versions: projectVersions } = await resourceFactory.createWithVersions(1, {
                     resourceType: "Project",
                     ownedByUser: { connect: { id: testUser[0].id } },
                 });
 
-                const { resource: routine, versions: routineVersions } = await resourceFactory.createWithVersions(1, {
+                const { resource: _routine, versions: routineVersions } = await resourceFactory.createWithVersions(1, {
                     resourceType: "Routine",
                     ownedByUser: { connect: { id: testUser[0].id } },
                 });
@@ -699,7 +707,7 @@ describe("EndpointsActions", () => {
             it("deletes account with correct password", async () => {
                 const password = "SecurePassword123!";
                 const hashedPassword = PasswordAuthService.hashPassword(password);
-                
+
                 // Create user with password
                 const testUser = await DbProvider.get().user.create({
                     data: UserDbFactory.createWithAuth({
@@ -742,7 +750,7 @@ describe("EndpointsActions", () => {
             it("fails with incorrect password", async () => {
                 const password = "SecurePassword123!";
                 const hashedPassword = PasswordAuthService.hashPassword(password);
-                
+
                 // Create user with password
                 const testUser = await DbProvider.get().user.create({
                     data: UserDbFactory.createWithAuth({

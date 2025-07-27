@@ -30,9 +30,9 @@ export const notificationSubscription_findMany = {
                                     "createdAt": true,
                                     "updatedAt": true,
                                     "isAdmin": true,
-                                    "permissions": true
-                                }
-                            }
+                                    "permissions": true,
+                                },
+                            },
                         },
                         "User": {
                             "id": true,
@@ -43,8 +43,8 @@ export const notificationSubscription_findMany = {
                             "isBot": true,
                             "isBotDepictingPerson": true,
                             "name": true,
-                            "profileImage": true
-                        }
+                            "profileImage": true,
+                        },
                     },
                     "score": true,
                     "bookmarks": true,
@@ -57,13 +57,13 @@ export const notificationSubscription_findMany = {
                         "canUpdate": true,
                         "canReact": true,
                         "isBookmarked": true,
-                        "reaction": true
+                        "reaction": true,
                     },
                     "translations": {
                         "id": true,
                         "language": true,
-                        "text": true
-                    }
+                        "text": true,
+                    },
                 },
                 "Issue": {
                     "id": true,
@@ -77,7 +77,7 @@ export const notificationSubscription_findMany = {
                         "Resource": {
                             "id": true,
                             "isInternal": true,
-                            "isPrivate": true
+                            "isPrivate": true,
                         },
                         "Team": {
                             "id": true,
@@ -98,10 +98,10 @@ export const notificationSubscription_findMany = {
                                     "createdAt": true,
                                     "updatedAt": true,
                                     "isAdmin": true,
-                                    "permissions": true
-                                }
-                            }
-                        }
+                                    "permissions": true,
+                                },
+                            },
+                        },
                     },
                     "commentsCount": true,
                     "reportsCount": true,
@@ -117,14 +117,14 @@ export const notificationSubscription_findMany = {
                         "canRead": true,
                         "canReact": true,
                         "isBookmarked": true,
-                        "reaction": true
+                        "reaction": true,
                     },
                     "translations": {
                         "id": true,
                         "language": true,
                         "description": true,
-                        "name": true
-                    }
+                        "name": true,
+                    },
                 },
                 "Meeting": {
                     "id": true,
@@ -152,16 +152,16 @@ export const notificationSubscription_findMany = {
                                 "createdAt": true,
                                 "updatedAt": true,
                                 "isAdmin": true,
-                                "permissions": true
-                            }
-                        }
+                                "permissions": true,
+                            },
+                        },
                     },
                     "attendeesCount": true,
                     "invitesCount": true,
                     "you": {
                         "canDelete": true,
                         "canInvite": true,
-                        "canUpdate": true
+                        "canUpdate": true,
                     },
                     "schedule": {
                         "id": true,
@@ -175,7 +175,7 @@ export const notificationSubscription_findMany = {
                             "id": true,
                             "originalStartTime": true,
                             "newStartTime": true,
-                            "newEndTime": true
+                            "newEndTime": true,
                         },
                         "recurrences": {
                             "id": true,
@@ -184,7 +184,7 @@ export const notificationSubscription_findMany = {
                             "dayOfWeek": true,
                             "dayOfMonth": true,
                             "month": true,
-                            "endDate": true
+                            "endDate": true,
                         },
                         "runs": {
                             "id": true,
@@ -211,7 +211,7 @@ export const notificationSubscription_findMany = {
                                 "root": {
                                     "id": true,
                                     "isInternal": true,
-                                    "isPrivate": true
+                                    "isPrivate": true,
                                 },
                                 "resourceSubType": true,
                                 "translations": {
@@ -220,10 +220,10 @@ export const notificationSubscription_findMany = {
                                     "description": true,
                                     "details": true,
                                     "instructions": true,
-                                    "name": true
+                                    "name": true,
                                 },
                                 "versionIndex": true,
-                                "versionLabel": true
+                                "versionLabel": true,
                             },
                             "team": {
                                 "id": true,
@@ -244,9 +244,9 @@ export const notificationSubscription_findMany = {
                                         "createdAt": true,
                                         "updatedAt": true,
                                         "isAdmin": true,
-                                        "permissions": true
-                                    }
-                                }
+                                        "permissions": true,
+                                    },
+                                },
                             },
                             "user": {
                                 "id": true,
@@ -257,23 +257,23 @@ export const notificationSubscription_findMany = {
                                 "isBot": true,
                                 "isBotDepictingPerson": true,
                                 "name": true,
-                                "profileImage": true
+                                "profileImage": true,
                             },
                             "you": {
                                 "canDelete": true,
                                 "canUpdate": true,
-                                "canRead": true
+                                "canRead": true,
                             },
-                            "lastStep": true
-                        }
+                            "lastStep": true,
+                        },
                     },
                     "translations": {
                         "id": true,
                         "language": true,
                         "description": true,
                         "link": true,
-                        "name": true
-                    }
+                        "name": true,
+                    },
                 },
                 "PullRequest": {
                     "id": true,
@@ -312,7 +312,7 @@ export const notificationSubscription_findMany = {
                                 "canRun": true,
                                 "canUpdate": true,
                                 "canRead": true,
-                                "canReact": true
+                                "canReact": true,
                             },
                             "root": {
                                 "id": true,
@@ -343,9 +343,9 @@ export const notificationSubscription_findMany = {
                                                 "createdAt": true,
                                                 "updatedAt": true,
                                                 "isAdmin": true,
-                                                "permissions": true
-                                            }
-                                        }
+                                                "permissions": true,
+                                            },
+                                        },
                                     },
                                     "User": {
                                         "id": true,
@@ -356,8 +356,8 @@ export const notificationSubscription_findMany = {
                                         "isBot": true,
                                         "isBotDepictingPerson": true,
                                         "name": true,
-                                        "profileImage": true
-                                    }
+                                        "profileImage": true,
+                                    },
                                 },
                                 "permissions": true,
                                 "resourceType": true,
@@ -370,12 +370,12 @@ export const notificationSubscription_findMany = {
                                     "translations": {
                                         "id": true,
                                         "language": true,
-                                        "description": true
+                                        "description": true,
                                     },
                                     "you": {
                                         "isOwn": true,
-                                        "isBookmarked": true
-                                    }
+                                        "isBookmarked": true,
+                                    },
                                 },
                                 "transfersCount": true,
                                 "views": true,
@@ -388,8 +388,8 @@ export const notificationSubscription_findMany = {
                                     "canReact": true,
                                     "isBookmarked": true,
                                     "isViewed": true,
-                                    "reaction": true
-                                }
+                                    "reaction": true,
+                                },
                             },
                             "translations": {
                                 "id": true,
@@ -397,9 +397,9 @@ export const notificationSubscription_findMany = {
                                 "description": true,
                                 "details": true,
                                 "instructions": true,
-                                "name": true
-                            }
-                        }
+                                "name": true,
+                            },
+                        },
                     },
                     "to": {
                         "Resource": {
@@ -431,9 +431,9 @@ export const notificationSubscription_findMany = {
                                             "createdAt": true,
                                             "updatedAt": true,
                                             "isAdmin": true,
-                                            "permissions": true
-                                        }
-                                    }
+                                            "permissions": true,
+                                        },
+                                    },
                                 },
                                 "User": {
                                     "id": true,
@@ -444,8 +444,8 @@ export const notificationSubscription_findMany = {
                                     "isBot": true,
                                     "isBotDepictingPerson": true,
                                     "name": true,
-                                    "profileImage": true
-                                }
+                                    "profileImage": true,
+                                },
                             },
                             "permissions": true,
                             "resourceType": true,
@@ -458,12 +458,12 @@ export const notificationSubscription_findMany = {
                                 "translations": {
                                     "id": true,
                                     "language": true,
-                                    "description": true
+                                    "description": true,
                                 },
                                 "you": {
                                     "isOwn": true,
-                                    "isBookmarked": true
-                                }
+                                    "isBookmarked": true,
+                                },
                             },
                             "transfersCount": true,
                             "views": true,
@@ -476,7 +476,7 @@ export const notificationSubscription_findMany = {
                                 "canReact": true,
                                 "isBookmarked": true,
                                 "isViewed": true,
-                                "reaction": true
+                                "reaction": true,
                             },
                             "versions": {
                                 "id": true,
@@ -506,7 +506,7 @@ export const notificationSubscription_findMany = {
                                     "canRun": true,
                                     "canUpdate": true,
                                     "canRead": true,
-                                    "canReact": true
+                                    "canReact": true,
                                 },
                                 "translations": {
                                     "id": true,
@@ -514,10 +514,10 @@ export const notificationSubscription_findMany = {
                                     "description": true,
                                     "details": true,
                                     "instructions": true,
-                                    "name": true
-                                }
-                            }
-                        }
+                                    "name": true,
+                                },
+                            },
+                        },
                     },
                     "createdBy": {
                         "id": true,
@@ -528,19 +528,19 @@ export const notificationSubscription_findMany = {
                         "isBot": true,
                         "isBotDepictingPerson": true,
                         "name": true,
-                        "profileImage": true
+                        "profileImage": true,
                     },
                     "you": {
                         "canComment": true,
                         "canDelete": true,
                         "canReport": true,
-                        "canUpdate": true
+                        "canUpdate": true,
                     },
                     "translations": {
                         "id": true,
                         "language": true,
-                        "text": true
-                    }
+                        "text": true,
+                    },
                 },
                 "Report": {
                     "id": true,
@@ -556,8 +556,8 @@ export const notificationSubscription_findMany = {
                         "canDelete": true,
                         "canRespond": true,
                         "canUpdate": true,
-                        "isOwn": true
-                    }
+                        "isOwn": true,
+                    },
                 },
                 "Resource": {
                     "id": true,
@@ -588,9 +588,9 @@ export const notificationSubscription_findMany = {
                                     "createdAt": true,
                                     "updatedAt": true,
                                     "isAdmin": true,
-                                    "permissions": true
-                                }
-                            }
+                                    "permissions": true,
+                                },
+                            },
                         },
                         "User": {
                             "id": true,
@@ -601,8 +601,8 @@ export const notificationSubscription_findMany = {
                             "isBot": true,
                             "isBotDepictingPerson": true,
                             "name": true,
-                            "profileImage": true
-                        }
+                            "profileImage": true,
+                        },
                     },
                     "permissions": true,
                     "resourceType": true,
@@ -615,12 +615,12 @@ export const notificationSubscription_findMany = {
                         "translations": {
                             "id": true,
                             "language": true,
-                            "description": true
+                            "description": true,
                         },
                         "you": {
                             "isOwn": true,
-                            "isBookmarked": true
-                        }
+                            "isBookmarked": true,
+                        },
                     },
                     "transfersCount": true,
                     "views": true,
@@ -633,7 +633,7 @@ export const notificationSubscription_findMany = {
                         "canReact": true,
                         "isBookmarked": true,
                         "isViewed": true,
-                        "reaction": true
+                        "reaction": true,
                     },
                     "versions": {
                         "id": true,
@@ -663,7 +663,7 @@ export const notificationSubscription_findMany = {
                             "canRun": true,
                             "canUpdate": true,
                             "canRead": true,
-                            "canReact": true
+                            "canReact": true,
                         },
                         "translations": {
                             "id": true,
@@ -671,9 +671,9 @@ export const notificationSubscription_findMany = {
                             "description": true,
                             "details": true,
                             "instructions": true,
-                            "name": true
-                        }
-                    }
+                            "name": true,
+                        },
+                    },
                 },
                 "Team": {
                     "id": true,
@@ -697,18 +697,18 @@ export const notificationSubscription_findMany = {
                         "translations": {
                             "id": true,
                             "language": true,
-                            "description": true
+                            "description": true,
                         },
                         "you": {
                             "isOwn": true,
-                            "isBookmarked": true
-                        }
+                            "isBookmarked": true,
+                        },
                     },
                     "translations": {
                         "id": true,
                         "language": true,
                         "bio": true,
-                        "name": true
+                        "name": true,
                     },
                     "you": {
                         "canAddMembers": true,
@@ -724,16 +724,16 @@ export const notificationSubscription_findMany = {
                             "createdAt": true,
                             "updatedAt": true,
                             "isAdmin": true,
-                            "permissions": true
-                        }
-                    }
-                }
-            }
-        }
+                            "permissions": true,
+                        },
+                    },
+                },
+            },
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "1160119365"
+    "__cacheKey": "1160119365",
 };

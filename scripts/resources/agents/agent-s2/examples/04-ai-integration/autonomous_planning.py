@@ -60,7 +60,7 @@ def execute_plan(plan):
         
         # Execute the step
         response = requests.post(
-            f"{API_BASE_URL}/execute/ai",
+            f"{API_BASE_URL}/ai/command",
             json={
                 "command": step.get('action'),
                 "context": f"Step {i} of plan: {step.get('description', '')}"

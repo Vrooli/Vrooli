@@ -8,7 +8,7 @@ export const chatMessage_findMany = {
             "versionIndex": true,
             "parent": {
                 "id": true,
-                "createdAt": true
+                "createdAt": true,
             },
             "user": {
                 "id": true,
@@ -19,12 +19,12 @@ export const chatMessage_findMany = {
                 "isBot": true,
                 "isBotDepictingPerson": true,
                 "name": true,
-                "profileImage": true
+                "profileImage": true,
             },
             "score": true,
             "reactionSummaries": {
                 "emoji": true,
-                "count": true
+                "count": true,
             },
             "reportsCount": true,
             "you": {
@@ -33,18 +33,18 @@ export const chatMessage_findMany = {
                 "canReport": true,
                 "canUpdate": true,
                 "canReact": true,
-                "reaction": true
+                "reaction": true,
             },
             "translations": {
                 "id": true,
                 "language": true,
-                "text": true
-            }
-        }
+                "text": true,
+            },
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "146455401"
+    "__cacheKey": "146455401",
 };

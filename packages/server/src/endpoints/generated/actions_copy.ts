@@ -27,7 +27,7 @@ export const actions_copy = {
             "canRun": true,
             "canUpdate": true,
             "canRead": true,
-            "canReact": true
+            "canReact": true,
         },
         "root": {
             "id": true,
@@ -58,9 +58,9 @@ export const actions_copy = {
                             "createdAt": true,
                             "updatedAt": true,
                             "isAdmin": true,
-                            "permissions": true
-                        }
-                    }
+                            "permissions": true,
+                        },
+                    },
                 },
                 "User": {
                     "id": true,
@@ -71,8 +71,8 @@ export const actions_copy = {
                     "isBot": true,
                     "isBotDepictingPerson": true,
                     "name": true,
-                    "profileImage": true
-                }
+                    "profileImage": true,
+                },
             },
             "permissions": true,
             "resourceType": true,
@@ -85,12 +85,12 @@ export const actions_copy = {
                 "translations": {
                     "id": true,
                     "language": true,
-                    "description": true
+                    "description": true,
                 },
                 "you": {
                     "isOwn": true,
-                    "isBookmarked": true
-                }
+                    "isBookmarked": true,
+                },
             },
             "transfersCount": true,
             "views": true,
@@ -103,8 +103,8 @@ export const actions_copy = {
                 "canReact": true,
                 "isBookmarked": true,
                 "isViewed": true,
-                "reaction": true
-            }
+                "reaction": true,
+            },
         },
         "translations": {
             "id": true,
@@ -112,8 +112,8 @@ export const actions_copy = {
             "description": true,
             "details": true,
             "instructions": true,
-            "name": true
-        }
+            "name": true,
+        },
     },
     "team": {
         "id": true,
@@ -137,18 +137,18 @@ export const actions_copy = {
             "translations": {
                 "id": true,
                 "language": true,
-                "description": true
+                "description": true,
             },
             "you": {
                 "isOwn": true,
-                "isBookmarked": true
-            }
+                "isBookmarked": true,
+            },
         },
         "translations": {
             "id": true,
             "language": true,
             "bio": true,
-            "name": true
+            "name": true,
         },
         "you": {
             "canAddMembers": true,
@@ -164,9 +164,9 @@ export const actions_copy = {
                 "createdAt": true,
                 "updatedAt": true,
                 "isAdmin": true,
-                "permissions": true
-            }
-        }
+                "permissions": true,
+            },
+        },
     },
-    "__cacheKey": "755577770"
+    "__cacheKey": "755577770",
 };

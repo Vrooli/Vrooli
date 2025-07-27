@@ -23,18 +23,18 @@ export const team_findMany = {
                 "translations": {
                     "id": true,
                     "language": true,
-                    "description": true
+                    "description": true,
                 },
                 "you": {
                     "isOwn": true,
-                    "isBookmarked": true
-                }
+                    "isBookmarked": true,
+                },
             },
             "translations": {
                 "id": true,
                 "language": true,
                 "bio": true,
-                "name": true
+                "name": true,
             },
             "you": {
                 "canAddMembers": true,
@@ -50,14 +50,14 @@ export const team_findMany = {
                     "createdAt": true,
                     "updatedAt": true,
                     "isAdmin": true,
-                    "permissions": true
-                }
-            }
-        }
+                    "permissions": true,
+                },
+            },
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "-970363431"
+    "__cacheKey": "-970363431",
 };

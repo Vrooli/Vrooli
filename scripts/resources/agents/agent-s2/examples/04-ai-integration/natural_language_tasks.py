@@ -66,7 +66,7 @@ def execute_natural_language_command(command, context=None):
         request_data["context"] = context
     
     response = requests.post(
-        f"{API_BASE_URL}/execute/ai",
+        f"{API_BASE_URL}/ai/command",
         json=request_data,
         timeout=30  # AI commands may take longer
     )
@@ -75,18 +75,51 @@ def execute_natural_language_command(command, context=None):
         result = response.json()
         print("✅ AI command executed successfully")
         
+        # Show basic info
         if result.get('task_id'):
             print(f"   Task ID: {result['task_id']}")
         
-        if result.get('actions_taken'):
-            print("   Actions taken:")
-            for action in result['actions_taken']:
-                print(f"     - {action.get('action')}: {action.get('status')}")
-                if action.get('parameters'):
-                    print(f"       Parameters: {action['parameters']}")
+        # Show execution time
+        if result.get('created_at') and result.get('completed_at'):
+            print(f"   Duration: {result['completed_at'][:19]} - {result['created_at'][:19]}")
         
-        if result.get('result', {}).get('message'):
-            print(f"   Result: {result['result']['message']}")
+        # Show AI reasoning (most important!)
+        task_result = result.get('result', {})
+        if task_result.get('ai_reasoning'):
+            print(f"🧠 AI Reasoning:")
+            print(f"   {task_result['ai_reasoning']}")
+        
+        # Show AI model used
+        if task_result.get('ai_model'):
+            print(f"🤖 Model: {task_result['ai_model']}")
+        
+        # Show detailed actions
+        if task_result.get('actions_taken'):
+            print(f"⚡ Actions Executed ({len(task_result['actions_taken'])}):")
+            for i, action in enumerate(task_result['actions_taken'], 1):
+                action_type = action.get('action', 'unknown')
+                action_result = action.get('result', 'No description')
+                status = action.get('status', 'unknown')
+                
+                status_icon = "✅" if status == "success" else "❌" if status == "failed" else "🔄"
+                print(f"   {i}. {status_icon} {action_type.title()}: {action_result}")
+                
+                # Show parameters if available
+                if action.get('parameters'):
+                    params = action['parameters']
+                    param_str = ", ".join([f"{k}={v}" for k, v in params.items()])
+                    print(f"      Parameters: {param_str}")
+                
+                # Show screenshot path for any action that saves screenshots
+                if action.get('screenshot_path'):
+                    filename = action['screenshot_path'].split('/')[-1]  # Get just filename
+                    print(f"      📸 Screenshot saved: {action['screenshot_path']}")
+                    print(f"      📋 To copy from container: docker cp agent-s2:{action['screenshot_path']} ./{filename}")
+                    print(f"      🖼️  To view via VNC: vnc://localhost:5900 (password: agents2vnc)")
+        
+        # Show overall message
+        if task_result.get('message'):
+            print(f"📝 Summary: {task_result['message']}")
         
         return True
     else:

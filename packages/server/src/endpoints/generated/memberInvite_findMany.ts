@@ -28,9 +28,9 @@ export const memberInvite_findMany = {
                         "createdAt": true,
                         "updatedAt": true,
                         "isAdmin": true,
-                        "permissions": true
-                    }
-                }
+                        "permissions": true,
+                    },
+                },
             },
             "user": {
                 "id": true,
@@ -41,17 +41,17 @@ export const memberInvite_findMany = {
                 "isBot": true,
                 "isBotDepictingPerson": true,
                 "name": true,
-                "profileImage": true
+                "profileImage": true,
             },
             "you": {
                 "canDelete": true,
-                "canUpdate": true
-            }
-        }
+                "canUpdate": true,
+            },
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "1536690302"
+    "__cacheKey": "1536690302",
 };

@@ -159,7 +159,7 @@ def ai_command_example():
     print("   Using AI to understand and execute: 'take a screenshot and move mouse to center'")
     
     response = requests.post(
-        f"{API_BASE_URL}/execute/ai",
+        f"{API_BASE_URL}/ai/command",
         json={
             "command": "take a screenshot and move mouse to center",
             "context": "demonstration of AI capabilities",
@@ -359,7 +359,7 @@ def main():
     
     if ai_available:
         print("\n🧠 Try your own AI commands:")
-        print("   curl -X POST http://localhost:4113/execute/ai \\")
+        print("   curl -X POST http://localhost:4113/ai/command \\")
         print("        -H 'Content-Type: application/json' \\")
         print("        -d '{\"command\": \"your natural language instruction here\"}'")
     

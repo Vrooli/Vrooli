@@ -27,9 +27,9 @@ export const comment_findMany = {
                                     "createdAt": true,
                                     "updatedAt": true,
                                     "isAdmin": true,
-                                    "permissions": true
-                                }
-                            }
+                                    "permissions": true,
+                                },
+                            },
                         },
                         "User": {
                             "id": true,
@@ -40,8 +40,8 @@ export const comment_findMany = {
                             "isBot": true,
                             "isBotDepictingPerson": true,
                             "name": true,
-                            "profileImage": true
-                        }
+                            "profileImage": true,
+                        },
                     },
                     "score": true,
                     "bookmarks": true,
@@ -54,16 +54,16 @@ export const comment_findMany = {
                         "canUpdate": true,
                         "canReact": true,
                         "isBookmarked": true,
-                        "reaction": true
+                        "reaction": true,
                     },
                     "translations": {
                         "id": true,
                         "language": true,
-                        "text": true
-                    }
+                        "text": true,
+                    },
                 },
                 "endCursor": true,
-                "totalInThread": true
+                "totalInThread": true,
             },
             "comment": {
                 "id": true,
@@ -89,9 +89,9 @@ export const comment_findMany = {
                                 "createdAt": true,
                                 "updatedAt": true,
                                 "isAdmin": true,
-                                "permissions": true
-                            }
-                        }
+                                "permissions": true,
+                            },
+                        },
                     },
                     "User": {
                         "id": true,
@@ -102,8 +102,8 @@ export const comment_findMany = {
                         "isBot": true,
                         "isBotDepictingPerson": true,
                         "name": true,
-                        "profileImage": true
-                    }
+                        "profileImage": true,
+                    },
                 },
                 "score": true,
                 "bookmarks": true,
@@ -116,16 +116,16 @@ export const comment_findMany = {
                     "canUpdate": true,
                     "canReact": true,
                     "isBookmarked": true,
-                    "reaction": true
+                    "reaction": true,
                 },
                 "translations": {
                     "id": true,
                     "language": true,
-                    "text": true
-                }
+                    "text": true,
+                },
             },
             "endCursor": true,
-            "totalInThread": true
+            "totalInThread": true,
         },
         "comment": {
             "id": true,
@@ -151,9 +151,9 @@ export const comment_findMany = {
                             "createdAt": true,
                             "updatedAt": true,
                             "isAdmin": true,
-                            "permissions": true
-                        }
-                    }
+                            "permissions": true,
+                        },
+                    },
                 },
                 "User": {
                     "id": true,
@@ -164,8 +164,8 @@ export const comment_findMany = {
                     "isBot": true,
                     "isBotDepictingPerson": true,
                     "name": true,
-                    "profileImage": true
-                }
+                    "profileImage": true,
+                },
             },
             "score": true,
             "bookmarks": true,
@@ -178,17 +178,17 @@ export const comment_findMany = {
                 "canUpdate": true,
                 "canReact": true,
                 "isBookmarked": true,
-                "reaction": true
+                "reaction": true,
             },
             "translations": {
                 "id": true,
                 "language": true,
-                "text": true
-            }
+                "text": true,
+            },
         },
         "endCursor": true,
-        "totalInThread": true
+        "totalInThread": true,
     },
     "totalThreads": true,
-    "__cacheKey": "-2032934428"
+    "__cacheKey": "-2032934428",
 };

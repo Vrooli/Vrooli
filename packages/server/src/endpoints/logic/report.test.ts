@@ -1,10 +1,9 @@
 import { type FindByIdInput, type ReportCreateInput, ReportFor, type ReportSearchInput, ReportStatus, type ReportUpdateInput, generatePK, generatePublicId } from "@vrooli/shared";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 import { loggedInUserNoPremiumData, mockAuthenticatedSession, mockLoggedOutSession, seedMockAdminUser } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { CacheService } from "../../redisConn.js";
 import { report_createOne } from "../generated/report_createOne.js";
 import { report_findMany } from "../generated/report_findMany.js";
 import { report_findOne } from "../generated/report_findOne.js";
@@ -13,7 +12,6 @@ import { report } from "./report.js";
 // Import database fixtures for seeding
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 // Use local report factory
-import { ReportDbFactory } from "../../__test/fixtures/db/reportFixtures.js";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
@@ -35,15 +33,23 @@ describe("EndpointsReport", () => {
     });
 
     afterEach(async () => {
-        // Clean up test data after each test
-        await DbProvider.get().report.deleteMany({});
-        await DbProvider.get().user.deleteMany({});
+        // Perform cleanup using dependency-ordered cleanup helpers
+        await cleanupGroups.minimal(DbProvider.get());
+
+        // Validate cleanup to detect any missed records
+        const orphans = await validateCleanup(DbProvider.get(), {
+            tables: ["report", "user"],
+            logOrphans: true,
+        });
+        if (orphans.length > 0) {
+            console.warn("Test cleanup incomplete:", orphans);
+        }
     });
 
     // Helper function to create test data
     const createTestData = async () => {
         // Note: CacheService.get().flushAll() removed - not needed with transactions
-        
+
         // Seed admin user and test users using database fixtures
         const adminUser = await seedMockAdminUser();
         const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
@@ -76,7 +82,7 @@ describe("EndpointsReport", () => {
             },
         });
         const seededReport2 = report2;
-        
+
         return { adminUser, testUsers, seededReport1, seededReport2 };
     };
 

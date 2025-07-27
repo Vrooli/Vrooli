@@ -11,7 +11,7 @@ export const reaction_findMany = {
                     "versionIndex": true,
                     "parent": {
                         "id": true,
-                        "createdAt": true
+                        "createdAt": true,
                     },
                     "user": {
                         "id": true,
@@ -22,12 +22,12 @@ export const reaction_findMany = {
                         "isBot": true,
                         "isBotDepictingPerson": true,
                         "name": true,
-                        "profileImage": true
+                        "profileImage": true,
                     },
                     "score": true,
                     "reactionSummaries": {
                         "emoji": true,
-                        "count": true
+                        "count": true,
                     },
                     "reportsCount": true,
                     "you": {
@@ -36,13 +36,13 @@ export const reaction_findMany = {
                         "canReport": true,
                         "canUpdate": true,
                         "canReact": true,
-                        "reaction": true
+                        "reaction": true,
                     },
                     "translations": {
                         "id": true,
                         "language": true,
-                        "text": true
-                    }
+                        "text": true,
+                    },
                 },
                 "Comment": {
                     "id": true,
@@ -68,9 +68,9 @@ export const reaction_findMany = {
                                     "createdAt": true,
                                     "updatedAt": true,
                                     "isAdmin": true,
-                                    "permissions": true
-                                }
-                            }
+                                    "permissions": true,
+                                },
+                            },
                         },
                         "User": {
                             "id": true,
@@ -81,8 +81,8 @@ export const reaction_findMany = {
                             "isBot": true,
                             "isBotDepictingPerson": true,
                             "name": true,
-                            "profileImage": true
-                        }
+                            "profileImage": true,
+                        },
                     },
                     "score": true,
                     "bookmarks": true,
@@ -95,13 +95,13 @@ export const reaction_findMany = {
                         "canUpdate": true,
                         "canReact": true,
                         "isBookmarked": true,
-                        "reaction": true
+                        "reaction": true,
                     },
                     "translations": {
                         "id": true,
                         "language": true,
-                        "text": true
-                    }
+                        "text": true,
+                    },
                 },
                 "Issue": {
                     "id": true,
@@ -115,7 +115,7 @@ export const reaction_findMany = {
                         "Resource": {
                             "id": true,
                             "isInternal": true,
-                            "isPrivate": true
+                            "isPrivate": true,
                         },
                         "Team": {
                             "id": true,
@@ -136,10 +136,10 @@ export const reaction_findMany = {
                                     "createdAt": true,
                                     "updatedAt": true,
                                     "isAdmin": true,
-                                    "permissions": true
-                                }
-                            }
-                        }
+                                    "permissions": true,
+                                },
+                            },
+                        },
                     },
                     "commentsCount": true,
                     "reportsCount": true,
@@ -155,14 +155,14 @@ export const reaction_findMany = {
                         "canRead": true,
                         "canReact": true,
                         "isBookmarked": true,
-                        "reaction": true
+                        "reaction": true,
                     },
                     "translations": {
                         "id": true,
                         "language": true,
                         "description": true,
-                        "name": true
-                    }
+                        "name": true,
+                    },
                 },
                 "Resource": {
                     "id": true,
@@ -193,9 +193,9 @@ export const reaction_findMany = {
                                     "createdAt": true,
                                     "updatedAt": true,
                                     "isAdmin": true,
-                                    "permissions": true
-                                }
-                            }
+                                    "permissions": true,
+                                },
+                            },
                         },
                         "User": {
                             "id": true,
@@ -206,8 +206,8 @@ export const reaction_findMany = {
                             "isBot": true,
                             "isBotDepictingPerson": true,
                             "name": true,
-                            "profileImage": true
-                        }
+                            "profileImage": true,
+                        },
                     },
                     "permissions": true,
                     "resourceType": true,
@@ -220,12 +220,12 @@ export const reaction_findMany = {
                         "translations": {
                             "id": true,
                             "language": true,
-                            "description": true
+                            "description": true,
                         },
                         "you": {
                             "isOwn": true,
-                            "isBookmarked": true
-                        }
+                            "isBookmarked": true,
+                        },
                     },
                     "transfersCount": true,
                     "views": true,
@@ -238,7 +238,7 @@ export const reaction_findMany = {
                         "canReact": true,
                         "isBookmarked": true,
                         "isViewed": true,
-                        "reaction": true
+                        "reaction": true,
                     },
                     "versions": {
                         "id": true,
@@ -268,7 +268,7 @@ export const reaction_findMany = {
                             "canRun": true,
                             "canUpdate": true,
                             "canRead": true,
-                            "canReact": true
+                            "canReact": true,
                         },
                         "translations": {
                             "id": true,
@@ -276,16 +276,16 @@ export const reaction_findMany = {
                             "description": true,
                             "details": true,
                             "instructions": true,
-                            "name": true
-                        }
-                    }
-                }
-            }
-        }
+                            "name": true,
+                        },
+                    },
+                },
+            },
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "-976297274"
+    "__cacheKey": "-976297274",
 };

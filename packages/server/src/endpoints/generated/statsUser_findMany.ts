@@ -13,12 +13,12 @@ export const statsUser_findMany = {
             "runsCompleted": true,
             "runCompletionTimeAverage": true,
             "runContextSwitchesAverage": true,
-            "teamsCreated": true
-        }
+            "teamsCreated": true,
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "1173390299"
+    "__cacheKey": "1173390299",
 };

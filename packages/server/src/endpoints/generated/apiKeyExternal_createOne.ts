@@ -3,5 +3,5 @@ export const apiKeyExternal_createOne = {
     "disabledAt": true,
     "name": true,
     "service": true,
-    "__cacheKey": "-639677358"
+    "__cacheKey": "-639677358",
 };

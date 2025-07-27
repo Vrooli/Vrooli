@@ -2,17 +2,17 @@ export const notification_updateSettings = {
     "includedEmails": {
         "id": true,
         "emailAddress": true,
-        "verifiedAt": true
+        "verifiedAt": true,
     },
     "includedSms": {
         "id": true,
         "phoneNumber": true,
-        "verifiedAt": true
+        "verifiedAt": true,
     },
     "includedPush": {
         "id": true,
         "expires": true,
-        "name": true
+        "name": true,
     },
     "toEmails": true,
     "toSms": true,
@@ -25,7 +25,7 @@ export const notification_updateSettings = {
         "dailyLimit": true,
         "toEmails": true,
         "toSms": true,
-        "toPush": true
+        "toPush": true,
     },
-    "__cacheKey": "-1403186683"
+    "__cacheKey": "-1403186683",
 };

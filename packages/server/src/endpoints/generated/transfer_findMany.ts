@@ -16,7 +16,7 @@ export const transfer_findMany = {
                 "isBot": true,
                 "isBotDepictingPerson": true,
                 "name": true,
-                "profileImage": true
+                "profileImage": true,
             },
             "toOwner": {
                 "id": true,
@@ -27,7 +27,7 @@ export const transfer_findMany = {
                 "isBot": true,
                 "isBotDepictingPerson": true,
                 "name": true,
-                "profileImage": true
+                "profileImage": true,
             },
             "object": {
                 "Resource": {
@@ -59,9 +59,9 @@ export const transfer_findMany = {
                                     "createdAt": true,
                                     "updatedAt": true,
                                     "isAdmin": true,
-                                    "permissions": true
-                                }
-                            }
+                                    "permissions": true,
+                                },
+                            },
                         },
                         "User": {
                             "id": true,
@@ -72,8 +72,8 @@ export const transfer_findMany = {
                             "isBot": true,
                             "isBotDepictingPerson": true,
                             "name": true,
-                            "profileImage": true
-                        }
+                            "profileImage": true,
+                        },
                     },
                     "permissions": true,
                     "resourceType": true,
@@ -86,12 +86,12 @@ export const transfer_findMany = {
                         "translations": {
                             "id": true,
                             "language": true,
-                            "description": true
+                            "description": true,
                         },
                         "you": {
                             "isOwn": true,
-                            "isBookmarked": true
-                        }
+                            "isBookmarked": true,
+                        },
                     },
                     "transfersCount": true,
                     "views": true,
@@ -104,7 +104,7 @@ export const transfer_findMany = {
                         "canReact": true,
                         "isBookmarked": true,
                         "isViewed": true,
-                        "reaction": true
+                        "reaction": true,
                     },
                     "versions": {
                         "id": true,
@@ -131,20 +131,20 @@ export const transfer_findMany = {
                             "description": true,
                             "details": true,
                             "instructions": true,
-                            "name": true
-                        }
-                    }
-                }
+                            "name": true,
+                        },
+                    },
+                },
             },
             "you": {
                 "canDelete": true,
-                "canUpdate": true
-            }
-        }
+                "canUpdate": true,
+            },
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "1712870950"
+    "__cacheKey": "1712870950",
 };

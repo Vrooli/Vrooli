@@ -1,7 +1,7 @@
 export const task_checkStatuses = {
     "statuses": {
         "id": true,
-        "status": true
+        "status": true,
     },
-    "__cacheKey": "-96095819"
+    "__cacheKey": "-96095819",
 };

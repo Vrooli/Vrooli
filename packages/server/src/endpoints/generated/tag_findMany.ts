@@ -9,17 +9,17 @@ export const tag_findMany = {
             "translations": {
                 "id": true,
                 "language": true,
-                "description": true
+                "description": true,
             },
             "you": {
                 "isOwn": true,
-                "isBookmarked": true
-            }
-        }
+                "isBookmarked": true,
+            },
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "473956902"
+    "__cacheKey": "473956902",
 };

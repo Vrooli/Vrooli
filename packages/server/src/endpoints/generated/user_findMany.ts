@@ -19,18 +19,18 @@ export const user_findMany = {
                 "canReport": true,
                 "canUpdate": true,
                 "isBookmarked": true,
-                "isViewed": true
+                "isViewed": true,
             },
             "translations": {
                 "id": true,
                 "language": true,
-                "bio": true
-            }
-        }
+                "bio": true,
+            },
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "-2079387191"
+    "__cacheKey": "-2079387191",
 };

@@ -7,7 +7,7 @@ export const auth_guestLogIn = {
         "id": true,
         "languages": true,
         "name": true,
-        "theme": true
+        "theme": true,
     },
-    "__cacheKey": "-1741315965"
+    "__cacheKey": "-1741315965",
 };

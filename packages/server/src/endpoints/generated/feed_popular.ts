@@ -31,9 +31,9 @@ export const feed_popular = {
                                 "createdAt": true,
                                 "updatedAt": true,
                                 "isAdmin": true,
-                                "permissions": true
-                            }
-                        }
+                                "permissions": true,
+                            },
+                        },
                     },
                     "User": {
                         "id": true,
@@ -44,8 +44,8 @@ export const feed_popular = {
                         "isBot": true,
                         "isBotDepictingPerson": true,
                         "name": true,
-                        "profileImage": true
-                    }
+                        "profileImage": true,
+                    },
                 },
                 "permissions": true,
                 "resourceType": true,
@@ -58,12 +58,12 @@ export const feed_popular = {
                     "translations": {
                         "id": true,
                         "language": true,
-                        "description": true
+                        "description": true,
                     },
                     "you": {
                         "isOwn": true,
-                        "isBookmarked": true
-                    }
+                        "isBookmarked": true,
+                    },
                 },
                 "transfersCount": true,
                 "views": true,
@@ -76,7 +76,7 @@ export const feed_popular = {
                     "canReact": true,
                     "isBookmarked": true,
                     "isViewed": true,
-                    "reaction": true
+                    "reaction": true,
                 },
                 "versions": {
                     "id": true,
@@ -106,7 +106,7 @@ export const feed_popular = {
                         "canRun": true,
                         "canUpdate": true,
                         "canRead": true,
-                        "canReact": true
+                        "canReact": true,
                     },
                     "translations": {
                         "id": true,
@@ -114,9 +114,9 @@ export const feed_popular = {
                         "description": true,
                         "details": true,
                         "instructions": true,
-                        "name": true
-                    }
-                }
+                        "name": true,
+                    },
+                },
             },
             "Team": {
                 "id": true,
@@ -140,18 +140,18 @@ export const feed_popular = {
                     "translations": {
                         "id": true,
                         "language": true,
-                        "description": true
+                        "description": true,
                     },
                     "you": {
                         "isOwn": true,
-                        "isBookmarked": true
-                    }
+                        "isBookmarked": true,
+                    },
                 },
                 "translations": {
                     "id": true,
                     "language": true,
                     "bio": true,
-                    "name": true
+                    "name": true,
                 },
                 "you": {
                     "canAddMembers": true,
@@ -167,9 +167,9 @@ export const feed_popular = {
                         "createdAt": true,
                         "updatedAt": true,
                         "isAdmin": true,
-                        "permissions": true
-                    }
-                }
+                        "permissions": true,
+                    },
+                },
             },
             "User": {
                 "id": true,
@@ -189,21 +189,21 @@ export const feed_popular = {
                     "canReport": true,
                     "canUpdate": true,
                     "isBookmarked": true,
-                    "isViewed": true
+                    "isViewed": true,
                 },
                 "translations": {
                     "id": true,
                     "language": true,
-                    "bio": true
-                }
-            }
-        }
+                    "bio": true,
+                },
+            },
+        },
     },
     "pageInfo": {
         "hasNextPage": true,
         "endCursorResource": true,
         "endCursorTeam": true,
-        "endCursorUser": true
+        "endCursorUser": true,
     },
-    "__cacheKey": "-1965997311"
+    "__cacheKey": "-1965997311",
 };

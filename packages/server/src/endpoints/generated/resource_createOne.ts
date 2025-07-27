@@ -27,9 +27,9 @@ export const resource_createOne = {
                     "createdAt": true,
                     "updatedAt": true,
                     "isAdmin": true,
-                    "permissions": true
-                }
-            }
+                    "permissions": true,
+                },
+            },
         },
         "User": {
             "id": true,
@@ -40,8 +40,8 @@ export const resource_createOne = {
             "isBot": true,
             "isBotDepictingPerson": true,
             "name": true,
-            "profileImage": true
-        }
+            "profileImage": true,
+        },
     },
     "permissions": true,
     "resourceType": true,
@@ -54,12 +54,12 @@ export const resource_createOne = {
         "translations": {
             "id": true,
             "language": true,
-            "description": true
+            "description": true,
         },
         "you": {
             "isOwn": true,
-            "isBookmarked": true
-        }
+            "isBookmarked": true,
+        },
     },
     "transfersCount": true,
     "views": true,
@@ -72,7 +72,7 @@ export const resource_createOne = {
         "canReact": true,
         "isBookmarked": true,
         "isViewed": true,
-        "reaction": true
+        "reaction": true,
     },
     "versionsCount": true,
     "parent": {
@@ -86,7 +86,7 @@ export const resource_createOne = {
         "root": {
             "id": true,
             "isInternal": true,
-            "isPrivate": true
+            "isPrivate": true,
         },
         "resourceSubType": true,
         "translations": {
@@ -95,10 +95,10 @@ export const resource_createOne = {
             "description": true,
             "details": true,
             "instructions": true,
-            "name": true
+            "name": true,
         },
         "versionIndex": true,
-        "versionLabel": true
+        "versionLabel": true,
     },
     "versions": {
         "id": true,
@@ -128,7 +128,7 @@ export const resource_createOne = {
             "canRun": true,
             "canUpdate": true,
             "canRead": true,
-            "canReact": true
+            "canReact": true,
         },
         "config": true,
         "versionNotes": true,
@@ -149,19 +149,19 @@ export const resource_createOne = {
                 "isBot": true,
                 "isBotDepictingPerson": true,
                 "name": true,
-                "profileImage": true
+                "profileImage": true,
             },
             "you": {
                 "canComment": true,
                 "canDelete": true,
                 "canReport": true,
-                "canUpdate": true
+                "canUpdate": true,
             },
             "translations": {
                 "id": true,
                 "language": true,
-                "text": true
-            }
+                "text": true,
+            },
         },
         "relatedVersions": {
             "id": true,
@@ -176,7 +176,7 @@ export const resource_createOne = {
                 "root": {
                     "id": true,
                     "isInternal": true,
-                    "isPrivate": true
+                    "isPrivate": true,
                 },
                 "resourceSubType": true,
                 "translations": {
@@ -185,11 +185,11 @@ export const resource_createOne = {
                     "description": true,
                     "details": true,
                     "instructions": true,
-                    "name": true
+                    "name": true,
                 },
                 "versionIndex": true,
-                "versionLabel": true
-            }
+                "versionLabel": true,
+            },
         },
         "translations": {
             "id": true,
@@ -197,8 +197,8 @@ export const resource_createOne = {
             "description": true,
             "details": true,
             "instructions": true,
-            "name": true
-        }
+            "name": true,
+        },
     },
-    "__cacheKey": "-512604887"
+    "__cacheKey": "-512604887",
 };

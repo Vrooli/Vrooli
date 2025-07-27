@@ -12,7 +12,7 @@ export const report_findOne = {
         "canDelete": true,
         "canRespond": true,
         "canUpdate": true,
-        "isOwn": true
+        "isOwn": true,
     },
     "responses": {
         "id": true,
@@ -23,8 +23,8 @@ export const report_findOne = {
         "language": true,
         "you": {
             "canDelete": true,
-            "canUpdate": true
-        }
+            "canUpdate": true,
+        },
     },
-    "__cacheKey": "-1152622281"
+    "__cacheKey": "-1152622281",
 };

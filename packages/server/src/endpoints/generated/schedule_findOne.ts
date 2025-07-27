@@ -10,7 +10,7 @@ export const schedule_findOne = {
         "id": true,
         "originalStartTime": true,
         "newStartTime": true,
-        "newEndTime": true
+        "newEndTime": true,
     },
     "recurrences": {
         "id": true,
@@ -19,7 +19,7 @@ export const schedule_findOne = {
         "dayOfWeek": true,
         "dayOfMonth": true,
         "month": true,
-        "endDate": true
+        "endDate": true,
     },
     "meetings": {
         "id": true,
@@ -47,16 +47,16 @@ export const schedule_findOne = {
                     "createdAt": true,
                     "updatedAt": true,
                     "isAdmin": true,
-                    "permissions": true
-                }
-            }
+                    "permissions": true,
+                },
+            },
         },
         "attendeesCount": true,
         "invitesCount": true,
         "you": {
             "canDelete": true,
             "canInvite": true,
-            "canUpdate": true
+            "canUpdate": true,
         },
         "attendees": {
             "id": true,
@@ -67,7 +67,7 @@ export const schedule_findOne = {
             "isBot": true,
             "isBotDepictingPerson": true,
             "name": true,
-            "profileImage": true
+            "profileImage": true,
         },
         "invites": {
             "id": true,
@@ -77,16 +77,16 @@ export const schedule_findOne = {
             "status": true,
             "you": {
                 "canDelete": true,
-                "canUpdate": true
-            }
+                "canUpdate": true,
+            },
         },
         "translations": {
             "id": true,
             "language": true,
             "description": true,
             "link": true,
-            "name": true
-        }
+            "name": true,
+        },
     },
     "runs": {
         "id": true,
@@ -139,9 +139,9 @@ export const schedule_findOne = {
                                 "createdAt": true,
                                 "updatedAt": true,
                                 "isAdmin": true,
-                                "permissions": true
-                            }
-                        }
+                                "permissions": true,
+                            },
+                        },
                     },
                     "User": {
                         "id": true,
@@ -152,8 +152,8 @@ export const schedule_findOne = {
                         "isBot": true,
                         "isBotDepictingPerson": true,
                         "name": true,
-                        "profileImage": true
-                    }
+                        "profileImage": true,
+                    },
                 },
                 "permissions": true,
                 "resourceType": true,
@@ -166,12 +166,12 @@ export const schedule_findOne = {
                     "translations": {
                         "id": true,
                         "language": true,
-                        "description": true
+                        "description": true,
                     },
                     "you": {
                         "isOwn": true,
-                        "isBookmarked": true
-                    }
+                        "isBookmarked": true,
+                    },
                 },
                 "transfersCount": true,
                 "views": true,
@@ -184,7 +184,7 @@ export const schedule_findOne = {
                     "canReact": true,
                     "isBookmarked": true,
                     "isViewed": true,
-                    "reaction": true
+                    "reaction": true,
                 },
                 "versionsCount": true,
                 "parent": {
@@ -198,7 +198,7 @@ export const schedule_findOne = {
                     "root": {
                         "id": true,
                         "isInternal": true,
-                        "isPrivate": true
+                        "isPrivate": true,
                     },
                     "resourceSubType": true,
                     "translations": {
@@ -207,11 +207,11 @@ export const schedule_findOne = {
                         "description": true,
                         "details": true,
                         "instructions": true,
-                        "name": true
+                        "name": true,
                     },
                     "versionIndex": true,
-                    "versionLabel": true
-                }
+                    "versionLabel": true,
+                },
             },
             "resourceSubType": true,
             "translations": {
@@ -220,7 +220,7 @@ export const schedule_findOne = {
                 "description": true,
                 "details": true,
                 "instructions": true,
-                "name": true
+                "name": true,
             },
             "versionIndex": true,
             "versionLabel": true,
@@ -252,19 +252,19 @@ export const schedule_findOne = {
                     "isBot": true,
                     "isBotDepictingPerson": true,
                     "name": true,
-                    "profileImage": true
+                    "profileImage": true,
                 },
                 "you": {
                     "canComment": true,
                     "canDelete": true,
                     "canReport": true,
-                    "canUpdate": true
+                    "canUpdate": true,
                 },
                 "translations": {
                     "id": true,
                     "language": true,
-                    "text": true
-                }
+                    "text": true,
+                },
             },
             "relatedVersions": {
                 "id": true,
@@ -279,7 +279,7 @@ export const schedule_findOne = {
                     "root": {
                         "id": true,
                         "isInternal": true,
-                        "isPrivate": true
+                        "isPrivate": true,
                     },
                     "resourceSubType": true,
                     "translations": {
@@ -288,12 +288,12 @@ export const schedule_findOne = {
                         "description": true,
                         "details": true,
                         "instructions": true,
-                        "name": true
+                        "name": true,
                     },
                     "versionIndex": true,
-                    "versionLabel": true
-                }
-            }
+                    "versionLabel": true,
+                },
+            },
         },
         "team": {
             "id": true,
@@ -314,9 +314,9 @@ export const schedule_findOne = {
                     "createdAt": true,
                     "updatedAt": true,
                     "isAdmin": true,
-                    "permissions": true
-                }
-            }
+                    "permissions": true,
+                },
+            },
         },
         "user": {
             "id": true,
@@ -327,19 +327,19 @@ export const schedule_findOne = {
             "isBot": true,
             "isBotDepictingPerson": true,
             "name": true,
-            "profileImage": true
+            "profileImage": true,
         },
         "you": {
             "canDelete": true,
             "canUpdate": true,
-            "canRead": true
+            "canRead": true,
         },
         "lastStep": true,
         "io": {
             "id": true,
             "data": true,
             "nodeInputName": true,
-            "nodeName": true
+            "nodeName": true,
         },
         "steps": {
             "id": true,
@@ -362,7 +362,7 @@ export const schedule_findOne = {
                 "root": {
                     "id": true,
                     "isInternal": true,
-                    "isPrivate": true
+                    "isPrivate": true,
                 },
                 "resourceSubType": true,
                 "translations": {
@@ -371,12 +371,12 @@ export const schedule_findOne = {
                     "description": true,
                     "details": true,
                     "instructions": true,
-                    "name": true
+                    "name": true,
                 },
                 "versionIndex": true,
-                "versionLabel": true
-            }
-        }
+                "versionLabel": true,
+            },
+        },
     },
-    "__cacheKey": "-540000699"
+    "__cacheKey": "-540000699",
 };

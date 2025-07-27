@@ -11,12 +11,12 @@ export const statsResource_findMany = {
             "runsStarted": true,
             "runsCompleted": true,
             "runCompletionTimeAverage": true,
-            "runContextSwitchesAverage": true
-        }
+            "runContextSwitchesAverage": true,
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "1147530653"
+    "__cacheKey": "1147530653",
 };

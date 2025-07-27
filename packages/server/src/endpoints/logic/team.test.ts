@@ -1,7 +1,7 @@
-import { type FindByPublicIdInput, type TeamCreateInput, type TeamSearchInput, type TeamUpdateInput, generatePK, generatePublicId, AccountStatus } from "@vrooli/shared";
+import { type FindByPublicIdInput, type TeamCreateInput, type TeamSearchInput, type TeamUpdateInput, generatePK, generatePublicId } from "@vrooli/shared";
 import { teamTestDataFactory } from "@vrooli/shared/test-fixtures/api-inputs";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { mockAuthenticatedSession, mockLoggedOutSession, mockApiSession, mockReadPublicPermissions, loggedInUserNoPremiumData } from "../../__test/session.js";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 // Removed deprecated test helpers - using direct endpoint testing instead
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
@@ -13,8 +13,8 @@ import { team_findOne } from "../generated/team_findOne.js";
 import { team_updateOne } from "../generated/team_updateOne.js";
 import { team } from "./team.js";
 // Import database fixtures
-import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { TeamDbFactory } from "../../__test/fixtures/db/teamFixtures.js";
+import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
@@ -27,9 +27,12 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
     });
 
     afterEach(async () => {
+        // Perform cleanup using dependency-ordered cleanup helpers
+        await cleanupGroups.team(DbProvider.get());
+
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["team","member","member_invite","meeting","user"],
+            tables: ["team", "member", "member_invite", "meeting", "user"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
@@ -38,20 +41,12 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
     });
 
     beforeEach(async function setupBeforeEach() {
-        // Use proper cleanup order to avoid foreign key constraint violations
-        // Clean child tables first, then parent tables
-        const prisma = DbProvider.get();
-        
-        // Clean team-related child tables first
-        await prisma.member.deleteMany();
-        await prisma.member_invite.deleteMany();
-        await prisma.meeting_attendees.deleteMany();
-        await prisma.meeting_invite.deleteMany();
-        await prisma.meeting.deleteMany();
-        
+        // Clean up using dependency-ordered cleanup helpers
+        await cleanupGroups.team(DbProvider.get());
+
         // Clean teams before users to avoid FK constraints
         await prisma.team.deleteMany();
-        
+
         // Clean user-related data (all potential relationships created by seedTestUsers)
         await prisma.session.deleteMany();
         await prisma.user_auth.deleteMany();
@@ -63,10 +58,10 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
         await prisma.api_key.deleteMany();
         await prisma.credit_account.deleteMany();
         await prisma.award.deleteMany();
-        
+
         // Finally clean users
         await prisma.user.deleteMany();
-        
+
         // Clear Redis cache
         await CacheService.get().flushAll();
     });
@@ -92,7 +87,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
         // Create test users
         const testUsersResult = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
         const testUsers = testUsersResult.records;
-        
+
         // Create test tags with unique names to avoid conflicts
         const uniqueSuffix = Date.now().toString();
         const tags = await Promise.all([
@@ -276,7 +271,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
 
                 expect(result).not.toBeNull();
                 expect(result.members?.length).toBe(2);
-                
+
                 const ownerMember = result.members?.find(function isOwner(m) {
                     return m.user?.id === testUsers[0].id.toString();
                 });
@@ -530,7 +525,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
             it("rejects duplicate handle", async function testDuplicateHandle() {
                 const testUserResult = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const testUser = testUserResult.records;
-                
+
                 // Create existing team
                 await DbProvider.get().team.create({
                     data: TeamDbFactory.createMinimal({
@@ -612,7 +607,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
             it("updates team as owner", async function testUpdateTeamAsOwner() {
                 const testUserResult = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const testUser = testUserResult.records;
-                
+
                 // Create team using factory
                 const teamData = TeamDbFactory.createMinimal({
                     handle: "original-team",
@@ -656,7 +651,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
             it("updates team basic info", async function testUpdateTeamInfo() {
                 const testUsersResult = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const testUsers = testUsersResult.records;
-                
+
                 // Create team using factory
                 const teamData = TeamDbFactory.createMinimal({
                     createdBy: { connect: { id: testUsers[0].id } },
@@ -703,7 +698,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
             it("creates member invites", async function testCreateMemberInvites() {
                 const testUsersResult = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
                 const testUsers = testUsersResult.records;
-                
+
                 // Create team with single member using factory
                 const teamData = TeamDbFactory.createMinimal({
                     createdBy: { connect: { id: testUsers[0].id } },
@@ -746,7 +741,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
             it("cannot update team without permission", async function testUpdateWithoutPermission() {
                 const testUsersResult = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
                 const testUsers = testUsersResult.records;
-                
+
                 // Create team owned by user 1 using factory
                 const teamData = TeamDbFactory.createMinimal({
                     createdBy: { connect: { id: testUsers[0].id } },
@@ -781,7 +776,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
             it("cannot update to existing handle", async function testUpdateToExistingHandle() {
                 const testUserResult = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const testUser = testUserResult.records;
-                
+
                 // Create two teams using factory
                 const teamData1 = TeamDbFactory.createMinimal({
                     handle: "team-one",
@@ -823,7 +818,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
             it("cannot remove last owner", async function testCannotRemoveLastOwner() {
                 const testUserResult = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const testUser = testUserResult.records;
-                
+
                 // Create team with single owner using factory
                 const teamData = TeamDbFactory.createMinimal({
                     createdBy: { connect: { id: testUser[0].id } },

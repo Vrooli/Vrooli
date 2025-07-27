@@ -13,7 +13,7 @@ export const schedule_findMany = {
                 "id": true,
                 "originalStartTime": true,
                 "newStartTime": true,
-                "newEndTime": true
+                "newEndTime": true,
             },
             "recurrences": {
                 "id": true,
@@ -22,7 +22,7 @@ export const schedule_findMany = {
                 "dayOfWeek": true,
                 "dayOfMonth": true,
                 "month": true,
-                "endDate": true
+                "endDate": true,
             },
             "meetings": {
                 "id": true,
@@ -50,24 +50,24 @@ export const schedule_findMany = {
                             "createdAt": true,
                             "updatedAt": true,
                             "isAdmin": true,
-                            "permissions": true
-                        }
-                    }
+                            "permissions": true,
+                        },
+                    },
                 },
                 "attendeesCount": true,
                 "invitesCount": true,
                 "you": {
                     "canDelete": true,
                     "canInvite": true,
-                    "canUpdate": true
+                    "canUpdate": true,
                 },
                 "translations": {
                     "id": true,
                     "language": true,
                     "description": true,
                     "link": true,
-                    "name": true
-                }
+                    "name": true,
+                },
             },
             "runs": {
                 "id": true,
@@ -94,7 +94,7 @@ export const schedule_findMany = {
                     "root": {
                         "id": true,
                         "isInternal": true,
-                        "isPrivate": true
+                        "isPrivate": true,
                     },
                     "resourceSubType": true,
                     "translations": {
@@ -103,10 +103,10 @@ export const schedule_findMany = {
                         "description": true,
                         "details": true,
                         "instructions": true,
-                        "name": true
+                        "name": true,
                     },
                     "versionIndex": true,
-                    "versionLabel": true
+                    "versionLabel": true,
                 },
                 "team": {
                     "id": true,
@@ -127,9 +127,9 @@ export const schedule_findMany = {
                             "createdAt": true,
                             "updatedAt": true,
                             "isAdmin": true,
-                            "permissions": true
-                        }
-                    }
+                            "permissions": true,
+                        },
+                    },
                 },
                 "user": {
                     "id": true,
@@ -140,20 +140,20 @@ export const schedule_findMany = {
                     "isBot": true,
                     "isBotDepictingPerson": true,
                     "name": true,
-                    "profileImage": true
+                    "profileImage": true,
                 },
                 "you": {
                     "canDelete": true,
                     "canUpdate": true,
-                    "canRead": true
+                    "canRead": true,
                 },
-                "lastStep": true
-            }
-        }
+                "lastStep": true,
+            },
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "-816819335"
+    "__cacheKey": "-816819335",
 };

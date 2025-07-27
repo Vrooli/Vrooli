@@ -24,16 +24,16 @@ export const meeting_updateOne = {
                 "createdAt": true,
                 "updatedAt": true,
                 "isAdmin": true,
-                "permissions": true
-            }
-        }
+                "permissions": true,
+            },
+        },
     },
     "attendeesCount": true,
     "invitesCount": true,
     "you": {
         "canDelete": true,
         "canInvite": true,
-        "canUpdate": true
+        "canUpdate": true,
     },
     "attendees": {
         "id": true,
@@ -44,7 +44,7 @@ export const meeting_updateOne = {
         "isBot": true,
         "isBotDepictingPerson": true,
         "name": true,
-        "profileImage": true
+        "profileImage": true,
     },
     "invites": {
         "id": true,
@@ -54,8 +54,8 @@ export const meeting_updateOne = {
         "status": true,
         "you": {
             "canDelete": true,
-            "canUpdate": true
-        }
+            "canUpdate": true,
+        },
     },
     "schedule": {
         "id": true,
@@ -69,7 +69,7 @@ export const meeting_updateOne = {
             "id": true,
             "originalStartTime": true,
             "newStartTime": true,
-            "newEndTime": true
+            "newEndTime": true,
         },
         "recurrences": {
             "id": true,
@@ -78,7 +78,7 @@ export const meeting_updateOne = {
             "dayOfWeek": true,
             "dayOfMonth": true,
             "month": true,
-            "endDate": true
+            "endDate": true,
         },
         "runs": {
             "id": true,
@@ -105,7 +105,7 @@ export const meeting_updateOne = {
                 "root": {
                     "id": true,
                     "isInternal": true,
-                    "isPrivate": true
+                    "isPrivate": true,
                 },
                 "resourceSubType": true,
                 "translations": {
@@ -114,10 +114,10 @@ export const meeting_updateOne = {
                     "description": true,
                     "details": true,
                     "instructions": true,
-                    "name": true
+                    "name": true,
                 },
                 "versionIndex": true,
-                "versionLabel": true
+                "versionLabel": true,
             },
             "team": {
                 "id": true,
@@ -138,9 +138,9 @@ export const meeting_updateOne = {
                         "createdAt": true,
                         "updatedAt": true,
                         "isAdmin": true,
-                        "permissions": true
-                    }
-                }
+                        "permissions": true,
+                    },
+                },
             },
             "user": {
                 "id": true,
@@ -151,22 +151,22 @@ export const meeting_updateOne = {
                 "isBot": true,
                 "isBotDepictingPerson": true,
                 "name": true,
-                "profileImage": true
+                "profileImage": true,
             },
             "you": {
                 "canDelete": true,
                 "canUpdate": true,
-                "canRead": true
+                "canRead": true,
             },
-            "lastStep": true
-        }
+            "lastStep": true,
+        },
     },
     "translations": {
         "id": true,
         "language": true,
         "description": true,
         "link": true,
-        "name": true
+        "name": true,
     },
-    "__cacheKey": "1397730887"
+    "__cacheKey": "1397730887",
 };

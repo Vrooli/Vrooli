@@ -29,7 +29,7 @@ export const resourceVersion_findMany = {
                 "canRun": true,
                 "canUpdate": true,
                 "canRead": true,
-                "canReact": true
+                "canReact": true,
             },
             "root": {
                 "id": true,
@@ -60,9 +60,9 @@ export const resourceVersion_findMany = {
                                 "createdAt": true,
                                 "updatedAt": true,
                                 "isAdmin": true,
-                                "permissions": true
-                            }
-                        }
+                                "permissions": true,
+                            },
+                        },
                     },
                     "User": {
                         "id": true,
@@ -73,8 +73,8 @@ export const resourceVersion_findMany = {
                         "isBot": true,
                         "isBotDepictingPerson": true,
                         "name": true,
-                        "profileImage": true
-                    }
+                        "profileImage": true,
+                    },
                 },
                 "permissions": true,
                 "resourceType": true,
@@ -87,12 +87,12 @@ export const resourceVersion_findMany = {
                     "translations": {
                         "id": true,
                         "language": true,
-                        "description": true
+                        "description": true,
                     },
                     "you": {
                         "isOwn": true,
-                        "isBookmarked": true
-                    }
+                        "isBookmarked": true,
+                    },
                 },
                 "transfersCount": true,
                 "views": true,
@@ -105,8 +105,8 @@ export const resourceVersion_findMany = {
                     "canReact": true,
                     "isBookmarked": true,
                     "isViewed": true,
-                    "reaction": true
-                }
+                    "reaction": true,
+                },
             },
             "translations": {
                 "id": true,
@@ -114,13 +114,13 @@ export const resourceVersion_findMany = {
                 "description": true,
                 "details": true,
                 "instructions": true,
-                "name": true
-            }
-        }
+                "name": true,
+            },
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "-778416130"
+    "__cacheKey": "-778416130",
 };

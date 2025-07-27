@@ -15,13 +15,13 @@ export const report_findMany = {
                 "canDelete": true,
                 "canRespond": true,
                 "canUpdate": true,
-                "isOwn": true
-            }
-        }
+                "isOwn": true,
+            },
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "1419805711"
+    "__cacheKey": "1419805711",
 };

@@ -13,7 +13,7 @@ export const issue_findMany = {
                 "Resource": {
                     "id": true,
                     "isInternal": true,
-                    "isPrivate": true
+                    "isPrivate": true,
                 },
                 "Team": {
                     "id": true,
@@ -34,10 +34,10 @@ export const issue_findMany = {
                             "createdAt": true,
                             "updatedAt": true,
                             "isAdmin": true,
-                            "permissions": true
-                        }
-                    }
-                }
+                            "permissions": true,
+                        },
+                    },
+                },
             },
             "commentsCount": true,
             "reportsCount": true,
@@ -53,19 +53,19 @@ export const issue_findMany = {
                 "canRead": true,
                 "canReact": true,
                 "isBookmarked": true,
-                "reaction": true
+                "reaction": true,
             },
             "translations": {
                 "id": true,
                 "language": true,
                 "description": true,
-                "name": true
-            }
-        }
+                "name": true,
+            },
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "505644885"
+    "__cacheKey": "505644885",
 };

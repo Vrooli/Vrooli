@@ -5,7 +5,7 @@ export const chatMessage_findOne = {
     "versionIndex": true,
     "parent": {
         "id": true,
-        "createdAt": true
+        "createdAt": true,
     },
     "user": {
         "id": true,
@@ -16,12 +16,12 @@ export const chatMessage_findOne = {
         "isBot": true,
         "isBotDepictingPerson": true,
         "name": true,
-        "profileImage": true
+        "profileImage": true,
     },
     "score": true,
     "reactionSummaries": {
         "emoji": true,
-        "count": true
+        "count": true,
     },
     "reportsCount": true,
     "you": {
@@ -30,12 +30,12 @@ export const chatMessage_findOne = {
         "canReport": true,
         "canUpdate": true,
         "canReact": true,
-        "reaction": true
+        "reaction": true,
     },
     "translations": {
         "id": true,
         "language": true,
-        "text": true
+        "text": true,
     },
-    "__cacheKey": "1183301857"
+    "__cacheKey": "1183301857",
 };

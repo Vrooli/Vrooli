@@ -31,9 +31,9 @@ export const bookmarkList_findOne = {
                                 "createdAt": true,
                                 "updatedAt": true,
                                 "isAdmin": true,
-                                "permissions": true
-                            }
-                        }
+                                "permissions": true,
+                            },
+                        },
                     },
                     "User": {
                         "id": true,
@@ -44,8 +44,8 @@ export const bookmarkList_findOne = {
                         "isBot": true,
                         "isBotDepictingPerson": true,
                         "name": true,
-                        "profileImage": true
-                    }
+                        "profileImage": true,
+                    },
                 },
                 "score": true,
                 "bookmarks": true,
@@ -58,8 +58,8 @@ export const bookmarkList_findOne = {
                     "canUpdate": true,
                     "canReact": true,
                     "isBookmarked": true,
-                    "reaction": true
-                }
+                    "reaction": true,
+                },
             },
             "Issue": {
                 "id": true,
@@ -67,8 +67,8 @@ export const bookmarkList_findOne = {
                     "id": true,
                     "language": true,
                     "description": true,
-                    "name": true
-                }
+                    "name": true,
+                },
             },
             "Resource": {
                 "id": true,
@@ -99,9 +99,9 @@ export const bookmarkList_findOne = {
                                 "createdAt": true,
                                 "updatedAt": true,
                                 "isAdmin": true,
-                                "permissions": true
-                            }
-                        }
+                                "permissions": true,
+                            },
+                        },
                     },
                     "User": {
                         "id": true,
@@ -112,8 +112,8 @@ export const bookmarkList_findOne = {
                         "isBot": true,
                         "isBotDepictingPerson": true,
                         "name": true,
-                        "profileImage": true
-                    }
+                        "profileImage": true,
+                    },
                 },
                 "permissions": true,
                 "resourceType": true,
@@ -126,12 +126,12 @@ export const bookmarkList_findOne = {
                     "translations": {
                         "id": true,
                         "language": true,
-                        "description": true
+                        "description": true,
                     },
                     "you": {
                         "isOwn": true,
-                        "isBookmarked": true
-                    }
+                        "isBookmarked": true,
+                    },
                 },
                 "transfersCount": true,
                 "views": true,
@@ -144,7 +144,7 @@ export const bookmarkList_findOne = {
                     "canReact": true,
                     "isBookmarked": true,
                     "isViewed": true,
-                    "reaction": true
+                    "reaction": true,
                 },
                 "versions": {
                     "id": true,
@@ -174,7 +174,7 @@ export const bookmarkList_findOne = {
                         "canRun": true,
                         "canUpdate": true,
                         "canRead": true,
-                        "canReact": true
+                        "canReact": true,
                     },
                     "translations": {
                         "id": true,
@@ -182,9 +182,9 @@ export const bookmarkList_findOne = {
                         "description": true,
                         "details": true,
                         "instructions": true,
-                        "name": true
-                    }
-                }
+                        "name": true,
+                    },
+                },
             },
             "Tag": {
                 "id": true,
@@ -194,12 +194,12 @@ export const bookmarkList_findOne = {
                 "translations": {
                     "id": true,
                     "language": true,
-                    "description": true
+                    "description": true,
                 },
                 "you": {
                     "isOwn": true,
-                    "isBookmarked": true
-                }
+                    "isBookmarked": true,
+                },
             },
             "Team": {
                 "id": true,
@@ -223,18 +223,18 @@ export const bookmarkList_findOne = {
                     "translations": {
                         "id": true,
                         "language": true,
-                        "description": true
+                        "description": true,
                     },
                     "you": {
                         "isOwn": true,
-                        "isBookmarked": true
-                    }
+                        "isBookmarked": true,
+                    },
                 },
                 "translations": {
                     "id": true,
                     "language": true,
                     "bio": true,
-                    "name": true
+                    "name": true,
                 },
                 "you": {
                     "canAddMembers": true,
@@ -250,9 +250,9 @@ export const bookmarkList_findOne = {
                         "createdAt": true,
                         "updatedAt": true,
                         "isAdmin": true,
-                        "permissions": true
-                    }
-                }
+                        "permissions": true,
+                    },
+                },
             },
             "User": {
                 "id": true,
@@ -272,15 +272,15 @@ export const bookmarkList_findOne = {
                     "canReport": true,
                     "canUpdate": true,
                     "isBookmarked": true,
-                    "isViewed": true
+                    "isViewed": true,
                 },
                 "translations": {
                     "id": true,
                     "language": true,
-                    "bio": true
-                }
-            }
-        }
+                    "bio": true,
+                },
+            },
+        },
     },
-    "__cacheKey": "-1255400393"
+    "__cacheKey": "-1255400393",
 };

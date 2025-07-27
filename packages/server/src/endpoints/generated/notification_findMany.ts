@@ -9,12 +9,12 @@ export const notification_findMany = {
             "title": true,
             "description": true,
             "link": true,
-            "imgLink": true
-        }
+            "imgLink": true,
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "1691406715"
+    "__cacheKey": "1691406715",
 };

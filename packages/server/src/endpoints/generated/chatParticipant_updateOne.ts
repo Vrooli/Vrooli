@@ -20,13 +20,13 @@ export const chatParticipant_updateOne = {
             "canReport": true,
             "canUpdate": true,
             "isBookmarked": true,
-            "isViewed": true
+            "isViewed": true,
         },
         "translations": {
             "id": true,
             "language": true,
-            "bio": true
-        }
+            "bio": true,
+        },
     },
-    "__cacheKey": "-675111684"
+    "__cacheKey": "-675111684",
 };

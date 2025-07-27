@@ -49,9 +49,9 @@ export const run_updateOne = {
                             "createdAt": true,
                             "updatedAt": true,
                             "isAdmin": true,
-                            "permissions": true
-                        }
-                    }
+                            "permissions": true,
+                        },
+                    },
                 },
                 "User": {
                     "id": true,
@@ -62,8 +62,8 @@ export const run_updateOne = {
                     "isBot": true,
                     "isBotDepictingPerson": true,
                     "name": true,
-                    "profileImage": true
-                }
+                    "profileImage": true,
+                },
             },
             "permissions": true,
             "resourceType": true,
@@ -76,12 +76,12 @@ export const run_updateOne = {
                 "translations": {
                     "id": true,
                     "language": true,
-                    "description": true
+                    "description": true,
                 },
                 "you": {
                     "isOwn": true,
-                    "isBookmarked": true
-                }
+                    "isBookmarked": true,
+                },
             },
             "transfersCount": true,
             "views": true,
@@ -94,7 +94,7 @@ export const run_updateOne = {
                 "canReact": true,
                 "isBookmarked": true,
                 "isViewed": true,
-                "reaction": true
+                "reaction": true,
             },
             "versionsCount": true,
             "parent": {
@@ -108,7 +108,7 @@ export const run_updateOne = {
                 "root": {
                     "id": true,
                     "isInternal": true,
-                    "isPrivate": true
+                    "isPrivate": true,
                 },
                 "resourceSubType": true,
                 "translations": {
@@ -117,11 +117,11 @@ export const run_updateOne = {
                     "description": true,
                     "details": true,
                     "instructions": true,
-                    "name": true
+                    "name": true,
                 },
                 "versionIndex": true,
-                "versionLabel": true
-            }
+                "versionLabel": true,
+            },
         },
         "resourceSubType": true,
         "translations": {
@@ -130,7 +130,7 @@ export const run_updateOne = {
             "description": true,
             "details": true,
             "instructions": true,
-            "name": true
+            "name": true,
         },
         "versionIndex": true,
         "versionLabel": true,
@@ -162,19 +162,19 @@ export const run_updateOne = {
                 "isBot": true,
                 "isBotDepictingPerson": true,
                 "name": true,
-                "profileImage": true
+                "profileImage": true,
             },
             "you": {
                 "canComment": true,
                 "canDelete": true,
                 "canReport": true,
-                "canUpdate": true
+                "canUpdate": true,
             },
             "translations": {
                 "id": true,
                 "language": true,
-                "text": true
-            }
+                "text": true,
+            },
         },
         "relatedVersions": {
             "id": true,
@@ -189,7 +189,7 @@ export const run_updateOne = {
                 "root": {
                     "id": true,
                     "isInternal": true,
-                    "isPrivate": true
+                    "isPrivate": true,
                 },
                 "resourceSubType": true,
                 "translations": {
@@ -198,12 +198,12 @@ export const run_updateOne = {
                     "description": true,
                     "details": true,
                     "instructions": true,
-                    "name": true
+                    "name": true,
                 },
                 "versionIndex": true,
-                "versionLabel": true
-            }
-        }
+                "versionLabel": true,
+            },
+        },
     },
     "team": {
         "id": true,
@@ -224,9 +224,9 @@ export const run_updateOne = {
                 "createdAt": true,
                 "updatedAt": true,
                 "isAdmin": true,
-                "permissions": true
-            }
-        }
+                "permissions": true,
+            },
+        },
     },
     "user": {
         "id": true,
@@ -237,19 +237,19 @@ export const run_updateOne = {
         "isBot": true,
         "isBotDepictingPerson": true,
         "name": true,
-        "profileImage": true
+        "profileImage": true,
     },
     "you": {
         "canDelete": true,
         "canUpdate": true,
-        "canRead": true
+        "canRead": true,
     },
     "lastStep": true,
     "io": {
         "id": true,
         "data": true,
         "nodeInputName": true,
-        "nodeName": true
+        "nodeName": true,
     },
     "steps": {
         "id": true,
@@ -272,7 +272,7 @@ export const run_updateOne = {
             "root": {
                 "id": true,
                 "isInternal": true,
-                "isPrivate": true
+                "isPrivate": true,
             },
             "resourceSubType": true,
             "translations": {
@@ -281,11 +281,11 @@ export const run_updateOne = {
                 "description": true,
                 "details": true,
                 "instructions": true,
-                "name": true
+                "name": true,
             },
             "versionIndex": true,
-            "versionLabel": true
-        }
+            "versionLabel": true,
+        },
     },
-    "__cacheKey": "727322190"
+    "__cacheKey": "727322190",
 };

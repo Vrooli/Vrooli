@@ -4,12 +4,12 @@ export const pushDevice_findMany = {
         "node": {
             "id": true,
             "expires": true,
-            "name": true
-        }
+            "name": true,
+        },
     },
     "pageInfo": {
         "endCursor": true,
-        "hasNextPage": true
+        "hasNextPage": true,
     },
-    "__cacheKey": "375304464"
+    "__cacheKey": "375304464",
 };

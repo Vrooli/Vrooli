@@ -20,18 +20,18 @@ export const team_createOne = {
         "translations": {
             "id": true,
             "language": true,
-            "description": true
+            "description": true,
         },
         "you": {
             "isOwn": true,
-            "isBookmarked": true
-        }
+            "isBookmarked": true,
+        },
     },
     "translations": {
         "id": true,
         "language": true,
         "bio": true,
-        "name": true
+        "name": true,
     },
     "you": {
         "canAddMembers": true,
@@ -47,8 +47,8 @@ export const team_createOne = {
             "createdAt": true,
             "updatedAt": true,
             "isAdmin": true,
-            "permissions": true
-        }
+            "permissions": true,
+        },
     },
     "config": true,
     "members": {
@@ -60,7 +60,7 @@ export const team_createOne = {
         "permissions": true,
         "you": {
             "canDelete": true,
-            "canUpdate": true
+            "canUpdate": true,
         },
         "user": {
             "id": true,
@@ -80,14 +80,14 @@ export const team_createOne = {
                 "canReport": true,
                 "canUpdate": true,
                 "isBookmarked": true,
-                "isViewed": true
+                "isViewed": true,
             },
             "translations": {
                 "id": true,
                 "language": true,
-                "bio": true
-            }
-        }
+                "bio": true,
+            },
+        },
     },
-    "__cacheKey": "1337885776"
+    "__cacheKey": "1337885776",
 };

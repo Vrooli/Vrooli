@@ -10,7 +10,7 @@ export const issue_createOne = {
         "Resource": {
             "id": true,
             "isInternal": true,
-            "isPrivate": true
+            "isPrivate": true,
         },
         "Team": {
             "id": true,
@@ -31,10 +31,10 @@ export const issue_createOne = {
                     "createdAt": true,
                     "updatedAt": true,
                     "isAdmin": true,
-                    "permissions": true
-                }
-            }
-        }
+                    "permissions": true,
+                },
+            },
+        },
     },
     "commentsCount": true,
     "reportsCount": true,
@@ -50,7 +50,7 @@ export const issue_createOne = {
         "canRead": true,
         "canReact": true,
         "isBookmarked": true,
-        "reaction": true
+        "reaction": true,
     },
     "closedBy": {
         "id": true,
@@ -61,7 +61,7 @@ export const issue_createOne = {
         "isBot": true,
         "isBotDepictingPerson": true,
         "name": true,
-        "profileImage": true
+        "profileImage": true,
     },
     "createdBy": {
         "id": true,
@@ -72,13 +72,13 @@ export const issue_createOne = {
         "isBot": true,
         "isBotDepictingPerson": true,
         "name": true,
-        "profileImage": true
+        "profileImage": true,
     },
     "translations": {
         "id": true,
         "language": true,
         "description": true,
-        "name": true
+        "name": true,
     },
-    "__cacheKey": "-1252340569"
+    "__cacheKey": "-1252340569",
 };

@@ -16,13 +16,13 @@ export const user_findOne = {
         "canReport": true,
         "canUpdate": true,
         "isBookmarked": true,
-        "isViewed": true
+        "isViewed": true,
     },
     "botSettings": true,
     "translations": {
         "id": true,
         "language": true,
-        "bio": true
+        "bio": true,
     },
-    "__cacheKey": "-487847607"
+    "__cacheKey": "-487847607",
 };

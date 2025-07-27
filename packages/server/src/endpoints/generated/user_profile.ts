@@ -23,35 +23,35 @@ export const user_profile = {
         "limitHard": true,
         "limitSoft": true,
         "name": true,
-        "stopAtLimit": true
+        "stopAtLimit": true,
     },
     "apiKeysExternal": {
         "id": true,
         "disabledAt": true,
         "name": true,
-        "service": true
+        "service": true,
     },
     "emails": {
         "id": true,
         "emailAddress": true,
-        "verifiedAt": true
+        "verifiedAt": true,
     },
     "phones": {
         "id": true,
         "phoneNumber": true,
-        "verifiedAt": true
+        "verifiedAt": true,
     },
     "pushDevices": {
         "id": true,
         "expires": true,
-        "name": true
+        "name": true,
     },
     "wallets": {
         "id": true,
         "name": true,
         "publicAddress": true,
         "stakingAddress": true,
-        "verifiedAt": true
+        "verifiedAt": true,
     },
     "notifications": {
         "id": true,
@@ -61,19 +61,19 @@ export const user_profile = {
         "title": true,
         "description": true,
         "link": true,
-        "imgLink": true
+        "imgLink": true,
     },
     "translations": {
         "id": true,
         "language": true,
-        "bio": true
+        "bio": true,
     },
     "you": {
         "canDelete": true,
         "canReport": true,
         "canUpdate": true,
         "isBookmarked": true,
-        "isViewed": true
+        "isViewed": true,
     },
-    "__cacheKey": "-960538854"
+    "__cacheKey": "-960538854",
 };

@@ -15,12 +15,12 @@ export const reminder_findOne = {
         "description": true,
         "dueDate": true,
         "index": true,
-        "isComplete": true
+        "isComplete": true,
     },
     "reminderList": {
         "id": true,
         "createdAt": true,
-        "updatedAt": true
+        "updatedAt": true,
     },
-    "__cacheKey": "765065268"
+    "__cacheKey": "765065268",
 };

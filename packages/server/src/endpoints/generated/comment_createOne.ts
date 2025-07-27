@@ -22,9 +22,9 @@ export const comment_createOne = {
                     "createdAt": true,
                     "updatedAt": true,
                     "isAdmin": true,
-                    "permissions": true
-                }
-            }
+                    "permissions": true,
+                },
+            },
         },
         "User": {
             "id": true,
@@ -35,8 +35,8 @@ export const comment_createOne = {
             "isBot": true,
             "isBotDepictingPerson": true,
             "name": true,
-            "profileImage": true
-        }
+            "profileImage": true,
+        },
     },
     "score": true,
     "bookmarks": true,
@@ -49,7 +49,7 @@ export const comment_createOne = {
         "canUpdate": true,
         "canReact": true,
         "isBookmarked": true,
-        "reaction": true
+        "reaction": true,
     },
     "commentedOn": {
         "Issue": {
@@ -58,15 +58,15 @@ export const comment_createOne = {
                 "id": true,
                 "language": true,
                 "description": true,
-                "name": true
-            }
+                "name": true,
+            },
         },
         "PullRequest": {
             "id": true,
             "createdAt": true,
             "updatedAt": true,
             "closedAt": true,
-            "status": true
+            "status": true,
         },
         "ResourceVersion": {
             "id": true,
@@ -79,7 +79,7 @@ export const comment_createOne = {
             "root": {
                 "id": true,
                 "isInternal": true,
-                "isPrivate": true
+                "isPrivate": true,
             },
             "resourceSubType": true,
             "translations": {
@@ -88,16 +88,16 @@ export const comment_createOne = {
                 "description": true,
                 "details": true,
                 "instructions": true,
-                "name": true
+                "name": true,
             },
             "versionIndex": true,
-            "versionLabel": true
-        }
+            "versionLabel": true,
+        },
     },
     "translations": {
         "id": true,
         "language": true,
-        "text": true
+        "text": true,
     },
-    "__cacheKey": "-832183216"
+    "__cacheKey": "-832183216",
 };

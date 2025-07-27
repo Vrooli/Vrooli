@@ -8,7 +8,7 @@ export const chatMessage_findTree = {
         "versionIndex": true,
         "parent": {
             "id": true,
-            "createdAt": true
+            "createdAt": true,
         },
         "user": {
             "id": true,
@@ -19,12 +19,12 @@ export const chatMessage_findTree = {
             "isBot": true,
             "isBotDepictingPerson": true,
             "name": true,
-            "profileImage": true
+            "profileImage": true,
         },
         "score": true,
         "reactionSummaries": {
             "emoji": true,
-            "count": true
+            "count": true,
         },
         "reportsCount": true,
         "you": {
@@ -33,13 +33,13 @@ export const chatMessage_findTree = {
             "canReport": true,
             "canUpdate": true,
             "canReact": true,
-            "reaction": true
+            "reaction": true,
         },
         "translations": {
             "id": true,
             "language": true,
-            "text": true
-        }
+            "text": true,
+        },
     },
-    "__cacheKey": "825546186"
+    "__cacheKey": "825546186",
 };
