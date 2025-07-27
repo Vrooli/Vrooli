@@ -1,0 +1,60 @@
+# Python build and distribution
+*.egg-info/
+build/
+dist/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+env/
+.env
+.venv
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test outputs and temporary files (keep structure, ignore content)
+testing/test-outputs/screenshots/*.png
+testing/test-outputs/screenshots/*.jpg
+testing/test-outputs/logs/*.log
+testing/test-outputs/reports/*.html
+*.tmp
+*.temp
+
+# Don't ignore the directories themselves, just their contents
+!testing/
+!testing/test-outputs/
+!testing/test-outputs/screenshots/
+!testing/test-outputs/logs/
+!testing/test-outputs/reports/
+
+# Docker volumes and data
+docker/volumes/
+.agent-s2/
+
+# Package management
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Coverage and testing
+.coverage
+.pytest_cache/
+.tox/
+htmlcov/
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# Local configuration overrides
+config/local.sh

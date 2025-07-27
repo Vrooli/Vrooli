@@ -1,0 +1,20 @@
+# Agent S2 Python Dependencies
+
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+
+# Automation
+pyautogui==0.9.54
+pillow==10.1.0
+
+# Utilities
+python-multipart==0.0.6
+requests==2.31.0
+aiofiles==23.2.1
+
+# Optional AI Dependencies (install separately if needed)
+# gui-agents-s2
+# anthropic
+# openai

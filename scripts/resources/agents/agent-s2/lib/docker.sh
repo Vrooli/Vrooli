@@ -9,19 +9,21 @@
 agents2::docker_build() {
     log::info "$MSG_BUILDING_IMAGE"
     
-    local build_dir="${SCRIPT_DIR}/docker"
+    local build_dir="${SCRIPT_DIR}"
+    local dockerfile="${build_dir}/docker/images/agent-s2/Dockerfile"
     
     # Ensure Dockerfile exists
-    if [[ ! -f "$build_dir/Dockerfile" ]]; then
-        log::error "Dockerfile not found at: $build_dir/Dockerfile"
+    if [[ ! -f "$dockerfile" ]]; then
+        log::error "Dockerfile not found at: $dockerfile"
         return 1
     fi
     
-    # Build with proper arguments
+    # Build with proper arguments - note context is at SCRIPT_DIR level
     local build_args=(
         --build-arg "VNC_PASSWORD=$AGENTS2_VNC_PASSWORD"
         --build-arg "USER_ID=$AGENTS2_USER_ID"
         --build-arg "GROUP_ID=$AGENTS2_GROUP_ID"
+        -f "$dockerfile"
         -t "$AGENTS2_IMAGE_NAME"
         "$build_dir"
     )

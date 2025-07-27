@@ -1,4 +1,0 @@
-# Ignore all test output files - these are generated during examples
-*
-!.gitignore
-!README.md

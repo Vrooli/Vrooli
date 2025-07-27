@@ -56,9 +56,9 @@ if [ $? -eq 0 ]; then
         IMAGE_DATA=$(echo "$RESPONSE" | jq -r '.data // empty' | sed 's/^data:image\/[^;]*;base64,//')
         if [ -n "$IMAGE_DATA" ]; then
             # Ensure output directory exists
-            mkdir -p ../test-outputs/screenshots
-            echo "$IMAGE_DATA" | base64 -d > ../test-outputs/screenshots/demo-environment.png
-            echo "   Saved to: ../test-outputs/screenshots/demo-environment.png"
+            mkdir -p ../testing/test-outputs/screenshots
+            echo "$IMAGE_DATA" | base64 -d > ../testing/test-outputs/screenshots/demo-environment.png
+            echo "   Saved to: ../testing/test-outputs/screenshots/demo-environment.png"
         fi
     fi
 else

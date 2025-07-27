@@ -74,6 +74,7 @@ User: "Take a screenshot and click the Chrome icon"
 
 ## 🔧 Installation
 
+### Docker Service Installation
 ```bash
 # Install with AI enabled (default - requires API key)
 ./scripts/resources/agents/agent-s2/manage.sh --action install \
@@ -100,6 +101,19 @@ User: "Take a screenshot and click the Chrome icon"
   --enable-ai yes \
   --enable-search no \
   --vnc-password mysecurepassword
+```
+
+### Python Client Installation
+```bash
+# Install the Python package for client usage
+cd scripts/resources/agents/agent-s2
+pip install -e .
+
+# Or install with AI support
+pip install -e ".[ai]"
+
+# For development
+pip install -e ".[dev]"
 ```
 
 ### Environment Variables
@@ -142,15 +156,15 @@ curl http://localhost:4113/capabilities
 #### AI-Driven Commands (if AI enabled)
 ```bash
 # Execute natural language command
-curl -X POST http://localhost:4113/execute/ai \
+curl -X POST http://localhost:4113/ai/action \
   -H "Content-Type: application/json" \
   -d '{
-    "command": "take a screenshot and move mouse to center",
-    "context": "testing AI capabilities"
+    "task": "take a screenshot and move mouse to center",
+    "context": {"purpose": "testing AI capabilities"}
   }'
 
 # Generate a plan
-curl -X POST http://localhost:4113/plan \
+curl -X POST http://localhost:4113/ai/plan \
   -H "Content-Type: application/json" \
   -d '{
     "goal": "organize desktop workspace",
@@ -158,7 +172,7 @@ curl -X POST http://localhost:4113/plan \
   }'
 
 # Analyze screen content
-curl -X POST http://localhost:4113/analyze-screen \
+curl -X POST http://localhost:4113/ai/analyze \
   -H "Content-Type: application/json" \
   -d '{
     "question": "What applications are currently visible?"
@@ -167,18 +181,36 @@ curl -X POST http://localhost:4113/analyze-screen \
 
 #### Core Automation (always available)
 ```bash
-# Take a screenshot
-curl -X POST http://localhost:4113/screenshot \
-  -H "Content-Type: application/json" \
-  -d '{"format": "png"}'
+# Take a screenshot (PNG format)
+curl -X POST "http://localhost:4113/screenshot?format=png" \
+  -H "Content-Type: application/json"
 
-# Execute direct automation
-curl -X POST http://localhost:4113/execute \
+# Take a screenshot with region
+curl -X POST "http://localhost:4113/screenshot?format=png" \
   -H "Content-Type: application/json" \
-  -d '{
-    "task_type": "click",
-    "parameters": {"x": 500, "y": 300}
-  }'
+  -d '[100, 100, 500, 400]'
+
+# Take a JPEG screenshot with quality
+curl -X POST "http://localhost:4113/screenshot?format=jpeg&quality=85" \
+  -H "Content-Type: application/json"
+
+# Mouse operations
+curl -X POST http://localhost:4113/mouse/click \
+  -H "Content-Type: application/json" \
+  -d '{"x": 500, "y": 300, "button": "left"}'
+
+curl -X POST http://localhost:4113/mouse/move \
+  -H "Content-Type: application/json" \
+  -d '{"x": 600, "y": 400}'
+
+# Keyboard operations
+curl -X POST http://localhost:4113/keyboard/type \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Hello World!", "interval": 0.1}'
+
+curl -X POST http://localhost:4113/keyboard/press \
+  -H "Content-Type: application/json" \
+  -d '{"keys": ["ctrl", "c"]}'
 ```
 
 ### 4. Run Usage Examples
@@ -189,45 +221,62 @@ curl -X POST http://localhost:4113/execute \
 # Test specific functionality
 ./scripts/resources/agents/agent-s2/manage.sh --action usage --usage-type screenshot
 ./scripts/resources/agents/agent-s2/manage.sh --action usage --usage-type automation
+
+# Or run examples directly with Python
+cd scripts/resources/agents/agent-s2/examples
+
+# Getting started examples
+python 01-getting-started/check_health.py
+python 01-getting-started/hello_screenshot.py
+python 01-getting-started/simple_automation.py
+
+# Advanced automation examples
+python 02-basic-automation/screenshot.py
+python 02-basic-automation/mouse_control.py
+python 02-basic-automation/combined_automation.py
+
+# AI-powered examples (requires API key)
+python 04-ai-integration/natural_language_tasks.py
+python 04-ai-integration/visual_reasoning.py
 ```
 
 ## 📝 Example Files Explained
 
-### screenshot-demo.sh
-A simple bash script demonstrating screenshot capture:
-- Checks Agent S2 health status
-- Takes a full-screen screenshot via REST API
-- Extracts and saves the base64-encoded image
-- Shows examples of region-based and JPEG screenshots
+The examples are now organized in numbered directories for progressive learning:
 
-**Key concepts demonstrated:**
-- Health checking pattern
-- REST API interaction
-- Base64 image handling
-- Error handling
+### 01-getting-started/
+**Basic examples to get you started:**
+- `check_health.py` - Service health checking and status monitoring
+- `hello_screenshot.py` - Simple screenshot capture and saving
+- `simple_automation.py` - Basic mouse and keyboard automation
 
-### basic-automation.py
-A comprehensive Python script demonstrating both AI and core automation capabilities:
+**Key concepts:** REST API basics, health checking, simple automation tasks
 
-**AI-Driven Examples:**
-- Natural language command execution ("take a screenshot and move mouse to center")
-- AI planning and goal achievement ("organize desktop workspace")
-- Intelligent screen analysis ("what applications are currently visible?")
-- Shows how AI uses core automation functions to execute commands
+### 02-basic-automation/
+**Core automation features:**
+- `screenshot.py` - Advanced screenshot techniques (regions, formats, quality)
+- `mouse_control.py` - Mouse movements, clicks, and drag operations
+- `keyboard_input.py` - Text typing, key combinations, and shortcuts
+- `combined_automation.py` - Combining multiple automation actions
 
-**Core Automation Examples:**
-- Health monitoring and status reporting
-- Direct actions (mouse move, click, type)
-- Complex multi-step automation sequences
-- Precise coordinate-based control
+**Key concepts:** Direct automation control, coordinate systems, timing
 
-**Key concepts demonstrated:**
-- AI Layer → Core Automation Layer architecture
-- How AI commands translate to core function calls
-- Graceful fallback when AI unavailable
-- Python SDK pattern for both AI and direct automation
-- Interactive demonstration with mode selection
-- Comprehensive error handling and status reporting
+### 03-advanced-features/
+**Complex automation patterns:**
+- `automation_sequences.py` - Multi-step automation workflows
+- `error_recovery.py` - Error handling and recovery strategies
+- `comprehensive_demo.py` - Full-featured demonstration combining all capabilities
+
+**Key concepts:** Workflow orchestration, error handling, state management
+
+### 04-ai-integration/
+**AI-powered automation (requires API key):**
+- `natural_language_tasks.py` - Execute tasks using natural language
+- `visual_reasoning.py` - AI-based screen analysis and understanding
+- `autonomous_planning.py` - Goal-oriented task planning
+- `adaptive_automation.py` - Context-aware automation that adapts to UI changes
+
+**Key concepts:** AI orchestration, natural language processing, visual understanding
 
 ## 🔌 API Reference
 
@@ -245,59 +294,80 @@ Returns supported tasks and display configuration.
 
 ### Take Screenshot
 ```http
-POST /screenshot
-{
-  "format": "png",      // png or jpeg
-  "quality": 95,        // JPEG quality (1-100)
-  "region": [x, y, width, height]  // Optional region
-}
+POST /screenshot?format={format}&quality={quality}
+Body (optional): [x, y, width, height]  // Region array
+
+Query Parameters:
+- format: "png" or "jpeg" (default: "png")
+- quality: 1-100 for JPEG (default: 95)
 ```
 
-### Execute Task
+### Mouse Operations
 ```http
-POST /execute
+POST /mouse/click
 {
-  "task_type": "click|type_text|key_press|mouse_move|automation_sequence",
-  "parameters": { /* task-specific parameters */ },
-  "async_execution": false
+  "x": 500,
+  "y": 300,
+  "button": "left|right|middle",
+  "clicks": 1
+}
+
+POST /mouse/move
+{
+  "x": 600,
+  "y": 400,
+  "duration": 0.5  // Optional animation duration
+}
+
+GET /mouse/position
+```
+
+### Keyboard Operations
+```http
+POST /keyboard/type
+{
+  "text": "Hello World!",
+  "interval": 0.1  // Delay between keystrokes
+}
+
+POST /keyboard/press
+{
+  "keys": ["ctrl", "c"]  // Key combination
 }
 ```
 
-### Get Task Status
+### Task Management
 ```http
 GET /tasks/{task_id}
-```
-
-### Get Mouse Position
-```http
-GET /mouse/position
+GET /tasks
+POST /tasks/cancel/{task_id}
 ```
 
 ## 🧠 AI API Endpoints
 
-### Execute AI Command
+### Execute AI Action
 ```http
-POST /execute/ai
+POST /ai/action
 {
-  "command": "Natural language instruction",
-  "context": "Optional context for the command",
-  "async_execution": false
+  "task": "Natural language task description",
+  "screenshot": "Optional base64 screenshot data",
+  "context": { /* Optional context object */ }
 }
 ```
 
 **Example:**
 ```bash
-curl -X POST http://localhost:4113/execute/ai \
+curl -X POST http://localhost:4113/ai/action \
   -H "Content-Type: application/json" \
   -d '{
-    "command": "open a text editor and write hello world",
-    "context": "demonstration"
+    "task": "open a text editor and write hello world",
+    "context": {"purpose": "demonstration"}
   }'
 ```
 
 ### Generate AI Plan
 ```http
-POST /plan
+POST /ai/plan
 {
   "goal": "High-level goal to achieve",
   "constraints": ["list", "of", "constraints"]
@@ -306,7 +376,7 @@ POST /plan
 
 **Example:**
 ```bash
-curl -X POST http://localhost:4113/plan \
+curl -X POST http://localhost:4113/ai/plan \
   -H "Content-Type: application/json" \
   -d '{
     "goal": "organize my desktop files by type",
@@ -316,15 +386,16 @@ curl -X POST http://localhost:4113/plan \
 
 ### Analyze Screen
 ```http
-POST /analyze-screen
+POST /ai/analyze
 {
-  "question": "What do you want to know about the screen?"
+  "question": "What do you want to know about the screen?",
+  "screenshot": "Optional base64 screenshot data"
 }
 ```
 
 **Example:**
 ```bash
-curl -X POST http://localhost:4113/analyze-screen \
+curl -X POST http://localhost:4113/ai/analyze \
   -H "Content-Type: application/json" \
   -d '{
     "question": "What applications are currently running?"
@@ -333,126 +404,123 @@ curl -X POST http://localhost:4113/analyze-screen \
 
 ## 🐍 Python SDK Example
 
+First, install the Python package:
+```bash
+cd scripts/resources/agents/agent-s2
+pip install -e .  # or pip install -e ".[ai]" for AI support
+```
+
+Then use the client library:
+
 ```python
-import requests
-import base64
-from PIL import Image
-import io
+from agent_s2 import AgentS2Client, ScreenshotClient, AutomationClient, AIClient
 
-class AgentS2Client:
-    def __init__(self, base_url="http://localhost:4113"):
-        self.base_url = base_url
-    
-    def screenshot(self, region=None):
-        """Take a screenshot"""
-        data = {"format": "png"}
-        if region:
-            data["region"] = region
-        
-        response = requests.post(f"{self.base_url}/screenshot", json=data)
-        if response.ok:
-            # Extract base64 image
-            img_data = response.json()["data"].split(",")[1]
-            img_bytes = base64.b64decode(img_data)
-            return Image.open(io.BytesIO(img_bytes))
-        raise Exception(f"Screenshot failed: {response.text}")
-    
-    def click(self, x, y, button="left"):
-        """Click at position"""
-        return self.execute("click", {"x": x, "y": y, "button": button})
-    
-    def type_text(self, text, interval=0.1):
-        """Type text"""
-        return self.execute("type_text", {"text": text, "interval": interval})
-    
-    def execute(self, task_type, parameters):
-        """Execute a core automation task"""
-        data = {
-            "task_type": task_type,
-            "parameters": parameters
-        }
-        response = requests.post(f"{self.base_url}/execute", json=data)
-        response.raise_for_status()
-        return response.json()
-    
-    # AI Methods
-    def ai_command(self, command, context=None, async_execution=False):
-        """Execute natural language command using AI"""
-        data = {
-            "command": command,
-            "context": context,
-            "async_execution": async_execution
-        }
-        response = requests.post(f"{self.base_url}/execute/ai", json=data)
-        response.raise_for_status()
-        return response.json()
-    
-    def ai_plan(self, goal, constraints=None):
-        """Generate AI plan for achieving a goal"""
-        data = {
-            "goal": goal,
-            "constraints": constraints or []
-        }
-        response = requests.post(f"{self.base_url}/plan", json=data)
-        response.raise_for_status()
-        return response.json()
-    
-    def ai_analyze_screen(self, question=None):
-        """Analyze screen content using AI"""
-        data = {"question": question} if question else {}
-        response = requests.post(f"{self.base_url}/analyze-screen", json=data)
-        response.raise_for_status()
-        return response.json()
-    
-    def get_capabilities(self):
-        """Get service capabilities"""
-        response = requests.get(f"{self.base_url}/capabilities")
-        response.raise_for_status()
-        return response.json()
+# Initialize the main client
+client = AgentS2Client(base_url="http://localhost:4113")
 
-# Usage Examples
-agent = AgentS2Client()
-
-# Check what's available
-caps = agent.get_capabilities()
-ai_available = caps.get("ai_status", {}).get("initialized", False)
-
-if ai_available:
-    print("🧠 AI Mode Available - Using intelligent automation")
-    
-    # AI-driven examples
-    result = agent.ai_command("take a screenshot and move mouse to center")
-    print(f"AI Command Result: {result}")
-    
-    plan = agent.ai_plan("organize desktop files", ["don't delete anything"])
-    print(f"AI Plan: {plan}")
-    
-    analysis = agent.ai_analyze_screen("What applications are visible?")
-    print(f"Screen Analysis: {analysis}")
-    
+# Check service health and capabilities
+if client.health_check():
+    print("✅ Agent S2 is running")
+    caps = client.get_capabilities()
+    ai_available = caps.get("ai_available", False)
 else:
-    print("⚙️ Core Automation Mode - Direct control available")
+    print("❌ Agent S2 is not responding")
+    exit(1)
 
-# Core automation functions (always available)
-# Take screenshot
-img = agent.screenshot()
-img.save("desktop.png")
+# Screenshot operations
+screenshot_client = ScreenshotClient(client)
 
-# Click at position
-agent.click(500, 300)
+# Capture full screen
+screenshot_data = screenshot_client.capture(format="png")
+screenshot_client.save_to_file("desktop.png", screenshot_data)
 
-# Type text
-agent.type_text("Hello from Agent S2!")
+# Capture specific region
+region_screenshot = screenshot_client.capture_region(x=100, y=100, width=500, height=400)
+
+# Capture with JPEG compression
+jpeg_screenshot = screenshot_client.capture(format="jpeg", quality=85)
+
+# Automation operations
+automation = AutomationClient(client)
+
+# Mouse control
+automation.click(x=500, y=300)
+automation.right_click(x=600, y=400)
+automation.double_click(x=700, y=500)
+automation.move_mouse(x=800, y=600, duration=0.5)
+automation.drag(start_x=100, start_y=100, end_x=200, end_y=200)
+
+# Keyboard control
+automation.type_text("Hello, Agent S2!")
+automation.press_key("Return")
+automation.key_combination(["ctrl", "c"])
 
 # Complex automation sequence
-agent.execute("automation_sequence", {
-    "steps": [
-        {"type": "mouse_move", "parameters": {"x": 100, "y": 100}},
-        {"type": "click", "parameters": {}},
-        {"type": "type_text", "parameters": {"text": "Automated task"}},
-        {"type": "key_press", "parameters": {"keys": ["Return"]}}
-    ]
-})
+result = automation.execute_sequence([
+    {"action": "move_mouse", "x": 100, "y": 100},
+    {"action": "click"},
+    {"action": "type_text", "text": "Automated task"},
+    {"action": "press_key", "key": "Return"}
+])
+
+# AI-powered operations (if available)
+if ai_available:
+    ai = AIClient(client)
+    
+    # Natural language task execution
+    result = ai.perform_task(
+        task="Take a screenshot and move the mouse to the center of the screen",
+        context={"purpose": "demonstration"}
+    )
+    print(f"AI Task Result: {result}")
+    
+    # Screen analysis
+    analysis = ai.analyze_screen(
+        question="What applications are currently visible on the desktop?"
+    )
+    print(f"Screen Analysis: {analysis}")
+    
+    # Goal-oriented planning
+    plan = ai.create_plan(
+        goal="Organize desktop files by type",
+        constraints=["Don't delete any files", "Keep downloads folder visible"]
+    )
+    print(f"AI Plan: {plan}")
+    
+    # Navigate to UI element
+    nav_result = ai.navigate_to("Chrome browser icon")
+    print(f"Navigation Result: {nav_result}")
+else:
+    print("ℹ️ AI features not available - using core automation only")
+
+# Context manager usage
+with AgentS2Client() as client:
+    # Client automatically handles connection lifecycle
+    screenshot = client.screenshot()
+    client.click(500, 300)
+```
+
+### Quick Start with the Client
+
+```python
+# Minimal example
+from agent_s2 import AgentS2Client
+
+# Create client and take a screenshot
+client = AgentS2Client()
+screenshot = client.screenshot()
+client.save_screenshot("screen.png")
+
+# Click and type
+client.click(500, 300)
+client.type_text("Hello World!")
+
+# AI example (if enabled)
+if client.get_capabilities().get("ai_available"):
+    result = client.ai_action(
+        task="Open notepad and type 'Hello from AI'",
+        context={"demo": True}
+    )
 ```
 
 ## 🔒 Security Considerations
@@ -602,25 +670,27 @@ When you send an AI command, here's what happens internally:
 ```python
 # What you send:
 {
-    "command": "take a screenshot and move mouse to center"
+    "task": "take a screenshot and move mouse to center",
+    "context": {"purpose": "demonstration"}
 }
 
 # What the AI layer does:
-1. Parse command → identifies "screenshot" and "move mouse"
+1. Parse task → identifies "screenshot" and "move mouse"
 2. Plans execution sequence
-3. Calls core functions:
-   - await execute_screenshot({})
-   - screen_width, screen_height = pyautogui.size()
-   - await execute_mouse_move({"x": width//2, "y": height//2})
+3. Calls core API endpoints:
+   - POST /screenshot?format=png
+   - GET /mouse/position (to get screen dimensions)
+   - POST /mouse/move {"x": width//2, "y": height//2}
 
 # What gets returned:
 {
-    "command": "take a screenshot and move mouse to center",
+    "task": "take a screenshot and move mouse to center",
     "actions_taken": [
-        {"action": "screenshot", "status": "completed"},
-        {"action": "mouse_move", "parameters": {"x": 960, "y": 540}, "status": "completed"}
+        {"action": "screenshot", "endpoint": "/screenshot", "status": "completed"},
+        {"action": "mouse_move", "endpoint": "/mouse/move", "parameters": {"x": 960, "y": 540}, "status": "completed"}
     ],
-    "core_functions_used": 2
+    "reasoning": "Captured screen state, calculated center coordinates, moved mouse to center position",
+    "success": true
 }
 ```
 
@@ -646,12 +716,22 @@ Create an n8n HTTP Request node:
 ```json
 {
   "method": "POST",
-  "url": "http://agent-s2:4113/execute",
+  "url": "http://agent-s2:4113/screenshot?format=png",
+  "authentication": "none",
+  "jsonParameters": true
+}
+```
+
+Or for AI-driven automation:
+```json
+{
+  "method": "POST",
+  "url": "http://agent-s2:4113/ai/action",
   "authentication": "none",
   "jsonParameters": true,
   "body": {
-    "task_type": "screenshot",
-    "parameters": {}
+    "task": "capture screen and click on the first visible button",
+    "context": {"workflow": "automated_testing"}
   }
 }
 ```

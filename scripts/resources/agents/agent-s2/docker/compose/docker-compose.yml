@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  agent-s2:
+    build:
+      context: ../../
+      dockerfile: docker/images/agent-s2/Dockerfile
+    image: agent-s2:latest
+    container_name: agent-s2
+    network_mode: host
+    environment:
+      # Display settings
+      - DISPLAY=:99
+      - AGENT_S2_SCREEN_WIDTH=1920
+      - AGENT_S2_SCREEN_HEIGHT=1080
+      
+      # API settings
+      - AGENT_S2_HOST=0.0.0.0
+      - AGENT_S2_PORT=4113
+      
+      # AI settings (Ollama integration enabled by default)
+      - AGENT_S2_AI_ENABLED=${AGENT_S2_AI_ENABLED:-true}
+      - AGENT_S2_AI_API_URL=${AGENT_S2_AI_API_URL:-http://localhost:11434}
+      - AGENT_S2_AI_MODEL=${AGENT_S2_AI_MODEL:-llama3.1:8b}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      
+      # VNC settings
+      - AGENT_S2_VNC_PASSWORD=${AGENT_S2_VNC_PASSWORD:-agents2vnc}
+      
+      # Logging
+      - AGENT_S2_LOG_LEVEL=${AGENT_S2_LOG_LEVEL:-INFO}
+      
+    volumes:
+      # Mount test outputs
+      - ../../testing/test-outputs:/tmp/agent-s2-outputs
+      
+      # Optional: Mount local code for development
+      # - ../../agent_s2:/opt/agent-s2/agent_s2:ro
+      
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4113/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+      
+    restart: unless-stopped
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M

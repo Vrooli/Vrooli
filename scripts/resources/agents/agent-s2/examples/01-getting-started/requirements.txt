@@ -1,0 +1,7 @@
+# Requirements for getting started examples
+
+# Install the local Agent S2 package
+-e ../../
+
+# Additional dependencies
+requests>=2.31.0
