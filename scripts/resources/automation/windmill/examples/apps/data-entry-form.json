@@ -1,0 +1,463 @@
+{
+  "name": "Customer Onboarding Form",
+  "description": "Multi-step form for customer onboarding with validation, file uploads, and integration with backend systems",
+  "app_structure": {
+    "layout": {
+      "type": "container",
+      "style": {
+        "maxWidth": "800px",
+        "margin": "0 auto",
+        "padding": "24px"
+      },
+      "components": [
+        {
+          "id": "header",
+          "type": "container",
+          "components": [
+            {
+              "type": "text",
+              "content": "Customer Onboarding",
+              "style": {
+                "fontSize": "28px",
+                "fontWeight": "bold",
+                "marginBottom": "8px"
+              }
+            },
+            {
+              "type": "text",
+              "content": "Please complete all steps to set up your account",
+              "style": {
+                "color": "#666",
+                "marginBottom": "24px"
+              }
+            }
+          ]
+        },
+        {
+          "id": "progress_indicator",
+          "type": "stepper",
+          "currentStep": "${state.currentStep}",
+          "steps": [
+            {
+              "label": "Company Information",
+              "status": "${state.steps.company.status}"
+            },
+            {
+              "label": "Contact Details",
+              "status": "${state.steps.contact.status}"
+            },
+            {
+              "label": "Business Details",
+              "status": "${state.steps.business.status}"
+            },
+            {
+              "label": "Documents",
+              "status": "${state.steps.documents.status}"
+            },
+            {
+              "label": "Review & Submit",
+              "status": "${state.steps.review.status}"
+            }
+          ]
+        },
+        {
+          "id": "form_container",
+          "type": "container",
+          "style": {
+            "marginTop": "32px"
+          },
+          "components": [
+            {
+              "id": "step_1_company",
+              "type": "container",
+              "visible": "${state.currentStep === 1}",
+              "components": [
+                {
+                  "type": "form",
+                  "id": "company_form",
+                  "fields": [
+                    {
+                      "name": "company_name",
+                      "label": "Company Name",
+                      "type": "text",
+                      "required": true,
+                      "placeholder": "Enter your company name"
+                    },
+                    {
+                      "name": "legal_name",
+                      "label": "Legal Business Name",
+                      "type": "text",
+                      "required": true,
+                      "placeholder": "As registered with government"
+                    },
+                    {
+                      "name": "registration_number",
+                      "label": "Registration Number",
+                      "type": "text",
+                      "required": true,
+                      "validation": {
+                        "pattern": "^[A-Z0-9]{8,12}$",
+                        "message": "Invalid registration number format"
+                      }
+                    },
+                    {
+                      "name": "company_type",
+                      "label": "Company Type",
+                      "type": "select",
+                      "required": true,
+                      "options": [
+                        {"value": "llc", "label": "Limited Liability Company (LLC)"},
+                        {"value": "corp", "label": "Corporation"},
+                        {"value": "partnership", "label": "Partnership"},
+                        {"value": "sole_prop", "label": "Sole Proprietorship"}
+                      ]
+                    },
+                    {
+                      "name": "industry",
+                      "label": "Industry",
+                      "type": "autocomplete",
+                      "required": true,
+                      "dataSource": {
+                        "script": "f/data/get_industries"
+                      }
+                    },
+                    {
+                      "name": "website",
+                      "label": "Company Website",
+                      "type": "url",
+                      "placeholder": "https://www.example.com"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "step_2_contact",
+              "type": "container",
+              "visible": "${state.currentStep === 2}",
+              "components": [
+                {
+                  "type": "form",
+                  "id": "contact_form",
+                  "fields": [
+                    {
+                      "name": "primary_contact_name",
+                      "label": "Primary Contact Name",
+                      "type": "text",
+                      "required": true
+                    },
+                    {
+                      "name": "primary_contact_email",
+                      "label": "Primary Contact Email",
+                      "type": "email",
+                      "required": true,
+                      "validation": {
+                        "unique": true,
+                        "checkScript": "f/validation/check_email_unique"
+                      }
+                    },
+                    {
+                      "name": "primary_contact_phone",
+                      "label": "Primary Contact Phone",
+                      "type": "phone",
+                      "required": true,
+                      "countryCode": true
+                    },
+                    {
+                      "name": "billing_address",
+                      "label": "Billing Address",
+                      "type": "address",
+                      "required": true,
+                      "components": ["street", "city", "state", "zip", "country"]
+                    },
+                    {
+                      "name": "shipping_same_as_billing",
+                      "label": "Shipping address same as billing",
+                      "type": "checkbox",
+                      "defaultValue": true
+                    },
+                    {
+                      "name": "shipping_address",
+                      "label": "Shipping Address",
+                      "type": "address",
+                      "visible": "${!form.values.shipping_same_as_billing}",
+                      "required": "${!form.values.shipping_same_as_billing}",
+                      "components": ["street", "city", "state", "zip", "country"]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "step_3_business",
+              "type": "container",
+              "visible": "${state.currentStep === 3}",
+              "components": [
+                {
+                  "type": "form",
+                  "id": "business_form",
+                  "fields": [
+                    {
+                      "name": "annual_revenue",
+                      "label": "Estimated Annual Revenue",
+                      "type": "select",
+                      "required": true,
+                      "options": [
+                        {"value": "<100k", "label": "Less than $100,000"},
+                        {"value": "100k-500k", "label": "$100,000 - $500,000"},
+                        {"value": "500k-1m", "label": "$500,000 - $1 million"},
+                        {"value": "1m-5m", "label": "$1 million - $5 million"},
+                        {"value": ">5m", "label": "More than $5 million"}
+                      ]
+                    },
+                    {
+                      "name": "employee_count",
+                      "label": "Number of Employees",
+                      "type": "number",
+                      "required": true,
+                      "min": 1,
+                      "max": 10000
+                    },
+                    {
+                      "name": "services_needed",
+                      "label": "Services Needed",
+                      "type": "multiselect",
+                      "required": true,
+                      "options": [
+                        {"value": "payment_processing", "label": "Payment Processing"},
+                        {"value": "invoicing", "label": "Invoicing"},
+                        {"value": "inventory", "label": "Inventory Management"},
+                        {"value": "crm", "label": "Customer Relationship Management"},
+                        {"value": "analytics", "label": "Analytics & Reporting"}
+                      ]
+                    },
+                    {
+                      "name": "expected_monthly_volume",
+                      "label": "Expected Monthly Transaction Volume",
+                      "type": "currency",
+                      "required": true,
+                      "currency": "USD"
+                    },
+                    {
+                      "name": "business_description",
+                      "label": "Business Description",
+                      "type": "textarea",
+                      "required": true,
+                      "rows": 4,
+                      "maxLength": 500,
+                      "placeholder": "Briefly describe your business and what you do"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "step_4_documents",
+              "type": "container",
+              "visible": "${state.currentStep === 4}",
+              "components": [
+                {
+                  "type": "form",
+                  "id": "documents_form",
+                  "components": [
+                    {
+                      "type": "file_upload",
+                      "name": "business_license",
+                      "label": "Business License",
+                      "required": true,
+                      "accept": ".pdf,.jpg,.jpeg,.png",
+                      "maxSize": "5MB",
+                      "uploadScript": "f/uploads/process_document"
+                    },
+                    {
+                      "type": "file_upload",
+                      "name": "tax_id_document",
+                      "label": "Tax ID Documentation",
+                      "required": true,
+                      "accept": ".pdf,.jpg,.jpeg,.png",
+                      "maxSize": "5MB",
+                      "uploadScript": "f/uploads/process_document"
+                    },
+                    {
+                      "type": "file_upload",
+                      "name": "bank_statement",
+                      "label": "Recent Bank Statement",
+                      "required": false,
+                      "accept": ".pdf",
+                      "maxSize": "10MB",
+                      "uploadScript": "f/uploads/process_document",
+                      "helper": "Optional but speeds up verification"
+                    },
+                    {
+                      "type": "checkbox",
+                      "name": "terms_accepted",
+                      "required": true,
+                      "label": "I agree to the Terms of Service and Privacy Policy"
+                    },
+                    {
+                      "type": "checkbox",
+                      "name": "data_processing_consent",
+                      "required": true,
+                      "label": "I consent to the processing of my business data"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "step_5_review",
+              "type": "container",
+              "visible": "${state.currentStep === 5}",
+              "components": [
+                {
+                  "type": "summary",
+                  "title": "Review Your Information",
+                  "sections": [
+                    {
+                      "title": "Company Information",
+                      "data": "${state.formData.company}",
+                      "editButton": {
+                        "onClick": {
+                          "setState": {"currentStep": 1}
+                        }
+                      }
+                    },
+                    {
+                      "title": "Contact Details",
+                      "data": "${state.formData.contact}",
+                      "editButton": {
+                        "onClick": {
+                          "setState": {"currentStep": 2}
+                        }
+                      }
+                    },
+                    {
+                      "title": "Business Details",
+                      "data": "${state.formData.business}",
+                      "editButton": {
+                        "onClick": {
+                          "setState": {"currentStep": 3}
+                        }
+                      }
+                    },
+                    {
+                      "title": "Uploaded Documents",
+                      "data": "${state.formData.documents}",
+                      "editButton": {
+                        "onClick": {
+                          "setState": {"currentStep": 4}
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "navigation_buttons",
+          "type": "container",
+          "direction": "horizontal",
+          "style": {
+            "marginTop": "32px",
+            "justifyContent": "space-between"
+          },
+          "components": [
+            {
+              "type": "button",
+              "text": "Previous",
+              "variant": "secondary",
+              "visible": "${state.currentStep > 1}",
+              "onClick": {
+                "setState": {
+                  "currentStep": "${state.currentStep - 1}"
+                }
+              }
+            },
+            {
+              "type": "button",
+              "text": "${state.currentStep === 5 ? 'Submit Application' : 'Next'}",
+              "variant": "primary",
+              "onClick": {
+                "condition": "${state.currentStep < 5}",
+                "true": {
+                  "validateForm": "${state.currentFormId}",
+                  "onValid": {
+                    "saveFormData": true,
+                    "setState": {
+                      "currentStep": "${state.currentStep + 1}"
+                    }
+                  }
+                },
+                "false": {
+                  "runFlow": "f/onboarding/submit_application",
+                  "inputs": "${state.formData}",
+                  "onSuccess": {
+                    "redirect": "/onboarding/success"
+                  },
+                  "onError": {
+                    "showNotification": {
+                      "type": "error",
+                      "message": "Failed to submit application. Please try again."
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "state": {
+      "currentStep": 1,
+      "currentFormId": "company_form",
+      "formData": {
+        "company": {},
+        "contact": {},
+        "business": {},
+        "documents": {}
+      },
+      "steps": {
+        "company": {"status": "current"},
+        "contact": {"status": "pending"},
+        "business": {"status": "pending"},
+        "documents": {"status": "pending"},
+        "review": {"status": "pending"}
+      }
+    },
+    "scripts": [
+      {
+        "path": "f/data/get_industries",
+        "description": "Fetches list of industries for autocomplete"
+      },
+      {
+        "path": "f/validation/check_email_unique",
+        "description": "Validates email uniqueness"
+      },
+      {
+        "path": "f/uploads/process_document",
+        "description": "Handles document upload and validation"
+      },
+      {
+        "path": "f/onboarding/submit_application",
+        "description": "Submits complete application"
+      }
+    ]
+  },
+  "features": {
+    "validation": {
+      "realtime": true,
+      "showErrors": "onBlur"
+    },
+    "autosave": {
+      "enabled": true,
+      "interval": 30000,
+      "script": "f/forms/autosave"
+    },
+    "analytics": {
+      "trackProgress": true,
+      "trackAbandonment": true
+    }
+  }
+}

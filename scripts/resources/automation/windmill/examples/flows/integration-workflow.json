@@ -1,0 +1,281 @@
+{
+  "name": "Multi-System Integration Workflow",
+  "description": "Synchronizes customer data across CRM, billing, and support systems with conflict resolution",
+  "flow_structure": {
+    "nodes": [
+      {
+        "id": "webhook_receiver",
+        "type": "trigger",
+        "trigger_type": "webhook",
+        "path": "/webhooks/customer-update",
+        "summary": "Receive customer update webhook"
+      },
+      {
+        "id": "validate_webhook",
+        "type": "script",
+        "path": "f/webhooks/validate_signature",
+        "summary": "Validate webhook signature",
+        "inputs": {
+          "payload": "${trigger.payload}",
+          "signature": "${trigger.headers['x-webhook-signature']}",
+          "secret": "${resources.webhook_secret}"
+        }
+      },
+      {
+        "id": "fetch_current_data",
+        "type": "parallel",
+        "summary": "Fetch current data from all systems",
+        "branches": [
+          {
+            "id": "fetch_crm",
+            "type": "script",
+            "path": "f/integrations/fetch_crm_customer",
+            "inputs": {
+              "customer_id": "${trigger.payload.customer_id}",
+              "api_key": "${resources.crm_api_key}"
+            }
+          },
+          {
+            "id": "fetch_billing",
+            "type": "script",
+            "path": "f/integrations/fetch_billing_customer",
+            "inputs": {
+              "customer_id": "${trigger.payload.customer_id}",
+              "api_key": "${resources.billing_api_key}"
+            }
+          },
+          {
+            "id": "fetch_support",
+            "type": "script",
+            "path": "f/integrations/fetch_support_customer",
+            "inputs": {
+              "customer_id": "${trigger.payload.customer_id}",
+              "api_key": "${resources.support_api_key}"
+            }
+          }
+        ]
+      },
+      {
+        "id": "detect_conflicts",
+        "type": "script",
+        "path": "f/integrations/detect_conflicts",
+        "summary": "Detect data conflicts between systems",
+        "inputs": {
+          "webhook_data": "${trigger.payload}",
+          "crm_data": "${nodes.fetch_current_data.branches.fetch_crm.output}",
+          "billing_data": "${nodes.fetch_current_data.branches.fetch_billing.output}",
+          "support_data": "${nodes.fetch_current_data.branches.fetch_support.output}",
+          "conflict_rules": {
+            "email": "newest_wins",
+            "phone": "manual_review",
+            "address": "source_system_priority"
+          }
+        }
+      },
+      {
+        "id": "resolve_conflicts",
+        "type": "branch",
+        "condition": "${nodes.detect_conflicts.output.has_conflicts}",
+        "true_branch": {
+          "id": "conflict_resolution",
+          "type": "script",
+          "path": "f/integrations/resolve_conflicts",
+          "summary": "Apply conflict resolution rules",
+          "inputs": {
+            "conflicts": "${nodes.detect_conflicts.output.conflicts}",
+            "resolution_strategy": "${nodes.detect_conflicts.output.suggested_resolutions}"
+          }
+        },
+        "false_branch": {
+          "id": "prepare_updates",
+          "type": "script",
+          "path": "f/integrations/prepare_updates",
+          "inputs": {
+            "data": "${trigger.payload}"
+          }
+        }
+      },
+      {
+        "id": "update_systems",
+        "type": "parallel",
+        "summary": "Update all systems with resolved data",
+        "error_handler": "partial_failure_handler",
+        "branches": [
+          {
+            "id": "update_crm",
+            "type": "script",
+            "path": "f/integrations/update_crm_customer",
+            "inputs": {
+              "customer_id": "${trigger.payload.customer_id}",
+              "updates": "${nodes.resolve_conflicts.output.crm_updates}",
+              "api_key": "${resources.crm_api_key}"
+            },
+            "retry": {
+              "max_attempts": 3,
+              "backoff": "exponential"
+            }
+          },
+          {
+            "id": "update_billing",
+            "type": "script",
+            "path": "f/integrations/update_billing_customer",
+            "inputs": {
+              "customer_id": "${trigger.payload.customer_id}",
+              "updates": "${nodes.resolve_conflicts.output.billing_updates}",
+              "api_key": "${resources.billing_api_key}"
+            },
+            "retry": {
+              "max_attempts": 3,
+              "backoff": "exponential"
+            }
+          },
+          {
+            "id": "update_support",
+            "type": "script",
+            "path": "f/integrations/update_support_customer",
+            "inputs": {
+              "customer_id": "${trigger.payload.customer_id}",
+              "updates": "${nodes.resolve_conflicts.output.support_updates}",
+              "api_key": "${resources.support_api_key}"
+            },
+            "retry": {
+              "max_attempts": 3,
+              "backoff": "exponential"
+            }
+          }
+        ]
+      },
+      {
+        "id": "verify_sync",
+        "type": "script",
+        "path": "f/integrations/verify_sync",
+        "summary": "Verify all systems are in sync",
+        "inputs": {
+          "customer_id": "${trigger.payload.customer_id}",
+          "expected_state": "${nodes.resolve_conflicts.output.final_state}",
+          "systems": ["crm", "billing", "support"]
+        },
+        "wait_before": 5000
+      },
+      {
+        "id": "log_audit",
+        "type": "script",
+        "path": "f/audit/log_integration",
+        "summary": "Log integration audit trail",
+        "inputs": {
+          "event_type": "customer_sync",
+          "customer_id": "${trigger.payload.customer_id}",
+          "source": "${trigger.payload.source_system}",
+          "changes": "${nodes.update_systems.output}",
+          "verification": "${nodes.verify_sync.output}",
+          "timestamp": "${flow.start_time}"
+        }
+      },
+      {
+        "id": "send_notification",
+        "type": "script",
+        "path": "f/notifications/send_sync_summary",
+        "summary": "Send sync completion notification",
+        "inputs": {
+          "to": "${resources.integration_team_email}",
+          "customer_id": "${trigger.payload.customer_id}",
+          "sync_result": "${nodes.verify_sync.output}",
+          "conflicts_resolved": "${nodes.detect_conflicts.output.conflicts}"
+        }
+      },
+      {
+        "id": "partial_failure_handler",
+        "type": "script",
+        "path": "f/integrations/handle_partial_failure",
+        "summary": "Handle partial system update failures",
+        "inputs": {
+          "failures": "${flow.errors}",
+          "successful_updates": "${nodes.update_systems.output.successful}",
+          "rollback_strategy": "compensate"
+        }
+      }
+    ],
+    "error_handling": {
+      "global_handler": "error_notification",
+      "retry_policy": {
+        "max_attempts": 2,
+        "backoff": "exponential"
+      },
+      "on_final_failure": "create_incident"
+    }
+  },
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "customer_id": {
+        "type": "string",
+        "description": "Unique customer identifier"
+      },
+      "source_system": {
+        "type": "string",
+        "enum": ["crm", "billing", "support", "manual"],
+        "description": "System that triggered the update"
+      },
+      "updates": {
+        "type": "object",
+        "properties": {
+          "email": {"type": "string", "format": "email"},
+          "phone": {"type": "string"},
+          "address": {"type": "object"},
+          "name": {"type": "object"},
+          "custom_fields": {"type": "object"}
+        }
+      },
+      "update_timestamp": {
+        "type": "string",
+        "format": "date-time"
+      }
+    },
+    "required": ["customer_id", "source_system", "updates"]
+  },
+  "required_resources": [
+    {
+      "name": "webhook_secret",
+      "type": "secret",
+      "description": "Secret for webhook signature validation"
+    },
+    {
+      "name": "crm_api_key",
+      "type": "secret",
+      "description": "CRM system API key"
+    },
+    {
+      "name": "billing_api_key",
+      "type": "secret",
+      "description": "Billing system API key"
+    },
+    {
+      "name": "support_api_key",
+      "type": "secret",
+      "description": "Support system API key"
+    },
+    {
+      "name": "integration_team_email",
+      "type": "string",
+      "description": "Email for integration notifications"
+    }
+  ],
+  "monitoring": {
+    "sla": {
+      "completion_time_seconds": 30,
+      "success_rate_percent": 99.5
+    },
+    "alerts": [
+      {
+        "condition": "flow_duration > 60",
+        "action": "send_alert",
+        "severity": "warning"
+      },
+      {
+        "condition": "error_rate > 0.05",
+        "action": "page_oncall",
+        "severity": "critical"
+      }
+    ]
+  }
+}

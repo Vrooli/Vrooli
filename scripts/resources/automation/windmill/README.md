@@ -108,6 +108,109 @@ Workers can be scaled dynamically based on workload:
 
 Each worker requires ~2GB RAM and supports multiple concurrent executions.
 
+## Core Concepts: Scripts vs Flows vs Apps
+
+Windmill provides three main ways to build automation and user interfaces:
+
+### Scripts
+**What they are**: Individual functions written in TypeScript, Python, Go, or Bash that perform specific tasks.
+
+**When to use**:
+- Single-purpose functions (e.g., send email, process data, call API)
+- Building blocks for larger workflows
+- Quick automation tasks
+- Webhook handlers
+- Scheduled jobs
+
+**Example use cases**:
+- Data transformation function
+- API integration endpoint
+- Database query executor
+- File processing utility
+
+### Flows
+**What they are**: Visual workflows that chain multiple scripts together with control logic, branching, and error handling.
+
+**When to use**:
+- Complex multi-step processes
+- Business logic requiring conditions and loops
+- Orchestrating multiple API calls
+- ETL pipelines
+- Approval workflows
+
+**Key features**:
+- Visual flow editor
+- Conditional branching (if/else)
+- For loops and while loops
+- Parallel execution
+- Error handling and retries
+- Input/output mapping between steps
+
+**Example use cases**:
+- User onboarding workflow (create account → send email → setup defaults)
+- Data pipeline (extract → transform → validate → load)
+- Approval process (submit → review → approve/reject → notify)
+- Integration workflow (fetch from API A → process → send to API B)
+
+### Apps
+**What they are**: Low-code UI applications built with drag-and-drop components that can execute scripts and flows.
+
+**When to use**:
+- Creating user interfaces for non-technical users
+- Building admin panels and dashboards
+- Interactive forms and data entry
+- Monitoring and reporting interfaces
+- Internal tools
+
+**Key features**:
+- Drag-and-drop UI builder
+- Pre-built components (forms, tables, charts)
+- Data binding to scripts/flows
+- Responsive design
+- Real-time updates
+- User authentication
+
+**Example use cases**:
+- Admin dashboard for user management
+- Data entry form with validation
+- Report viewer with export options
+- Monitoring dashboard with live metrics
+- Internal tool for customer support
+
+### Choosing Between Scripts, Flows, and Apps
+
+| Use Case | Best Choice | Why |
+|----------|-------------|-----|
+| Simple API call | Script | Single action, reusable |
+| Multi-step process | Flow | Visual orchestration, error handling |
+| User interface needed | App | Interactive UI with backend logic |
+| Scheduled task | Script or Flow | Depends on complexity |
+| Webhook handler | Script | Direct execution, fast response |
+| ETL pipeline | Flow | Multiple steps, data transformation |
+| Admin panel | App | UI for non-technical users |
+| Microservice | Script | Single responsibility, API endpoint |
+
+### Combining Scripts, Flows, and Apps
+
+Windmill's power comes from combining these concepts:
+
+1. **Scripts as Building Blocks**: Write reusable scripts for common tasks
+2. **Flows for Orchestration**: Chain scripts together with business logic
+3. **Apps for User Interaction**: Create UIs that trigger flows and display results
+
+**Example Architecture**:
+```
+App (Customer Dashboard)
+  ├── Flow: Load Customer Data
+  │   ├── Script: Authenticate User
+  │   ├── Script: Fetch from Database
+  │   └── Script: Format for Display
+  └── Flow: Update Customer
+      ├── Script: Validate Input
+      ├── Script: Update Database
+      └── Script: Send Notification
+```
+
 ## Usage
 
 ### Web Interface
@@ -115,7 +218,10 @@ Each worker requires ~2GB RAM and supports multiple concurrent executions.
 1. **Access Windmill**: http://localhost:5681
 2. **Login**: Use configured superadmin credentials
 3. **Create Workspace**: Set up your first workspace
-4. **Write Scripts**: Use the built-in IDE
+4. **Choose Your Tool**:
+   - **Scripts**: For individual functions
+   - **Flows**: For multi-step workflows
+   - **Apps**: For user interfaces
 
 ### Supported Languages
 

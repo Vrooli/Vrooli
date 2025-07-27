@@ -1,0 +1,475 @@
+{
+  "name": "System Monitoring Dashboard",
+  "description": "Real-time monitoring dashboard for system health, performance metrics, and alerts",
+  "app_structure": {
+    "layout": {
+      "type": "container",
+      "direction": "vertical",
+      "fullScreen": true,
+      "components": [
+        {
+          "id": "header",
+          "type": "container",
+          "direction": "horizontal",
+          "style": {
+            "padding": "12px 24px",
+            "backgroundColor": "#1a1a1a",
+            "color": "white",
+            "alignItems": "center"
+          },
+          "components": [
+            {
+              "type": "text",
+              "content": "System Monitoring",
+              "style": {
+                "fontSize": "20px",
+                "fontWeight": "bold"
+              }
+            },
+            {
+              "type": "spacer"
+            },
+            {
+              "type": "status_indicator",
+              "status": "${state.overall_health}",
+              "label": "System Health"
+            },
+            {
+              "type": "text",
+              "content": "Last updated: ${state.last_update}",
+              "style": {
+                "fontSize": "12px",
+                "opacity": 0.7,
+                "marginLeft": "24px"
+              }
+            },
+            {
+              "type": "button",
+              "text": "Settings",
+              "variant": "ghost",
+              "icon": "settings",
+              "onClick": {
+                "openModal": "settings_modal"
+              }
+            }
+          ]
+        },
+        {
+          "id": "alerts_banner",
+          "type": "container",
+          "visible": "${state.active_alerts.length > 0}",
+          "style": {
+            "backgroundColor": "#ff4444",
+            "color": "white",
+            "padding": "8px 24px"
+          },
+          "components": [
+            {
+              "type": "text",
+              "content": "⚠️ ${state.active_alerts.length} Active Alerts",
+              "style": {
+                "fontWeight": "bold"
+              }
+            },
+            {
+              "type": "button",
+              "text": "View All",
+              "variant": "link",
+              "style": {
+                "color": "white",
+                "textDecoration": "underline"
+              },
+              "onClick": {
+                "openModal": "alerts_modal"
+              }
+            }
+          ]
+        },
+        {
+          "id": "main_content",
+          "type": "container",
+          "style": {
+            "padding": "24px",
+            "backgroundColor": "#f5f5f5",
+            "flex": 1,
+            "overflow": "auto"
+          },
+          "components": [
+            {
+              "id": "metrics_grid",
+              "type": "grid",
+              "columns": 4,
+              "gap": "16px",
+              "style": {
+                "marginBottom": "24px"
+              },
+              "components": [
+                {
+                  "type": "metric_card",
+                  "title": "CPU Usage",
+                  "value": "${scripts.get_metrics.output.cpu_usage}%",
+                  "trend": "${scripts.get_metrics.output.cpu_trend}",
+                  "sparkline": "${scripts.get_metrics.output.cpu_history}",
+                  "status": "${scripts.get_metrics.output.cpu_status}",
+                  "onClick": {
+                    "openModal": "cpu_details_modal"
+                  }
+                },
+                {
+                  "type": "metric_card",
+                  "title": "Memory Usage",
+                  "value": "${scripts.get_metrics.output.memory_usage}%",
+                  "trend": "${scripts.get_metrics.output.memory_trend}",
+                  "sparkline": "${scripts.get_metrics.output.memory_history}",
+                  "status": "${scripts.get_metrics.output.memory_status}"
+                },
+                {
+                  "type": "metric_card",
+                  "title": "Disk Usage",
+                  "value": "${scripts.get_metrics.output.disk_usage}%",
+                  "subtitle": "${scripts.get_metrics.output.disk_free} GB free",
+                  "progress": true,
+                  "status": "${scripts.get_metrics.output.disk_status}"
+                },
+                {
+                  "type": "metric_card",
+                  "title": "Network I/O",
+                  "value": "${scripts.get_metrics.output.network_throughput}",
+                  "subtitle": "↓ ${scripts.get_metrics.output.download} ↑ ${scripts.get_metrics.output.upload}",
+                  "sparkline": "${scripts.get_metrics.output.network_history}",
+                  "status": "healthy"
+                }
+              ]
+            },
+            {
+              "id": "charts_row",
+              "type": "container",
+              "direction": "horizontal",
+              "gap": "16px",
+              "style": {
+                "marginBottom": "24px"
+              },
+              "components": [
+                {
+                  "type": "chart_card",
+                  "title": "System Performance",
+                  "flex": 2,
+                  "chart": {
+                    "type": "line",
+                    "data": "${scripts.get_performance_history.output}",
+                    "options": {
+                      "xAxis": {
+                        "type": "time",
+                        "label": "Time"
+                      },
+                      "yAxis": {
+                        "label": "Usage %",
+                        "max": 100
+                      },
+                      "series": [
+                        {
+                          "name": "CPU",
+                          "dataKey": "cpu",
+                          "color": "#3b82f6"
+                        },
+                        {
+                          "name": "Memory",
+                          "dataKey": "memory",
+                          "color": "#10b981"
+                        }
+                      ],
+                      "realtime": true,
+                      "refreshInterval": 5000
+                    }
+                  }
+                },
+                {
+                  "type": "chart_card",
+                  "title": "Response Times",
+                  "flex": 1,
+                  "chart": {
+                    "type": "bar",
+                    "data": "${scripts.get_response_times.output}",
+                    "options": {
+                      "xAxis": {
+                        "dataKey": "service",
+                        "angle": -45
+                      },
+                      "yAxis": {
+                        "label": "ms"
+                      },
+                      "bar": {
+                        "dataKey": "responseTime",
+                        "color": {
+                          "field": "status",
+                          "mapping": {
+                            "healthy": "#10b981",
+                            "warning": "#f59e0b",
+                            "critical": "#ef4444"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": "services_and_logs",
+              "type": "container",
+              "direction": "horizontal",
+              "gap": "16px",
+              "components": [
+                {
+                  "type": "card",
+                  "title": "Service Status",
+                  "flex": 1,
+                  "components": [
+                    {
+                      "type": "service_list",
+                      "data": "${scripts.get_services.output}",
+                      "itemTemplate": {
+                        "icon": {
+                          "type": "status",
+                          "status": "${item.status}"
+                        },
+                        "title": "${item.name}",
+                        "subtitle": "${item.uptime}",
+                        "actions": [
+                          {
+                            "icon": "restart",
+                            "tooltip": "Restart service",
+                            "visible": "${item.status !== 'running'}",
+                            "onClick": {
+                              "runScript": "f/services/restart",
+                              "inputs": {
+                                "service": "${item.id}"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "card",
+                  "title": "Recent Logs",
+                  "flex": 2,
+                  "components": [
+                    {
+                      "type": "log_viewer",
+                      "data": "${scripts.get_recent_logs.output}",
+                      "filters": {
+                        "level": ["error", "warning", "info"],
+                        "service": "all"
+                      },
+                      "autoScroll": true,
+                      "maxLines": 100,
+                      "highlight": {
+                        "error": "#ef4444",
+                        "warning": "#f59e0b",
+                        "info": "#3b82f6"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "modals": [
+      {
+        "id": "alerts_modal",
+        "title": "Active Alerts",
+        "size": "large",
+        "components": [
+          {
+            "type": "alert_list",
+            "data": "${state.active_alerts}",
+            "itemTemplate": {
+              "severity": "${item.severity}",
+              "title": "${item.title}",
+              "description": "${item.description}",
+              "timestamp": "${item.timestamp}",
+              "actions": [
+                {
+                  "label": "Acknowledge",
+                  "onClick": {
+                    "runScript": "f/alerts/acknowledge",
+                    "inputs": {
+                      "alert_id": "${item.id}"
+                    }
+                  }
+                },
+                {
+                  "label": "Silence",
+                  "onClick": {
+                    "runScript": "f/alerts/silence",
+                    "inputs": {
+                      "alert_id": "${item.id}",
+                      "duration": "1h"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "settings_modal",
+        "title": "Dashboard Settings",
+        "components": [
+          {
+            "type": "form",
+            "fields": [
+              {
+                "name": "refresh_interval",
+                "label": "Refresh Interval",
+                "type": "select",
+                "options": [
+                  {"value": 5000, "label": "5 seconds"},
+                  {"value": 10000, "label": "10 seconds"},
+                  {"value": 30000, "label": "30 seconds"},
+                  {"value": 60000, "label": "1 minute"}
+                ],
+                "defaultValue": "${state.settings.refresh_interval}"
+              },
+              {
+                "name": "alert_notifications",
+                "label": "Enable Alert Notifications",
+                "type": "checkbox",
+                "defaultValue": "${state.settings.alert_notifications}"
+              },
+              {
+                "name": "theme",
+                "label": "Dashboard Theme",
+                "type": "radio",
+                "options": ["light", "dark", "auto"],
+                "defaultValue": "${state.settings.theme}"
+              }
+            ],
+            "actions": [
+              {
+                "type": "button",
+                "text": "Save Settings",
+                "variant": "primary",
+                "onClick": {
+                  "saveSettings": "${form.values}",
+                  "closeModal": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "scripts": [
+      {
+        "id": "get_metrics",
+        "path": "f/monitoring/get_system_metrics",
+        "trigger": "onLoad",
+        "refreshInterval": "${state.settings.refresh_interval}"
+      },
+      {
+        "id": "get_performance_history",
+        "path": "f/monitoring/get_performance_history",
+        "trigger": "onLoad",
+        "refreshInterval": 5000
+      },
+      {
+        "id": "get_response_times",
+        "path": "f/monitoring/get_response_times",
+        "trigger": "onLoad",
+        "refreshInterval": 10000
+      },
+      {
+        "id": "get_services",
+        "path": "f/monitoring/get_service_status",
+        "trigger": "onLoad",
+        "refreshInterval": 10000
+      },
+      {
+        "id": "get_recent_logs",
+        "path": "f/monitoring/get_recent_logs",
+        "trigger": "onLoad",
+        "refreshInterval": 5000
+      },
+      {
+        "id": "check_alerts",
+        "path": "f/monitoring/check_alerts",
+        "trigger": "onLoad",
+        "refreshInterval": 10000,
+        "onUpdate": {
+          "setState": {
+            "active_alerts": "${output.alerts}",
+            "overall_health": "${output.health_status}"
+          }
+        }
+      }
+    ],
+    "state": {
+      "settings": {
+        "refresh_interval": 10000,
+        "alert_notifications": true,
+        "theme": "dark"
+      },
+      "active_alerts": [],
+      "overall_health": "healthy",
+      "last_update": ""
+    },
+    "websocket": {
+      "enabled": true,
+      "endpoint": "/ws/monitoring",
+      "events": {
+        "alert": {
+          "handler": "handleNewAlert"
+        },
+        "metric_update": {
+          "handler": "updateMetrics"
+        }
+      }
+    }
+  },
+  "required_scripts": [
+    {
+      "path": "f/monitoring/get_system_metrics",
+      "description": "Fetches current system metrics"
+    },
+    {
+      "path": "f/monitoring/get_performance_history",
+      "description": "Gets historical performance data"
+    },
+    {
+      "path": "f/monitoring/get_response_times",
+      "description": "Measures service response times"
+    },
+    {
+      "path": "f/monitoring/get_service_status",
+      "description": "Checks status of all services"
+    },
+    {
+      "path": "f/monitoring/get_recent_logs",
+      "description": "Fetches recent system logs"
+    },
+    {
+      "path": "f/monitoring/check_alerts",
+      "description": "Checks for active alerts"
+    },
+    {
+      "path": "f/alerts/acknowledge",
+      "description": "Acknowledges an alert"
+    },
+    {
+      "path": "f/alerts/silence",
+      "description": "Silences an alert temporarily"
+    },
+    {
+      "path": "f/services/restart",
+      "description": "Restarts a service"
+    }
+  ]
+}

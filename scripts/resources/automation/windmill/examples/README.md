@@ -1,88 +1,89 @@
 # Windmill Examples
 
-This directory contains example scripts and configurations to help you get started with Windmill workflow automation.
+This directory contains comprehensive examples demonstrating all three core Windmill concepts: Scripts, Flows, and Apps.
 
-## Available Examples
+## 📁 Directory Structure
 
-### 1. Basic TypeScript Script (`basic-typescript-script.ts`)
-
-A simple TypeScript function demonstrating:
-- Input validation and type safety
-- Multi-language greeting functionality
-- Structured return values with metadata
-- Error handling
-
-**How to use:**
-1. Create a new script in Windmill with path `f/examples/hello`
-2. Copy the TypeScript code from the file
-3. Test with input: `{"name": "Alice", "title": "Dr.", "language": "en"}`
-
-### 2. Python Data Processing (`python-data-processing.py`)
-
-A comprehensive data processing script showing:
-- CSV data parsing and manipulation
-- Statistical analysis and data validation
-- Different analysis types (summary, detailed, statistics)
-- Filtering capabilities
-
-**How to use:**
-1. Create a new script in Windmill with path `f/examples/data_processor`
-2. Copy the Python code from the file
-3. Test with CSV data and analysis parameters
-
-**Example input:**
-```json
-{
-  "csv_data": "name,age,city,salary\nJohn,30,New York,50000\nJane,25,San Francisco,60000\nBob,35,Chicago,55000",
-  "analysis_type": "statistics",
-  "filter_column": "city",
-  "filter_value": "New York"
-}
+```
+examples/
+├── scripts/          # Individual functions in TypeScript, Python, Go, or Bash
+├── flows/           # Visual workflows that chain scripts with logic
+└── apps/            # Low-code UI applications
 ```
 
-### 3. Webhook Integration (`webhook-trigger.json`)
+## 🔧 Scripts
 
-A complete webhook configuration example featuring:
-- Event-driven processing for different event types
-- Payload validation and error handling
-- TypeScript implementation with proper typing
-- Security considerations
+Scripts are individual functions that perform specific tasks. They're the building blocks for larger workflows.
 
-**How to use:**
-1. Create a new script with path `f/webhooks/data_processor`
-2. Copy the TypeScript code from the JSON file
-3. Test by sending POST requests to the webhook URL
-4. Use the provided curl examples
+### Available Script Examples
 
-**Webhook URL format:**
-```
-http://localhost:5681/api/w/{workspace}/jobs/run/f/webhooks/data_processor
-```
+1. **Basic TypeScript Script** (`scripts/basic-typescript-script.ts`)
+   - Input validation and type safety
+   - Multi-language greeting functionality
+   - Structured return values with metadata
 
-### 4. API Integration Client (`api-integration.json`)
+2. **Python Data Processing** (`scripts/python-data-processing.py`)
+   - CSV data parsing and manipulation
+   - Statistical analysis and validation
+   - Multiple analysis modes
 
-A robust API client implementation demonstrating:
-- Authentication handling with Bearer tokens
-- Retry logic with exponential backoff
-- Comprehensive error handling
-- Rate limiting considerations
-- Multiple HTTP methods (GET, POST, PUT, DELETE)
+3. **Webhook Integration** (`scripts/webhook-trigger.json`)
+   - Event-driven webhook handler
+   - Payload validation
+   - TypeScript implementation
 
-**How to use:**
-1. Create resources in Windmill:
-   - `api_key` (secret): Your API authentication key
-   - `base_url` (string): Base URL of the target API
-2. Create a script with path `f/integrations/api_client`
-3. Copy the TypeScript code from the JSON file
-4. Test with different operations and endpoints
+4. **API Integration Client** (`scripts/api-integration.json`)
+   - Bearer token authentication
+   - Retry logic with exponential backoff
+   - Multiple HTTP methods
 
-**Example input:**
-```json
-{
-  "operation": "get",
-  "endpoint": "/users/123"
-}
-```
+[View Scripts README →](scripts/README.md)
+
+## 🔄 Flows
+
+Flows are visual workflows that orchestrate multiple scripts with control logic, branching, and error handling.
+
+### Available Flow Examples
+
+1. **Data Pipeline Flow** (`flows/data-pipeline-flow.json`)
+   - ETL pipeline with extraction, transformation, and loading
+   - Error handling and notifications
+   - Scheduled execution
+
+2. **Expense Approval Workflow** (`flows/approval-workflow.json`)
+   - Multi-level approval chain
+   - Conditional routing based on amount
+   - Human-in-the-loop pattern
+
+3. **Multi-System Integration** (`flows/integration-workflow.json`)
+   - Synchronizes data across multiple systems
+   - Conflict detection and resolution
+   - Parallel execution with partial failure handling
+
+[View Flows README →](flows/README.md)
+
+## 📱 Apps
+
+Apps are low-code UI applications built with drag-and-drop components that can execute scripts and flows.
+
+### Available App Examples
+
+1. **User Management Dashboard** (`apps/admin-dashboard.json`)
+   - CRUD operations for user management
+   - Real-time metrics and activity feed
+   - Bulk operations and exports
+
+2. **Customer Onboarding Form** (`apps/data-entry-form.json`)
+   - Multi-step form with validation
+   - File uploads and document processing
+   - Progress tracking and autosave
+
+3. **System Monitoring Dashboard** (`apps/monitoring-dashboard.json`)
+   - Real-time system metrics
+   - Interactive charts and visualizations
+   - Alert management and service control
+
+[View Apps README →](apps/README.md)
 
 ## Setting Up Examples
 
