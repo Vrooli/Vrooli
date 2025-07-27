@@ -142,6 +142,93 @@
         .warning {
             color: #ff9800;
         }
+        .error-box {
+            background-color: #ffebee;
+            border: 2px solid #f44336;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            display: none;
+            animation: shake 0.5s;
+        }
+        .error-box.show {
+            display: block;
+        }
+        .error-box h4 {
+            color: #f44336;
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .error-box ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .success-box {
+            background-color: #e8f5e9;
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+        .success-box.show {
+            display: block;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .connection-status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .connection-status.connected {
+            background-color: #e8f5e9;
+            color: #4CAF50;
+            border: 1px solid #4CAF50;
+        }
+        .connection-status.disconnected {
+            background-color: #ffebee;
+            color: #f44336;
+            border: 1px solid #f44336;
+        }
+        .connection-status .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: currentColor;
+            animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        #transcription.error-state {
+            background-color: #ffebee;
+            border-color: #f44336;
+            color: #c62828;
+        }
+        #transcription.success-state {
+            background-color: #e8f5e9;
+            border-color: #4CAF50;
+            color: #1b5e20;
+        }
         .instructions {
             background-color: #fff3cd;
             border: 1px solid #ffeaa7;
@@ -162,6 +249,10 @@
 </head>
 <body>
     <div class="container">
+        <div id="connectionStatus" class="connection-status disconnected">
+            <span class="dot"></span>
+            <span id="connectionText">Not Connected</span>
+        </div>
         <h1>🎤 Whisper Microphone Test</h1>
         <p style="text-align: center;">Record audio and transcribe using Whisper ASR</p>
         
@@ -215,6 +306,16 @@
         
         <audio id="audioPlayback" controls style="display:none;"></audio>
         
+        <div id="errorBox" class="error-box">
+            <h4>❌ Error Occurred</h4>
+            <div id="errorDetails"></div>
+        </div>
+        
+        <div id="successBox" class="success-box">
+            <h4 style="color: #4CAF50; margin-top: 0;">✅ Success!</h4>
+            <div id="successDetails"></div>
+        </div>
+        
         <h3>Transcription Result:</h3>
         <div id="transcription">Transcription will appear here...</div>
     </div>
@@ -240,6 +341,12 @@
         const serverConfig = document.getElementById('serverConfig');
         const tunnelInfo = document.getElementById('tunnelInfo');
         const directInfo = document.getElementById('directInfo');
+        const errorBox = document.getElementById('errorBox');
+        const errorDetails = document.getElementById('errorDetails');
+        const successBox = document.getElementById('successBox');
+        const successDetails = document.getElementById('successDetails');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const connectionText = document.getElementById('connectionText');
         
         // Mode selector handling
         document.querySelectorAll('input[name="mode"]').forEach(radio => {
@@ -265,6 +372,98 @@
         
         recordButton.addEventListener('click', startRecording);
         stopButton.addEventListener('click', stopRecording);
+        
+        // Helper functions for visual feedback
+        function showError(title, details) {
+            errorBox.classList.add('show');
+            successBox.classList.remove('show');
+            errorDetails.innerHTML = details;
+            transcription.classList.add('error-state');
+            transcription.classList.remove('success-state');
+            
+            // Update connection status
+            connectionStatus.classList.add('disconnected');
+            connectionStatus.classList.remove('connected');
+            connectionText.textContent = 'Connection Failed';
+        }
+        
+        function showSuccess(message) {
+            successBox.classList.add('show');
+            errorBox.classList.remove('show');
+            successDetails.textContent = message;
+            transcription.classList.add('success-state');
+            transcription.classList.remove('error-state');
+            
+            // Update connection status
+            connectionStatus.classList.add('connected');
+            connectionStatus.classList.remove('disconnected');
+            connectionText.textContent = 'Connected';
+        }
+        
+        function hideMessages() {
+            errorBox.classList.remove('show');
+            successBox.classList.remove('show');
+            transcription.classList.remove('error-state', 'success-state');
+        }
+        
+        // Test connection on page load
+        async function testConnection() {
+            try {
+                const baseUrl = connectionMode === 'tunnel' 
+                    ? 'http://localhost:8090'
+                    : (serverUrlInput.value ? `http://${serverUrlInput.value}:8090` : null);
+                
+                if (!baseUrl) return;
+                
+                // For tunnel mode, we can actually test the connection
+                // For direct mode, we'll get CORS errors but that's expected
+                if (connectionMode === 'tunnel') {
+                    try {
+                        // Try to fetch a small response to test the tunnel
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 3000);
+                        
+                        const response = await fetch(baseUrl + '/docs', { 
+                            method: 'HEAD',
+                            signal: controller.signal
+                        });
+                        
+                        clearTimeout(timeoutId);
+                        
+                        connectionStatus.classList.add('connected');
+                        connectionStatus.classList.remove('disconnected');
+                        connectionText.textContent = 'Connected';
+                    } catch (fetchError) {
+                        // If fetch fails, the tunnel isn't working
+                        console.log('Connection test failed:', fetchError.message);
+                        connectionStatus.classList.add('disconnected');
+                        connectionStatus.classList.remove('connected');
+                        connectionText.textContent = 'Tunnel Not Active';
+                    }
+                } else {
+                    // For direct mode, we can't reliably test due to CORS
+                    connectionStatus.classList.remove('connected', 'disconnected');
+                    connectionText.textContent = 'Direct Mode';
+                }
+            } catch (error) {
+                console.error('Connection test error:', error);
+                connectionStatus.classList.add('disconnected');
+                connectionStatus.classList.remove('connected');
+                connectionText.textContent = 'Not Connected';
+            }
+        }
+        
+        // Test connection on mode change
+        document.querySelectorAll('input[name="mode"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                setTimeout(testConnection, 100);
+            });
+        });
+        
+        serverUrlInput.addEventListener('blur', testConnection);
+        
+        // Initial connection test
+        testConnection();
         
         function getWhisperUrl() {
             if (connectionMode === 'tunnel') {
@@ -382,10 +581,13 @@
         
         async function startRecording() {
             try {
+                hideMessages();
+                
                 // Validate settings
                 if (connectionMode === 'direct' && !serverUrlInput.value.trim()) {
                     status.textContent = 'Error: Please enter a server URL for direct connection';
                     status.className = 'error';
+                    showError('Configuration Error', 'Please enter a server URL for direct connection mode.');
                     return;
                 }
                 
@@ -422,8 +624,14 @@
                 status.className = 'info';
             } catch (error) {
                 console.error('Error accessing microphone:', error);
-                status.textContent = 'Error: Could not access microphone. Please allow microphone permissions.';
+                status.textContent = 'Error: Could not access microphone';
                 status.className = 'error';
+                showError('Microphone Access Denied', 
+                    '<ul>' +
+                    '<li>Please allow microphone permissions in your browser</li>' +
+                    '<li>Check that your microphone is connected</li>' +
+                    '<li>Make sure no other application is using the microphone</li>' +
+                    '</ul>');
             }
         }
         
@@ -447,14 +655,21 @@
                 console.log('Audio blob size:', audioBlob.size, 'bytes');
                 console.log('Audio blob type:', audioBlob.type);
                 
+                // First, let's verify the URL is accessible
+                console.log('Testing connection before sending audio...');
+                
                 const formData = new FormData();
                 formData.append('audio_file', audioBlob, 'recording.webm');
                 formData.append('task', 'transcribe');
                 
+                console.log('Sending request...');
                 const response = await fetch(whisperUrl, {
                     method: 'POST',
-                    body: formData,
-                    mode: connectionMode === 'tunnel' ? 'same-origin' : 'cors'
+                    body: formData
+                    // Let browser decide the mode automatically
+                }).catch(fetchError => {
+                    console.error('Fetch error details:', fetchError);
+                    throw fetchError;
                 });
                 
                 console.log('Response status:', response.status);
@@ -473,29 +688,96 @@
                         transcription.textContent = result.text;
                         status.textContent = 'Transcription complete!';
                         status.className = 'success';
+                        showSuccess('Transcription completed successfully!');
+                        
+                        // Fade out success message after 5 seconds
+                        setTimeout(() => {
+                            successBox.classList.remove('show');
+                        }, 5000);
                     } else {
                         transcription.textContent = 'No text in response:\n' + JSON.stringify(result, null, 2);
                         status.textContent = 'Transcription returned empty';
                         status.className = 'warning';
+                        showError('Empty Transcription', 'The audio was processed but no text was detected. Try speaking louder or clearer.');
                     }
                 } catch (parseError) {
                     console.error('JSON parse error:', parseError);
                     transcription.textContent = 'Response was not valid JSON:\n' + responseText;
                     status.textContent = 'Invalid response format';
                     status.className = 'error';
+                    showError('Invalid Response', 'The server returned an invalid response format.<br><br>Technical details in console.');
                 }
             } catch (error) {
                 console.error('Transcription error:', error);
                 
                 // Provide helpful error messages based on connection mode
-                if (error.message.includes('Failed to fetch')) {
+                if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
+                    // Log full error for debugging
+                    console.error('Full error object:', error);
+                    console.error('Error name:', error.name);
+                    console.error('Error message:', error.message);
+                    console.error('Error stack:', error.stack);
+                    
                     if (connectionMode === 'tunnel') {
-                        transcription.textContent = `Connection Failed!\n\nMake sure:\n1. SSH tunnel is running: ssh -L 8090:localhost:8090 user@server\n2. Keep the SSH session open while testing\n3. Test tunnel with: curl http://localhost:8090/docs\n\nError: ${error.message}`;
+                        // Check if it's actually a CORS issue even in tunnel mode
+                        const isCORS = error.message.includes('CORS') || error.message.includes('cors');
+                        
+                        if (isCORS) {
+                            transcription.textContent = 'CORS error even with tunnel - see error box above';
+                            showError('Unexpected CORS Error',
+                                '<strong>CORS error detected even in tunnel mode.</strong><br><br>' +
+                                'This might mean:<br>' +
+                                '<ol>' +
+                                '<li>The HTML file is served from a different origin</li>' +
+                                '<li>Try opening the HTML file directly from disk (file://)</li>' +
+                                '<li>Or ensure both the HTML and API are on localhost</li>' +
+                                '</ol><br>' +
+                                '<em>Error: ' + error.message + '</em>');
+                        } else if (window.location.protocol === 'file:') {
+                            transcription.textContent = 'Browser security blocked request - see error box above';
+                            showError('Browser Security Block - file:// Protocol',
+                                '<strong>Your browser blocks HTTP requests from local files.</strong><br><br>' +
+                                '<strong>Solutions (pick one):</strong><br>' +
+                                '<ol>' +
+                                '<li><strong>Serve via HTTP (Recommended):</strong><br>' +
+                                '   <code>python -m http.server 8000</code><br>' +
+                                '   Then open: <code>http://localhost:8000/whisper-microphone-test.html</code></li>' +
+                                '<li><strong>Use Chrome with flag:</strong><br>' +
+                                '   Close Chrome, then run:<br>' +
+                                '   <code>chrome.exe --allow-file-access-from-files</code></li>' +
+                                '<li><strong>Use Firefox:</strong> Often more permissive with file:// URLs</li>' +
+                                '</ol>');
+                        } else {
+                            transcription.textContent = 'Connection failed - see error box above';
+                            showError('SSH Tunnel Connection Failed',
+                            '<strong>The SSH tunnel is not working. Follow these steps:</strong><br><br>' +
+                            '<ol>' +
+                            '<li>Open a terminal/PowerShell window</li>' +
+                            '<li>Run: <code>ssh -L 8090:localhost:8090 user@server</code></li>' +
+                            '<li>Keep that SSH session open</li>' +
+                            '<li>Test with: <code>curl http://localhost:8090/docs</code></li>' +
+                            '<li>Try recording again</li>' +
+                            '</ol><br>' +
+                            '<em>Error: ' + error.message + '</em>');
                     } else {
-                        transcription.textContent = `CORS Error: Browser blocked the request.\n\nFor direct connection, try:\n1. Serve this HTML from a web server (not file://)\n2. Or switch to SSH Tunnel mode (recommended)\n3. Or open this file on the server via RDP\n\nTechnical: ${error.message}`;
+                        transcription.textContent = 'CORS error - see error box above';
+                        showError('CORS Security Block',
+                            '<strong>Browser blocked the cross-origin request.</strong><br><br>' +
+                            '<strong>Solutions:</strong><br>' +
+                            '<ol>' +
+                            '<li><strong>Recommended:</strong> Switch to SSH Tunnel mode above</li>' +
+                            '<li>Serve this HTML from a web server:<br>' +
+                            '   <code>python -m http.server 8000</code></li>' +
+                            '<li>Open this file on the server via RDP</li>' +
+                            '</ol><br>' +
+                            '<em>Technical: ' + error.message + '</em>');
                     }
                 } else {
-                    transcription.textContent = `Error: ${error.message}\n\nCheck browser console (F12) for more details`;
+                    transcription.textContent = 'Error occurred - see details above';
+                    showError('Transcription Failed',
+                        '<strong>An error occurred during transcription.</strong><br><br>' +
+                        '<strong>Error:</strong> ' + error.message + '<br><br>' +
+                        'Check browser console (F12) for more details.');
                 }
                 status.textContent = 'Transcription failed';
                 status.className = 'error';

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Whisper Debug Test</title>
+    <style>
+        body { font-family: monospace; margin: 20px; }
+        button { padding: 10px; margin: 10px; }
+        pre { background: #f0f0f0; padding: 10px; overflow: auto; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Whisper Connection Debug</h1>
+    
+    <button onclick="testCurl()">Test with Curl Command</button>
+    <button onclick="testFetch()">Test with Fetch</button>
+    <button onclick="testFetchNoMode()">Test Fetch (no mode)</button>
+    <button onclick="testFetchCors()">Test Fetch (CORS mode)</button>
+    <button onclick="testXHR()">Test with XMLHttpRequest</button>
+    
+    <h2>Results:</h2>
+    <pre id="output"></pre>
+    
+    <script>
+        const output = document.getElementById('output');
+        
+        function log(message, isError = false) {
+            const span = document.createElement('span');
+            span.className = isError ? 'error' : 'success';
+            span.textContent = new Date().toISOString() + ' - ' + message + '\n';
+            output.appendChild(span);
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function testCurl() {
+            log('Run this in terminal: curl -I http://localhost:8090/docs');
+            log('If it works, the tunnel is fine and the issue is browser-specific');
+        }
+        
+        async function testFetch() {
+            log('Testing basic fetch to http://localhost:8090/docs...');
+            try {
+                const response = await fetch('http://localhost:8090/docs');
+                log('Success! Status: ' + response.status);
+                log('Headers: ' + JSON.stringify([...response.headers]));
+            } catch (error) {
+                log('Error: ' + error.name + ' - ' + error.message, true);
+                log('This means the browser blocked the request', true);
+            }
+        }
+        
+        async function testFetchNoMode() {
+            log('Testing fetch with no mode specified...');
+            try {
+                const response = await fetch('http://localhost:8090/docs', {
+                    method: 'GET'
+                });
+                log('Success! Status: ' + response.status);
+            } catch (error) {
+                log('Error: ' + error.name + ' - ' + error.message, true);
+            }
+        }
+        
+        async function testFetchCors() {
+            log('Testing fetch with CORS mode...');
+            try {
+                const response = await fetch('http://localhost:8090/docs', {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                log('Success! Status: ' + response.status);
+            } catch (error) {
+                log('Error: ' + error.name + ' - ' + error.message, true);
+            }
+        }
+        
+        function testXHR() {
+            log('Testing with XMLHttpRequest...');
+            const xhr = new XMLHttpRequest();
+            xhr.onload = function() {
+                log('Success! Status: ' + xhr.status);
+            };
+            xhr.onerror = function() {
+                log('XHR Error occurred', true);
+            };
+            try {
+                xhr.open('GET', 'http://localhost:8090/docs');
+                xhr.send();
+            } catch (error) {
+                log('Error: ' + error.name + ' - ' + error.message, true);
+            }
+        }
+        
+        // Show current page URL
+        log('Current page URL: ' + window.location.href);
+        log('Current page protocol: ' + window.location.protocol);
+        log('Current page host: ' + window.location.host);
+        log('---');
+    </script>
+</body>
+</html>
