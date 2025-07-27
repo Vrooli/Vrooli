@@ -54,7 +54,7 @@ windmill::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|info|scale-workers|restart-workers|api-setup|backup|restore" \
+        --options "install|uninstall|start|stop|restart|status|logs|info|scale-workers|restart-workers|api-setup|save-api-key|backup|restore" \
         --default "install"
     
     args::register \
@@ -129,6 +129,12 @@ windmill::parse_arguments() {
         --desc "Specific service for logs/restart (server|worker|db|lsp|all)" \
         --type "value" \
         --default "all"
+    
+    args::register \
+        --name "api-key" \
+        --desc "Windmill API key to save" \
+        --type "value" \
+        --default ""
     
     args::register \
         --name "follow" \
@@ -212,6 +218,9 @@ windmill::main() {
             ;;
         "api-setup")
             windmill::show_api_setup_instructions
+            ;;
+        "save-api-key")
+            windmill::save_api_key
             ;;
         "backup")
             windmill::backup "$BACKUP_PATH"

@@ -155,11 +155,17 @@ EOF
 #   $1 - API token (optional)
 #######################################
 windmill::list_workspaces() {
-    local token="${1:-$WINDMILL_API_TOKEN}"
+    local token="${1:-}"
+    
+    # Load token from config if not provided
+    if [[ -z "$token" ]]; then
+        token=$(windmill::load_api_key)
+    fi
     
     if [[ -z "$token" ]]; then
         log::error "API token is required"
         log::info "Get a token from: $WINDMILL_BASE_URL (User Settings → Tokens)"
+        log::info "Or save it with: $0 --action save-api-key --api-key YOUR_TOKEN"
         return 1
     fi
     
@@ -187,10 +193,16 @@ windmill::list_workspaces() {
 #   $1 - API token (optional)
 #######################################
 windmill::get_workers_api() {
-    local token="${1:-$WINDMILL_API_TOKEN}"
+    local token="${1:-}"
+    
+    # Load token from config if not provided
+    if [[ -z "$token" ]]; then
+        token=$(windmill::load_api_key)
+    fi
     
     if [[ -z "$token" ]]; then
         log::warn "API token not provided, skipping worker API check"
+        log::info "Save token with: $0 --action save-api-key --api-key YOUR_TOKEN"
         return 1
     fi
     
@@ -368,7 +380,12 @@ windmill::create_test_script() {
 #   $1 - API token (optional)
 #######################################
 windmill::validate_api_access() {
-    local token="${1:-$WINDMILL_API_TOKEN}"
+    local token="${1:-}"
+    
+    # Load token from config if not provided
+    if [[ -z "$token" ]]; then
+        token=$(windmill::load_api_key)
+    fi
     
     log::info "Validating API access..."
     
@@ -422,22 +439,123 @@ windmill::api_status() {
         echo "  Swagger UI: $WINDMILL_BASE_URL/openapi.html"
         
         # Test authentication if token available
-        if [[ -n "$WINDMILL_API_TOKEN" ]]; then
+        local api_token
+        api_token=$(windmill::load_api_key)
+        
+        if [[ -n "$api_token" ]]; then
             echo
-            windmill::validate_api_access "$WINDMILL_API_TOKEN"
+            windmill::validate_api_access "$api_token"
             
             echo
-            windmill::list_workspaces "$WINDMILL_API_TOKEN"
+            windmill::list_workspaces "$api_token"
             
             echo
-            windmill::get_workers_api "$WINDMILL_API_TOKEN"
+            windmill::get_workers_api "$api_token"
         else
             echo
             log::info "💡 To test authenticated endpoints:"
+            log::info "Save token with: $0 --action save-api-key --api-key YOUR_TOKEN"
+            echo
             windmill::create_api_token_instructions
         fi
     else
         log::error "❌ API is not accessible"
         return 1
     fi
+}
+
+#######################################
+# Load Windmill API key from configuration
+# Returns: API key from config or environment variable
+#######################################
+windmill::load_api_key() {
+    local api_key="${WINDMILL_API_TOKEN:-}"
+    
+    # Try to load API key from config if not in env
+    if [[ -z "$api_key" ]]; then
+        local config_file="${HOME}/.vrooli/resources.local.json"
+        if [[ -f "$config_file" ]]; then
+            api_key=$(jq -r '.services.automation.windmill.apiKey // empty' "$config_file" 2>/dev/null)
+        fi
+    fi
+    
+    echo "$api_key"
+}
+
+#######################################
+# Save Windmill API key to local configuration
+# Arguments: None (uses --api-key argument)
+#######################################
+windmill::save_api_key() {
+    local api_key
+    api_key=$(args::get "api-key")
+    
+    log::header "💾 Save Windmill API Key"
+    
+    # Check if API key is provided
+    if [[ -z "$api_key" ]]; then
+        log::error "API key is required"
+        echo ""
+        echo "Usage: $0 --action save-api-key --api-key YOUR_API_KEY"
+        echo ""
+        echo "To create an API key:"
+        echo "  1. Access Windmill at $WINDMILL_BASE_URL"
+        echo "  2. Go to User Settings → Tokens"
+        echo "  3. Click 'New Token'"
+        echo "  4. Set label and expiration"
+        echo "  5. Copy the token (shown only once!)"
+        return 1
+    fi
+    
+    # Ensure config directory exists
+    local config_dir="${HOME}/.vrooli"
+    mkdir -p "$config_dir"
+    
+    # Load existing config or create new
+    local config_file="${config_dir}/resources.local.json"
+    local config
+    
+    if [[ -f "$config_file" ]]; then
+        # Backup existing config
+        cp "$config_file" "${config_file}.backup" 2>/dev/null || true
+        config=$(cat "$config_file")
+    else
+        # Create default config structure
+        config='{
+  "version": "1.0.0",
+  "enabled": true,
+  "services": {
+    "ai": {},
+    "automation": {},
+    "storage": {},
+    "agents": {}
+  }
+}'
+    fi
+    
+    # Update config with API key
+    local updated_config
+    updated_config=$(echo "$config" | jq --arg key "$api_key" '
+        .services.automation.windmill = (.services.automation.windmill // {}) |
+        .services.automation.windmill.apiKey = $key |
+        .services.automation.windmill.enabled = true |
+        .services.automation.windmill.baseUrl = "http://localhost:5681" |
+        .services.automation.windmill.healthCheck = {
+            "intervalMs": 60000,
+            "timeoutMs": 5000
+        }
+    ')
+    
+    # Write updated config
+    echo "$updated_config" | jq '.' > "$config_file"
+    
+    # Set secure permissions
+    chmod 600 "$config_file"
+    
+    log::success "✅ API key saved to $config_file"
+    echo ""
+    echo "You can now execute workflows without setting WINDMILL_API_TOKEN:"
+    echo "  $0 --action test-api"
+    echo ""
+    echo "The API key will be loaded automatically from the configuration."
 }
