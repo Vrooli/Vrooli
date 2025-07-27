@@ -37,8 +37,10 @@ if [ $? -eq 0 ]; then
     if command -v jq > /dev/null 2>&1; then
         IMAGE_DATA=$(echo "$RESPONSE" | jq -r '.data // empty' | sed 's/^data:image\/[^;]*;base64,//')
         if [ -n "$IMAGE_DATA" ]; then
-            echo "$IMAGE_DATA" | base64 -d > agent-s2-screenshot.png
-            echo "   Saved to: agent-s2-screenshot.png"
+            # Ensure output directory exists
+            mkdir -p ../test-outputs/screenshots
+            echo "$IMAGE_DATA" | base64 -d > ../test-outputs/screenshots/agent-s2-screenshot.png
+            echo "   Saved to: ../test-outputs/screenshots/agent-s2-screenshot.png"
         fi
     fi
 else

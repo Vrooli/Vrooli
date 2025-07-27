@@ -1,0 +1,42 @@
+{
+  "mcpServers": {
+    "vrooli-team": {
+      "type": "sse",
+      "url": "http://localhost:3000/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer ${VROOLI_API_KEY}"
+      },
+      "description": "Team-shared Vrooli MCP server for collaborative development"
+    }
+  },
+  "_documentation": {
+    "scope": "project",
+    "description": "Project-shared MCP configuration for team collaboration",
+    "usage": [
+      "This configuration is shared with the development team",
+      "Ideal for team-based workflows and collaboration",
+      "Each team member should set their own VROOLI_API_KEY",
+      "The URL should point to a shared Vrooli instance if using remote server"
+    ],
+    "team_setup": [
+      "1. Ensure all team members have access to the Vrooli server",
+      "2. Each member should generate their own API key",
+      "3. Set VROOLI_API_KEY in each member's environment",
+      "4. Consider using a shared Vrooli instance for team projects"
+    ],
+    "environment_variables": {
+      "VROOLI_API_KEY": "Each team member's individual Vrooli API key"
+    },
+    "endpoints": {
+      "sse": "/mcp/sse",
+      "health": "/mcp/health",
+      "messages": "/mcp/messages"
+    },
+    "team_workflows": {
+      "shared_routines": "Access team-created routines and workflows",
+      "collaborative_chats": "Participate in team chat channels",
+      "resource_sharing": "Share and manage team resources",
+      "swarm_coordination": "Coordinate AI swarm activities across team"
+    }
+  }
+}

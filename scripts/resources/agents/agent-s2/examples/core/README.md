@@ -141,12 +141,21 @@ AI calls: execute_click(x=150, y=450)
 Core automation performs the click
 ```
 
+## 📂 Output Files
+
+Generated files are organized in the `../test-outputs/` directory:
+- **Screenshots:** Saved to `../test-outputs/screenshots/`
+- **Logs:** Execution traces in `../test-outputs/logs/`
+- **Temporary files:** Stored in `../test-outputs/temp/`
+
+This keeps the example code clean and test outputs organized.
+
 ## 📝 Notes
 
 - All examples include error handling
 - Examples are designed to be educational and demonstrate best practices
 - Timing delays are included for visibility - adjust as needed
-- Screenshots are saved to the current directory
+- Generated files are automatically organized in test-outputs directories
 
 ## 🛠️ Troubleshooting
 

@@ -11,6 +11,8 @@ RESOURCES_DIR="${SCRIPT_DIR}/../.."
 source "${RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/../helpers/utils/args.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/mcp.sh"
 
 # Resource configuration
 readonly RESOURCE_NAME="claude-code"
@@ -31,7 +33,7 @@ claude_code::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|status|info|run|batch|session|settings|logs|help" \
+        --options "install|uninstall|status|info|run|batch|session|settings|logs|register-mcp|unregister-mcp|mcp-status|mcp-test|help" \
         --default "help"
     
     args::register \
@@ -80,6 +82,33 @@ claude_code::parse_arguments() {
         --options "stream-json|text" \
         --default "text"
     
+    # MCP-specific arguments
+    args::register \
+        --name "scope" \
+        --desc "MCP registration scope (local, project, user, auto)" \
+        --type "value" \
+        --options "local|project|user|auto" \
+        --default "auto"
+    
+    args::register \
+        --name "api-key" \
+        --desc "API key for MCP authentication" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "server-url" \
+        --desc "Vrooli server URL for MCP registration" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "format" \
+        --desc "Output format for status commands (text, json)" \
+        --type "value" \
+        --options "text|json" \
+        --default "text"
+    
     if args::is_asking_for_help "$@"; then
         claude_code::usage
         exit 0
@@ -96,6 +125,12 @@ claude_code::parse_arguments() {
     export ALLOWED_TOOLS=$(args::get "allowed-tools")
     export TIMEOUT=$(args::get "timeout")
     export OUTPUT_FORMAT=$(args::get "output-format")
+    
+    # MCP-specific variables
+    export MCP_SCOPE=$(args::get "scope")
+    export MCP_API_KEY=$(args::get "api-key")
+    export MCP_SERVER_URL=$(args::get "server-url")
+    export MCP_FORMAT=$(args::get "format")
 }
 
 #######################################
@@ -114,6 +149,13 @@ claude_code::usage() {
     echo "  session      Manage Claude sessions"
     echo "  settings     View or update Claude settings"
     echo "  logs         View Claude logs"
+    echo ""
+    echo "MCP Actions:"
+    echo "  register-mcp    Register Vrooli as MCP server with Claude Code"
+    echo "  unregister-mcp  Remove Vrooli MCP server registration"
+    echo "  mcp-status      Check Vrooli MCP registration status"
+    echo "  mcp-test        Test MCP connection to Vrooli server"
+    echo ""
     echo "  help         Show this help message"
     echo
     echo "Examples:"
@@ -124,6 +166,13 @@ claude_code::usage() {
     echo "  $0 --action session --session-id abc123  # Resume session"
     echo "  $0 --action settings                   # View current settings"
     echo "  $0 --action uninstall                  # Remove Claude Code"
+    echo ""
+    echo "MCP Examples:"
+    echo "  $0 --action register-mcp               # Auto-register Vrooli MCP server"
+    echo "  $0 --action register-mcp --scope user  # Register in user scope"
+    echo "  $0 --action mcp-status --format json   # Get status in JSON format"
+    echo "  $0 --action mcp-test                   # Test MCP connection"
+    echo "  $0 --action unregister-mcp             # Remove MCP registration"
     echo
     echo "Requirements:"
     echo "  - Node.js version $MIN_NODE_VERSION or newer"
@@ -613,6 +662,268 @@ claude_code::logs() {
 }
 
 #######################################
+# Register Vrooli as MCP server with Claude Code
+#######################################
+claude_code::register_mcp() {
+    log::header "🔗 Registering Vrooli MCP Server"
+    
+    if ! claude_code::is_installed; then
+        log::error "Claude Code is not installed. Run: $0 --action install"
+        return 1
+    fi
+    
+    # Detect Vrooli server
+    local server_info
+    server_info=$(mcp::detect_vrooli_server)
+    if [[ -z "$server_info" ]]; then
+        log::error "Vrooli server not detected. Please ensure Vrooli is running."
+        log::info "Expected health endpoint: http://localhost:${VROOLI_DEFAULT_PORT}${VROOLI_HEALTH_ENDPOINT}"
+        return 1
+    fi
+    
+    # Extract server URL or use provided one
+    local server_url="$MCP_SERVER_URL"
+    if [[ -z "$server_url" ]]; then
+        server_url=$(echo "$server_info" | grep -o '"baseUrl":"[^"]*"' | cut -d'"' -f4)
+    fi
+    
+    # Get API key
+    local api_key="$MCP_API_KEY"
+    if [[ -z "$api_key" ]]; then
+        api_key=$(mcp::get_api_key)
+    fi
+    
+    # Determine scope
+    local scope
+    scope=$(mcp::determine_scope "$MCP_SCOPE")
+    
+    # Check if already registered
+    local registration_status
+    registration_status=$(mcp::get_registration_status "$scope")
+    if echo "$registration_status" | grep -q '"registered":true'; then
+        log::info "Vrooli MCP server already registered in scope: $scope"
+        
+        # Validate connection
+        if mcp::validate_connection; then
+            log::success "✓ MCP connection validated"
+            return 0
+        else
+            log::warn "Registration exists but connection failed. Re-registering..."
+        fi
+    fi
+    
+    # Perform registration
+    if mcp::register_server "$server_url" "$api_key" "$scope"; then
+        # Validate the new registration
+        if mcp::validate_connection; then
+            log::success "✓ Vrooli MCP server registered and validated successfully"
+            
+            echo
+            log::header "🎯 Next Steps"
+            log::info "1. Start Claude Code: claude"
+            log::info "2. Use Vrooli tools with @vrooli prefix:"
+            log::info "   • @vrooli send_message to send chat messages"
+            log::info "   • @vrooli run_routine to execute routines"
+            log::info "   • @vrooli spawn_swarm to start AI swarms"
+            log::info "3. Type '@' in Claude Code to see available resources"
+            
+            return 0
+        else
+            log::error "Registration succeeded but connection validation failed"
+            return 1
+        fi
+    else
+        log::error "Failed to register Vrooli MCP server"
+        return 1
+    fi
+}
+
+#######################################
+# Unregister Vrooli MCP server from Claude Code
+#######################################
+claude_code::unregister_mcp() {
+    log::header "🗑️ Unregistering Vrooli MCP Server"
+    
+    if ! claude_code::is_installed; then
+        log::error "Claude Code is not installed"
+        return 1
+    fi
+    
+    # Determine scope
+    local scope
+    scope=$(mcp::determine_scope "$MCP_SCOPE")
+    
+    # Check current registration status
+    local registration_status
+    registration_status=$(mcp::get_registration_status "$scope")
+    if ! echo "$registration_status" | grep -q '"registered":true'; then
+        log::warn "Vrooli MCP server is not registered in scope: $scope"
+        return 0
+    fi
+    
+    # Confirm unregistration
+    if ! confirm "Remove Vrooli MCP server registration from scope '$scope'?"; then
+        log::info "Unregistration cancelled"
+        return 0
+    fi
+    
+    # Perform unregistration
+    if mcp::unregister_server "$scope"; then
+        log::success "✓ Vrooli MCP server unregistered successfully"
+        return 0
+    else
+        log::error "Failed to unregister Vrooli MCP server"
+        return 1
+    fi
+}
+
+#######################################
+# Check Vrooli MCP registration status
+#######################################
+claude_code::mcp_status() {
+    log::header "📊 Vrooli MCP Status"
+    
+    # Get comprehensive status
+    local status
+    status=$(mcp::get_status)
+    
+    if [[ "$MCP_FORMAT" == "json" ]]; then
+        echo "$status"
+        return 0
+    fi
+    
+    # Parse status for human-readable output
+    local claude_available
+    claude_available=$(echo "$status" | grep -o '"available":[^,}]*' | cut -d':' -f2)
+    
+    local vrooli_detected
+    vrooli_detected=$(echo "$status" | grep -o '"detected":[^,}]*' | cut -d':' -f2)
+    
+    local registration_status
+    registration_status=$(echo "$status" | grep -o '"registered":[^,}]*' | cut -d':' -f2)
+    
+    # Display Claude Code status
+    if [[ "$claude_available" == "true" ]]; then
+        local claude_version
+        claude_version=$(echo "$status" | grep -o '"version":"[^"]*"' | cut -d'"' -f4)
+        log::success "✓ Claude Code CLI is available"
+        log::info "  Version: $claude_version"
+    else
+        log::warn "✗ Claude Code CLI not available"
+        log::info "  Run: $0 --action install"
+    fi
+    
+    echo
+    
+    # Display Vrooli server status
+    if [[ "$vrooli_detected" == "true" ]]; then
+        log::success "✓ Vrooli server detected"
+        local server_url
+        server_url=$(echo "$status" | grep -o '"baseUrl":"[^"]*"' | cut -d'"' -f4)
+        log::info "  Server URL: $server_url"
+        log::info "  MCP Endpoint: ${server_url}${VROOLI_MCP_ENDPOINT}"
+    else
+        log::warn "✗ Vrooli server not detected"
+        log::info "  Expected: http://localhost:${VROOLI_DEFAULT_PORT}"
+    fi
+    
+    echo
+    
+    # Display registration status
+    if [[ "$registration_status" == "true" ]]; then
+        log::success "✓ Vrooli MCP server is registered"
+        local scopes
+        scopes=$(echo "$status" | grep -o '"scopes":\[[^]]*\]' | sed 's/"scopes":\[//' | sed 's/\]//' | tr ',' ' ')
+        log::info "  Registered scopes: $scopes"
+    else
+        log::warn "✗ Vrooli MCP server not registered"
+        log::info "  Run: $0 --action register-mcp"
+    fi
+    
+    # Show next steps if everything is ready
+    if [[ "$claude_available" == "true" && "$vrooli_detected" == "true" && "$registration_status" == "true" ]]; then
+        echo
+        log::header "🎯 Ready to Use"
+        log::info "Start Claude Code and use @vrooli to access Vrooli tools"
+    fi
+}
+
+#######################################
+# Test MCP connection to Vrooli server
+#######################################
+claude_code::mcp_test() {
+    log::header "🧪 Testing Vrooli MCP Connection"
+    
+    # Check prerequisites
+    if ! claude_code::is_installed; then
+        log::error "Claude Code is not installed"
+        return 1
+    fi
+    
+    # Detect Vrooli server
+    local server_info
+    server_info=$(mcp::detect_vrooli_server)
+    if [[ -z "$server_info" ]]; then
+        log::error "Vrooli server not detected"
+        return 1
+    fi
+    
+    local server_url
+    server_url=$(echo "$server_info" | grep -o '"baseUrl":"[^"]*"' | cut -d'"' -f4)
+    local mcp_endpoint="${server_url}${VROOLI_MCP_ENDPOINT}"
+    
+    log::info "Testing connection to: $mcp_endpoint"
+    
+    # Test basic connectivity
+    if mcp::validate_connection "$mcp_endpoint"; then
+        log::success "✓ Basic connectivity test passed"
+    else
+        log::error "✗ Basic connectivity test failed"
+        return 1
+    fi
+    
+    # Test health endpoint
+    local health_endpoint="${server_url}${VROOLI_HEALTH_ENDPOINT}"
+    log::info "Testing health endpoint: $health_endpoint"
+    
+    if system::is_command "curl"; then
+        local health_response
+        health_response=$(curl -f -s --max-time 10 "$health_endpoint" 2>/dev/null)
+        if [[ -n "$health_response" ]]; then
+            log::success "✓ Health endpoint accessible"
+            
+            # Check if response contains expected MCP info
+            if echo "$health_response" | grep -q "activeConnections"; then
+                log::success "✓ MCP health data found"
+                local active_connections
+                active_connections=$(echo "$health_response" | grep -o '"activeConnections":[0-9]*' | cut -d':' -f2)
+                log::info "  Active MCP connections: $active_connections"
+            else
+                log::warn "⚠️  Health endpoint accessible but no MCP data found"
+            fi
+        else
+            log::error "✗ Health endpoint not accessible"
+            return 1
+        fi
+    else
+        log::warn "curl not available, skipping health endpoint test"
+    fi
+    
+    # Check registration status
+    local registration_status
+    registration_status=$(mcp::get_registration_status)
+    if echo "$registration_status" | grep -q '"registered":true'; then
+        log::success "✓ MCP server is registered with Claude Code"
+    else
+        log::warn "⚠️  MCP server not registered with Claude Code"
+        log::info "  Run: $0 --action register-mcp"
+    fi
+    
+    echo
+    log::success "✓ MCP connection test completed"
+}
+
+#######################################
 # Main execution function
 #######################################
 claude_code::main() {
@@ -645,6 +956,18 @@ claude_code::main() {
             ;;
         "logs")
             claude_code::logs
+            ;;
+        "register-mcp")
+            claude_code::register_mcp
+            ;;
+        "unregister-mcp")
+            claude_code::unregister_mcp
+            ;;
+        "mcp-status")
+            claude_code::mcp_status
+            ;;
+        "mcp-test")
+            claude_code::mcp_test
             ;;
         "help"|*)
             claude_code::usage

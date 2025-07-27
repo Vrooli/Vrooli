@@ -45,8 +45,8 @@ def take_screenshot(filename="screenshot.png"):
     print(f"\n📸 Taking screenshot...")
     
     response = requests.post(
-        f"{API_BASE_URL}/screenshot",
-        json={"format": "png", "quality": 95}
+        f"{API_BASE_URL}/screenshot?format=png&quality=95",
+        json=None
     )
     
     if response.ok:

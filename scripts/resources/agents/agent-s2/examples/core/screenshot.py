@@ -15,14 +15,22 @@ API_BASE_URL = "http://localhost:4113"
 
 def save_screenshot(image_data, filename):
     """Save base64 image data to file"""
+    # Ensure test-outputs directory exists
+    import os
+    output_dir = "../test-outputs/screenshots"
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Create full path
+    filepath = os.path.join(output_dir, filename)
+    
     if image_data.startswith("data:image"):
         # Remove data URL prefix
         image_data = image_data.split(",")[1]
     
     img_bytes = base64.b64decode(image_data)
     img = Image.open(io.BytesIO(img_bytes))
-    img.save(filename)
-    print(f"✅ Saved screenshot to {filename}")
+    img.save(filepath)
+    print(f"✅ Saved screenshot to {filepath}")
     return img
 
 def capture_full_screen():
@@ -30,8 +38,8 @@ def capture_full_screen():
     print("\n📸 Capturing full screen...")
     
     response = requests.post(
-        f"{API_BASE_URL}/screenshot",
-        params={"format": "png"}
+        f"{API_BASE_URL}/screenshot?format=png",
+        json=None
     )
     
     if response.ok:
@@ -49,11 +57,8 @@ def capture_region(x, y, width, height):
     print(f"\n📸 Capturing region ({x},{y}) {width}x{height}...")
     
     response = requests.post(
-        f"{API_BASE_URL}/screenshot",
-        params={
-            "format": "png",
-            "region": [x, y, x+width, y+height]  # Convert to coordinates
-        }
+        f"{API_BASE_URL}/screenshot?format=png",
+        json=[x, y, width, height]  # Region as [x, y, width, height] in body
     )
     
     if response.ok:
@@ -69,11 +74,8 @@ def capture_with_quality(quality=50):
     print(f"\n📸 Capturing JPEG with quality {quality}...")
     
     response = requests.post(
-        f"{API_BASE_URL}/screenshot",
-        params={
-            "format": "jpeg",
-            "quality": quality
-        }
+        f"{API_BASE_URL}/screenshot?format=jpeg&quality={quality}",
+        json=None
     )
     
     if response.ok:
@@ -90,8 +92,8 @@ def continuous_capture(count=5, interval=2):
     
     for i in range(count):
         response = requests.post(
-            f"{API_BASE_URL}/screenshot",
-            params={"format": "png"}
+            f"{API_BASE_URL}/screenshot?format=png",
+            json=None
         )
         
         if response.ok:
@@ -119,8 +121,8 @@ def capture_with_cursor():
     
     # Take screenshot
     response = requests.post(
-        f"{API_BASE_URL}/screenshot",
-        params={"format": "png"}
+        f"{API_BASE_URL}/screenshot?format=png",
+        json=None
     )
     
     if response.ok:
@@ -148,7 +150,7 @@ def benchmark_screenshot_performance():
             if quality:
                 params["quality"] = quality
             
-            response = requests.post(f"{API_BASE_URL}/screenshot", params=params)
+            response = requests.post(f"{API_BASE_URL}/screenshot", params=params, json=None)
             
             if response.ok:
                 elapsed = time.time() - start_time
@@ -202,7 +204,7 @@ def main():
     
     print("\n" + "="*60)
     print("✅ Screenshot examples completed!")
-    print("Check the generated image files in the current directory")
+    print("Check the generated image files in ../test-outputs/screenshots/")
     print("="*60)
 
 if __name__ == "__main__":

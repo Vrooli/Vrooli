@@ -1,0 +1,449 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# MCP (Model Context Protocol) helper functions for Claude Code integration
+# This file provides utilities for registering Vrooli as an MCP server with Claude Code
+
+# Source common utilities
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+RESOURCES_DIR="${SCRIPT_DIR}/../.."
+# shellcheck disable=SC1091
+source "${RESOURCES_DIR}/common.sh"
+
+# MCP configuration constants
+readonly VROOLI_MCP_SERVER_NAME="vrooli-local"
+readonly VROOLI_DEFAULT_PORT="3000"
+readonly VROOLI_MCP_ENDPOINT="/mcp/sse"
+readonly VROOLI_HEALTH_ENDPOINT="/mcp/health"
+
+#######################################
+# Detect if Vrooli server is running and get connection info
+# Returns: JSON object with server info or empty if not running
+#######################################
+mcp::detect_vrooli_server() {
+    local base_url="http://localhost:${VROOLI_DEFAULT_PORT}"
+    local health_url="${base_url}${VROOLI_HEALTH_ENDPOINT}"
+    
+    # Try to detect Vrooli server on default port
+    if system::is_command "curl"; then
+        if curl -f -s --max-time 5 "$health_url" >/dev/null 2>&1; then
+            echo "{\"baseUrl\":\"$base_url\",\"mcpEndpoint\":\"${base_url}${VROOLI_MCP_ENDPOINT}\",\"port\":\"${VROOLI_DEFAULT_PORT}\"}"
+            return 0
+        fi
+    fi
+    
+    # Try alternative ports if default fails
+    for port in 3001 8080 8000; do
+        local alt_url="http://localhost:${port}"
+        local alt_health="${alt_url}${VROOLI_HEALTH_ENDPOINT}"
+        
+        if system::is_command "curl"; then
+            if curl -f -s --max-time 3 "$alt_health" >/dev/null 2>&1; then
+                log::info "Found Vrooli server on port $port"
+                echo "{\"baseUrl\":\"$alt_url\",\"mcpEndpoint\":\"${alt_url}${VROOLI_MCP_ENDPOINT}\",\"port\":\"$port\"}"
+                return 0
+            fi
+        fi
+    done
+    
+    # No Vrooli server found
+    echo ""
+    return 1
+}
+
+#######################################
+# Get or generate API key for MCP access
+# Arguments:
+#   $1 - Optional: specific API key to use
+# Returns: API key string
+#######################################
+mcp::get_api_key() {
+    local api_key="${1:-}"
+    
+    # If API key provided, use it
+    if [[ -n "$api_key" ]]; then
+        echo "$api_key"
+        return 0
+    fi
+    
+    # Check environment variables
+    if [[ -n "${VROOLI_API_KEY:-}" ]]; then
+        echo "$VROOLI_API_KEY"
+        return 0
+    fi
+    
+    if [[ -n "${CLAUDE_MCP_API_KEY:-}" ]]; then
+        echo "$CLAUDE_MCP_API_KEY"
+        return 0
+    fi
+    
+    # For now, suggest manual configuration
+    log::warn "No API key found. Please set VROOLI_API_KEY environment variable."
+    log::info "You can generate an API key from your Vrooli dashboard."
+    echo ""
+    return 1
+}
+
+#######################################
+# Check if Claude Code CLI is installed and accessible
+# Returns: 0 if available, 1 otherwise
+#######################################
+mcp::check_claude_code_available() {
+    if system::is_command "claude"; then
+        # Verify it's actually Claude Code CLI
+        if claude --version >/dev/null 2>&1; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+#######################################
+# Determine appropriate configuration scope for MCP registration
+# Returns: scope name (local, project, user)
+#######################################
+mcp::determine_scope() {
+    local scope="${1:-auto}"
+    
+    if [[ "$scope" != "auto" ]]; then
+        echo "$scope"
+        return 0
+    fi
+    
+    # Auto-detect best scope
+    if [[ -f "./.claude.json" ]]; then
+        echo "local"    # Project has Claude config
+    elif [[ -n "${TEAM_MODE:-}" && "$TEAM_MODE" == "true" ]]; then
+        echo "project"  # Team development
+    else
+        echo "user"     # Personal/global
+    fi
+}
+
+#######################################
+# Register Vrooli server with Claude Code
+# Arguments:
+#   $1 - Server URL (e.g., http://localhost:3000)
+#   $2 - API key
+#   $3 - Scope (local, project, user)
+# Returns: 0 on success, 1 on failure
+#######################################
+mcp::register_server() {
+    local server_url="$1"
+    local api_key="$2"
+    local scope="$3"
+    
+    if ! mcp::check_claude_code_available; then
+        log::error "Claude Code CLI not available"
+        return 1
+    fi
+    
+    local mcp_endpoint="${server_url}${VROOLI_MCP_ENDPOINT}"
+    
+    log::info "Registering Vrooli MCP server..."
+    log::info "  URL: $mcp_endpoint"
+    log::info "  Scope: $scope"
+    
+    # Build Claude MCP command
+    local cmd="claude mcp add $VROOLI_MCP_SERVER_NAME"
+    cmd="$cmd --type sse"
+    cmd="$cmd --url \"$mcp_endpoint\""
+    cmd="$cmd --scope \"$scope\""
+    
+    # Add authentication if API key provided
+    if [[ -n "$api_key" ]]; then
+        cmd="$cmd --headers \"Authorization: Bearer $api_key\""
+    fi
+    
+    # Execute registration
+    if eval "$cmd" 2>/dev/null; then
+        log::success "✓ Vrooli MCP server registered successfully"
+        return 0
+    else
+        log::error "Failed to register Vrooli MCP server"
+        return 1
+    fi
+}
+
+#######################################
+# Unregister Vrooli server from Claude Code
+# Arguments:
+#   $1 - Optional: scope (local, project, user)
+# Returns: 0 on success, 1 on failure
+#######################################
+mcp::unregister_server() {
+    local scope="${1:-auto}"
+    
+    if ! mcp::check_claude_code_available; then
+        log::error "Claude Code CLI not available"
+        return 1
+    fi
+    
+    scope=$(mcp::determine_scope "$scope")
+    
+    log::info "Unregistering Vrooli MCP server (scope: $scope)..."
+    
+    if claude mcp remove "$VROOLI_MCP_SERVER_NAME" --scope "$scope" 2>/dev/null; then
+        log::success "✓ Vrooli MCP server unregistered successfully"
+        return 0
+    else
+        log::warn "Failed to unregister Vrooli MCP server (may not have been registered)"
+        return 1
+    fi
+}
+
+#######################################
+# Check if Vrooli is registered as an MCP server with Claude Code
+# Arguments:
+#   $1 - Optional: scope to check (local, project, user, or "all")
+# Returns: JSON object with registration status
+#######################################
+mcp::get_registration_status() {
+    local check_scope="${1:-all}"
+    local status="{\"registered\":false,\"scopes\":[]}"
+    
+    if ! mcp::check_claude_code_available; then
+        echo "{\"error\":\"Claude Code CLI not available\",\"registered\":false,\"scopes\":[]}"
+        return 1
+    fi
+    
+    local registered_scopes=()
+    local scopes_to_check=()
+    
+    if [[ "$check_scope" == "all" ]]; then
+        scopes_to_check=("local" "project" "user")
+    else
+        scopes_to_check=("$check_scope")
+    fi
+    
+    # Check each scope
+    for scope in "${scopes_to_check[@]}"; do
+        if claude mcp list --scope "$scope" 2>/dev/null | grep -q "$VROOLI_MCP_SERVER_NAME"; then
+            registered_scopes+=("$scope")
+        fi
+    done
+    
+    # Build JSON response
+    if [[ ${#registered_scopes[@]} -gt 0 ]]; then
+        local scopes_json
+        scopes_json=$(printf '"%s",' "${registered_scopes[@]}" | sed 's/,$//')
+        status="{\"registered\":true,\"scopes\":[$scopes_json]}"
+    fi
+    
+    echo "$status"
+    return 0
+}
+
+#######################################
+# Validate MCP connection to Vrooli server
+# Arguments:
+#   $1 - Optional: server URL to test
+# Returns: 0 if connection successful, 1 otherwise
+#######################################
+mcp::validate_connection() {
+    local server_url="${1:-}"
+    
+    if [[ -z "$server_url" ]]; then
+        local server_info
+        server_info=$(mcp::detect_vrooli_server)
+        if [[ -z "$server_info" ]]; then
+            log::error "No Vrooli server detected"
+            return 1
+        fi
+        
+        # Extract URL from JSON (simple approach)
+        server_url=$(echo "$server_info" | grep -o '"mcpEndpoint":"[^"]*"' | cut -d'"' -f4)
+    fi
+    
+    log::info "Validating MCP connection to: $server_url"
+    
+    # Test basic connectivity
+    if system::is_command "curl"; then
+        if curl -f -s --max-time 10 "$server_url" >/dev/null 2>&1; then
+            log::success "✓ MCP endpoint accessible"
+            return 0
+        else
+            log::error "✗ MCP endpoint not accessible"
+            return 1
+        fi
+    else
+        log::warn "curl not available, skipping connection validation"
+        return 0
+    fi
+}
+
+#######################################
+# Get comprehensive MCP status information
+# Returns: JSON object with detailed status
+#######################################
+mcp::get_status() {
+    local claude_available
+    local vrooli_detected
+    local registration_status
+    local server_info
+    
+    # Check Claude Code availability
+    if mcp::check_claude_code_available; then
+        local claude_version
+        claude_version=$(claude --version 2>/dev/null | head -1 || echo "unknown")
+        claude_available="{\"available\":true,\"version\":\"$claude_version\"}"
+    else
+        claude_available="{\"available\":false}"
+    fi
+    
+    # Check Vrooli server
+    server_info=$(mcp::detect_vrooli_server)
+    if [[ -n "$server_info" ]]; then
+        vrooli_detected="{\"detected\":true,\"serverInfo\":$server_info}"
+    else
+        vrooli_detected="{\"detected\":false}"
+    fi
+    
+    # Get registration status
+    registration_status=$(mcp::get_registration_status)
+    
+    # Combine into comprehensive status
+    echo "{\"claudeCode\":$claude_available,\"vrooliServer\":$vrooli_detected,\"registration\":$registration_status}"
+}
+
+#######################################
+# Create MCP configuration file based on template and scope
+# Arguments:
+#   $1 - Scope (local, project, user)
+#   $2 - Server URL
+#   $3 - API key (optional)
+# Returns: 0 on success, 1 on failure
+#######################################
+mcp::create_config() {
+    local scope="$1"
+    local server_url="$2"
+    local api_key="${3:-}"
+    
+    local template_file="${SCRIPT_DIR}/templates/mcp-${scope}.json"
+    local config_file
+    
+    # Determine config file location based on scope
+    case "$scope" in
+        "local")
+            config_file="./.claude.json"
+            ;;
+        "project")
+            config_file="./.mcp.json"
+            ;;
+        "user")
+            config_file="$HOME/.claude.json"
+            ;;
+        *)
+            log::error "Invalid scope: $scope"
+            return 1
+            ;;
+    esac
+    
+    # Check if template exists
+    if [[ ! -f "$template_file" ]]; then
+        log::error "Template file not found: $template_file"
+        return 1
+    fi
+    
+    log::info "Creating MCP configuration file: $config_file"
+    
+    # Read template and substitute variables
+    local config_content
+    config_content=$(cat "$template_file")
+    
+    # Replace URL placeholder
+    config_content=$(echo "$config_content" | sed "s|http://localhost:3000|$server_url|g")
+    
+    # Handle API key
+    if [[ -n "$api_key" ]]; then
+        # Replace environment variable with actual key (for local testing)
+        config_content=$(echo "$config_content" | sed "s/\${VROOLI_API_KEY}/$api_key/g")
+    else
+        # Keep environment variable placeholder
+        log::info "API key not provided, using environment variable placeholder"
+    fi
+    
+    # Create config directory if it doesn't exist
+    local config_dir
+    config_dir=$(dirname "$config_file")
+    if [[ "$config_dir" != "." && ! -d "$config_dir" ]]; then
+        mkdir -p "$config_dir"
+    fi
+    
+    # Write configuration file
+    echo "$config_content" > "$config_file"
+    
+    if [[ -f "$config_file" ]]; then
+        log::success "✓ MCP configuration created: $config_file"
+        
+        # Set appropriate permissions
+        chmod 600 "$config_file"
+        
+        return 0
+    else
+        log::error "Failed to create configuration file"
+        return 1
+    fi
+}
+
+#######################################
+# Auto-register Vrooli with Claude Code if both are available
+# Arguments:
+#   $1 - Optional: scope (local, project, user, auto)
+#   $2 - Optional: API key
+# Returns: 0 on success, 1 on failure
+#######################################
+mcp::auto_register() {
+    local scope="${1:-auto}"
+    local api_key="${2:-}"
+    
+    log::info "Attempting auto-registration of Vrooli MCP server..."
+    
+    # Check prerequisites
+    if ! mcp::check_claude_code_available; then
+        log::error "Claude Code CLI not available for auto-registration"
+        return 1
+    fi
+    
+    # Detect Vrooli server
+    local server_info
+    server_info=$(mcp::detect_vrooli_server)
+    if [[ -z "$server_info" ]]; then
+        log::error "Vrooli server not detected for auto-registration"
+        return 1
+    fi
+    
+    # Extract server URL
+    local server_url
+    server_url=$(echo "$server_info" | grep -o '"baseUrl":"[^"]*"' | cut -d'"' -f4)
+    
+    # Get API key
+    if [[ -z "$api_key" ]]; then
+        api_key=$(mcp::get_api_key)
+        if [[ -z "$api_key" ]]; then
+            log::warn "No API key available, registering without authentication"
+        fi
+    fi
+    
+    # Determine scope
+    scope=$(mcp::determine_scope "$scope")
+    
+    # Check if already registered
+    local registration_status
+    registration_status=$(mcp::get_registration_status "$scope")
+    if echo "$registration_status" | grep -q '"registered":true'; then
+        log::info "Vrooli MCP server already registered in scope: $scope"
+        return 0
+    fi
+    
+    # Create configuration file
+    if mcp::create_config "$scope" "$server_url" "$api_key"; then
+        log::info "Configuration file created successfully"
+    else
+        log::error "Failed to create configuration file"
+        return 1
+    fi
+    
+    # Perform registration using Claude Code CLI
+    mcp::register_server "$server_url" "$api_key" "$scope"
+}
