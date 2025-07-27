@@ -82,7 +82,7 @@ describe("ApiClient", () => {
     describe("constructor", () => {
         it("should create axios instance with correct config", () => {
             expect(axios.create).toHaveBeenCalledWith({
-                baseURL: "http://localhost:5329",
+                baseURL: "http://localhost:5329/api/v2",
                 timeout: 30000,
                 headers: {
                     "Content-Type": "application/json",
@@ -518,7 +518,7 @@ describe("ApiClient", () => {
             const formatted = (client as any).formatError(error);
 
             expect(formatted).toBeInstanceOf(Error);
-            expect(formatted.message).toBe("Bad request");
+            expect(formatted.message).toBe("Bad request\n  Please check the server logs for more details about this error.");
             expect((formatted as ApiError).code).toBe("BAD_REQUEST");
             expect((formatted as ApiError).details).toEqual("Invalid input");
         });
@@ -539,7 +539,7 @@ describe("ApiClient", () => {
             const formatted = (client as any).formatError(error);
 
             expect(formatted).toBeInstanceOf(Error);
-            expect(formatted.message).toBe("Bad request from error field");
+            expect(formatted.message).toBe("Bad request from error field\n  Please try again. If the problem persists, check the server logs or contact support.");
         });
 
         it("should handle no response but request exists", () => {
@@ -555,7 +555,7 @@ describe("ApiClient", () => {
             const formatted = (client as any).formatError(error);
 
             expect(formatted).toBeInstanceOf(Error);
-            expect(formatted.message).toBe("No response from server. Is the server running?");
+            expect(formatted.message).toBe("Cannot connect to server\n  Please check your internet connection and ensure the server is running. You can start the server with './scripts/main/develop.sh'.");
         });
 
         it("should return original error when no response or request", () => {

@@ -18,7 +18,7 @@
         }
       },
       "whisper": {
-        "enabled": true,
+        "enabled": false,
         "baseUrl": "http://localhost:8090",
         "model": "base",
         "healthCheck": {
@@ -182,6 +182,37 @@
           "endpoint": "/pressure",
           "intervalMs": 60000,
           "timeoutMs": 5000
+        }
+      },
+      "agent-s2": {
+        "enabled": false,
+        "baseUrl": "http://localhost:4113",
+        "vncUrl": "vnc://localhost:5900",
+        "apiKey": "${AGENTS2_API_KEY}",
+        "llmProvider": "openai",
+        "llmModel": "gpt-4",
+        "capabilities": [
+          "screenshot",
+          "gui-automation",
+          "planning",
+          "multi-step-tasks"
+        ],
+        "display": {
+          "virtual": true,
+          "resolution": "1920x1080x24",
+          "vncEnabled": true,
+          "vncPasswordSet": true
+        },
+        "security": {
+          "sandboxed": true,
+          "hostDisplayAccess": false,
+          "restrictedApps": ["passwords", "keychain"],
+          "runAsNonRoot": true
+        },
+        "healthCheck": {
+          "endpoint": "/health",
+          "intervalMs": 60000,
+          "timeoutMs": 10000
         }
       }
     },

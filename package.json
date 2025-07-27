@@ -21,7 +21,7 @@
     "typescript": "^5.8.3"
   },
   "scripts": {
-    "postinstall": "pnpm rebuild sharp || true",
+    "postinstall": "pnpm rebuild sharp better-sqlite3 || true",
     "setup": "bash scripts/main/setup.sh",
     "develop": "bash scripts/main/develop.sh",
     "build": "bash scripts/main/build.sh",

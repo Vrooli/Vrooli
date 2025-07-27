@@ -169,7 +169,7 @@ export class AuthCommands {
             const spinner = ora("Checking authentication...").start();
             
             try {
-                const session = await this.client.get<Session>("/auth/me");
+                const session = await this.client.get<Session>("/profile");
                 spinner.succeed("Authenticated");
 
                 const user = session.users?.[0];
@@ -224,7 +224,7 @@ export class AuthCommands {
         try {
             const spinner = ora("Fetching user information...").start();
 
-            const session = await this.client.get<Session>("/auth/me");
+            const session = await this.client.get<Session>("/profile");
             spinner.succeed("User information retrieved");
 
             const user = session.users?.[0];

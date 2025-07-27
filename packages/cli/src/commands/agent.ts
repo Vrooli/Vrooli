@@ -10,12 +10,12 @@ import cliProgress from "cli-progress";
 import { UI } from "../utils/constants.js";
 import type { 
     Resource,
-    ResourceSearchInput,
-    ResourceSearchResult,
+    ResourceVersionSearchInput,
+    ResourceVersionSearchResult,
     BotConfigObject,
     ResourceCreateInput,
 } from "@vrooli/shared";
-import { generatePK, ResourceType, ResourceSubType, ResourceUsedFor } from "@vrooli/shared";
+import { generatePK, ResourceType, ResourceSubType, ResourceUsedFor, endpointsResource } from "@vrooli/shared";
 
 // Interface definitions for agent operations
 interface AgentTranslation {
@@ -346,7 +346,7 @@ export class AgentCommands {
         role?: string;
     }): Promise<void> {
         try {
-            const params: ResourceSearchInput = {
+            const params: ResourceVersionSearchInput = {
                 take: parseInt(options.limit || "20"),
                 latestVersionResourceSubType: "AgentSpec" as ResourceSubType,
             };
@@ -360,7 +360,7 @@ export class AgentCommands {
             }
 
             // Note: Role filtering would need to be done post-fetch since it's in metadata
-            const response = await this.client.get<ResourceSearchResult>("/api/resources", { params });
+            const response = await this.client.get<ResourceVersionSearchResult>("/api/resources", { params });
 
             if (this.config.isJsonOutput() || options.format === "json") {
                 console.log(JSON.stringify(response));
@@ -510,18 +510,17 @@ export class AgentCommands {
         const spinner = ora(`Searching for agents: "${query}"...`).start();
 
         try {
-            const searchInput = {
+            const searchInput: ResourceVersionSearchInput = {
                 take: parseInt(options.limit || "10"),
                 searchString: query,
-                where: {
-                    resourceType: { equals: "Agent" },
-                },
+                isLatest: true,
+                rootResourceType: ResourceType.Agent,
             };
 
-            const response = await this.client.request<ResourceSearchResult>("resource_findMany", {
-                input: searchInput,
-                fieldName: "resources",
-            });
+            const response = await this.client.requestWithEndpoint<ResourceVersionSearchResult>(
+                endpointsResource.findMany,
+                searchInput,
+            );
 
             if (!response.edges || response.edges.length === 0) {
                 spinner.info(`No agents found for "${query}"`);
