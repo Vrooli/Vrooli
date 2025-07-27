@@ -414,11 +414,11 @@ export class ResourceInstaller extends EventEmitter {
     
     private getResourceCategory(resourceId: string): ResourceCategory {
         // AI resources
-        if (["ollama", "localai", "llamacpp", "vllm", "tgi", "onnx", "whisper", "comfyui", "stablediffusion"].includes(resourceId)) {
+        if (["ollama", "whisper", "comfyui", "cloudflare", "openrouter"].includes(resourceId)) {
             return ResourceCategory.AI;
         }
         // Automation resources
-        if (["n8n", "nodered", "windmill", "automatisch", "activepieces", "huginn", "kestra", "beehive", "airflow", "temporal"].includes(resourceId)) {
+        if (["n8n", "node-red", "windmill", "activepieces", "huginn", "airflow", "temporal"].includes(resourceId)) {
             return ResourceCategory.Automation;
         }
         // Agent resources
@@ -426,7 +426,7 @@ export class ResourceInstaller extends EventEmitter {
             return ResourceCategory.Agents;
         }
         // Storage resources
-        if (["minio", "seaweedfs", "glusterfs", "ipfs", "rclone"].includes(resourceId)) {
+        if (["minio", "ipfs", "rclone"].includes(resourceId)) {
             return ResourceCategory.Storage;
         }
         

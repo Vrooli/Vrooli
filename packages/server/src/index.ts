@@ -211,6 +211,117 @@ async function main() {
         // Add more room handlers as needed
     });
 
+    // Graceful shutdown handler
+    let isShuttingDown = false;
+    
+    async function gracefulShutdown(signal: string) {
+        if (isShuttingDown) {
+            logger.warn(`Already shutting down, ignoring ${signal}`);
+            return;
+        }
+        
+        isShuttingDown = true;
+        logger.info(`🛑 Received ${signal}, starting graceful shutdown...`);
+        
+        // Set shutdown timeout to prevent hanging indefinitely
+        const shutdownTimeout = setTimeout(() => {
+            logger.error("🚨 Shutdown timeout reached, forcing exit");
+            process.exit(1);
+        }, 30000); // 30 second timeout
+        
+        try {
+            // 1. Stop accepting new connections
+            logger.info("📛 Stopping HTTP server...");
+            await new Promise<void>((resolve) => {
+                server.close(() => {
+                    logger.info("✅ HTTP server closed");
+                    resolve();
+                });
+            });
+            
+            // 2. Shutdown services in coordinated order
+            logger.info("🧹 Shutting down services...");
+            const shutdownPromises = [
+                // Queue service shutdown (but don't let it call process.exit)
+                (async () => {
+                    try {
+                        const queueService = QueueService.get();
+                        await queueService.shutdown();
+                        logger.info("✅ QueueService shutdown complete");
+                    } catch (error) {
+                        logger.error("❌ QueueService shutdown failed", { error });
+                    }
+                })(),
+                
+                // Socket service shutdown
+                (async () => {
+                    try {
+                        await SocketService.shutdown();
+                        logger.info("✅ SocketService shutdown complete");
+                    } catch (error) {
+                        logger.error("❌ SocketService shutdown failed", { error });
+                    }
+                })(),
+                
+                // MCP service shutdown
+                (async () => {
+                    try {
+                        const { getMcpServer } = await import("./services/mcp/index.js");
+                        try {
+                            const mcpServer = getMcpServer();
+                            await mcpServer.shutdown();
+                            logger.info("✅ MCP service shutdown complete");
+                        } catch (mcpError) {
+                            if (mcpError instanceof Error && mcpError.message.includes("accessed before initialization")) {
+                                logger.debug("MCP server was not initialized, skipping shutdown");
+                            } else {
+                                throw mcpError;
+                            }
+                        }
+                    } catch (error) {
+                        logger.error("❌ MCP service shutdown failed", { error });
+                    }
+                })(),
+                
+                // Database shutdown
+                (async () => {
+                    try {
+                        await DbProvider.shutdown();
+                        logger.info("✅ Database shutdown complete");
+                    } catch (error) {
+                        logger.error("❌ Database shutdown failed", { error });
+                    }
+                })(),
+                
+                // Cache service shutdown
+                (async () => {
+                    try {
+                        await CacheService.reset();
+                        logger.info("✅ CacheService shutdown complete");
+                    } catch (error) {
+                        logger.error("❌ CacheService shutdown failed", { error });
+                    }
+                })(),
+            ];
+            
+            // Wait for all services to shutdown (with individual error handling)
+            await Promise.allSettled(shutdownPromises);
+            
+            logger.info("✅ Graceful shutdown complete");
+            clearTimeout(shutdownTimeout);
+            process.exit(0);
+            
+        } catch (error) {
+            logger.error("🚨 Error during graceful shutdown", { error });
+            clearTimeout(shutdownTimeout);
+            process.exit(1);
+        }
+    }
+    
+    // Register shutdown handlers
+    process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+    process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+    
     // Unhandled Rejection Handler. This is a last resort for catching errors that were not caught by the application. 
     // If you see this error, please try to find its source and catch it there.
     process.on("unhandledRejection", (reason, promise) => {

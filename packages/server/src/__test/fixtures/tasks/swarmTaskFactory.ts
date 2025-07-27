@@ -2,9 +2,9 @@
  * Specialized factory for creating SwarmExecutionTask test data with proper TierExecutionRequest structure
  */
 
-import { generatePK, type SessionUser } from "@vrooli/shared";
-import { type SwarmExecutionTask, QueueTaskType } from "../../../tasks/taskTypes.js";
+import { generatePK, generatePublicId, type SessionUser } from "@vrooli/shared";
 import { createValidTaskData } from "../../../tasks/taskFactory.js";
+import { QueueTaskType, type SwarmExecutionTask } from "../../../tasks/taskTypes.js";
 
 /**
  * Creates a valid SwarmExecutionTask with the nested TierExecutionRequest structure
@@ -26,7 +26,7 @@ export function createSwarmTask(overrides: Partial<SwarmExecutionTask> = {}): Sw
         theme: "light",
         credits: "1000",
         phoneNumberVerified: false,
-        publicId: generatePK().toString(),
+        publicId: generatePublicId(),
         updatedAt: new Date(),
         session: {
             __typename: "SessionUserSession",
@@ -94,7 +94,7 @@ export const swarmTaskScenarios = {
             theme: "light",
             credits: "1000",
             phoneNumberVerified: false,
-            publicId: generatePK().toString(),
+            publicId: generatePublicId(),
             updatedAt: new Date(),
             session: {
                 __typename: "SessionUserSession",
@@ -115,7 +115,7 @@ export const swarmTaskScenarios = {
             },
         };
     },
-    
+
     /** Create a SwarmTask for an existing swarm/chat */
     existingSwarm: (swarmId: string, chatId: string): Partial<SwarmExecutionTask> => {
         const userId = generatePK().toString();
@@ -129,7 +129,7 @@ export const swarmTaskScenarios = {
             theme: "light",
             credits: "1000",
             phoneNumberVerified: false,
-            publicId: generatePK().toString(),
+            publicId: generatePublicId(),
             updatedAt: new Date(),
             session: {
                 __typename: "SessionUserSession",
@@ -147,7 +147,7 @@ export const swarmTaskScenarios = {
             },
         };
     },
-    
+
     /** Create a SwarmTask with premium user */
     premiumUser: (): Partial<SwarmExecutionTask> => ({
         context: {
@@ -161,7 +161,7 @@ export const swarmTaskScenarios = {
                 theme: "dark",
                 credits: "5000",
                 phoneNumberVerified: true,
-                publicId: generatePK().toString(),
+                publicId: generatePublicId(),
                 updatedAt: new Date(),
                 session: {
                     __typename: "SessionUserSession",
@@ -177,7 +177,7 @@ export const swarmTaskScenarios = {
             maxConcurrentSteps: 10,
         },
     }),
-    
+
     /** Create a SwarmTask with limited resources */
     limitedResources: (): Partial<SwarmExecutionTask> => {
         const userId = generatePK().toString();
@@ -191,7 +191,7 @@ export const swarmTaskScenarios = {
             theme: "light",
             credits: "100",
             phoneNumberVerified: false,
-            publicId: generatePK().toString(),
+            publicId: generatePublicId(),
             updatedAt: new Date(),
             session: {
                 __typename: "SessionUserSession",

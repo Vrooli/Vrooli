@@ -125,6 +125,7 @@ export async function cleanupUserAuth(prisma: PrismaClient): Promise<void> {
     await prisma.email.deleteMany();
     await prisma.phone.deleteMany();
     await prisma.push_device.deleteMany();
+    await prisma.wallet.deleteMany();
     await prisma.user_translation.deleteMany();
     await prisma.plan.deleteMany();
     await prisma.user.deleteMany();

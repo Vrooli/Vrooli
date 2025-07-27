@@ -14,7 +14,7 @@ export const SUPPORTED_RESOURCES = {
     ],
     [ResourceCategory.Automation]: [
         { id: "n8n", name: "n8n", description: "Visual workflow automation", deploymentType: DeploymentType.Local },
-        { id: "nodered", name: "Node-RED", description: "Flow-based programming", deploymentType: DeploymentType.Local },
+        { id: "node-red", name: "Node-RED", description: "Flow-based programming", deploymentType: DeploymentType.Local },
         { id: "windmill", name: "Windmill", description: "Developer-centric workflow automation", deploymentType: DeploymentType.Hybrid },
         { id: "activepieces", name: "ActivePieces", description: "Open-source automation platform", deploymentType: DeploymentType.Local },
         { id: "huginn", name: "Huginn", description: "Agent-based monitoring and automation", deploymentType: DeploymentType.Local },
@@ -24,6 +24,7 @@ export const SUPPORTED_RESOURCES = {
     [ResourceCategory.Agents]: [
         { id: "browserless", name: "Browserless", description: "Headless browser service", deploymentType: DeploymentType.Hybrid },
         { id: "claude-code", name: "Claude Code", description: "AI-powered coding assistant", deploymentType: DeploymentType.Local },
+        { id: "agent-s2", name: "Agent S2", description: "Autonomous computer interaction with GUI automation", deploymentType: DeploymentType.Local },
     ],
     [ResourceCategory.Storage]: [
         { id: "minio", name: "MinIO", description: "S3-compatible object storage", deploymentType: DeploymentType.Local },

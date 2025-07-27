@@ -89,6 +89,7 @@
 
 export * from "./constants.js";
 export * from "./healthCheck.js";
+export * from "./portRegistry.js";
 export * from "./ResourceProvider.js";
 export * from "./ResourceRegistry.js";
 export * from "./resourcesConfig.js";
@@ -98,11 +99,17 @@ export * from "./types.js";
 import "./providers/OllamaResource.js";
 import "./providers/N8nResource.js";
 import "./providers/BrowserlessResource.js";
+import "./providers/WhisperResource.js";
+import "./providers/NodeREDResource.js";
+import "./providers/HuginnResource.js";
 
 // Export specific provider classes for direct access
 export { OllamaResource } from "./providers/OllamaResource.js";
 export { N8nResource } from "./providers/N8nResource.js";
 export { BrowserlessResource } from "./providers/BrowserlessResource.js";
+export { WhisperResource } from "./providers/WhisperResource.js";
+export { NodeREDResource } from "./providers/NodeREDResource.js";
+export { HuginnResource } from "./providers/HuginnResource.js";
 
 // Example of how AI services will integrate with the existing system
 export interface AIResourceAdapter {

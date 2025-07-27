@@ -2,9 +2,9 @@
  * Specialized factory for creating RunTask test data with proper TierExecutionRequest structure
  */
 
-import { generatePK, TaskStatus, type RunConfig, type RunTriggeredFrom, type SessionUser } from "@vrooli/shared";
-import { type RunTask, QueueTaskType } from "../../../tasks/taskTypes.js";
+import { generatePK, generatePublicId, TaskStatus, type RunConfig, type RunTriggeredFrom, type SessionUser } from "@vrooli/shared";
 import { createValidTaskData } from "../../../tasks/taskFactory.js";
+import { QueueTaskType, type RunTask } from "../../../tasks/taskTypes.js";
 
 /**
  * Creates a valid RunTask with the nested TierExecutionRequest structure
@@ -28,7 +28,7 @@ export function createRunTask(overrides: Partial<RunTask> = {}): RunTask {
         theme: "light",
         credits: "1000",
         phoneNumberVerified: false,
-        publicId: generatePK().toString(),
+        publicId: generatePublicId(),
         updatedAt: new Date(),
         session: {
             __typename: "SessionUserSession",
@@ -99,7 +99,7 @@ export const runTaskScenarios = {
             status: TaskStatus.Scheduled,
         },
     }),
-    
+
     /** Create a RunTask for resuming an existing run */
     resumeRun: (runId: string): Partial<RunTask> => ({
         input: {
@@ -111,7 +111,7 @@ export const runTaskScenarios = {
             status: TaskStatus.InProgress,
         },
     }),
-    
+
     /** Create a RunTask with premium user */
     premiumUser: (): Partial<RunTask> => ({
         context: {
@@ -125,7 +125,7 @@ export const runTaskScenarios = {
                 theme: "dark",
                 credits: "5000",
                 phoneNumberVerified: true,
-                publicId: generatePK().toString(),
+                publicId: generatePublicId(),
                 updatedAt: new Date(),
                 session: {
                     __typename: "SessionUserSession",

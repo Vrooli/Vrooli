@@ -231,9 +231,9 @@ describe("importData", () => {
     
     const mockConfig: ImportConfig = {
         allowForeignData: true,
-        assignObjectsTo: { __typename: "User", id: "user123" },
+        assignObjectsTo: { __typename: "User", id: getTestUserId() },
         onConflict: "skip",
-        userData: { id: "user123", languages: ["en"] },
+        userData: { id: getTestUserId(), languages: ["en"] },
         isSeeding: false,
     };
 
@@ -540,6 +540,18 @@ describe("importData", () => {
 });
 
 describe("Migration Benefits", () => {
+    let testUser: any;
+    
+    beforeEach(async () => {
+        // Create test user for permission testing
+        const userSeedResult = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
+        testUser = userSeedResult.records[0];
+    });
+
+    afterEach(async () => {
+        // Clean up database
+        await cleanupGroups.userAuth(DbProvider.get());
+    });
     it("demonstrates real JWT signature verification", async () => {
         // This test shows we're using real JWT instead of mocks
         const data = [{ __version: "1.0.0", __typename: "Resource" as ModelType, shape: { id: "1" } }];
@@ -562,9 +574,9 @@ describe("Migration Benefits", () => {
         // This ensures permissions are properly validated during import
         const config: ImportConfig = {
             allowForeignData: true,
-            assignObjectsTo: { __typename: "User", id: "user123" },
+            assignObjectsTo: { __typename: "User", id: testUser.id },
             onConflict: "skip",
-            userData: { id: "user123", languages: ["en"] },
+            userData: { id: testUser.id, languages: ["en"] },
             isSeeding: false,
         };
         

@@ -31,7 +31,10 @@ import { ResourceRegistry } from "./resources/ResourceRegistry.js";
 
 const exec = promisify(execCb);
 
-const debug = process.env.NODE_ENV === "development";
+// Dynamic debug check to allow runtime NODE_ENV changes
+function isDebugMode() {
+    return process.env.NODE_ENV === "development";
+}
 
 export enum ServiceStatus {
     Operational = "Operational",
@@ -320,6 +323,7 @@ export class HealthService {
                         migrations: {
                             hasPending: false,
                             appliedCount: migrationStatus.appliedCount,
+                            ...(migrationStatus.error && { error: migrationStatus.error }),
                         },
                         seeding: false,
                         isRetrying,
@@ -343,6 +347,7 @@ export class HealthService {
                         hasPending: false,
                         appliedCount: migrationStatus.appliedCount,
                         message: `All ${migrationStatus.appliedCount} migrations applied`,
+                        ...(migrationStatus.error && { error: migrationStatus.error }),
                     },
                     seeding: true,
                     attemptCount,
@@ -388,7 +393,7 @@ export class HealthService {
                 serializableErrorDetails = {
                     message: error.message,
                     name: error.name,
-                    stack: debug ? error.stack : "Stack trace available in development mode",
+                    stack: isDebugMode() ? error.stack : "Stack trace available in development mode",
                     type: "ErrorInstance",
                 };
             } else {
@@ -1168,7 +1173,7 @@ export class HealthService {
         try {
             const registry = ResourceRegistry.getInstance();
             const healthCheck = registry.getHealthCheck();
-            
+
             // Map ResourceSystemHealth enum to ServiceStatus
             let status: ServiceStatus;
             switch (healthCheck.status) {
@@ -1184,7 +1189,7 @@ export class HealthService {
                 default:
                     status = ServiceStatus.Down;
             }
-            
+
             this.resourcesHealthCache = this.createServiceCache(
                 status,
                 DEFAULT_SERVICE_CACHE_MS,
@@ -1272,7 +1277,7 @@ export class HealthService {
                 serializableErrorDetails = {
                     message: error.message,
                     name: error.name,
-                    stack: debug ? error.stack : "Stack trace available in development mode",
+                    stack: isDebugMode() ? error.stack : "Stack trace available in development mode",
                     type: "ErrorInstance",
                 };
             } else {
@@ -1302,11 +1307,16 @@ export class HealthService {
 
         // Process results, providing defaults for rejected promises
         // Match these indices to the order in serviceChecks array
-        const apiHealth = results.find(r => r.name === "API")?.status === "fulfilled" ? results.find(r => r.name === "API")!.value : createDownStatus("API", results.find(r => r.name === "API")?.reason);
-        const busHealth = results.find(r => r.name === "Bus")?.status === "fulfilled" ? results.find(r => r.name === "Bus")!.value : createDownStatus("Bus", results.find(r => r.name === "Bus")?.reason);
-        const cronJobsHealth = results.find(r => r.name === "CronJobs")?.status === "fulfilled" ? results.find(r => r.name === "CronJobs")!.value : createDownStatus("Cron Jobs", results.find(r => r.name === "CronJobs")?.reason);
-        const dbHealth = results.find(r => r.name === "Database")?.status === "fulfilled" ? results.find(r => r.name === "Database")!.value : createDownStatus("Database", results.find(r => r.name === "Database")?.reason);
-        const i18nHealth = results.find(r => r.name === "i18n")?.status === "fulfilled" ? results.find(r => r.name === "i18n")!.value : createDownStatus("i18n", results.find(r => r.name === "i18n")?.reason);
+        const apiResult = results.find(r => r.name === "API");
+        const apiHealth = apiResult?.status === "fulfilled" ? apiResult.value : createDownStatus("API", apiResult?.reason);
+        const busResult = results.find(r => r.name === "Bus");
+        const busHealth = busResult?.status === "fulfilled" ? busResult.value : createDownStatus("Bus", busResult?.reason);
+        const cronJobsResult = results.find(r => r.name === "CronJobs");
+        const cronJobsHealth = cronJobsResult?.status === "fulfilled" ? cronJobsResult.value : createDownStatus("Cron Jobs", cronJobsResult?.reason);
+        const dbResult = results.find(r => r.name === "Database");
+        const dbHealth = dbResult?.status === "fulfilled" ? dbResult.value : createDownStatus("Database", dbResult?.reason);
+        const i18nResult = results.find(r => r.name === "i18n");
+        const i18nHealth = i18nResult?.status === "fulfilled" ? i18nResult.value : createDownStatus("i18n", i18nResult?.reason);
 
         let llmHealth: { [key: string]: ServiceHealth } = {};
         const llmResult = results.find(r => r.name === "LLMServices");
@@ -1317,8 +1327,10 @@ export class HealthService {
             // llmHealth remains empty or you could add a generic error entry
         }
 
-        const mcpHealth = results.find(r => r.name === "MCP")?.status === "fulfilled" ? results.find(r => r.name === "MCP")!.value : createDownStatus("MCP", results.find(r => r.name === "MCP")?.reason);
-        const memoryHealth = results.find(r => r.name === "Memory")?.status === "fulfilled" ? results.find(r => r.name === "Memory")!.value : createDownStatus("Memory", results.find(r => r.name === "Memory")?.reason);
+        const mcpResult = results.find(r => r.name === "MCP");
+        const mcpHealth = mcpResult?.status === "fulfilled" ? mcpResult.value : createDownStatus("MCP", mcpResult?.reason);
+        const memoryResult = results.find(r => r.name === "Memory");
+        const memoryHealth = memoryResult?.status === "fulfilled" ? memoryResult.value : createDownStatus("Memory", memoryResult?.reason);
 
         let queueHealths: { [key: string]: ServiceHealth } = {};
         const queueResult = results.find(r => r.name === "Queues");
@@ -1333,14 +1345,22 @@ export class HealthService {
             // queueHealths remains empty or you could add a generic error entry
         }
 
-        const redisHealth = results.find(r => r.name === "Redis")?.status === "fulfilled" ? results.find(r => r.name === "Redis")!.value : createDownStatus("Redis", results.find(r => r.name === "Redis")?.reason);
-        const sslHealth = results.find(r => r.name === "SSLCertificate")?.status === "fulfilled" ? results.find(r => r.name === "SSLCertificate")!.value : createDownStatus("SSL", results.find(r => r.name === "SSLCertificate")?.reason);
-        const stripeHealth = results.find(r => r.name === "Stripe")?.status === "fulfilled" ? results.find(r => r.name === "Stripe")!.value : createDownStatus("Stripe", results.find(r => r.name === "Stripe")?.reason);
-        const systemHealth = results.find(r => r.name === "System")?.status === "fulfilled" ? results.find(r => r.name === "System")!.value : createDownStatus("System", results.find(r => r.name === "System")?.reason);
-        const websocketHealth = results.find(r => r.name === "WebSocket")?.status === "fulfilled" ? results.find(r => r.name === "WebSocket")!.value : createDownStatus("WebSocket", results.find(r => r.name === "WebSocket")?.reason);
-        const imageStorageHealth = results.find(r => r.name === "ImageStorage")?.status === "fulfilled" ? results.find(r => r.name === "ImageStorage")!.value : createDownStatus("Image Storage", results.find(r => r.name === "ImageStorage")?.reason);
-        const embeddingServiceHealth = results.find(r => r.name === "EmbeddingService")?.status === "fulfilled" ? results.find(r => r.name === "EmbeddingService")!.value : createDownStatus("Embedding Service", results.find(r => r.name === "EmbeddingService")?.reason);
-        const resourcesHealth = results.find(r => r.name === "Resources")?.status === "fulfilled" ? results.find(r => r.name === "Resources")!.value : createDownStatus("Resources", results.find(r => r.name === "Resources")?.reason);
+        const redisResult = results.find(r => r.name === "Redis");
+        const redisHealth = redisResult?.status === "fulfilled" ? redisResult.value : createDownStatus("Redis", redisResult?.reason);
+        const sslResult = results.find(r => r.name === "SSLCertificate");
+        const sslHealth = sslResult?.status === "fulfilled" ? sslResult.value : createDownStatus("SSL", sslResult?.reason);
+        const stripeResult = results.find(r => r.name === "Stripe");
+        const stripeHealth = stripeResult?.status === "fulfilled" ? stripeResult.value : createDownStatus("Stripe", stripeResult?.reason);
+        const systemResult = results.find(r => r.name === "System");
+        const systemHealth = systemResult?.status === "fulfilled" ? systemResult.value : createDownStatus("System", systemResult?.reason);
+        const websocketResult = results.find(r => r.name === "WebSocket");
+        const websocketHealth = websocketResult?.status === "fulfilled" ? websocketResult.value : createDownStatus("WebSocket", websocketResult?.reason);
+        const imageStorageResult = results.find(r => r.name === "ImageStorage");
+        const imageStorageHealth = imageStorageResult?.status === "fulfilled" ? imageStorageResult.value : createDownStatus("Image Storage", imageStorageResult?.reason);
+        const embeddingServiceResult = results.find(r => r.name === "EmbeddingService");
+        const embeddingServiceHealth = embeddingServiceResult?.status === "fulfilled" ? embeddingServiceResult.value : createDownStatus("Embedding Service", embeddingServiceResult?.reason);
+        const resourcesResult = results.find(r => r.name === "Resources");
+        const resourcesHealth = resourcesResult?.status === "fulfilled" ? resourcesResult.value : createDownStatus("Resources", resourcesResult?.reason);
 
 
         // Determine overall status
@@ -1462,7 +1482,7 @@ export function setupHealthCheck(app: Express): void {
         }
     });
 
-    if (debug) {
+    if (isDebugMode()) {
         // Typicaly this would be a POST request, but it's easier to call this as a GET request 
         // since you can do it from the browser.
         app.get("/healthcheck/retry-seeding", async (req, res) => {

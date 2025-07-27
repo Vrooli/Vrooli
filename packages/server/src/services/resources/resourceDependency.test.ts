@@ -61,12 +61,12 @@ describe("ResourceDependencyManager", () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             manager.registerResource("ollama" as any, 100);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            manager.registerResource("localai" as any, 90);
+            manager.registerResource("whisper" as any, 90);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             manager.registerResource("minio" as any, 80);
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const enabledResources = new Set(["ollama", "localai", "minio"]) as any;
+            const enabledResources = new Set(["ollama", "whisper", "minio"]) as any;
             const plan = manager.createInitializationPlan(enabledResources);
 
             expect(plan.phases).toHaveLength(1);
@@ -76,7 +76,7 @@ describe("ResourceDependencyManager", () => {
 
             // Should be ordered by priority (highest first)
             expect(plan.phases[0][0]).toBe("ollama"); // Priority 100
-            expect(plan.phases[0][1]).toBe("localai"); // Priority 90
+            expect(plan.phases[0][1]).toBe("whisper"); // Priority 90
             expect(plan.phases[0][2]).toBe("minio"); // Priority 80
         });
 
