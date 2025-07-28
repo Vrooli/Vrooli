@@ -13,7 +13,7 @@ claude_code::session() {
         return 1
     fi
     
-    if [[ -z "$SESSION_ID" ]]; then
+    if [[ -z "${SESSION_ID:-}" ]]; then
         # List sessions
         claude_code::session_list
     else

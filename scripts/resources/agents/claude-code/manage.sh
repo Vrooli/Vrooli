@@ -103,6 +103,13 @@ claude_code::parse_arguments() {
         --options "stream-json|text" \
         --default "$DEFAULT_OUTPUT_FORMAT"
     
+    args::register \
+        --name "dangerously-skip-permissions" \
+        --desc "Skip permission checks (USE WITH EXTREME CAUTION)" \
+        --type "value" \
+        --options "yes|no" \
+        --default "no"
+    
     # MCP-specific arguments
     args::register \
         --name "scope" \
@@ -146,6 +153,7 @@ claude_code::parse_arguments() {
     export ALLOWED_TOOLS=$(args::get "allowed-tools")
     export TIMEOUT=$(args::get "timeout")
     export OUTPUT_FORMAT=$(args::get "output-format")
+    export SKIP_PERMISSIONS=$(args::get "dangerously-skip-permissions")
     
     # MCP-specific variables
     export MCP_SCOPE=$(args::get "scope")

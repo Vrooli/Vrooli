@@ -13,7 +13,7 @@ claude_code::run() {
         return 1
     fi
     
-    if [[ -z "$PROMPT" ]]; then
+    if [[ -z "${PROMPT:-}" ]]; then
         log::error "No prompt provided. Use --prompt \"Your prompt here\""
         return 1
     fi
@@ -32,6 +32,12 @@ claude_code::run() {
     tools_params=$(claude_code::build_allowed_tools "$ALLOWED_TOOLS")
     if [[ -n "$tools_params" ]]; then
         cmd="$cmd $tools_params"
+    fi
+    
+    # Add skip permissions flag if specified
+    if [[ "$SKIP_PERMISSIONS" == "yes" ]]; then
+        cmd="$cmd --dangerously-skip-permissions"
+        log::warn "⚠️  WARNING: Permission checks are disabled!"
     fi
     
     # Set timeout environment variables
@@ -55,7 +61,7 @@ claude_code::batch() {
         return 1
     fi
     
-    if [[ -z "$PROMPT" ]]; then
+    if [[ -z "${PROMPT:-}" ]]; then
         log::error "No prompt provided. Use --prompt \"Your prompt here\""
         return 1
     fi
@@ -75,6 +81,12 @@ claude_code::batch() {
     tools_params=$(claude_code::build_allowed_tools "$ALLOWED_TOOLS")
     if [[ -n "$tools_params" ]]; then
         cmd="$cmd $tools_params"
+    fi
+    
+    # Add skip permissions flag if specified
+    if [[ "$SKIP_PERMISSIONS" == "yes" ]]; then
+        cmd="$cmd --dangerously-skip-permissions"
+        log::warn "⚠️  WARNING: Permission checks are disabled for batch operation!"
     fi
     
     # Set extended timeouts for batch operations

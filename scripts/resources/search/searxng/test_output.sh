@@ -1,12 +1,11 @@
 #!/bin/bash
 
-# Set up test environment
+# Set up test environment exactly like bats
 export SEARXNG_TEST_MODE=yes
 export SEARXNG_PORT=8100
 export SEARXNG_BASE_URL='http://localhost:8100'
 export SEARXNG_DATA_DIR='$HOME/.searxng'
 export SEARXNG_API_TIMEOUT=10
-export SEARXNG_DEFAULT_LANG=en
 
 # Mock variables
 export MOCK_SEARXNG_HEALTHY=yes
@@ -48,29 +47,40 @@ curl() {
     fi
 }
 
-# Mock jq function (passthrough to real jq if available)
+# Mock jq function - simulates jq behavior for our test data
 jq() {
     if [[ "$MOCK_JQ_AVAILABLE" == "yes" ]]; then
-        # Simulate jq parsing for our mock data
-        case "$1" in
-            "-r")
-                shift
-                case "$1" in
-                    ".results[0].url // empty")
-                        echo "http://example.com"
-                        ;;
-                    ".results[0].title")
-                        echo "Test Result"
-                        ;;
-                    *)
-                        echo "$MOCK_API_RESPONSE"
-                        ;;
-                esac
-                ;;
-            *)
-                echo "$MOCK_API_RESPONSE"
-                ;;
-        esac
+        # Try to use real jq if available
+        if command -v /usr/bin/jq >/dev/null 2>&1; then
+            /usr/bin/jq "$@"
+        else
+            # Fallback to simple mock for common patterns
+            case "$1" in
+                "-r")
+                    shift
+                    case "$1" in
+                        ".results[0].url // empty")
+                            echo "http://example.com"
+                            ;;
+                        ".results[:*] | .[] | .title")
+                            echo "Test Result"
+                            ;;
+                        ".results | .[] | .title")
+                            echo "Test Result"
+                            ;;
+                        *)
+                            echo "$MOCK_API_RESPONSE"
+                            ;;
+                    esac
+                    ;;
+                "-c")
+                    echo "$MOCK_API_RESPONSE"
+                    ;;
+                *)
+                    echo "$MOCK_API_RESPONSE"
+                    ;;
+            esac
+        fi
         return 0
     else
         echo "jq: command not found" >&2
@@ -81,16 +91,13 @@ jq() {
 # Source the script
 source lib/api.sh || { echo "Failed to source api.sh" >&2; exit 1; }
 
-# Test lucky search
-echo "Testing searxng::lucky..."
-
-# Test the curl and jq pipeline directly
-echo -e "\nTest 1: Direct curl output:"
-curl -sf --max-time 10 "http://localhost:8100/search?q=test&format=json"
-
-echo -e "\n\nTest 2: Curl piped to jq:"
-curl -sf --max-time 10 "http://localhost:8100/search?q=test&format=json" | jq -r '.results[0].url // empty' 2>&1
-
-echo -e "\n\nTest 3: Full lucky search:"
-searxng::lucky 'test query'
+# Test lucky output  
+echo "=== Testing lucky output ==="
+output=$(searxng::lucky 'test query' 2>&1)
+echo "Full output: [$output]"
 echo "Exit code: $?"
+
+echo -e "\n=== Testing format_output markdown ==="
+output=$(searxng::format_output "$MOCK_API_RESPONSE" "markdown" 2>&1)
+echo "Output:"
+echo "$output"

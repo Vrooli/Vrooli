@@ -182,6 +182,9 @@ The management script provides convenient commands for both installation and usa
 
 # Run with JSON output
 ./manage.sh --action run --prompt "Analyze code" --output-format stream-json
+
+# Run with permission checks disabled (USE WITH EXTREME CAUTION)
+./manage.sh --action run --prompt "System task" --dangerously-skip-permissions yes
 ```
 
 ### Batch Processing
@@ -194,6 +197,11 @@ The management script provides convenient commands for both installation and usa
 ./manage.sh --action batch --prompt "Update documentation" \
   --allowed-tools "Edit,Read,Write" \
   --max-turns 30
+
+# Batch with permission checks disabled (DANGEROUS)
+./manage.sh --action batch --prompt "System maintenance" \
+  --dangerously-skip-permissions yes \
+  --max-turns 20
 ```
 
 ### Session Management
@@ -229,6 +237,13 @@ The management script provides convenient commands for both installation and usa
   --max-turns 100 \
   --timeout 7200 \
   --output-format stream-json
+
+# System-level task with permissions disabled (EXTREME CAUTION)
+./manage.sh --action batch \
+  --prompt "Optimize system configuration files" \
+  --dangerously-skip-permissions yes \
+  --max-turns 50 \
+  --timeout 3600
 
 # Code review automation
 ./manage.sh --action run \
@@ -315,6 +330,34 @@ npm install -g @anthropic-ai/claude-code
 - **File access**: Only accesses files you explicitly work with
 - **Command execution**: Requires confirmation for potentially dangerous operations
 - **Network**: All communication is encrypted
+
+### ⚠️ Dangerous Permissions Override
+
+The `--dangerously-skip-permissions` flag **disables all permission checks**:
+
+**WARNING**: This flag should only be used:
+- In isolated test environments
+- When you fully understand the risks
+- For specific system administration tasks
+- Never in production environments
+
+**Risks include**:
+- Unrestricted file system access
+- Ability to execute system commands without confirmation
+- Potential for accidental data loss or system damage
+- Security vulnerabilities if used with untrusted prompts
+
+**Best Practices**:
+```bash
+# Safe: Use with restricted tools
+./manage.sh --action run --prompt "Task" --allowed-tools "Read,Edit"
+
+# Dangerous: Full access without permissions
+./manage.sh --action run --prompt "Task" --dangerously-skip-permissions yes
+
+# Safer dangerous: Limit tools even when skipping permissions
+./manage.sh --action run --prompt "Task" --dangerously-skip-permissions yes --allowed-tools "Edit,Bash"
+```
 
 ## Enterprise Options
 
