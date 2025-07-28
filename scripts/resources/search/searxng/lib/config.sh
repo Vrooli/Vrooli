@@ -25,26 +25,35 @@ searxng::generate_config() {
     local temp_config
     temp_config=$(mktemp)
     
-    # Read template and substitute variables
-    while IFS= read -r line; do
-        # Replace template variables
-        line="${line//\${SEARXNG_INSTANCE_NAME}/$SEARXNG_INSTANCE_NAME}"
-        line="${line//\${SEARXNG_CONTACT_URL}/$SEARXNG_CONTACT_URL}"
-        line="${line//\${SEARXNG_DONATION_URL}/$SEARXNG_DONATION_URL}"
-        line="${line//\${SEARXNG_SAFE_SEARCH}/$SEARXNG_SAFE_SEARCH}"
-        line="${line//\${SEARXNG_AUTOCOMPLETE}/$SEARXNG_AUTOCOMPLETE}"
-        line="${line//\${SEARXNG_DEFAULT_LANG}/$SEARXNG_DEFAULT_LANG}"
-        line="${line//\${SEARXNG_SECRET_KEY}/$SEARXNG_SECRET_KEY}"
-        line="${line//\${SEARXNG_BASE_URL}/$SEARXNG_BASE_URL}"
-        line="${line//\${SEARXNG_REQUEST_TIMEOUT}/$SEARXNG_REQUEST_TIMEOUT}"
-        line="${line//\${SEARXNG_MAX_REQUEST_TIMEOUT}/$SEARXNG_MAX_REQUEST_TIMEOUT}"
-        line="${line//\${SEARXNG_POOL_CONNECTIONS}/$SEARXNG_POOL_CONNECTIONS}"
-        line="${line//\${SEARXNG_POOL_MAXSIZE}/$SEARXNG_POOL_MAXSIZE}"
-        line="${line//\${SEARXNG_REDIS_HOST}/$SEARXNG_REDIS_HOST}"
-        line="${line//\${SEARXNG_REDIS_PORT}/$SEARXNG_REDIS_PORT}"
-        
-        echo "$line"
-    done < "$template_file" > "$temp_config"
+    # Export all variables for envsubst
+    export SEARXNG_INSTANCE_NAME SEARXNG_CONTACT_URL SEARXNG_DONATION_URL
+    export SEARXNG_SAFE_SEARCH SEARXNG_AUTOCOMPLETE SEARXNG_DEFAULT_LANG
+    export SEARXNG_SECRET_KEY SEARXNG_BASE_URL
+    export SEARXNG_REQUEST_TIMEOUT SEARXNG_MAX_REQUEST_TIMEOUT
+    export SEARXNG_POOL_CONNECTIONS SEARXNG_POOL_MAXSIZE
+    export SEARXNG_REDIS_HOST SEARXNG_REDIS_PORT
+    
+    # Use envsubst if available, otherwise fall back to sed
+    if command -v envsubst >/dev/null 2>&1; then
+        envsubst < "$template_file" > "$temp_config"
+    else
+        # Fallback to sed for safer substitution
+        cp "$template_file" "$temp_config"
+        sed -i "s|\${SEARXNG_INSTANCE_NAME}|$SEARXNG_INSTANCE_NAME|g" "$temp_config"
+        sed -i "s|\${SEARXNG_CONTACT_URL}|$SEARXNG_CONTACT_URL|g" "$temp_config"
+        sed -i "s|\${SEARXNG_DONATION_URL}|$SEARXNG_DONATION_URL|g" "$temp_config"
+        sed -i "s|\${SEARXNG_SAFE_SEARCH}|$SEARXNG_SAFE_SEARCH|g" "$temp_config"
+        sed -i "s|\${SEARXNG_AUTOCOMPLETE}|$SEARXNG_AUTOCOMPLETE|g" "$temp_config"
+        sed -i "s|\${SEARXNG_DEFAULT_LANG}|$SEARXNG_DEFAULT_LANG|g" "$temp_config"
+        sed -i "s|\${SEARXNG_SECRET_KEY}|$SEARXNG_SECRET_KEY|g" "$temp_config"
+        sed -i "s|\${SEARXNG_BASE_URL}|$SEARXNG_BASE_URL|g" "$temp_config"
+        sed -i "s|\${SEARXNG_REQUEST_TIMEOUT}|$SEARXNG_REQUEST_TIMEOUT|g" "$temp_config"
+        sed -i "s|\${SEARXNG_MAX_REQUEST_TIMEOUT}|$SEARXNG_MAX_REQUEST_TIMEOUT|g" "$temp_config"
+        sed -i "s|\${SEARXNG_POOL_CONNECTIONS}|$SEARXNG_POOL_CONNECTIONS|g" "$temp_config"
+        sed -i "s|\${SEARXNG_POOL_MAXSIZE}|$SEARXNG_POOL_MAXSIZE|g" "$temp_config"
+        sed -i "s|\${SEARXNG_REDIS_HOST}|$SEARXNG_REDIS_HOST|g" "$temp_config"
+        sed -i "s|\${SEARXNG_REDIS_PORT}|$SEARXNG_REDIS_PORT|g" "$temp_config"
+    fi
     
     # Move to final location
     if mv "$temp_config" "$config_file"; then
@@ -83,10 +92,17 @@ searxng::generate_limiter_config() {
     local temp_config
     temp_config=$(mktemp)
     
-    while IFS= read -r line; do
-        line="${line//\${SEARXNG_RATE_LIMIT}/$SEARXNG_RATE_LIMIT}"
-        echo "$line"
-    done < "$template_file" > "$temp_config"
+    # Export variable for envsubst
+    export SEARXNG_RATE_LIMIT
+    
+    # Use envsubst if available, otherwise use sed
+    if command -v envsubst >/dev/null 2>&1; then
+        envsubst < "$template_file" > "$temp_config"
+    else
+        # Fallback to sed
+        cp "$template_file" "$temp_config"
+        sed -i "s|\${SEARXNG_RATE_LIMIT}|$SEARXNG_RATE_LIMIT|g" "$temp_config"
+    fi
     
     if mv "$temp_config" "$config_file"; then
         log::success "Rate limiter configuration generated: $config_file"

@@ -597,7 +597,7 @@ huginn::list_scenarios() {
 # Import agents/scenarios from file
 #######################################
 huginn::import() {
-    if [[ -z "$FILE_PATH" ]]; then
+    if [[ -z "${FILE_PATH:-}" ]]; then
         log::error "No file specified. Use --file <path>"
         return 1
     fi
@@ -669,7 +669,7 @@ huginn::import() {
 # Export agents/scenarios to file
 #######################################
 huginn::export() {
-    if [[ -z "$FILE_PATH" ]]; then
+    if [[ -z "${FILE_PATH:-}" ]]; then
         log::error "No output file specified. Use --file <path>"
         return 1
     fi
@@ -694,7 +694,7 @@ huginn::export() {
 # Create backup
 #######################################
 huginn::backup() {
-    if [[ -z "$FILE_PATH" ]]; then
+    if [[ -z "${FILE_PATH:-}" ]]; then
         FILE_PATH="${HUGINN_DATA_DIR}/backup-$(date +%Y%m%d-%H%M%S).tar.gz"
     fi
     
@@ -723,7 +723,7 @@ huginn::backup() {
 # Restore from backup
 #######################################
 huginn::restore() {
-    if [[ -z "$FILE_PATH" ]]; then
+    if [[ -z "${FILE_PATH:-}" ]]; then
         log::error "No backup file specified. Use --file <path>"
         return 1
     fi

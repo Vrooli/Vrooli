@@ -43,7 +43,7 @@ searxng::is_running() {
 }
 
 #######################################
-# Check if SearXNG is healthy
+# Check if SearXNG is healthy with detailed diagnostics
 # Returns:
 #   0 if healthy, 1 otherwise
 #######################################
@@ -71,6 +71,156 @@ searxng::is_healthy() {
     fi
     
     return 1
+}
+
+#######################################
+# Enhanced health check with detailed diagnostics
+# Returns:
+#   0 if healthy, 1 otherwise
+# Outputs detailed diagnostic information
+#######################################
+searxng::health_check_detailed() {
+    local issues=()
+    local warnings=()
+    local status="healthy"
+    
+    log::info "Running detailed SearXNG health check..."
+    
+    # 1. Check if container exists
+    if ! searxng::is_installed; then
+        issues+=("Container not installed")
+        status="critical"
+    else
+        log::success "✅ Container is installed"
+    fi
+    
+    # 2. Check if container is running
+    if ! searxng::is_running; then
+        issues+=("Container not running")
+        status="critical"
+        
+        # Check container exit code and logs if not running
+        local exit_code
+        exit_code=$(docker container inspect --format='{{.State.ExitCode}}' "$SEARXNG_CONTAINER_NAME" 2>/dev/null || echo "unknown")
+        if [[ "$exit_code" != "0" && "$exit_code" != "unknown" ]]; then
+            issues+=("Container exited with code $exit_code")
+            
+            # Get recent logs to help diagnose
+            log::info "Recent container logs:"
+            docker logs --tail 10 "$SEARXNG_CONTAINER_NAME" 2>/dev/null || true
+        fi
+    else
+        log::success "✅ Container is running"
+    fi
+    
+    # 3. Check configuration files and permissions
+    if [[ -d "$SEARXNG_DATA_DIR" ]]; then
+        log::success "✅ Data directory exists: $SEARXNG_DATA_DIR"
+        
+        # Check configuration files
+        local config_file="$SEARXNG_DATA_DIR/settings.yml"
+        if [[ -f "$config_file" ]]; then
+            log::success "✅ Configuration file exists"
+            
+            # Check file permissions
+            local current_uid current_gid
+            current_uid=$(id -u)
+            current_gid=$(id -g)
+            
+            local file_uid file_gid
+            if command -v stat >/dev/null 2>&1; then
+                file_uid=$(stat -c %u "$config_file" 2>/dev/null || echo "unknown")
+                file_gid=$(stat -c %g "$config_file" 2>/dev/null || echo "unknown")
+                
+                if [[ "$file_uid" != "$current_uid" ]] || [[ "$file_gid" != "$current_gid" ]]; then
+                    issues+=("Configuration file has incorrect ownership (expected $current_uid:$current_gid, got $file_uid:$file_gid)")
+                    status="critical"
+                else
+                    log::success "✅ Configuration file has correct ownership"
+                fi
+            fi
+            
+            # Check if file is readable
+            if [[ ! -r "$config_file" ]]; then
+                issues+=("Configuration file is not readable")
+                status="critical"
+            else
+                log::success "✅ Configuration file is readable"
+            fi
+        else
+            issues+=("Configuration file missing: $config_file")
+            status="critical"
+        fi
+    else
+        issues+=("Data directory missing: $SEARXNG_DATA_DIR")
+        status="critical"
+    fi
+    
+    # 4. Check port availability
+    if resources::is_service_running "$SEARXNG_PORT"; then
+        log::success "✅ Port $SEARXNG_PORT is listening"
+        
+        # 5. Check HTTP health
+        if curl -sf --max-time 5 "${SEARXNG_BASE_URL}/stats" >/dev/null 2>&1; then
+            log::success "✅ HTTP health check passed"
+        else
+            issues+=("HTTP health check failed - service not responding")
+            status="degraded"
+        fi
+    else
+        if searxng::is_running; then
+            issues+=("Container running but port $SEARXNG_PORT not accessible")
+            status="degraded"
+        fi
+    fi
+    
+    # 6. Check Docker health status
+    if searxng::is_running; then
+        local docker_health
+        docker_health=$(docker container inspect --format='{{.State.Health.Status}}' "$SEARXNG_CONTAINER_NAME" 2>/dev/null || echo "no-health-check")
+        
+        case "$docker_health" in
+            "healthy")
+                log::success "✅ Docker health check: healthy"
+                ;;
+            "unhealthy")
+                issues+=("Docker health check reports unhealthy")
+                status="degraded"
+                ;;
+            "starting")
+                warnings+=("Docker health check still starting")
+                ;;
+            "no-health-check")
+                log::info "ℹ️  No Docker health check configured"
+                ;;
+        esac
+    fi
+    
+    # Output summary
+    echo
+    log::header "Health Check Summary"
+    echo "Status: $status"
+    
+    if [[ ${#issues[@]} -gt 0 ]]; then
+        echo "Issues found:"
+        for issue in "${issues[@]}"; do
+            echo "  ❌ $issue"
+        done
+    fi
+    
+    if [[ ${#warnings[@]} -gt 0 ]]; then
+        echo "Warnings:"
+        for warning in "${warnings[@]}"; do
+            echo "  ⚠️  $warning"
+        done
+    fi
+    
+    if [[ ${#issues[@]} -eq 0 ]]; then
+        echo "✅ All checks passed"
+        return 0
+    else
+        return 1
+    fi
 }
 
 #######################################
@@ -168,16 +318,39 @@ searxng::get_logs() {
 searxng::ensure_data_dir() {
     if [[ ! -d "$SEARXNG_DATA_DIR" ]]; then
         log::info "Creating SearXNG data directory: $SEARXNG_DATA_DIR"
-        mkdir -p "$SEARXNG_DATA_DIR"
+        if ! mkdir -p "$SEARXNG_DATA_DIR"; then
+            log::error "Failed to create SearXNG data directory: $SEARXNG_DATA_DIR"
+            return 1
+        fi
     fi
     
-    # Ensure proper ownership (SearXNG runs as uid 977 in container)
-    # We'll let Docker handle the ownership mapping
+    # Ensure proper permissions for the current user
+    # With --user mapping in Docker, files need to be owned by current user
+    local current_uid current_gid
+    current_uid=$(id -u)
+    current_gid=$(id -g)
+    
     if [[ -d "$SEARXNG_DATA_DIR" ]]; then
-        chmod 755 "$SEARXNG_DATA_DIR"
+        # Set permissions for SearXNG container
+        # SearXNG runs as user 977:977 inside the container
+        # We need to make files accessible to that user
+        log::info "Setting permissions for SearXNG data directory..."
+        
+        # Make directory and files world-readable/writable
+        # This is safe for local development
+        if chmod -R 777 "$SEARXNG_DATA_DIR" 2>/dev/null; then
+            log::success "Permissions set successfully"
+        else
+            log::warn "Could not set full permissions on $SEARXNG_DATA_DIR"
+            # Try at least to make it readable/writable
+            chmod -R a+rw "$SEARXNG_DATA_DIR" 2>/dev/null || {
+                log::warn "Permission setting failed - SearXNG may have issues accessing config files"
+            }
+        fi
+        
         return 0
     else
-        log::error "Failed to create SearXNG data directory"
+        log::error "SearXNG data directory does not exist after creation attempt"
         return 1
     fi
 }

@@ -69,6 +69,9 @@ searxng::build_docker_command() {
     # Port mapping
     docker_cmd+=" -p ${SEARXNG_BIND_ADDRESS}:${SEARXNG_PORT}:8080"
     
+    # User mapping - SearXNG needs to run as its own user (977:977)
+    # We'll handle file permissions by setting proper ownership on the volume
+    
     # Volume mounts
     docker_cmd+=" -v ${SEARXNG_DATA_DIR}:/etc/searxng:rw"
     

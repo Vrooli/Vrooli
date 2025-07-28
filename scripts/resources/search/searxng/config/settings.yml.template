@@ -35,13 +35,14 @@ server:
   base_url: "${SEARXNG_BASE_URL}"
   image_proxy: false
   http_protocol_version: "1.0"
-  method: "POST"
+  method: "GET"  # Allow GET method for API access
   default_http_headers:
     X-Content-Type-Options: nosniff
     X-XSS-Protection: 1; mode=block
     X-Download-Options: noopen
     X-Robots-Tag: noindex, nofollow
     Referrer-Policy: no-referrer
+  limiter: false  # Disable rate limiting for local usage
 
 ui:
   static_use_hash: false

@@ -3,8 +3,8 @@
 # All configuration constants and default values
 
 # SearXNG port configuration
-readonly SEARXNG_PORT="${SEARXNG_CUSTOM_PORT:-$(resources::get_default_port "searxng")}"
-readonly SEARXNG_BASE_URL="http://localhost:${SEARXNG_PORT}"
+readonly SEARXNG_PORT="${SEARXNG_CUSTOM_PORT:-8100}"
+readonly SEARXNG_BASE_URL="${SEARXNG_BASE_URL:-http://localhost:${SEARXNG_PORT}}"
 
 # Container configuration
 readonly SEARXNG_CONTAINER_NAME="searxng"
@@ -22,7 +22,7 @@ readonly SEARXNG_ENABLE_PUBLIC_ACCESS="${SEARXNG_ENABLE_PUBLIC_ACCESS:-no}"
 # Search engine configuration
 readonly SEARXNG_DEFAULT_ENGINES="${SEARXNG_DEFAULT_ENGINES:-google,bing,duckduckgo,startpage}"
 readonly SEARXNG_SAFE_SEARCH="${SEARXNG_SAFE_SEARCH:-1}"
-readonly SEARXNG_AUTOCOMPLETE="${SEARXNG_AUTOCOMPLETE:-yes}"
+readonly SEARXNG_AUTOCOMPLETE="${SEARXNG_AUTOCOMPLETE:-}"  # Empty string for no autocomplete
 readonly SEARXNG_DEFAULT_LANG="${SEARXNG_DEFAULT_LANG:-en}"
 
 # Performance configuration

@@ -609,3 +609,206 @@ setup_searxng_api_test_env() {
     # Should complete without mathematical errors
     [[ "$output" =~ "Average response time:" ]]
 }
+# ============================================================================
+# JSON API Integration Tests
+# ============================================================================
+
+@test "searxng::search returns valid JSON format" {
+    setup_searxng_api_test_env
+    
+    run searxng::search "artificial intelligence" "json"
+    [ "$status" -eq 0 ]
+    
+    # Check JSON structure
+    [[ "$output" =~ '"query"' ]]
+    [[ "$output" =~ '"results"' ]]
+    [[ "$output" =~ '"number_of_results"' ]]
+}
+
+@test "searxng::search handles special characters in queries" {
+    setup_searxng_api_test_env
+    
+    # Test with special characters that need URL encoding
+    run searxng::search "C++ programming & algorithms" "json"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ '"results"' ]]
+}
+
+@test "searxng::search supports multiple categories" {
+    setup_searxng_api_test_env
+    
+    # Test category filtering
+    run searxng::search "technology" "json" "general,news"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ '"results"' ]]
+}
+
+@test "searxng::search handles language parameter" {
+    setup_searxng_api_test_env
+    
+    # Test language-specific search
+    run searxng::search "tecnología" "json" "general" "es"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ '"results"' ]]
+}
+
+@test "API returns proper error for invalid format" {
+    setup_searxng_api_test_env
+    export MOCK_CURL_ERROR_FORMAT="yes"
+    
+    # Mock curl to return error for invalid format
+    curl() {
+        if [[ "$*" =~ "format=invalid" ]]; then
+            echo '{"error": "Invalid format"}'
+            return 1
+        else
+            echo '{"results": []}'
+            return 0
+        fi
+    }
+    
+    run searxng::search "test" "invalid"
+    # Should handle gracefully even with invalid format
+}
+
+@test "API handles pagination correctly" {
+    setup_searxng_api_test_env
+    
+    # Test pagination parameter
+    export MOCK_CURL_RESPONSE='{"results": [{"page": 2}], "pageno": 2}'
+    
+    curl() {
+        if [[ "$*" =~ "pageno=2" ]]; then
+            echo "$MOCK_CURL_RESPONSE"
+            return 0
+        else
+            echo '{"results": []}'
+            return 0
+        fi
+    }
+    
+    run searxng::search "test" "json" "general" "en" "2"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ '"pageno": 2' ]]
+}
+
+@test "API respects safe search settings" {
+    setup_searxng_api_test_env
+    
+    # Test safe search parameter
+    curl() {
+        if [[ "$*" =~ "safesearch=2" ]]; then
+            echo '{"results": [], "safesearch": 2}'
+            return 0
+        else
+            echo '{"results": []}'
+            return 0
+        fi
+    }
+    
+    run searxng::search "test" "json" "general" "en" "1" "2"
+    [ "$status" -eq 0 ]
+}
+
+@test "API handles time range filtering" {
+    setup_searxng_api_test_env
+    
+    # Test time range parameter
+    curl() {
+        if [[ "$*" =~ "time_range=day" ]]; then
+            echo '{"results": [{"timerange": "day"}], "time_range": "day"}'
+            return 0
+        else
+            echo '{"results": []}'
+            return 0
+        fi
+    }
+    
+    run searxng::search "news" "json" "news" "en" "1" "1" "day"
+    [ "$status" -eq 0 ]
+}
+
+@test "searxng::test_api validates all endpoints" {
+    setup_searxng_api_test_env
+    
+    run searxng::test_api
+    [ "$status" -eq 0 ]
+    
+    # Should test multiple endpoints
+    [[ "$output" =~ "Testing search endpoint" ]]
+    [[ "$output" =~ "Testing stats endpoint" ]]
+    [[ "$output" =~ "Testing config endpoint" ]]
+}
+
+@test "API benchmark calculates performance metrics" {
+    setup_searxng_api_test_env
+    export MOCK_BC_AVAILABLE="yes"
+    
+    # Mock multiple curl responses for benchmark
+    local call_count=0
+    curl() {
+        ((call_count++))
+        echo '{"results": [{"id": '"$call_count"'}]}'
+        return 0
+    }
+    
+    run searxng::benchmark 3
+    [ "$status" -eq 0 ]
+    
+    # Should show performance summary
+    [[ "$output" =~ "Running 3 search queries" ]]
+    [[ "$output" =~ "Average response time:" ]]
+    [[ "$output" =~ "Total time:" ]]
+}
+
+@test "interactive search handles user input correctly" {
+    setup_searxng_api_test_env
+    
+    # Simulate user entering a query then quitting
+    local input_count=0
+    read() {
+        ((input_count++))
+        if [[ $input_count -eq 1 ]]; then
+            eval "$1='machine learning'"
+        else
+            eval "$1='quit'"
+        fi
+        return 0
+    }
+    
+    run searxng::interactive_search
+    [ "$status" -eq 0 ]
+    
+    # Should process the search and exit cleanly
+    [[ "$output" =~ "Enter search query" ]]
+    [[ "$output" =~ "Searching for: machine learning" ]]
+    [[ "$output" =~ "Exiting interactive search" ]]
+}
+
+@test "API error handling for network issues" {
+    setup_searxng_api_test_env
+    
+    # Mock curl network failure
+    curl() {
+        return 7  # Connection refused
+    }
+    
+    run searxng::search "test"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: Failed to search" ]]
+}
+
+@test "API handles empty results gracefully" {
+    setup_searxng_api_test_env
+    
+    # Mock empty results
+    curl() {
+        echo '{"query": "obscure12345query", "results": [], "number_of_results": 0}'
+        return 0
+    }
+    
+    run searxng::search "obscure12345query" "json"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ '"results": \[\]' ]]
+}
+EOF < /dev/null

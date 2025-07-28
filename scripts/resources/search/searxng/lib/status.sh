@@ -219,6 +219,10 @@ searxng::diagnose() {
     searxng::show_status
     echo
     
+    # Enhanced health check with permission diagnostics
+    searxng::health_check_detailed
+    echo
+    
     # Log analysis
     if searxng::is_installed; then
         echo "Recent Log Analysis:"
@@ -297,12 +301,40 @@ searxng::show_troubleshooting() {
             ;;
     esac
     
+    # Check for permission issues and provide specific guidance
+    local current_uid current_gid
+    current_uid=$(id -u)
+    current_gid=$(id -g)
+    
+    if [[ -d "$SEARXNG_DATA_DIR" ]]; then
+        local incorrect_files
+        incorrect_files=$(find "$SEARXNG_DATA_DIR" -not -user "$current_uid" -o -not -group "$current_gid" 2>/dev/null || true)
+        
+        if [[ -n "$incorrect_files" ]]; then
+            echo "• Fix file permissions: sudo chown -R \$(whoami):\$(whoami) $SEARXNG_DATA_DIR"
+            echo "• Or try: ./manage.sh --action reset-config"
+        fi
+    fi
+    
+    # Check for Docker permission issues
+    if ! docker info >/dev/null 2>&1; then
+        echo "• Fix Docker permissions: sudo usermod -aG docker \$USER && newgrp docker"
+        echo "• Or restart Docker service: sudo systemctl restart docker"
+    fi
+    
     echo
     echo "General troubleshooting:"
     searxng::message "info" "MSG_SEARXNG_TROUBLESHOOT_LOGS"
     searxng::message "info" "MSG_SEARXNG_TROUBLESHOOT_CONFIG"
     searxng::message "info" "MSG_SEARXNG_TROUBLESHOOT_PORT"
     searxng::message "info" "MSG_SEARXNG_TROUBLESHOOT_RESTART"
+    
+    echo
+    echo "Permission troubleshooting:"
+    echo "• If container fails to start with permission errors:"
+    echo "  - Check data directory ownership: ls -la $SEARXNG_DATA_DIR"
+    echo "  - Fix permissions: ./manage.sh --action reset-config"
+    echo "  - Clean install: ./manage.sh --action uninstall && ./manage.sh --action install"
 }
 
 #######################################
