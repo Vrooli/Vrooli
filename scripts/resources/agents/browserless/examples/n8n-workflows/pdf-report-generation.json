@@ -1,0 +1,208 @@
+{
+  "name": "PDF Report Generation with Browserless",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "webhookId": "pdf-report-trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:4110/chrome/pdf",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"url\": \"{{$json.reportUrl}}\",\n  \"options\": {\n    \"format\": \"A4\",\n    \"printBackground\": true,\n    \"margin\": {\n      \"top\": \"20px\",\n      \"right\": \"20px\",\n      \"bottom\": \"20px\",\n      \"left\": \"20px\"\n    },\n    \"displayHeaderFooter\": true,\n    \"headerTemplate\": \"<div style='font-size: 10px; text-align: center; width: 100%;'>{{$json.reportTitle || 'Report'}}</div>\",\n    \"footerTemplate\": \"<div style='font-size: 10px; text-align: center; width: 100%;'>Page <span class='pageNumber'></span> of <span class='totalPages'></span></div>\"\n  },\n  \"gotoOptions\": {\n    \"waitUntil\": \"networkidle2\",\n    \"timeout\": 30000\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "generate-pdf",
+      "name": "Generate PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{$json.reportName || 'report'}}-{{$now.format('yyyy-MM-dd')}}.pdf",
+        "dataPropertyName": "data"
+      },
+      "id": "save-pdf",
+      "name": "Save PDF",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "upload",
+        "binaryPropertyName": "data",
+        "additionalFields": {
+          "fileName": "={{$binary.data.fileName}}",
+          "parentId": "{{$json.driveFolder || 'root'}}"
+        }
+      },
+      "id": "upload-to-drive",
+      "name": "Upload to Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "fromEmail": "reports@example.com",
+        "toEmail": "={{$json.recipientEmail}}",
+        "subject": "=Your PDF Report: {{$json.reportTitle}}",
+        "emailType": "html",
+        "message": "=<p>Hello,</p>\n<p>Your requested PDF report has been generated.</p>\n<p><strong>Report:</strong> {{$json.reportTitle}}<br>\n<strong>Generated:</strong> {{$now.format('MMMM dd, yyyy h:mm a')}}</p>\n<p>The report is attached to this email.</p>\n<p>Best regards,<br>Automated Reports</p>",
+        "attachments": "data"
+      },
+      "id": "email-report",
+      "name": "Email Report",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [850, 350]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "message",
+              "value": "=PDF report generated successfully"
+            },
+            {
+              "name": "fileName",
+              "value": "={{$binary.data.fileName}}"
+            },
+            {
+              "name": "filePath",
+              "value": "={{$node['save-pdf'].json.fullPath}}"
+            }
+          ],
+          "number": [
+            {
+              "name": "fileSize",
+              "value": "={{$binary.data.fileSize}}"
+            }
+          ]
+        }
+      },
+      "id": "prepare-response",
+      "name": "Prepare Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [
+        [
+          {
+            "node": "generate-pdf",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate-pdf": {
+      "main": [
+        [
+          {
+            "node": "save-pdf",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "save-pdf": {
+      "main": [
+        [
+          {
+            "node": "upload-to-drive",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "email-report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "upload-to-drive": {
+      "main": [
+        [
+          {
+            "node": "prepare-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "email-report": {
+      "main": [
+        [
+          {
+            "node": "prepare-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateId": "browserless-pdf-generation"
+  },
+  "pinData": {},
+  "versionId": "01",
+  "triggerCount": 0,
+  "tags": [
+    {
+      "name": "browserless",
+      "createdAt": "2025-07-28T00:00:00.000Z"
+    },
+    {
+      "name": "pdf",
+      "createdAt": "2025-07-28T00:00:00.000Z"
+    },
+    {
+      "name": "reports",
+      "createdAt": "2025-07-28T00:00:00.000Z"
+    }
+  ]
+}

@@ -1,0 +1,359 @@
+{
+  "name": "Content Scraping Pipeline with Browserless",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "daily-trigger",
+      "name": "Daily Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "filePath": "/data/urls-to-scrape.json"
+      },
+      "id": "read-urls",
+      "name": "Read URL List",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "dataPropertyName": "data"
+      },
+      "id": "parse-json",
+      "name": "Parse JSON",
+      "type": "n8n-nodes-base.moveBinaryData",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "urls"
+      },
+      "id": "split-urls",
+      "name": "Split URLs",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 3,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:4110/chrome/content",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"url\": \"{{$json.url}}\",\n  \"gotoOptions\": {\n    \"waitUntil\": \"networkidle2\"\n  },\n  \"waitFor\": 1000\n}"
+      },
+      "id": "extract-content",
+      "name": "Extract Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:4110/chrome/scrape",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"url\": \"{{$json.url}}\",\n  \"elements\": {{JSON.stringify($json.selectors || [{\"selector\": \"h1\"}, {\"selector\": \"p\"}, {\"selector\": \"img\", \"property\": \"src\"}])}},\n  \"gotoOptions\": {\n    \"waitUntil\": \"networkidle2\"\n  }\n}"
+      },
+      "id": "scrape-elements",
+      "name": "Scrape Elements",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1050, 450]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "url",
+              "value": "={{$node['split-urls'].json.url}}"
+            },
+            {
+              "name": "title",
+              "value": "={{$node['split-urls'].json.title}}"
+            },
+            {
+              "name": "htmlContent",
+              "value": "={{$node['extract-content'].json.body}}"
+            },
+            {
+              "name": "scrapedAt",
+              "value": "={{$now.toISO()}}"
+            }
+          ],
+          "object": [
+            {
+              "name": "scrapedElements",
+              "value": "={{$node['scrape-elements'].json.body}}"
+            }
+          ]
+        }
+      },
+      "id": "combine-results",
+      "name": "Combine Results",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [1250, 375]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:11434/api/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama3.1:8b\",\n  \"prompt\": \"Analyze this content and extract key information:\\n\\nURL: {{$json.url}}\\nTitle: {{$json.title}}\\n\\nContent:\\n{{$json.htmlContent.substring(0, 4000)}}\\n\\nPlease provide:\\n1. A brief summary (2-3 sentences)\\n2. Key topics or themes\\n3. Any important facts or figures\\n4. Overall sentiment\",\n  \"stream\": false\n}"
+      },
+      "id": "analyze-with-ollama",
+      "name": "Analyze with Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1450, 375]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "url",
+              "value": "={{$node['combine-results'].json.url}}"
+            },
+            {
+              "name": "title",
+              "value": "={{$node['combine-results'].json.title}}"
+            },
+            {
+              "name": "analysis",
+              "value": "={{$json.body.response}}"
+            },
+            {
+              "name": "scrapedAt",
+              "value": "={{$node['combine-results'].json.scrapedAt}}"
+            }
+          ],
+          "object": [
+            {
+              "name": "scrapedElements",
+              "value": "={{$node['combine-results'].json.scrapedElements}}"
+            }
+          ],
+          "number": [
+            {
+              "name": "contentLength",
+              "value": "={{$node['combine-results'].json.htmlContent.length}}"
+            }
+          ]
+        }
+      },
+      "id": "prepare-final-data",
+      "name": "Prepare Final Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [1650, 375]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "scraped_content",
+        "fields": "url,title,analysis,scrapedElements,contentLength,scrapedAt"
+      },
+      "id": "save-to-database",
+      "name": "Save to Database",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "fileName": "=/tmp/scraped-content-{{$now.format('yyyy-MM-dd')}}.json",
+        "options": {
+          "append": true
+        }
+      },
+      "id": "save-to-file",
+      "name": "Save to File",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "typeVersion": 1,
+      "position": [1850, 450]
+    }
+  ],
+  "connections": {
+    "daily-trigger": {
+      "main": [
+        [
+          {
+            "node": "read-urls",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "read-urls": {
+      "main": [
+        [
+          {
+            "node": "parse-json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse-json": {
+      "main": [
+        [
+          {
+            "node": "split-urls",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "split-urls": {
+      "main": [
+        [
+          {
+            "node": "extract-content",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "scrape-elements",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "extract-content": {
+      "main": [
+        [
+          {
+            "node": "combine-results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "scrape-elements": {
+      "main": [
+        [
+          {
+            "node": "combine-results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "combine-results": {
+      "main": [
+        [
+          {
+            "node": "analyze-with-ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "analyze-with-ollama": {
+      "main": [
+        [
+          {
+            "node": "prepare-final-data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare-final-data": {
+      "main": [
+        [
+          {
+            "node": "save-to-database",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "save-to-file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateId": "browserless-content-scraping",
+    "description": "Scrapes content from multiple URLs, analyzes with Ollama, and stores results"
+  },
+  "pinData": {},
+  "versionId": "01",
+  "triggerCount": 1,
+  "tags": [
+    {
+      "name": "browserless",
+      "createdAt": "2025-07-28T00:00:00.000Z"
+    },
+    {
+      "name": "scraping",
+      "createdAt": "2025-07-28T00:00:00.000Z"
+    },
+    {
+      "name": "ollama",
+      "createdAt": "2025-07-28T00:00:00.000Z"
+    }
+  ]
+}

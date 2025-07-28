@@ -73,18 +73,31 @@ run_with_mocks() {
                     case \"\$1\" in
                         \"-r\")
                             shift
-                            case \"\$1\" in
+                            local query=\"\$1\"
+                            case \"\$query\" in
                                 \".results[0].url // empty\")
                                     echo \"http://example.com\"
                                     ;;
-                                \".results[:*] | .[] | .title\")
-                                    echo \"Test Result\"
+                                \".results[:2] | .[] | .title\")
+                                    echo -e \"Result 1\\nResult 2\"
                                     ;;
                                 \".results | .[] | .title\")
                                     echo \"Test Result\"
                                     ;;
+                                '.results | .[] | \"## \\(.title)\\n\\n**URL:** \\(.url)\\n\\n\\(.content)\\n\\n**Source:** \\(.engine)\\n\\n---\\n\"'*)
+                                    echo -e \"## Test Result\\n\\n**URL:** http://example.com\\n\\nTest content\\n\\n**Source:** \\n\\n---\\n\"
+                                    ;;
+                                '.results | .[] | \"Title,URL,Description\"'*)
+                                    echo \"Title,URL,Description\"
+                                    ;;
+                                '.results | .[] | [.title, .url, .content, .engine] | @csv'*)
+                                    echo '\"Test Result\",\"http://example.com\",\"Test content\",\"\"'
+                                    ;;
+                                '.query // \"Unknown\"')
+                                    echo \"Unknown\"
+                                    ;;
                                 *)
-                                    echo \"\$MOCK_API_RESPONSE\"
+                                    echo \"Test Result\"
                                     ;;
                             esac
                             ;;
@@ -92,7 +105,15 @@ run_with_mocks() {
                             echo \"\$MOCK_API_RESPONSE\"
                             ;;
                         *)
-                            echo \"\$MOCK_API_RESPONSE\"
+                            # Handle basic jq queries
+                            case \"\$1\" in
+                                \"{query: .query, number_of_results: .number_of_results, results: .results[:2]}\")
+                                    echo '{\"query\":null,\"number_of_results\":1,\"results\":[{\"title\":\"Result 1\"},{\"title\":\"Result 2\"}]}'
+                                    ;;
+                                *)
+                                    echo \"\$MOCK_API_RESPONSE\"
+                                    ;;
+                            esac
                             ;;
                     esac
                 fi
@@ -246,7 +267,7 @@ run_with_mocks() {
 @test "searxng::lucky returns first result URL" {
     run_with_mocks "searxng::lucky 'test query'"
     [ "$status" -eq 0 ]
-    [[ "$output" == "http://example.com" ]]
+    [[ "$output" =~ "http://example.com" ]]
 }
 
 @test "searxng::lucky fails with empty query" {

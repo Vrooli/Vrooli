@@ -49,6 +49,9 @@ browserless::build_docker_command() {
     docker_cmd+=" -e TIMEOUT=${timeout}"
     docker_cmd+=" -e ENABLE_DEBUGGER=false"
     docker_cmd+=" -e PREBOOT_CHROME=true"
+    docker_cmd+=" -e KEEP_ALIVE=true"
+    docker_cmd+=" -e PRE_REQUEST_HEALTH_CHECK=false"
+    docker_cmd+=" -e FUNCTION_ENABLE_INCOGNITO_MODE=true"
     
     # Security settings
     docker_cmd+=" --cap-add=${BROWSERLESS_DOCKER_CAPS}"
