@@ -43,7 +43,12 @@ export class TeamDbFactory {
             data: {
                 translations: data.name || data.description ? {
                     update: {
-                        where: { language: "en" },
+                        where: { 
+                            team_translation_teamId_language_unique: {
+                                teamId: BigInt(id),
+                                language: "en",
+                            },
+                        },
                         data: {
                             name: data.name,
                             bio: data.description,

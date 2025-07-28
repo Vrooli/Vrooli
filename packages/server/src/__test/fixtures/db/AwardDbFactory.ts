@@ -7,7 +7,7 @@ import type {
 } from "./types.js";
 
 interface AwardRelationConfig extends RelationConfig {
-    userId?: string;
+    userId?: bigint;
     category?: string;
     progress?: number;
 }
@@ -147,11 +147,11 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
      * Create award with specific progress
      */
     async createWithProgress(config: {
-        userId: string;
+        userId: bigint;
         category: string;
         progress: number;
         completed?: boolean;
-    }) {
+    }): Promise<award> {
         const baseData = this.getFixtures().minimal;
         
         return await this.createMinimal({
@@ -159,7 +159,7 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
             category: config.category,
             progress: config.progress,
             tierCompletedAt: config.completed ? new Date() : undefined,
-            user: { connect: { id: BigInt(config.userId) } },
+            user: { connect: { id: config.userId } },
         });
     }
 
@@ -167,10 +167,10 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
      * Create completed award
      */
     async createCompleted(config: {
-        userId: string;
+        userId: bigint;
         category: string;
         completedAt?: Date;
-    }) {
+    }): Promise<award> {
         const baseData = this.getFixtures().complete;
         
         return await this.createMinimal({
@@ -178,7 +178,7 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
             category: config.category,
             progress: 100,
             tierCompletedAt: config.completedAt || new Date(),
-            user: { connect: { id: BigInt(config.userId) } },
+            user: { connect: { id: config.userId } },
         });
     }
 
@@ -186,14 +186,14 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
      * Create multiple awards for a user
      */
     async createUserAwards(config: {
-        userId: string;
+        userId: bigint;
         awards: Array<{
             category: string;
             progress: number;
             completed?: boolean;
         }>;
-    }) {
-        const results = [];
+    }): Promise<award[]> {
+        const results: award[] = [];
         
         for (const award of config.awards) {
             const result = await this.createWithProgress({

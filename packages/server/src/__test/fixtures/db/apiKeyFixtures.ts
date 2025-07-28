@@ -1,7 +1,8 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
+/* eslint-disable no-magic-numbers */
 import { type Prisma } from "@prisma/client";
+import { generatePK, nanoid } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
+import type { BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
 
 /**
  * Database fixtures for ApiKey model - used for seeding test data
@@ -242,7 +243,7 @@ export const apiKeyWithUsageDb: Prisma.api_keyCreateInput = {
  * Enhanced factory for creating ApiKey database fixtures
  */
 export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput> {
-    
+
     /**
      * Get the test fixtures for ApiKey model
      */
@@ -414,24 +415,24 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
     }
 
     static createForUser(
-        userId: string,
+        userId: bigint,
         overrides?: Partial<Prisma.api_keyCreateInput>,
     ): Prisma.api_keyCreateInput {
         const factory = new ApiKeyDbFactory();
         return factory.createMinimal({
             ...overrides,
-            user: { connect: { id: BigInt(userId) } },
+            user: { connect: { id: userId } },
         });
     }
 
     static createForTeam(
-        teamId: string,
+        teamId: bigint,
         overrides?: Partial<Prisma.api_keyCreateInput>,
     ): Prisma.api_keyCreateInput {
         const factory = new ApiKeyDbFactory();
         return factory.createMinimal({
             ...overrides,
-            team: { connect: { id: BigInt(teamId) } },
+            team: { connect: { id: teamId } },
         });
     }
 
@@ -487,27 +488,27 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
 
     static createMultiple(
         count: number,
-        userId?: string,
-        teamId?: string,
+        userId?: bigint,
+        teamId?: bigint,
     ): Prisma.api_keyCreateInput[] {
         const factory = new ApiKeyDbFactory();
         const keys = [];
-        
+
         for (let i = 0; i < count; i++) {
             const overrides: Partial<Prisma.api_keyCreateInput> = {
                 name: `Test API Key ${i + 1}`,
             };
-            
+
             if (userId) {
-                overrides.user = { connect: { id: BigInt(userId) } };
+                overrides.user = { connect: { id: userId } };
             }
             if (teamId) {
-                overrides.team = { connect: { id: BigInt(teamId) } };
+                overrides.team = { connect: { id: teamId } };
             }
-            
+
             keys.push(factory.createMinimal(overrides));
         }
-        
+
         return keys;
     }
 }
@@ -518,8 +519,8 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
 export async function seedApiKeys(
     prisma: any,
     options: {
-        userId?: string;
-        teamId?: string;
+        userId?: bigint;
+        teamId?: bigint;
         count?: number;
         withPermissions?: boolean;
         withUsage?: boolean;
@@ -560,10 +561,10 @@ export async function seedApiKeys(
 
         // Add user or team connection
         if (options.userId) {
-            keyData.user = { connect: { id: BigInt(options.userId) } };
+            keyData.user = { connect: { id: options.userId } };
         }
         if (options.teamId) {
-            keyData.team = { connect: { id: BigInt(options.teamId) } };
+            keyData.team = { connect: { id: options.teamId } };
         }
 
         const apiKey = await prisma.api_key.create({ data: keyData });
@@ -586,16 +587,16 @@ export async function seedApiKeys(
  */
 export async function createTestApiKey(
     prisma: any,
-    userId: string,
+    userId: bigint,
     permissions?: Record<string, any>,
 ): Promise<{ id: string; key: string; permissions: any }> {
     const factory = new ApiKeyDbFactory();
-    const keyData = permissions 
-        ? ApiKeyDbFactory.createWithPermissions(permissions, { user: { connect: { id: BigInt(userId) } } })
+    const keyData = permissions
+        ? ApiKeyDbFactory.createWithPermissions(permissions, { user: { connect: { id: userId } } })
         : ApiKeyDbFactory.createForUser(userId);
 
     const apiKey = await prisma.api_key.create({ data: keyData });
-    
+
     return {
         id: apiKey.id,
         key: apiKey.key,
@@ -608,7 +609,7 @@ export async function createTestApiKey(
  */
 export async function simulateApiKeyUsage(
     prisma: any,
-    apiKeyId: string,
+    apiKeyId: bigint,
     operations: Array<{ credits: bigint; timestamp?: Date; validateLimits?: boolean }>,
 ): Promise<{ totalCredits: bigint; limitExceeded: boolean; warnings: string[] }> {
     let totalCredits = BigInt(0);
@@ -650,7 +651,7 @@ export async function simulateApiKeyUsage(
                 }
             }
         }
-        
+
         await prisma.api_key.update({
             where: { id: apiKeyId },
             data: {
@@ -728,8 +729,8 @@ export function getApiKeyTestScenarios() {
 export async function createApiKeyTestSuite(
     prisma: any,
     options: {
-        userId?: string;
-        teamId?: string;
+        userId?: bigint;
+        teamId?: bigint;
         includeEdgeCases?: boolean;
         includeInvalidScenarios?: boolean;
         includeUsageScenarios?: boolean;
@@ -751,16 +752,16 @@ export async function createApiKeyTestSuite(
     // Create basic valid API keys
     const minimalKey = await prisma.api_key.create({
         data: factory.createMinimal({
-            user: options.userId ? { connect: { id: BigInt(options.userId) } } : undefined,
-            team: options.teamId ? { connect: { id: BigInt(options.teamId) } } : undefined,
+            user: options.userId ? { connect: { id: options.userId } } : undefined,
+            team: options.teamId ? { connect: { id: options.teamId } } : undefined,
         }),
     });
     results.valid.push(minimalKey);
 
     const completeKey = await prisma.api_key.create({
         data: factory.createComplete({
-            user: options.userId ? { connect: { id: BigInt(options.userId) } } : undefined,
-            team: options.teamId ? { connect: { id: BigInt(options.teamId) } } : undefined,
+            user: options.userId ? { connect: { id: options.userId } } : undefined,
+            team: options.teamId ? { connect: { id: options.teamId } } : undefined,
         }),
     });
     results.valid.push(completeKey);
@@ -787,10 +788,10 @@ export async function createApiKeyTestSuite(
             const key = await prisma.api_key.create({
                 data: factory.createMinimal({
                     name: `Usage Test - ${scenarioName}`,
-                    user: options.userId ? { connect: { id: BigInt(options.userId) } } : undefined,
+                    user: options.userId ? { connect: { id: options.userId } } : undefined,
                 }),
             });
-            
+
             try {
                 const usageResult = await simulateApiKeyUsage(prisma, key.id, operations);
                 results.withUsage.push({ ...key, usageResult });

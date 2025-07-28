@@ -1,7 +1,7 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced as any with proper type cast for Prisma.chatUpsertArgs["create"]
 import { generatePK, generatePublicId } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
-import { chatConfigFixtures } from "../../../../../shared/src/__test/fixtures/config/chatConfigFixtures.js";
+import { chatConfigFixtures } from "@vrooli/shared/test-fixtures/config.js";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
 import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
 
@@ -10,122 +10,140 @@ import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios 
  * These follow Prisma's shape for database operations
  */
 
-// Consistent IDs for testing
-export const chatDbIds = {
-    chat1: generatePK(),
-    chat2: generatePK(),
-    chat3: generatePK(),
-    invite1: generatePK(),
-    invite2: generatePK(),
-    message1: generatePK(),
-    message2: generatePK(),
-    participant1: generatePK(),
-    participant2: generatePK(),
-    participant3: generatePK(),
-    translation1: generatePK(),
-    translation2: generatePK(),
-    translation3: generatePK(),
-};
+// Consistent IDs for testing - using factory function to avoid module-level generatePK() calls
+export function getChatDbIds() {
+    return {
+        chat1: generatePK(),
+        chat2: generatePK(),
+        chat3: generatePK(),
+        invite1: generatePK(),
+        invite2: generatePK(),
+        message1: generatePK(),
+        message2: generatePK(),
+        participant1: generatePK(),
+        participant2: generatePK(),
+        participant3: generatePK(),
+        translation1: generatePK(),
+        translation2: generatePK(),
+        translation3: generatePK(),
+    };
+}
 
 /**
  * Minimal chat data for database creation
+ * Uses getter to ensure generatePK is called lazily, not at module load time
  */
-export const minimalChatDb: Prisma.chatUpsertArgs["create"] = {
-    id: chatDbIds.chat1,
-    publicId: generatePublicId(),
-    isPrivate: false,
-    openToAnyoneWithInvite: true,
-    config: chatConfigFixtures.minimal as any,
+export const minimalChatDb = {
+    get create(): Prisma.chatUpsertArgs["create"] {
+        return {
+            id: getChatDbIds().chat1,
+            publicId: generatePublicId(),
+            isPrivate: false,
+            openToAnyoneWithInvite: true,
+            config: chatConfigFixtures.minimal as any,
+        };
+    },
 };
 
 /**
  * Private chat with participants
+ * Uses getter to ensure generatePK is called lazily, not at module load time
  */
-export const privateChatDb: Prisma.chatUpsertArgs["create"] = {
-    id: chatDbIds.chat2,
-    publicId: generatePublicId(),
-    isPrivate: true,
-    openToAnyoneWithInvite: false,
-    config: chatConfigFixtures.variants.restrictedTeamSwarm as any,
-    translations: {
-        create: [
-            {
-                id: chatDbIds.translation1,
-                language: "en",
-                name: "Private Team Chat",
-                description: "Discussion for team members only",
+export const privateChatDb = {
+    get create(): Prisma.chatUpsertArgs["create"] {
+        return {
+            id: getChatDbIds().chat2,
+            publicId: generatePublicId(),
+            isPrivate: true,
+            openToAnyoneWithInvite: false,
+            config: chatConfigFixtures.variants.restrictedTeamSwarm as any,
+            translations: {
+                create: [
+                    {
+                        id: getChatDbIds().translation1,
+                        language: "en",
+                        name: "Private Team Chat",
+                        description: "Discussion for team members only",
+                    },
+                ],
             },
-        ],
+        };
     },
 };
 
 /**
  * Complete chat with all features
+ * Uses getter to ensure generatePK is called lazily, not at module load time
  */
-export const completeChatDb: Prisma.chatUpsertArgs["create"] = {
-    id: chatDbIds.chat3,
-    publicId: generatePublicId(),
-    isPrivate: false,
-    openToAnyoneWithInvite: true,
-    config: chatConfigFixtures.complete as any,
-    translations: {
-        create: [
-            {
-                id: chatDbIds.translation2,
-                language: "en",
-                name: "Project Discussion",
-                description: "Open discussion about the project",
+export const completeChatDb = {
+    get create(): Prisma.chatUpsertArgs["create"] {
+        return {
+            id: getChatDbIds().chat3,
+            publicId: generatePublicId(),
+            isPrivate: false,
+            openToAnyoneWithInvite: true,
+            config: chatConfigFixtures.complete as any,
+            translations: {
+                create: [
+                    {
+                        id: getChatDbIds().translation2,
+                        language: "en",
+                        name: "Project Discussion",
+                        description: "Open discussion about the project",
+                    },
+                    {
+                        id: getChatDbIds().translation3,
+                        language: "es",
+                        name: "Discusión del Proyecto",
+                        description: "Discusión abierta sobre el proyecto",
+                    },
+                ],
             },
-            {
-                id: chatDbIds.translation3,
-                language: "es",
-                name: "Discusión del Proyecto",
-                description: "Discusión abierta sobre el proyecto",
-            },
-        ],
+        };
     },
 };
 
 /**
  * Enhanced test fixtures for Chat model following standard structure
  */
-export const chatDbFixtures: DbTestFixtures<Prisma.chatUpsertArgs["create"]> = {
-    minimal: {
-        id: generatePK(),
-        publicId: generatePublicId(),
-        isPrivate: false,
-        openToAnyoneWithInvite: true,
-        config: chatConfigFixtures.minimal as any,
-    },
-    complete: {
-        id: generatePK(),
-        publicId: generatePublicId(),
-        isPrivate: false,
-        openToAnyoneWithInvite: true,
-        config: chatConfigFixtures.complete as any,
-        translations: {
-            create: [
-                {
-                    id: generatePK(),
-                    language: "en",
-                    name: "Complete Chat Discussion",
-                    description: "A comprehensive chat with full features",
-                },
-                {
-                    id: generatePK(),
-                    language: "es",
-                    name: "Discusión Completa del Chat",
-                    description: "Un chat integral con todas las funcionalidades",
-                },
-                {
-                    id: generatePK(),
-                    language: "fr",
-                    name: "Discussion de Chat Complète",
-                    description: "Un chat complet avec toutes les fonctionnalités",
-                },
-            ],
+export function getChatDbFixtures(): DbTestFixtures<Prisma.chatUpsertArgs["create"]> {
+    return {
+        minimal: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            isPrivate: false,
+            openToAnyoneWithInvite: true,
+            config: chatConfigFixtures.minimal as any,
         },
-    },
+        complete: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            isPrivate: false,
+            openToAnyoneWithInvite: true,
+            config: chatConfigFixtures.complete as any,
+            translations: {
+                create: [
+                    {
+                        id: generatePK(),
+                        language: "en",
+                        name: "Complete Chat Discussion",
+                        description: "A comprehensive chat with full features",
+                    },
+                    {
+                        id: generatePK(),
+                        language: "es",
+                        name: "Discusión Completa del Chat",
+                        description: "Un chat integral con todas las funcionalidades",
+                    },
+                    {
+                        id: generatePK(),
+                        language: "fr",
+                        name: "Discussion de Chat Complète",
+                        description: "Un chat complet avec toutes les fonctionnalités",
+                    },
+                ],
+            },
+        },
     invalid: {
         missingRequired: {
             // Missing required id and publicId
@@ -137,92 +155,93 @@ export const chatDbFixtures: DbTestFixtures<Prisma.chatUpsertArgs["create"]> = {
             isPrivate: "yes", // Should be boolean
             openToAnyoneWithInvite: "no", // Should be boolean
         },
-        invalidTeamConnection: {
-            id: generatePK(),
-            publicId: generatePublicId(),
-            isPrivate: false,
-            openToAnyoneWithInvite: true,
-            team: { connect: { id: "non-existent-team-id" } },
-        },
-        privateWithPublicInvite: {
-            id: generatePK(),
-            publicId: generatePublicId(),
-            isPrivate: true,
-            openToAnyoneWithInvite: true, // Business logic violation
-        },
+            invalidTeamConnection: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                isPrivate: false,
+                openToAnyoneWithInvite: true,
+                team: { connect: { id: "non-existent-team-id" } },
+            },
+            privateWithPublicInvite: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                isPrivate: true,
+                openToAnyoneWithInvite: true, // Business logic violation
+            },
     },
     edgeCases: {
-        emptyPrivateChat: {
-            id: generatePK(),
-            publicId: generatePublicId(),
-            isPrivate: true,
-            openToAnyoneWithInvite: false,
-            config: chatConfigFixtures.minimal as any,
-        },
-        chatWithManyTranslations: {
-            id: generatePK(),
-            publicId: generatePublicId(),
-            isPrivate: false,
-            openToAnyoneWithInvite: true,
-            config: chatConfigFixtures.minimal as any,
-            translations: {
-                create: [
-                    { id: generatePK(), language: "en", name: "Multi Lang Chat", description: "English description" },
-                    { id: generatePK(), language: "es", name: "Chat Multi Idioma", description: "Descripción en español" },
-                    { id: generatePK(), language: "fr", name: "Chat Multi Langue", description: "Description française" },
-                    { id: generatePK(), language: "de", name: "Mehrsprachiger Chat", description: "Deutsche Beschreibung" },
-                    { id: generatePK(), language: "ja", name: "多言語チャット", description: "日本語の説明" },
-                    { id: generatePK(), language: "zh", name: "多语言聊天", description: "中文描述" },
-                ],
+            emptyPrivateChat: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                isPrivate: true,
+                openToAnyoneWithInvite: false,
+                config: chatConfigFixtures.minimal as any,
+            },
+            chatWithManyTranslations: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                isPrivate: false,
+                openToAnyoneWithInvite: true,
+                config: chatConfigFixtures.minimal as any,
+                translations: {
+                    create: [
+                        { id: generatePK(), language: "en", name: "Multi Lang Chat", description: "English description" },
+                        { id: generatePK(), language: "es", name: "Chat Multi Idioma", description: "Descripción en español" },
+                        { id: generatePK(), language: "fr", name: "Chat Multi Langue", description: "Description française" },
+                        { id: generatePK(), language: "de", name: "Mehrsprachiger Chat", description: "Deutsche Beschreibung" },
+                        { id: generatePK(), language: "ja", name: "多言語チャット", description: "日本語の説明" },
+                        { id: generatePK(), language: "zh", name: "多语言聊天", description: "中文描述" },
+                    ],
+                },
+            },
+            teamChatWithStructure: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                isPrivate: true,
+                openToAnyoneWithInvite: false,
+                config: chatConfigFixtures.variants.restrictedTeamSwarm as any,
+                translations: {
+                    create: [{
+                        id: generatePK(),
+                        language: "en",
+                        name: "Team Strategy Discussion",
+                        description: "Private team chat for strategic planning and coordination",
+                    }],
+                },
+            },
+            publicBotChat: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                isPrivate: false,
+                openToAnyoneWithInvite: true,
+                config: chatConfigFixtures.variants.publicSwarm as any,
+                translations: {
+                    create: [{
+                        id: generatePK(),
+                        language: "en",
+                        name: "AI Assistant Chat",
+                        description: "Public chat with AI bot assistance",
+                    }],
+                },
+            },
+            highLimitChat: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                isPrivate: false,
+                openToAnyoneWithInvite: true,
+                config: chatConfigFixtures.variants.highLimitSwarm as any,
+                translations: {
+                    create: [{
+                        id: generatePK(),
+                        language: "en",
+                        name: "High-Performance Swarm Chat",
+                        description: "Chat with elevated limits for complex operations",
+                    }],
+                },
             },
         },
-        teamChatWithStructure: {
-            id: generatePK(),
-            publicId: generatePublicId(),
-            isPrivate: true,
-            openToAnyoneWithInvite: false,
-            config: chatConfigFixtures.variants.restrictedTeamSwarm as any,
-            translations: {
-                create: [{
-                    id: generatePK(),
-                    language: "en",
-                    name: "Team Strategy Discussion",
-                    description: "Private team chat for strategic planning and coordination",
-                }],
-            },
-        },
-        publicBotChat: {
-            id: generatePK(),
-            publicId: generatePublicId(),
-            isPrivate: false,
-            openToAnyoneWithInvite: true,
-            config: chatConfigFixtures.variants.publicSwarm as any,
-            translations: {
-                create: [{
-                    id: generatePK(),
-                    language: "en",
-                    name: "AI Assistant Chat",
-                    description: "Public chat with AI bot assistance",
-                }],
-            },
-        },
-        highLimitChat: {
-            id: generatePK(),
-            publicId: generatePublicId(),
-            isPrivate: false,
-            openToAnyoneWithInvite: true,
-            config: chatConfigFixtures.variants.highLimitSwarm as any,
-            translations: {
-                create: [{
-                    id: generatePK(),
-                    language: "en",
-                    name: "High-Performance Swarm Chat",
-                    description: "Chat with elevated limits for complex operations",
-                }],
-            },
-        },
-    },
-};
+    };
+}
 
 /**
  * Enhanced factory for creating chat database fixtures
@@ -233,7 +252,7 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
      * Get the test fixtures for Chat model
      */
     protected getFixtures(): DbTestFixtures<Prisma.chatUpsertArgs["create"]> {
-        return chatDbFixtures;
+        return getChatDbFixtures();
     }
 
     /**
@@ -243,7 +262,7 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
         return {
             constraints: {
                 uniqueViolation: {
-                    id: chatDbIds.chat1, // Duplicate ID
+                    id: getChatDbIds().chat1, // Duplicate ID
                     publicId: generatePublicId(),
                     isPrivate: false,
                     openToAnyoneWithInvite: true,
@@ -263,8 +282,8 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
                 },
             },
             validation: {
-                requiredFieldMissing: chatDbFixtures.invalid.missingRequired,
-                invalidDataType: chatDbFixtures.invalid.invalidTypes,
+                requiredFieldMissing: getChatDbFixtures().invalid.missingRequired,
+                invalidDataType: getChatDbFixtures().invalid.invalidTypes,
                 outOfRange: {
                     id: generatePK(),
                     publicId: generatePublicId(),
@@ -281,7 +300,7 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
                 },
             },
             businessLogic: {
-                privateWithPublicInvite: chatDbFixtures.invalid.privateWithPublicInvite,
+                privateWithPublicInvite: getChatDbFixtures().invalid.privateWithPublicInvite,
             },
         };
     }
@@ -483,15 +502,15 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
             isPrivate?: boolean;
             withHighLimits?: boolean;
         },
-        overrides?: Partial<Prisma.chatUpsertArgs["create"]>,
-    ): Prisma.chatUpsertArgs["create"] {
+        overrides?: Partial<Prisma.chatCreateInput>,
+    ): Prisma.chatCreateInput {
         const factory = new ChatDbFactory();
         const chatConfig = config.withHighLimits 
             ? chatConfigFixtures.variants.highLimitSwarm
             : chatConfigFixtures.variants.restrictedTeamSwarm;
 
         return factory.createMinimal({
-            teamId: BigInt(teamId),
+            team: { connect: { id: BigInt(teamId) } },
             isPrivate: config.isPrivate ?? true,
             openToAnyoneWithInvite: false,
             config: chatConfig as any,
@@ -603,14 +622,17 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
             withMessages?: boolean;
             withInvites?: boolean;
         },
-        overrides?: Partial<Prisma.chatUpsertArgs["create"]>,
-    ): Prisma.chatUpsertArgs["create"] {
+        overrides?: Partial<Prisma.chatCreateInput>,
+    ): Prisma.chatCreateInput {
         const factory = new ChatDbFactory();
-        const baseData = factory.createMinimal(overrides);
-
-        if (options.teamId) {
-            baseData.teamId = BigInt(options.teamId);
-        }
+        
+        // Build the overrides with team relation if provided
+        const finalOverrides: Partial<Prisma.chatCreateInput> = {
+            ...overrides,
+            ...(options.teamId ? { team: { connect: { id: BigInt(options.teamId) } } } : {}),
+        };
+        
+        const baseData = factory.createMinimal(finalOverrides) as Prisma.chatCreateInput;
 
         if (options.userIds && options.userIds.length > 0) {
             baseData.participants = {
@@ -652,12 +674,12 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
  */
 export function createTeamChat(
     teamId: string,
-    overrides?: Partial<Prisma.chatUpsertArgs["create"]>,
-): Prisma.chatUpsertArgs["create"] {
-    return {
-        ...ChatDbFactory.createMinimal(overrides),
-        teamId: BigInt(teamId),
-    };
+    overrides?: Partial<Prisma.chatCreateInput>,
+): Prisma.chatCreateInput {
+    return ChatDbFactory.createMinimal({
+        ...overrides,
+        team: { connect: { id: BigInt(teamId) } },
+    } as Partial<Prisma.chatCreateInput>) as Prisma.chatCreateInput;
 }
 
 /**
@@ -696,7 +718,12 @@ export async function seedTestChats(
 
         // Add team connection if requested
         if (options?.teamId) {
-            chatData.teamId = BigInt(options.teamId);
+            // Create fresh data with team relation to avoid conflicts
+            const { teamId: _, ...dataWithoutTeamId } = chatData as any;
+            chatData = {
+                ...dataWithoutTeamId,
+                team: { connect: { id: BigInt(options.teamId) } },
+            };
             teamCount++;
         }
 

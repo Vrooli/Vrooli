@@ -1,7 +1,7 @@
-import { generatePK } from "../../../../../shared/src/id/index.js";
 import { type Prisma } from "@prisma/client";
+import { generatePK } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
+import type { BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
 
 /**
  * Database fixtures for ChatParticipant model - used for seeding test data
@@ -78,7 +78,7 @@ export const chatParticipantDbFixtures: DbTestFixtures<Prisma.chat_participantsC
  * Enhanced factory for creating chat participant database fixtures
  */
 export class ChatParticipantDbFactory extends EnhancedDbFactory<Prisma.chat_participantsCreateInput> {
-    
+
     /**
      * Get the test fixtures for ChatParticipant model
      */

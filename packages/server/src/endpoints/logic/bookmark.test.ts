@@ -1,8 +1,10 @@
 import { type BookmarkCreateInput, BookmarkFor, type BookmarkSearchInput, bookmarkTestDataFactory, type BookmarkUpdateInput, type FindByIdInput, generatePK } from "@vrooli/shared";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { BookmarkListDbFactory, seedBookmarks } from "../../__test/fixtures/db/bookmarkFixtures.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
-import { loggedInUserNoPremiumData, mockAuthenticatedSession, mockLoggedOutSession, seedMockAdminUser } from "../../__test/session.js";
+import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { validateCleanup } from "../../__test/helpers/testValidation.js";
+import { loggedInUserNoPremiumData, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { CacheService } from "../../redisConn.js";
@@ -11,8 +13,6 @@ import { bookmark_findMany } from "../generated/bookmark_findMany.js";
 import { bookmark_findOne } from "../generated/bookmark_findOne.js";
 import { bookmark_updateOne } from "../generated/bookmark_updateOne.js";
 import { bookmark } from "./bookmark.js";
-import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
-import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsBookmark", () => {
     beforeAll(async () => {
@@ -29,7 +29,7 @@ describe("EndpointsBookmark", () => {
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","session"],
+            tables: ["user", "user_auth", "email", "session"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
@@ -45,10 +45,10 @@ describe("EndpointsBookmark", () => {
     // Helper function to create test data
     const createTestData = async () => {
         await CacheService.get().flushAll();
-        
+
         // Seed test users using database fixtures
         const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
-        
+
         // Create tags to be bookmarked with unique names
         const uniqueSuffix = Date.now().toString();
         const tags = await Promise.all([
@@ -66,7 +66,7 @@ describe("EndpointsBookmark", () => {
             withList: true,
             listName: "My Tag Collection",
         });
-        
+
         return { testUsers, tags, bookmarkData };
     };
 
@@ -77,7 +77,7 @@ describe("EndpointsBookmark", () => {
                 ...loggedInUserNoPremiumData(),
                 id: testUsers[0].id,
             });
-            const input: FindByIdInput = { id: bookmarkData.bookmarks[0].id };
+            const input: FindByIdInput = { id: bookmarkData.bookmarks[0].id.toString() };
             const result = await bookmark.findOne({ input }, { req, res }, bookmark_findOne);
             expect(result).not.toBeNull();
             expect(result.id).toEqual(bookmarkData.bookmarks[0].id);
@@ -89,7 +89,7 @@ describe("EndpointsBookmark", () => {
                 ...loggedInUserNoPremiumData(),
                 id: testUsers[1].id,
             });
-            const input: FindByIdInput = { id: bookmarkData.bookmarks[0].id };
+            const input: FindByIdInput = { id: bookmarkData.bookmarks[0].id.toString() };
 
             await expect(async () => {
                 await bookmark.findOne({ input }, { req, res }, bookmark_findOne);
@@ -99,7 +99,7 @@ describe("EndpointsBookmark", () => {
         it("throws error when not authenticated", async () => {
             const { bookmarkData } = await createTestData();
             const { req, res } = await mockLoggedOutSession();
-            const input: FindByIdInput = { id: bookmarkData.bookmarks[0].id };
+            const input: FindByIdInput = { id: bookmarkData.bookmarks[0].id.toString() };
 
             await expect(async () => {
                 await bookmark.findOne({ input }, { req, res }, bookmark_findOne);
@@ -157,7 +157,7 @@ describe("EndpointsBookmark", () => {
 
             // Use validation fixtures for API input
             const input: BookmarkCreateInput = bookmarkTestDataFactory.createMinimal({
-                forConnect: tags[0].id,
+                forConnect: tags[0].id.toString(),
             });
 
             const result = await bookmark.createOne({ input }, { req, res }, bookmark_createOne);
@@ -168,7 +168,7 @@ describe("EndpointsBookmark", () => {
 
         it("creates a bookmark with list", async () => {
             const { testUsers, tags } = await createTestData();
-            
+
             // First create a list for the user
             const list = await DbProvider.get().bookmark_list.create({
                 data: BookmarkListDbFactory.createMinimal(testUsers[1].id, {
@@ -183,8 +183,8 @@ describe("EndpointsBookmark", () => {
 
             // Use validation fixtures with list connection
             const input: BookmarkCreateInput = bookmarkTestDataFactory.createComplete({
-                forConnect: tags[1].id,
-                listConnect: list.id,
+                forConnect: tags[1].id.toString(),
+                listConnect: list.id.toString(),
             });
 
             const result = await bookmark.createOne({ input }, { req, res }, bookmark_createOne);
@@ -198,7 +198,7 @@ describe("EndpointsBookmark", () => {
             const { req, res } = await mockLoggedOutSession();
 
             const input: BookmarkCreateInput = bookmarkTestDataFactory.createMinimal({
-                forConnect: tags[0].id,
+                forConnect: tags[0].id.toString(),
             });
 
             await expect(async () => {
@@ -210,7 +210,7 @@ describe("EndpointsBookmark", () => {
     describe("updateOne", () => {
         it("updates bookmark list for owner", async () => {
             const { testUsers, bookmarkData } = await createTestData();
-            
+
             // Create a new list for the update
             const newList = await DbProvider.get().bookmark_list.create({
                 data: BookmarkListDbFactory.createMinimal(testUsers[0].id, {
@@ -241,7 +241,7 @@ describe("EndpointsBookmark", () => {
             });
 
             const input: BookmarkUpdateInput = {
-                id: bookmarkData.bookmarks[0].id,
+                id: bookmarkData.bookmarks[0].id.toString(),
                 listDisconnect: true,
             };
 
@@ -258,7 +258,7 @@ describe("EndpointsBookmark", () => {
             });
 
             const input: BookmarkUpdateInput = {
-                id: bookmarkData.bookmarks[0].id,
+                id: bookmarkData.bookmarks[0].id.toString(),
                 listDisconnect: true,
             };
 
@@ -272,7 +272,7 @@ describe("EndpointsBookmark", () => {
             const { req, res } = await mockLoggedOutSession();
 
             const input: BookmarkUpdateInput = {
-                id: bookmarkData.bookmarks[0].id,
+                id: bookmarkData.bookmarks[0].id.toString(),
                 listDisconnect: true,
             };
 

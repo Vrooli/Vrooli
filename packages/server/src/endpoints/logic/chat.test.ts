@@ -96,7 +96,7 @@ describe("EndpointsChat", () => {
                 ...loggedInUserNoPremiumData(),
                 id: testUser3.id.toString(),
             });
-            const input: FindByIdInput = { id: privateChat.id };
+            const input: FindByIdInput = { id: privateChat.id.toString() };
             const result = await chat.findOne({ input }, { req, res }, chat_findOne);
             expect(result).not.toBeNull();
             expect(result.id).toEqual(privateChat.id);
@@ -146,7 +146,7 @@ describe("EndpointsChat", () => {
             });
 
             const { req, res } = await mockLoggedOutSession();
-            const input: FindByIdInput = { id: publicChat.id };
+            const input: FindByIdInput = { id: publicChat.id.toString() };
             const result = await chat.findOne({ input }, { req, res }, chat_findOne);
             expect(result).not.toBeNull();
             expect(result.id).toEqual(publicChat.id);

@@ -1,6 +1,9 @@
 import { generatePK, DAYS_180_MS } from "@vrooli/shared";
 import { DbProvider } from "../../db/provider.js";
 
+// Constants for test data
+const DEFAULT_PAYMENT_AMOUNT = 1000;
+
 export interface StripeTestUser {
     id: bigint;
     name: string;
@@ -17,17 +20,39 @@ export interface StripeTestPayment {
     status: string;
 }
 
+// Lazy initialization for consistent IDs - following established patterns
+const _stripeTestIds: { [key: string]: bigint | undefined } = {};
+
+export const stripeTestIds = {
+    get user1() { return _stripeTestIds.user1 ??= generatePK(); },
+    get user2() { return _stripeTestIds.user2 ??= generatePK(); },
+    get user3() { return _stripeTestIds.user3 ??= generatePK(); },
+    get user4() { return _stripeTestIds.user4 ??= generatePK(); },
+    get user5() { return _stripeTestIds.user5 ??= generatePK(); },
+    get user6() { return _stripeTestIds.user6 ??= generatePK(); },
+    get user7() { return _stripeTestIds.user7 ??= generatePK(); },
+    get email1() { return _stripeTestIds.email1 ??= generatePK(); },
+    get email2() { return _stripeTestIds.email2 ??= generatePK(); },
+    get email3() { return _stripeTestIds.email3 ??= generatePK(); },
+    get email4() { return _stripeTestIds.email4 ??= generatePK(); },
+    get email5() { return _stripeTestIds.email5 ??= generatePK(); },
+    get email6() { return _stripeTestIds.email6 ??= generatePK(); },
+    get plan1() { return _stripeTestIds.plan1 ??= generatePK(); },
+    get plan2() { return _stripeTestIds.plan2 ??= generatePK(); },
+};
+
 /**
  * Creates standard test users for Stripe tests
  */
 export async function createStripeTestUsers() {
-    const user1Id = generatePK();
-    const user2Id = generatePK();
-    const user3Id = generatePK();
-    const user4Id = generatePK();
-    const user5Id = generatePK();
-    const user6Id = generatePK();
-    const user7Id = generatePK();
+    // Use lazy-initialized IDs for consistency
+    const user1Id = stripeTestIds.user1;
+    const user2Id = stripeTestIds.user2;
+    const user3Id = stripeTestIds.user3;
+    const user4Id = stripeTestIds.user4;
+    const user5Id = stripeTestIds.user5;
+    const user6Id = stripeTestIds.user6;
+    const user7Id = stripeTestIds.user7;
 
     // User 1: Has Stripe customer ID and premium plan
     await DbProvider.get().user.create({
@@ -37,11 +62,11 @@ export async function createStripeTestUsers() {
             name: "user1",
             stripeCustomerId: "cus_123",
             emails: {
-                create: [{ id: generatePK(), emailAddress: "user@example.com" }],
+                create: [{ id: stripeTestIds.email1, emailAddress: "user@example.com" }],
             },
             plan: {
                 create: {
-                    id: generatePK(),
+                    id: stripeTestIds.plan1,
                     enabledAt: new Date(),
                     expiresAt: new Date(Date.now() + DAYS_180_MS),
                 },
@@ -56,7 +81,7 @@ export async function createStripeTestUsers() {
             publicId: user2Id.toString(),
             name: "user2",
             emails: {
-                create: [{ id: generatePK(), emailAddress: "user2@example.com" }],
+                create: [{ id: stripeTestIds.email2, emailAddress: "user2@example.com" }],
             },
         },
     });
@@ -68,7 +93,7 @@ export async function createStripeTestUsers() {
             publicId: user3Id.toString(),
             name: "user3",
             emails: {
-                create: [{ id: generatePK(), emailAddress: "missing@example.com" }],
+                create: [{ id: stripeTestIds.email3, emailAddress: "missing@example.com" }],
             },
         },
     });
@@ -100,7 +125,7 @@ export async function createStripeTestUsers() {
             publicId: user6Id.toString(),
             name: "user6",
             emails: {
-                create: [{ id: generatePK(), emailAddress: "emailForDeletedCustomer@example.com" }],
+                create: [{ id: stripeTestIds.email4, emailAddress: "emailForDeletedCustomer@example.com" }],
             },
         },
     });
@@ -113,7 +138,7 @@ export async function createStripeTestUsers() {
             name: "user7",
             stripeCustomerId: "cus_777",
             emails: {
-                create: [{ id: generatePK(), emailAddress: "emailWithSubscription@example.com" }],
+                create: [{ id: stripeTestIds.email5, emailAddress: "emailWithSubscription@example.com" }],
             },
         },
     });
@@ -187,7 +212,7 @@ export async function createUserWithPlan(stripeCustomerId: string, name = "userW
 export async function createPayment({
     userId,
     checkoutId,
-    amount = 1000,
+    amount = DEFAULT_PAYMENT_AMOUNT,
     status = "Pending",
     paymentType = "PremiumMonthly",
 }: {
@@ -305,7 +330,7 @@ export async function createInvoiceTestData() {
             id: paymentId,
             userId,
             checkoutId: "inv_123",
-            amount: 1000,
+            amount: DEFAULT_PAYMENT_AMOUNT,
             currency: "usd",
             description: "Test payment",
             paymentMethod: "Stripe",
@@ -341,7 +366,7 @@ export async function createInvoiceTestDataWithEmail() {
             id: paymentId,
             userId,
             checkoutId: "inv_123",
-            amount: 1000,
+            amount: DEFAULT_PAYMENT_AMOUNT,
             currency: "usd",
             description: "Test payment",
             paymentMethod: "Stripe",
@@ -400,7 +425,7 @@ export async function createCheckoutSessionTestData() {
     await DbProvider.get().payment.create({
         data: {
             id: payment1Id,
-            amount: 1000,
+            amount: DEFAULT_PAYMENT_AMOUNT,
             currency: "usd",
             description: "Test payment",
             checkoutId: "session1",

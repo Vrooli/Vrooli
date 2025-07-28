@@ -1,6 +1,6 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
-import { generatePK, InviteStatus } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK, ChatInviteStatus } from "@vrooli/shared";
+import { type Prisma, type PrismaClient, type chat_invite } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
     DbTestFixtures, 
@@ -9,8 +9,8 @@ import type {
 } from "./types.js";
 
 interface ChatInviteRelationConfig extends RelationConfig {
-    chat: { chatId: string };
-    user: { userId: string };
+    chat: { chatId: bigint };
+    user: { userId: bigint };
 }
 
 /**
@@ -26,13 +26,15 @@ interface ChatInviteRelationConfig extends RelationConfig {
  * - Constraint validation
  */
 export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
-    Prisma.chat_inviteCreateInput,
+    chat_invite,
     Prisma.chat_inviteCreateInput,
     Prisma.chat_inviteInclude,
     Prisma.chat_inviteUpdateInput
 > {
-    constructor(prisma: PrismaClient) {
-        super("chat_invite", prisma);
+    protected scenarios: Record<string, TestScenario> = {};
+    
+    constructor(modelName: string, prisma: PrismaClient) {
+        super(modelName, prisma);
         this.initializeScenarios();
     }
 
@@ -43,17 +45,17 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get complete test fixtures for ChatInvite model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.ChatInviteCreateInput, Prisma.ChatInviteUpdateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.chat_inviteCreateInput, Prisma.chat_inviteUpdateInput> {
         return {
             minimal: {
                 id: this.generateId(),
-                status: InviteStatus.Pending,
+                status: ChatInviteStatus.Pending,
                 chat: { connect: { id: this.generateId() } },
                 user: { connect: { id: this.generateId() } },
             },
             complete: {
                 id: this.generateId(),
-                status: InviteStatus.Pending,
+                status: ChatInviteStatus.Pending,
                 message: "You're invited to join our team discussion about the new project!",
                 chat: { connect: { id: this.generateId() } },
                 user: { connect: { id: this.generateId() } },
@@ -61,26 +63,25 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
             invalid: {
                 missingRequired: {
                     // Missing id, chat, user
-                    status: InviteStatus.Pending,
+                    status: ChatInviteStatus.Pending,
                     message: "Invalid invite",
                 },
                 invalidTypes: {
-                    id: "not-a-snowflake",
-                    status: "pending", // Should be InviteStatus enum
+                    id: this.generateId(),
+                    status: "pending", // Should be ChatInviteStatus enum
                     message: 123, // Should be string
                     chat: "not-an-object", // Should be object
                     user: null, // Should be object
                 },
                 duplicateInvite: {
                     id: this.generateId(),
-                    status: InviteStatus.Pending,
+                    status: ChatInviteStatus.Pending,
                     chat: { connect: { id: this.generateId() } },
                     user: { connect: { id: this.generateId() } }, // Assumes this combo exists
                 },
                 invalidStatus: {
                     id: this.generateId(),
-                    // @ts-expect-error - Intentionally invalid status
-                    status: "InvalidStatus",
+                    status: "InvalidStatus" as any,
                     chat: { connect: { id: this.generateId() } },
                     user: { connect: { id: this.generateId() } },
                 },
@@ -88,35 +89,35 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
             edgeCases: {
                 maxLengthMessage: {
                     id: this.generateId(),
-                    status: InviteStatus.Pending,
+                    status: ChatInviteStatus.Pending,
                     message: "a".repeat(4096), // Max length message
                     chat: { connect: { id: this.generateId() } },
                     user: { connect: { id: this.generateId() } },
                 },
                 unicodeMessage: {
                     id: this.generateId(),
-                    status: InviteStatus.Pending,
+                    status: ChatInviteStatus.Pending,
                     message: "You're invited! 🎉 Join us for a great discussion 💬",
                     chat: { connect: { id: this.generateId() } },
                     user: { connect: { id: this.generateId() } },
                 },
                 acceptedInvite: {
                     id: this.generateId(),
-                    status: InviteStatus.Accepted,
+                    status: ChatInviteStatus.Accepted,
                     message: "Thanks for joining!",
                     chat: { connect: { id: this.generateId() } },
                     user: { connect: { id: this.generateId() } },
                 },
                 declinedInvite: {
                     id: this.generateId(),
-                    status: InviteStatus.Declined,
+                    status: ChatInviteStatus.Declined,
                     message: "Sorry, I can't join right now",
                     chat: { connect: { id: this.generateId() } },
                     user: { connect: { id: this.generateId() } },
                 },
                 noMessageInvite: {
                     id: this.generateId(),
-                    status: InviteStatus.Pending,
+                    status: ChatInviteStatus.Pending,
                     message: null,
                     chat: { connect: { id: this.generateId() } },
                     user: { connect: { id: this.generateId() } },
@@ -124,30 +125,34 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
             },
             updates: {
                 minimal: {
-                    status: InviteStatus.Accepted,
+                    status: ChatInviteStatus.Accepted,
                 },
                 complete: {
-                    status: InviteStatus.Declined,
+                    status: ChatInviteStatus.Declined,
                     message: "Updated message - Unfortunately I cannot join at this time",
                 },
             },
         };
     }
 
-    protected generateMinimalData(overrides?: Partial<Prisma.ChatInviteCreateInput>): Prisma.ChatInviteCreateInput {
+    protected generateMinimalData(overrides?: Partial<Prisma.chat_inviteCreateInput>): Prisma.chat_inviteCreateInput {
         // Note: chat and user connections must be provided via overrides or config
         return {
             id: this.generateId(),
-            status: InviteStatus.Pending,
+            status: ChatInviteStatus.Pending,
+            chat: { connect: { id: this.generateId() } },
+            user: { connect: { id: this.generateId() } },
             ...overrides,
         };
     }
 
-    protected generateCompleteData(overrides?: Partial<Prisma.ChatInviteCreateInput>): Prisma.ChatInviteCreateInput {
+    protected generateCompleteData(overrides?: Partial<Prisma.chat_inviteCreateInput>): Prisma.chat_inviteCreateInput {
         return {
             id: this.generateId(),
-            status: InviteStatus.Pending,
+            status: ChatInviteStatus.Pending,
             message: "You're invited to join our team discussion!",
+            chat: { connect: { id: this.generateId() } },
+            user: { connect: { id: this.generateId() } },
             ...overrides,
         };
     }
@@ -162,11 +167,11 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
                 description: "Standard pending invitation",
                 config: {
                     overrides: {
-                        status: InviteStatus.Pending,
+                        status: ChatInviteStatus.Pending,
                         message: "You've been invited to join our chat",
                     },
-                    chat: { chatId: this.generateId().toString() },
-                    user: { userId: this.generateId().toString() },
+                    chat: { chatId: this.generateId() },
+                    user: { userId: this.generateId() },
                 },
             },
             acceptedInvite: {
@@ -174,11 +179,11 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
                 description: "Accepted invitation",
                 config: {
                     overrides: {
-                        status: InviteStatus.Accepted,
+                        status: ChatInviteStatus.Accepted,
                         message: "Welcome! Glad you could join us",
                     },
-                    chat: { chatId: this.generateId().toString() },
-                    user: { userId: this.generateId().toString() },
+                    chat: { chatId: this.generateId() },
+                    user: { userId: this.generateId() },
                 },
             },
             declinedInvite: {
@@ -186,11 +191,11 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
                 description: "Declined invitation",
                 config: {
                     overrides: {
-                        status: InviteStatus.Declined,
+                        status: ChatInviteStatus.Declined,
                         message: "Sorry, I'm not available",
                     },
-                    chat: { chatId: this.generateId().toString() },
-                    user: { userId: this.generateId().toString() },
+                    chat: { chatId: this.generateId() },
+                    user: { userId: this.generateId() },
                 },
             },
             bulkTeamInvites: {
@@ -198,11 +203,11 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
                 description: "Multiple invitations for team chat",
                 config: {
                     overrides: {
-                        status: InviteStatus.Pending,
+                        status: ChatInviteStatus.Pending,
                         message: "Join our team chat for project updates",
                     },
-                    chat: { chatId: this.generateId().toString() },
-                    user: { userId: this.generateId().toString() },
+                    chat: { chatId: this.generateId() },
+                    user: { userId: this.generateId() },
                 },
             },
             personalInvite: {
@@ -210,17 +215,17 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
                 description: "Personal invitation with custom message",
                 config: {
                     overrides: {
-                        status: InviteStatus.Pending,
+                        status: ChatInviteStatus.Pending,
                         message: "Hey! I'd love to chat with you about the new features we're building. Are you available?",
                     },
-                    chat: { chatId: this.generateId().toString() },
-                    user: { userId: this.generateId().toString() },
+                    chat: { chatId: this.generateId() },
+                    user: { userId: this.generateId() },
                 },
             },
         };
     }
 
-    protected getDefaultInclude(): Prisma.ChatInviteInclude {
+    protected getDefaultInclude(): Prisma.chat_inviteInclude {
         return {
             chat: {
                 select: {
@@ -249,16 +254,16 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async applyRelationships(
-        baseData: Prisma.ChatInviteCreateInput,
+        baseData: Prisma.chat_inviteCreateInput,
         config: ChatInviteRelationConfig,
         tx: PrismaClient,
-    ): Promise<Prisma.ChatInviteCreateInput> {
+    ): Promise<Prisma.chat_inviteCreateInput> {
         const data = { ...baseData };
 
         // Handle chat connection (required)
         if (config.chat) {
             data.chat = {
-                connect: { id: BigInt(config.chat.chatId) },
+                connect: { id: config.chat.chatId },
             };
         } else {
             throw new Error("ChatInvite requires a chat connection");
@@ -267,7 +272,7 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
         // Handle user connection (required)
         if (config.user) {
             data.user = {
-                connect: { id: BigInt(config.user.userId) },
+                connect: { id: config.user.userId },
             };
         } else {
             throw new Error("ChatInvite requires a user connection");
@@ -279,10 +284,10 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a pending invite
      */
-    async createPendingInvite(chatId: string, userId: string, message?: string): Promise<Prisma.ChatInvite> {
+    async createPendingInvite(chatId: bigint, userId: bigint, message?: string): Promise<chat_invite> {
         return await this.createWithRelations({
             overrides: {
-                status: InviteStatus.Pending,
+                status: ChatInviteStatus.Pending,
                 message: message || "You've been invited to join this chat",
             },
             chat: { chatId },
@@ -294,10 +299,10 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
      * Create bulk invites for multiple users
      */
     async createBulkInvites(
-        chatId: string,
-        userIds: string[],
+        chatId: bigint,
+        userIds: bigint[],
         message?: string,
-    ): Promise<Prisma.ChatInvite[]> {
+    ): Promise<chat_invite[]> {
         const invites = await Promise.all(
             userIds.map(userId => 
                 this.createPendingInvite(chatId, userId, message),
@@ -309,10 +314,10 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
     /**
      * Accept an invite
      */
-    async acceptInvite(inviteId: string): Promise<Prisma.ChatInvite> {
+    async acceptInvite(inviteId: bigint): Promise<chat_invite> {
         const updated = await this.prisma.chat_invite.update({
             where: { id: inviteId },
-            data: { status: InviteStatus.Accepted },
+            data: { status: ChatInviteStatus.Accepted },
             include: this.getDefaultInclude(),
         });
         return updated;
@@ -321,16 +326,16 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
     /**
      * Decline an invite
      */
-    async declineInvite(inviteId: string): Promise<Prisma.ChatInvite> {
+    async declineInvite(inviteId: bigint): Promise<chat_invite> {
         const updated = await this.prisma.chat_invite.update({
             where: { id: inviteId },
-            data: { status: InviteStatus.Declined },
+            data: { status: ChatInviteStatus.Declined },
             include: this.getDefaultInclude(),
         });
         return updated;
     }
 
-    protected async checkModelConstraints(record: Prisma.ChatInvite): Promise<string[]> {
+    protected async checkModelConstraints(record: chat_invite): Promise<string[]> {
         const violations: string[] = [];
         
         // Check for duplicate invite
@@ -364,7 +369,7 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
         }
 
         // Check valid status
-        if (!Object.values(InviteStatus).includes(record.status as InviteStatus)) {
+        if (!Object.values(ChatInviteStatus).includes(record.status as ChatInviteStatus)) {
             violations.push("Invalid invite status");
         }
 
@@ -378,7 +383,7 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.ChatInvite,
+        record: chat_invite,
         remainingDepth: number,
         tx: PrismaClient,
         includeOnly?: string[],
@@ -389,7 +394,7 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get invites by status
      */
-    async getInvitesByStatus(status: InviteStatus, limit?: number): Promise<Prisma.ChatInvite[]> {
+    async getInvitesByStatus(status: ChatInviteStatus, limit?: number): Promise<chat_invite[]> {
         return await this.prisma.chat_invite.findMany({
             where: { status },
             include: this.getDefaultInclude(),
@@ -401,11 +406,11 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get user's pending invites
      */
-    async getUserPendingInvites(userId: string): Promise<Prisma.ChatInvite[]> {
+    async getUserPendingInvites(userId: bigint): Promise<chat_invite[]> {
         return await this.prisma.chat_invite.findMany({
             where: {
-                userId,
-                status: InviteStatus.Pending,
+                userId: userId,
+                status: ChatInviteStatus.Pending,
             },
             include: this.getDefaultInclude(),
             orderBy: { createdAt: "desc" },
@@ -415,10 +420,10 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create test invites with different statuses
      */
-    async createTestInviteSet(chatId: string, userIds: string[]): Promise<{
-        pending: Prisma.ChatInvite[];
-        accepted: Prisma.ChatInvite[];
-        declined: Prisma.ChatInvite[];
+    async createTestInviteSet(chatId: bigint, userIds: bigint[]): Promise<{
+        pending: chat_invite[];
+        accepted: chat_invite[];
+        declined: chat_invite[];
     }> {
         if (userIds.length < 3) {
             throw new Error("Need at least 3 user IDs for test set");
@@ -454,7 +459,7 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createChatInviteDbFactory = (prisma: PrismaClient) => 
-    ChatInviteDbFactory.getInstance("ChatInvite", prisma);
+    ChatInviteDbFactory.getInstance("chat_invite", prisma);
 
 // Export the class for type usage
 export { ChatInviteDbFactory as ChatInviteDbFactoryClass };

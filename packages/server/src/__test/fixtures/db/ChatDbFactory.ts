@@ -8,14 +8,14 @@ import type {
     RelationConfig,
     TestScenario,
 } from "./types.js";
-import { chatConfigFixtures } from "../../../../../shared/src/__test/fixtures/config/chatConfigFixtures.js";
+import { chatConfigFixtures } from "@vrooli/shared/test-fixtures/config.js";
 
 interface ChatRelationConfig extends RelationConfig {
-    withCreator?: { userId: string };
-    withTeam?: { teamId: string };
-    participants?: Array<{ userId: string; hasUnread?: boolean }>;
+    withCreator?: { userId: bigint };
+    withTeam?: { teamId: bigint };
+    participants?: Array<{ userId: bigint; hasUnread?: boolean }>;
     messages?: number;
-    invites?: Array<{ userId: string; status?: "Pending" | "Accepted" | "Declined" }>;
+    invites?: Array<{ userId: bigint; status?: "Pending" | "Accepted" | "Declined" }>;
     translations?: Array<{ language: string; name?: string; description?: string }>;
 }
 
@@ -90,7 +90,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
                     openToAnyoneWithInvite: false,
                 },
                 invalidTypes: {
-                    id: "not-a-snowflake",
+                    id: this.generateId(), // Use valid snowflake ID for type test
                     publicId: 123, // Should be string
                     isPrivate: "yes", // Should be boolean
                     openToAnyoneWithInvite: 1, // Should be boolean
@@ -237,8 +237,8 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
                         openToAnyoneWithInvite: false,
                     },
                     participants: [
-                        { user: { connect: { id: this.generateId() } } },
-                        { user: { connect: { id: this.generateId() } } },
+                        { userId: this.generateId() },
+                        { userId: this.generateId() },
                     ],
                 },
             },
@@ -250,11 +250,11 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
                         isPrivate: true,
                         openToAnyoneWithInvite: false,
                     },
-                    withTeam: { team: { connect: { id: this.generateId() } } },
+                    withTeam: { teamId: this.generateId() },
                     participants: [
-                        { user: { connect: { id: this.generateId() } } },
-                        { user: { connect: { id: this.generateId() } } },
-                        { user: { connect: { id: this.generateId() } } },
+                        { userId: this.generateId() },
+                        { userId: this.generateId() },
+                        { userId: this.generateId() },
                     ],
                 },
             },
@@ -287,8 +287,8 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
                         } as unknown as Prisma.InputJsonValue,
                     },
                     participants: [
-                        { user: { connect: { id: this.generateId() } } },
-                        { user: { connect: { id: this.generateId() } } },
+                        { userId: this.generateId() },
+                        { userId: this.generateId() },
                     ],
                 },
             },
@@ -301,7 +301,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
                         openToAnyoneWithInvite: true,
                     },
                     participants: Array.from({ length: 50 }, (_, i) => ({
-                        userId: `participant-${i}`,
+                        userId: this.generateId(),
                         hasUnread: i % 2 === 0,
                     })),
                 },
@@ -323,8 +323,13 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
                 select: {
                     id: true,
                     publicId: true,
-                    name: true,
                     handle: true,
+                    translations: {
+                        select: {
+                            language: true,
+                            name: true,
+                        },
+                    },
                 },
             },
             participants: {
@@ -377,14 +382,14 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
         // Handle creator
         if (config.withCreator) {
             data.creator = {
-                connect: { id: BigInt(config.withCreator.userId) },
+                connect: { id: config.withCreator.userId },
             };
         }
 
         // Handle team
         if (config.withTeam) {
             data.team = {
-                connect: { id: BigInt(config.withTeam.teamId) },
+                connect: { id: config.withTeam.teamId },
             };
         }
 
@@ -393,7 +398,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
             data.participants = {
                 create: config.participants.map(participant => ({
                     id: this.generateId(),
-                    userId: BigInt(participant.userId),
+                    userId: participant.userId,
                     hasUnread: participant.hasUnread ?? true,
                 })),
             };
@@ -404,7 +409,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
             data.invites = {
                 create: config.invites.map(invite => ({
                     id: this.generateId(),
-                    userId: BigInt(invite.userId),
+                    userId: invite.userId,
                     status: invite.status || "Pending",
                     message: "You've been invited to join this chat",
                 })),
@@ -427,7 +432,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a private chat between users
      */
-    async createPrivateChat(userIds: string[]): Promise<chat> {
+    async createPrivateChat(userIds: bigint[]): Promise<chat> {
         return await this.createWithRelations({
             overrides: {
                 isPrivate: true,
@@ -440,7 +445,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a team chat
      */
-    async createTeamChat(teamId: string, memberIds: string[]): Promise<chat> {
+    async createTeamChat(teamId: bigint, memberIds: bigint[]): Promise<chat> {
         return await this.createWithRelations({
             overrides: {
                 isPrivate: true,
@@ -531,35 +536,35 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
         // Delete in order of dependencies
 
         // Delete messages
-        if (shouldDelete("messages") && record.messages?.length) {
+        if (shouldDelete("messages")) {
             await tx.chat_message.deleteMany({
                 where: { chatId: record.id },
             });
         }
 
         // Delete invites
-        if (shouldDelete("invites") && record.invites?.length) {
+        if (shouldDelete("invites")) {
             await tx.chat_invite.deleteMany({
                 where: { chatId: record.id },
             });
         }
 
         // Delete participants
-        if (shouldDelete("participants") && record.participants?.length) {
+        if (shouldDelete("participants")) {
             await tx.chat_participants.deleteMany({
                 where: { chatId: record.id },
             });
         }
 
         // Delete subscriptions
-        if (shouldDelete("subscriptions") && record.subscriptions?.length) {
+        if (shouldDelete("subscriptions")) {
             await tx.notification_subscription.deleteMany({
                 where: { chatId: record.id },
             });
         }
 
         // Delete translations
-        if (shouldDelete("translations") && record.translations?.length) {
+        if (shouldDelete("translations")) {
             await tx.chat_translation.deleteMany({
                 where: { chatId: record.id },
             });
@@ -569,12 +574,12 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
     /**
      * Add participants to an existing chat
      */
-    async addParticipants(chatId: string, userIds: string[]): Promise<void> {
+    async addParticipants(chatId: string | bigint, userIds: Array<string | bigint>): Promise<void> {
         await this.prisma.chat_participants.createMany({
             data: userIds.map(userId => ({
                 id: this.generateId(),
-                chatId,
-                userId,
+                chatId: typeof chatId === "string" ? BigInt(chatId) : chatId,
+                userId: typeof userId === "string" ? BigInt(userId) : userId,
                 hasUnread: true,
             })),
             skipDuplicates: true,
@@ -584,13 +589,13 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create chat invites
      */
-    async createInvites(chatId: string, userIds: string[], message?: string): Promise<void> {
+    async createInvites(chatId: string | bigint, userIds: Array<string | bigint>, message?: string): Promise<void> {
         await this.prisma.chat_invite.createMany({
             data: userIds.map(userId => ({
                 id: this.generateId(),
-                chatId,
-                userId,
-                status: "Pending",
+                chatId: typeof chatId === "string" ? BigInt(chatId) : chatId,
+                userId: typeof userId === "string" ? BigInt(userId) : userId,
+                status: "Pending" as const,
                 message: message || "You've been invited to join this chat",
             })),
             skipDuplicates: true,
@@ -607,17 +612,17 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
         supportChat: chat;
     }> {
         const [privateChat, teamChat, publicChat, supportChat] = await Promise.all([
-            this.seedScenario("privateChat"),
-            this.seedScenario("teamChat"),
-            this.seedScenario("publicCommunity"),
-            this.seedScenario("supportChat"),
+            this.createWithRelations(this.scenarios.privateChat.config),
+            this.createWithRelations(this.scenarios.teamChat.config),
+            this.createWithRelations(this.scenarios.publicCommunity.config),
+            this.createWithRelations(this.scenarios.supportChat.config),
         ]);
 
         return {
-            privateChat: privateChat as chat,
-            teamChat: teamChat as chat,
-            publicChat: publicChat as chat,
-            supportChat: supportChat as chat,
+            privateChat,
+            teamChat,
+            publicChat,
+            supportChat,
         };
     }
 }

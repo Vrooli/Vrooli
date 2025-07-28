@@ -34,18 +34,23 @@ declare -g -A RESOURCE_PORTS=(
     # Storage Services (9xxx range)
     ["minio"]="9000"           # Object storage (S3 compatible)
     ["ipfs"]="9001"            # Distributed storage (changed from 5001)
+    ["vault"]="8200"           # HashiCorp Vault secret management
     
     # Agent Services (41xx range - safely above Vrooli range)
     ["browserless"]="4110"     # Browserless.io Chrome service
     ["claude-code"]="4112"     # Claude Code agent service
-    ["huginn"]="4111"          # Agent-based monitoring and automation
+    ["huginn"]="4111"          # Workflow automation platform
     ["agent-s2"]="4113"        # Agent S2 autonomous computer interaction
+    
+    # Search Services (81xx range)
+    ["searxng"]="8100"         # SearXNG metasearch engine
     
     # Future services can use:
     # - 11xxx for AI services
     # - 56xx for automation (avoiding 5678)
     # - 90xx for storage
     # - 41xx for agents (above Vrooli range)
+    # - 81xx for search services
 )
 
 # ============================================================================

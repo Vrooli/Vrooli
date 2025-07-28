@@ -1,9 +1,9 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with proper types
-import { generatePK, generatePublicId } from "../../../../../shared/src/id/index.js";
 import { type Prisma, type PrismaClient } from "@prisma/client";
-import { messageConfigFixtures } from "../../../../../shared/src/__test/fixtures/config/messageConfigFixtures.js";
+import { generatePK } from "@vrooli/shared";
+import { messageConfigFixtures } from "@vrooli/shared/test-fixtures/config";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
+import type { BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
 
 /**
  * Database fixtures for ChatMessage model - used for seeding test data
@@ -181,7 +181,7 @@ export const chatMessageDbFixtures: DbTestFixtures<Prisma.chat_messageCreateInpu
  * Enhanced factory for creating chat message database fixtures
  */
 export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageCreateInput> {
-    
+
     /**
      * Get the test fixtures for ChatMessage model
      */
@@ -367,7 +367,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
         toolCalls?: any[],
         overrides?: Partial<Prisma.chat_messageCreateInput>,
     ): Prisma.chat_messageCreateInput {
-        const config = toolCalls 
+        const config = toolCalls
             ? {
                 ...messageConfigFixtures.variants.assistantWithTools,
                 toolCalls,
@@ -435,8 +435,8 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
         messages.forEach((msg, index) => {
             const isBot = msg.type === "bot";
             const senderId = isBot ? participants.botId : participants.userId;
-            const config = isBot 
-                ? messageConfigFixtures.variants.assistantWithTools 
+            const config = isBot
+                ? messageConfigFixtures.variants.assistantWithTools
                 : messageConfigFixtures.variants.userMessage;
 
             const message: Prisma.chat_messageCreateInput = {

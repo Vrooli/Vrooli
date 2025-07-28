@@ -1,5 +1,5 @@
 import { type ChatMessageSearchTreeInput, type ChatMessageSearchTreeResult, type FindByIdInput, generatePK } from "@vrooli/shared";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
@@ -32,7 +32,7 @@ describe("EndpointsChatMessage", () => {
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["chat","chat_message","chat_participants","chat_invite","user"],
+            tables: ["chat", "chat_message", "chat_participants", "chat_invite", "user"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
@@ -46,7 +46,7 @@ describe("EndpointsChatMessage", () => {
     });
 
     // Helper function to create complex test data structure
-    const createTestData = async () => {
+    async function createTestData() {
         // Seed test users using database fixtures
         const testUsers = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
 
@@ -155,39 +155,47 @@ describe("EndpointsChatMessage", () => {
         messages.seqMsgC = seqMessages[2];
         messages.seqMsgD = seqMessages[3];
 
+        // Generate IDs for the branching conversation tree
+        const rootId = generatePK();
+        const branch1AId = generatePK();
+        const leaf1A1Id = generatePK();
+        const branch1BId = generatePK();
+        const leaf1B1Id = generatePK();
+        const leaf1B2Id = generatePK();
+
         // Seed branching conversation tree
         const branchTree = await seedConversationTree(DbProvider.get(), {
             chatId: branchChat.id,
             structure: [
                 {
-                    id: "root",
+                    id: rootId,
                     userId: testUsers[0].id,
                     text: "Root message",
                     children: [
                         {
-                            id: "branch1A",
+                            id: branch1AId,
                             userId: testUsers[1].id,
                             text: "Branch 1A",
                             children: [
                                 {
-                                    id: "leaf1A1",
+                                    id: leaf1A1Id,
                                     userId: testUsers[0].id,
                                     text: "Leaf 1A1",
                                 },
                             ],
                         },
                         {
-                            id: "branch1B",
+                            id: branch1BId,
                             userId: testUsers[1].id,
                             text: "Branch 1B",
                             children: [
                                 {
-                                    id: "leaf1B1",
+                                    id: leaf1B1Id,
                                     userId: testUsers[0].id,
                                     text: "Leaf 1B1",
                                 },
                                 {
-                                    id: "leaf1B2",
+                                    id: leaf1B2Id,
                                     userId: testUsers[0].id,
                                     text: "Leaf 1B2",
                                 },
@@ -197,7 +205,14 @@ describe("EndpointsChatMessage", () => {
                 },
             ],
         });
-        Object.assign(messages, branchTree);
+
+        // Map the generated IDs to the expected keys
+        messages.root = branchTree.records.find(m => m.id === rootId);
+        messages.branch1A = branchTree.records.find(m => m.id === branch1AId);
+        messages.leaf1A1 = branchTree.records.find(m => m.id === leaf1A1Id);
+        messages.branch1B = branchTree.records.find(m => m.id === branch1BId);
+        messages.leaf1B1 = branchTree.records.find(m => m.id === leaf1B1Id);
+        messages.leaf1B2 = branchTree.records.find(m => m.id === leaf1B2Id);
 
         return {
             testUsers,
@@ -209,7 +224,7 @@ describe("EndpointsChatMessage", () => {
             branchChat,
             messages,
         };
-    };
+    }
 
     describe("findOne", () => {
         describe("valid", () => {
@@ -222,7 +237,7 @@ describe("EndpointsChatMessage", () => {
                     id: testUsers[0].id.toString(),
                 });
 
-                const input: FindByIdInput = { id: messages.user1Message1.id };
+                const input: FindByIdInput = { id: messages.user1Message1.id.toString() };
                 const result = await chatMessage.findOne({ input }, { req, res }, chatMessage_findOne);
 
                 expect(result).not.toBeNull();
@@ -240,7 +255,7 @@ describe("EndpointsChatMessage", () => {
                     id: testUsers[0].id.toString(),
                 });
 
-                const input: FindByIdInput = { id: messages.botMessage1.id };
+                const input: FindByIdInput = { id: messages.botMessage1.id.toString() };
                 const result = await chatMessage.findOne({ input }, { req, res }, chatMessage_findOne);
 
                 expect(result).not.toBeNull();
@@ -257,7 +272,7 @@ describe("EndpointsChatMessage", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
-                const input: FindByIdInput = { id: messages.publicChatMessage.id };
+                const input: FindByIdInput = { id: messages.publicChatMessage.id.toString() };
                 const result = await chatMessage.findOne({ input }, { req, res }, chatMessage_findOne);
 
                 expect(result).not.toBeNull();
@@ -275,7 +290,7 @@ describe("EndpointsChatMessage", () => {
                     id: testUsers[2].id.toString(), // User 2 is not in normalChat
                 });
 
-                const input: FindByIdInput = { id: messages.user1Message1.id };
+                const input: FindByIdInput = { id: messages.user1Message1.id.toString() };
 
                 await expect(async () => {
                     await chatMessage.findOne({ input }, { req, res }, chatMessage_findOne);
@@ -288,7 +303,7 @@ describe("EndpointsChatMessage", () => {
 
                 const { req, res } = await mockLoggedOutSession();
 
-                const input: FindByIdInput = { id: messages.user1Message1.id };
+                const input: FindByIdInput = { id: messages.user1Message1.id.toString() };
 
                 await expect(async () => {
                     await chatMessage.findOne({ input }, { req, res }, chatMessage_findOne);
@@ -304,7 +319,7 @@ describe("EndpointsChatMessage", () => {
                     id: testUsers[0].id.toString(), // User 0 is not in privateChat
                 });
 
-                const input: FindByIdInput = { id: messages.privateChatMessage.id };
+                const input: FindByIdInput = { id: messages.privateChatMessage.id.toString() };
 
                 await expect(async () => {
                     await chatMessage.findOne({ input }, { req, res }, chatMessage_findOne);
@@ -402,7 +417,7 @@ describe("EndpointsChatMessage", () => {
                 });
 
                 const input: ChatMessageSearchTreeInput = {
-                    chatId: branchChat.id,
+                    chatId: branchChat.id.toString(),
                     take: 50,
                 };
                 const result = await chatMessage.findTree({ input }, { req, res }, chatMessage_findTree) as ChatMessageSearchTreeResult;
@@ -424,7 +439,7 @@ describe("EndpointsChatMessage", () => {
                 });
 
                 const input: ChatMessageSearchTreeInput = {
-                    chatId: seqChat.id,
+                    chatId: seqChat.id.toString(),
                     take: 50,
                 };
                 const result = await chatMessage.findTree({ input }, { req, res }, chatMessage_findTree) as ChatMessageSearchTreeResult;
@@ -448,8 +463,8 @@ describe("EndpointsChatMessage", () => {
                 });
 
                 const input: ChatMessageSearchTreeInput = {
-                    chatId: branchChat.id,
-                    parentId: messages.root.id,
+                    chatId: branchChat.id.toString(),
+                    parentId: messages.root.id.toString(),
                     take: 50,
                 };
                 const result = await chatMessage.findTree({ input }, { req, res }, chatMessage_findTree) as ChatMessageSearchTreeResult;
@@ -474,7 +489,7 @@ describe("EndpointsChatMessage", () => {
                 });
 
                 const input: ChatMessageSearchTreeInput = {
-                    chatId: branchChat.id,
+                    chatId: branchChat.id.toString(),
                     take: 50,
                 };
 
@@ -487,7 +502,7 @@ describe("EndpointsChatMessage", () => {
                 const { req, res } = await mockLoggedOutSession();
 
                 const input: ChatMessageSearchTreeInput = {
-                    chatId: branchChat.id,
+                    chatId: branchChat.id.toString(),
                     take: 50,
                 };
 

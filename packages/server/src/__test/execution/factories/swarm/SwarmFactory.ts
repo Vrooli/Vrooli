@@ -6,9 +6,8 @@
 
 import { generatePK } from "@vrooli/shared";
 import { SwarmSchemaLoader } from "./SwarmSchemaLoader.js";
-import { TeamDbFactory } from "./TeamDbFactory.js";
 import { SwarmStateMocker } from "./SwarmStateMocker.js";
-import type { SwarmSchema } from "../../schemas/swarms/index.js";
+import { TeamDbFactory } from "./TeamDbFactory.js";
 
 export interface SwarmFactoryOptions {
     saveToDb?: boolean;
@@ -32,17 +31,18 @@ export class SwarmFactory {
         options: SwarmFactoryOptions = {},
     ): Promise<any> {
         const schema = await this.schemaLoader.load(schemaPath);
-        
+
         const team = {
-            __typename: "Team",
-            id: generatePK(),
+            __typename: "Team" as const,
+            id: generatePK().toString(),
             name: schema.identity.name,
+            description: schema.details || schema.businessPrompt || "",
             businessPrompt: schema.businessPrompt,
             details: schema.details,
             profitTarget: schema.profitTarget,
             agents: schema.agents, // Agent schema references
             resources: schema.resources,
-            created_by: options.userId || generatePK(),
+            created_by: options.userId || generatePK().toString(),
             created_at: new Date(),
             updated_at: new Date(),
         };

@@ -62,9 +62,8 @@ COPY --chown=agents2:agents2 docker/config/supervisor.conf /etc/supervisor/conf.
 COPY --chown=agents2:agents2 docker/scripts/startup.sh /opt/agent-s2/
 COPY --chown=agents2:agents2 docker/scripts/vnc-password.sh /opt/agent-s2/
 
-# Copy Python package and API server
+# Copy Python package
 COPY --chown=agents2:agents2 agent_s2 /opt/agent-s2/agent_s2/
-COPY --chown=agents2:agents2 docker/api-server.py /opt/agent-s2/
 
 # Make scripts executable
 RUN chmod +x /opt/agent-s2/*.sh
