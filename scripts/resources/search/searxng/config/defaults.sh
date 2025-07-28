@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# SearXNG Configuration Defaults
+# All configuration constants and default values
+
+# SearXNG port configuration
+readonly SEARXNG_PORT="${SEARXNG_CUSTOM_PORT:-$(resources::get_default_port "searxng")}"
+readonly SEARXNG_BASE_URL="http://localhost:${SEARXNG_PORT}"
+
+# Container configuration
+readonly SEARXNG_CONTAINER_NAME="searxng"
+readonly SEARXNG_IMAGE="${SEARXNG_CUSTOM_IMAGE:-searxng/searxng:latest}"
+readonly SEARXNG_DATA_DIR="${HOME}/.searxng"
+
+# Network configuration
+readonly SEARXNG_NETWORK_NAME="searxng-network"
+readonly SEARXNG_BIND_ADDRESS="${SEARXNG_BIND_ADDRESS:-127.0.0.1}"  # Local only by default
+
+# Security configuration
+readonly SEARXNG_SECRET_KEY="${SEARXNG_SECRET_KEY:-$(openssl rand -hex 32 2>/dev/null || date +%s | sha256sum | head -c 32)}"
+readonly SEARXNG_ENABLE_PUBLIC_ACCESS="${SEARXNG_ENABLE_PUBLIC_ACCESS:-no}"
+
+# Search engine configuration
+readonly SEARXNG_DEFAULT_ENGINES="${SEARXNG_DEFAULT_ENGINES:-google,bing,duckduckgo,startpage}"
+readonly SEARXNG_SAFE_SEARCH="${SEARXNG_SAFE_SEARCH:-1}"
+readonly SEARXNG_AUTOCOMPLETE="${SEARXNG_AUTOCOMPLETE:-yes}"
+readonly SEARXNG_DEFAULT_LANG="${SEARXNG_DEFAULT_LANG:-en}"
+
+# Performance configuration
+readonly SEARXNG_REQUEST_TIMEOUT="${SEARXNG_REQUEST_TIMEOUT:-3.0}"
+readonly SEARXNG_MAX_REQUEST_TIMEOUT="${SEARXNG_MAX_REQUEST_TIMEOUT:-10.0}"
+readonly SEARXNG_POOL_CONNECTIONS="${SEARXNG_POOL_CONNECTIONS:-100}"
+readonly SEARXNG_POOL_MAXSIZE="${SEARXNG_POOL_MAXSIZE:-20}"
+
+# Rate limiting configuration
+readonly SEARXNG_LIMITER_ENABLED="${SEARXNG_LIMITER_ENABLED:-yes}"
+readonly SEARXNG_RATE_LIMIT="${SEARXNG_RATE_LIMIT:-10}"  # requests per minute
+readonly SEARXNG_RATE_LIMIT_WINDOW="${SEARXNG_RATE_LIMIT_WINDOW:-60}"  # seconds
+
+# Health check configuration
+readonly SEARXNG_HEALTH_CHECK_INTERVAL=5
+readonly SEARXNG_HEALTH_CHECK_MAX_ATTEMPTS=30
+readonly SEARXNG_HEALTH_ENDPOINT="/stats"
+
+# API configuration
+readonly SEARXNG_API_TIMEOUT=30
+readonly SEARXNG_ENABLE_METRICS="${SEARXNG_ENABLE_METRICS:-yes}"
+
+# Log configuration
+readonly SEARXNG_LOG_LEVEL="${SEARXNG_LOG_LEVEL:-INFO}"
+readonly SEARXNG_LOG_LINES=100
+
+# Redis configuration (optional caching)
+readonly SEARXNG_ENABLE_REDIS="${SEARXNG_ENABLE_REDIS:-no}"
+readonly SEARXNG_REDIS_HOST="${SEARXNG_REDIS_HOST:-redis}"
+readonly SEARXNG_REDIS_PORT="${SEARXNG_REDIS_PORT:-6379}"
+
+# Instance configuration
+readonly SEARXNG_INSTANCE_NAME="${SEARXNG_INSTANCE_NAME:-Vrooli SearXNG}"
+readonly SEARXNG_CONTACT_URL="${SEARXNG_CONTACT_URL:-}"
+readonly SEARXNG_DONATION_URL="${SEARXNG_DONATION_URL:-}"
+
+# Export function to make configuration available
+searxng::export_config() {
+    # Export all readonly variables
+    export SEARXNG_PORT SEARXNG_BASE_URL SEARXNG_CONTAINER_NAME SEARXNG_IMAGE SEARXNG_DATA_DIR
+    export SEARXNG_NETWORK_NAME SEARXNG_BIND_ADDRESS
+    export SEARXNG_SECRET_KEY SEARXNG_ENABLE_PUBLIC_ACCESS
+    export SEARXNG_DEFAULT_ENGINES SEARXNG_SAFE_SEARCH SEARXNG_AUTOCOMPLETE SEARXNG_DEFAULT_LANG
+    export SEARXNG_REQUEST_TIMEOUT SEARXNG_MAX_REQUEST_TIMEOUT SEARXNG_POOL_CONNECTIONS SEARXNG_POOL_MAXSIZE
+    export SEARXNG_LIMITER_ENABLED SEARXNG_RATE_LIMIT SEARXNG_RATE_LIMIT_WINDOW
+    export SEARXNG_HEALTH_CHECK_INTERVAL SEARXNG_HEALTH_CHECK_MAX_ATTEMPTS SEARXNG_HEALTH_ENDPOINT
+    export SEARXNG_API_TIMEOUT SEARXNG_ENABLE_METRICS
+    export SEARXNG_LOG_LEVEL SEARXNG_LOG_LINES
+    export SEARXNG_ENABLE_REDIS SEARXNG_REDIS_HOST SEARXNG_REDIS_PORT
+    export SEARXNG_INSTANCE_NAME SEARXNG_CONTACT_URL SEARXNG_DONATION_URL
+}

@@ -1,0 +1,70 @@
+version: "3.8"
+
+services:
+  searxng:
+    image: ${SEARXNG_IMAGE:-searxng/searxng:latest}
+    container_name: ${SEARXNG_CONTAINER_NAME:-searxng}
+    hostname: searxng
+    ports:
+      - "${SEARXNG_BIND_ADDRESS:-127.0.0.1}:${SEARXNG_PORT:-8100}:8080"
+    volumes:
+      - "${SEARXNG_DATA_DIR:-${HOME}/.searxng}:/etc/searxng:rw"
+    environment:
+      - SEARXNG_BASE_URL=${SEARXNG_BASE_URL:-http://localhost:8100}
+      - SEARXNG_SECRET=${SEARXNG_SECRET_KEY}
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "3"
+    restart: unless-stopped
+    networks:
+      - searxng-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/stats"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Optional Redis service for caching
+  # Enable with: docker-compose --profile redis up -d
+  redis:
+    image: redis:alpine
+    container_name: searxng-redis
+    hostname: redis
+    command: redis-server --save "" --appendonly "no"
+    tmpfs:
+      - /var/lib/redis
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
+    restart: unless-stopped
+    profiles:
+      - redis
+    networks:
+      - searxng-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  searxng-network:
+    name: ${SEARXNG_NETWORK_NAME:-searxng-network}
+    driver: bridge
