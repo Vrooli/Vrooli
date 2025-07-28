@@ -48,14 +48,14 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
             minimal: {
                 id: this.generateId(),
                 hasUnread: true,
-                chatId: this.generateId(),
-                userId: this.generateId(),
+                chat: { connect: { id: this.generateId() } },
+                user: { connect: { id: this.generateId() } },
             },
             complete: {
                 id: this.generateId(),
                 hasUnread: false,
-                chatId: this.generateId(),
-                userId: this.generateId(),
+                chat: { connect: { id: this.generateId() } },
+                user: { connect: { id: this.generateId() } },
             },
             invalid: {
                 missingRequired: {
@@ -71,34 +71,34 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
                 duplicateParticipant: {
                     id: this.generateId(),
                     hasUnread: true,
-                    chatId: this.generateId(),
-                    userId: this.generateId(), // Assumes this combo exists
+                    chat: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } }, // Assumes this combo exists
                 },
             },
             edgeCases: {
                 participantWithUnread: {
                     id: this.generateId(),
                     hasUnread: true,
-                    chatId: this.generateId(),
-                    userId: this.generateId(),
+                    chat: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 participantAllRead: {
                     id: this.generateId(),
                     hasUnread: false,
-                    chatId: this.generateId(),
-                    userId: this.generateId(),
+                    chat: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 recentlyJoined: {
                     id: this.generateId(),
                     hasUnread: true, // New participants typically have unread messages
-                    chatId: this.generateId(),
-                    userId: this.generateId(),
+                    chat: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 longTimeParticipant: {
                     id: this.generateId(),
                     hasUnread: false, // Long-time participants likely caught up
-                    chatId: this.generateId(),
-                    userId: this.generateId(),
+                    chat: { connect: { id: this.generateId() } },
+                    user: { connect: { id: this.generateId() } },
                 },
             },
             updates: {
@@ -117,6 +117,8 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
         return {
             id: this.generateId(),
             hasUnread: true,
+            chat: { connect: { id: this.generateId() } },
+            user: { connect: { id: this.generateId() } },
             ...overrides,
         };
     }
@@ -125,6 +127,8 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
         return {
             id: this.generateId(),
             hasUnread: false,
+            chat: { connect: { id: this.generateId() } },
+            user: { connect: { id: this.generateId() } },
             ...overrides,
         };
     }
@@ -235,14 +239,18 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
 
         // Handle chat connection (required)
         if (config.chat) {
-            data.chatId = BigInt(config.chat.chatId);
+            data.chat = {
+                connect: { id: BigInt(config.chat.chatId) },
+            };
         } else {
             throw new Error("ChatParticipant requires a chat connection");
         }
 
         // Handle user connection (required)
         if (config.user) {
-            data.userId = BigInt(config.user.userId);
+            data.user = {
+                connect: { id: BigInt(config.user.userId) },
+            };
         } else {
             throw new Error("ChatParticipant requires a user connection");
         }
@@ -289,8 +297,8 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
     async removeParticipant(chatId: string, userId: string): Promise<void> {
         await this.prisma.chat_participants.deleteMany({
             where: {
-                chatId,
-                userId,
+                chatId: BigInt(chatId),
+                userId: BigInt(userId),
             },
         });
     }
@@ -301,8 +309,8 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
     async markAsRead(chatId: string, userId: string): Promise<chat_participants> {
         const participant = await this.prisma.chat_participants.findFirst({
             where: {
-                chatId,
-                userId,
+                chatId: BigInt(chatId),
+                userId: BigInt(userId),
             },
         });
 
@@ -323,8 +331,8 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
     async markAsUnread(chatId: string, userId: string): Promise<chat_participants> {
         const participant = await this.prisma.chat_participants.findFirst({
             where: {
-                chatId,
-                userId,
+                chatId: BigInt(chatId),
+                userId: BigInt(userId),
             },
         });
 
@@ -339,7 +347,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    protected async checkModelConstraints(record: ChatParticipant): Promise<string[]> {
+    protected async checkModelConstraints(record: chat_participants): Promise<string[]> {
         const violations: string[] = [];
         
         // Check for duplicate participant
@@ -410,7 +418,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
     async getParticipantsWithUnread(chatId: string): Promise<chat_participants[]> {
         return await this.prisma.chat_participants.findMany({
             where: {
-                chatId,
+                chatId: BigInt(chatId),
                 hasUnread: true,
             },
             include: this.getDefaultInclude(),
@@ -423,7 +431,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
     async getActiveParticipants(chatId: string): Promise<chat_participants[]> {
         return await this.prisma.chat_participants.findMany({
             where: {
-                chatId,
+                chatId: BigInt(chatId),
                 hasUnread: false,
             },
             include: this.getDefaultInclude(),
@@ -434,7 +442,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
      * Get user's chat participations
      */
     async getUserChats(userId: string, hasUnread?: boolean): Promise<chat_participants[]> {
-        const where: Prisma.chat_participantsWhereInput = { userId };
+        const where: Prisma.chat_participantsWhereInput = { userId: BigInt(userId) };
         if (hasUnread !== undefined) {
             where.hasUnread = hasUnread;
         }

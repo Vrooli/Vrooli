@@ -1,5 +1,5 @@
 import { nanoid, IssueStatus } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+import { type Prisma, type PrismaClient, type issue } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
     DbTestFixtures, 
@@ -72,7 +72,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                 score: 10,
                 bookmarks: 5,
                 views: 25,
-                resourceVersion: { connect: { id: this.generateId() } },
+                resource: { connect: { id: this.generateId() } },
                 team: { connect: { id: this.generateId() } },
                 createdBy: { connect: { id: this.generateId() } },
                 translations: {
@@ -120,7 +120,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                 closedWithoutCloser: {
                     id: this.generateId(),
                     publicId: this.generatePublicId(),
-                    status: IssueStatus.Resolved,
+                    status: IssueStatus.ClosedResolved,
                     closedAt: new Date(),
                     // Missing closedById when status is closed
                     createdBy: { connect: { id: this.generateId() } },
@@ -130,9 +130,9 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                 selfClosedIssue: {
                     id: this.generateId(),
                     publicId: this.generatePublicId(),
-                    status: IssueStatus.Resolved,
+                    status: IssueStatus.ClosedResolved,
                     createdBy: { connect: { id: this.generateId() } },
-                    closedById: this.bigIntToString(this.generateId()), // Same as createdById
+                    closedBy: { connect: { id: this.generateId() } }, // Same as createdById
                     closedAt: new Date(),
                     translations: {
                         create: [{
@@ -148,7 +148,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                     publicId: this.generatePublicId(),
                     status: IssueStatus.Open,
                     createdBy: { connect: { id: this.generateId() } },
-                    closedById: this.bigIntToString(this.generateId()),
+                    closedBy: { connect: { id: this.generateId() } },
                     closedAt: null, // Was closed but reopened
                     translations: {
                         create: [{
@@ -242,20 +242,20 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
             },
             updates: {
                 minimal: {
-                    status: IssueStatus.InProgress,
+                    status: IssueStatus.Open,
                 },
                 complete: {
-                    status: IssueStatus.Resolved,
+                    status: IssueStatus.ClosedResolved,
                     closedAt: new Date(),
-                    closedById: this.bigIntToString(this.generateId()),
+                    closedBy: { connect: { id: this.generateId() } },
                     score: 20,
                     bookmarks: 10,
                     views: 50,
                     translations: {
                         update: [{
                             where: { 
-                                issueId_language: {
-                                    issue: { connect: { id: this.generateId() } },
+                                issue_translation_issueId_language_unique: {
+                                    issueId: this.generateId(),
                                     language: "en",
                                 },
                             },
@@ -302,7 +302,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
             score: 0,
             bookmarks: 0,
             views: 0,
-            resourceVersion: { connect: { id: this.generateId() } },
+            resource: { connect: { id: this.generateId() } },
             team: { connect: { id: this.generateId() } },
             createdBy: { connect: { id: this.generateId() } },
             translations: {
@@ -369,7 +369,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                 description: "Issue being worked on",
                 config: {
                     overrides: {
-                        status: IssueStatus.InProgress,
+                        status: IssueStatus.Open,
                         translations: {
                             create: [{
                                 id: this.generateId(),
@@ -386,9 +386,9 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                 description: "Resolved issue",
                 config: {
                     overrides: {
-                        status: IssueStatus.Resolved,
+                        status: IssueStatus.ClosedResolved,
                         closedAt: new Date(),
-                        closedById: this.bigIntToString(this.generateId()),
+                        closedBy: { connect: { id: this.generateId() } },
                         translations: {
                             create: [{
                                 id: this.generateId(),
@@ -425,7 +425,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
      */
     async createOpenIssue(createdById: string, title: string, description: string): Promise<Prisma.issue> {
         return await this.createMinimal({
-            createdById,
+            createdBy: { connect: { id: BigInt(createdById) } },
             status: IssueStatus.Open,
             translations: {
                 create: [{
@@ -440,8 +440,8 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
 
     async createInProgressIssue(createdById: string, title: string, description: string): Promise<Prisma.issue> {
         return await this.createMinimal({
-            createdById,
-            status: IssueStatus.InProgress,
+            createdBy: { connect: { id: BigInt(createdById) } },
+            status: IssueStatus.Open,
             translations: {
                 create: [{
                     id: this.generateId(),
@@ -455,9 +455,9 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
 
     async createResolvedIssue(createdById: string, closedById: string, title: string, resolution: string): Promise<Prisma.issue> {
         return await this.createMinimal({
-            createdById,
-            status: IssueStatus.Resolved,
-            closedById,
+            createdBy: { connect: { id: BigInt(createdById) } },
+            status: IssueStatus.ClosedResolved,
+            closedBy: { connect: { id: BigInt(closedById) } },
             closedAt: new Date(),
             translations: {
                 create: [{
@@ -473,10 +473,10 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create issue for specific contexts
      */
-    async createResourceIssue(resourceVersionId: string, createdById: string, title: string, description: string): Promise<Prisma.issue> {
+    async createResourceIssue(resourceId: string, createdById: string, title: string, description: string): Promise<Prisma.issue> {
         return await this.createMinimal({
-            resourceId,
-            createdById,
+            resource: { connect: { id: BigInt(resourceId) } },
+            createdBy: { connect: { id: BigInt(createdById) } },
             translations: {
                 create: [{
                     id: this.generateId(),
@@ -490,8 +490,8 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
 
     async createTeamIssue(teamId: string, createdById: string, title: string, description: string): Promise<Prisma.issue> {
         return await this.createMinimal({
-            teamId,
-            createdById,
+            team: { connect: { id: BigInt(teamId) } },
+            createdBy: { connect: { id: BigInt(createdById) } },
             translations: {
                 create: [{
                     id: this.generateId(),
@@ -509,10 +509,10 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
     async updateStatus(issueId: string, status: IssueStatus, closedById?: string): Promise<Prisma.issue> {
         const updateData: Prisma.issueUpdateInput = { status };
         
-        if (status === IssueStatus.Resolved || status === IssueStatus.Rejected) {
+        if (status === IssueStatus.ClosedResolved || status === IssueStatus.ClosedUnresolved || status === IssueStatus.Rejected) {
             updateData.closedAt = new Date();
             if (closedById) {
-                updateData.closedById = closedById;
+                updateData.closedBy = { connect: { id: BigInt(closedById) } };
             }
         } else {
             updateData.closedAt = null;
@@ -520,7 +520,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         }
         
         return await this.prisma.issue.update({
-            where: { id: issueId },
+            where: { id: BigInt(issueId) },
             data: updateData,
             include: this.getDefaultInclude(),
         });
@@ -562,28 +562,28 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         // Handle resource relationship
         if (config.withResource) {
             const resourceId = typeof config.withResource === "string" ? config.withResource : this.bigIntToString(this.generateId());
-            data.resourceId = resourceId;
+            data.resource = { connect: { id: BigInt(resourceId) } };
         }
 
         // Handle team relationship
         if (config.withTeam) {
             const teamId = typeof config.withTeam === "string" ? config.withTeam : this.bigIntToString(this.generateId());
-            data.teamId = teamId;
+            data.team = { connect: { id: BigInt(teamId) } };
         }
 
         // Handle createdBy relationship
         if (config.withCreatedBy) {
             const createdById = typeof config.withCreatedBy === "string" ? config.withCreatedBy : this.bigIntToString(this.generateId());
-            data.createdById = createdById;
+            data.createdBy = { connect: { id: BigInt(createdById) } };
         }
 
         // Handle closedBy relationship
         if (config.withClosedBy) {
             const closedById = typeof config.withClosedBy === "string" ? config.withClosedBy : this.bigIntToString(this.generateId());
-            data.closedById = closedById;
+            data.closedBy = { connect: { id: BigInt(closedById) } };
             data.closedAt = new Date();
             if (data.status === IssueStatus.Open) {
-                data.status = IssueStatus.Resolved;
+                data.status = IssueStatus.ClosedResolved;
             }
         }
 
@@ -620,7 +620,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         }
 
         // Check closed status consistency
-        if ((record.status === IssueStatus.Resolved || record.status === IssueStatus.Rejected)) {
+        if ((record.status === IssueStatus.ClosedResolved || record.status === IssueStatus.ClosedUnresolved || record.status === IssueStatus.Rejected)) {
             if (!record.closedAt) {
                 violations.push("Closed issues must have closedAt timestamp");
             }
@@ -629,7 +629,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
             }
         } else {
             if (record.closedAt) {
-                violations.push("Open/InProgress issues should not have closedAt timestamp");
+                violations.push("Open/Draft issues should not have closedAt timestamp");
             }
         }
 
@@ -750,11 +750,11 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get issues for a resource
      */
-    async getResourceIssues(resourceVersionId: string, includeResolved = false): Promise<Prisma.issue[]> {
-        const whereClause: Prisma.issueWhereInput = { resourceId };
+    async getResourceIssues(resourceId: string, includeResolved = false): Promise<Prisma.issue[]> {
+        const whereClause: Prisma.issueWhereInput = { resourceId: BigInt(resourceId) };
         
         if (!includeResolved) {
-            whereClause.status = { not: IssueStatus.Resolved };
+            whereClause.status = { notIn: [IssueStatus.ClosedResolved, IssueStatus.ClosedUnresolved] };
         }
         
         return await this.prisma.issue.findMany({
@@ -768,11 +768,11 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
      * Get issues for a team
      */
     async getTeamIssues(teamId: string, includeResolved = false): Promise<Prisma.issue[]> {
-        const whereClause: Prisma.issueWhereInput = { teamId };
+        const whereClause: Prisma.issueWhereInput = { teamId: BigInt(teamId) };
         
         if (!includeResolved) {
             whereClause.status = { 
-                notIn: [IssueStatus.Resolved, IssueStatus.Rejected], 
+                notIn: [IssueStatus.ClosedResolved, IssueStatus.ClosedUnresolved, IssueStatus.Rejected], 
             };
         }
         

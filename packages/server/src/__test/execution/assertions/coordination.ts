@@ -72,7 +72,7 @@ export function extendCoordinationAssertions() {
             let foundRetry = false;
             let retryDetails = "";
 
-            for (const [routine, calls] of callsByRoutine.entries()) {
+            for (const [routine, calls] of Array.from(callsByRoutine.entries())) {
                 if (calls.length > 1) {
                     foundRetry = true;
                     retryDetails += `${routine}: ${calls.length} attempts\n`;

@@ -6,7 +6,7 @@ import type {
     RelationConfig,
     TestScenario,
 } from "./types.js";
-import { messageConfigFixtures } from "../../../../../shared/src/__test/fixtures/config/messageConfigFixtures.js";
+import { messageConfigFixtures } from "@vrooli/shared/test-fixtures/config";
 
 interface ChatMessageRelationConfig extends RelationConfig {
     chat: { chatId: string };
@@ -185,6 +185,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
             score: 0,
             versionIndex: 0,
             config: messageConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
+            chat: { connect: { id: this.generateId() } },
             ...overrides,
         };
     }
@@ -197,6 +198,8 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
             score: 0,
             versionIndex: 0,
             config: messageConfigFixtures.complete as unknown as Prisma.InputJsonValue,
+            chat: { connect: { id: this.generateId() } },
+            user: { connect: { id: this.generateId() } },
             ...overrides,
         };
     }
@@ -418,7 +421,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
     ): Promise<chat_message> {
         // Get parent message to inherit chat
         const parent = await this.prisma.chat_message.findUnique({
-            where: { id: parentMessageId },
+            where: { id: BigInt(parentMessageId) },
             select: { chatId: true },
         });
 
@@ -430,7 +433,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
             overrides: {
                 text,
             },
-            chat: { chatId: parent.chatId },
+            chat: { chatId: parent.chatId.toString() },
             user: { userId },
             parent: { parentId: parentMessageId },
         });
@@ -441,7 +444,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
      */
     async editMessage(messageId: string, newText: string): Promise<chat_message> {
         return await this.prisma.chat_message.update({
-            where: { id: messageId },
+            where: { id: BigInt(messageId) },
             data: {
                 text: newText,
                 versionIndex: { increment: 1 },
@@ -455,7 +458,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
      */
     async updateScore(messageId: string, delta: number): Promise<chat_message> {
         return await this.prisma.chat_message.update({
-            where: { id: messageId },
+            where: { id: BigInt(messageId) },
             data: {
                 score: { increment: delta },
             },
@@ -463,7 +466,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    protected async checkModelConstraints(record: ChatMessage): Promise<string[]> {
+    protected async checkModelConstraints(record: chat_message): Promise<string[]> {
         const violations: string[] = [];
         
         // Check text length
@@ -513,7 +516,12 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: chat_message,
+        record: chat_message & {
+            children?: any[];
+            reactions?: any[];
+            reactionSummaries?: any[];
+            reports?: any[];
+        },
         remainingDepth: number,
         tx: any,
         includeOnly?: string[],
@@ -574,7 +582,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
             });
 
             thread.push(message);
-            parentId = message.id; // Next message will reply to this one
+            parentId = message.id.toString(); // Next message will reply to this one
         }
 
         return thread;
@@ -621,46 +629,46 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
     }> {
         const userMessage = await this.createUserMessage(
             chatId,
-            "user-123",
+            this.generateId().toString(),
             "Hello, I have a question",
         );
 
         const botMessage = await this.createBotMessage(
             chatId,
-            "bot-123",
+            this.generateId().toString(),
             "I'd be happy to help! What would you like to know?",
         );
 
         const threadParent = await this.createUserMessage(
             chatId,
-            "user-456",
+            this.generateId().toString(),
             "This is the start of a thread",
         );
 
         const threadedMessage = await this.createReply(
-            threadParent.id,
-            "user-789",
+            threadParent.id.toString(),
+            this.generateId().toString(),
             "This is a reply in the thread",
         );
 
         const toEdit = await this.createUserMessage(
             chatId,
-            "user-edit",
+            this.generateId().toString(),
             "This message will be edited",
         );
 
         const editedMessage = await this.editMessage(
-            toEdit.id,
+            toEdit.id.toString(),
             "This message has been edited",
         );
 
         const popular = await this.createUserMessage(
             chatId,
-            "user-popular",
+            this.generateId().toString(),
             "This is a really helpful answer!",
         );
 
-        const popularMessage = await this.updateScore(popular.id, 100);
+        const popularMessage = await this.updateScore(popular.id.toString(), 100);
 
         return {
             userMessage,
