@@ -1,0 +1,58 @@
+{
+  "name": "Vault Secret Integration Example",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "clients/acme/stripe-api-key",
+        "vaultUrl": "http://localhost:8200",
+        "token": "{{$env.VAULT_TOKEN}}"
+      },
+      "name": "Get Stripe API Key",
+      "type": "vault-secret",
+      "typeVersion": 1,
+      "position": [
+        280,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "url": "https://api.stripe.com/v1/customers",
+        "options": {
+          "headers": {
+            "Authorization": "Bearer {{$node['Get Stripe API Key'].json['value']}}"
+          }
+        },
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "email",
+              "value": "customer@example.com"
+            }
+          ]
+        }
+      },
+      "name": "Create Stripe Customer",
+      "type": "http",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Get Stripe API Key": {
+      "main": [
+        [
+          {
+            "node": "Create Stripe Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
