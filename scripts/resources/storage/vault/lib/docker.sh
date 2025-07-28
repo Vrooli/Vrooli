@@ -82,7 +82,8 @@ vault::docker::start_container() {
     local container_id
     if [[ "$VAULT_MODE" == "dev" ]]; then
         # Development mode - auto-initialized and unsealed
-        container_id=$(docker run "${docker_args[@]}" "$VAULT_IMAGE" server -dev -config=/vault/config)
+        # Don't use config file in dev mode to avoid port binding conflicts
+        container_id=$(docker run "${docker_args[@]}" "$VAULT_IMAGE" server -dev)
     else
         # Production mode - requires manual initialization
         container_id=$(docker run "${docker_args[@]}" "$VAULT_IMAGE" server -config=/vault/config)

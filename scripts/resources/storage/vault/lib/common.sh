@@ -135,28 +135,9 @@ vault::create_config() {
             cat > "$config_file" << EOF
 # Vault Development Configuration
 # WARNING: This is for development only - not secure for production!
-
-# Storage backend (in-memory for dev)
-storage "inmem" {}
-
-# HTTP listener
-listener "tcp" {
-  address       = "0.0.0.0:${VAULT_PORT}"
-  tls_disable   = ${VAULT_TLS_DISABLE}
-}
-
-# API configuration
-api_addr = "${VAULT_BASE_URL}"
-cluster_addr = "https://127.0.0.1:8201"
-
-# Disable memory locking for Docker
-disable_mlock = true
-
-# UI configuration
-ui = true
-
-# Development mode settings
-dev_root_token_id = "${VAULT_DEV_ROOT_TOKEN_ID}"
+# In dev mode, most settings are handled via environment variables
+# to avoid conflicts with the built-in dev server configuration
+# The dev server ignores most config file settings anyway
 EOF
             ;;
         "prod")
