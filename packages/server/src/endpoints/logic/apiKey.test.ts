@@ -174,14 +174,15 @@ describe("EndpointsApiKey", () => {
             it("rejects invalid input format", async () => {
                 const { req, res } = await mockLoggedOutSession();
 
-                const invalidInputs = [
-                    { id: "", secret: "valid-secret" },
-                    { id: "valid-id", secret: "" },
+                // Test cases that should fail with 0900 (missing or empty required fields)
+                const invalidInputs0900 = [
+                    { id: "", secret: "valid-secret" }, // empty id
+                    { id: generatePK(), secret: "" }, // empty secret
                     { secret: "valid-secret" }, // missing id
-                    { id: "valid-id" }, // missing secret
+                    { id: generatePK() }, // missing secret
                 ];
 
-                for (const invalidInput of invalidInputs) {
+                for (const invalidInput of invalidInputs0900) {
                     await expectCustomErrorAsync(
                         apiKey.validate(
                             { input: invalidInput as any },
@@ -192,6 +193,17 @@ describe("EndpointsApiKey", () => {
                         "0900",
                     );
                 }
+
+                // Test case that should fail with 0901 (invalid BigInt format)
+                await expectCustomErrorAsync(
+                    apiKey.validate(
+                        { input: { id: "not-a-valid-bigint", secret: "valid-secret" } },
+                        { req, res },
+                        apiKey_validateOne,
+                    ),
+                    "InvalidArgs",
+                    "0901",
+                );
             });
         });
     });

@@ -210,7 +210,7 @@ main() {
             fi
             ;;
         create-bucket)
-            if [[ -z "$BUCKET" ]]; then
+            if [[ -z "${BUCKET:-}" ]]; then
                 log::error "Bucket name is required"
                 log::info "Usage: $0 --action create-bucket --bucket <name> [--policy <type>]"
                 exit 1
@@ -223,7 +223,7 @@ main() {
             fi
             ;;
         remove-bucket)
-            if [[ -z "$BUCKET" ]]; then
+            if [[ -z "${BUCKET:-}" ]]; then
                 log::error "Bucket name is required"
                 log::info "Usage: $0 --action remove-bucket --bucket <name> [--force yes]"
                 exit 1

@@ -41,6 +41,14 @@ source "${SCRIPT_DIR}/lib/install.sh"
 # Parse command line arguments
 #######################################
 vault::parse_arguments() {
+    # Check for help before args system processes it
+    for arg in "$@"; do
+        if [[ "$arg" == "--help" || "$arg" == "-help" || "$arg" == "help" ]]; then
+            vault::show_help
+            exit 0
+        fi
+    done
+    
     args::reset
     
     args::register_help

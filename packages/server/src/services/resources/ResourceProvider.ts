@@ -17,6 +17,7 @@ import {
     ResourceHealth,
     type DeploymentType,
 } from "./types.js";
+import { getResourceBaseUrl, isCorrectResourceUrl } from "./portRegistry.js";
 
 // Constants
 const _DEFAULT_FETCH_TIMEOUT_MS = 5000;
@@ -112,7 +113,7 @@ export abstract class ResourceProvider<
     }
 
     /**
-     * Discover if this resource is running locally
+     * Discover if this resource is running locally with smart port detection
      */
     async discover(): Promise<boolean> {
         if (!this.isSupported) {
@@ -130,10 +131,46 @@ export abstract class ResourceProvider<
         this._status = DiscoveryStatus.Discovering;
 
         try {
-            // Use circuit breaker to protect against repeated failures
-            const found = await this.discoveryCircuitBreaker!.execute(async () => {
+            // First try with configured URL
+            let found = await this.discoveryCircuitBreaker!.execute(async () => {
                 return await this.performDiscovery();
             });
+
+            // If not found and URL might be incorrect, try smart discovery
+            if (!found && this.config) {
+                // Check if config has a baseUrl property (not all configs do, e.g., MinIOConfig uses endpoint)
+                const configWithUrl = this.config as any;
+                const urlProperty = configWithUrl.baseUrl ? "baseUrl" : configWithUrl.endpoint ? "endpoint" : null;
+                
+                if (urlProperty) {
+                    const currentUrl = configWithUrl[urlProperty];
+                    const correctUrl = getResourceBaseUrl(this.id);
+                    
+                    if (correctUrl && correctUrl !== currentUrl && !isCorrectResourceUrl(this.id, currentUrl)) {
+                        logger.info(`[${this.id}] Trying smart discovery with correct port: ${correctUrl}`);
+                        
+                        // Temporarily update config to try correct URL
+                        const originalUrl = currentUrl;
+                        configWithUrl[urlProperty] = correctUrl;
+                        
+                        try {
+                            found = await this.performDiscovery();
+                            if (found) {
+                                logger.info(`[${this.id}] Found resource at correct port ${correctUrl} (was configured as ${originalUrl})`);
+                                // Note: We keep the corrected URL for this session
+                                // In a future enhancement, we could persist this correction
+                            } else {
+                                // Restore original URL if correct port didn't work either
+                                configWithUrl[urlProperty] = originalUrl;
+                            }
+                        } catch (smartDiscoveryError) {
+                            // Restore original URL on error
+                            configWithUrl[urlProperty] = originalUrl;
+                            logger.debug(`[${this.id}] Smart discovery failed:`, smartDiscoveryError);
+                        }
+                    }
+                }
+            }
 
             const wasAvailable = previousStatus === DiscoveryStatus.Available;
             this._status = found ? DiscoveryStatus.Available : DiscoveryStatus.NotFound;

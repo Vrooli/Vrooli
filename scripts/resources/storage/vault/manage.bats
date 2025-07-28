@@ -215,7 +215,7 @@ HELPERS_DIR="$RESOURCES_DIR/../helpers"
         
         # Source the script and mock the status function
         source '$SCRIPT_PATH'
-        vault::show_status() { echo 'Status: not_installed'; return 1; }
+        vault::show_status() { echo 'Status: not_installed'; return 0; }
         vault::cleanup() { : ; }
         
         vault::main 2>&1 | grep 'Status:'

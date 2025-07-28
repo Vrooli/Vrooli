@@ -11,22 +11,22 @@ import {
 } from "@vrooli/shared";
 import crypto from "crypto";
 
-// Test data
-const testIds = {
-    run1: generatePK().toString(),
-    run2: generatePK().toString(),
-    run3: generatePK().toString(),
-    user1: generatePK().toString(),
-    user2: generatePK().toString(),
-    resourceVersion1: generatePK().toString(),
-    resourceVersion2: generatePK().toString(),
-    routine1: generatePK().toString(),
-    routine2: generatePK().toString(),
-    team1: generatePK().toString(),
-    schedule1: generatePK().toString(),
-    step1: generatePK().toString(),
-    step2: generatePK().toString(),
-    step3: generatePK().toString(),
+// Test data - will be generated in beforeEach
+let testIds: {
+    run1: string;
+    run2: string;
+    run3: string;
+    user1: string;
+    user2: string;
+    resourceVersion1: string;
+    resourceVersion2: string;
+    routine1: string;
+    routine2: string;
+    team1: string;
+    schedule1: string;
+    step1: string;
+    step2: string;
+    step3: string;
 };
 
 describe("RunPersistenceService", () => {
@@ -39,6 +39,24 @@ describe("RunPersistenceService", () => {
     });
 
     beforeEach(async () => {
+        // Generate fresh test IDs for each test
+        testIds = {
+            run1: generatePK().toString(),
+            run2: generatePK().toString(),
+            run3: generatePK().toString(),
+            user1: generatePK().toString(),
+            user2: generatePK().toString(),
+            resourceVersion1: generatePK().toString(),
+            resourceVersion2: generatePK().toString(),
+            routine1: generatePK().toString(),
+            routine2: generatePK().toString(),
+            team1: generatePK().toString(),
+            schedule1: generatePK().toString(),
+            step1: generatePK().toString(),
+            step2: generatePK().toString(),
+            step3: generatePK().toString(),
+        };
+
         service = new RunPersistenceService();
 
         // Create test data that runs depend on
@@ -148,16 +166,18 @@ describe("RunPersistenceService", () => {
         });
 
         // Add translations for resource versions
+        const translationId1 = generatePK();
+        const translationId2 = generatePK();
         await prisma.resource_translation.createMany({
             data: [
                 {
-                    id: BigInt(generatePK()),
+                    id: BigInt(translationId1),
                     language: "en",
                     name: "Test Routine 1",
                     resourceVersionId: BigInt(testIds.resourceVersion1),
                 },
                 {
-                    id: BigInt(generatePK()),
+                    id: BigInt(translationId2),
                     language: "en",
                     name: "Test Routine 2",
                     resourceVersionId: BigInt(testIds.resourceVersion2),
@@ -727,8 +747,9 @@ describe("RunPersistenceService", () => {
             const service = new RunPersistenceService();
 
             // Try to create a run with an invalid user ID that doesn't exist
+            const invalidRunId = generatePK().toString();
             const runData = {
-                id: generatePK().toString(),
+                id: invalidRunId,
                 routineId: testIds.resourceVersion1,
                 userId: "999999999999999999", // Non-existent user
                 inputs: {},
@@ -772,7 +793,7 @@ describe("RunPersistenceService", () => {
             ];
 
             for (const testCase of testCases) {
-                const stepId = generatePK();
+                const stepId = generatePK().toString();
                 await service.recordStepExecution(testIds.run1, {
                     stepId,
                     state: "completed",
@@ -782,9 +803,8 @@ describe("RunPersistenceService", () => {
                 });
 
                 const step = await prisma.run_step.findFirst({
-                    where: { runId: BigInt(testIds.run1), nodeId: stepId)
-            },
-        });
+                    where: { runId: BigInt(testIds.run1), nodeId: stepId },
+                });
 
         expect(step?.complexity).toBeGreaterThanOrEqual(testCase.minComplexity);
         expect(step?.complexity).toBeLessThanOrEqual(10);

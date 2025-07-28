@@ -23,6 +23,7 @@ import {
 } from "./utils.js";
 import type { ServiceEvent } from "./types.js";
 import { EVENT_BUS_CONSTANTS, PRIORITY_LEVELS } from "./constants.js";
+import { generatePK } from "@vrooli/shared";
 
 describe("Event Utils", () => {
     describe("retry strategies", () => {
@@ -310,7 +311,7 @@ describe("Event Utils", () => {
 
     describe("validateEventStructure", () => {
         const validEvent: ServiceEvent = {
-            id: "event-123",
+            id: generatePK().toString(),
             type: "test/event",
             timestamp: new Date(),
             data: { test: "data" },
@@ -436,40 +437,47 @@ describe("Event Utils", () => {
 
     describe("formatEventForLogging", () => {
         it("should format event with all fields", () => {
+            const eventId = generatePK().toString();
+            const runId = generatePK().toString();
+            const swarmId = generatePK().toString();
+            const toolCallId = generatePK().toString();
+            
             const event: ServiceEvent = {
-                id: "event-123",
+                id: eventId,
                 type: "test/event",
                 timestamp: new Date("2023-01-01T00:00:00Z"),
                 data: { key1: "value1", key2: "value2" },
                 metadata: { priority: "high" },
                 progression: { state: "continue", processedBy: [] },
                 execution: {
-                    runId: "run-456",
-                    parentSwarmId: "swarm-789",
-                    toolCallId: "tool-101",
+                    runId,
+                    parentSwarmId: swarmId,
+                    toolCallId,
                 },
             };
 
             const formatted = formatEventForLogging(event);
 
             expect(formatted).toEqual({
-                id: "event-123",
+                id: eventId,
                 type: "test/event",
                 timestamp: "2023-01-01T00:00:00.000Z",
                 metadata: { priority: "high" },
                 dataKeys: ["key1", "key2"],
                 progression: "continue",
                 execution: {
-                    runId: "run-456",
-                    parentSwarmId: "swarm-789",
-                    toolCallId: "tool-101",
+                    runId,
+                    parentSwarmId: swarmId,
+                    toolCallId,
                 },
             });
         });
 
         it("should handle minimal event", () => {
+            const simpleEventId = generatePK().toString();
+            
             const event: ServiceEvent = {
-                id: "simple-event",
+                id: simpleEventId,
                 type: "simple/event",
                 timestamp: new Date("2023-01-01T00:00:00Z"),
                 data: "string data",
@@ -617,7 +625,7 @@ describe("Event Utils", () => {
         it("should handle missing priority in metadata", () => {
             const noPriorityEvent: ServiceEvent = {
                 id: "no-priority", type: "test/event", timestamp: new Date(), data: {},
-                metadata: { userId: "user-123" }, // metadata exists but no priority
+                metadata: { userId: generatePK().toString() }, // metadata exists but no priority
             };
 
             expect(calculatePriorityScore(noPriorityEvent)).toBe(10); // medium priority default

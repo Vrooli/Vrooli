@@ -101,16 +101,6 @@ const DEFAULT_CONFIG: TypedResourcesConfig = {
         agents: {},
         storage: {},
     },
-    discovery: {
-        enabled: false,
-        strategy: "manual",
-        methods: {
-            portScanning: {
-                enabled: false,
-                scanIntervalMs: 3600000, // 1 hour
-            },
-        },
-    },
     security: {
         network: {
             allowedHosts: ["localhost", "127.0.0.1"],
@@ -139,7 +129,7 @@ const DEFAULT_CONFIG: TypedResourcesConfig = {
  * Load resources configuration from JSON files with full type safety
  */
 export async function loadResourcesConfig(customPath?: string): Promise<TypedResourcesConfig> {
-    const projectRoot = process.cwd();
+    const projectRoot = process.env.PROJECT_DIR || process.cwd();
     const vrooliDir = resolve(projectRoot, ".vrooli");
 
     // Configuration file paths in order of precedence

@@ -43,7 +43,7 @@ describe("BpmnEventHandler", () => {
     beforeEach(async () => {
         handler = new BpmnEventHandler();
         model = new BpmnModel();
-        await model.loadXml(bpmnWithBoundaryEvents);
+        await model.parseXml(bpmnWithBoundaryEvents);
 
         mockLocation = {
             nodeId: "Task_1",
@@ -123,7 +123,7 @@ describe("BpmnEventHandler", () => {
             </bpmn:definitions>`;
             
             const simpleModel = new BpmnModel();
-            await simpleModel.loadXml(simpleXml);
+            await simpleModel.parseXml(simpleXml);
             
             const result = handler.attachBoundaryEvents(simpleModel, "SimpleTask", mockLocation, mockContext);
             expect(result.boundaryEventsAttached).toHaveLength(0);
@@ -244,7 +244,7 @@ describe("BpmnEventHandler", () => {
             </bpmn:definitions>`;
 
             const timerModel = new BpmnModel();
-            await timerModel.loadXml(timerXml);
+            await timerModel.parseXml(timerXml);
             
             const result = handler.attachBoundaryEvents(timerModel, "Task_1", mockLocation, mockContext);
             expect(result.boundaryEventsAttached[0].eventType).toBe("timer");
@@ -262,7 +262,7 @@ describe("BpmnEventHandler", () => {
             </bpmn:definitions>`;
 
             const messageModel = new BpmnModel();
-            await messageModel.loadXml(messageXml);
+            await messageModel.parseXml(messageXml);
             
             const result = handler.attachBoundaryEvents(messageModel, "Task_1", mockLocation, mockContext);
             expect(result.boundaryEventsAttached[0].eventType).toBe("message");
@@ -280,7 +280,7 @@ describe("BpmnEventHandler", () => {
             </bpmn:definitions>`;
 
             const signalModel = new BpmnModel();
-            await signalModel.loadXml(signalXml);
+            await signalModel.parseXml(signalXml);
             
             const result = handler.attachBoundaryEvents(signalModel, "Task_1", mockLocation, mockContext);
             expect(result.boundaryEventsAttached[0].eventType).toBe("signal");

@@ -468,6 +468,14 @@ export class ResourceRegistry extends EventEmitter {
     }
 
     /**
+     * Trigger immediate discovery of all resources
+     * Useful after external installation/configuration changes
+     */
+    async rediscoverResources(): Promise<void> {
+        return this.performDiscovery();
+    }
+
+    /**
      * Restart a failed resource and any dependent resources that might have been affected
      */
     async restartResourceWithDependents(resourceId: string): Promise<void> {

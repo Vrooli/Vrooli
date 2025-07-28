@@ -121,8 +121,8 @@ export async function setupMCP(
     // Start the server logic (which now primarily sets up routes on the provided app)
     await serverInstance.start();
 
-    // Register shutdown handlers
-    registerMcpShutdown(serverInstance);
+    // Note: Shutdown handlers are now managed by the central shutdown coordinator in index.ts
+    // registerMcpShutdown(serverInstance);
 
     logger.info("MCP server initialized and routes configured.");
     return serverInstance;

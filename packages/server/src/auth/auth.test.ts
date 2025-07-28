@@ -466,14 +466,15 @@ describe("AuthTokensService", () => {
                 },
             });
 
-            const sessionId = generatePK().toString();
+            const sessionIdBigInt = generatePK();
+            const sessionId = sessionIdBigInt.toString();
             const lastRefreshAt = new Date();
             const userId = generatePK().toString();
 
             // Create session for this test
             await DbProvider.get().session.create({
                 data: {
-                    id: sessionId as any,
+                    id: sessionIdBigInt,
                     expires_at: new Date(Date.now() + DAYS_30_MS),
                     last_refresh_at: lastRefreshAt,
                     revokedAt: null, // Not revoked
@@ -586,7 +587,8 @@ describe("AuthTokensService", () => {
                 },
             });
 
-            const sessionId = generatePK().toString();
+            const sessionIdBigInt = generatePK();
+            const sessionId = sessionIdBigInt.toString();
             const lastRefreshAt = new Date();
 
             const payload: SessionToken = {
@@ -610,7 +612,7 @@ describe("AuthTokensService", () => {
             // Inject session data
             await DbProvider.get().session.create({
                 data: {
-                    id: sessionId as any,
+                    id: sessionIdBigInt,
                     expires_at: new Date(Date.now() + DAYS_30_MS), // Not expired
                     last_refresh_at: lastRefreshAt, // Matches payload
                     revokedAt: null, // Not revoked
@@ -673,7 +675,8 @@ describe("AuthTokensService", () => {
             const initialTime = 1000000000000;
             const dateNowStub = vi.spyOn(Date, "now").mockReturnValue(initialTime);
 
-            const sessionId = generatePK().toString();
+            const sessionIdBigInt = generatePK();
+            const sessionId = sessionIdBigInt.toString();
             const lastRefreshAt = new Date(initialTime - DAYS_30_MS).toISOString();
 
             const payload: SessionToken = {
@@ -702,7 +705,7 @@ describe("AuthTokensService", () => {
             // Inject session data
             await DbProvider.get().session.create({
                 data: {
-                    id: sessionId as any,
+                    id: sessionIdBigInt,
                     expires_at: new Date(Date.now() + DAYS_30_MS), // Add future expiration date
                     last_refresh_at: new Date(lastRefreshAt),
                     revokedAt: new Date(), // Can't refresh a revoked session
