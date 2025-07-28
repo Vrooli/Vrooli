@@ -1,0 +1,102 @@
+{
+  "name": "Website Change Alert System",
+  "description": "Monitors multiple websites for changes and sends notifications via webhook",
+  "workflow": {
+    "agents": [
+      {
+        "name": "Product Page Monitor",
+        "type": "WebsiteAgent",
+        "schedule": "every_30m",
+        "options": {
+          "url": "https://example.com/product",
+          "mode": "on_change",
+          "extract": {
+            "price": {
+              "css": ".price",
+              "value": "normalize-space(.)"
+            },
+            "availability": {
+              "css": ".availability",
+              "value": "normalize-space(.)"
+            },
+            "title": {
+              "css": "h1",
+              "value": "normalize-space(.)"
+            }
+          }
+        }
+      },
+      {
+        "name": "Competitor Monitor",
+        "type": "WebsiteAgent",
+        "schedule": "every_1h",
+        "options": {
+          "url": "https://competitor.com/similar-product",
+          "mode": "on_change",
+          "extract": {
+            "competitor_price": {
+              "css": ".product-price",
+              "value": "normalize-space(.)"
+            }
+          }
+        }
+      },
+      {
+        "name": "Change Detector",
+        "type": "TriggerAgent",
+        "sources": ["Product Page Monitor", "Competitor Monitor"],
+        "options": {
+          "rules": [
+            {
+              "type": "field>=value",
+              "value": "10",
+              "path": "price_change_percentage"
+            }
+          ],
+          "message": "Significant price change detected!"
+        }
+      },
+      {
+        "name": "Deduplication Filter",
+        "type": "DeDuplicationAgent",
+        "sources": ["Change Detector"],
+        "options": {
+          "property": "title",
+          "lookback": 100
+        }
+      },
+      {
+        "name": "Slack Notifier",
+        "type": "WebhookAgent",
+        "sources": ["Deduplication Filter"],
+        "options": {
+          "url": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL",
+          "method": "post",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "payload": {
+            "text": "🚨 Price Alert: {{title}} - {{price}} (was {{previous_price}})"
+          }
+        }
+      },
+      {
+        "name": "Data Logger",
+        "type": "DataOutputAgent",
+        "sources": ["Product Page Monitor", "Competitor Monitor"],
+        "options": {
+          "mode": "merge",
+          "events_to_show": 50
+        }
+      }
+    ],
+    "connections": [
+      "Product Page Monitor -> Change Detector",
+      "Product Page Monitor -> Data Logger",
+      "Competitor Monitor -> Change Detector",
+      "Competitor Monitor -> Data Logger",
+      "Change Detector -> Deduplication Filter",
+      "Deduplication Filter -> Slack Notifier"
+    ]
+  }
+}

@@ -1,0 +1,39 @@
+[
+  {
+    "id": 1001,
+    "agent_id": 1,
+    "agent_name": "RSS Weather Monitor",
+    "created_at": "2025-12-28T15:00:00Z",
+    "payload": {
+      "title": "Weather Update - New York",
+      "temperature": "72F",
+      "conditions": "Partly cloudy",
+      "humidity": "65%",
+      "wind": "10 mph NW"
+    }
+  },
+  {
+    "id": 1002,
+    "agent_id": 2,
+    "agent_name": "Website Status Checker",
+    "created_at": "2025-12-28T15:30:00Z",
+    "payload": {
+      "url": "https://example.com",
+      "status": 200,
+      "response_time": 245,
+      "available": true
+    }
+  },
+  {
+    "id": 1003,
+    "agent_id": 3,
+    "agent_name": "Tech News Aggregator",
+    "created_at": "2025-12-28T16:00:00Z",
+    "payload": {
+      "title": "Latest AI Breakthrough",
+      "source": "TechCrunch",
+      "summary": "Researchers announce new developments in neural networks",
+      "link": "https://example.com/article/12345"
+    }
+  }
+]

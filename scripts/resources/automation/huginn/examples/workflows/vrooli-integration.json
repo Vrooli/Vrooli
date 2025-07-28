@@ -1,0 +1,114 @@
+{
+  "name": "Vrooli Resource Integration Workflow",
+  "description": "Demonstrates integration between Huginn and other Vrooli resources",
+  "workflow": {
+    "agents": [
+      {
+        "name": "System Event Monitor",
+        "type": "WebsiteAgent",
+        "schedule": "every_5m",
+        "options": {
+          "url": "http://localhost:5329/api/status",
+          "mode": "all",
+          "headers": {
+            "Authorization": "Bearer YOUR_VROOLI_TOKEN"
+          },
+          "extract": {
+            "active_users": {
+              "path": "$.stats.activeUsers"
+            },
+            "pending_jobs": {
+              "path": "$.stats.pendingJobs"
+            },
+            "system_load": {
+              "path": "$.stats.systemLoad"
+            }
+          }
+        }
+      },
+      {
+        "name": "Redis Event Subscriber",
+        "type": "ManualEventAgent",
+        "options": {
+          "note": "This would connect to Redis at localhost:6379 to receive Vrooli events"
+        }
+      },
+      {
+        "name": "High Load Detector",
+        "type": "TriggerAgent",
+        "sources": ["System Event Monitor"],
+        "options": {
+          "rules": [
+            {
+              "type": "field>value",
+              "value": "80",
+              "path": "system_load"
+            }
+          ]
+        }
+      },
+      {
+        "name": "AI Content Analyzer",
+        "type": "WebhookAgent",
+        "sources": ["Redis Event Subscriber"],
+        "options": {
+          "url": "http://localhost:11434/api/generate",
+          "method": "post",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "payload": {
+            "model": "llama2",
+            "prompt": "Analyze this event: {{content}}"
+          },
+          "note": "Sends content to local Ollama instance"
+        }
+      },
+      {
+        "name": "MinIO Storage",
+        "type": "WebhookAgent",
+        "sources": ["AI Content Analyzer"],
+        "options": {
+          "url": "http://localhost:9000/api/v1/upload",
+          "method": "post",
+          "headers": {
+            "Authorization": "Bearer YOUR_MINIO_TOKEN"
+          },
+          "payload": {
+            "bucket": "huginn-reports",
+            "key": "analysis-{{timestamp}}.json",
+            "content": "{{analysis_result}}"
+          }
+        }
+      },
+      {
+        "name": "Node-RED Trigger",
+        "type": "WebhookAgent",
+        "sources": ["High Load Detector"],
+        "options": {
+          "url": "http://localhost:1880/huginn-webhook",
+          "method": "post",
+          "payload": {
+            "event": "high_load",
+            "load": "{{system_load}}",
+            "timestamp": "{{created_at}}"
+          },
+          "note": "Triggers Node-RED flow for load balancing"
+        }
+      }
+    ],
+    "connections": [
+      "System Event Monitor -> High Load Detector",
+      "High Load Detector -> Node-RED Trigger",
+      "Redis Event Subscriber -> AI Content Analyzer",
+      "AI Content Analyzer -> MinIO Storage"
+    ],
+    "integration_points": {
+      "vrooli_api": "Monitor system status and metrics",
+      "redis": "Subscribe to real-time events",
+      "ollama": "AI-powered content analysis",
+      "minio": "Store analysis results",
+      "node_red": "Trigger automation flows"
+    }
+  }
+}

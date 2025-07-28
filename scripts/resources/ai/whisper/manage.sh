@@ -339,7 +339,7 @@ whisper::show_logs() {
 # Transcribe audio file
 #######################################
 whisper::transcribe() {
-    if [[ -z "$AUDIO_FILE" ]]; then
+    if [[ -z "${AUDIO_FILE:-}" ]]; then
         log::error "No audio file specified. Use --file <path>"
         return 1
     fi

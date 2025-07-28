@@ -62,10 +62,41 @@ run_with_mocks() {
             fi
         }
         
-        # Mock jq function (passthrough to real jq if available)
+        # Mock jq function - simulates jq behavior for our test data
         jq() {
-            if [[ \"\$MOCK_JQ_AVAILABLE\" == \"yes\" ]] && command -v /usr/bin/jq >/dev/null 2>&1; then
-                /usr/bin/jq \"\$@\"
+            if [[ \"\$MOCK_JQ_AVAILABLE\" == \"yes\" ]]; then
+                # Try to use real jq if available
+                if command -v /usr/bin/jq >/dev/null 2>&1; then
+                    /usr/bin/jq \"\$@\"
+                else
+                    # Fallback to simple mock for common patterns
+                    case \"\$1\" in
+                        \"-r\")
+                            shift
+                            case \"\$1\" in
+                                \".results[0].url // empty\")
+                                    echo \"http://example.com\"
+                                    ;;
+                                \".results[:*] | .[] | .title\")
+                                    echo \"Test Result\"
+                                    ;;
+                                \".results | .[] | .title\")
+                                    echo \"Test Result\"
+                                    ;;
+                                *)
+                                    echo \"\$MOCK_API_RESPONSE\"
+                                    ;;
+                            esac
+                            ;;
+                        \"-c\")
+                            echo \"\$MOCK_API_RESPONSE\"
+                            ;;
+                        *)
+                            echo \"\$MOCK_API_RESPONSE\"
+                            ;;
+                    esac
+                fi
+                return 0
             else
                 echo \"jq: command not found\" >&2
                 return 127

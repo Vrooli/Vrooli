@@ -1,0 +1,24 @@
+{
+  "type": "Agents::WebsiteAgent",
+  "name": "Test Website Monitor",
+  "schedule": "every_30m",
+  "keep_events_for": 604800,
+  "options": {
+    "url": "https://example.com/test",
+    "mode": "on_change",
+    "expected_update_period_in_days": 1,
+    "extract": {
+      "status": {
+        "css": "div.status",
+        "value": "normalize-space(.)"
+      },
+      "last_updated": {
+        "css": "span.last-update",
+        "value": "normalize-space(.)"
+      }
+    },
+    "headers": {
+      "User-Agent": "Huginn Test Agent"
+    }
+  }
+}

@@ -97,7 +97,7 @@ windmill::validate_installation_requirements() {
 # Returns: 0 if valid, 1 otherwise
 #######################################
 windmill::validate_external_database() {
-    if [[ -z "$DB_URL" ]]; then
+    if [[ -z "${DB_URL:-}" ]]; then
         log::error "External database URL is required when using external database"
         log::info "Set --db-url 'postgresql://user:pass@host:port/database'"
         return 1

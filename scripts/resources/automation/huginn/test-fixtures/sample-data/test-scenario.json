@@ -1,0 +1,48 @@
+{
+  "name": "Test Monitoring Scenario",
+  "description": "A test scenario for monitoring multiple websites and aggregating results",
+  "tag_fg_color": "#ffffff",
+  "tag_bg_color": "#5bc0de",
+  "agents": [
+    {
+      "type": "Agents::WebsiteAgent",
+      "name": "Site 1 Monitor",
+      "guid": "site1_monitor",
+      "options": {
+        "url": "https://site1.example.com",
+        "mode": "on_change",
+        "expected_update_period_in_days": 1
+      }
+    },
+    {
+      "type": "Agents::WebsiteAgent", 
+      "name": "Site 2 Monitor",
+      "guid": "site2_monitor",
+      "options": {
+        "url": "https://site2.example.com",
+        "mode": "on_change",
+        "expected_update_period_in_days": 1
+      }
+    },
+    {
+      "type": "Agents::DigestAgent",
+      "name": "Daily Status Digest",
+      "guid": "daily_digest",
+      "sources": ["site1_monitor", "site2_monitor"],
+      "options": {
+        "message": "Daily Website Status Report",
+        "expected_receive_period_in_days": 1
+      }
+    }
+  ],
+  "links": [
+    {
+      "source": "site1_monitor",
+      "receiver": "daily_digest"
+    },
+    {
+      "source": "site2_monitor", 
+      "receiver": "daily_digest"
+    }
+  ]
+}
