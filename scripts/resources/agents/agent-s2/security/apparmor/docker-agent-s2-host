@@ -1,0 +1,235 @@
+# AppArmor profile for Agent S2 Host Mode
+# This profile provides controlled access to host resources while maintaining security
+#
+# Installation:
+#   sudo cp docker-agent-s2-host /etc/apparmor.d/
+#   sudo apparmor_parser -r /etc/apparmor.d/docker-agent-s2-host
+#
+# This profile should be used with: security_opt: ["apparmor:docker-agent-s2-host"]
+
+#include <tunables/global>
+
+profile docker-agent-s2-host flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+  #include <abstractions/user-tmp>
+
+  # Signal permissions
+  signal (send) set=(term, kill),
+  signal (receive) set=(term, kill, usr1, usr2),
+
+  # Network permissions (host mode needs full network access)
+  network inet stream,
+  network inet dgram,
+  network inet6 stream,
+  network inet6 dgram,
+  network unix stream,
+  network unix dgram,
+
+  # Capability permissions (minimal set needed for automation)
+  capability setuid,
+  capability setgid,
+  capability sys_ptrace,
+  capability dac_override,
+
+  # File system permissions for container operation
+  /usr/bin/* ix,
+  /bin/* ix,
+  /usr/local/bin/* ix,
+  
+  # Python and runtime access
+  /usr/bin/python3* ix,
+  /usr/lib/python3*/** r,
+  /usr/local/lib/python3*/** r,
+  
+  # Container filesystem (full access)
+  /home/agents2/** rw,
+  /opt/agent-s2/** rw,
+  /tmp/** rw,
+  /var/tmp/** rw,
+  
+  # X11 and display access (required for GUI automation)
+  /tmp/.X11-unix/* rw,
+  /tmp/.X*-lock rw,
+  /tmp/.Xauth* rw,
+  /tmp/.Xauthority rw,
+  owner /tmp/.X11-unix/X* rw,
+  
+  # Mounted host directories (configurable access)
+  /mnt/documents/** rw,
+  /mnt/downloads/** rw,
+  /mnt/host-home/** r,
+  /mnt/tmp/** rw,
+  /mnt/workspace/** rw,
+  
+  # System information access (read-only)
+  /proc/sys/kernel/hostname r,
+  /proc/version r,
+  /proc/meminfo r,
+  /proc/cpuinfo r,
+  /proc/*/stat r,
+  /proc/*/status r,
+  /proc/*/cmdline r,
+  /proc/*/comm r,
+  /proc/*/exe r,
+  
+  # Device access for desktop integration
+  /dev/null rw,
+  /dev/zero r,
+  /dev/random r,
+  /dev/urandom r,
+  /dev/tty rw,
+  /dev/pts/* rw,
+  
+  # Graphics and display devices
+  /dev/dri/** rw,
+  /dev/fb* rw,
+  
+  # Audio devices (optional)
+  /dev/snd/** rw,
+  
+  # Desktop environment files (read-only)
+  /usr/share/applications/** r,
+  /usr/share/pixmaps/** r,
+  /usr/share/icons/** r,
+  /usr/share/themes/** r,
+  /usr/share/fonts/** r,
+  /usr/local/share/applications/** r,
+  
+  # User desktop files (in mounted areas only)
+  /mnt/host-home/.local/share/applications/** r,
+  /mnt/host-home/.config/** r,
+  
+  # Library access (read-only)
+  /lib/** r,
+  /lib64/** r,
+  /usr/lib/** r,
+  /usr/lib64/** r,
+  /usr/local/lib/** r,
+  
+  # Configuration files (read-only)
+  /etc/ld.so.cache r,
+  /etc/ld.so.conf r,
+  /etc/ld.so.conf.d/ r,
+  /etc/ld.so.conf.d/** r,
+  /etc/localtime r,
+  /etc/timezone r,
+  /etc/mime.types r,
+  /etc/fonts/** r,
+  /etc/ssl/certs/** r,
+  
+  # STRICTLY FORBIDDEN PATHS (explicit denials for security)
+  # System configuration
+  deny /etc/passwd* rw,
+  deny /etc/shadow* rw,
+  deny /etc/group* w,
+  deny /etc/sudoers* rw,
+  deny /etc/ssh/** w,
+  deny /etc/systemd/** w,
+  deny /etc/cron* rw,
+  deny /etc/fstab w,
+  deny /etc/hosts w,
+  
+  # System directories
+  deny /boot/** rw,
+  deny /sys/** w,
+  deny /proc/sys/** w,
+  deny /proc/*/mem rw,
+  deny /proc/kcore rw,
+  
+  # Critical system binaries
+  deny /usr/bin/sudo x,
+  deny /usr/bin/su x,
+  deny /bin/su x,
+  deny /usr/bin/passwd x,
+  deny /usr/sbin/** x,
+  deny /sbin/** x,
+  
+  # Host system sensitive areas
+  deny /root/** rw,
+  deny /var/log/** w,
+  deny /var/lib/dpkg/** w,
+  deny /var/cache/apt/** w,
+  
+  # Network configuration
+  deny /etc/network/** w,
+  deny /etc/netplan/** w,
+  deny /etc/NetworkManager/** w,
+  
+  # Docker and container runtime
+  deny /var/run/docker.sock rw,
+  deny /var/lib/docker/** rw,
+  deny /usr/bin/docker x,
+  deny /usr/bin/dockerd x,
+  
+  # Package management
+  deny /usr/bin/apt* x,
+  deny /usr/bin/dpkg* x,
+  deny /usr/bin/snap x,
+  deny /usr/bin/flatpak x,
+  
+  # System service management
+  deny /usr/bin/systemctl x,
+  deny /bin/systemctl x,
+  deny /usr/sbin/service x,
+  
+  # Kernel modules
+  deny /usr/sbin/modprobe x,
+  deny /sbin/modprobe x,
+  deny /lib/modules/** w,
+  
+  # Host user directories (except mounted ones)
+  deny /home/*/.ssh/** rw,
+  deny /home/*/.gnupg/** rw,
+  deny /home/*/.config/*/passwords/** rw,
+  deny /home/*/.local/share/keyrings/** rw,
+  
+  # Browser sensitive data (outside mounted areas)
+  deny /home/*/.mozilla/**/key*.db rw,
+  deny /home/*/.config/google-chrome/**/Login\ Data* rw,
+  deny /home/*/.config/chromium/**/Login\ Data* rw,
+  
+  # Backup and version control sensitive files
+  deny /**/.git/config w,
+  deny /**/.svn/** w,
+  deny /**/.hg/** w,
+  
+  # Log rotation and system maintenance
+  deny /usr/sbin/logrotate x,
+  deny /usr/bin/crontab x,
+  
+  # File permissions that could escalate privileges
+  deny /** m,  # Deny memory mapping with execute permission on most files
+  deny /tmp/** m,  # Allow memory mapping in tmp for legitimate use
+  deny /mnt/** m,  # Allow memory mapping in mounted areas
+  deny /home/agents2/** m,  # Allow memory mapping in container home
+  deny /opt/agent-s2/** m,  # Allow memory mapping in agent directory
+}
+
+# Additional profile for specific automation tools (if needed)
+profile docker-agent-s2-automation flags=(attach_disconnected) {
+  #include <abstractions/base>
+  
+  # Specific permissions for GUI automation tools
+  /usr/bin/xdotool ix,
+  /usr/bin/xwininfo ix,
+  /usr/bin/xprop ix,
+  /usr/bin/wmctrl ix,
+  
+  # Screenshot tools
+  /usr/bin/scrot ix,
+  /usr/bin/gnome-screenshot ix,
+  /usr/bin/import ix,
+  
+  # Text processing for automation
+  /usr/bin/sed ix,
+  /usr/bin/awk ix,
+  /usr/bin/grep ix,
+  /usr/bin/cut ix,
+  
+  # Basic file operations
+  /bin/ls ix,
+  /bin/cat ix,
+  /bin/echo ix,
+  /usr/bin/find ix,
+}

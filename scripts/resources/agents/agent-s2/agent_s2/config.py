@@ -5,7 +5,14 @@ All configuration values can be overridden via environment variables.
 """
 
 import os
-from typing import Optional
+from typing import Optional, Dict, List, Any
+from enum import Enum
+
+
+class AgentMode(Enum):
+    """Available Agent S2 operation modes"""
+    SANDBOX = "sandbox"
+    HOST = "host"
 
 
 class Config:
@@ -52,6 +59,27 @@ class Config:
     CONTAINER_NAME: str = "agent-s2"
     DOCKER_IMAGE: str = "agent-s2:latest"
     
+    # Mode Configuration
+    CURRENT_MODE: AgentMode = AgentMode(os.getenv("AGENT_S2_MODE", "sandbox"))
+    DEFAULT_MODE: AgentMode = AgentMode(os.getenv("AGENT_S2_DEFAULT_MODE", "sandbox"))
+    
+    # Sandbox Mode Configuration
+    SANDBOX_APPLICATIONS: List[str] = [
+        "firefox-esr", "mousepad", "gedit", "gnome-calculator", "xterm"
+    ]
+    
+    # Host Mode Configuration  
+    HOST_MODE_ENABLED: bool = os.getenv("AGENT_S2_HOST_MODE_ENABLED", "false").lower() == "true"
+    HOST_DISPLAY_ACCESS: bool = os.getenv("AGENT_S2_HOST_DISPLAY_ACCESS", "false").lower() == "true"
+    HOST_FILESYSTEM_MOUNTS: str = os.getenv("AGENT_S2_HOST_MOUNTS", "")  # JSON string
+    HOST_ALLOWED_APPLICATIONS: str = os.getenv("AGENT_S2_HOST_APPS", "*")  # comma-separated or "*"
+    HOST_SECURITY_PROFILE: str = os.getenv("AGENT_S2_HOST_SECURITY_PROFILE", "agent-s2-host")
+    
+    # Security Configuration for Host Mode
+    HOST_FORBIDDEN_PATHS: List[str] = ["/etc", "/var", "/usr", "/boot", "/sys", "/proc"]
+    HOST_MAX_MOUNT_SIZE_GB: int = int(os.getenv("AGENT_S2_HOST_MAX_MOUNT_SIZE_GB", "10"))
+    HOST_AUDIT_LOGGING: bool = os.getenv("AGENT_S2_HOST_AUDIT_LOGGING", "true").lower() == "true"
+    
     @classmethod
     def validate(cls) -> None:
         """Validate configuration values"""
@@ -75,6 +103,19 @@ class Config:
         valid_log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if cls.LOG_LEVEL.upper() not in valid_log_levels:
             errors.append(f"LOG_LEVEL must be one of {valid_log_levels}, got {cls.LOG_LEVEL}")
+        
+        # Validate mode configuration
+        if cls.CURRENT_MODE == AgentMode.HOST and not cls.HOST_MODE_ENABLED:
+            errors.append("HOST mode requested but HOST_MODE_ENABLED is false")
+        
+        # Validate host mode security
+        if cls.HOST_MODE_ENABLED:
+            if cls.HOST_MAX_MOUNT_SIZE_GB <= 0:
+                errors.append(f"HOST_MAX_MOUNT_SIZE_GB must be positive, got {cls.HOST_MAX_MOUNT_SIZE_GB}")
+            
+            if cls.HOST_DISPLAY_ACCESS:
+                import warnings
+                warnings.warn("Host display access enabled - this is a security risk", UserWarning)
             
         if errors:
             raise ValueError(f"Configuration validation failed:\n" + "\n".join(errors))
@@ -99,6 +140,80 @@ class Config:
             for key, value in cls.__dict__.items() 
             if not key.startswith("_") and not callable(value)
         }
+    
+    @classmethod
+    def is_sandbox_mode(cls) -> bool:
+        """Check if currently in sandbox mode"""
+        return cls.CURRENT_MODE == AgentMode.SANDBOX
+    
+    @classmethod 
+    def is_host_mode(cls) -> bool:
+        """Check if currently in host mode"""
+        return cls.CURRENT_MODE == AgentMode.HOST
+    
+    @classmethod
+    def get_mode_name(cls) -> str:
+        """Get current mode as string"""
+        return cls.CURRENT_MODE.value
+    
+    @classmethod
+    def get_allowed_applications(cls) -> List[str]:
+        """Get list of allowed applications for current mode"""
+        if cls.is_sandbox_mode():
+            return cls.SANDBOX_APPLICATIONS
+        elif cls.is_host_mode():
+            if cls.HOST_ALLOWED_APPLICATIONS == "*":
+                return ["*"]  # All applications allowed
+            return [app.strip() for app in cls.HOST_ALLOWED_APPLICATIONS.split(",") if app.strip()]
+        return []
+    
+    @classmethod
+    def get_host_mounts(cls) -> List[Dict[str, str]]:
+        """Parse and return host filesystem mounts configuration"""
+        if not cls.HOST_FILESYSTEM_MOUNTS:
+            return []
+        
+        try:
+            import json
+            mounts = json.loads(cls.HOST_FILESYSTEM_MOUNTS)
+            return mounts if isinstance(mounts, list) else []
+        except (json.JSONDecodeError, ImportError):
+            # Fallback to simple parsing
+            return []
+    
+    @classmethod
+    def get_security_constraints(cls) -> Dict[str, Any]:
+        """Get security constraints for current mode"""
+        if cls.is_sandbox_mode():
+            return {
+                "filesystem_access": "none",
+                "display_access": "virtual",
+                "network_access": "bridge",
+                "applications": cls.SANDBOX_APPLICATIONS,
+                "isolation_level": "high"
+            }
+        elif cls.is_host_mode():
+            return {
+                "filesystem_access": "mounted_only",
+                "display_access": "host" if cls.HOST_DISPLAY_ACCESS else "virtual",
+                "network_access": "host",
+                "applications": cls.get_allowed_applications(),
+                "isolation_level": "medium",
+                "security_profile": cls.HOST_SECURITY_PROFILE,
+                "forbidden_paths": cls.HOST_FORBIDDEN_PATHS,
+                "audit_logging": cls.HOST_AUDIT_LOGGING
+            }
+        return {}
+    
+    @classmethod
+    def switch_mode(cls, new_mode: AgentMode) -> None:
+        """Switch to a different mode (requires restart)"""
+        if new_mode == AgentMode.HOST and not cls.HOST_MODE_ENABLED:
+            raise ValueError("Host mode is not enabled in configuration")
+        
+        # Update environment variable for persistence across restarts
+        os.environ["AGENT_S2_MODE"] = new_mode.value
+        cls.CURRENT_MODE = new_mode
 
 
 # Validate configuration on module import

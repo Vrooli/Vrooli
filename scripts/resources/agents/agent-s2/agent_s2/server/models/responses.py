@@ -4,6 +4,12 @@ from typing import Dict, Any, Optional, List
 from pydantic import BaseModel, Field
 
 
+class BaseResponse(BaseModel):
+    """Base response model"""
+    success: bool = True
+    message: Optional[str] = None
+
+
 class TaskResponse(BaseModel):
     """Task execution response"""
     task_id: str
@@ -22,6 +28,7 @@ class HealthResponse(BaseModel):
     startup_time: str
     tasks_processed: int
     ai_status: Dict[str, Any]
+    mode_info: Optional[Dict[str, Any]] = None
 
 
 class CapabilitiesResponse(BaseModel):
@@ -30,6 +37,7 @@ class CapabilitiesResponse(BaseModel):
     supported_tasks: List[str]
     ai_status: Dict[str, Any]
     display_info: Dict[str, Any]
+    mode_info: Optional[Dict[str, Any]] = None
 
 
 class ScreenshotResponse(BaseModel):

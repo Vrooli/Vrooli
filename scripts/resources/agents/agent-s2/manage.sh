@@ -40,6 +40,8 @@ source "${SCRIPT_DIR}/lib/install.sh"
 source "${SCRIPT_DIR}/lib/api.sh"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib/usage.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/modes.sh"
 
 #######################################
 # Parse command line arguments
@@ -55,7 +57,7 @@ agents2::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|info|usage" \
+        --options "install|uninstall|start|stop|restart|status|logs|info|usage|mode|switch-mode|test-mode" \
         --default "install"
     
     args::register \
@@ -107,6 +109,19 @@ agents2::parse_arguments() {
         --default "no"
     
     args::register \
+        --name "mode" \
+        --desc "Operating mode (sandbox or host)" \
+        --type "value" \
+        --options "sandbox|host" \
+        --default "sandbox"
+    
+    args::register \
+        --name "target-mode" \
+        --desc "Target mode for mode switching" \
+        --type "value" \
+        --options "sandbox|host"
+    
+    args::register \
         --name "usage-type" \
         --desc "Type of usage example to run" \
         --type "value" \
@@ -132,6 +147,8 @@ agents2::parse_arguments() {
     export ENABLE_AI=$(args::get "enable-ai")
     export ARGS_ENABLE_AI=$(args::get "enable-ai")
     export USAGE_TYPE=$(args::get "usage-type")
+    export MODE=$(args::get "mode")
+    export TARGET_MODE=$(args::get "target-mode")
 }
 
 #######################################
@@ -143,6 +160,12 @@ agents2::usage() {
     echo "Examples:"
     echo "  $0 --action install                              # Install Agent S2 with default settings"
     echo "  $0 --action install --llm-provider anthropic     # Install with Anthropic provider"
+    echo "  $0 --action install --mode host                  # Install with host mode enabled"
+    echo "  $0 --action start --mode sandbox                 # Start in sandbox mode"
+    echo "  $0 --action start --mode host                    # Start in host mode"
+    echo "  $0 --action switch-mode --target-mode host       # Switch to host mode"
+    echo "  $0 --action mode                                 # Show current mode information"
+    echo "  $0 --action test-mode                            # Test current mode functionality"
     echo "  $0 --action status                               # Check Agent S2 status"
     echo "  $0 --action logs                                 # View Agent S2 logs"
     echo "  $0 --action usage                                # Show usage examples"
@@ -177,13 +200,21 @@ agents2::main() {
             agents2::uninstall_service
             ;;
         "start")
-            agents2::docker_start
+            if [[ -n "$MODE" ]]; then
+                agents2::start_in_mode "$MODE"
+            else
+                agents2::docker_start
+            fi
             ;;
         "stop")
             agents2::docker_stop
             ;;
         "restart")
-            agents2::docker_restart
+            if [[ -n "$MODE" ]]; then
+                agents2::switch_mode "$MODE" true
+            else
+                agents2::docker_restart
+            fi
             ;;
         "status")
             agents2::show_status
@@ -196,6 +227,19 @@ agents2::main() {
             ;;
         "usage")
             agents2::run_usage_example "$USAGE_TYPE"
+            ;;
+        "mode")
+            agents2::show_mode_info
+            ;;
+        "switch-mode")
+            if [[ -z "$TARGET_MODE" ]]; then
+                log::error "Target mode not specified. Use --target-mode sandbox|host"
+                exit 1
+            fi
+            agents2::switch_mode "$TARGET_MODE" "$FORCE"
+            ;;
+        "test-mode")
+            agents2::test_mode "$MODE"
             ;;
         *)
             log::error "Unknown action: $ACTION"

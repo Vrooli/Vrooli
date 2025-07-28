@@ -1,6 +1,6 @@
 # Agent S2 - Autonomous Computer Interaction Service
 
-Agent S2 is an open-source framework for autonomous computer interaction, enabling AI agents to observe, reason, and perform tasks on digital interfaces using mouse and keyboard control. This integration provides Agent S2 as a secure, Docker-based service within the Vrooli ecosystem.
+Agent S2 is an open-source framework for autonomous computer interaction, enabling AI agents to observe, reason, and perform tasks on digital interfaces using mouse and keyboard control. This integration provides Agent S2 as a secure, Docker-based service within the Vrooli ecosystem with **dual-mode operation** for both secure sandbox and extended host system access.
 
 ## 🚀 Features
 
@@ -72,35 +72,94 @@ User: "Take a screenshot and click the Chrome icon"
 
 **Key Point**: AI doesn't replace core automation - it orchestrates it intelligently!
 
+## 🚀 Dual-Mode Operation
+
+Agent S2 supports two distinct operation modes to balance security and capability:
+
+### 🔒 Sandbox Mode (Default)
+- **Security**: High isolation with restricted access
+- **Environment**: Containerized desktop with pre-installed applications
+- **Access**: Limited to container filesystem and approved applications
+- **Use Cases**: General automation, web browsing, document editing
+- **Network**: Restricted to external HTTPS connections only
+
+### 🖥️ Host Mode (Advanced)
+- **Security**: Medium isolation with controlled host access
+- **Environment**: Access to host desktop and applications
+- **Access**: Controlled access to host filesystem and applications
+- **Use Cases**: System administration, development workflows, native app automation
+- **Network**: Access to localhost and private networks (with validation)
+
+### Mode Comparison
+
+| Feature | Sandbox Mode | Host Mode |
+|---------|--------------|-----------|
+| **Security Level** | High | Medium |
+| **Isolation** | Full container isolation | Controlled host access |
+| **File Access** | Container only (`/home/agents2`, `/tmp`, `/opt/agent-s2`) | Host filesystem (with security constraints) |
+| **Applications** | Container apps only | Host applications + container apps |
+| **Network Access** | External HTTPS only | Localhost + private networks |
+| **Display Access** | Virtual display (X11) | Host display (X11 forwarding) |
+| **Risk Level** | Minimal | Controlled |
+
 ## 🔧 Installation
 
 ### Docker Service Installation
+
+#### Sandbox Mode (Recommended)
 ```bash
-# Install with AI enabled (default - requires API key)
+# Install in sandbox mode with AI enabled (default)
 ./scripts/resources/agents/agent-s2/manage.sh --action install \
+  --mode sandbox \
   --llm-provider anthropic \
   --llm-model claude-3-7-sonnet-20250219
 
 # Install with OpenAI instead
 ./scripts/resources/agents/agent-s2/manage.sh --action install \
+  --mode sandbox \
   --llm-provider openai \
   --llm-model gpt-4o
 
 # Install with core automation only (no AI features)
 ./scripts/resources/agents/agent-s2/manage.sh --action install \
+  --mode sandbox \
   --enable-ai no
+```
 
-# Install with web search enabled (requires Perplexica)
-./scripts/resources/agents/agent-s2/manage.sh --action install \
-  --enable-search yes
+#### Host Mode (Advanced)
+⚠️ **Warning**: Host mode provides broader system access. Only enable on trusted systems.
 
-# Install with custom settings
+```bash
+# Enable host mode during installation
+export AGENT_S2_HOST_MODE_ENABLED=true
+
+# Install with host mode capabilities
 ./scripts/resources/agents/agent-s2/manage.sh --action install \
+  --mode sandbox \
+  --llm-provider anthropic \
+  --llm-model claude-3-7-sonnet-20250219 \
+  --host-mode-enabled yes
+
+# Install with specific host applications allowed
+./scripts/resources/agents/agent-s2/manage.sh --action install \
+  --mode sandbox \
+  --host-mode-enabled yes \
+  --allowed-host-apps "firefox,code,gimp" \
+  --host-mounts "/home/user/Documents,/home/user/Projects"
+```
+
+#### Custom Configuration
+```bash
+# Install with comprehensive custom settings
+./scripts/resources/agents/agent-s2/manage.sh --action install \
+  --mode sandbox \
   --llm-provider anthropic \
   --llm-model claude-3-7-sonnet-20250219 \
   --enable-ai yes \
-  --enable-search no \
-  --vnc-password mysecurepassword
+  --enable-search yes \
+  --host-mode-enabled yes \
+  --vnc-password mysecurepassword \
+  --audit-logging yes
 ```
 
 ### Python Client Installation
@@ -128,6 +187,67 @@ export OPENAI_API_KEY="your_openai_api_key_here"
 
 # Optional: Disable AI if no keys available
 export AGENTS2_ENABLE_AI=false
+
+# Host mode configuration
+export AGENT_S2_HOST_MODE_ENABLED=true
+export AGENT_S2_HOST_AUDIT_LOGGING=true
+export AGENT_S2_HOST_SECURITY_PROFILE=agent-s2-host
+```
+
+## 🔄 Mode Management
+
+### Mode Switching
+
+Agent S2 supports runtime mode switching between sandbox and host modes:
+
+```bash
+# Switch to host mode (if enabled)
+./scripts/resources/agents/agent-s2/lib/modes.sh switch_mode host
+
+# Switch back to sandbox mode
+./scripts/resources/agents/agent-s2/lib/modes.sh switch_mode sandbox
+
+# Check current mode
+./scripts/resources/agents/agent-s2/lib/modes.sh current_mode
+
+# Validate mode configuration
+./scripts/resources/agents/agent-s2/lib/modes.sh validate_mode host
+```
+
+### API-Based Mode Management
+
+```bash
+# Get current mode information
+curl http://localhost:4113/modes/current
+
+# Switch modes via API
+curl -X POST http://localhost:4113/modes/switch \
+  -H "Content-Type: application/json" \
+  -d '{"new_mode": "host"}'
+
+# Get mode-specific capabilities
+curl http://localhost:4113/modes/environment
+
+# Get security constraints for current mode
+curl http://localhost:4113/modes/security
+
+# List available applications in current mode
+curl http://localhost:4113/modes/applications
+```
+
+### Host Mode Prerequisites
+
+Before using host mode, ensure security components are installed:
+
+```bash
+# Install security prerequisites
+sudo ./scripts/resources/agents/agent-s2/security/install-security.sh install
+
+# Verify AppArmor profile is loaded
+sudo apparmor_status | grep docker-agent-s2-host
+
+# Enable X11 forwarding (if not using headless mode)
+./scripts/resources/agents/agent-s2/lib/modes.sh setup_x11_forwarding
 ```
 
 ## 🎯 Quick Start
@@ -525,27 +645,142 @@ if client.get_capabilities().get("ai_available"):
 
 ## 🔒 Security Considerations
 
-### Container Security
-- Runs as non-root user (`agents2`)
-- Isolated virtual display (no host display access by default)
-- Sandboxed execution environment
-- Resource limits enforced (memory, CPU)
+Agent S2's dual-mode architecture provides different security levels for different use cases.
+
+### Sandbox Mode Security (High Security)
+
+#### Container Isolation
+- **User**: Runs as non-root user (`agents2`) inside container
+- **Filesystem**: Isolated container filesystem with read-only host mounts
+- **Display**: Virtual X11 display with no host display access
+- **Network**: External HTTPS only, no localhost or private network access
+- **Resources**: Strict CPU and memory limits enforced
+
+#### Restricted Access
+- **Applications**: Container applications only (Firefox, LibreOffice, etc.)
+- **File System**: Limited to `/home/agents2`, `/tmp`, `/opt/agent-s2`
+- **Commands**: Whitelist-based command filtering
+- **Network**: No access to host services or internal networks
+
+### Host Mode Security (Medium Security)
+
+#### Controlled Host Access
+- **User**: Still runs as `agents2` user with controlled escalation
+- **Display**: X11 forwarding with host display access (optional)
+- **Network**: Controlled access to localhost and private networks
+- **Resources**: Enhanced limits with host resource access
+
+#### Security Monitoring
+- **AppArmor**: Mandatory security profile (`docker-agent-s2-host`)
+- **Audit Logging**: All actions logged to `/var/log/agent-s2/audit/`
+- **Threat Detection**: Real-time monitoring for suspicious activities
+- **Input Validation**: Enhanced validation for all inputs and commands
+
+#### Host Mode Constraints
+```bash
+# Forbidden paths (enforced by AppArmor)
+/etc/passwd, /etc/shadow, /root/*, /var/log/auth.log
+
+# Blocked commands
+sudo su -, passwd, usermod, chmod 4755, nc -l, bash -i >&
+
+# Network restrictions
+No access to: 127.0.0.1:22, sensitive internal services
+
+# Application restrictions
+Password managers, system settings still blocked
+```
+
+### Security Best Practices
+
+#### For Sandbox Mode
+```bash
+# Keep container updated
+./scripts/resources/agents/agent-s2/manage.sh --action update
+
+# Monitor resource usage
+docker stats agent-s2
+
+# Review logs regularly
+./scripts/resources/agents/agent-s2/manage.sh --action logs
+```
+
+#### For Host Mode
+```bash
+# Verify AppArmor profile is active
+sudo apparmor_status | grep docker-agent-s2-host
+
+# Monitor audit logs
+sudo tail -f /var/log/agent-s2/audit/$(date +%Y-%m-%d).log
+
+# Review security events
+curl http://localhost:4113/modes/security | jq '.recent_events'
+
+# Check for security violations
+./scripts/resources/agents/agent-s2/security/check-violations.sh
+```
+
+### Security Monitoring
+
+Agent S2 includes comprehensive security monitoring:
+
+#### Threat Detection
+- **Suspicious file access**: `/etc/passwd`, `/root/*`, private keys
+- **Privilege escalation**: `sudo`, `setuid`, `chmod 4755`
+- **Network anomalies**: Reverse shells, suspicious connections
+- **Rapid actions**: Automated attack patterns
+
+#### Audit Logging
+```bash
+# View audit summary
+curl http://localhost:4113/modes/security/audit
+
+# Export security events
+curl http://localhost:4113/modes/security/events > security-report.json
+
+# Check threat indicators
+curl http://localhost:4113/modes/security | jq '.threat_indicators'
+```
 
 ### VNC Security
-- Password-protected VNC access
-- Local-only binding by default
-- Optional SSL/TLS for remote access
+- **Authentication**: Password-protected VNC access
+- **Binding**: Local-only by default (`127.0.0.1:5900`)
+- **Encryption**: Optional SSL/TLS for remote access
+- **Access Control**: VNC only accessible to authorized users
 
 ### API Security
-- API key authentication support
-- Rate limiting recommended for production
-- Input validation on all endpoints
+- **Authentication**: API key support for production environments
+- **Rate Limiting**: Configurable request rate limits
+- **Input Validation**: All inputs validated and sanitized
+- **CORS**: Configurable cross-origin request policies
 
-### Restricted Applications
-The following applications are blocked by default:
-- Password managers (passwords, keychain, 1password, bitwarden)
-- System settings
-- Terminal/shell access
+### Production Deployment Security
+
+#### Recommended Configuration
+```bash
+# Enable all security features
+export AGENT_S2_HOST_AUDIT_LOGGING=true
+export AGENT_S2_HOST_SECURITY_PROFILE=agent-s2-host
+export AGENT_S2_API_RATE_LIMIT=100
+export AGENT_S2_VNC_SSL=true
+
+# Install with security hardening
+./scripts/resources/agents/agent-s2/manage.sh --action install \
+  --mode sandbox \
+  --host-mode-enabled yes \
+  --audit-logging yes \
+  --security-hardening yes \
+  --vnc-ssl yes
+```
+
+#### Security Checklist
+- [ ] AppArmor profile installed and active (host mode)
+- [ ] Audit logging enabled and monitored
+- [ ] VNC password changed from default
+- [ ] API rate limiting configured
+- [ ] Security events monitoring set up
+- [ ] Regular security log reviews scheduled
+- [ ] Container images kept updated
 
 ## 🛠️ Configuration
 

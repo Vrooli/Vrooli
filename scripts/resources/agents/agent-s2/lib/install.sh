@@ -7,7 +7,7 @@
 # Returns: 0 if successful, 1 if failed
 #######################################
 agents2::update_config() {
-    # Create comprehensive configuration JSON
+    # Create comprehensive dual-mode configuration JSON
     local additional_config
     additional_config=$(cat <<EOF
 {
@@ -16,7 +16,32 @@ agents2::update_config() {
         "guiAutomation": true,
         "planning": true,
         "multiStepTasks": true,
-        "crossPlatform": true
+        "crossPlatform": true,
+        "dualMode": true,
+        "hostModeSupport": $([[ "${AGENT_S2_HOST_MODE_ENABLED:-false}" == "true" ]] && echo "true" || echo "false"),
+        "securityMonitoring": true,
+        "auditLogging": $([[ "$AGENT_S2_HOST_AUDIT_LOGGING" == "true" ]] && echo "true" || echo "false")
+    },
+    "modes": {
+        "current": "${MODE:-sandbox}",
+        "available": ["sandbox", "host"],
+        "sandbox": {
+            "enabled": true,
+            "description": "Secure isolated environment",
+            "applications": ["firefox-esr", "mousepad", "gedit", "gnome-calculator", "xterm"],
+            "security": "high",
+            "hostAccess": false
+        },
+        "host": {
+            "enabled": $([[ "${AGENT_S2_HOST_MODE_ENABLED:-false}" == "true" ]] && echo "true" || echo "false"),
+            "description": "Extended host system access",
+            "applications": "${AGENT_S2_HOST_APPS:-*}",
+            "security": "medium",
+            "hostAccess": true,
+            "displayAccess": $([[ "$AGENT_S2_HOST_DISPLAY_ACCESS" == "true" ]] && echo "true" || echo "false"),
+            "mounts": "${AGENT_S2_HOST_MOUNTS:-[]}",
+            "securityProfile": "${AGENT_S2_HOST_SECURITY_PROFILE:-agent-s2-host}"
+        }
     },
     "llm": {
         "provider": "$AGENTS2_LLM_PROVIDER",
@@ -24,7 +49,7 @@ agents2::update_config() {
         "apiKeyEnvVar": "AGENTS2_API_KEY"
     },
     "display": {
-        "type": "virtual",
+        "type": "$([[ "${MODE:-sandbox}" == "host" && "$AGENT_S2_HOST_DISPLAY_ACCESS" == "true" ]] && echo "host" || echo "virtual")",
         "display": "$AGENTS2_DISPLAY",
         "resolution": "$AGENTS2_SCREEN_RESOLUTION",
         "vncEnabled": true,
@@ -32,13 +57,16 @@ agents2::update_config() {
         "vncPasswordSet": true
     },
     "api": {
-        "version": "1.0.0",
+        "version": "2.0.0",
         "healthEndpoint": "/health",
         "capabilitiesEndpoint": "/capabilities",
         "screenshotEndpoint": "/screenshot",
         "executeEndpoint": "/execute",
         "tasksEndpoint": "/tasks",
-        "mouseEndpoint": "/mouse/position"
+        "mouseEndpoint": "/mouse/position",
+        "modesEndpoint": "/modes",
+        "switchModeEndpoint": "/modes/switch",
+        "securityEndpoint": "/modes/security"
     },
     "container": {
         "name": "$AGENTS2_CONTAINER_NAME",
@@ -46,11 +74,15 @@ agents2::update_config() {
         "network": "$AGENTS2_NETWORK_NAME"
     },
     "security": {
-        "sandboxed": true,
+        "sandboxed": $([[ "${MODE:-sandbox}" == "sandbox" ]] && echo "true" || echo "false"),
         "hostDisplayAccess": $([[ "$AGENTS2_ENABLE_HOST_DISPLAY" == "yes" ]] && echo "true" || echo "false"),
         "restrictedApplications": ["passwords", "keychain", "1password", "bitwarden"],
         "runAsNonRoot": true,
-        "user": "$AGENTS2_USER"
+        "user": "$AGENTS2_USER",
+        "appArmorProfile": "$([[ "${MODE:-sandbox}" == "host" ]] && echo "docker-agent-s2-host" || echo "docker-default")",
+        "auditLogging": $([[ "$AGENT_S2_HOST_AUDIT_LOGGING" == "true" ]] && echo "true" || echo "false"),
+        "threatDetection": true,
+        "securityMonitoring": true
     },
     "resources": {
         "memory": "$AGENTS2_MEMORY_LIMIT",
@@ -67,7 +99,13 @@ agents2::update_config() {
         "mouse_move",
         "drag_drop",
         "scroll",
-        "automation_sequence"
+        "automation_sequence",
+        "mode_switch",
+        "environment_discovery",
+        "application_launch",
+        $([[ "${MODE:-sandbox}" == "host" ]] && echo '"host_integration",' || echo "")
+        $([[ "${MODE:-sandbox}" == "host" ]] && echo '"file_system_access",' || echo "")
+        "security_validation"
     ]
 }
 EOF
@@ -100,19 +138,88 @@ agents2::show_installation_success() {
     
     echo
     log::header "🔧 Configuration"
+    log::info "Operating Mode: ${MODE:-sandbox}"
+    log::info "Host Mode Enabled: ${AGENT_S2_HOST_MODE_ENABLED:-false}"
     log::info "LLM Provider: $AGENTS2_LLM_PROVIDER"
     log::info "LLM Model: $AGENTS2_LLM_MODEL"
-    log::info "Display: $AGENTS2_DISPLAY (Virtual)"
+    log::info "Display: $AGENTS2_DISPLAY ($([[ "${MODE:-sandbox}" == "host" && "$AGENT_S2_HOST_DISPLAY_ACCESS" == "true" ]] && echo "Host" || echo "Virtual"))"
     log::info "Resolution: $AGENTS2_SCREEN_RESOLUTION"
     log::info "Host Display Access: $AGENTS2_ENABLE_HOST_DISPLAY"
+    log::info "Security Profile: $([[ "${MODE:-sandbox}" == "host" ]] && echo "${AGENT_S2_HOST_SECURITY_PROFILE:-docker-agent-s2-host}" || echo "docker-default")"
+    log::info "Audit Logging: ${AGENT_S2_HOST_AUDIT_LOGGING:-false}"
     
     echo
     log::header "🎯 Next Steps"
     log::info "1. Access the API at: $AGENTS2_BASE_URL"
     log::info "2. Connect via VNC to view the virtual display: $AGENTS2_VNC_URL"
-    log::info "3. Test with: $0 --action usage"
-    log::info "4. View logs: $0 --action logs"
-    log::info "5. Check the API docs: ${AGENTS2_BASE_URL}/docs"
+    log::info "3. View current mode: $0 --action mode"
+    log::info "4. Test functionality: $0 --action usage"
+    log::info "5. Check mode capabilities: ${AGENTS2_BASE_URL}/modes/current"
+    log::info "6. View logs: $0 --action logs"
+    log::info "7. Check the API docs: ${AGENTS2_BASE_URL}/docs"
+    
+    if [[ "${AGENT_S2_HOST_MODE_ENABLED:-false}" == "true" ]]; then
+        echo
+        log::header "🔐 Host Mode Available"
+        log::info "Switch to host mode: $0 --action switch-mode --target-mode host"
+        log::info "Test host mode: $0 --action test-mode --mode host"
+        log::info "Security monitoring: ${AGENTS2_BASE_URL}/modes/security"
+        
+        if [[ "${MODE:-sandbox}" == "host" ]]; then
+            log::warning "⚠️  Currently running in HOST MODE with elevated privileges"
+            log::info "Audit logs: /var/log/agent-s2-audit/"
+            log::info "Switch to sandbox: $0 --action switch-mode --target-mode sandbox"
+        fi
+    else
+        echo
+        log::header "🔒 Security Note"
+        log::info "Running in SANDBOX MODE (secure isolation)"
+        log::info "To enable host mode: Set AGENT_S2_HOST_MODE_ENABLED=true"
+    fi
+}
+
+#######################################
+# Install security components for host mode
+# Returns: 0 if successful, 1 if failed
+#######################################
+agents2::install_security_components() {
+    local security_script="${SCRIPT_DIR}/security/install-security.sh"
+    
+    if [[ ! -f "$security_script" ]]; then
+        log::warning "Security installation script not found: $security_script"
+        log::info "Host mode will run without enhanced security features"
+        return 0
+    fi
+    
+    # Check if we can run with sudo
+    if [[ $EUID -eq 0 ]]; then
+        log::info "Installing security components as root..."
+        bash "$security_script" install
+    elif command -v sudo >/dev/null 2>&1; then
+        log::info "Installing security components with sudo..."
+        sudo bash "$security_script" install
+    else
+        log::warning "Cannot install security components (no root/sudo access)"
+        log::info "Host mode will run with basic Docker security only"
+        log::info "To install security features manually:"
+        log::info "  sudo $security_script install"
+        return 0
+    fi
+    
+    local exit_code=$?
+    if [[ $exit_code -eq 0 ]]; then
+        log::success "Security components installed successfully"
+        
+        # Set security environment variables for current session
+        export AGENT_S2_HOST_SECURITY_PROFILE="docker-agent-s2-host"
+        export AGENT_S2_HOST_AUDIT_LOGGING="true"
+        
+        return 0
+    else
+        log::warning "Security component installation failed (exit code: $exit_code)"
+        log::info "Host mode will continue with basic security"
+        return 0  # Don't fail the entire installation
+    fi
 }
 
 #######################################
@@ -202,6 +309,12 @@ agents2::install_service() {
     ROLLBACK_ACTIONS=()
     OPERATION_ID=""
     
+    # Install security components if host mode is enabled
+    if [[ "${AGENT_S2_HOST_MODE_ENABLED:-false}" == "true" ]]; then
+        log::info "Installing security components for host mode..."
+        agents2::install_security_components
+    fi
+    
     # Update Vrooli configuration
     agents2::update_config
     
@@ -212,6 +325,37 @@ agents2::install_service() {
     echo
     agents2::show_status
     
+    return 0
+}
+
+#######################################
+# Uninstall security components
+# Returns: 0 if successful, 1 if failed
+#######################################
+agents2::uninstall_security_components() {
+    local security_script="${SCRIPT_DIR}/security/install-security.sh"
+    
+    if [[ ! -f "$security_script" ]]; then
+        log::debug "Security installation script not found, skipping security cleanup"
+        return 0
+    fi
+    
+    log::info "Removing security components..."
+    
+    # Check if we can run with sudo
+    if [[ $EUID -eq 0 ]]; then
+        bash "$security_script" uninstall 2>/dev/null || true
+    elif command -v sudo >/dev/null 2>&1; then
+        sudo bash "$security_script" uninstall 2>/dev/null || true
+    else
+        log::warning "Cannot remove security components (no root/sudo access)"
+        log::info "You may need to manually remove:"
+        log::info "  - AppArmor profiles: /etc/apparmor.d/docker-agent-s2-*"
+        log::info "  - Audit logs: /var/log/agent-s2-audit/"
+        log::info "  - Security configs: /etc/agent-s2-security.conf"
+    fi
+    
+    log::info "Security components cleanup attempted"
     return 0
 }
 
@@ -233,6 +377,9 @@ agents2::uninstall_service() {
     
     # Clean up Docker resources
     agents2::docker_cleanup
+    
+    # Uninstall security components if they were installed
+    agents2::uninstall_security_components
     
     # Ask about data removal
     if [[ -d "$AGENTS2_DATA_DIR" ]]; then

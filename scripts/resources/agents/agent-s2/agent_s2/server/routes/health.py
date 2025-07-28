@@ -6,7 +6,8 @@ from fastapi import APIRouter, Request, HTTPException
 import pyautogui
 
 from ..models.responses import HealthResponse, CapabilitiesResponse
-from ...config import Config
+from ...config import Config, AgentMode
+from ...environment import ModeContext
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -33,13 +34,32 @@ async def health_check(request: Request):
             "search_enabled": False  # TODO: Implement search support
         }
         
+        # Get mode information
+        try:
+            context = ModeContext()
+            mode_info = {
+                "current_mode": Config.get_mode_name(),
+                "host_mode_enabled": Config.HOST_MODE_ENABLED,
+                "security_level": context.get_context_summary()["security_level"],
+                "applications_available": context.get_context_summary()["applications_count"]
+            }
+        except Exception as e:
+            logger.warning(f"Failed to get mode info for health check: {e}")
+            mode_info = {
+                "current_mode": Config.get_mode_name(),
+                "host_mode_enabled": Config.HOST_MODE_ENABLED,
+                "security_level": "unknown",
+                "applications_available": 0
+            }
+
         return HealthResponse(
             status="healthy",
             display=os.environ.get("DISPLAY", ":99"),
             screen_size={"width": screen_width, "height": screen_height},
             startup_time=app_state["startup_time"],
             tasks_processed=app_state["task_counter"],
-            ai_status=ai_status
+            ai_status=ai_status,
+            mode_info=mode_info
         )
     except Exception as e:
         logger.error(f"Health check failed: {e}")
@@ -48,45 +68,71 @@ async def health_check(request: Request):
 
 @router.get("/capabilities", response_model=CapabilitiesResponse)
 async def get_capabilities(request: Request):
-    """Get Agent S2 capabilities"""
+    """Get Agent S2 capabilities (mode-aware)"""
     app_state = request.app.state.app_state
     ai_handler = app_state.get("ai_handler")
     ai_initialized = ai_handler and ai_handler.initialized
     
-    capabilities = {
-        "screenshot": True,
-        "gui_automation": True,
-        "mouse_control": True,
-        "keyboard_control": True,
-        "window_management": True,
-        "planning": ai_initialized,
-        "multi_step_tasks": True,
-        "ai_reasoning": ai_initialized,
-        "natural_language": ai_initialized,
-        "screen_understanding": ai_initialized
-    }
-    
-    supported_tasks = [
-        "screenshot",
-        "click",
-        "double_click", 
-        "right_click",
-        "type_text",
-        "key_press",
-        "mouse_move",
-        "drag_drop",
-        "scroll",
-        "automation_sequence"
-    ]
-    
-    # Add AI-driven tasks if available
-    if ai_initialized:
-        supported_tasks.extend([
-            "ai_command",
-            "ai_plan",
-            "ai_analyze",
-            "ai_sequence"
-        ])
+    # Get mode-aware capabilities
+    try:
+        context = ModeContext()
+        mode_capabilities = context.discovery.capabilities.get("capabilities", [])
+        
+        # Base capabilities (always available)
+        capabilities = {
+            "screenshot": True,
+            "gui_automation": True,
+            "mouse_control": True,
+            "keyboard_control": True,
+            "window_management": True,
+            "multi_step_tasks": True,
+        }
+        
+        # AI capabilities
+        capabilities.update({
+            "planning": ai_initialized,
+            "ai_reasoning": ai_initialized,
+            "natural_language": ai_initialized,
+            "screen_understanding": ai_initialized
+        })
+        
+        # Mode-specific capabilities
+        if Config.is_host_mode():
+            capabilities.update({
+                "host_applications": True,
+                "file_system_access": True,
+                "native_desktop_integration": True,
+                "system_automation": True
+            })
+        
+        # Get mode-aware supported tasks
+        supported_tasks = context.context_data["available_actions"]
+        
+        # Add AI tasks if available
+        if ai_initialized:
+            supported_tasks.extend([
+                "ai_command",
+                "ai_plan", 
+                "ai_analyze",
+                "ai_sequence"
+            ])
+        
+    except Exception as e:
+        logger.warning(f"Failed to get mode-aware capabilities: {e}")
+        # Fallback to basic capabilities
+        capabilities = {
+            "screenshot": True,
+            "gui_automation": True,
+            "mouse_control": True,
+            "keyboard_control": True,
+            "window_management": True,
+            "planning": ai_initialized,
+            "multi_step_tasks": True,
+            "ai_reasoning": ai_initialized,
+            "natural_language": ai_initialized,
+            "screen_understanding": ai_initialized
+        }
+        supported_tasks = ["screenshot", "click", "type_text", "key_press", "mouse_move"]
     
     ai_status = {
         "available": ai_handler is not None,
@@ -98,12 +144,18 @@ async def get_capabilities(request: Request):
     
     display_info = {
         "display": os.environ.get("DISPLAY", ":99"),
-        "resolution": pyautogui.size()
+        "resolution": pyautogui.size(),
+        "mode": Config.get_mode_name()
     }
     
     return CapabilitiesResponse(
         capabilities=capabilities,
         supported_tasks=supported_tasks,
         ai_status=ai_status,
-        display_info=display_info
+        display_info=display_info,
+        mode_info={
+            "current_mode": Config.get_mode_name(),
+            "host_mode_enabled": Config.HOST_MODE_ENABLED,
+            "applications_available": len(context.context_data.get("applications", {})) if 'context' in locals() else 0
+        }
     )

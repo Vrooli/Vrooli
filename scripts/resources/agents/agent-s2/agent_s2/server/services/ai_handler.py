@@ -102,13 +102,14 @@ class AIHandler:
         """Shutdown AI handler"""
         self.initialized = False
         
-    def _call_ollama(self, prompt: str, model: Optional[str] = None, system: Optional[str] = None) -> Dict[str, Any]:
+    def _call_ollama(self, prompt: str, model: Optional[str] = None, system: Optional[str] = None, images: Optional[List[str]] = None) -> Dict[str, Any]:
         """Make a call to Ollama API
         
         Args:
             prompt: The prompt to send
             model: Model to use (defaults to self.model)
             system: Optional system prompt
+            images: Optional list of base64-encoded images
             
         Returns:
             Response from Ollama
@@ -127,7 +128,28 @@ class AIHandler:
         if system:
             payload["system"] = system
             
+        if images:
+            # Ensure images is a proper list
+            if not isinstance(images, list):
+                logger.warning(f"images parameter is not a list: {type(images)}")
+                images = [images] if images else []
+            
+            # Validate each image is a string
+            validated_images = []
+            for img in images:
+                if isinstance(img, str):
+                    validated_images.append(img)
+                else:
+                    logger.warning(f"Skipping non-string image: {type(img)}")
+            
+            payload["images"] = validated_images
+            
         try:
+            # Log payload structure for debugging
+            logger.debug(f"Ollama payload keys: {list(payload.keys())}")
+            if images:
+                logger.debug(f"Number of images: {len(payload.get('images', []))}")
+            
             response = requests.post(
                 f"{self.ollama_base_url}/api/generate",
                 json=payload,
@@ -138,6 +160,12 @@ class AIHandler:
             
         except requests.RequestException as e:
             logger.error(f"Ollama API call failed: {e}")
+            if hasattr(e, 'response') and e.response:
+                logger.error(f"Response status: {e.response.status_code}")
+                logger.error(f"Response text: {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error in Ollama call: {type(e).__name__}: {e}")
             raise
         
     def get_capabilities(self) -> List[str]:
@@ -214,7 +242,7 @@ Example parameters: {{"x": 100, "y": 200}}, {{"text": "hello"}}, {{"key": "Enter
                 else:
                     # Fallback: create plan from text response
                     ai_plan = {
-                        "plan": [{"action": "manual_review", "parameters": {}, "description": ai_text[:200]}],
+                        "plan": [{"action": "manual_review", "parameters": {}, "description": ai_text[0:200] if len(ai_text) > 200 else ai_text}],
                         "reasoning": "AI provided text response instead of structured plan",
                         "estimated_duration": "Manual review needed"
                     }
@@ -222,7 +250,7 @@ Example parameters: {{"x": 100, "y": 200}}, {{"text": "hello"}}, {{"key": "Enter
                 # Fallback for unparseable responses
                 ai_plan = {
                     "plan": [{"action": "manual_review", "parameters": {}, "description": "AI response parsing failed"}],
-                    "reasoning": f"Raw AI response: {ai_text[:100]}...",
+                    "reasoning": f"Raw AI response: {ai_text[0:100] if len(ai_text) > 100 else ai_text}...",
                     "estimated_duration": "Manual review needed"
                 }
                 
@@ -285,29 +313,110 @@ Example parameters: {{"x": 100, "y": 200}}, {{"text": "hello"}}, {{"key": "Enter
             })
             
             # Create AI prompt for command execution
-            system_prompt = """You are an automation assistant. Given a natural language command, analyze it and provide specific automation actions.
+            system_prompt = """You are an automation assistant that can see and interact with a computer screen. Given a screenshot and a natural language command, analyze what you see and provide specific automation actions.
+
+IMPORTANT SYSTEM INFORMATION:
+- Desktop Environment: Fluxbox window manager (NOT Windows or GNOME)
+- The screenshot shows the ENTIRE screen (1920x1080 pixels)
+- Provide ABSOLUTE screen coordinates, NOT window-relative coordinates
+- The top-left corner of the screen is (0, 0)
+- The bottom-right corner is (1920, 1080)
+
+FLUXBOX WINDOW MANAGEMENT:
+- Windows DO NOT have visible close/minimize/maximize buttons (X buttons)
+- To close windows: RIGHT-click on the window title bar, then click "Close" in the context menu
+- To minimize windows: RIGHT-click on title bar, then click "Minimize" 
+- To maximize windows: RIGHT-click on title bar, then click "Maximize"
+- Window title bars are thin dark bars at the top of application windows
 
 Respond with JSON format:
 {
   "actions": [
-    {"type": "click", "x": 100, "y": 200, "description": "Click on button"},
-    {"type": "type", "text": "Hello", "description": "Type text"},
+    {"type": "click", "x": 100, "y": 200, "description": "Click on [specific element you see]"},
+    {"type": "type", "text": "Hello", "description": "Type text in [specific field]"},
     {"type": "key", "key": "Enter", "description": "Press Enter"},
     {"type": "wait", "duration": 1.0, "description": "Wait 1 second"}
   ],
-  "reasoning": "Explanation of the approach"
+  "reasoning": "I can see [describe what you see]. To [command], I will [explain approach]"
 }
 
-Available action types: click, type, key, scroll, wait, drag"""
+CLOSING WINDOWS EXAMPLE:
+To close a window:
+1. {"type": "click", "x": 200, "y": 7, "description": "Right-click on window title bar", "button": "right"}
+2. {"type": "wait", "duration": 0.5, "description": "Wait for context menu"}
+3. {"type": "click", "x": 134, "y": 147, "description": "Click Close in context menu"}
+
+Available action types: click, type, key, scroll, wait, drag
+For click actions, add "button": "right" for right-clicks
+
+Be specific about what you see and provide EXACT ABSOLUTE screen coordinates!"""
 
             context_str = f" Context: {context}" if context else ""
             user_prompt = f"""Command: {command}{context_str}
 
-Current screen state captured. Provide specific automation actions to execute this command."""
+Analyze the screenshot and provide specific automation actions to execute this command."""
 
-            # Get AI analysis
-            ai_response = self._call_ollama(user_prompt, system=system_prompt)
-            ai_text = ai_response.get("response", "")
+            # Convert screenshot to base64
+            # Data URL format is "data:image/png;base64,<base64data>"
+            try:
+                if "base64," in screenshot:
+                    parts = screenshot.split("base64,")
+                    if len(parts) > 1:
+                        screenshot_base64 = parts[1]
+                    else:
+                        logger.warning("Screenshot split did not produce expected parts")
+                        screenshot_base64 = screenshot
+                else:
+                    screenshot_base64 = screenshot
+            except Exception as split_error:
+                logger.error(f"Error splitting screenshot data: {type(split_error).__name__}: {split_error}")
+                screenshot_base64 = screenshot
+            
+            # Log for debugging
+            logger.info(f"Using AI model: {self.model}")
+            try:
+                logger.info(f"Screenshot type: {type(screenshot_base64)}, length: {len(screenshot_base64)}")
+                if isinstance(screenshot_base64, str) and len(screenshot_base64) > 50:
+                    # Use string slicing safely
+                    preview = screenshot_base64[0:50]
+                    logger.info(f"First 50 chars of base64: {preview}...")
+                else:
+                    # Use repr safely
+                    repr_str = repr(screenshot_base64)
+                    if len(repr_str) > 100:
+                        repr_str = repr_str[0:100]
+                    logger.info(f"Screenshot data: {repr_str}...")
+            except Exception as log_error:
+                logger.warning(f"Error logging screenshot data: {log_error}")
+            
+            try:
+                # Get AI analysis with vision model
+                logger.info(f"Calling Ollama with model: {self.model}")
+                
+                # Ensure screenshot_base64 is a string and create a proper list
+                if not isinstance(screenshot_base64, str):
+                    logger.warning(f"screenshot_base64 is not a string: {type(screenshot_base64)}")
+                    screenshot_base64 = str(screenshot_base64)
+                
+                # Create images list explicitly to avoid any slice issues
+                images_list = []
+                images_list.append(screenshot_base64)
+                
+                ai_response = self._call_ollama(
+                    user_prompt, 
+                    model=self.model,  # Use configured AI model
+                    system=system_prompt,
+                    images=images_list
+                )
+                ai_text = ai_response.get("response", "")
+                logger.info(f"Vision model response received, length: {len(ai_text)}")
+            except Exception as e:
+                logger.error(f"Vision model error: {type(e).__name__}: {str(e)}")
+                logger.error(f"Full error details: {repr(e)}")
+                # Fallback to text-only model without image
+                logger.info("Falling back to text-only analysis")
+                ai_response = self._call_ollama(user_prompt, system=system_prompt)
+                ai_text = ai_response.get("response", "")
             
             # Parse AI response for actions
             try:
@@ -343,11 +452,17 @@ Current screen state captured. Provide specific automation actions to execute th
                 try:
                     if action.get("type") == "click":
                         x, y = action.get("x", 500), action.get("y", 300)
-                        self.automation_service.click(x, y)
+                        button = action.get("button", "left")  # Support right-click
+                        
+                        if button == "right":
+                            self.automation_service.right_click(x, y)
+                        else:
+                            self.automation_service.click(x, y)
+                            
                         executed_actions.append({
                             "action": "click",
-                            "parameters": {"x": x, "y": y},
-                            "result": action.get("description", "Clicked at position"),
+                            "parameters": {"x": x, "y": y, "button": button},
+                            "result": action.get("description", f"{button.title()}-clicked at position"),
                             "status": "success"
                         })
                         
@@ -571,7 +686,7 @@ Common actions: click, type, scroll, drag, key presses"""
                 else:
                     # Fallback structure
                     ai_analysis = {
-                        "analysis": ai_text[:200] if ai_text else "AI analysis not available",
+                        "analysis": ai_text[0:200] if ai_text and len(ai_text) > 200 else (ai_text or "AI analysis not available"),
                         "elements_detected": [
                             {"type": "unknown", "description": "AI response parsing failed"}
                         ],
@@ -582,7 +697,7 @@ Common actions: click, type, scroll, drag, key presses"""
             except (json.JSONDecodeError, AttributeError):
                 # Fallback for unparseable responses
                 ai_analysis = {
-                    "analysis": f"Raw AI response: {ai_text[:200]}...",
+                    "analysis": f"Raw AI response: {ai_text[0:200] if len(ai_text) > 200 else ai_text}...",
                     "elements_detected": [
                         {"type": "text", "description": "AI provided text analysis"}
                     ],

@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from ..config import Config
-from .routes import health, screenshot, mouse, keyboard, ai, tasks
+from .routes import health, screenshot, mouse, keyboard, ai, tasks, modes
 from .middleware import ErrorHandlerMiddleware
 from .services.ai_handler import AIHandler
 
@@ -79,6 +79,7 @@ if Config.ENABLE_CORS:
 
 # Include routers
 app.include_router(health.router, tags=["health"])
+app.include_router(modes.router, prefix="/modes", tags=["modes"])
 app.include_router(screenshot.router, prefix="/screenshot", tags=["screenshot"])
 app.include_router(mouse.router, prefix="/mouse", tags=["mouse"])
 app.include_router(keyboard.router, prefix="/keyboard", tags=["keyboard"])

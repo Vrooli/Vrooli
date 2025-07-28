@@ -1,0 +1,92 @@
+version: '3.8'
+
+# Host mode override for Agent S2
+# This file is used alongside docker-compose.yml to enable host mode capabilities
+
+services:
+  agent-s2:
+    environment:
+      # Mode configuration
+      - AGENT_S2_MODE=host
+      - AGENT_S2_HOST_MODE_ENABLED=true
+      
+      # Host display access (security risk - enable only if needed)
+      - AGENT_S2_HOST_DISPLAY_ACCESS=${AGENT_S2_HOST_DISPLAY_ACCESS:-false}
+      - DISPLAY=${DISPLAY:-:0}
+      
+      # Host filesystem mounts (JSON format)
+      - AGENT_S2_HOST_MOUNTS=${AGENT_S2_HOST_MOUNTS:-[]}
+      
+      # Security configuration
+      - AGENT_S2_HOST_SECURITY_PROFILE=agent-s2-host
+      - AGENT_S2_HOST_AUDIT_LOGGING=true
+      
+      # Application restrictions
+      - AGENT_S2_HOST_APPS=${AGENT_S2_HOST_APPS:-*}
+      
+    volumes:
+      # X11 socket for host display access (when enabled)
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      
+      # User home directory (read-only by default)
+      - ${HOME}:/mnt/host-home:ro
+      
+      # Documents directory (configurable)
+      - ${HOME}/Documents:/mnt/documents:rw
+      
+      # Downloads directory (configurable)  
+      - ${HOME}/Downloads:/mnt/downloads:rw
+      
+      # Temporary directory for file exchange
+      - /tmp:/mnt/tmp:rw
+      
+      # Optional: Development workspace
+      # - ${HOME}/workspace:/mnt/workspace:rw
+      
+    # Security configuration for host mode
+    security_opt:
+      - apparmor:agent-s2-host
+      
+    # Additional capabilities needed for host integration
+    cap_add:
+      - SYS_PTRACE  # For process inspection and application discovery
+      
+    # Device access for graphics and audio
+    devices:
+      - /dev/dri:/dev/dri  # GPU access for hardware acceleration
+      # - /dev/snd:/dev/snd  # Audio devices (uncomment if needed)
+      
+    # Network configuration
+    network_mode: host  # Use host networking for full access
+    
+    # Additional environment variables for host integration
+    environment:
+      # Inherit user environment
+      - USER=${USER:-agents2}
+      - HOME=/home/agents2
+      - XDG_RUNTIME_DIR=/tmp/runtime-agents2
+      
+      # X11 authentication  
+      - XAUTHORITY=/tmp/.Xauthority
+      
+      # Desktop integration
+      - XDG_CURRENT_DESKTOP=${XDG_CURRENT_DESKTOP:-}
+      - DESKTOP_SESSION=${DESKTOP_SESSION:-}
+      
+    # Override healthcheck for host mode
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4113/health", "&&", "curl", "-f", "http://localhost:4113/modes/current"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 90s
+      
+    # Host mode requires higher resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 1G

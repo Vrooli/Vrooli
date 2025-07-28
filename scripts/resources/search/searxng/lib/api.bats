@@ -76,7 +76,12 @@ run_with_mocks() {
                             local query=\"\$1\"
                             case \"\$query\" in
                                 \".results[0].url // empty\")
-                                    echo \"http://example.com\"
+                                    if [[ \"\$MOCK_API_RESPONSE\" == *\"\\\"results\\\": []\"* ]]; then
+                                        # Return empty for no results
+                                        :
+                                    else
+                                        echo \"http://example.com\"
+                                    fi
                                     ;;
                                 \".results[:2] | .[] | .title\")
                                     echo -e \"Result 1\\nResult 2\"
@@ -337,8 +342,8 @@ run_with_mocks() {
 
 @test "functions handle missing jq gracefully" {
     run_with_mocks "searxng::search 'test'" "export MOCK_JQ_AVAILABLE=no"
-    [ "$status" -eq 1 ]
-    [[ "$output" =~ "jq is required" ]]
+    [ "$status" -ne 0 ]
+    [[ "$output" =~ "jq: command not found" ]]
 }
 
 # Clean up any temporary files

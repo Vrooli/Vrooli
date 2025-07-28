@@ -21,7 +21,7 @@ services:
       # AI settings (Ollama integration enabled by default)
       - AGENT_S2_AI_ENABLED=${AGENT_S2_AI_ENABLED:-true}
       - AGENT_S2_AI_API_URL=${AGENT_S2_AI_API_URL:-http://localhost:11434}
-      - AGENT_S2_AI_MODEL=${AGENT_S2_AI_MODEL:-llama3.1:8b}
+      - AGENT_S2_AI_MODEL=${AGENT_S2_AI_MODEL:-llama3.2-vision:11b}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       
