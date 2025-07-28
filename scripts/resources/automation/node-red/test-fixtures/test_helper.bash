@@ -12,19 +12,26 @@ if [[ ! -d "$NODE_RED_ROOT_DIR/config" ]]; then
     export NODE_RED_ROOT_DIR="/home/matthalloran8/Vrooli/scripts/resources/automation/node-red"
 fi
 export NODE_RED_TEST_DIR="$(mktemp -d)"
-export NODE_RED_TEST_CONFIG_DIR="$NODE_RED_TEST_DIR/.vrooli"
+# Point to the actual project root .vrooli directory
+export NODE_RED_TEST_CONFIG_DIR="/home/matthalloran8/Vrooli/.vrooli"
 
 # Setup test environment without conflicting readonly variables
 # These will be set by the config files being tested
 
-# Test script directory
+# Test script directory with proper path resolution
 export SCRIPT_DIR="$NODE_RED_TEST_DIR"
-export RESOURCES_DIR="$NODE_RED_TEST_DIR/../.."
+# RESOURCES_DIR will be set properly in setup_test_environment
 
 # Create mock directory structure
 setup_test_environment() {
     mkdir -p "$NODE_RED_TEST_DIR"/{config,lib,docker,flows,nodes}
-    mkdir -p "$NODE_RED_TEST_CONFIG_DIR"
+    # Don't create NODE_RED_TEST_CONFIG_DIR since it points to actual project .vrooli
+    # mkdir -p "$NODE_RED_TEST_CONFIG_DIR"
+    
+    # Set up proper RESOURCES_DIR after test directory is created
+    local test_parent="$(dirname "$NODE_RED_TEST_DIR")"
+    export RESOURCES_DIR="$test_parent/resources"
+    mkdir -p "$RESOURCES_DIR"
     
     # Copy actual configuration files to test directory and modify for testing
     cp -r "$NODE_RED_ROOT_DIR/config"/* "$NODE_RED_TEST_DIR/config/"
@@ -36,7 +43,7 @@ setup_test_environment() {
     fi
     
     # Create mock common.sh
-    cat > "$NODE_RED_TEST_DIR/../common.sh" << 'EOF'
+    cat > "$RESOURCES_DIR/common.sh" << 'EOF'
 #!/usr/bin/env bash
 # Mock common.sh for testing
 
@@ -47,11 +54,39 @@ log::error() { echo "[ERROR] $*" >&2; }
 
 # Mock system functions
 system::is_command() { command -v "$1" >/dev/null 2>&1; }
+
+# Mock port checking functions  
+check_port_in_use() { return 1; }  # Always return port not in use
+is_port_in_use() { return 1; }     # Always return port not in use
+
+# Mock additional functions that might be called
+update_resource_config() { return 0; }
+import_flow() { return 0; }
+
+# Mock flow control functions
+flow::confirm() {
+    case "${1:-}" in
+        "y"|"Y"|"yes"|"YES") return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+flow::is_yes() {
+    case "${1:-}" in
+        "y"|"Y"|"yes"|"YES") return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# Ensure consistent container name
+export CONTAINER_NAME="${CONTAINER_NAME:-node-red}"
+export RESOURCE_PORT="${RESOURCE_PORT:-1880}"
 EOF
 
     # Create mock args.sh
-    mkdir -p "$NODE_RED_TEST_DIR/../helpers/utils"
-    cat > "$NODE_RED_TEST_DIR/../helpers/utils/args.sh" << 'EOF'
+    local helpers_dir="$(dirname "$RESOURCES_DIR")/helpers/utils"
+    mkdir -p "$helpers_dir"
+    cat > "$helpers_dir/args.sh" << 'EOF'
 #!/usr/bin/env bash
 # Mock args.sh for testing
 
@@ -102,6 +137,29 @@ args::usage() {
     echo "Usage: $1"
 }
 EOF
+
+    # Create minimal settings.js file for Node-RED
+    cat > "$NODE_RED_TEST_DIR/settings.js" << 'EOF'
+module.exports = {
+    httpAdminRoot: '/admin',
+    httpNodeRoot: '/api',
+    userDir: '/data',
+    flowFile: 'flows.json',
+    functionGlobalContext: {},
+    debugMaxLength: 1000,
+    adminAuth: {
+        type: "credentials",
+        users: [{
+            username: "admin",
+            password: "$2a$08$zZWtXTja0fB1pzD4sHCMyOCMYz2Z6dNbM6tl8sJogENOMcxWV9DN.",
+            permissions: "*"
+        }]
+    }
+};
+EOF
+
+    # Create basic flows.json
+    echo '[]' > "$NODE_RED_TEST_DIR/flows/flows.json"
 }
 
 # Mock Docker commands
@@ -110,43 +168,152 @@ mock_docker() {
     
     # Create docker mock function
     docker() {
+        # Debug: uncomment to see what arguments are passed
+        # echo "DEBUG: docker called with: $*" >&2
         case "$DOCKER_MOCK_MODE" in
             "success")
                 case "$1" in
                     "container")
-                        if [[ "$2" == "inspect" && "$3" == "-f" && "$4" == "{{.State.Running}}" && "$5" == "$CONTAINER_NAME" ]]; then
-                            echo "true"
+                        case "$2" in
+                            "inspect")
+                                if [[ "$3" == "-f" && "$4" == "{{.State.Running}}" ]]; then
+                                    echo "true"
+                                elif [[ "$3" == "-f" && "$4" == "{{.State.Status}}" ]]; then
+                                    echo "running"
+                                elif [[ "$3" == "--format={{.State.Health.Status}}" ]] || [[ "$3" == "--format='{{.State.Health.Status}}'" ]]; then
+                                    echo "healthy"
+                                elif [[ "$3" == "node-red" ]] || [[ "$4" == "node-red" ]] || [[ "$5" == "node-red" ]]; then
+                                    # Mock container inspection output
+                                    echo '{"State": {"Running": true, "Status": "running", "Health": {"Status": "healthy"}}}'
+                                else
+                                    return 0
+                                fi
+                                ;;
+                            *) return 0 ;;
+                        esac
+                        ;;
+                    "ps") 
+                        if [[ "$*" =~ "--format" ]]; then
+                            echo "node-red"
+                        else
+                            echo "CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS    NAMES"
+                            echo "abc123def456   nodered/node-red:latest   npm start   2 hours ago   Up 2 hours   0.0.0.0:1880->1880/tcp   node-red"
                         fi
                         ;;
-                    "ps") echo "CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS" ;;
                     "build") return 0 ;;
                     "run") return 0 ;;
                     "start"|"stop"|"restart") return 0 ;;
                     "rm"|"rmi") return 0 ;;
                     "volume") return 0 ;;
                     "network") return 0 ;;
-                    "stats") echo "CONTAINER     CPU %     MEM USAGE / LIMIT" ;;
-                    "exec") 
-                        case "$3" in
-                            "ls") echo "file1 file2" ;;
-                            "docker") echo "mocked docker in container" ;;
-                            *) echo "mock exec output" ;;
-                        esac
+                    "stats") echo "CONTAINER     CPU %     MEM USAGE / LIMIT     MEM %     NET I/O         BLOCK I/O" ;;
+                    "exec")
+                        # Handle docker exec $CONTAINER_NAME <command>
+                        if [[ "$2" == "$CONTAINER_NAME" ]] || [[ "$2" == "node-red" ]]; then
+                            case "$3" in
+                                "docker")
+                                    if [[ "$4" == "ps" ]]; then
+                                        echo "CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS    NAMES"
+                                        echo "abc123def456   test/image   cmd      1 hour ago   Up 1 hour   0.0.0.0:8080->8080/tcp   test_container"
+                                        return 0
+                                    else
+                                        echo "Docker version 20.10.0, build 1234567"
+                                        return 0
+                                    fi
+                                    ;;
+                                "ls")
+                                    case "$4" in
+                                        "/workspace") 
+                                            echo "flows  nodes  settings.js  package.json"
+                                            return 0
+                                            ;;
+                                        "/data/flows.json")
+                                            echo "/data/flows.json"
+                                            return 0
+                                            ;;
+                                        *)
+                                            echo "settings.js flows.json package.json"
+                                            return 0
+                                            ;;
+                                    esac
+                                    ;;
+                                "/bin/sh")
+                                    if [[ "$4" == "-c" && "$5" == "which ls" ]]; then
+                                        echo "/bin/ls"
+                                        return 0
+                                    else
+                                        echo "mock shell output"
+                                        return 0
+                                    fi
+                                    ;;
+                                "test") return 0 ;;
+                                *) echo "mock exec output"; return 0 ;;
+                            esac
+                        else
+                            echo "mock exec output"
+                            return 0
+                        fi
                         ;;
+                    "inspect")
+                        # Handle direct docker inspect calls
+                        if [[ "$2" == "--format={{.State.Health.Status}}" ]] || [[ "$2" == "--format='{{.State.Health.Status}}'" ]]; then
+                            echo "healthy"
+                        elif [[ "$2" == "--format={{.State.Running}}" ]] || [[ "$2" == "-f" && "$3" == "{{.State.Running}}" ]]; then
+                            echo "true"
+                        elif [[ "$2" == "--format={{.State.Status}}" ]] || [[ "$2" == "-f" && "$3" == "{{.State.Status}}" ]]; then
+                            echo "running"
+                        else
+                            # Default container info
+                            echo '{"State": {"Running": true, "Status": "running", "Health": {"Status": "healthy"}}}'
+                        fi
+                        ;;
+                    "info") return 0 ;;  # Docker daemon check
                     *) return 0 ;;
                 esac
                 ;;
             "not_installed")
                 case "$1" in
                     "container") return 1 ;;
+                    "inspect") return 1 ;;  # Container doesn't exist, so inspect fails
                     *) return 0 ;;
                 esac
                 ;;
             "not_running")
                 case "$1" in
                     "container")
-                        if [[ "$2" == "inspect" && "$3" == "-f" && "$4" == "{{.State.Running}}" && "$5" == "$CONTAINER_NAME" ]]; then
+                        case "$2" in
+                            "inspect")
+                                if [[ "$3" == "-f" && "$4" == "{{.State.Running}}" ]]; then
+                                    echo "false"
+                                elif [[ "$3" == "--format={{.State.Health.Status}}" ]] || [[ "$3" == "--format='{{.State.Health.Status}}'" ]]; then
+                                    echo "unhealthy"
+                                elif [[ "$3" == "node-red" ]] || [[ "$4" == "node-red" ]]; then
+                                    echo '{"State": {"Running": false, "Status": "exited"}}'
+                                else
+                                    return 0
+                                fi
+                                ;;
+                            *) return 0 ;;
+                        esac
+                        ;;
+                    "inspect")
+                        # Handle direct docker inspect calls for not_running
+                        if [[ "$2" == "--format={{.State.Health.Status}}" ]] || [[ "$2" == "--format='{{.State.Health.Status}}'" ]]; then
+                            echo "unhealthy"
+                        elif [[ "$2" == "--format={{.State.Running}}" ]] || [[ "$2" == "-f" && "$3" == "{{.State.Running}}" ]]; then
                             echo "false"
+                        elif [[ "$2" == "--format={{.State.Status}}" ]] || [[ "$2" == "-f" && "$3" == "{{.State.Status}}" ]]; then
+                            echo "exited"
+                        else
+                            # Default container info for stopped container
+                            echo '{"State": {"Running": false, "Status": "exited", "Health": {"Status": "unhealthy"}}}'
+                        fi
+                        ;;
+                    "ps")
+                        if [[ "$*" =~ "--format" ]]; then
+                            echo ""  # No running containers
+                        else
+                            echo "CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS    NAMES"
                         fi
                         ;;
                     *) return 0 ;;
@@ -219,6 +386,36 @@ mock_jq() {
         esac
     }
     export -f jq
+}
+
+# Mock port checking commands
+mock_port_commands() {
+    # Mock lsof to always show port as free
+    lsof() {
+        case "$*" in
+            *1880*) return 1 ;;  # Port not in use
+            *) return 1 ;;
+        esac
+    }
+    export -f lsof
+    
+    # Mock netstat to show no conflicts
+    netstat() {
+        case "$*" in
+            *1880*) return 1 ;;  # Port not in use 
+            *) echo "Proto Recv-Q Send-Q Local Address Foreign Address State" ;;
+        esac
+    }
+    export -f netstat
+    
+    # Mock ss command as well
+    ss() {
+        case "$*" in
+            *1880*) return 1 ;;  # Port not in use
+            *) echo "Netid State Recv-Q Send-Q Local Address:Port Peer Address:Port" ;;
+        esac  
+    }
+    export -f ss
 }
 
 # Test fixtures location
@@ -300,15 +497,16 @@ reset_node_red_env() {
 
 # Source the actual scripts for testing
 source_node_red_scripts() {
-    # Set up environment
+    # Set up environment - use the same corrected RESOURCES_DIR
     export SCRIPT_DIR="$NODE_RED_TEST_DIR" 
-    export RESOURCES_DIR="$NODE_RED_TEST_DIR/../.."
+    # Reuse the corrected RESOURCES_DIR from setup
+    # export RESOURCES_DIR="$NODE_RED_TEST_DIR/../.." - this was the problem
     
     # Source mock common.sh first (provides log:: functions)
-    source "$NODE_RED_TEST_DIR/../common.sh"
+    source "$RESOURCES_DIR/common.sh"
     
     # Source mock args.sh (provides args:: functions)
-    source "$NODE_RED_TEST_DIR/../helpers/utils/args.sh"
+    source "$(dirname "$RESOURCES_DIR")/helpers/utils/args.sh"
     
     # Source configuration (only if not already sourced)
     if ! command -v node_red::export_config >/dev/null 2>&1; then

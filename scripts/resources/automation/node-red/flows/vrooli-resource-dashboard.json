@@ -1,0 +1,135 @@
+[
+    {
+        "id": "tab-dashboard",
+        "type": "tab",
+        "label": "Resource Dashboard",
+        "disabled": false,
+        "info": "Visual dashboard for Vrooli resource monitoring"
+    },
+    {
+        "id": "dashboard-timer",
+        "type": "inject",
+        "z": "tab-dashboard",
+        "name": "Dashboard Update",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "10",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 150,
+        "y": 100,
+        "wires": [
+            ["get-status"]
+        ]
+    },
+    {
+        "id": "get-status",
+        "type": "function",
+        "z": "tab-dashboard",
+        "name": "Get Status",
+        "func": "const summary = global.get('resourceSummary') || {\n    error: \"No monitoring data available\"\n};\n\nmsg.payload = summary;\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 350,
+        "y": 100,
+        "wires": [
+            ["dashboard-summary", "split-resources"]
+        ]
+    },
+    {
+        "id": "dashboard-summary",
+        "type": "ui_template",
+        "z": "tab-dashboard",
+        "group": "group-summary",
+        "name": "Resource Summary",
+        "order": 1,
+        "width": 12,
+        "height": 3,
+        "format": "<div style=\"padding: 10px;\">\n    <h2>Vrooli Resource Monitor</h2>\n    <div ng-if=\"msg.payload.error\" style=\"color: red; font-weight: bold;\">\n        {{msg.payload.error}}\n    </div>\n    <div ng-if=\"!msg.payload.error\">\n        <div style=\"display: flex; gap: 20px; margin-bottom: 10px;\">\n            <div style=\"background: #e3f2fd; padding: 10px; border-radius: 5px;\">\n                <strong>Total Resources:</strong> {{msg.payload.totalResources}}\n            </div>\n            <div style=\"background: #c8e6c9; padding: 10px; border-radius: 5px;\">\n                <strong>Healthy:</strong> {{msg.payload.healthy}}\n            </div>\n            <div style=\"background: #ffcdd2; padding: 10px; border-radius: 5px;\">\n                <strong>Unhealthy:</strong> {{msg.payload.unhealthy}}\n            </div>\n            <div style=\"background: #f3e5f5; padding: 10px; border-radius: 5px;\">\n                <strong>Health:</strong> {{msg.payload.healthPercentage}}%\n            </div>\n        </div>\n        <div style=\"font-size: 12px; color: #666;\">\n            Last Updated: {{msg.payload.timestamp | date:'short'}}\n        </div>\n    </div>\n</div>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 580,
+        "y": 80,
+        "wires": [[]]
+    },
+    {
+        "id": "split-resources",
+        "type": "function",
+        "z": "tab-dashboard",
+        "name": "Split Resources",
+        "func": "if (!msg.payload.resources) {\n    return null;\n}\n\nconst messages = [];\nfor (let resource of msg.payload.resources) {\n    messages.push({\n        payload: resource,\n        topic: resource.name\n    });\n}\n\nreturn [messages];",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 570,
+        "y": 120,
+        "wires": [
+            ["resource-card"]
+        ]
+    },
+    {
+        "id": "resource-card",
+        "type": "ui_template",
+        "z": "tab-dashboard",
+        "group": "group-resources",
+        "name": "Resource Card",
+        "order": 1,
+        "width": 4,
+        "height": 3,
+        "format": "<div style=\"border: 2px solid {{msg.payload.status === 'healthy' ? '#4caf50' : '#f44336'}}; border-radius: 5px; padding: 10px; margin: 5px;\">\n    <div style=\"display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;\">\n        <h4 style=\"margin: 0; color: {{msg.payload.status === 'healthy' ? '#4caf50' : '#f44336'}};\">\n            {{msg.payload.name}}\n        </h4>\n        <span style=\"background: {{msg.payload.status === 'healthy' ? '#4caf50' : '#f44336'}}; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px;\">\n            {{msg.payload.status}}\n        </span>\n    </div>\n    <div style=\"font-size: 12px; color: #666; margin-bottom: 5px;\">\n        <strong>Category:</strong> {{msg.payload.category}}<br>\n        <strong>Port:</strong> {{msg.payload.port}}<br>\n        <strong>Description:</strong> {{msg.payload.description}}\n    </div>\n    <div ng-if=\"msg.payload.statusCode\" style=\"font-size: 11px; color: #888;\">\n        <strong>Status Code:</strong> {{msg.payload.statusCode}}<br>\n        <strong>Last Checked:</strong> {{msg.payload.lastChecked | date:'short'}}\n    </div>\n    <div ng-if=\"msg.payload.error\" style=\"font-size: 11px; color: #f44336; margin-top: 5px;\">\n        <strong>Error:</strong> {{msg.payload.error}}\n    </div>\n</div>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 780,
+        "y": 120,
+        "wires": [[]]
+    },
+    {
+        "id": "group-summary",
+        "type": "ui_group",
+        "name": "Summary",
+        "tab": "tab-vrooli",
+        "order": 1,
+        "disp": true,
+        "width": "12",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "group-resources",
+        "type": "ui_group",
+        "name": "Resources",
+        "tab": "tab-vrooli",
+        "order": 2,
+        "disp": true,
+        "width": "12",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "tab-vrooli",
+        "type": "ui_tab",
+        "name": "Vrooli Monitor",
+        "icon": "dashboard",
+        "order": 1,
+        "disabled": false,
+        "hidden": false
+    }
+]
