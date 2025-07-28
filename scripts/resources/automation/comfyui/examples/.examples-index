@@ -1,0 +1,17 @@
+# ComfyUI Examples Directory
+# Auto-generated index of available workflow examples
+
+## Basic Examples
+basic_text_to_image.json - Simple text-to-image generation with SDXL
+
+## Advanced Examples  
+pirate_rabbit_comic_advanced.json - Multi-stage comic page with refinement
+pirate_rabbit_comic_composite_v2.json - Multi-panel comic with individual panels
+
+## Utilities
+composite_comic_panels.py - Python script for automatic panel composition
+README.md - Comprehensive documentation for all examples
+
+## Usage
+All examples are designed to work with the default SDXL Base 1.0 model.
+See README.md for detailed usage instructions and technical documentation.

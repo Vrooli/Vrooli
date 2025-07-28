@@ -34,20 +34,36 @@ comfyui::download_default_models() {
         
         local target_path="$target_dir/$model_name"
         
-        # Check if already exists
+        # Check if already exists and verify it
         if [[ -f "$target_path" ]]; then
-            log::info "Model already exists, skipping: $model_name"
-            downloaded=$((downloaded + 1))
-            continue
+            # Get expected metadata
+            local expected_size="${COMFYUI_MODEL_SIZES[$i]}"
+            local expected_sha256="${COMFYUI_MODEL_SHA256[$i]}"
+            
+            log::info "Model exists, verifying: $model_name"
+            if comfyui::verify_model "$target_path" "$expected_size" "$expected_sha256"; then
+                log::success "Model verified: $model_name"
+                downloaded=$((downloaded + 1))
+                continue
+            else
+                log::warn "Existing model failed verification, re-downloading: $model_name"
+                rm -f "$target_path"
+            fi
         fi
         
-        # Download with progress
-        if comfyui::download_model "$model_url" "$target_path"; then
+        # Get expected metadata
+        local expected_size="${COMFYUI_MODEL_SIZES[$i]}"
+        local expected_sha256="${COMFYUI_MODEL_SHA256[$i]}"
+        
+        # Download with progress and verification
+        if comfyui::download_model "$model_url" "$target_path" "$expected_size" "$expected_sha256"; then
             downloaded=$((downloaded + 1))
-            log::success "Downloaded: $model_name"
+            log::success "Downloaded and verified: $model_name"
         else
             failed=$((failed + 1))
             log::error "Failed to download: $model_name"
+            log::info "You can manually download from: $model_url"
+            log::info "Expected size: $(numfmt --to=iec-i --suffix=B "$expected_size" 2>/dev/null || echo "$expected_size bytes")"
         fi
         
         echo
@@ -72,38 +88,123 @@ comfyui::download_default_models() {
 }
 
 #######################################
-# Download a single model
+# Verify model integrity
+#######################################
+comfyui::verify_model() {
+    local model_path="$1"
+    local expected_size="$2"
+    local expected_sha256="$3"
+    
+    # Check if file exists
+    if [[ ! -f "$model_path" ]]; then
+        log::error "Model file not found: $model_path"
+        return 1
+    fi
+    
+    # Verify size
+    local actual_size
+    actual_size=$(stat -c%s "$model_path" 2>/dev/null || stat -f%z "$model_path" 2>/dev/null)
+    
+    if [[ -z "$actual_size" ]]; then
+        log::warn "Could not determine file size for verification"
+    elif [[ "$actual_size" != "$expected_size" ]]; then
+        log::error "Model size mismatch!"
+        log::error "Expected: $expected_size bytes ($(numfmt --to=iec-i --suffix=B "$expected_size" 2>/dev/null || echo "$expected_size bytes"))"
+        log::error "Actual: $actual_size bytes ($(numfmt --to=iec-i --suffix=B "$actual_size" 2>/dev/null || echo "$actual_size bytes"))"
+        return 1
+    else
+        log::success "Size verification passed"
+    fi
+    
+    # Verify SHA256 if sha256sum is available
+    if system::is_command "sha256sum" && [[ -n "$expected_sha256" ]]; then
+        log::info "Verifying SHA256 checksum (this may take a moment)..."
+        local actual_sha256
+        actual_sha256=$(sha256sum "$model_path" | cut -d' ' -f1)
+        
+        if [[ "$actual_sha256" != "$expected_sha256" ]]; then
+            log::error "SHA256 checksum mismatch!"
+            log::error "Expected: $expected_sha256"
+            log::error "Actual: $actual_sha256"
+            return 1
+        else
+            log::success "SHA256 verification passed"
+        fi
+    else
+        log::info "SHA256 verification skipped (sha256sum not available)"
+    fi
+    
+    return 0
+}
+
+#######################################
+# Download a single model with retry
 #######################################
 comfyui::download_model() {
     local url="$1"
     local target_path="$2"
+    local expected_size="${3:-}"
+    local expected_sha256="${4:-}"
+    local max_retries=3
+    local retry_count=0
     
     # Create target directory if needed
     local target_dir
     target_dir=$(dirname "$target_path")
     mkdir -p "$target_dir"
     
-    # Try wget first (better progress display)
-    if system::is_command "wget"; then
-        if wget --progress=bar:force -O "$target_path" "$url" 2>&1; then
-            return 0
+    # Download with retry logic
+    while [[ $retry_count -lt $max_retries ]]; do
+        log::info "Download attempt $((retry_count + 1)) of $max_retries"
+        
+        # Try wget first (supports resume)
+        if system::is_command "wget"; then
+            if wget --progress=bar:force --continue -O "$target_path" "$url" 2>&1; then
+                # Verify if metadata provided
+                if [[ -n "$expected_size" ]]; then
+                    if comfyui::verify_model "$target_path" "$expected_size" "$expected_sha256"; then
+                        return 0
+                    else
+                        log::warn "Model verification failed, retrying download..."
+                        rm -f "$target_path"
+                    fi
+                else
+                    return 0
+                fi
+            else
+                log::warn "Download failed, will retry..."
+            fi
+        # Fall back to curl
+        elif system::is_command "curl"; then
+            if curl -L --progress-bar -C - -o "$target_path" "$url"; then
+                # Verify if metadata provided
+                if [[ -n "$expected_size" ]]; then
+                    if comfyui::verify_model "$target_path" "$expected_size" "$expected_sha256"; then
+                        return 0
+                    else
+                        log::warn "Model verification failed, retrying download..."
+                        rm -f "$target_path"
+                    fi
+                else
+                    return 0
+                fi
+            else
+                log::warn "Download failed, will retry..."
+            fi
         else
-            rm -f "$target_path"
+            log::error "Neither wget nor curl is available for downloading"
             return 1
         fi
-    fi
-    
-    # Fall back to curl
-    if system::is_command "curl"; then
-        if curl -L --progress-bar -o "$target_path" "$url"; then
-            return 0
-        else
-            rm -f "$target_path"
-            return 1
+        
+        retry_count=$((retry_count + 1))
+        if [[ $retry_count -lt $max_retries ]]; then
+            log::info "Waiting 5 seconds before retry..."
+            sleep 5
         fi
-    fi
+    done
     
-    log::error "Neither wget nor curl is available for downloading"
+    log::error "Failed to download model after $max_retries attempts"
+    rm -f "$target_path"
     return 1
 }
 
@@ -209,7 +310,7 @@ comfyui::download_models() {
     fi
     
     # If no specific models requested, download defaults
-    if [[ -z "$MODELS" ]]; then
+    if [[ -z "${MODELS:-}" ]]; then
         comfyui::download_default_models
         return $?
     fi

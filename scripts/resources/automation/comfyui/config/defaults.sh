@@ -17,7 +17,7 @@ readonly COMFYUI_PROXY_PORT="1111"  # ai-dock proxy port
 readonly COMFYUI_DIRECT_PORT="8188"  # ComfyUI direct port
 
 # API configuration
-readonly COMFYUI_API_BASE="http://localhost:${COMFYUI_DEFAULT_PORT}"
+readonly COMFYUI_API_BASE="http://localhost:${COMFYUI_DIRECT_PORT}"
 readonly COMFYUI_HEALTH_ENDPOINT="/system_stats"
 readonly COMFYUI_HEALTH_TIMEOUT=30
 
@@ -29,6 +29,15 @@ readonly COMFYUI_DEFAULT_MODELS=(
 readonly COMFYUI_MODEL_NAMES=(
     "sd_xl_base_1.0.safetensors"
     "sdxl_vae.safetensors"
+)
+# Model metadata for verification
+readonly COMFYUI_MODEL_SIZES=(
+    "6938078334"  # sd_xl_base_1.0.safetensors - 6.5GB
+    "334641164"   # sdxl_vae.safetensors - 319MB (actual HuggingFace file size)
+)
+readonly COMFYUI_MODEL_SHA256=(
+    "31e35c80fc4829d14f90153f4c74cd59c90b779f6afe05a74cd6120b893f7e5b"  # sd_xl_base_1.0.safetensors
+    "63aeecb90ff7bc1c115395962d3e803571385b61938377bc7089b36e81e92e2e"  # sdxl_vae.safetensors (actual)
 )
 
 # GPU configuration

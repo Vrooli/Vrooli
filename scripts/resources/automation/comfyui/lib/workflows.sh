@@ -14,7 +14,7 @@ comfyui::execute_workflow() {
     fi
     
     # Validate workflow file
-    if [[ -z "$WORKFLOW_PATH" ]]; then
+    if [[ -z "${WORKFLOW_PATH:-}" ]]; then
         log::error "No workflow specified. Use --workflow <path>"
         return 1
     fi
@@ -186,7 +186,7 @@ comfyui::monitor_workflow() {
 comfyui::import_workflow() {
     log::header "📥 Importing Workflow"
     
-    if [[ -z "$WORKFLOW_PATH" ]]; then
+    if [[ -z "${WORKFLOW_PATH:-}" ]]; then
         log::error "No workflow specified. Use --workflow <path>"
         return 1
     fi

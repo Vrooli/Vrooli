@@ -122,6 +122,52 @@ comfyui::status() {
         log::warn "Data directory does not exist"
     fi
     
+    # Model integrity check
+    echo
+    log::info "=== Model Integrity ==="
+    
+    local models_valid=0
+    local models_invalid=0
+    
+    # Check default models
+    for i in "${!COMFYUI_MODEL_NAMES[@]}"; do
+        local model_name="${COMFYUI_MODEL_NAMES[$i]}"
+        local expected_size="${COMFYUI_MODEL_SIZES[$i]}"
+        local expected_sha256="${COMFYUI_MODEL_SHA256[$i]}"
+        
+        # Determine model path
+        local model_path
+        if [[ "$model_name" == *"vae"* ]]; then
+            model_path="${COMFYUI_DATA_DIR}/models/vae/$model_name"
+        else
+            model_path="${COMFYUI_DATA_DIR}/models/checkpoints/$model_name"
+        fi
+        
+        if [[ -f "$model_path" ]]; then
+            # Get actual size
+            local actual_size
+            actual_size=$(stat -c%s "$model_path" 2>/dev/null || stat -f%z "$model_path" 2>/dev/null)
+            
+            if [[ "$actual_size" == "$expected_size" ]]; then
+                log::success "✅ $model_name - Valid ($(numfmt --to=iec-i --suffix=B "$actual_size" 2>/dev/null || echo "$actual_size bytes"))"
+                models_valid=$((models_valid + 1))
+            else
+                log::error "❌ $model_name - Invalid size"
+                echo "      Expected: $(numfmt --to=iec-i --suffix=B "$expected_size" 2>/dev/null || echo "$expected_size bytes")"
+                echo "      Actual: $(numfmt --to=iec-i --suffix=B "$actual_size" 2>/dev/null || echo "$actual_size bytes")"
+                models_invalid=$((models_invalid + 1))
+            fi
+        else
+            log::warn "⚠️  $model_name - Not installed"
+        fi
+    done
+    
+    if [[ $models_invalid -gt 0 ]]; then
+        log::info "   Run '$0 --action download-models' to fix corrupted models"
+    elif [[ $models_valid -eq 0 ]]; then
+        log::info "   Run '$0 --action download-models' to install default models"
+    fi
+    
     # Configuration status
     echo
     log::info "=== Configuration ==="
