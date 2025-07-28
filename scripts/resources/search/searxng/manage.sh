@@ -52,7 +52,7 @@ searxng::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|info|search|api-test|benchmark|diagnose|config|reset-config|backup|restore|upgrade|monitor|examples" \
+        --options "install|uninstall|start|stop|restart|status|logs|info|search|api-test|benchmark|diagnose|config|reset-config|backup|restore|upgrade|monitor|examples|headlines|lucky|batch-search" \
         --default "install"
     
     args::register \
@@ -95,6 +95,74 @@ searxng::parse_arguments() {
     args::register \
         --name "engines" \
         --desc "Comma-separated list of search engines" \
+        --type "value" \
+        --default ""
+    
+    # Advanced search parameters
+    args::register \
+        --name "pageno" \
+        --desc "Page number for pagination (1-based)" \
+        --type "value" \
+        --default "1"
+    
+    args::register \
+        --name "time-range" \
+        --desc "Time range filter" \
+        --type "value" \
+        --options "hour|day|week|month|year" \
+        --default ""
+    
+    args::register \
+        --name "safesearch" \
+        --desc "Safe search level (0=off, 1=moderate, 2=strict)" \
+        --type "value" \
+        --options "0|1|2" \
+        --default "1"
+    
+    # Output formatting options
+    args::register \
+        --name "output-format" \
+        --desc "Output format for results" \
+        --type "value" \
+        --options "json|title-only|title-url|csv|markdown|compact" \
+        --default "json"
+    
+    args::register \
+        --name "limit" \
+        --desc "Maximum number of results to return" \
+        --type "value" \
+        --default ""
+    
+    # File operations
+    args::register \
+        --name "save" \
+        --desc "Save results to file" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "append" \
+        --desc "Append results to file (JSONL format)" \
+        --type "value" \
+        --default ""
+    
+    # Batch operations
+    args::register \
+        --name "file" \
+        --desc "File containing queries (one per line) for batch search" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "queries" \
+        --desc "Comma-separated list of queries for batch search" \
+        --type "value" \
+        --default ""
+    
+    # Quick actions
+    args::register \
+        --name "topic" \
+        --desc "Topic filter for headlines action" \
         --type "value" \
         --default ""
     
@@ -150,6 +218,26 @@ searxng::parse_arguments() {
     export BENCHMARK_COUNT=$(args::get "count")
     export MONITOR_INTERVAL=$(args::get "interval")
     export USE_COMPOSE=$(args::get "compose")
+    
+    # Advanced search parameters
+    export SEARCH_PAGENO=$(args::get "pageno")
+    export SEARCH_TIME_RANGE=$(args::get "time-range")
+    export SEARCH_SAFESEARCH=$(args::get "safesearch")
+    
+    # Output formatting
+    export OUTPUT_FORMAT=$(args::get "output-format")
+    export RESULT_LIMIT=$(args::get "limit")
+    
+    # File operations
+    export SAVE_FILE=$(args::get "save")
+    export APPEND_FILE=$(args::get "append")
+    
+    # Batch operations
+    export BATCH_FILE=$(args::get "file")
+    export BATCH_QUERIES=$(args::get "queries")
+    
+    # Quick actions
+    export HEADLINES_TOPIC=$(args::get "topic")
 }
 
 #######################################
@@ -162,8 +250,12 @@ searxng::usage() {
     echo "  $0 --action install                                    # Install SearXNG"
     echo "  $0 --action start                                      # Start SearXNG"
     echo "  $0 --action status                                     # Show status"
-    echo "  $0 --action search --query 'artificial intelligence'   # Perform search"
+    echo "  $0 --action search --query 'artificial intelligence'   # Basic search"
     echo "  $0 --action search --query 'robots' --category images  # Image search"
+    echo "  $0 --action search --query 'news' --time-range day     # Recent news"
+    echo "  $0 --action search --query 'AI' --limit 5 --save results.json  # Save results"
+    echo "  $0 --action search --query 'tech' --output-format title-only   # Titles only"
+    echo "  $0 --action search --query 'research' --pageno 2       # Page 2 results"
     echo "  $0 --action api-test                                   # Test API endpoints"
     echo "  $0 --action benchmark --count 20                      # Performance test"
     echo "  $0 --action backup                                     # Backup configuration"
@@ -224,7 +316,9 @@ searxng::main() {
             if [[ -z "$SEARCH_QUERY" ]]; then
                 searxng::interactive_search
             else
-                searxng::search "$SEARCH_QUERY" "$SEARCH_FORMAT" "$SEARCH_CATEGORY" "$SEARCH_LANGUAGE"
+                searxng::search "$SEARCH_QUERY" "$SEARCH_FORMAT" "$SEARCH_CATEGORY" "$SEARCH_LANGUAGE" \
+                    "$SEARCH_PAGENO" "$SEARCH_SAFESEARCH" "$SEARCH_TIME_RANGE" "$OUTPUT_FORMAT" \
+                    "$RESULT_LIMIT" "$SAVE_FILE" "$APPEND_FILE"
             fi
             ;;
         "api-test")
@@ -267,6 +361,29 @@ searxng::main() {
             ;;
         "examples")
             searxng::show_api_examples
+            ;;
+        "headlines")
+            searxng::headlines "$HEADLINES_TOPIC"
+            ;;
+        "lucky")
+            if [[ -z "$SEARCH_QUERY" ]]; then
+                log::error "Query is required for lucky search"
+                log::info "Use: --action lucky --query 'your search'"
+                exit 1
+            fi
+            searxng::lucky "$SEARCH_QUERY"
+            ;;
+        "batch-search")
+            if [[ -n "$BATCH_FILE" ]]; then
+                searxng::batch_search_file "$BATCH_FILE"
+            elif [[ -n "$BATCH_QUERIES" ]]; then
+                searxng::batch_search_queries "$BATCH_QUERIES"
+            else
+                log::error "Batch search requires either --file or --queries parameter"
+                log::info "Use: --action batch-search --file queries.txt"
+                log::info "Or:  --action batch-search --queries 'query1,query2,query3'"
+                exit 1
+            fi
             ;;
         *)
             log::error "Unknown action: $ACTION"

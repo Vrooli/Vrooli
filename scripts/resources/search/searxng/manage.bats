@@ -99,7 +99,7 @@ HELPERS_DIR="$RESOURCES_DIR/../helpers"
 }
 
 @test "searxng::parse_arguments rejects invalid action" {
-    run bash -c "source '$SCRIPT_PATH'; searxng::parse_arguments --action invalid"
+    run bash -c "source '$SCRIPT_PATH'; searxng::parse_arguments --action invalid; searxng::main"
     [ "$status" -ne 0 ]
 }
 
@@ -193,6 +193,16 @@ HELPERS_DIR="$RESOURCES_DIR/../helpers"
         searxng::interactive_search() { echo 'interactive search called'; return 0; }
         export ACTION='search'
         export SEARCH_QUERY='test'
+        export SEARCH_FORMAT='json'
+        export SEARCH_CATEGORY='general'
+        export SEARCH_LANGUAGE='en'
+        export SEARCH_PAGENO='1'
+        export SEARCH_SAFESEARCH='1'
+        export SEARCH_TIME_RANGE=''
+        export OUTPUT_FORMAT='json'
+        export RESULT_LIMIT=''
+        export SAVE_FILE=''
+        export APPEND_FILE=''
         searxng::main
     "
     [ "$status" -eq 0 ]
@@ -286,18 +296,9 @@ HELPERS_DIR="$RESOURCES_DIR/../helpers"
 # Integration Tests (Mock-based)
 # ============================================================================
 
-@test "script can be executed directly when sourced properly" {
-    # Test that when run as main script, it executes correctly
-    run bash -c "
-        export BASH_SOURCE=('$SCRIPT_PATH')
-        export 0='$SCRIPT_PATH'
-        
-        # Mock all functions to avoid actual execution
-        searxng::parse_arguments() { export ACTION='status'; }
-        searxng::main() { echo 'main executed'; return 0; }
-        
-        source '$SCRIPT_PATH'
-    "
+@test "script can be executed directly and runs successfully" {
+    # Test that the script can be executed with help flag
+    run bash -c "'$SCRIPT_PATH' --help"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "main executed" ]]
+    [[ "$output" =~ "Usage:" ]]
 }

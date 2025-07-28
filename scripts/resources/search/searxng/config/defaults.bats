@@ -3,6 +3,9 @@
 
 # Setup for each test
 setup() {
+    # Enable test mode to prevent readonly variables
+    export SEARXNG_TEST_MODE=\"yes\"
+    
     # Set test environment variables
     export SEARXNG_CUSTOM_PORT="8200"
     export SEARXNG_SECRET_KEY="test-secret-key-32-characters-long"
@@ -88,7 +91,8 @@ setup() {
     
     [ -n "$SEARXNG_DEFAULT_ENGINES" ]
     [ -n "$SEARXNG_SAFE_SEARCH" ]
-    [ -n "$SEARXNG_AUTOCOMPLETE" ]
+    # SEARXNG_AUTOCOMPLETE can be empty (no autocomplete) - this is valid
+    [ "$SEARXNG_AUTOCOMPLETE" = "" ]
     [ -n "$SEARXNG_DEFAULT_LANG" ]
     [ "$SEARXNG_DEFAULT_LANG" = "en" ]
 }
@@ -237,7 +241,8 @@ setup() {
     [[ "$SEARXNG_ENABLE_REDIS" =~ ^(yes|no)$ ]]
     [[ "$SEARXNG_LIMITER_ENABLED" =~ ^(yes|no)$ ]]
     [[ "$SEARXNG_ENABLE_PUBLIC_ACCESS" =~ ^(yes|no)$ ]]
-    [[ "$SEARXNG_AUTOCOMPLETE" =~ ^(yes|no)$ ]]
+    # SEARXNG_AUTOCOMPLETE is not a boolean - it's a string that can be empty or contain provider name
+    [[ "$SEARXNG_ENABLE_METRICS" =~ ^(yes|no)$ ]]
 }
 
 # ============================================================================

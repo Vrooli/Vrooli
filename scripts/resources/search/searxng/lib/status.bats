@@ -511,7 +511,7 @@ setup_searxng_status_test_env() {
         fi
     }
     
-    run timeout 1s searxng::monitor 1
+    run /usr/bin/timeout 1s searxng::monitor 1
     # Status may be 0 (success) or 124 (timeout) - both are acceptable for this test
     [[ "$status" -eq 0 || "$status" -eq 124 ]]
     [[ "$output" =~ "Starting SearXNG monitoring" ]]
@@ -539,7 +539,7 @@ setup_searxng_status_test_env() {
         ((call_count++))
     }
     
-    run timeout 1s searxng::monitor 1
+    run /usr/bin/timeout 1s searxng::monitor 1
     [[ "$status" -eq 0 || "$status" -eq 124 ]]
     [[ "$output" =~ "Response:" ]]
 }

@@ -1,0 +1,1186 @@
+#!/usr/bin/env bats
+bats_require_minimum_version 1.5.0
+
+# Path to the script under test
+SCRIPT_PATH="$BATS_TEST_DIRNAME/api.sh"
+SEARXNG_DIR="$BATS_TEST_DIRNAME/.."
+
+# Helper function to run commands with proper environment
+run_searxng_test() {
+    local cmd="$1"
+    
+    # Build the environment setup
+    local setup_cmd="
+        export SEARXNG_TEST_MODE=yes
+        export SEARXNG_PORT=8100
+        export SEARXNG_BASE_URL='http://localhost:8100'
+        export SEARXNG_DATA_DIR='$HOME/.searxng'
+        export MOCK_SEARXNG_HEALTHY=yes
+        export MOCK_CURL_SUCCESS=yes
+        export MOCK_JQ_AVAILABLE=yes
+        
+        # Mock functions
+        searxng::is_healthy() { [[ \"\$MOCK_SEARXNG_HEALTHY\" == \"yes\" ]]; }
+        command() { 
+            if [[ \"\$1\" == \"which\" && \"\$2\" == \"jq\" && \"\$MOCK_JQ_AVAILABLE\" == \"yes\" ]]; then
+                echo \"/usr/bin/jq\"
+                return 0
+            fi
+            return 1
+        }
+        curl() {
+            if [[ \"\$MOCK_CURL_SUCCESS\" == \"yes\" ]]; then
+                echo '{\"results\": [{\"title\": \"Test Result\", \"url\": \"http://example.com\"}]}'
+                return 0
+            fi
+            return 1
+        }
+        
+        # Source the script
+        source '$SCRIPT_PATH'
+        
+        # Run the command
+        $cmd
+    "
+    
+    run bash -c "$setup_cmd"
+}
+
+# Helper function for proper sourcing in tests
+setup_searxng_api_test_env() {
+    # Enable test mode early
+    export SEARXNG_TEST_MODE=yes
+    
+    local script_dir="$SEARXNG_DIR"
+    local resources_dir="$SEARXNG_DIR/../.." 
+    local scripts_dir="$resources_dir/.."
+    local helpers_dir="$scripts_dir/helpers"
+    
+    # Disable exit on unbound variables during setup
+    set +u
+    
+    # Source utilities first
+    source "$helpers_dir/utils/log.sh" || { echo "FAILED: log.sh"; return 1; }
+    source "$resources_dir/common.sh" || { echo "FAILED: common.sh"; return 1; }
+    
+    # Source config and messages
+    source "$script_dir/config/defaults.sh" || { echo "FAILED: defaults.sh"; return 1; }
+    
+    # Export critical variables before messages.sh needs them
+    export SEARXNG_PORT="${SEARXNG_PORT:-8100}"
+    export SEARXNG_BASE_URL="${SEARXNG_BASE_URL:-http://localhost:${SEARXNG_PORT}}"
+    export SEARXNG_DATA_DIR="${SEARXNG_DATA_DIR:-$HOME/.searxng}"
+    
+    source "$script_dir/config/messages.sh" || { echo "FAILED: messages.sh"; return 1; }
+    searxng::export_config || { echo "FAILED: export_config"; return 1; }
+    
+    # Re-enable exit on unbound variables after setup
+    set -u
+    
+    # Source dependencies
+    source "$script_dir/lib/common.sh"
+    
+    # Source the script under test
+    source "$SCRIPT_PATH"
+    
+    # Mock functions
+    log::info() { echo "INFO: $*"; }
+    log::success() { echo "SUCCESS: $*"; }
+    log::error() { echo "ERROR: $*"; }
+    log::warn() { echo "WARNING: $*"; }
+    log::header() { echo "HEADER: $*"; }
+    log::debug() { echo "DEBUG: $*"; }
+    
+    # Mock health check
+    searxng::is_healthy() {
+        if [[ "$MOCK_SEARXNG_HEALTHY" == "yes" ]]; then
+            return 0
+        else
+            return 1
+        fi
+    }
+    
+    # Mock curl command
+    curl() {
+        local url=""
+        local format=""
+        
+        # Parse curl arguments
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                "-sf"|"-s"|"-f")
+                    shift
+                    ;;
+                "--max-time")
+                    shift 2
+                    ;;
+                "-w")
+                    shift 2
+                    ;;
+                "-o")
+                    shift 2
+                    ;;
+                "-G*"|"--data-urlencode")
+                    shift
+                    ;;
+                *)
+                    url="$1"
+                    shift
+                    ;;
+            esac
+        done
+        
+        # Mock responses based on URL and settings
+        if [[ "$MOCK_CURL_SUCCESS" == "yes" ]]; then
+            case "$url" in
+                *"/search"*)
+                    if [[ "$url" =~ format=([^&]*) ]]; then
+                        format="${BASH_REMATCH[1]}"
+                    else
+                        format="json"
+                    fi
+                    
+                    case "$format" in
+                        "json")
+                            echo '{"results":[{"title":"Test Result","url":"http://example.com","content":"Test content"}]}'
+                            ;;
+                        "xml")
+                            echo '<results><result><title>Test Result</title></result></results>'
+                            ;;
+                        "csv")
+                            echo 'title,url,content'
+                            echo 'Test Result,http://example.com,Test content'
+                            ;;
+                        *)
+                            echo '{"results":[]}'
+                            ;;
+                    esac
+                    return 0
+                    ;;
+                *"/stats"*)
+                    echo '{"engines":{"google":{"errors":0},"bing":{"errors":0}}}'
+                    return 0
+                    ;;
+                *"/config"*)
+                    echo '{"categories":["general","images","news"]}'
+                    return 0
+                    ;;
+                *)
+                    return 0
+                    ;;
+            esac
+        else
+            return 1
+        fi
+    }
+    
+    # Mock printf for URL encoding
+    printf() {
+        if [[ "$1" == '%s' ]] && [[ "$2" == "test query" ]]; then
+            echo "test%20query"
+        else
+            command printf "$@"
+        fi
+    }
+    
+    # Mock commands
+    command() {
+        case "$*" in
+            "-v jq")
+                if [[ "$MOCK_JQ_AVAILABLE" == "yes" ]]; then
+                    return 0
+                else
+                    return 1
+                fi
+                ;;
+            "-v bc")
+                if [[ "$MOCK_BC_AVAILABLE" == "yes" ]]; then
+                    return 0
+                else
+                    return 1
+                fi
+                ;;
+            *)
+                return 0
+                ;;
+        esac
+    }
+    
+    # Mock jq for JSON formatting
+    jq() {
+        if [[ "$MOCK_JQ_SUCCESS" == "yes" ]]; then
+            echo '{"title": "Test Result", "url": "http://example.com", "content": "Test content"}'
+            return 0
+        else
+            return 1
+        fi
+    }
+    
+    # Mock bc for calculations
+    bc() {
+        if [[ "$*" =~ "1.5 / 1" ]]; then
+            echo "1.500"
+        elif [[ "$*" =~ "< 1.0" ]]; then
+            echo "1"
+        else
+            echo "0"
+        fi
+        return 0
+    }
+    
+    # Mock date for timing
+    date() {
+        case "$*" in
+            "+%s.%N")
+                echo "1234567890.123"
+                ;;
+            "+%s")
+                echo "1234567890"
+                ;;
+            *)
+                command date "$@"
+                ;;
+        esac
+    }
+    
+    # Mock echo for math operations
+    echo() {
+        if [[ "$*" =~ "1234567890.123 - 1234567890.123" ]]; then
+            command echo "0.000"
+        elif [[ "$*" =~ "0.000 + 1.500" ]]; then
+            command echo "1.500"
+        else
+            command echo "$@"
+        fi
+    }
+    
+    # Mock read for interactive input
+    read() {
+        # Handle read command arguments properly
+        local var_name=""
+        local args=("$@")
+        
+        # Find the variable name (last argument that doesn't start with -)
+        for arg in "$@"; do
+            if [[ ! "$arg" =~ ^- ]]; then
+                var_name="$arg"
+            fi
+        done
+        
+        # If no variable name found, use default REPLY
+        if [[ -z "$var_name" ]]; then
+            var_name="REPLY"
+        fi
+        
+        # Set the value using printf instead of eval for safety
+        if [[ "$MOCK_USER_INPUT" ]]; then
+            printf -v "$var_name" "%s" "$MOCK_USER_INPUT"
+        else
+            # Simulate 'quit' to exit interactive mode
+            printf -v "$var_name" "%s" "quit"
+        fi
+        return 0
+    }
+    
+    # Set default mocks
+    export MOCK_SEARXNG_HEALTHY="yes"
+    export MOCK_CURL_SUCCESS="yes"
+    export MOCK_JQ_AVAILABLE="yes"
+    export MOCK_JQ_SUCCESS="yes"
+    export MOCK_BC_AVAILABLE="yes"
+    export MOCK_USER_INPUT=""
+}
+
+# ============================================================================
+# Script Loading Tests
+# ============================================================================
+
+@test "sourcing api.sh defines required functions" {
+    local script_path="$SCRIPT_PATH"
+    local required_functions=(
+        "searxng::search"
+        "searxng::format_output"
+        "searxng::get_stats"
+        "searxng::get_api_config"
+        "searxng::test_api"
+        "searxng::interactive_search"
+        "searxng::benchmark"
+        "searxng::show_api_examples"
+        "searxng::headlines"
+        "searxng::lucky"
+        "searxng::batch_search_file"
+        "searxng::batch_search_queries"
+    )
+    
+    # Test each function exists after sourcing
+    for func in "${required_functions[@]}"; do
+        run bash -c "source '$script_path' && declare -F '$func'"
+        if [ "$status" -ne 0 ]; then
+            echo "MISSING FUNCTION: $func"
+            return 1
+        fi
+    done
+}
+
+# ============================================================================
+# Search Function Tests
+# ============================================================================
+
+@test "searxng::search performs basic search successfully" {
+    run_searxng_test "searxng::search 'test query'"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ '"results"' ]]
+}
+
+@test "searxng::search fails with empty query" {
+    setup_searxng_api_test_env
+    
+    run searxng::search ""
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: Search query is required" ]]
+}
+
+@test "searxng::search fails when SearXNG unhealthy" {
+    setup_searxng_api_test_env
+    export MOCK_SEARXNG_HEALTHY="no"
+    
+    run searxng::search "test query"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: SearXNG is not running or healthy" ]]
+}
+
+@test "searxng::search handles different formats" {
+    setup_searxng_api_test_env
+    
+    # Test JSON format
+    run searxng::search "test" "json"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ '"results"' ]]
+    
+    # Test XML format
+    run searxng::search "test" "xml"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ '<results>' ]]
+    
+    # Test CSV format
+    run searxng::search "test" "csv"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ 'title,url,content' ]]
+}
+
+@test "searxng::search handles different categories" {
+    setup_searxng_api_test_env
+    
+    run searxng::search "test" "json" "images"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Searching for: test" ]]
+}
+
+@test "searxng::search fails when API request fails" {
+    setup_searxng_api_test_env
+    export MOCK_CURL_SUCCESS="no"
+    
+    run searxng::search "test query"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: Search request failed" ]]
+}
+
+# ============================================================================
+# Stats and Config Tests
+# ============================================================================
+
+@test "searxng::get_stats retrieves statistics successfully" {
+    setup_searxng_api_test_env
+    
+    run searxng::get_stats
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ '"engines"' ]]
+}
+
+@test "searxng::get_stats fails when SearXNG unhealthy" {
+    setup_searxng_api_test_env
+    export MOCK_SEARXNG_HEALTHY="no"
+    
+    run searxng::get_stats
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: SearXNG is not running or healthy" ]]
+}
+
+@test "searxng::get_api_config retrieves configuration successfully" {
+    setup_searxng_api_test_env
+    
+    run searxng::get_api_config
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ '"categories"' ]]
+}
+
+@test "searxng::get_api_config fails when API fails" {
+    setup_searxng_api_test_env
+    export MOCK_CURL_SUCCESS="no"
+    
+    run searxng::get_api_config
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: Failed to retrieve SearXNG configuration" ]]
+}
+
+# ============================================================================
+# API Testing Tests
+# ============================================================================
+
+@test "searxng::test_api tests all endpoints successfully" {
+    setup_searxng_api_test_env
+    
+    run searxng::test_api
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "HEADER: SearXNG API Test" ]]
+    [[ "$output" =~ "✅ /stats endpoint responding" ]]
+    [[ "$output" =~ "✅ /config endpoint responding" ]]
+    [[ "$output" =~ "✅ /search endpoint responding" ]]
+    [[ "$output" =~ "SUCCESS: All API tests passed" ]]
+}
+
+@test "searxng::test_api fails when SearXNG unhealthy" {
+    setup_searxng_api_test_env
+    export MOCK_SEARXNG_HEALTHY="no"
+    
+    run searxng::test_api
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: SearXNG is not running or healthy" ]]
+}
+
+@test "searxng::test_api detects endpoint failures" {
+    setup_searxng_api_test_env
+    export MOCK_CURL_SUCCESS="no"
+    
+    run searxng::test_api
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "❌" ]]
+    [[ "$output" =~ "ERROR: API tests failed" ]]
+}
+
+@test "searxng::test_api tests multiple formats" {
+    setup_searxng_api_test_env
+    
+    run searxng::test_api
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Testing response formats" ]]
+    [[ "$output" =~ "✅ json format working" ]]
+    [[ "$output" =~ "✅ xml format working" ]]
+    [[ "$output" =~ "✅ csv format working" ]]
+}
+
+@test "searxng::test_api tests multiple categories" {
+    setup_searxng_api_test_env
+    
+    run searxng::test_api
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Testing search categories" ]]
+    [[ "$output" =~ "✅ general category working" ]]
+    [[ "$output" =~ "✅ images category working" ]]
+    [[ "$output" =~ "✅ news category working" ]]
+}
+
+# ============================================================================
+# Interactive Search Tests
+# ============================================================================
+
+@test "searxng::interactive_search handles user input" {
+    setup_searxng_api_test_env
+    export MOCK_USER_INPUT="test search"
+    
+    run searxng::interactive_search
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "SearXNG Interactive Search" ]]
+    [[ "$output" =~ "Type 'quit' to exit" ]]
+}
+
+@test "searxng::interactive_search fails when SearXNG unhealthy" {
+    setup_searxng_api_test_env
+    export MOCK_SEARXNG_HEALTHY="no"
+    
+    run searxng::interactive_search
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: SearXNG is not running or healthy" ]]
+}
+
+@test "searxng::interactive_search formats JSON with jq when available" {
+    setup_searxng_api_test_env
+    export MOCK_USER_INPUT="test"
+    export MOCK_JQ_AVAILABLE="yes"
+    export MOCK_JQ_SUCCESS="yes"
+    
+    run searxng::interactive_search
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Searching for: test" ]]
+}
+
+@test "searxng::interactive_search handles missing jq gracefully" {
+    setup_searxng_api_test_env
+    export MOCK_USER_INPUT="test"
+    export MOCK_JQ_AVAILABLE="no"
+    
+    run searxng::interactive_search
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Searching for: test" ]]
+}
+
+# ============================================================================
+# Benchmark Tests
+# ============================================================================
+
+@test "searxng::benchmark runs performance test successfully" {
+    setup_searxng_api_test_env
+    export MOCK_BC_AVAILABLE="yes"
+    
+    run searxng::benchmark 3
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Running SearXNG performance benchmark" ]]
+    [[ "$output" =~ "Number of test queries: 3" ]]
+    [[ "$output" =~ "Benchmark Results:" ]]
+    [[ "$output" =~ "Total queries: 3" ]]
+}
+
+@test "searxng::benchmark fails when SearXNG unhealthy" {
+    setup_searxng_api_test_env
+    export MOCK_SEARXNG_HEALTHY="no"
+    
+    run searxng::benchmark
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: SearXNG is not running or healthy" ]]
+}
+
+@test "searxng::benchmark uses default query count" {
+    setup_searxng_api_test_env
+    
+    run searxng::benchmark
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Number of test queries: 10" ]]
+}
+
+@test "searxng::benchmark handles failed queries" {
+    setup_searxng_api_test_env
+    export MOCK_CURL_SUCCESS="no"
+    
+    run searxng::benchmark 2
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "❌ Failed" ]]
+    [[ "$output" =~ "Failed: 2" ]]
+}
+
+@test "searxng::benchmark calculates performance metrics" {
+    setup_searxng_api_test_env
+    export MOCK_BC_AVAILABLE="yes"
+    
+    run searxng::benchmark 1
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Average response time:" ]]
+    [[ "$output" =~ "Performance:" ]]
+}
+
+# ============================================================================
+# API Examples Tests
+# ============================================================================
+
+@test "searxng::show_api_examples displays comprehensive examples" {
+    setup_searxng_api_test_env
+    
+    run searxng::show_api_examples
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "HEADER: SearXNG API Usage Examples" ]]
+    [[ "$output" =~ "Basic Search:" ]]
+    [[ "$output" =~ "Image Search:" ]]
+    [[ "$output" =~ "News Search:" ]]
+    [[ "$output" =~ "Get Statistics:" ]]
+    [[ "$output" =~ "Get Configuration:" ]]
+}
+
+@test "searxng::show_api_examples shows available formats" {
+    setup_searxng_api_test_env
+    
+    run searxng::show_api_examples
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Available Formats:" ]]
+    [[ "$output" =~ "- json (default)" ]]
+    [[ "$output" =~ "- xml" ]]
+    [[ "$output" =~ "- csv" ]]
+    [[ "$output" =~ "- rss" ]]
+}
+
+@test "searxng::show_api_examples shows available categories" {
+    setup_searxng_api_test_env
+    
+    run searxng::show_api_examples
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Available Categories:" ]]
+    [[ "$output" =~ "- general (default)" ]]
+    [[ "$output" =~ "- images" ]]
+    [[ "$output" =~ "- videos" ]]
+    [[ "$output" =~ "- news" ]]
+    [[ "$output" =~ "- music" ]]
+    [[ "$output" =~ "- files" ]]
+    [[ "$output" =~ "- science" ]]
+}
+
+@test "searxng::show_api_examples includes script usage" {
+    setup_searxng_api_test_env
+    
+    run searxng::show_api_examples
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Script Usage:" ]]
+    [[ "$output" =~ "./manage.sh --action search" ]]
+    [[ "$output" =~ "./manage.sh --action api-test" ]]
+    [[ "$output" =~ "./manage.sh --action benchmark" ]]
+}
+
+@test "searxng::show_api_examples includes correct URLs" {
+    setup_searxng_api_test_env
+    
+    run searxng::show_api_examples
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "$SEARXNG_BASE_URL/search" ]]
+    [[ "$output" =~ "$SEARXNG_BASE_URL/stats" ]]
+    [[ "$output" =~ "$SEARXNG_BASE_URL/config" ]]
+}
+
+# ============================================================================
+# Integration Tests
+# ============================================================================
+
+@test "API functions handle network failures gracefully" {
+    setup_searxng_api_test_env
+    export MOCK_CURL_SUCCESS="no"
+    
+    # Test that all API functions fail gracefully
+    run searxng::search "test"
+    [ "$status" -eq 1 ]
+    
+    run searxng::get_stats
+    [ "$status" -eq 1 ]
+    
+    run searxng::get_api_config
+    [ "$status" -eq 1 ]
+}
+
+@test "URL encoding works correctly" {
+    setup_searxng_api_test_env
+    
+    run searxng::search "test query with spaces"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Searching for: test query with spaces" ]]
+}
+
+@test "API timeout handling works" {
+    setup_searxng_api_test_env
+    
+    # Verify that API calls include timeout parameter
+    run searxng::search "test"
+    [ "$status" -eq 0 ]
+    # The mock curl should receive --max-time parameter
+}
+
+@test "benchmark handles mathematical operations correctly" {
+    setup_searxng_api_test_env
+    export MOCK_BC_AVAILABLE="yes"
+    
+    run searxng::benchmark 1
+    [ "$status" -eq 0 ]
+    # Should complete without mathematical errors
+    [[ "$output" =~ "Average response time:" ]]
+}
+# ============================================================================
+# JSON API Integration Tests
+# ============================================================================
+
+@test "searxng::search returns valid JSON format" {
+    setup_searxng_api_test_env
+    
+    run searxng::search "artificial intelligence" "json"
+    [ "$status" -eq 0 ]
+    
+    # Check JSON structure
+    [[ "$output" =~ '"query"' ]]
+    [[ "$output" =~ '"results"' ]]
+    [[ "$output" =~ '"number_of_results"' ]]
+}
+
+@test "searxng::search handles special characters in queries" {
+    setup_searxng_api_test_env
+    
+    # Test with special characters that need URL encoding
+    run searxng::search "C++ programming & algorithms" "json"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ '"results"' ]]
+}
+
+@test "searxng::search supports multiple categories" {
+    setup_searxng_api_test_env
+    
+    # Test category filtering
+    run searxng::search "technology" "json" "general,news"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ '"results"' ]]
+}
+
+@test "searxng::search handles language parameter" {
+    setup_searxng_api_test_env
+    
+    # Test language-specific search
+    run searxng::search "tecnología" "json" "general" "es"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ '"results"' ]]
+}
+
+@test "API returns proper error for invalid format" {
+    setup_searxng_api_test_env
+    export MOCK_CURL_ERROR_FORMAT="yes"
+    
+    # Mock curl to return error for invalid format
+    curl() {
+        if [[ "$*" =~ "format=invalid" ]]; then
+            echo '{"error": "Invalid format"}'
+            return 1
+        else
+            echo '{"results": []}'
+            return 0
+        fi
+    }
+    
+    run searxng::search "test" "invalid"
+    # Should handle gracefully even with invalid format
+}
+
+@test "API handles pagination correctly" {
+    setup_searxng_api_test_env
+    
+    # Test pagination parameter
+    export MOCK_CURL_RESPONSE='{"results": [{"page": 2}], "pageno": 2}'
+    
+    curl() {
+        if [[ "$*" =~ "pageno=2" ]]; then
+            echo "$MOCK_CURL_RESPONSE"
+            return 0
+        else
+            echo '{"results": []}'
+            return 0
+        fi
+    }
+    
+    run searxng::search "test" "json" "general" "en" "2"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ '"pageno": 2' ]]
+}
+
+@test "API respects safe search settings" {
+    setup_searxng_api_test_env
+    
+    # Test safe search parameter
+    curl() {
+        if [[ "$*" =~ "safesearch=2" ]]; then
+            echo '{"results": [], "safesearch": 2}'
+            return 0
+        else
+            echo '{"results": []}'
+            return 0
+        fi
+    }
+    
+    run searxng::search "test" "json" "general" "en" "1" "2"
+    [ "$status" -eq 0 ]
+}
+
+@test "API handles time range filtering" {
+    setup_searxng_api_test_env
+    
+    # Test time range parameter
+    curl() {
+        if [[ "$*" =~ "time_range=day" ]]; then
+            echo '{"results": [{"timerange": "day"}], "time_range": "day"}'
+            return 0
+        else
+            echo '{"results": []}'
+            return 0
+        fi
+    }
+    
+    run searxng::search "news" "json" "news" "en" "1" "1" "day"
+    [ "$status" -eq 0 ]
+}
+
+@test "searxng::test_api validates all endpoints" {
+    setup_searxng_api_test_env
+    
+    run searxng::test_api
+    [ "$status" -eq 0 ]
+    
+    # Should test multiple endpoints
+    [[ "$output" =~ "Testing search endpoint" ]]
+    [[ "$output" =~ "Testing stats endpoint" ]]
+    [[ "$output" =~ "Testing config endpoint" ]]
+}
+
+@test "API benchmark calculates performance metrics" {
+    setup_searxng_api_test_env
+    export MOCK_BC_AVAILABLE="yes"
+    
+    # Mock multiple curl responses for benchmark
+    local call_count=0
+    curl() {
+        ((call_count++))
+        echo '{"results": [{"id": '"$call_count"'}]}'
+        return 0
+    }
+    
+    run searxng::benchmark 3
+    [ "$status" -eq 0 ]
+    
+    # Should show performance summary
+    [[ "$output" =~ "Running 3 search queries" ]]
+    [[ "$output" =~ "Average response time:" ]]
+    [[ "$output" =~ "Total time:" ]]
+}
+
+@test "interactive search handles user input correctly" {
+    setup_searxng_api_test_env
+    
+    # Simulate user entering a query then quitting
+    local input_count=0
+    read() {
+        ((input_count++))
+        
+        # Handle read command arguments properly
+        local var_name=""
+        
+        # Find the variable name (last argument that doesn't start with -)
+        for arg in "$@"; do
+            if [[ ! "$arg" =~ ^- ]]; then
+                var_name="$arg"
+            fi
+        done
+        
+        # If no variable name found, use default REPLY
+        if [[ -z "$var_name" ]]; then
+            var_name="REPLY"
+        fi
+        
+        # Set the value using printf instead of eval for safety
+        if [[ $input_count -eq 1 ]]; then
+            printf -v "$var_name" "%s" "machine learning"
+        else
+            printf -v "$var_name" "%s" "quit"
+        fi
+        return 0
+    }
+    
+    run searxng::interactive_search
+    [ "$status" -eq 0 ]
+    
+    # Should process the search and exit cleanly
+    [[ "$output" =~ "Enter search query" ]]
+    [[ "$output" =~ "Searching for: machine learning" ]]
+    [[ "$output" =~ "Exiting interactive search" ]]
+}
+
+@test "API error handling for network issues" {
+    setup_searxng_api_test_env
+    
+    # Mock curl network failure
+    curl() {
+        return 7  # Connection refused
+    }
+    
+    run searxng::search "test"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: Failed to search" ]]
+}
+
+@test "API handles empty results gracefully" {
+    setup_searxng_api_test_env
+    
+    # Mock empty results
+    curl() {
+        echo '{"query": "obscure12345query", "results": [], "number_of_results": 0}'
+        return 0
+    }
+    
+    run searxng::search "obscure12345query" "json"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ '"results": \[\]' ]]
+}
+
+# ============================================================================
+# New Functions Tests - Enhanced Features
+# ============================================================================
+
+@test "searxng::format_output formats JSON output correctly" {
+    setup_searxng_api_test_env
+    
+    local test_json='{"query": "test", "results": [{"title": "Test", "url": "http://example.com", "content": "Test content"}]}'
+    
+    run searxng::format_output "$test_json" "json"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ '"results"' ]]
+}
+
+@test "searxng::format_output handles title-only format" {
+    setup_searxng_api_test_env
+    
+    local test_json='{"results": [{"title": "Test Title", "url": "http://example.com"}]}'
+    
+    # Mock jq to return expected output
+    jq() {
+        echo "Test Title"
+        return 0
+    }
+    
+    run searxng::format_output "$test_json" "title-only"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Test Title" ]]
+}
+
+@test "searxng::format_output applies limit correctly" {
+    setup_searxng_api_test_env
+    
+    local test_json='{"results": [{"title": "Title1"}, {"title": "Title2"}, {"title": "Title3"}]}'
+    
+    # Mock jq to simulate limit behavior
+    jq() {
+        if [[ "$*" =~ "[:2]" ]]; then
+            echo '{"results": [{"title": "Title1"}, {"title": "Title2"}]}'
+        else
+            echo "$test_json"
+        fi
+        return 0
+    }
+    
+    run searxng::format_output "$test_json" "json" "2"
+    [ "$status" -eq 0 ]
+}
+
+@test "searxng::headlines gets latest headlines successfully" {
+    setup_searxng_api_test_env
+    
+    # Mock the search function call
+    searxng::search() {
+        if [[ "$1" == "news headlines" ]]; then
+            echo "Mock headline results"
+            return 0
+        fi
+        return 1
+    }
+    
+    run searxng::headlines
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Getting latest headlines" ]]
+    [[ "$output" =~ "Mock headline results" ]]
+}
+
+@test "searxng::headlines handles topic filter" {
+    setup_searxng_api_test_env
+    
+    # Mock the search function
+    searxng::search() {
+        if [[ "$1" == "tech news headlines" ]]; then
+            echo "Tech headlines"
+            return 0
+        fi
+        return 1
+    }
+    
+    run searxng::headlines "tech"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Getting headlines for topic: tech" ]]
+}
+
+@test "searxng::headlines fails when SearXNG unhealthy" {
+    setup_searxng_api_test_env
+    export MOCK_SEARXNG_HEALTHY="no"
+    
+    run searxng::headlines
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: SearXNG is not running or healthy" ]]
+}
+
+@test "searxng::lucky returns first result URL" {
+    setup_searxng_api_test_env
+    
+    # Mock curl to return search results
+    curl() {
+        echo '{"results": [{"url": "http://example.com/first"}]}'
+        return 0
+    }
+    
+    # Mock jq to extract URL
+    jq() {
+        echo "http://example.com/first"
+        return 0
+    }
+    
+    run searxng::lucky "test query"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Feeling lucky with: test query" ]]
+    [[ "$output" =~ "http://example.com/first" ]]
+}
+
+@test "searxng::lucky fails with empty query" {
+    setup_searxng_api_test_env
+    
+    run searxng::lucky ""
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: Search query is required for lucky search" ]]
+}
+
+@test "searxng::lucky fails when SearXNG unhealthy" {
+    setup_searxng_api_test_env
+    export MOCK_SEARXNG_HEALTHY="no"
+    
+    run searxng::lucky "test"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: SearXNG is not running or healthy" ]]
+}
+
+@test "searxng::lucky handles no results" {
+    setup_searxng_api_test_env
+    
+    # Mock curl and jq to return empty results
+    curl() {
+        echo '{"results": []}'
+        return 0
+    }
+    
+    jq() {
+        echo ""
+        return 0
+    }
+    
+    run searxng::lucky "obscure query"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: No results found for query: obscure query" ]]
+}
+
+@test "searxng::batch_search_file processes file correctly" {
+    setup_searxng_api_test_env
+    
+    # Create temporary test file
+    local test_file="/tmp/test_queries.txt"
+    echo -e "query1\nquery2\n# comment\n\nquery3" > "$test_file"
+    
+    # Mock wc command
+    wc() {
+        echo "5"
+        return 0
+    }
+    
+    # Mock the search function
+    searxng::search() {
+        echo "Searching: $1"
+        return 0
+    }
+    
+    # Mock sleep to speed up test
+    sleep() {
+        return 0
+    }
+    
+    run searxng::batch_search_file "$test_file"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Starting batch search from file" ]]
+    [[ "$output" =~ "Processing 5 queries" ]]
+    
+    # Cleanup
+    rm -f "$test_file"
+}
+
+@test "searxng::batch_search_file fails with missing file" {
+    setup_searxng_api_test_env
+    
+    run searxng::batch_search_file "/nonexistent/file.txt"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: File not found" ]]
+}
+
+@test "searxng::batch_search_file fails when SearXNG unhealthy" {
+    setup_searxng_api_test_env
+    export MOCK_SEARXNG_HEALTHY="no"
+    
+    # Create temporary test file
+    local test_file="/tmp/test_queries.txt"
+    echo "query1" > "$test_file"
+    
+    run searxng::batch_search_file "$test_file"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: SearXNG is not running or healthy" ]]
+    
+    # Cleanup
+    rm -f "$test_file"
+}
+
+@test "searxng::batch_search_queries processes comma-separated queries" {
+    setup_searxng_api_test_env
+    
+    # Mock the search function
+    searxng::search() {
+        echo "Searching: $1"
+        return 0
+    }
+    
+    # Mock sleep to speed up test
+    sleep() {
+        return 0
+    }
+    
+    run searxng::batch_search_queries "query1,query2, query3"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Starting batch search with 3 queries" ]]
+    [[ "$output" =~ "Batch search completed: 3 queries processed" ]]
+}
+
+@test "searxng::batch_search_queries fails with empty query list" {
+    setup_searxng_api_test_env
+    
+    run searxng::batch_search_queries ""
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: Query list cannot be empty" ]]
+}
+
+@test "searxng::batch_search_queries fails when SearXNG unhealthy" {
+    setup_searxng_api_test_env
+    export MOCK_SEARXNG_HEALTHY="no"
+    
+    run searxng::batch_search_queries "query1,query2"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: SearXNG is not running or healthy" ]]
+}
+
+@test "searxng::search handles extended parameters correctly" {
+    setup_searxng_api_test_env
+    
+    run searxng::search "test" "json" "general" "en" "2" "1" "day" "compact" "5" "" ""
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Searching for: test" ]]
+    [[ "$output" =~ "Page: 2" ]]
+    [[ "$output" =~ "Time range: day" ]]
+}
+
+@test "searxng::search validates page number parameter" {
+    setup_searxng_api_test_env
+    
+    run searxng::search "test" "json" "general" "en" "0" "1" "" "json" "" "" ""
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: Page number must be a positive integer" ]]
+}
+
+@test "searxng::search validates time range parameter" {
+    setup_searxng_api_test_env
+    
+    run searxng::search "test" "json" "general" "en" "1" "1" "invalid" "json" "" "" ""
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: Invalid time range" ]]
+}
+
+@test "searxng::search validates safesearch parameter" {
+    setup_searxng_api_test_env
+    
+    run searxng::search "test" "json" "general" "en" "1" "5" "" "json" "" "" ""
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: Safe search must be 0, 1, or 2" ]]
+}

@@ -15,6 +15,13 @@ searxng::search() {
     local format="${2:-json}"
     local category="${3:-general}"
     local language="${4:-$SEARXNG_DEFAULT_LANG}"
+    local pageno="${5:-1}"
+    local safesearch="${6:-1}"
+    local time_range="${7:-}"
+    local output_format="${8:-json}"
+    local limit="${9:-}"
+    local save_file="${10:-}"
+    local append_file="${11:-}"
     
     if [[ -z "$query" ]]; then
         log::error "Search query is required"
@@ -26,9 +33,25 @@ searxng::search() {
         return 1
     fi
     
-    # URL encode the query
+    # Validate parameters
+    if ! [[ "$pageno" =~ ^[1-9][0-9]*$ ]]; then
+        log::error "Page number must be a positive integer"
+        return 1
+    fi
+    
+    if [[ -n "$time_range" ]] && [[ ! "$time_range" =~ ^(hour|day|week|month|year)$ ]]; then
+        log::error "Invalid time range. Use: hour, day, week, month, year"
+        return 1
+    fi
+    
+    if [[ ! "$safesearch" =~ ^[0-2]$ ]]; then
+        log::error "Safe search must be 0, 1, or 2"
+        return 1
+    fi
+    
+    # URL encode the query using a simpler approach
     local encoded_query
-    encoded_query=$(printf '%s' "$query" | curl -Gso /dev/null -w %{url_effective} --data-urlencode @- "" | cut -c 3-)
+    encoded_query=$(printf '%s' "$query" | sed 's/ /%20/g; s/&/%26/g; s/#/%23/g; s/+/%2B/g')
     
     # Build search URL
     local search_url="${SEARXNG_BASE_URL}/search"
@@ -36,17 +59,112 @@ searxng::search() {
     search_url+="&format=${format}"
     search_url+="&categories=${category}"
     search_url+="&language=${language}"
+    search_url+="&pageno=${pageno}"
+    search_url+="&safesearch=${safesearch}"
+    
+    # Add optional parameters
+    [[ -n "$time_range" ]] && search_url+="&time_range=${time_range}"
     
     log::info "Searching for: $query"
+    [[ "$pageno" != "1" ]] && log::info "Page: $pageno"
+    [[ -n "$time_range" ]] && log::info "Time range: $time_range"
     log::debug "Search URL: $search_url"
     
     # Perform search with timeout
-    if curl -sf --max-time "$SEARXNG_API_TIMEOUT" "$search_url"; then
+    local search_result
+    if search_result=$(curl -sf --max-time "$SEARXNG_API_TIMEOUT" "$search_url"); then
+        # Process results based on output format and options
+        local processed_result
+        processed_result=$(searxng::format_output "$search_result" "$output_format" "$limit")
+        
+        # Handle file operations
+        if [[ -n "$save_file" ]]; then
+            if echo "$processed_result" > "$save_file"; then
+                log::success "Results saved to: $save_file"
+            else
+                log::error "Failed to save results to: $save_file"
+                return 1
+            fi
+        elif [[ -n "$append_file" ]]; then
+            local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            local jsonl_entry
+            jsonl_entry=$(echo "$search_result" | jq -c --arg ts "$timestamp" --arg q "$query" '{timestamp: $ts, query: $q, results: .}')
+            
+            if echo "$jsonl_entry" >> "$append_file"; then
+                log::success "Results appended to: $append_file"
+            else
+                log::error "Failed to append results to: $append_file"
+                return 1
+            fi
+        fi
+        
+        # Output results (unless saving to file)
+        if [[ -z "$save_file" ]]; then
+            echo "$processed_result"
+        fi
+        
         return 0
     else
         log::error "Search request failed"
         return 1
     fi
+}
+
+#######################################
+# Format search output based on requested format
+# Arguments:
+#   $1 - raw JSON search result
+#   $2 - output format
+#   $3 - result limit (optional)
+#######################################
+searxng::format_output() {
+    local raw_result="$1"
+    local output_format="${2:-json}"
+    local limit="${3:-}"
+    
+    # Apply limit if specified
+    local jq_filter='.results'
+    if [[ -n "$limit" ]] && [[ "$limit" =~ ^[1-9][0-9]*$ ]]; then
+        jq_filter=".results[:$limit]"
+    fi
+    
+    case "$output_format" in
+        "json")
+            if [[ -n "$limit" ]]; then
+                echo "$raw_result" | jq "{query: .query, number_of_results: .number_of_results, results: $jq_filter}"
+            else
+                echo "$raw_result"
+            fi
+            ;;
+        "title-only")
+            echo "$raw_result" | jq -r "$jq_filter | .[] | .title"
+            ;;
+        "title-url")
+            echo "$raw_result" | jq -r "$jq_filter | .[] | \"\(.title)\n\(.url)\n\""
+            ;;
+        "csv")
+            # CSV header
+            echo "title,url,content,engine"
+            # CSV data
+            echo "$raw_result" | jq -r "$jq_filter | .[] | [.title, .url, .content, .engine] | @csv"
+            ;;
+        "markdown")
+            echo "# Search Results"
+            echo ""
+            local query
+            query=$(echo "$raw_result" | jq -r '.query // "Unknown"')
+            echo "**Query:** $query"
+            echo ""
+            echo "$raw_result" | jq -r "$jq_filter | .[] | \"## \(.title)\n\n**URL:** \(.url)\n\n\(.content)\n\n**Source:** \(.engine)\n\n---\n\""
+            ;;
+        "compact")
+            echo "$raw_result" | jq -r "$jq_filter | .[] | \"• \(.title)\n  \(.url)\n  \(.content[:100])...\n\""
+            ;;
+        *)
+            log::error "Unknown output format: $output_format"
+            echo "$raw_result"
+            ;;
+    esac
 }
 
 #######################################
@@ -341,4 +459,181 @@ searxng::show_api_examples() {
     echo "  ./manage.sh --action search --query 'your search term'"
     echo "  ./manage.sh --action api-test"
     echo "  ./manage.sh --action benchmark"
+}
+
+#######################################
+# Quick action: Get latest headlines
+# Arguments:
+#   $1 - topic filter (optional)
+#######################################
+searxng::headlines() {
+    local topic="${1:-}"
+    
+    if ! searxng::is_healthy; then
+        log::error "SearXNG is not running or healthy"
+        return 1
+    fi
+    
+    local query
+    if [[ -n "$topic" ]]; then
+        query="$topic news headlines"
+        log::info "Getting headlines for topic: $topic"
+    else
+        query="news headlines"
+        log::info "Getting latest headlines"
+    fi
+    
+    # Search for headlines with news category and recent time range
+    searxng::search "$query" "json" "news" "en" "1" "1" "day" "compact" "10"
+}
+
+#######################################
+# Quick action: Lucky search (first result URL)
+# Arguments:
+#   $1 - search query
+#######################################
+searxng::lucky() {
+    local query="$1"
+    
+    if [[ -z "$query" ]]; then
+        log::error "Search query is required for lucky search"
+        return 1
+    fi
+    
+    if ! searxng::is_healthy; then
+        log::error "SearXNG is not running or healthy"
+        return 1
+    fi
+    
+    log::info "Feeling lucky with: $query"
+    
+    # Get first result URL by calling API directly to avoid log output
+    local encoded_query
+    encoded_query=$(printf '%s' "$query" | sed 's/ /%20/g; s/&/%26/g; s/#/%23/g; s/+/%2B/g')
+    
+    local search_url="${SEARXNG_BASE_URL}/search?q=${encoded_query}&format=json&categories=general&language=en&pageno=1&safesearch=1"
+    
+    local first_url
+    first_url=$(curl -sf --max-time "$SEARXNG_API_TIMEOUT" "$search_url" | jq -r '.results[0].url // empty' 2>/dev/null)
+    
+    if [[ -n "$first_url" ]]; then
+        echo "$first_url"
+        return 0
+    else
+        log::error "No results found for query: $query"
+        return 1
+    fi
+}
+
+#######################################
+# Batch search from file
+# Arguments:
+#   $1 - file path containing queries (one per line)
+#######################################
+searxng::batch_search_file() {
+    local file_path="$1"
+    
+    if [[ ! -f "$file_path" ]]; then
+        log::error "File not found: $file_path"
+        return 1
+    fi
+    
+    if [[ ! -r "$file_path" ]]; then
+        log::error "Cannot read file: $file_path"
+        return 1
+    fi
+    
+    if ! searxng::is_healthy; then
+        log::error "SearXNG is not running or healthy"
+        return 1
+    fi
+    
+    log::info "Starting batch search from file: $file_path"
+    
+    local line_count total_queries current_query=0
+    total_queries=$(wc -l < "$file_path")
+    
+    log::info "Processing $total_queries queries..."
+    
+    while IFS= read -r query; do
+        # Skip empty lines and comments
+        [[ -z "$query" ]] && continue
+        [[ "$query" =~ ^[[:space:]]*# ]] && continue
+        
+        ((current_query++))
+        
+        log::info "[$current_query/$total_queries] Searching: $query"
+        
+        # Create output filename
+        local safe_query
+        safe_query=$(echo "$query" | tr ' /' '_-' | tr -cd '[:alnum:]_-')
+        local output_file="results_${current_query}_${safe_query}.json"
+        
+        # Perform search and save results
+        if searxng::search "$query" "json" "general" "en" "1" "1" "" "json" "" "$output_file"; then
+            log::success "Results saved to: $output_file"
+        else
+            log::error "Failed to search: $query"
+        fi
+        
+        # Rate limiting - small delay between requests
+        sleep 1
+    done < "$file_path"
+    
+    log::success "Batch search completed: $current_query queries processed"
+}
+
+#######################################
+# Batch search from comma-separated queries
+# Arguments:
+#   $1 - comma-separated list of queries
+#######################################
+searxng::batch_search_queries() {
+    local queries_string="$1"
+    
+    if [[ -z "$queries_string" ]]; then
+        log::error "Query list cannot be empty"
+        return 1
+    fi
+    
+    if ! searxng::is_healthy; then
+        log::error "SearXNG is not running or healthy"
+        return 1
+    fi
+    
+    # Split queries by comma
+    IFS=',' read -ra queries <<< "$queries_string"
+    local total_queries=${#queries[@]}
+    
+    log::info "Starting batch search with $total_queries queries"
+    
+    local current_query=0
+    for query in "${queries[@]}"; do
+        # Trim whitespace
+        query=$(echo "$query" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        
+        # Skip empty queries
+        [[ -z "$query" ]] && continue
+        
+        ((current_query++))
+        
+        log::info "[$current_query/$total_queries] Searching: $query"
+        
+        # Create output filename
+        local safe_query
+        safe_query=$(echo "$query" | tr ' /' '_-' | tr -cd '[:alnum:]_-')
+        local output_file="batch_${current_query}_${safe_query}.json"
+        
+        # Perform search and save results
+        if searxng::search "$query" "json" "general" "en" "1" "1" "" "json" "" "$output_file"; then
+            log::success "Results saved to: $output_file"
+        else
+            log::error "Failed to search: $query"
+        fi
+        
+        # Rate limiting - small delay between requests
+        sleep 1
+    done
+    
+    log::success "Batch search completed: $current_query queries processed"
 }

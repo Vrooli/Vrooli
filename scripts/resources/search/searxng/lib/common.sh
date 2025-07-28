@@ -52,7 +52,7 @@ searxng::is_healthy() {
         return 1
     fi
     
-    # Check Docker health status
+    # Check Docker health status first
     local health_status
     health_status=$(docker container inspect --format='{{.State.Health.Status}}' "$SEARXNG_CONTAINER_NAME" 2>/dev/null)
     
@@ -60,13 +60,12 @@ searxng::is_healthy() {
         return 0
     fi
     
-    # If no health check is configured, check if API responds
-    if [[ "$health_status" == "" ]]; then
-        if resources::is_service_running "$SEARXNG_PORT"; then
-            # Try to reach the stats endpoint
-            if curl -sf "${SEARXNG_BASE_URL}/stats" >/dev/null 2>&1; then
-                return 0
-            fi
+    # Always try API check as fallback, regardless of Docker health status
+    # Docker health checks can be misconfigured while API still works
+    if resources::is_service_running "$SEARXNG_PORT"; then
+        # Try to reach the stats endpoint
+        if curl -sf --max-time 5 "${SEARXNG_BASE_URL}/stats" >/dev/null 2>&1; then
+            return 0
         fi
     fi
     

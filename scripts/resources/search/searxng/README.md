@@ -13,6 +13,11 @@ SearXNG is a privacy-respecting metasearch engine that aggregates results from m
 
 # View logs
 ./manage.sh --action logs
+
+# Enhanced search capabilities
+./manage.sh --action search --query "AI" --limit 5 --output-format title-only
+./manage.sh --action headlines --topic "tech"
+./manage.sh --action lucky --query "Python documentation"
 ```
 
 ## 🔌 API Usage
@@ -60,6 +65,215 @@ curl "http://localhost:8100/search?q=tech+news&format=json&categories=general&la
   "suggestions": ["AI breakthrough 2025", "AI research"],
   "answers": [],
   "infoboxes": []
+}
+```
+
+## 🎯 Enhanced Management Script
+
+The `manage.sh` script provides powerful search capabilities beyond basic API calls, designed for AI agents and automation workflows.
+
+### Advanced Search Parameters
+
+```bash
+# Basic search with enhanced formatting
+./manage.sh --action search --query "machine learning" --output-format title-only --limit 5
+
+# Advanced search with all parameters
+./manage.sh --action search \
+  --query "tech news" \
+  --category news \
+  --time-range day \
+  --pageno 2 \
+  --safesearch 1 \
+  --output-format compact \
+  --limit 10
+```
+
+### Output Formats
+
+| Format | Description | Example Use Case |
+|--------|-------------|------------------|
+| `json` | Full JSON response (default) | API integration, debugging |
+| `title-only` | Just titles, one per line | Quick scanning, AI processing |
+| `title-url` | Title and URL pairs | Link collection |
+| `csv` | CSV format | Spreadsheet import |
+| `markdown` | Markdown formatted | Documentation |
+| `compact` | Human-readable condensed | Terminal display |
+
+```bash
+# Get just titles for AI processing
+./manage.sh --action search --query "AI breakthroughs" --output-format title-only
+
+# Export to CSV for analysis
+./manage.sh --action search --query "market trends" --output-format csv --save results.csv
+
+# Markdown for documentation
+./manage.sh --action search --query "tutorial" --output-format markdown --limit 3
+```
+
+### Quick Actions
+
+#### Headlines
+Get latest news headlines with optional topic filtering:
+
+```bash
+# General headlines
+./manage.sh --action headlines
+
+# Topic-specific headlines
+./manage.sh --action headlines --topic "AI"
+./manage.sh --action headlines --topic "climate"
+./manage.sh --action headlines --topic "technology"
+```
+
+#### Lucky Search
+Get the first result URL directly (like "I'm Feeling Lucky"):
+
+```bash
+# Get first result URL
+./manage.sh --action lucky --query "Python official documentation"
+./manage.sh --action lucky --query "React tutorial"
+
+# Use in automation
+DOCS_URL=$(./manage.sh --action lucky --query "TypeScript handbook")
+echo "Documentation: $DOCS_URL"
+```
+
+### Batch Operations
+
+#### File-Based Batch Search
+Process multiple queries from a file:
+
+```bash
+# Create query file
+echo -e "AI trends\nmachine learning\nquantum computing" > queries.txt
+
+# Process all queries
+./manage.sh --action batch-search --file queries.txt
+
+# Results saved as: results_1_AI_trends.json, results_2_machine_learning.json, etc.
+```
+
+#### Inline Batch Search
+Process comma-separated queries:
+
+```bash
+# Multiple queries at once
+./manage.sh --action batch-search --queries "AI,ML,data science,automation"
+
+# Results saved as: batch_1_AI.json, batch_2_ML.json, etc.
+```
+
+### File Operations
+
+#### Save Results
+```bash
+# Save to file
+./manage.sh --action search --query "research papers" --save research.json
+
+# Append with timestamps (JSONL format)
+./manage.sh --action search --query "daily news" --append news-feed.jsonl
+```
+
+#### Result Processing
+```bash
+# Get specific number of results
+./manage.sh --action search --query "tutorials" --limit 3
+
+# Pagination support
+./manage.sh --action search --query "articles" --pageno 2 --limit 5
+
+# Time-filtered results
+./manage.sh --action search --query "breaking news" --time-range hour
+```
+
+### Advanced Features
+
+#### Parameter Validation
+The script validates all parameters and provides helpful error messages:
+
+```bash
+# Invalid page number
+./manage.sh --action search --query "test" --pageno 0
+# ERROR: Page number must be a positive integer
+
+# Invalid time range
+./manage.sh --action search --query "test" --time-range invalid
+# ERROR: Invalid time range. Use: hour, day, week, month, year
+
+# Invalid safe search
+./manage.sh --action search --query "test" --safesearch 5
+# ERROR: Safe search must be 0, 1, or 2
+```
+
+#### API Testing & Monitoring
+```bash
+# Comprehensive API testing
+./manage.sh --action api-test
+
+# Performance benchmarking
+./manage.sh --action benchmark --count 10
+
+# Health diagnostics
+./manage.sh --action diagnose
+
+# Monitor with custom interval
+./manage.sh --action monitor --interval 60
+```
+
+### Automation Examples
+
+#### Shell Script Integration
+```bash
+#!/bin/bash
+
+# Daily news aggregation
+get_daily_news() {
+    local topic="$1"
+    ./manage.sh --action headlines --topic "$topic" > "news_${topic}_$(date +%Y%m%d).txt"
+}
+
+# Research assistant
+research_topic() {
+    local topic="$1"
+    
+    # Get overview
+    ./manage.sh --action search --query "$topic overview" --limit 5 --output-format compact
+    
+    # Get recent developments
+    ./manage.sh --action search --query "$topic" --time-range month --category news --limit 3
+    
+    # Get official documentation
+    local docs_url=$(./manage.sh --action lucky --query "$topic official documentation")
+    echo "Official docs: $docs_url"
+}
+
+# Usage
+get_daily_news "technology"
+research_topic "machine learning"
+```
+
+#### n8n Workflow Integration
+```json
+{
+  "name": "Enhanced Search Workflow",
+  "nodes": [
+    {
+      "name": "Get Headlines",
+      "type": "n8n-nodes-base.executeCommand",
+      "parameters": {
+        "command": "./manage.sh",
+        "arguments": "--action headlines --topic {{ $json.topic }} --output-format json"
+      }
+    },
+    {
+      "name": "Process Results",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "const results = JSON.parse($input.first().json.stdout);\nreturn results.map(item => ({ title: item.title, url: item.url }));"
+      }
+    }
+  ]
 }
 ```
 
