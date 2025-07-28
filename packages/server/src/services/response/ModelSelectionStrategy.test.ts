@@ -26,6 +26,7 @@ vi.mock("@vrooli/shared", async () => {
         aiServicesInfo: {
             services: {
                 LocalOllama: {
+                    defaultModel: "llama3.1:8b",
                     models: {
                         "llama3.1:8b": {
                             enabled: true,
@@ -39,6 +40,7 @@ vi.mock("@vrooli/shared", async () => {
                     },
                 },
                 CloudflareGateway: {
+                    defaultModel: "gpt-4o",
                     models: {
                         "gpt-4o": {
                             enabled: true,
@@ -52,6 +54,7 @@ vi.mock("@vrooli/shared", async () => {
                     },
                 },
                 OpenRouter: {
+                    defaultModel: "openai/gpt-4o",
                     models: {
                         "openai/gpt-4o": {
                             enabled: true,
@@ -65,6 +68,7 @@ vi.mock("@vrooli/shared", async () => {
                     },
                 },
             },
+            defaultService: "CloudflareGateway",
             fallbacks: {
                 "llama3.1:8b": ["gpt-4o", "openai/gpt-4o"],
                 "gpt-4o": ["openai/gpt-4o"],
@@ -277,7 +281,7 @@ describe("ModelSelectionStrategy", () => {
                 },
                 networkState: mockNetworkState,
                 registry: mockRegistry,
-                userCredits: 0.0001, // Very low credits
+                userCredits: 0.0000001, // Extremely low credits - less than even the cheapest model cost
             };
 
             await expect(strategy.selectModel(context)).rejects.toThrow("No affordable models available");

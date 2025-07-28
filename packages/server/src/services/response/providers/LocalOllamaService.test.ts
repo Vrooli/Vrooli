@@ -228,6 +228,137 @@ describe("LocalOllamaService", () => {
         });
     });
 
+    describe("extractOllamaParams", () => {
+        it("should return empty object when serviceConfig is undefined", () => {
+            const params = (service as any).extractOllamaParams(undefined);
+            expect(params).toEqual({});
+        });
+
+        it("should return empty object when serviceConfig is empty", () => {
+            const params = (service as any).extractOllamaParams({});
+            expect(params).toEqual({});
+        });
+
+        it("should validate temperature range", () => {
+            const params1 = (service as any).extractOllamaParams({ temperature: -0.5 });
+            expect(params1.temperature).toBe(0);
+
+            const params2 = (service as any).extractOllamaParams({ temperature: 2.5 });
+            expect(params2.temperature).toBe(2);
+
+            const params3 = (service as any).extractOllamaParams({ temperature: 1.5 });
+            expect(params3.temperature).toBe(1.5);
+        });
+
+        it("should validate top_p range", () => {
+            const params1 = (service as any).extractOllamaParams({ top_p: -0.1 });
+            expect(params1.top_p).toBe(0);
+
+            const params2 = (service as any).extractOllamaParams({ top_p: 1.5 });
+            expect(params2.top_p).toBe(1);
+
+            const params3 = (service as any).extractOllamaParams({ top_p: 0.95 });
+            expect(params3.top_p).toBe(0.95);
+        });
+
+        it("should validate top_k as positive integer", () => {
+            const params1 = (service as any).extractOllamaParams({ top_k: -5 });
+            expect(params1.top_k).toBeUndefined();
+
+            const params2 = (service as any).extractOllamaParams({ top_k: 50.5 });
+            expect(params2.top_k).toBe(50);
+
+            const params3 = (service as any).extractOllamaParams({ top_k: 40 });
+            expect(params3.top_k).toBe(40);
+        });
+
+        it("should validate seed as integer", () => {
+            const params = (service as any).extractOllamaParams({ seed: 42.7 });
+            expect(params.seed).toBe(42);
+        });
+
+        it("should validate num_keep correctly", () => {
+            const params1 = (service as any).extractOllamaParams({ num_keep: -1 });
+            expect(params1.num_keep).toBe(-1);
+
+            const params2 = (service as any).extractOllamaParams({ num_keep: 0 });
+            expect(params2.num_keep).toBeUndefined();
+
+            const params3 = (service as any).extractOllamaParams({ num_keep: 100 });
+            expect(params3.num_keep).toBe(100);
+        });
+
+        it("should validate mirostat mode", () => {
+            const params1 = (service as any).extractOllamaParams({ mirostat: 0 });
+            expect(params1.mirostat).toBe(0);
+
+            const params2 = (service as any).extractOllamaParams({ mirostat: 1 });
+            expect(params2.mirostat).toBe(1);
+
+            const params3 = (service as any).extractOllamaParams({ mirostat: 2 });
+            expect(params3.mirostat).toBe(2);
+
+            const params4 = (service as any).extractOllamaParams({ mirostat: 3 });
+            expect(params4.mirostat).toBeUndefined();
+        });
+
+        it("should handle stop sequences", () => {
+            const params1 = (service as any).extractOllamaParams({ stop: ["\\n", "END"] });
+            expect(params1.stop).toEqual(["\\n", "END"]);
+
+            const params2 = (service as any).extractOllamaParams({ stop: ["\\n", 123, "END"] });
+            expect(params2.stop).toEqual(["\\n", "END"]);
+
+            const params3 = (service as any).extractOllamaParams({ stop: "not an array" });
+            expect(params3.stop).toBeUndefined();
+        });
+
+        it("should extract all valid parameters", () => {
+            const serviceConfig = {
+                temperature: 0.5,
+                top_p: 0.8,
+                top_k: 30,
+                seed: 12345,
+                num_keep: 50,
+                num_gpu: 4,
+                num_thread: 8,
+                repeat_last_n: 128,
+                repeat_penalty: 1.2,
+                tfs_z: 0.9,
+                typical_p: 0.8,
+                mirostat: 1,
+                mirostat_tau: 4.0,
+                mirostat_eta: 0.2,
+                penalize_newline: false,
+                stop: ["\\n\\n", "END"],
+                // Invalid params that should be ignored
+                invalid_param: "should be ignored",
+                temperature_invalid: "not a number",
+            };
+
+            const params = (service as any).extractOllamaParams(serviceConfig);
+            
+            expect(params).toEqual({
+                temperature: 0.5,
+                top_p: 0.8,
+                top_k: 30,
+                seed: 12345,
+                num_keep: 50,
+                num_gpu: 4,
+                num_thread: 8,
+                repeat_last_n: 128,
+                repeat_penalty: 1.2,
+                tfs_z: 0.9,
+                typical_p: 0.8,
+                mirostat: 1,
+                mirostat_tau: 4.0,
+                mirostat_eta: 0.2,
+                penalize_newline: false,
+                stop: ["\\n\\n", "END"],
+            });
+        });
+    });
+
     describe("generateResponseStreaming", () => {
         it("should generate streaming response successfully", async () => {
             // Mock model support
@@ -338,6 +469,184 @@ describe("LocalOllamaService", () => {
                     // Should not reach here
                 }
             }).rejects.toThrow("No response body available");
+        });
+
+        it("should pass generation parameters to Ollama API", async () => {
+            // Mock model support
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: vi.fn().mockResolvedValue({ models: [{ name: "llama3.1:8b" }] }),
+            });
+
+            // Mock streaming response
+            const mockResponseBody = "{\"message\":{\"content\":\"Test\"}}\n{\"done\":true}\n";
+            const mockReader = {
+                read: vi.fn()
+                    .mockResolvedValueOnce({
+                        done: false,
+                        value: new TextEncoder().encode(mockResponseBody),
+                    })
+                    .mockResolvedValueOnce({ done: true }),
+                releaseLock: vi.fn(),
+            };
+
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                body: { getReader: () => mockReader },
+            });
+
+            const options = {
+                model: "llama3.1:8b",
+                input: [{ id: "msg-1", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
+                maxTokens: 100,
+                serviceConfig: {
+                    temperature: 0.5,
+                    top_p: 0.8,
+                    top_k: 30,
+                    seed: 42,
+                    repeat_penalty: 1.5,
+                    stop: ["\\n\\n"],
+                },
+                tools: [],
+            };
+
+            // Consume the generator
+            const events = [];
+            for await (const event of service.generateResponseStreaming(options)) {
+                events.push(event);
+            }
+
+            // Verify fetch was called with correct parameters
+            expect(mockFetch).toHaveBeenNthCalledWith(2, 
+                "http://localhost:11434/api/chat",
+                expect.objectContaining({
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: expect.stringMatching(/"temperature":0.5/),
+                })
+            );
+
+            // Parse the request body to verify all parameters
+            const requestBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+            expect(requestBody.options).toMatchObject({
+                temperature: 0.5,
+                num_predict: 100,
+                top_p: 0.8,
+                top_k: 30,
+                seed: 42,
+                repeat_penalty: 1.5,
+                stop: ["\\n\\n"],
+            });
+        });
+
+        it("should use default values when serviceConfig is not provided", async () => {
+            // Mock model support
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: vi.fn().mockResolvedValue({ models: [{ name: "llama3.1:8b" }] }),
+            });
+
+            // Mock streaming response
+            const mockResponseBody = "{\"message\":{\"content\":\"Test\"}}\n{\"done\":true}\n";
+            const mockReader = {
+                read: vi.fn()
+                    .mockResolvedValueOnce({
+                        done: false,
+                        value: new TextEncoder().encode(mockResponseBody),
+                    })
+                    .mockResolvedValueOnce({ done: true }),
+                releaseLock: vi.fn(),
+            };
+
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                body: { getReader: () => mockReader },
+            });
+
+            const options = {
+                model: "llama3.1:8b",
+                input: [{ id: "msg-1", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
+                maxTokens: 100,
+                // No serviceConfig provided
+                tools: [],
+            };
+
+            // Consume the generator
+            const events = [];
+            for await (const event of service.generateResponseStreaming(options)) {
+                events.push(event);
+            }
+
+            // Parse the request body to verify default parameters
+            const requestBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+            expect(requestBody.options).toMatchObject({
+                temperature: 0.7,
+                num_predict: 100,
+                top_p: 0.9,
+                top_k: 40,
+                repeat_last_n: 64,
+                repeat_penalty: 1.1,
+                tfs_z: 1.0,
+                typical_p: 1.0,
+                mirostat: 0,
+                mirostat_tau: 5.0,
+                mirostat_eta: 0.1,
+                penalize_newline: true,
+            });
+        });
+
+        it("should handle partial serviceConfig correctly", async () => {
+            // Mock model support
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: vi.fn().mockResolvedValue({ models: [{ name: "llama3.1:8b" }] }),
+            });
+
+            // Mock streaming response
+            const mockResponseBody = "{\"message\":{\"content\":\"Test\"}}\n{\"done\":true}\n";
+            const mockReader = {
+                read: vi.fn()
+                    .mockResolvedValueOnce({
+                        done: false,
+                        value: new TextEncoder().encode(mockResponseBody),
+                    })
+                    .mockResolvedValueOnce({ done: true }),
+                releaseLock: vi.fn(),
+            };
+
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                body: { getReader: () => mockReader },
+            });
+
+            const options = {
+                model: "llama3.1:8b",
+                input: [{ id: "msg-1", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
+                maxTokens: 200,
+                serviceConfig: {
+                    temperature: 1.5,
+                    seed: 999,
+                    // Other parameters should use defaults
+                },
+                tools: [],
+            };
+
+            // Consume the generator
+            const events = [];
+            for await (const event of service.generateResponseStreaming(options)) {
+                events.push(event);
+            }
+
+            // Parse the request body to verify mixed parameters
+            const requestBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+            expect(requestBody.options).toMatchObject({
+                temperature: 1.5,      // From serviceConfig
+                num_predict: 200,      // From maxTokens
+                top_p: 0.9,           // Default
+                top_k: 40,            // Default
+                seed: 999,            // From serviceConfig
+                repeat_penalty: 1.1,  // Default
+            });
         });
     });
 

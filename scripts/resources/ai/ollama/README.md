@@ -131,8 +131,26 @@ ollama run llama3.1:8b
 
 ### Example API Usage
 
-#### Generate Text
+#### Smart Prompt with Type-Based Model Selection (Recommended)
 ```bash
+# Use default general model type
+./manage.sh --action prompt --text "What is the capital of France?"
+
+# Explicitly specify model type for specialized tasks
+./manage.sh --action prompt --text "Write a Python function" --type code
+./manage.sh --action prompt --text "Solve this equation" --type reasoning  
+./manage.sh --action prompt --text "Describe this image" --type vision
+
+# Override with specific model if needed
+./manage.sh --action prompt --text "Hello world" --model qwen2.5-coder:7b
+```
+
+#### Direct API Usage (Advanced)
+```bash
+# Get list of available models first to avoid errors
+curl -s http://localhost:11434/api/tags | jq -r '.models[].name'
+
+# Generate text with a known available model
 curl -X POST http://localhost:11434/api/generate \
   -H "Content-Type: application/json" \
   -d '{
@@ -203,6 +221,41 @@ Ollama is automatically configured in `~/.vrooli/resources.local.json`:
   }
 }
 ```
+
+## Smart Model Selection
+
+### Explicit Type-Based Model Selection
+
+The Ollama resource includes intelligent model selection using explicit model types, giving you control over which specialized model to use:
+
+**Available Model Types:**
+- **`--type general`**: General-purpose models like `llama3.1:8b` (default)
+- **`--type code`**: Code-specialized models like `qwen2.5-coder:7b`
+- **`--type reasoning`**: Advanced reasoning models like `deepseek-r1:8b`
+- **`--type vision`**: Multimodal/vision models like `llava:13b`
+
+**Fallback Strategy:**
+- If the ideal model for a type isn't available, selects the next best option
+- Gracefully handles missing models without API errors
+- Always validates model availability before making requests
+
+**Example Usage:**
+```bash
+# Explicit control over model selection
+./manage.sh --action prompt --text "Debug this Python error" --type code
+./manage.sh --action prompt --text "Calculate 15% of 200" --type reasoning
+./manage.sh --action prompt --text "What's in this image?" --type vision
+./manage.sh --action prompt --text "Tell me about quantum physics"  # defaults to general
+
+# Override with specific model when needed
+./manage.sh --action prompt --text "Any task" --model llama2:7b
+```
+
+**Benefits:**
+- **Explicit control**: You decide which type of model to use
+- **Predictable behavior**: No magic auto-detection, just clear type-to-model mapping
+- **Optimal performance**: Use specialized models when you need them
+- **Error prevention**: Eliminates API failures from non-existent models
 
 ## Troubleshooting
 

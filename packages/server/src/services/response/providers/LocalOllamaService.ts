@@ -49,8 +49,69 @@ export interface LocalOllamaServiceOptions {
 }
 
 /**
+ * Ollama-specific generation parameters that can be passed via serviceConfig
+ */
+export interface OllamaGenerationParams {
+    /** Temperature for randomness (0.0-2.0, default: 0.7) */
+    temperature?: number;
+    /** Top-p nucleus sampling (0.0-1.0, default: 0.9) */
+    top_p?: number;
+    /** Top-k sampling (default: 40) */
+    top_k?: number;
+    /** Random seed for reproducibility */
+    seed?: number;
+    /** Number of tokens to keep from initial prompt (-1 = all, default: -1) */
+    num_keep?: number;
+    /** Number of layers to offload to GPU (default: depends on model) */
+    num_gpu?: number;
+    /** Number of threads to use during computation (default: system dependent) */
+    num_thread?: number;
+    /** Sets how far back for the model to look back to prevent repetition (default: 64) */
+    repeat_last_n?: number;
+    /** Sets how strongly to penalize repetitions (default: 1.1) */
+    repeat_penalty?: number;
+    /** Tail free sampling (default: 1.0, disabled) */
+    tfs_z?: number;
+    /** Locally typical sampling (default: 1.0, disabled) */
+    typical_p?: number;
+    /** Mirostat sampling mode (0/1/2, default: 0 disabled) */
+    mirostat?: number;
+    /** Mirostat target entropy (default: 5.0) */
+    mirostat_tau?: number;
+    /** Mirostat learning rate (default: 0.1) */
+    mirostat_eta?: number;
+    /** Whether to penalize newlines in output (default: true) */
+    penalize_newline?: boolean;
+    /** Stop sequences to halt generation */
+    stop?: string[];
+}
+
+/**
  * LocalOllamaService - Service for communicating with local Ollama instances
  * Enhanced with optional resource system integration for better health checking
+ * 
+ * Supports advanced generation parameters through serviceConfig:
+ * - temperature: Controls randomness (0.0-2.0, default: 0.7)
+ * - top_p: Nucleus sampling (0.0-1.0, default: 0.9)
+ * - top_k: Top-k sampling (default: 40)
+ * - seed: Random seed for reproducibility
+ * - repeat_penalty: Penalize repetitions (default: 1.1)
+ * - stop: Array of stop sequences
+ * - And many more advanced parameters (see OllamaGenerationParams)
+ * 
+ * Example usage:
+ * ```typescript
+ * const options = {
+ *   model: "llama3.1:8b",
+ *   input: messages,
+ *   serviceConfig: {
+ *     temperature: 0.5,
+ *     top_p: 0.8,
+ *     seed: 42,
+ *     stop: ["\\n\\n", "END"]
+ *   }
+ * };
+ * ```
  */
 export class LocalOllamaService extends AIService<string, ThirdPartyModelInfo> {
     private readonly baseUrl: string;
@@ -129,6 +190,99 @@ export class LocalOllamaService extends AIService<string, ThirdPartyModelInfo> {
         return generateContextFromMessages(messages, systemMessage, "LocalOllama");
     }
 
+    /**
+     * Extracts and validates Ollama-specific parameters from serviceConfig
+     */
+    private extractOllamaParams(serviceConfig?: Record<string, unknown>): OllamaGenerationParams {
+        if (!serviceConfig) {
+            return {};
+        }
+
+        const params: OllamaGenerationParams = {};
+
+        // Temperature validation (0.0-2.0)
+        if (typeof serviceConfig.temperature === "number") {
+            params.temperature = Math.max(0, Math.min(2, serviceConfig.temperature));
+        }
+
+        // Top-p validation (0.0-1.0)
+        if (typeof serviceConfig.top_p === "number") {
+            params.top_p = Math.max(0, Math.min(1, serviceConfig.top_p));
+        }
+
+        // Top-k validation (positive integer)
+        if (typeof serviceConfig.top_k === "number" && serviceConfig.top_k > 0) {
+            params.top_k = Math.floor(serviceConfig.top_k);
+        }
+
+        // Seed validation (integer)
+        if (typeof serviceConfig.seed === "number") {
+            params.seed = Math.floor(serviceConfig.seed);
+        }
+
+        // Num keep validation (integer, -1 or positive)
+        if (typeof serviceConfig.num_keep === "number" && (serviceConfig.num_keep === -1 || serviceConfig.num_keep > 0)) {
+            params.num_keep = Math.floor(serviceConfig.num_keep);
+        }
+
+        // GPU layers validation (non-negative integer)
+        if (typeof serviceConfig.num_gpu === "number" && serviceConfig.num_gpu >= 0) {
+            params.num_gpu = Math.floor(serviceConfig.num_gpu);
+        }
+
+        // Thread count validation (positive integer)
+        if (typeof serviceConfig.num_thread === "number" && serviceConfig.num_thread > 0) {
+            params.num_thread = Math.floor(serviceConfig.num_thread);
+        }
+
+        // Repeat last n validation (positive integer)
+        if (typeof serviceConfig.repeat_last_n === "number" && serviceConfig.repeat_last_n > 0) {
+            params.repeat_last_n = Math.floor(serviceConfig.repeat_last_n);
+        }
+
+        // Repeat penalty validation (typically 0.5-2.0)
+        if (typeof serviceConfig.repeat_penalty === "number" && serviceConfig.repeat_penalty > 0) {
+            params.repeat_penalty = serviceConfig.repeat_penalty;
+        }
+
+        // TFS-z validation (0.0-1.0, 1.0 = disabled)
+        if (typeof serviceConfig.tfs_z === "number") {
+            params.tfs_z = Math.max(0, Math.min(1, serviceConfig.tfs_z));
+        }
+
+        // Typical-p validation (0.0-1.0, 1.0 = disabled)
+        if (typeof serviceConfig.typical_p === "number") {
+            params.typical_p = Math.max(0, Math.min(1, serviceConfig.typical_p));
+        }
+
+        // Mirostat validation (0, 1, or 2)
+        if (typeof serviceConfig.mirostat === "number" && [0, 1, 2].includes(serviceConfig.mirostat)) {
+            params.mirostat = serviceConfig.mirostat;
+        }
+
+        // Mirostat tau validation (positive number)
+        if (typeof serviceConfig.mirostat_tau === "number" && serviceConfig.mirostat_tau > 0) {
+            params.mirostat_tau = serviceConfig.mirostat_tau;
+        }
+
+        // Mirostat eta validation (0.0-1.0)
+        if (typeof serviceConfig.mirostat_eta === "number") {
+            params.mirostat_eta = Math.max(0, Math.min(1, serviceConfig.mirostat_eta));
+        }
+
+        // Penalize newline validation (boolean)
+        if (typeof serviceConfig.penalize_newline === "boolean") {
+            params.penalize_newline = serviceConfig.penalize_newline;
+        }
+
+        // Stop sequences validation (array of strings)
+        if (Array.isArray(serviceConfig.stop)) {
+            params.stop = serviceConfig.stop.filter(s => typeof s === "string");
+        }
+
+        return params;
+    }
+
     async *generateResponseStreaming(options: ResponseStreamOptions): AsyncGenerator<ServiceStreamEvent> {
         // Create inner generator for timeout wrapping
         const innerGenerator = this.generateResponseStreamingInternal(options);
@@ -151,13 +305,31 @@ export class LocalOllamaService extends AIService<string, ThirdPartyModelInfo> {
         // Convert to Ollama chat format
         const messages = this.generateContext(options.input, options.systemMessage);
         
+        // Extract Ollama-specific parameters from serviceConfig
+        const ollamaParams = this.extractOllamaParams(options.serviceConfig);
+        
         const requestBody: any = {
             model: options.model,
             messages,
             stream: true,
             options: {
-                temperature: 0.7,
+                temperature: ollamaParams.temperature ?? 0.7,
                 num_predict: options.maxTokens || DEFAULT_MAX_TOKENS,
+                top_p: ollamaParams.top_p ?? 0.9,
+                top_k: ollamaParams.top_k ?? 40,
+                seed: ollamaParams.seed,
+                num_keep: ollamaParams.num_keep,
+                num_gpu: ollamaParams.num_gpu,
+                num_thread: ollamaParams.num_thread,
+                repeat_last_n: ollamaParams.repeat_last_n ?? 64,
+                repeat_penalty: ollamaParams.repeat_penalty ?? 1.1,
+                tfs_z: ollamaParams.tfs_z ?? 1.0,
+                typical_p: ollamaParams.typical_p ?? 1.0,
+                mirostat: ollamaParams.mirostat ?? 0,
+                mirostat_tau: ollamaParams.mirostat_tau ?? 5.0,
+                mirostat_eta: ollamaParams.mirostat_eta ?? 0.1,
+                penalize_newline: ollamaParams.penalize_newline ?? true,
+                stop: ollamaParams.stop,
             },
         };
 

@@ -37,7 +37,7 @@ vi.mock("./registry.js", () => ({
 }));
 
 vi.mock("./credits.js", () => ({
-    calculateMaxCredits: vi.fn().mockReturnValue(BigInt(1000 * API_CREDITS_MULTIPLIER)),
+    calculateMaxCredits: vi.fn().mockReturnValue(BigInt(1000) * API_CREDITS_MULTIPLIER),
 }));
 
 // Helper to create async generator from events
@@ -106,7 +106,7 @@ describe("FallbackRouter", () => {
             id: "user1",
             credits: "10000",
         } as SessionUser,
-        maxCredits: BigInt(1000 * API_CREDITS_MULTIPLIER),
+        maxCredits: BigInt(1000) * API_CREDITS_MULTIPLIER,
     });
 
     describe("defaultTools", () => {
@@ -411,13 +411,13 @@ describe("FallbackRouter", () => {
         describe("credit management", () => {
             it("should use calculated max credits for token budgeting", async () => {
                 const options = createStreamOptions();
-                options.maxCredits = BigInt(500 * API_CREDITS_MULTIPLIER);
+                options.maxCredits = BigInt(500) * API_CREDITS_MULTIPLIER;
 
                 await router.stream(options).next();
 
                 expect(mockService.getMaxOutputTokensRestrained).toHaveBeenCalledWith({
                     model: options.model,
-                    maxCredits: BigInt(1000 * API_CREDITS_MULTIPLIER), // From mocked calculateMaxCredits
+                    maxCredits: BigInt(1000) * API_CREDITS_MULTIPLIER, // From mocked calculateMaxCredits
                     inputTokens: 100, // From mocked estimateTokens
                 });
             });
@@ -430,7 +430,7 @@ describe("FallbackRouter", () => {
 
                 expect(mockService.getMaxOutputTokensRestrained).toHaveBeenCalledWith({
                     model: options.model,
-                    maxCredits: BigInt(1000 * API_CREDITS_MULTIPLIER),
+                    maxCredits: BigInt(1000) * API_CREDITS_MULTIPLIER,
                     inputTokens: 100,
                 });
             });

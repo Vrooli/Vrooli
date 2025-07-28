@@ -73,7 +73,7 @@ ollama::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|models|available|info" \
+        --options "install|uninstall|start|stop|restart|status|models|available|info|prompt" \
         --default "install"
     
     args::register \
@@ -98,6 +98,69 @@ ollama::parse_arguments() {
         --options "yes|no" \
         --default "no"
     
+    args::register \
+        --name "text" \
+        --flag "t" \
+        --desc "Text prompt to send to Ollama (for prompt action)" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "model" \
+        --desc "Specific model to use (for prompt action)" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "type" \
+        --desc "Model type for prompt action (general|code|reasoning|vision, defaults to general)" \
+        --type "value" \
+        --options "general|code|reasoning|vision" \
+        --default "general"
+    
+    args::register \
+        --name "format" \
+        --desc "Output format (text|json, defaults to text)" \
+        --type "value" \
+        --options "text|json" \
+        --default "text"
+    
+    args::register \
+        --name "temperature" \
+        --desc "Temperature for randomness (0.0-2.0, defaults to 0.8)" \
+        --type "value" \
+        --default "0.8"
+    
+    args::register \
+        --name "max-tokens" \
+        --desc "Maximum tokens to generate (defaults to model limit)" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "top-p" \
+        --desc "Top-p nucleus sampling (0.0-1.0, defaults to 0.9)" \
+        --type "value" \
+        --default "0.9"
+    
+    args::register \
+        --name "top-k" \
+        --desc "Top-k sampling (defaults to 40)" \
+        --type "value" \
+        --default "40"
+    
+    args::register \
+        --name "seed" \
+        --desc "Random seed for reproducibility" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "system" \
+        --desc "System prompt to set context" \
+        --type "value" \
+        --default ""
+    
     if args::is_asking_for_help "$@"; then
         ollama::usage
         exit 0
@@ -110,6 +173,16 @@ ollama::parse_arguments() {
     export YES=$(args::get "yes")
     export MODELS_INPUT=$(args::get "models")
     export SKIP_MODELS=$(args::get "skip-models")
+    export PROMPT_TEXT=$(args::get "text")
+    export PROMPT_MODEL=$(args::get "model")
+    export PROMPT_TYPE=$(args::get "type")
+    export OUTPUT_FORMAT=$(args::get "format")
+    export TEMPERATURE=$(args::get "temperature")
+    export MAX_TOKENS=$(args::get "max-tokens")
+    export TOP_P=$(args::get "top-p")
+    export TOP_K=$(args::get "top-k")
+    export SEED=$(args::get "seed")
+    export SYSTEM_PROMPT=$(args::get "system")
 }
 
 #######################################
@@ -122,6 +195,14 @@ ollama::usage() {
     echo "  $0 --action install                              # Install Ollama with default models (llama3.1:8b, deepseek-r1:8b, qwen2.5-coder:7b)"
     echo "  $0 --action install --skip-models               # Install Ollama without models"
     echo "  $0 --action install --models 'llama3.1:8b,phi-4:14b'  # Install with specific models"
+    echo "  $0 --action prompt --text 'What is the capital of France?'  # Send prompt using general model type (default)"
+    echo "  $0 --action prompt --text 'Write a function' --type code  # Use code-specialized model"
+    echo "  $0 --action prompt --text 'Solve 2x+5=15' --type reasoning  # Use reasoning model"
+    echo "  $0 --action prompt --text 'Hello' --model qwen2.5-coder:7b  # Force specific model"
+    echo "  $0 --action prompt --text 'Explain quantum physics' --format json  # Get JSON formatted response"
+    echo "  $0 --action prompt --text 'Be creative' --temperature 1.5  # Higher temperature for creativity"
+    echo "  $0 --action prompt --text 'Write a haiku' --max-tokens 50  # Limit response length"
+    echo "  $0 --action prompt --text 'Code review' --system 'You are a senior developer'  # Set context"
     echo "  $0 --action available                           # Show available models from catalog"
     echo "  $0 --action status                               # Check Ollama status"
     echo "  $0 --action models                               # List installed models"
@@ -140,7 +221,11 @@ ollama::usage() {
 #######################################
 ollama::get_model_info() {
     local model="$1"
-    echo "${MODEL_CATALOG[$model]:-unknown|unknown|Model not found in catalog}"
+    if ollama::is_model_known "$model"; then
+        echo "${MODEL_CATALOG[$model]}"
+    else
+        echo "unknown|unknown|Model not found in catalog"
+    fi
 }
 
 #######################################
@@ -164,7 +249,12 @@ ollama::get_model_size() {
 #######################################
 ollama::is_model_known() {
     local model="$1"
-    [[ -n "${MODEL_CATALOG[$model]:-}" ]]
+    for key in "${!MODEL_CATALOG[@]}"; do
+        if [[ "$key" == "$model" ]]; then
+            return 0
+        fi
+    done
+    return 1
 }
 
 #######################################
@@ -181,7 +271,7 @@ ollama::show_available_models() {
     
     # Current/Recommended models first
     for model in "llama3.1:8b" "deepseek-r1:8b" "qwen2.5-coder:7b"; do
-        if [[ -n "${MODEL_CATALOG[$model]:-}" ]]; then
+        if ollama::is_model_known "$model"; then
             sorted_models+=("$model")
         fi
     done
@@ -261,6 +351,315 @@ ollama::validate_model_list() {
     
     log::info "Validated ${#models[@]} models, total size: $(printf "%.1f" "$total_size")GB"
     return 0
+}
+
+#######################################
+# Get list of installed models
+# Outputs: space-separated list of model names
+#######################################
+ollama::get_installed_models() {
+    if ! ollama::is_healthy; then
+        return 1
+    fi
+    
+    if system::is_command "ollama"; then
+        # Extract model names from ollama list output (skip header line)
+        ollama list 2>/dev/null | tail -n +2 | awk '{print $1}' | tr '\n' ' ' | sed 's/ $//'
+    else
+        return 1
+    fi
+}
+
+#######################################
+# Get the best available model for a given use case
+# Arguments:
+#   $1 - use case (optional: "general", "code", "reasoning", "vision")
+# Outputs: best model name, or empty if none available
+#######################################
+ollama::get_best_available_model() {
+    local use_case="${1:-general}"
+    local installed_models
+    
+    # Get list of installed models
+    installed_models=$(ollama::get_installed_models)
+    if [[ -z "$installed_models" ]]; then
+        return 1
+    fi
+    
+    # Convert to array
+    local installed_array=()
+    IFS=' ' read -ra installed_array <<< "$installed_models"
+    
+    # Define priority order based on use case
+    local priority_models=()
+    case "$use_case" in
+        "code"|"programming")
+            priority_models=(
+                "qwen2.5-coder:7b" "qwen2.5-coder:32b" "deepseek-coder:6.7b"
+                "deepseek-r1:8b" "deepseek-r1:14b"  # reasoning models are also good for code
+                "llama3.1:8b" "llama3.3:8b" "codellama:7b"
+            )
+            ;;
+        "reasoning"|"math")
+            priority_models=(
+                "deepseek-r1:8b" "deepseek-r1:14b" "deepseek-r1:1.5b"
+                "qwen2.5:14b" "phi-4:14b"
+                "llama3.1:8b" "llama3.3:8b"
+            )
+            ;;
+        "vision"|"image")
+            priority_models=(
+                "llava:13b" "qwen2-vl:7b" "llama3.2-vision:11b"
+                "llama3.1:8b"  # fallback to general model
+            )
+            ;;
+        "general"|*)
+            priority_models=(
+                "llama3.1:8b" "llama3.3:8b" "deepseek-r1:8b"
+                "qwen2.5:14b" "phi-4:14b" "mistral-small:22b"
+                "qwen2.5-coder:7b"  # code models are often good general models too
+                "llama2:7b"  # legacy fallback
+            )
+            ;;
+    esac
+    
+    # Find the first priority model that's installed
+    for priority_model in "${priority_models[@]}"; do
+        for installed_model in "${installed_array[@]}"; do
+            if [[ "$installed_model" == "$priority_model" ]]; then
+                echo "$priority_model"
+                return 0
+            fi
+        done
+    done
+    
+    # If no priority match, return the first installed model
+    if [[ ${#installed_array[@]} -gt 0 ]]; then
+        echo "${installed_array[0]}"
+        return 0
+    fi
+    
+    return 1
+}
+
+
+#######################################
+# Validate that a model exists and is available
+# Arguments:
+#   $1 - model name
+# Returns: 0 if valid and available, 1 otherwise
+#######################################
+ollama::validate_model_available() {
+    local model="$1"
+    local installed_models
+    
+    installed_models=$(ollama::get_installed_models)
+    if [[ -z "$installed_models" ]]; then
+        return 1
+    fi
+    
+    # Check if model is in the installed list
+    if [[ " $installed_models " =~ " $model " ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+#######################################
+# Send a prompt to Ollama with model selection and advanced parameters
+# Arguments:
+#   $1 - prompt text
+#   $2 - model name (optional, uses type-based selection if not provided)
+#   $3 - model type (general|code|reasoning|vision, defaults to general)
+# Uses global variables for additional parameters
+#######################################
+ollama::send_prompt() {
+    local prompt_text="$1"
+    local model="$2"
+    local model_type="$3"
+    
+    # Validate Ollama is available
+    if ! ollama::is_healthy; then
+        log::error "Ollama API is not available"
+        log::info "Start Ollama with: $0 --action start"
+        return 1
+    fi
+    
+    # Validate prompt text
+    if [[ -z "$prompt_text" ]]; then
+        log::error "No prompt text provided"
+        log::info "Use: $0 --action prompt --text 'your prompt here'"
+        return 1
+    fi
+    
+    # Select model based on priority: specific model > type-based selection
+    if [[ -n "$model" ]]; then
+        # Validate specified model is available
+        if ! ollama::validate_model_available "$model"; then
+            log::error "Model '$model' is not installed"
+            log::info "Available models:"
+            ollama::get_installed_models | tr ' ' '\n' | sed 's/^/  • /'
+            log::info "Install the model with: ollama pull $model"
+            return 1
+        fi
+        if [[ "$OUTPUT_FORMAT" != "json" ]]; then
+            log::info "Using specified model: $model"
+        fi
+    else
+        # Use type-based selection (defaults to general if not specified)
+        local use_case="${model_type:-general}"
+        if [[ "$OUTPUT_FORMAT" != "json" ]]; then
+            log::info "Selecting best available model for type: $use_case"
+        fi
+        
+        model=$(ollama::get_best_available_model "$use_case")
+        if [[ -z "$model" ]]; then
+            log::error "No suitable models found for type '$use_case'"
+            log::info "Install a model first with: ollama pull llama3.1:8b"
+            return 1
+        fi
+        if [[ "$OUTPUT_FORMAT" != "json" ]]; then
+            log::info "Selected model: $model"
+        fi
+    fi
+    
+    # Build options object
+    local options="{}"
+    
+    # Add temperature if specified
+    if [[ -n "$TEMPERATURE" ]]; then
+        options=$(echo "$options" | jq --arg temp "$TEMPERATURE" '. + {temperature: ($temp | tonumber)}')
+    fi
+    
+    # Add max tokens if specified
+    if [[ -n "$MAX_TOKENS" ]]; then
+        options=$(echo "$options" | jq --arg max "$MAX_TOKENS" '. + {num_predict: ($max | tonumber)}')
+    fi
+    
+    # Add top_p if specified
+    if [[ -n "$TOP_P" ]]; then
+        options=$(echo "$options" | jq --arg p "$TOP_P" '. + {top_p: ($p | tonumber)}')
+    fi
+    
+    # Add top_k if specified
+    if [[ -n "$TOP_K" ]]; then
+        options=$(echo "$options" | jq --arg k "$TOP_K" '. + {top_k: ($k | tonumber)}')
+    fi
+    
+    # Add seed if specified
+    if [[ -n "$SEED" ]]; then
+        options=$(echo "$options" | jq --arg seed "$SEED" '. + {seed: ($seed | tonumber)}')
+    fi
+    
+    # Build the complete prompt with system message if provided
+    local full_prompt="$prompt_text"
+    if [[ -n "$SYSTEM_PROMPT" ]]; then
+        full_prompt="${SYSTEM_PROMPT}\n\n${prompt_text}"
+    fi
+    
+    # Build request JSON
+    local request_json
+    request_json=$(jq -n \
+        --arg model "$model" \
+        --arg prompt "$full_prompt" \
+        --argjson options "$options" \
+        '{
+            model: $model,
+            prompt: $prompt,
+            stream: false,
+            options: $options
+        }')
+    
+    # Send the prompt
+    if [[ "$OUTPUT_FORMAT" != "json" ]]; then
+        log::info "Sending prompt to $model..."
+        echo
+        log::header "🤖 Response from $model"
+    fi
+    
+    local start_time
+    start_time=$(date +%s)
+    
+    # Make the API call
+    local response
+    if response=$(curl -s -X POST "$OLLAMA_BASE_URL/api/generate" \
+        -H "Content-Type: application/json" \
+        -d "$request_json"); then
+        
+        local end_time
+        end_time=$(date +%s)
+        local duration=$((end_time - start_time))
+        
+        # Handle different output formats
+        if [[ "$OUTPUT_FORMAT" == "json" ]]; then
+            # For JSON format, output the full response
+            echo "$response"
+            return 0
+        else
+            # Parse response for text format
+            if system::is_command "jq"; then
+                local response_text
+                response_text=$(echo "$response" | jq -r '.response // empty')
+                local error_msg
+                error_msg=$(echo "$response" | jq -r '.error // empty')
+                
+                if [[ -n "$error_msg" && "$error_msg" != "null" ]]; then
+                    log::error "Ollama returned error: $error_msg"
+                    return 1
+                elif [[ -n "$response_text" && "$response_text" != "null" ]]; then
+                    echo "$response_text"
+                    echo
+                    log::info "⏱️  Response time: ${duration}s"
+                    
+                    # Show token statistics if available
+                    local total_duration prompt_eval_count eval_count
+                    total_duration=$(echo "$response" | jq -r '.total_duration // empty' 2>/dev/null)
+                    prompt_eval_count=$(echo "$response" | jq -r '.prompt_eval_count // empty' 2>/dev/null)
+                    eval_count=$(echo "$response" | jq -r '.eval_count // empty' 2>/dev/null)
+                    
+                    if [[ -n "$prompt_eval_count" && "$prompt_eval_count" != "null" && -n "$eval_count" && "$eval_count" != "null" ]]; then
+                        log::info "📊 Tokens: ${prompt_eval_count} prompt + ${eval_count} generated"
+                    fi
+                    
+                    # Show generation parameters if they differ from defaults
+                    local params_info=""
+                    if [[ "$TEMPERATURE" != "0.8" ]]; then
+                        params_info="${params_info}temperature=$TEMPERATURE "
+                    fi
+                    if [[ -n "$MAX_TOKENS" ]]; then
+                        params_info="${params_info}max_tokens=$MAX_TOKENS "
+                    fi
+                    if [[ "$TOP_P" != "0.9" ]]; then
+                        params_info="${params_info}top_p=$TOP_P "
+                    fi
+                    if [[ "$TOP_K" != "40" ]]; then
+                        params_info="${params_info}top_k=$TOP_K "
+                    fi
+                    if [[ -n "$SEED" ]]; then
+                        params_info="${params_info}seed=$SEED "
+                    fi
+                    if [[ -n "$params_info" ]]; then
+                        log::info "🎛️  Parameters: $params_info"
+                    fi
+                    
+                    return 0
+                else
+                    log::error "No response text received"
+                    return 1
+                fi
+            else
+                # Fallback if jq is not available - just show raw response
+                log::warn "jq not available, showing raw response"
+                echo "$response"
+                return 0
+            fi
+        fi
+    else
+        log::error "Failed to send request to Ollama API"
+        log::info "Check if Ollama is running: $0 --action status"
+        return 1
+    fi
 }
 
 #######################################
@@ -1216,6 +1615,9 @@ ollama::main() {
             ;;
         "info")
             ollama::info
+            ;;
+        "prompt")
+            ollama::send_prompt "$PROMPT_TEXT" "$PROMPT_MODEL" "$PROMPT_TYPE"
             ;;
         *)
             log::error "Unknown action: $ACTION"

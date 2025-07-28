@@ -447,7 +447,7 @@ describe("OpenRouterService", () => {
             const gpt4oInfo = modelInfo["openai/gpt-4o"];
             expect(gpt4oInfo).toMatchObject({
                 enabled: true,
-                name: "OR_GPT4o",
+                name: "GPT-4o",
                 contextWindow: 128000,
                 maxOutputTokens: 4096,
                 inputCost: 250,

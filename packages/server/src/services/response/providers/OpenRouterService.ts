@@ -7,6 +7,9 @@ import { AIService, type ResponseStreamOptions, type ServiceStreamEvent, type Ge
 import { generateContextFromMessages } from "../contextGeneration.js";
 import { hasHarmfulContent, hasPromptInjection } from "../messageValidation.js";
 import { withStreamTimeout } from "../streamTimeout.js";
+// Type-safe imports for resource system integration (optional)
+import type { ResourceRegistry } from "../../resources/ResourceRegistry.js";
+import { ResourceHealth, DiscoveryStatus } from "../../resources/types.js";
 
 /**
  * COST CALCULATION DOCUMENTATION
@@ -30,10 +33,22 @@ const MAX_INPUT_LENGTH = 50000; // 50KB limit for OpenRouter API
 const TIMEOUT_MINUTES = 5;
 const SECONDS_PER_MINUTE = 60;
 const MS_PER_SECOND = 1000;
+const HEALTH_CHECK_TIMEOUT_MS = 5000; // 5 second timeout for health checks
 // Model costs are in cents per million tokens
 // API credits = tokens * cost_per_million_tokens_in_cents
 const FALLBACK_INPUT_COST_CENTS_PER_MILLION = 15;  // $0.15 per 1M tokens
 const FALLBACK_OUTPUT_COST_CENTS_PER_MILLION = 60; // $0.60 per 1M tokens
+
+/**
+ * Options for OpenRouterService configuration
+ */
+export interface OpenRouterServiceOptions {
+    apiKey?: string;
+    appName?: string;
+    siteUrl?: string;
+    defaultModel?: string;
+    resourceRegistry?: ResourceRegistry; // Optional dependency injection
+}
 
 /**
  * OpenRouterService - Service for communicating with OpenRouter API
@@ -43,22 +58,39 @@ export class OpenRouterService extends AIService<string, ThirdPartyModelInfo> {
     private readonly baseUrl = "https://openrouter.ai/api/v1";
     private readonly appName: string;
     private readonly siteUrl: string;
+    private resourceRegistry?: ResourceRegistry;
 
     __id: LlmServiceId = LlmServiceId.OpenRouter;
     featureFlags = { supportsStatefulConversations: false };
     defaultModel = "openai/gpt-4o-mini";
 
-    constructor(options?: { apiKey?: string; appName?: string; siteUrl?: string; defaultModel?: string }) {
+    constructor(options?: OpenRouterServiceOptions) {
         super();
         this.apiKey = options?.apiKey ?? process.env.OPENROUTER_API_KEY ?? "";
         this.appName = options?.appName ?? process.env.OPENROUTER_APP_NAME ?? "Vrooli";
         this.siteUrl = options?.siteUrl ?? process.env.OPENROUTER_SITE_URL ?? "https://vrooli.com";
         this.defaultModel = options?.defaultModel ?? "openai/gpt-4o-mini";
+        this.resourceRegistry = options?.resourceRegistry;
         
         // Validate required configuration
         if (!this.apiKey) {
             logger.warn("[OpenRouterService] No API key configured - service will not function");
         }
+        
+        // Log ResourceRegistry integration status
+        logger.info("[OpenRouterService] Initialized", {
+            hasResourceIntegration: !!this.resourceRegistry,
+        });
+    }
+
+    /**
+     * Updates the ResourceRegistry after initialization.
+     * This allows late-binding of the ResourceRegistry when it becomes available
+     * after the AI services have already been initialized.
+     */
+    public setResourceRegistry(resourceRegistry: ResourceRegistry): void {
+        this.resourceRegistry = resourceRegistry;
+        logger.info("[OpenRouterService] ResourceRegistry updated - enhanced health checking now available");
     }
 
     /**
@@ -547,6 +579,7 @@ export class OpenRouterService extends AIService<string, ThirdPartyModelInfo> {
 
     /**
      * Checks if the OpenRouter service is healthy and available.
+     * Enhanced with optional ResourceRegistry integration for better monitoring.
      * @returns true if the service is healthy and can accept requests, false otherwise
      */
     async isHealthy(): Promise<boolean> {
@@ -556,6 +589,40 @@ export class OpenRouterService extends AIService<string, ThirdPartyModelInfo> {
             return false;
         }
 
+        // Enhanced check with ResourceRegistry if available
+        if (this.resourceRegistry) {
+            try {
+                // Try to get OpenRouter resource from registry
+                const resourceId = "openrouter";
+                const resource = this.resourceRegistry.getResource(resourceId);
+                
+                if (resource) {
+                    const resourceInfo = resource.getPublicInfo();
+                    const isResourceHealthy = resourceInfo.health === ResourceHealth.Healthy && 
+                                            resourceInfo.status === DiscoveryStatus.Available;
+                    
+                    logger.debug("[OpenRouterService] ResourceRegistry health check", {
+                        health: resourceInfo.health,
+                        status: resourceInfo.status,
+                        isHealthy: isResourceHealthy,
+                    });
+                    
+                    if (isResourceHealthy) {
+                        logger.debug("[OpenRouterService] Resource system reports OpenRouter as healthy");
+                        return true;
+                    } else {
+                        logger.warn(`[OpenRouterService] Resource system reports OpenRouter as unhealthy: ${resourceInfo.health}/${resourceInfo.status}`);
+                        return false;
+                    }
+                }
+                
+                logger.debug("[OpenRouterService] No OpenRouter resource found in registry, falling back to basic check");
+            } catch (error) {
+                logger.warn("[OpenRouterService] ResourceRegistry health check failed, falling back to basic check", error);
+            }
+        }
+
+        // Basic HTTP health check
         try {
             // OpenRouter provides a models endpoint that doesn't cost credits
             // This is a good way to check if the service is available
@@ -567,7 +634,7 @@ export class OpenRouterService extends AIService<string, ThirdPartyModelInfo> {
                     "X-Title": this.appName,
                 },
                 // Add a timeout to prevent hanging
-                signal: AbortSignal.timeout(5000), // 5 second timeout
+                signal: AbortSignal.timeout(HEALTH_CHECK_TIMEOUT_MS),
             });
 
             // Check if the response is successful
