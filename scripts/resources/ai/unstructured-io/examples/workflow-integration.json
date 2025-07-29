@@ -1,0 +1,194 @@
+{
+  "name": "Document Processing Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/documents/inbox",
+        "recursive": true,
+        "fileExtensions": "pdf,docx,pptx,xlsx",
+        "event": "create"
+      },
+      "name": "Watch Documents Folder",
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:11450/general/v0/general",
+        "method": "POST",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "files",
+              "value": "={{$binary.data}}",
+              "parameterType": "formBinaryData",
+              "dataPropertyName": "data"
+            },
+            {
+              "name": "strategy",
+              "value": "hi_res"
+            },
+            {
+              "name": "languages",
+              "value": "eng"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "name": "Process with Unstructured.io",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract key information from processed document\nconst elements = $input.first().json;\nconst fileName = $input.first().binary.data.fileName;\n\n// Extract metadata\nconst metadata = {\n  fileName: fileName,\n  processedAt: new Date().toISOString(),\n  elementCount: elements.length,\n  documentType: fileName.split('.').pop()\n};\n\n// Extract titles and headers\nconst titles = elements\n  .filter(el => el.type === 'Title' || el.type === 'Header')\n  .map(el => el.text);\n\n// Extract tables\nconst tables = elements\n  .filter(el => el.type === 'Table')\n  .map(el => ({\n    text: el.text,\n    metadata: el.metadata\n  }));\n\n// Extract main text\nconst textContent = elements\n  .filter(el => el.type === 'NarrativeText')\n  .map(el => el.text)\n  .join('\\n\\n');\n\n// Create summary\nconst summary = {\n  metadata,\n  titles,\n  tables,\n  textPreview: textContent.substring(0, 500) + '...',\n  fullElements: elements\n};\n\nreturn summary;"
+      },
+      "name": "Extract Document Info",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:11434/api/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llama3.1:8b"
+            },
+            {
+              "name": "prompt",
+              "value": "=Summarize this document in 3-5 bullet points:\\n\\n{{$json.textPreview}}"
+            },
+            {
+              "name": "stream",
+              "value": false
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "name": "Generate AI Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "bucket": "documents",
+        "fileName": "={{$json.metadata.fileName}}.json",
+        "binaryPropertyName": "data",
+        "options": {
+          "metadata": {
+            "processedAt": "={{$json.metadata.processedAt}}",
+            "elementCount": "={{$json.metadata.elementCount}}",
+            "aiSummary": "={{$node['Generate AI Summary'].json.response}}"
+          }
+        }
+      },
+      "name": "Store in MinIO",
+      "type": "n8n-nodes-minio.upload",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "subject": "Document Processed: {{$json.metadata.fileName}}",
+        "text": "Document: {{$json.metadata.fileName}}\\n\\nAI Summary:\\n{{$node['Generate AI Summary'].json.response}}\\n\\nExtracted Titles:\\n{{$json.titles.join('\\n')}}\\n\\nTables Found: {{$json.tables.length}}\\n\\nProcessed at: {{$json.metadata.processedAt}}",
+        "toEmail": "admin@example.com"
+      },
+      "name": "Send Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Watch Documents Folder": {
+      "main": [
+        [
+          {
+            "node": "Process with Unstructured.io",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process with Unstructured.io": {
+      "main": [
+        [
+          {
+            "node": "Extract Document Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Document Info": {
+      "main": [
+        [
+          {
+            "node": "Generate AI Summary",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Store in MinIO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate AI Summary": {
+      "main": [
+        [
+          {
+            "node": "Send Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store in MinIO": {
+      "main": [
+        [
+          {
+            "node": "Send Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "Document Processing",
+      "id": 1
+    },
+    {
+      "name": "AI",
+      "id": 2
+    }
+  ],
+  "notes": "This workflow demonstrates how to:\n\n1. Monitor a folder for new documents\n2. Process them with Unstructured.io\n3. Extract structured information\n4. Generate AI summaries with Ollama\n5. Store processed data in MinIO\n6. Send email notifications\n\nRequirements:\n- Unstructured.io running on port 11450\n- Ollama running on port 11434\n- MinIO configured\n- Email credentials set up in n8n"
+}

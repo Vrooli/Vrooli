@@ -1,0 +1,302 @@
+#!/usr/bin/env bats
+# Tests for Unstructured.io common.sh functions
+
+# Setup for each test
+setup() {
+    # Set test environment
+    export UNSTRUCTURED_IO_CUSTOM_PORT="9999"
+    export UNSTRUCTURED_IO_CONTAINER_NAME="unstructured-io-test"
+    export UNSTRUCTURED_IO_BASE_URL="http://localhost:9999"
+    export UNSTRUCTURED_IO_DEFAULT_STRATEGY="hi_res"
+    export UNSTRUCTURED_IO_DEFAULT_LANGUAGES="eng"
+    export YES="no"
+    
+    # Load dependencies
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    UNSTRUCTURED_IO_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Mock system functions for testing
+    system::is_command() {
+        case "$1" in
+            "docker") return 0 ;;
+            "curl") return 0 ;;
+            "jq") return 0 ;;
+            *) return 1 ;;
+        esac
+    }
+    
+    system::is_port_in_use() {
+        # Mock port as available for testing
+        return 1
+    }
+    
+    # Mock Docker functions
+    docker() {
+        case "$1" in
+            "ps")
+                if [[ "$*" =~ "unstructured-io-test" ]]; then
+                    echo "container_id unstructured-io-test"
+                fi
+                ;;
+            "inspect")
+                if [[ "$*" =~ "unstructured-io-test" ]]; then
+                    echo '{"State":{"Running":true}}'
+                fi
+                ;;
+            "logs")
+                echo "Mock container logs"
+                ;;
+            *) return 0 ;;
+        esac
+    }
+    
+    # Mock log functions
+    log::info() {
+        echo "INFO: $1"
+        return 0
+    }
+    
+    log::error() {
+        echo "ERROR: $1"
+        return 0
+    }
+    
+    log::warn() {
+        echo "WARN: $1"
+        return 0
+    }
+    
+    # Mock args functions
+    args::reset() { return 0; }
+    args::register_help() { return 0; }
+    args::register_yes() { return 0; }
+    args::register() { return 0; }
+    args::is_asking_for_help() { return 1; }
+    args::parse() { return 0; }
+    args::usage() {
+        echo "USAGE_CALLED"
+        return 0
+    }
+    
+    # Load configuration and messages
+    source "${UNSTRUCTURED_IO_DIR}/config/defaults.sh"
+    source "${UNSTRUCTURED_IO_DIR}/config/messages.sh"
+    unstructured_io::export_config
+    unstructured_io::export_messages
+    
+    # Load the functions to test
+    source "${UNSTRUCTURED_IO_DIR}/lib/common.sh"
+}
+
+# Test configuration export
+@test "unstructured_io::export_config sets configuration variables" {
+    unstructured_io::export_config
+    
+    [ -n "$UNSTRUCTURED_IO_PORT" ]
+    [ -n "$UNSTRUCTURED_IO_BASE_URL" ]
+    [ -n "$UNSTRUCTURED_IO_CONTAINER_NAME" ]
+    [ -n "$UNSTRUCTURED_IO_IMAGE" ]
+}
+
+# Test message export
+@test "unstructured_io::export_messages sets message variables" {
+    unstructured_io::export_messages
+    
+    [ -n "$MSG_UNSTRUCTURED_IO_INSTALLING" ]
+    [ -n "$MSG_UNSTRUCTURED_IO_ALREADY_INSTALLED" ]
+    [ -n "$MSG_UNSTRUCTURED_IO_NOT_FOUND" ]
+}
+
+# Test argument parsing with defaults
+@test "unstructured_io::parse_arguments sets correct defaults" {
+    # Mock args::get to return defaults
+    args::get() {
+        case "$1" in
+            "action") echo "install" ;;
+            "force") echo "no" ;;
+            "file") echo "" ;;
+            "strategy") echo "$UNSTRUCTURED_IO_DEFAULT_STRATEGY" ;;
+            "output") echo "json" ;;
+            "languages") echo "$UNSTRUCTURED_IO_DEFAULT_LANGUAGES" ;;
+            "batch") echo "no" ;;
+            "follow") echo "no" ;;
+            "yes") echo "no" ;;
+        esac
+    }
+    
+    unstructured_io::parse_arguments --action install
+    
+    [ "$ACTION" = "install" ]
+    [ "$FORCE" = "no" ]
+    [ "$STRATEGY" = "$UNSTRUCTURED_IO_DEFAULT_STRATEGY" ]
+    [ "$OUTPUT" = "json" ]
+    [ "$LANGUAGES" = "$UNSTRUCTURED_IO_DEFAULT_LANGUAGES" ]
+    [ "$BATCH" = "no" ]
+}
+
+# Test usage display
+@test "unstructured_io::usage displays help information" {
+    result=$(unstructured_io::usage)
+    
+    [[ "$result" =~ "USAGE_CALLED" ]]
+}
+
+# Test Docker check function
+@test "unstructured_io::check_docker succeeds with Docker available" {
+    unstructured_io::check_docker
+    [ "$?" -eq 0 ]
+}
+
+# Test Docker check function with Docker unavailable
+@test "unstructured_io::check_docker fails with Docker unavailable" {
+    # Override system function to simulate missing Docker
+    system::is_command() {
+        case "$1" in
+            "docker") return 1 ;;
+            *) return 0 ;;
+        esac
+    }
+    
+    run unstructured_io::check_docker
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR" ]]
+}
+
+# Test container existence check - exists
+@test "unstructured_io::container_exists returns true for existing container" {
+    unstructured_io::container_exists
+    [ "$?" -eq 0 ]
+}
+
+# Test container existence check - not exists
+@test "unstructured_io::container_exists returns false for non-existing container" {
+    # Override docker to return empty result
+    docker() {
+        case "$1" in
+            "ps") echo "" ;;
+            *) return 0 ;;
+        esac
+    }
+    
+    run unstructured_io::container_exists
+    [ "$status" -eq 1 ]
+}
+
+# Test container running check - running
+@test "unstructured_io::container_running returns true for running container" {
+    unstructured_io::container_running
+    [ "$?" -eq 0 ]
+}
+
+# Test container running check - not running
+@test "unstructured_io::container_running returns false for stopped container" {
+    # Override docker inspect to show stopped state
+    docker() {
+        case "$1" in
+            "inspect")
+                echo '{"State":{"Running":false}}'
+                ;;
+            *) return 0 ;;
+        esac
+    }
+    
+    run unstructured_io::container_running
+    [ "$status" -eq 1 ]
+}
+
+# Test log display function
+@test "unstructured_io::logs displays container logs" {
+    result=$(unstructured_io::logs "no")
+    
+    [[ "$result" =~ "Mock container logs" ]]
+}
+
+# Test log display with follow option
+@test "unstructured_io::logs handles follow option" {
+    # Mock docker logs with follow
+    docker() {
+        case "$1" in
+            "logs")
+                if [[ "$*" =~ "-f" ]]; then
+                    echo "Following logs..."
+                else
+                    echo "Static logs"
+                fi
+                ;;
+            *) return 0 ;;
+        esac
+    }
+    
+    result=$(unstructured_io::logs "yes")
+    [[ "$result" =~ "Following logs" ]]
+    
+    result=$(unstructured_io::logs "no")
+    [[ "$result" =~ "Static logs" ]]
+}
+
+# Test info display function
+@test "unstructured_io::info displays service information" {
+    result=$(unstructured_io::info)
+    
+    [[ "$result" =~ "Unstructured.io" ]]
+    [[ "$result" =~ "$UNSTRUCTURED_IO_BASE_URL" ]]
+}
+
+# Test port check function
+@test "unstructured_io::check_port_available succeeds for available port" {
+    unstructured_io::check_port_available
+    [ "$?" -eq 0 ]
+}
+
+# Test port check function with port in use
+@test "unstructured_io::check_port_available fails for port in use" {
+    # Override system function to simulate port in use
+    system::is_port_in_use() {
+        return 0  # Port is in use
+    }
+    
+    run unstructured_io::check_port_available
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR" ]]
+}
+
+# Test parameter validation - valid strategy
+@test "unstructured_io::validate_strategy accepts valid strategies" {
+    unstructured_io::validate_strategy "hi_res"
+    [ "$?" -eq 0 ]
+    
+    unstructured_io::validate_strategy "fast"
+    [ "$?" -eq 0 ]
+    
+    unstructured_io::validate_strategy "auto"
+    [ "$?" -eq 0 ]
+}
+
+# Test parameter validation - invalid strategy
+@test "unstructured_io::validate_strategy rejects invalid strategy" {
+    run unstructured_io::validate_strategy "invalid"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR" ]]
+}
+
+# Test parameter validation - valid output format
+@test "unstructured_io::validate_output_format accepts valid formats" {
+    unstructured_io::validate_output_format "json"
+    [ "$?" -eq 0 ]
+    
+    unstructured_io::validate_output_format "markdown"
+    [ "$?" -eq 0 ]
+    
+    unstructured_io::validate_output_format "text"
+    [ "$?" -eq 0 ]
+    
+    unstructured_io::validate_output_format "elements"
+    [ "$?" -eq 0 ]
+}
+
+# Test parameter validation - invalid output format
+@test "unstructured_io::validate_output_format rejects invalid format" {
+    run unstructured_io::validate_output_format "invalid"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR" ]]
+}
