@@ -1,0 +1,435 @@
+#!/usr/bin/env bats
+# Tests for n8n install.sh functions
+
+# Setup for each test
+setup() {
+    # Set test environment
+    export N8N_CUSTOM_PORT="5678"
+    export N8N_CONTAINER_NAME="n8n-test"
+    export N8N_DB_CONTAINER_NAME="n8n-postgres-test"
+    export N8N_DATA_DIR="/tmp/n8n-test"
+    export N8N_BASE_URL="http://localhost:5678"
+    export DATABASE_TYPE="postgres"
+    export N8N_ENCRYPTION_KEY="test-encryption-key"
+    export YES="no"
+    
+    # Load dependencies
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    N8N_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Create test directory
+    mkdir -p "$N8N_DATA_DIR"
+    
+    # Mock rollback functions
+    resources::add_rollback_action() {
+        echo "ROLLBACK: $1"
+        return 0
+    }
+    
+    resources::start_rollback_context() {
+        echo "START_ROLLBACK: $1"
+        return 0
+    }
+    
+    resources::handle_error() {
+        echo "HANDLE_ERROR: $1 - $2 - $3"
+        return 1
+    }
+    
+    resources::update_config() {
+        echo "UPDATE_CONFIG: $1 $2 $3"
+        return 0
+    }
+    
+    resources::remove_config() {
+        echo "REMOVE_CONFIG: $1 $2"
+        return 0
+    }
+    
+    # Mock system functions
+    system::is_command() {
+        case "$1" in
+            "docker") return 0 ;;
+            "openssl") return 0 ;;
+            *) return 1 ;;
+        esac
+    }
+    
+    system::is_port_in_use() {
+        return 1  # Port available
+    }
+    
+    # Mock Docker functions
+    docker() {
+        case "$1" in
+            "pull")
+                echo "DOCKER_PULL: $*"
+                return 0
+                ;;
+            "run")
+                echo "DOCKER_RUN: $*"
+                return 0
+                ;;
+            "start"|"stop"|"restart")
+                echo "DOCKER_${1^^}: $*"
+                return 0
+                ;;
+            "ps")
+                if [[ "$*" =~ "n8n-test" ]]; then
+                    echo ""  # No existing container by default
+                fi
+                ;;
+            "inspect")
+                echo '{"State":{"Running":false}}'
+                ;;
+            "rm")
+                echo "DOCKER_RM: $*"
+                return 0
+                ;;
+            *) return 0 ;;
+        esac
+    }
+    
+    # Mock openssl command
+    openssl() {
+        case "$1" in
+            "rand")
+                echo "generated-random-key-12345"
+                ;;
+            *) return 0 ;;
+        esac
+    }
+    
+    # Mock log functions
+    log::info() {
+        echo "INFO: $1"
+        return 0
+    }
+    
+    log::error() {
+        echo "ERROR: $1"
+        return 0
+    }
+    
+    log::warn() {
+        echo "WARN: $1"
+        return 0
+    }
+    
+    log::success() {
+        echo "SUCCESS: $1"
+        return 0
+    }
+    
+    # Mock n8n functions
+    n8n::check_docker() { return 0; }
+    n8n::container_exists() { return 1; }  # No existing container
+    n8n::is_running() { return 0; }
+    n8n::check_port_available() { return 0; }
+    n8n::start_postgres() { return 0; }
+    n8n::init_database() { return 0; }
+    n8n::status() { return 0; }
+    
+    # Load configuration and messages
+    source "${N8N_DIR}/config/defaults.sh"
+    source "${N8N_DIR}/config/messages.sh"
+    n8n::export_config
+    n8n::export_messages
+    
+    # Load the functions to test
+    source "${N8N_DIR}/lib/install.sh"
+}
+
+# Cleanup after each test
+teardown() {
+    rm -rf "$N8N_DATA_DIR"
+}
+
+# Test successful installation
+@test "n8n::install installs successfully with clean environment" {
+    result=$(n8n::install "no")
+    
+    [[ "$result" =~ "INFO:" ]]
+    [[ "$result" =~ "Installing" ]]
+    [[ "$result" =~ "DOCKER_PULL:" ]]
+    [[ "$result" =~ "DOCKER_RUN:" ]]
+    [[ "$result" =~ "UPDATE_CONFIG:" ]]
+    [[ "$result" =~ "SUCCESS:" ]]
+}
+
+# Test installation with Docker unavailable
+@test "n8n::install fails with Docker unavailable" {
+    # Override Docker check to fail
+    n8n::check_docker() {
+        log::error "Docker not available"
+        return 1
+    }
+    
+    run n8n::install "no"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: Docker not available" ]]
+}
+
+# Test installation with existing container (no force)
+@test "n8n::install skips when container exists without force" {
+    # Override container check to return existing container
+    n8n::container_exists() { return 0; }
+    
+    result=$(n8n::install "no")
+    
+    [[ "$result" =~ "already installed" ]]
+    [[ ! "$result" =~ "DOCKER_RUN:" ]]
+}
+
+# Test installation with existing container (force)
+@test "n8n::install reinstalls when container exists with force" {
+    # Override container check to return existing container
+    n8n::container_exists() { return 0; }
+    
+    # Mock uninstall function
+    n8n::uninstall() {
+        echo "UNINSTALL_CALLED"
+        return 0
+    }
+    
+    result=$(n8n::install "yes")
+    
+    [[ "$result" =~ "UNINSTALL_CALLED" ]]
+    [[ "$result" =~ "DOCKER_PULL:" ]]
+    [[ "$result" =~ "DOCKER_RUN:" ]]
+}
+
+# Test installation with port conflict
+@test "n8n::install fails with port conflict" {
+    # Override port check to return conflict
+    n8n::check_port_available() {
+        log::error "Port $N8N_PORT is in use"
+        return 1
+    }
+    
+    run n8n::install "no"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR: Port $N8N_PORT is in use" ]]
+}
+
+# Test installation with database setup
+@test "n8n::install sets up database when using PostgreSQL" {
+    export DATABASE_TYPE="postgres"
+    
+    result=$(n8n::install "no")
+    
+    [[ "$result" =~ "Setting up database" ]]
+    [[ "$result" =~ "postgres" ]]
+}
+
+# Test installation with SQLite
+@test "n8n::install configures SQLite correctly" {
+    export DATABASE_TYPE="sqlite"
+    
+    result=$(n8n::install "no")
+    
+    [[ "$result" =~ "SQLite" ]] || [[ "$result" =~ "sqlite" ]]
+}
+
+# Test uninstallation
+@test "n8n::uninstall removes containers and data successfully" {
+    # Override container check to return existing container
+    n8n::container_exists() { return 0; }
+    
+    result=$(n8n::uninstall)
+    
+    [[ "$result" =~ "INFO: Removing" ]]
+    [[ "$result" =~ "DOCKER_RM:" ]]
+    [[ "$result" =~ "REMOVE_CONFIG:" ]]
+}
+
+# Test uninstallation with no existing containers
+@test "n8n::uninstall handles missing containers gracefully" {
+    # Override container check to return no container
+    n8n::container_exists() { return 1; }
+    
+    result=$(n8n::uninstall)
+    
+    [[ "$result" =~ "not found" ]] || [[ "$result" =~ "SUCCESS:" ]]
+}
+
+# Test service start
+@test "n8n::start starts services successfully" {
+    # Override container check to return existing but stopped container
+    n8n::container_exists() { return 0; }
+    n8n::is_running() { return 1; }  # Not running
+    
+    result=$(n8n::start)
+    
+    [[ "$result" =~ "INFO: Starting" ]]
+    [[ "$result" =~ "DOCKER_START:" ]]
+}
+
+# Test service start with missing container
+@test "n8n::start fails with missing container" {
+    # Override container check to return no container
+    n8n::container_exists() { return 1; }
+    
+    run n8n::start
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "not found" ]]
+}
+
+# Test service start with already running container
+@test "n8n::start handles already running container" {
+    # Override checks to return running container
+    n8n::container_exists() { return 0; }
+    n8n::is_running() { return 0; }  # Already running
+    
+    result=$(n8n::start)
+    
+    [[ "$result" =~ "already running" ]]
+}
+
+# Test service stop
+@test "n8n::stop stops services successfully" {
+    # Override checks to return running container
+    n8n::container_exists() { return 0; }
+    n8n::is_running() { return 0; }  # Running
+    
+    result=$(n8n::stop)
+    
+    [[ "$result" =~ "INFO: Stopping" ]]
+    [[ "$result" =~ "DOCKER_STOP:" ]]
+}
+
+# Test service stop with stopped container
+@test "n8n::stop handles already stopped container" {
+    # Override checks to return stopped container
+    n8n::container_exists() { return 0; }
+    n8n::is_running() { return 1; }  # Not running
+    
+    result=$(n8n::stop)
+    
+    [[ "$result" =~ "not running" ]] || [[ "$result" =~ "already stopped" ]]
+}
+
+# Test service restart
+@test "n8n::restart performs stop and start sequence" {
+    # Mock stop and start functions
+    n8n::stop() {
+        echo "STOP_CALLED"
+        return 0
+    }
+    
+    n8n::start() {
+        echo "START_CALLED"
+        return 0
+    }
+    
+    result=$(n8n::restart)
+    
+    [[ "$result" =~ "STOP_CALLED" ]]
+    [[ "$result" =~ "START_CALLED" ]]
+}
+
+# Test encryption key generation
+@test "n8n::generate_encryption_key generates secure key" {
+    result=$(n8n::generate_encryption_key)
+    
+    [[ "$result" =~ "generated-random-key" ]]
+    [ ${#result} -gt 10 ]  # Should be reasonably long
+}
+
+# Test data directory setup
+@test "n8n::setup_data_directory creates necessary directories" {
+    result=$(n8n::setup_data_directory)
+    
+    [[ "$result" =~ "Setting up data directory" ]]
+    [ -d "$N8N_DATA_DIR" ]
+}
+
+# Test environment validation
+@test "n8n::validate_environment checks system requirements" {
+    result=$(n8n::validate_environment)
+    
+    [[ "$result" =~ "Validating environment" ]]
+    [[ "$result" =~ "Docker" ]]
+}
+
+# Test environment validation with missing requirements
+@test "n8n::validate_environment detects missing requirements" {
+    # Override system check to fail
+    system::is_command() {
+        case "$1" in
+            "docker") return 1 ;;  # Docker not available
+            *) return 0 ;;
+        esac
+    }
+    
+    run n8n::validate_environment
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "ERROR:" ]]
+}
+
+# Test container startup verification
+@test "n8n::wait_for_startup verifies container startup" {
+    # Mock status check
+    n8n::status() {
+        echo "SERVICE_READY"
+        return 0
+    }
+    
+    result=$(n8n::wait_for_startup)
+    
+    [[ "$result" =~ "Waiting for startup" ]]
+    [[ "$result" =~ "SERVICE_READY" ]]
+}
+
+# Test container startup verification timeout
+@test "n8n::wait_for_startup handles startup timeout" {
+    # Mock status check to always fail
+    n8n::status() {
+        return 1
+    }
+    
+    # Mock sleep to avoid actual waiting
+    sleep() { return 0; }
+    
+    # Set short timeout for testing
+    export N8N_STARTUP_MAX_WAIT="1"
+    
+    run n8n::wait_for_startup
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "timeout" ]]
+}
+
+# Test configuration backup
+@test "n8n::backup_configuration creates configuration backup" {
+    echo "test config" > "$N8N_DATA_DIR/config.json"
+    
+    result=$(n8n::backup_configuration)
+    
+    [[ "$result" =~ "Backing up configuration" ]]
+    [ -f "$N8N_DATA_DIR/config.json.bak" ] || [[ "$result" =~ "backup" ]]
+}
+
+# Test configuration restore
+@test "n8n::restore_configuration restores configuration from backup" {
+    echo "backup config" > "$N8N_DATA_DIR/config.json.bak"
+    
+    result=$(n8n::restore_configuration)
+    
+    [[ "$result" =~ "Restoring configuration" ]]
+}
+
+# Test container health verification
+@test "n8n::verify_installation verifies successful installation" {
+    result=$(n8n::verify_installation)
+    
+    [[ "$result" =~ "Verifying installation" ]]
+    [[ "$result" =~ "SUCCESS:" ]] || [[ "$result" =~ "verified" ]]
+}
+
+# Test installation cleanup on failure
+@test "n8n::cleanup_failed_installation cleans up after failure" {
+    result=$(n8n::cleanup_failed_installation)
+    
+    [[ "$result" =~ "Cleaning up failed installation" ]]
+    [[ "$result" =~ "DOCKER_RM:" ]] || [[ "$result" =~ "cleanup" ]]
+}
