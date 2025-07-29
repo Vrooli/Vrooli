@@ -1,3 +1,5 @@
+[← Back to README](../README.md) | [Documentation Index](./README.md)
+
 # Browserless API Reference
 
 ## Overview
@@ -6,11 +8,34 @@ Browserless provides a REST API for headless Chrome automation. All browser-rela
 
 **Base URL**: `http://localhost:4110`
 
+## Table of Contents
+
+- [Authentication](#authentication)
+- [Core Endpoints](#core-endpoints)
+  - [Screenshot](#screenshot---chromescreenshot)
+  - [PDF Generation](#pdf-generation---chromepdf)
+  - [Content Extraction](#content-extraction---chromecontent)
+  - [Web Scraping](#web-scraping---chromescrape)
+  - [Custom Function](#custom-function---chromefunction)
+- [Monitoring Endpoints](#monitoring-endpoints)
+  - [System Pressure](#health-check---pressure)
+  - [Metrics](#metrics---metrics)
+  - [Configuration](#configuration---config)
+- [Advanced Examples](#advanced-examples)
+- [AI/Automation Safety](#aiautomation-safety)
+- [Error Handling](#error-handling)
+- [Best Practices](#best-practices)
+
 ## Authentication
 
 The default Browserless setup has no authentication. For production use, set a token in the configuration.
 
-## Endpoints
+```bash
+# With authentication token
+curl -X POST http://localhost:4110/chrome/screenshot?token=your-secret-token
+```
+
+## Core Endpoints
 
 ### Screenshot - `/chrome/screenshot`
 
@@ -320,3 +345,160 @@ curl -X POST http://localhost:4110/chrome/scrape \
     ]
   }'
 ```
+
+## Monitoring Endpoints
+
+### Metrics - `/metrics`
+
+Prometheus-compatible metrics endpoint.
+
+**Method**: `GET`
+
+**Response**: Prometheus text format metrics
+
+**Example**:
+```bash
+curl http://localhost:4110/metrics
+```
+
+## Advanced Examples
+
+### Authentication with Screenshots
+
+Capture screenshots of authenticated pages using cookies:
+
+```bash
+curl -X POST http://localhost:4110/chrome/screenshot \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://app.example.com/dashboard",
+    "cookies": [{
+      "name": "session",
+      "value": "abc123",
+      "domain": ".example.com"
+    }],
+    "options": {
+      "fullPage": true
+    }
+  }' \
+  --output dashboard.png
+```
+
+### Complex Multi-Step Scraping
+
+Execute complex scraping workflows with wait conditions:
+
+```bash
+curl -X POST http://localhost:4110/function \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "async ({ page }) => {
+      await page.goto(\"https://example.com/search\");
+      await page.type(\"#search-input\", \"query\");
+      await page.click(\"#search-button\");
+      await page.waitForSelector(\".results\");
+      
+      const results = await page.evaluate(() => {
+        return Array.from(document.querySelectorAll(\".result-item\")).map(item => ({
+          title: item.querySelector(\"h3\")?.textContent,
+          link: item.querySelector(\"a\")?.href,
+          description: item.querySelector(\"p\")?.textContent
+        }));
+      });
+      
+      return { results };
+    }"
+  }'
+```
+
+### PDF with Custom Headers/Footers
+
+Generate PDFs with custom headers and footers:
+
+```bash
+curl -X POST http://localhost:4110/chrome/pdf \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/report",
+    "options": {
+      "format": "A4",
+      "displayHeaderFooter": true,
+      "headerTemplate": "<div style=\"font-size: 10px; text-align: center;\">Report Header</div>",
+      "footerTemplate": "<div style=\"font-size: 10px; text-align: center;\">Page <span class=\"pageNumber\"></span> of <span class=\"totalPages\"></span></div>",
+      "margin": {
+        "top": "2cm",
+        "bottom": "2cm"
+      }
+    }
+  }' \
+  --output report.pdf
+```
+
+### Mobile Device Emulation
+
+Capture screenshots with mobile device emulation:
+
+```bash
+curl -X POST http://localhost:4110/chrome/screenshot \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com",
+    "viewport": {
+      "width": 375,
+      "height": 812,
+      "deviceScaleFactor": 3,
+      "isMobile": true,
+      "hasTouch": true
+    },
+    "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"
+  }' \
+  --output mobile-screenshot.png
+```
+
+## AI/Automation Safety
+
+### Screenshot Validation
+
+**Important**: The Browserless resource includes enhanced screenshot validation to prevent issues with AI tools:
+
+- Validates HTTP response codes (only accepts 200 OK)
+- Checks file size (minimum 1KB) to reject error text responses
+- Verifies MIME type to ensure actual image content
+- Automatically cleans up invalid files
+
+### Safe Screenshot Function
+
+For AI/automation use cases, use the management script's safe screenshot wrapper:
+
+```bash
+# Safe screenshot capture with validation
+./manage.sh --action usage --usage-type screenshot --url https://example.com --output safe.png
+```
+
+### Why Validation Matters
+
+When Browserless fails to capture a page (e.g., 404, 500 errors), it may return error text instead of an image. Without validation:
+- A `.png` file might contain "Not Found" or HTML error text
+- AI tools attempting to read such files as images can experience context corruption
+- This can break automation workflows and cause unexpected behavior
+
+The validation ensures that only genuine image files are saved, preventing these issues.
+
+### Programmatic Usage
+
+When integrating with Browserless programmatically:
+
+```bash
+# From scripts or automation
+source /path/to/browserless/lib/api.sh
+browserless::safe_screenshot "http://localhost:8080" "/tmp/screenshot.png"
+if [[ $? -eq 0 ]]; then
+    # Safe to read the screenshot file
+    echo "Screenshot captured and validated"
+else
+    echo "Screenshot failed validation - file not created"
+fi
+```
+
+---
+**See also:** [Configuration](./CONFIGURATION.md) | [Usage Guide](./USAGE.md) | [Troubleshooting](./TROUBLESHOOTING.md)
