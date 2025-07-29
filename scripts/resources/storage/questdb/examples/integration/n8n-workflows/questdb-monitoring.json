@@ -1,0 +1,145 @@
+{
+  "name": "QuestDB Resource Monitoring",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "trigger",
+      "name": "Every 5 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:9009/exec",
+        "options": {
+          "qs": {
+            "query": "SELECT resource_name, status, avg(response_time_ms) as avg_response, max(cpu_percent) as max_cpu FROM resource_health WHERE timestamp > now() - 5m GROUP BY resource_name, status",
+            "fmt": "json"
+          }
+        }
+      },
+      "id": "query_health",
+      "name": "Query Resource Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process health data and check for issues\nconst results = items[0].json;\nconst alerts = [];\n\nif (results.dataset) {\n  for (const row of results.dataset) {\n    const [resource, status, avgResponse, maxCpu] = row;\n    \n    // Check for unhealthy resources\n    if (status !== 'healthy') {\n      alerts.push({\n        type: 'unhealthy',\n        resource,\n        status,\n        message: `Resource ${resource} is ${status}`\n      });\n    }\n    \n    // Check for slow response times (>1000ms)\n    if (avgResponse > 1000) {\n      alerts.push({\n        type: 'slow_response',\n        resource,\n        avgResponse,\n        message: `Resource ${resource} has slow response time: ${avgResponse.toFixed(2)}ms`\n      });\n    }\n    \n    // Check for high CPU (>80%)\n    if (maxCpu > 80) {\n      alerts.push({\n        type: 'high_cpu',\n        resource,\n        maxCpu,\n        message: `Resource ${resource} has high CPU usage: ${maxCpu.toFixed(1)}%`\n      });\n    }\n  }\n}\n\nreturn alerts.map(alert => ({ json: alert }));"
+      },
+      "id": "process_alerts",
+      "name": "Process Alerts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$items.length > 0}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_alerts",
+      "name": "Has Alerts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:9003/write",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "",
+              "value": "={{$items.map(item => `alert,type=${item.json.type},resource=${item.json.resource} count=1i ${Date.now()}000000`).join('\\n')}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "log_alerts",
+      "name": "Log Alerts to QuestDB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "content": "## QuestDB Resource Monitoring Workflow\\n\\nThis workflow:\\n1. Runs every 5 minutes\\n2. Queries QuestDB for resource health metrics\\n3. Checks for:\\n   - Unhealthy resources\\n   - Slow response times (>1000ms)\\n   - High CPU usage (>80%)\\n4. Logs any alerts back to QuestDB\\n5. Can be extended to send notifications\\n\\n### Setup\\n1. Ensure QuestDB is running\\n2. Import this workflow to n8n\\n3. Activate the workflow\\n4. Monitor alerts in QuestDB",
+        "height": 300,
+        "width": 400
+      },
+      "id": "note",
+      "name": "Workflow Description",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [100, 100]
+    }
+  ],
+  "connections": {
+    "trigger": {
+      "main": [
+        [
+          {
+            "node": "query_health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "query_health": {
+      "main": [
+        [
+          {
+            "node": "process_alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_alerts": {
+      "main": [
+        [
+          {
+            "node": "check_alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_alerts": {
+      "main": [
+        [
+          {
+            "node": "log_alerts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  }
+}
