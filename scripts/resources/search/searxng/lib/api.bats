@@ -341,7 +341,7 @@ run_with_mocks() {
 }
 
 @test "functions handle missing jq gracefully" {
-    run_with_mocks "searxng::search 'test'" "export MOCK_JQ_AVAILABLE=no"
+    run_with_mocks "searxng::format_output \"\$MOCK_API_RESPONSE\" \"title-only\"" "export MOCK_JQ_AVAILABLE=no"
     [ "$status" -ne 0 ]
     [[ "$output" =~ "jq: command not found" ]]
 }
