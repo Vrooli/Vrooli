@@ -18,14 +18,15 @@ source "${RESOURCES_DIR}/../helpers/utils/args.sh"
 
 # Available resources organized by category
 declare -A AVAILABLE_RESOURCES=(
-    ["ai"]="ollama whisper"
-    ["automation"]="n8n comfyui node-red windmill"
-    ["storage"]="minio ipfs"
-    ["agents"]="browserless claude-code huginn agent-s2"
+    ["ai"]="ollama whisper unstructured-io"
+    ["automation"]="n8n comfyui node-red windmill huginn"
+    ["storage"]="minio vault qdrant"
+    ["agents"]="browserless claude-code agent-s2"
+    ["search"]="searxng"
 )
 
 # All available resources as a flat list
-ALL_RESOURCES="ollama whisper n8n comfyui node-red windmill minio ipfs browserless claude-code huginn agent-s2"
+ALL_RESOURCES="ollama whisper unstructured-io n8n comfyui node-red windmill huginn minio vault qdrant browserless claude-code agent-s2 searxng"
 
 #######################################
 # Parse command line arguments
@@ -47,7 +48,7 @@ resources::parse_arguments() {
     args::register \
         --name "resources" \
         --flag "r" \
-        --desc "Resources to manage (comma-separated, or 'all', 'ai-only', 'enabled', 'none')" \
+        --desc "Resources to manage (comma-separated, or 'all', 'ai-only', 'automation-only', 'storage-only', 'agents-only', 'search-only', 'enabled', 'none')" \
         --type "value" \
         --default "none"
     
@@ -56,7 +57,7 @@ resources::parse_arguments() {
         --flag "c" \
         --desc "Resource category filter" \
         --type "value" \
-        --options "ai|automation|storage|agents" \
+        --options "ai|automation|storage|agents|search" \
         --default ""
     
     args::register \
@@ -99,6 +100,7 @@ resources::usage() {
     echo "  $0 --action install --resources enabled               # Install resources marked as enabled in config"
     echo "  $0 --action install --resources ollama                # Install specific resource"
     echo "  $0 --action install --resources ai-only               # Install all AI resources"
+    echo "  $0 --action install --resources search-only           # Install all search resources"
     echo "  $0 --action install --resources all                   # Install all resources"
     echo "  $0 --action status --resources ollama,n8n             # Check status of specific resources"
     echo "  $0 --action list                                      # List available resources"
@@ -134,6 +136,9 @@ resources::resolve_list() {
             ;;
         "agents-only")
             resolved="${AVAILABLE_RESOURCES[agents]}"
+            ;;
+        "search-only")
+            resolved="${AVAILABLE_RESOURCES[search]}"
             ;;
         "none"|"")
             resolved=""
@@ -362,13 +367,15 @@ resources::get_health_endpoint() {
         "browserless") echo "/pressure" ;;
         "ollama") echo "/api/tags" ;;
         "comfyui") echo "/system_stats" ;;
-        "n8n") echo "/api/v1/info" ;;
+        "n8n") echo "/healthz" ;;
         "huginn") echo "/" ;;
         "whisper") echo "/health" ;;
         "node-red") echo "/flows" ;;
-        "windmill") echo "/api/version" ;;
-        "minio") echo "" ;;  # MinIO doesn't have a simple health endpoint
-        "ipfs") echo "/api/v0/id" ;;
+        "windmill") echo "/api/health" ;;
+        "minio") echo "/minio/health/live" ;;  # MinIO health endpoint
+        "searxng") echo "/stats" ;;
+        "claude-code") echo "/mcp/health" ;;
+        "unstructured-io") echo "/healthcheck" ;;
         *) echo "" ;;  # Return empty for unknown resources
     esac
 }
@@ -395,11 +402,45 @@ resources::discover_running() {
             local base_url="http://localhost:$port"
             local health_endpoint
             health_endpoint=$(resources::get_health_endpoint "$resource")
-            if resources::check_http_health "$base_url" "$health_endpoint"; then
-                log::info "   HTTP health check: ✅ Healthy"
-            else
-                log::warn "   HTTP health check: ⚠️  No response"
-            fi
+            local health_status
+            health_status=$(resources::get_detailed_health_status "$base_url" "$health_endpoint")
+            log::info "   HTTP health check: $health_status"
+            
+            # Check model integrity for AI resources
+            case "$resource" in
+                "comfyui")
+                    # Check if ComfyUI models are valid
+                    if resources::script_exists "$resource"; then
+                        local script_path
+                        script_path=$(resources::get_script_path "$resource")
+                        local model_status=$("$script_path" --action status 2>&1 | grep -A5 "Model Integrity" | grep -E "✅|❌|⚠️" | wc -l)
+                        local valid_models=$("$script_path" --action status 2>&1 | grep -A5 "Model Integrity" | grep "✅" | wc -l)
+                        local invalid_models=$("$script_path" --action status 2>&1 | grep -A5 "Model Integrity" | grep "❌" | wc -l)
+                        
+                        if [[ $model_status -gt 0 ]]; then
+                            if [[ $invalid_models -gt 0 ]]; then
+                                log::warn "   Model check: ⚠️  $invalid_models corrupted models detected"
+                                log::info "   Run: $script_path --action download-models"
+                            elif [[ $valid_models -eq 0 ]]; then
+                                log::warn "   Model check: ⚠️  No models installed"
+                                log::info "   Run: $script_path --action download-models"
+                            else
+                                log::info "   Model check: ✅ $valid_models models valid"
+                            fi
+                        fi
+                    fi
+                    ;;
+                "ollama")
+                    # Check if Ollama has models
+                    local model_count=$(curl -s http://localhost:$port/api/tags 2>/dev/null | jq -r '.models | length' 2>/dev/null || echo "0")
+                    if [[ "$model_count" -gt 0 ]]; then
+                        log::info "   Model check: ✅ $model_count models available"
+                    else
+                        log::warn "   Model check: ⚠️  No models installed"
+                        log::info "   Run: ollama pull llama3.1:8b"
+                    fi
+                    ;;
+            esac
         fi
     done
     

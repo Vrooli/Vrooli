@@ -24,6 +24,7 @@ declare -g -A RESOURCE_PORTS=(
     # AI Services (11xxx range)
     ["ollama"]="11434"         # LLM inference engine
     ["whisper"]="8090"         # Speech-to-text service
+    ["unstructured-io"]="11450" # Document processing and extraction
     
     # Automation Services (56xx range)
     ["n8n"]="5678"             # Workflow automation
@@ -31,10 +32,10 @@ declare -g -A RESOURCE_PORTS=(
     ["node-red"]="1880"        # Flow-based automation (Node-RED default port)
     ["windmill"]="5681"        # Developer-centric workflow automation
     
-    # Storage Services (9xxx range)
+    # Storage Services (9xxx range + vector databases)
     ["minio"]="9000"           # Object storage (S3 compatible)
-    ["ipfs"]="9001"            # Distributed storage (changed from 5001)
     ["vault"]="8200"           # HashiCorp Vault secret management
+    ["qdrant"]="6333"          # Vector database for AI embeddings
     
     # Agent Services (41xx range - safely above Vrooli range)
     ["browserless"]="4110"     # Browserless.io Chrome service
@@ -45,12 +46,16 @@ declare -g -A RESOURCE_PORTS=(
     # Search Services (81xx range)
     ["searxng"]="8100"         # SearXNG metasearch engine
     
+    # Execution Services (23xx range)
+    ["judge0"]="2358"          # Code execution sandbox (official Judge0 port)
+    
     # Future services can use:
     # - 11xxx for AI services
     # - 56xx for automation (avoiding 5678)
     # - 90xx for storage
     # - 41xx for agents (above Vrooli range)
     # - 81xx for search services
+    # - 23xx for execution services
 )
 
 # ============================================================================
