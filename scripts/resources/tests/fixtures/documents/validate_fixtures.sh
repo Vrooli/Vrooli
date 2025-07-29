@@ -148,6 +148,59 @@ validate_file() {
                 print_info "$filename (JavaScript validation skipped)"
             fi
             ;;
+        pdf)
+            # PDF validation
+            if command -v file >/dev/null 2>&1; then
+                if file "$file" | grep -q "PDF"; then
+                    print_success "$filename (valid PDF format, ${size} bytes)"
+                else
+                    print_error "$filename (not a valid PDF file)"
+                    FAILED_FILES=$((FAILED_FILES + 1))
+                    return 1
+                fi
+            else
+                print_success "$filename (PDF format assumed, ${size} bytes)"
+            fi
+            ;;
+        doc|docx)
+            # Word document validation
+            if command -v file >/dev/null 2>&1; then
+                local file_type=$(file "$file")
+                if [[ "$file_type" == *"Microsoft Word"* ]] || [[ "$file_type" == *"Microsoft OOXML"* ]] || [[ "$file_type" == *"Composite Document File"* ]]; then
+                    print_success "$filename (valid Word document, ${size} bytes)"
+                else
+                    print_info "$filename (Word format assumed, ${size} bytes)"
+                fi
+            else
+                print_success "$filename (Word format assumed, ${size} bytes)"
+            fi
+            ;;
+        xls|xlsx)
+            # Excel document validation
+            if command -v file >/dev/null 2>&1; then
+                local file_type=$(file "$file")
+                if [[ "$file_type" == *"Microsoft Excel"* ]] || [[ "$file_type" == *"Microsoft OOXML"* ]] || [[ "$file_type" == *"Composite Document File"* ]]; then
+                    print_success "$filename (valid Excel document, ${size} bytes)"
+                else
+                    print_info "$filename (Excel format assumed, ${size} bytes)"
+                fi
+            else
+                print_success "$filename (Excel format assumed, ${size} bytes)"
+            fi
+            ;;
+        ppt|pptx)
+            # PowerPoint document validation
+            if command -v file >/dev/null 2>&1; then
+                local file_type=$(file "$file")
+                if [[ "$file_type" == *"Microsoft PowerPoint"* ]] || [[ "$file_type" == *"Microsoft OOXML"* ]] || [[ "$file_type" == *"Composite Document File"* ]]; then
+                    print_success "$filename (valid PowerPoint document, ${size} bytes)"
+                else
+                    print_info "$filename (PowerPoint format assumed, ${size} bytes)"
+                fi
+            else
+                print_success "$filename (PowerPoint format assumed, ${size} bytes)"
+            fi
+            ;;
         *)
             print_success "$filename ($extension format, ${size} bytes)"
             ;;
@@ -215,6 +268,41 @@ test_code_files() {
     fi
 }
 
+test_office_documents() {
+    print_section "Testing Office Documents"
+    
+    # Test government PDF
+    if [[ -f "$FIXTURES_DIR/office/pdf/government/constitution_annotated.pdf" ]]; then
+        print_info "Testing large government PDF (19MB Constitution)"
+        if command -v pdfinfo >/dev/null 2>&1; then
+            local pages=$(pdfinfo "$FIXTURES_DIR/office/pdf/government/constitution_annotated.pdf" 2>/dev/null | grep "Pages:" | awk '{print $2}')
+            if [[ -n "$pages" ]]; then
+                print_success "PDF has $pages pages - suitable for document processing tests"
+            fi
+        else
+            print_info "PDF analysis skipped - pdfinfo not available"
+        fi
+    fi
+    
+    # Test corporate PDF
+    if [[ -f "$FIXTURES_DIR/office/pdf/corporate/berkshire_hathaway_annual_letter.pdf" ]]; then
+        print_info "Testing corporate document (Berkshire Hathaway letter)"
+        test_with_ollama "Warren Buffett annual letter analysis" "Corporate document analysis"
+    fi
+    
+    # Test international PDF
+    if [[ -f "$FIXTURES_DIR/office/pdf/international/un_sustainable_development_goals.pdf" ]]; then
+        print_info "Testing international document (UN SDG)"
+        test_with_ollama "UN Sustainable Development Goals document" "International policy document"
+    fi
+    
+    # Test Excel data
+    if [[ -f "$FIXTURES_DIR/office/excel/educational/usc_sample_data.xls" ]]; then
+        print_info "Testing Excel data file (USC sample - 345KB)"
+        print_success "Excel file ready for data processing tests"
+    fi
+}
+
 validate_directory_structure() {
     print_section "Validating Directory Structure"
     
@@ -227,6 +315,18 @@ validate_directory_structure() {
         "code/documentation"
         "web"
         "rich_text"
+        "office"
+        "office/pdf"
+        "office/excel"
+        "office/word"
+        "office/powerpoint"
+        "office/pdf/government"
+        "office/pdf/corporate"
+        "office/pdf/educational"
+        "office/pdf/international"
+        "international"
+        "edge_cases"
+        "samples"
     )
     
     for dir in "${expected_dirs[@]}"; do
@@ -262,7 +362,14 @@ validate_all_files() {
         -name "*.rtf" -o \
         -name "*.tex" -o \
         -name "*.txt" -o \
-        -name "*.tsv" \
+        -name "*.tsv" -o \
+        -name "*.pdf" -o \
+        -name "*.doc" -o \
+        -name "*.docx" -o \
+        -name "*.xls" -o \
+        -name "*.xlsx" -o \
+        -name "*.ppt" -o \
+        -name "*.pptx" \
     \) -not -path "*/.*" -print0)
 }
 
@@ -291,6 +398,10 @@ generate_report() {
     echo "  - Code files: $(find "$FIXTURES_DIR/code" -type f 2>/dev/null | wc -l)"
     echo "  - Web documents: $(find "$FIXTURES_DIR/web" -type f 2>/dev/null | wc -l)"
     echo "  - Rich text documents: $(find "$FIXTURES_DIR/rich_text" -type f 2>/dev/null | wc -l)"
+    echo "  - Office documents: $(find "$FIXTURES_DIR/office" -type f 2>/dev/null | wc -l)"
+    echo "  - International documents: $(find "$FIXTURES_DIR/international" -type f 2>/dev/null | wc -l)"
+    echo "  - Edge case documents: $(find "$FIXTURES_DIR/edge_cases" -type f 2>/dev/null | wc -l)"
+    echo "  - Sample documents: $(find "$FIXTURES_DIR/samples" -type f 2>/dev/null | wc -l)"
     
     # Resource availability check
     echo
@@ -321,6 +432,7 @@ main() {
     validate_all_files
     test_structured_data
     test_code_files
+    test_office_documents
     
     echo
     generate_report

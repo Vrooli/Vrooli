@@ -1,0 +1,51 @@
+[HEADER] 🧪 Vrooli Resource Integration Tests
+Test run started: Tue Jul 29 02:12:32 PM EDT 2025
+Configuration: timeout=180s, format=json, cleanup=true
+
+[HEADER] 🔍 Phase 1: Resource Discovery
+[INFO]    Discovering available resources...
+[SUCCESS] ✅ Discovered 16 total resources: browserless claude-code agent-s2 ollama whisper unstructured-io searxng n8n comfyui node-red windmill huginn minio vault qdrant questdb
+[INFO]    Checking enabled resources in configuration...
+[WARN]    ⚠️  ⚠️  Including unstructured-io - running but not configured (auto-discovered)
+[WARN]    ⚠️  ⚠️  Including searxng - running but not configured (auto-discovered)
+[WARN]    ⚠️  ⚠️  Including comfyui - running but not configured (auto-discovered)
+[WARN]    ⚠️  ⚠️  Including minio - running but not configured (auto-discovered)
+[WARN]    ⚠️  ⚠️  Including vault - running but not configured (auto-discovered)
+[WARN]    ⚠️  ⚠️  Including qdrant - running but not configured (auto-discovered)
+[WARN]    ⚠️  ⚠️  Including questdb - running but not configured (auto-discovered)
+[SUCCESS] ✅ Found 15 enabled resources: browserless agent-s2 ollama whisper unstructured-io searxng n8n comfyui node-red windmill huginn minio vault qdrant questdb
+[INFO]    Disabled resources (1): claude-code
+[INFO]    📝 7 resources were auto-discovered (running but not in config)
+[INFO]       To configure them: edit ~/.vrooli/resources.local.json
+[INFO]    Validating resource health...
+[SUCCESS] ✅ ✅ browserless is healthy and ready for testing
+[SUCCESS] ✅ ✅ agent-s2 is healthy and ready for testing
+[SUCCESS] ✅ ✅ ollama is healthy and ready for testing
+[SUCCESS] ✅ ✅ whisper is healthy and ready for testing
+[SUCCESS] ✅ ✅ unstructured-io is healthy and ready for testing
+[SUCCESS] ✅ ✅ searxng is healthy and ready for testing
+[SUCCESS] ✅ ✅ n8n is healthy and ready for testing
+[SUCCESS] ✅ ✅ comfyui is healthy and ready for testing
+[SUCCESS] ✅ ✅ node-red is healthy and ready for testing
+[SUCCESS] ✅ ✅ windmill is healthy and ready for testing
+[SUCCESS] ✅ ✅ huginn is healthy and ready for testing
+[SUCCESS] ✅ ✅ minio is healthy and ready for testing
+[SUCCESS] ✅ ✅ vault is healthy and ready for testing
+[SUCCESS] ✅ ✅ qdrant is healthy and ready for testing
+[ERROR]   ❌ ❌ Skipping questdb - health check failed: unreachable
+[INFO]    Retrying health checks for starting resources...
+[ERROR]   ❌ ❌ questdb still unhealthy after retry: unreachable
+[SUCCESS] ✅ Found 14 healthy resources ready for testing
+[INFO]    Unhealthy resources (1): questdb
+[HEADER] 📦 Phase 2: Single Resource Tests
+[INFO]    Executing single-resource tests...
+[INFO]    Testing browserless...
+[SUCCESS] ✅ ✅ browserless tests passed
+[INFO]    Testing agent-s2...
+[SUCCESS] ✅ ✅ agent-s2 tests passed
+[INFO]    Testing ollama...
+[SUCCESS] ✅ ✅ ollama tests passed
+[INFO]    Testing whisper...
+[SUCCESS] ✅ ✅ whisper tests passed
+[INFO]    Testing unstructured-io...
+[SUCCESS] ✅ ✅ unstructured-io tests passed

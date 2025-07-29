@@ -14,12 +14,15 @@
 #   --help                 Show help message
 #   --verbose              Enable verbose logging
 #   --single-only          Run only single-resource tests
-#   --multi-only           Run only multi-resource tests
+#   --scenarios-only       Run only business scenario tests
+#   --scenarios <filter>   Run scenarios matching criteria (e.g., category=ai,complexity=intermediate)
+#   --list-scenarios       List all available scenarios and exit
 #   --resource <name>      Test specific resource only
 #   --timeout <seconds>    Override default timeout (300s)
 #   --output-format <fmt>  Output format: text|json (default: text)
 #   --fail-fast            Stop on first test failure
 #   --cleanup              Clean up test artifacts after run
+#   --business-report      Generate business readiness assessment
 #
 # Examples:
 #   ./run.sh                                    # Run all tests
@@ -43,12 +46,15 @@ source "$SCRIPT_DIR/framework/reporter.sh"
 # Default configuration
 VERBOSE=false
 SINGLE_ONLY=false
-MULTI_ONLY=false
+SCENARIOS_ONLY=false
+SCENARIO_FILTER=""
+LIST_SCENARIOS=false
 SPECIFIC_RESOURCE=""
 TEST_TIMEOUT=300
 OUTPUT_FORMAT="text"
 FAIL_FAST=false
 CLEANUP=true
+BUSINESS_REPORT=false
 
 # Test counters
 TOTAL_TESTS=0
@@ -62,8 +68,14 @@ declare -a ENABLED_RESOURCES=()
 declare -a HEALTHY_RESOURCES=()
 declare -a DISABLED_RESOURCES=()
 declare -a UNHEALTHY_RESOURCES=()
+declare -a ALL_SCENARIOS=()
+declare -a RUNNABLE_SCENARIOS=()
+declare -a BLOCKED_SCENARIOS=()
+declare -a FILTERED_SCENARIOS=()
 declare -a FAILED_TEST_NAMES=()
 declare -a SKIPPED_TEST_NAMES=()
+declare -A SCENARIO_METADATA=()
+declare -a MISSING_TEST_RESOURCES=()
 
 # Colors for output
 if [[ -t 1 ]]; then
@@ -118,19 +130,26 @@ OPTIONS:
     --help                 Show this help message
     --verbose              Enable verbose logging
     --single-only          Run only single-resource tests
-    --multi-only           Run only multi-resource tests
+    --scenarios-only       Run only business scenario tests
+    --scenarios <filter>   Run scenarios matching criteria (e.g., category=ai,complexity=intermediate)
+    --list-scenarios       List all available scenarios and exit
     --resource <name>      Test specific resource only
     --timeout <seconds>    Override default timeout (default: 300s)
     --output-format <fmt>  Output format: text|json (default: text)
     --fail-fast            Stop on first test failure
     --cleanup              Clean up test artifacts after run (default: true)
+    --business-report      Generate business readiness assessment
 
 EXAMPLES:
-    $0                                      # Run all available tests
-    $0 --verbose --single-only             # Single resource tests with verbose output
-    $0 --resource ollama                   # Test only Ollama resource
-    $0 --output-format json --timeout 600  # JSON output with 10min timeout
-    $0 --multi-only --fail-fast            # Multi-resource tests, stop on first failure
+    $0                                              # Run all available tests
+    $0 --verbose --single-only                     # Single resource tests with verbose output
+    $0 --resource ollama                           # Test only Ollama resource
+    $0 --scenarios-only                            # Run only business scenarios
+    $0 --scenarios "category=customer-service"     # Run customer service scenarios
+    $0 --scenarios "complexity=intermediate"       # Run intermediate complexity scenarios
+    $0 --list-scenarios                            # List all available scenarios
+    $0 --business-report                           # Generate business readiness report
+    $0 --output-format json --timeout 600          # JSON output with 10min timeout
 
 RESOURCE SELECTION:
     Tests automatically discover and adapt to available resources.
@@ -161,8 +180,16 @@ parse_args() {
                 SINGLE_ONLY=true
                 shift
                 ;;
-            --multi-only)
-                MULTI_ONLY=true
+            --scenarios-only)
+                SCENARIOS_ONLY=true
+                shift
+                ;;
+            --scenarios)
+                SCENARIO_FILTER="$2"
+                shift 2
+                ;;
+            --list-scenarios)
+                LIST_SCENARIOS=true
                 shift
                 ;;
             --resource)
@@ -191,6 +218,10 @@ parse_args() {
                 ;;
             --no-cleanup)
                 CLEANUP=false
+                shift
+                ;;
+            --business-report)
+                BUSINESS_REPORT=true
                 shift
                 ;;
             *)
@@ -249,21 +280,37 @@ main() {
     filter_enabled_resources
     validate_resource_health
     
+    # Phase 1b: Scenario Discovery
+    log_header "📋 Phase 1b: Scenario Discovery"
+    discover_scenarios
+    filter_runnable_scenarios
+    
+    if [[ -n "$SCENARIO_FILTER" ]]; then
+        filter_scenarios_by_criteria "$SCENARIO_FILTER"
+    fi
+    
+    # Handle list scenarios option
+    if [[ "$LIST_SCENARIOS" == "true" ]]; then
+        log_header "📋 Available Business Scenarios"
+        list_scenarios "$OUTPUT_FORMAT"
+        exit 0
+    fi
+    
     if [[ ${#HEALTHY_RESOURCES[@]} -eq 0 ]]; then
         log_error "No healthy resources found for testing"
         exit 1
     fi
     
     # Phase 2: Single Resource Tests
-    if [[ "$MULTI_ONLY" != "true" ]]; then
+    if [[ "$SCENARIOS_ONLY" != "true" ]]; then
         log_header "📦 Phase 2: Single Resource Tests"
         run_single_resource_tests
     fi
     
-    # Phase 3: Multi-Resource Tests  
+    # Phase 3: Business Scenario Tests  
     if [[ "$SINGLE_ONLY" != "true" ]]; then
-        log_header "🔗 Phase 3: Multi-Resource Integration Tests"
-        run_multi_resource_tests
+        log_header "🎯 Phase 3: Business Scenario Tests"
+        run_scenario_tests
     fi
     
     # Phase 4: Generate Report
@@ -272,6 +319,12 @@ main() {
     
     log_header "📊 Phase 4: Test Results"
     generate_final_report "$duration"
+    
+    # Phase 5: Business Readiness Assessment (if requested)
+    if [[ "$BUSINESS_REPORT" == "true" && ${#ALL_SCENARIOS[@]} -gt 0 ]]; then
+        log_header "💼 Phase 5: Business Readiness Assessment"
+        generate_business_readiness_report "$SCRIPT_DIR/scenarios" "${HEALTHY_RESOURCES[*]}" "${PASSED_TEST_NAMES[*]:-}" "${FAILED_TEST_NAMES[*]:-}"
+    fi
     
     # Cleanup if requested
     if [[ "$CLEANUP" == "true" ]]; then
