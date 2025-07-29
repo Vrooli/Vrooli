@@ -79,12 +79,14 @@ Agent S2 is an open-source framework for autonomous computer interaction, enabli
 - **🔒 Dual-Mode Operation**: Sandbox (high security) and Host (controlled access) modes
 - **🐍 Python SDK**: Full-featured client library for programmatic access
 - **🔄 Task Management**: Asynchronous task execution with status tracking
+- **🛡️ Stealth Mode**: Advanced anti-bot detection with fingerprint randomization and session persistence
 
 ## 📖 Documentation
 
 - **[API Reference](docs/API.md)** - Complete endpoint documentation and examples
 - **[Configuration Guide](docs/CONFIGURATION.md)** - Environment variables, installation options, and settings
 - **[Security Guide](docs/SECURITY.md)** - Security considerations for both sandbox and host modes
+- **[Stealth Mode Guide](docs/STEALTH_MODE.md)** - Anti-bot detection, fingerprint randomization, and session persistence
 - **[Advanced Usage](docs/ADVANCED.md)** - Architecture details, integrations, and complex scenarios
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and diagnostic procedures
 - **[Examples](examples/)** - Progressive tutorials from basic to advanced usage

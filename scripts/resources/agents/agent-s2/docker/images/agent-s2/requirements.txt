@@ -14,6 +14,9 @@ python-multipart==0.0.6
 requests==2.31.0
 aiofiles==23.2.1
 
+# Security
+cryptography==41.0.7
+
 # Optional AI Dependencies (install separately if needed)
 # gui-agents-s2
 # anthropic

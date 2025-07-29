@@ -80,6 +80,15 @@ class Config:
     HOST_MAX_MOUNT_SIZE_GB: int = int(os.getenv("AGENT_S2_HOST_MAX_MOUNT_SIZE_GB", "10"))
     HOST_AUDIT_LOGGING: bool = os.getenv("AGENT_S2_HOST_AUDIT_LOGGING", "true").lower() == "true"
     
+    # Stealth Mode Configuration
+    STEALTH_MODE_ENABLED: bool = os.getenv("AGENT_S2_STEALTH_MODE_ENABLED", "true").lower() == "true"
+    SESSION_STORAGE_PATH: str = os.getenv("AGENT_S2_SESSION_STORAGE_PATH", "/data/sessions")
+    SESSION_DATA_PERSISTENCE: bool = os.getenv("AGENT_S2_SESSION_DATA_PERSISTENCE", "true").lower() == "true"
+    SESSION_STATE_PERSISTENCE: bool = os.getenv("AGENT_S2_SESSION_STATE_PERSISTENCE", "false").lower() == "true"
+    SESSION_ENCRYPTION: bool = os.getenv("AGENT_S2_SESSION_ENCRYPTION", "true").lower() == "true"
+    SESSION_TTL_DAYS: int = int(os.getenv("AGENT_S2_SESSION_TTL_DAYS", "30"))
+    STEALTH_PROFILE_TYPE: str = os.getenv("AGENT_S2_STEALTH_PROFILE_TYPE", "residential")  # residential, mobile, datacenter
+    
     @classmethod
     def validate(cls) -> None:
         """Validate configuration values"""
@@ -140,6 +149,11 @@ class Config:
             for key, value in cls.__dict__.items() 
             if not key.startswith("_") and not callable(value)
         }
+    
+    @classmethod
+    def get(cls, key: str, default: Any = None) -> Any:
+        """Get configuration value with optional default"""
+        return getattr(cls, key, default)
     
     @classmethod
     def is_sandbox_mode(cls) -> bool:

@@ -42,6 +42,8 @@ source "${SCRIPT_DIR}/lib/api.sh"
 source "${SCRIPT_DIR}/lib/usage.sh"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib/modes.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/stealth.sh"
 
 #######################################
 # Parse command line arguments
@@ -57,7 +59,7 @@ agents2::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|info|usage|mode|switch-mode|test-mode" \
+        --options "install|uninstall|start|stop|restart|status|logs|info|usage|mode|switch-mode|test-mode|reset-session-data|reset-session-state|list-sessions|export-session|import-session|configure-stealth|test-stealth" \
         --default "install"
     
     args::register \
@@ -128,6 +130,43 @@ agents2::parse_arguments() {
         --options "screenshot|automation|planning|capabilities|all|help" \
         --default "help"
     
+    args::register \
+        --name "profile" \
+        --desc "Session profile ID for session actions" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "output" \
+        --desc "Output path for export-session action" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "input" \
+        --desc "Input path for import-session action" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "stealth-enabled" \
+        --desc "Enable/disable stealth mode" \
+        --type "value" \
+        --options "yes|no" \
+        --default ""
+    
+    args::register \
+        --name "stealth-feature" \
+        --desc "Specific stealth feature to configure" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "stealth-url" \
+        --desc "URL for stealth mode testing" \
+        --type "value" \
+        --default "https://bot.sannysoft.com/"
+    
     if args::is_asking_for_help "$@"; then
         agents2::usage
         exit 0
@@ -149,6 +188,12 @@ agents2::parse_arguments() {
     export USAGE_TYPE=$(args::get "usage-type")
     export MODE=$(args::get "mode")
     export TARGET_MODE=$(args::get "target-mode")
+    export PROFILE_ID=$(args::get "profile")
+    export OUTPUT_PATH=$(args::get "output")
+    export INPUT_PATH=$(args::get "input")
+    export STEALTH_ENABLED=$(args::get "stealth-enabled")
+    export STEALTH_FEATURE=$(args::get "stealth-feature")
+    export STEALTH_TEST_URL=$(args::get "stealth-url")
 }
 
 #######################################
@@ -172,6 +217,14 @@ agents2::usage() {
     echo "  $0 --action usage --usage-type screenshot        # Test screenshot API"
     echo "  $0 --action usage --usage-type automation        # Test automation capabilities"
     echo "  $0 --action uninstall                           # Remove Agent S2"
+    echo
+    echo "Stealth Mode Examples:"
+    echo "  $0 --action configure-stealth --stealth-enabled yes      # Enable stealth mode"
+    echo "  $0 --action test-stealth                                # Test stealth effectiveness"
+    echo "  $0 --action list-sessions                               # List saved session profiles"
+    echo "  $0 --action reset-session-data --profile myprofile      # Reset specific session data"
+    echo "  $0 --action export-session --profile myprofile --output session.json"
+    echo "  $0 --action import-session --profile newprofile --input session.json"
     echo
     echo "Access Points:"
     echo "  API: http://localhost:4113"
@@ -240,6 +293,27 @@ agents2::main() {
             ;;
         "test-mode")
             agents2::test_mode "$MODE"
+            ;;
+        "reset-session-data")
+            agents2::reset_session_data "$PROFILE_ID"
+            ;;
+        "reset-session-state")
+            agents2::reset_session_state
+            ;;
+        "list-sessions")
+            agents2::list_sessions
+            ;;
+        "export-session")
+            agents2::export_session "$PROFILE_ID" "$OUTPUT_PATH"
+            ;;
+        "import-session")
+            agents2::import_session "$PROFILE_ID" "$INPUT_PATH"
+            ;;
+        "configure-stealth")
+            agents2::configure_stealth "$STEALTH_ENABLED" "$STEALTH_FEATURE"
+            ;;
+        "test-stealth")
+            agents2::test_stealth "$STEALTH_TEST_URL"
             ;;
         *)
             log::error "Unknown action: $ACTION"

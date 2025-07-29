@@ -16,6 +16,7 @@ except ImportError:
 from ...config import Config
 from .capture import ScreenshotService
 from .automation import AutomationService
+from ...stealth import StealthManager, StealthConfig
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,13 @@ class AIHandler:
         # Core services for AI to use
         self.screenshot_service = ScreenshotService()
         self.automation_service = AutomationService()
+        
+        # Initialize stealth manager
+        stealth_config = StealthConfig(
+            enabled=os.getenv("STEALTH_MODE_ENABLED", "true").lower() == "true",
+            session_storage_path=os.getenv("SESSION_STORAGE_PATH", "/data/sessions")
+        )
+        self.stealth_manager = StealthManager(stealth_config)
         
     async def initialize(self):
         """Initialize AI agent with error handling"""
@@ -90,6 +98,16 @@ class AIHandler:
             except requests.RequestException as e:
                 logger.error(f"Failed to connect to Ollama API: {e}")
                 return
+                
+            # Initialize stealth mode
+            try:
+                stealth_result = await self.stealth_manager.initialize()
+                if stealth_result["success"]:
+                    logger.info(f"Stealth mode initialized with features: {stealth_result['features_enabled']}")
+                else:
+                    logger.warning(f"Stealth mode initialization had errors: {stealth_result['errors']}")
+            except Exception as e:
+                logger.error(f"Failed to initialize stealth mode: {e}")
                 
             self.initialized = True
             logger.info(f"AI handler initialized with Ollama (model: {self.model})")

@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from ..config import Config
-from .routes import health, screenshot, mouse, keyboard, ai, tasks, modes
+from .routes import health, screenshot, mouse, keyboard, ai, tasks, modes, stealth
 from .middleware import ErrorHandlerMiddleware
 from .services.ai_handler import AIHandler
 
@@ -85,6 +85,7 @@ app.include_router(mouse.router, prefix="/mouse", tags=["mouse"])
 app.include_router(keyboard.router, prefix="/keyboard", tags=["keyboard"])
 app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 app.include_router(ai.router, prefix="/ai", tags=["ai"])
+app.include_router(stealth.router, prefix="/stealth", tags=["stealth"])
 
 # Store app state in app.state for access in routes
 app.state.app_state = app_state
